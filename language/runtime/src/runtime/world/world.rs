@@ -148,7 +148,7 @@ impl World {
 
         // final world state
         let lineage = Rc::new(RefCell::new(Lineage::new_root(
-            Arc::new(Image {
+            Rc::new(Image {
                 id: ROOT_IMAGE_ID,
                 next_runtime_id: INITIAL_RUNTIME_ID,
                 next_agent_id: INITIAL_AGENT_ID,
@@ -162,7 +162,7 @@ impl World {
                 runtimes: BTreeMap::new(),
                 agents: BTreeMap::new(),
             }),
-            Arc::new(trace.capture_image()),
+            Rc::new(trace.capture_image()),
         )));
 
         let world = Arc::new(Self {

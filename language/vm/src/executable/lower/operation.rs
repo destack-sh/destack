@@ -1,8 +1,9 @@
 use destack_mir as mir;
 
-use super::super::value::{PointerStorage, ValueKind};
-use super::kind::ValueKindMap;
 use crate::executable::InstructionOperation;
+use crate::executable::value::{PointerStorage, ValueKind};
+
+use super::kind::ValueKindMap;
 
 /// Pick a binary handler based on inferred operand kind.
 pub(super) fn select_binary_operation(

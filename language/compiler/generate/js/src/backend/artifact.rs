@@ -77,7 +77,7 @@ impl<'a> ScriptArtifactGenerator<'a> {
 
         // emit one lowered JavaScript module tree
         let lower = lower_module(
-            &module,
+            module,
             &ast,
             &self.program.strings,
             dir.as_ref(),

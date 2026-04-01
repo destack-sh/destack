@@ -212,6 +212,13 @@ pub struct BindingCallArena {
     drops: RefCell<Vec<BindingCallDrop>>,
 }
 
+impl Default for BindingCallArena {
+    /// Create one empty binding call arena.
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// One page-backed call arena block.
 #[derive(Debug)]
 struct CallBlock {

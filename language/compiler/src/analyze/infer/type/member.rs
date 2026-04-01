@@ -17,9 +17,11 @@ impl Compiler {
         };
 
         // normalize to declared symbol typing first
-        let symbol = self
-            .remap_typevalue_symbol_to_type_space(ctx.module_symbol_view(), &ctx.index, symbol)
-            .map_err(AnalyzeError::from)?;
+        let symbol = self.remap_typevalue_symbol_to_type_space(
+            ctx.module_symbol_view(),
+            &ctx.index,
+            symbol,
+        )?;
 
         Ok(Type::Reference {
             symbol,
@@ -843,12 +845,7 @@ impl Compiler {
             }
 
             // materialize the extension instance type before reading its surface
-            if self
-                .query_instance_type_for_symbol(&mut ctx.reborrow(), node_id, extension_symbol)
-                .is_none()
-            {
-                return None;
-            }
+            self.query_instance_type_for_symbol(&mut ctx.reborrow(), node_id, extension_symbol)?;
 
             if let Some(ty_id) =
                 self.apparent_instance_type(&mut ctx.reborrow(), node_id, extension_symbol)

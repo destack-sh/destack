@@ -24,13 +24,13 @@ impl Compiler {
         // skip ambient builtin declarations when libs are disabled
         let module_ref = self.program.modules.get(module);
         let module_ref = module_ref.as_ref();
-        if !self.options.load_libraries {
-            if matches!(
+        if !self.options.load_libraries
+            && matches!(
                 module_ref.source,
                 ModuleSource::Builtin(BuiltinLibraryKind::Library)
-            ) {
-                return Ok(());
-            }
+            )
+        {
+            return Ok(());
         }
 
         // avoid self dependency while declaring one module
@@ -80,7 +80,7 @@ impl Compiler {
             .map_err(AnalyzeError::from)?;
 
         // ensure ambient libs are declared before user modules
-        self.ensure_ambient_libs_declared(&module, profile)?;
+        self.ensure_ambient_libs_declared(module, profile)?;
 
         // declaration inputs
         let tree = resolved.tree.as_ref();
@@ -89,7 +89,7 @@ impl Compiler {
         let module_checks = self.module_check_options_for_module(module.id);
         let options = self.analyze_context_options_for_module(module.id);
         let mut ctx = TypeContext::new(
-            &module,
+            module,
             profile,
             &options,
             tree,
@@ -141,7 +141,7 @@ impl Compiler {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
             // evaluate remaining unevaluated types after declaration metadata is available
-            if self.should_eager_evaluate_declared_types(&module, module_checks) {
+            if self.should_eager_evaluate_declared_types(module, module_checks) {
                 let has_dependency = self
                     .evaluate_unevaluated_types_to_fixpoint(&mut ctx.reborrow(), &mut collector);
                 if has_dependency {
@@ -187,7 +187,7 @@ impl Compiler {
             // attach well known decorator metadata to symbols
             self.collect(
                 &mut collector,
-                self.register_symbol_decorators(&module, profile, tree, symbols, captures),
+                self.register_symbol_decorators(module, profile, tree, symbols, captures),
             );
         }
 

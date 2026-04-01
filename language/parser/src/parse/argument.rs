@@ -952,21 +952,22 @@ impl Parser {
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
             }
+
             // recovered parameter lists should stop before a newline led keyword statement
-            else if is_recovered_parameter
-                && self.current_keyword_starts_parameter_recovery_boundary()
-            {
-                break;
-            }
+            let should_end_at_keyword_boundary =
+                is_recovered_parameter && self.current_keyword_starts_parameter_recovery_boundary();
+
             // recovered slots may continue across newline separators only
-            else if !self.can_continue_after_recovered_item(
+            let can_continue = self.can_continue_after_recovered_item(
                 if self.options.is_in_static() {
                     TokenType::GreaterThan
                 } else {
                     TokenType::CloseParenthesis
                 },
                 is_recovered_parameter,
-            ) {
+            );
+
+            if should_end_at_keyword_boundary || !can_continue {
                 break;
             }
         }
@@ -1835,22 +1836,17 @@ impl Parser {
             arguments.push(argument_id);
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+            }
 
-                // recovered statement calls should stop before the next newline led statement
-                if self
-                    .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
-                {
-                    break;
-                }
-            }
             // recovered statement calls should stop before the next newline led statement
-            else if self
-                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
-            {
-                break;
-            }
+            let should_end_at_statement_boundary = self
+                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument);
+
             // recovered slots may continue across newline separators only
-            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
+            let can_continue =
+                self.can_continue_after_recovered_item(terminator, is_recovered_argument);
+
+            if should_end_at_statement_boundary || !can_continue {
                 break;
             }
         }
@@ -1900,22 +1896,17 @@ impl Parser {
             arguments.push(argument_id);
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+            }
 
-                // recovered statement calls should stop before the next newline led statement
-                if self
-                    .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
-                {
-                    break;
-                }
-            }
             // recovered statement calls should stop before the next newline led statement
-            else if self
-                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
-            {
-                break;
-            }
+            let should_end_at_statement_boundary = self
+                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument);
+
             // recovered slots may continue across newline separators only
-            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
+            let can_continue =
+                self.can_continue_after_recovered_item(terminator, is_recovered_argument);
+
+            if should_end_at_statement_boundary || !can_continue {
                 break;
             }
         }

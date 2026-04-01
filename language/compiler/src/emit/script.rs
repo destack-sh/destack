@@ -390,18 +390,18 @@ impl Compiler {
         }
 
         // declarations
-        if let Some(declaration) = &artifact.declaration {
-            if file_types.contains(&FileType::TypeScriptDeclaration) {
-                let declaration = self.emit_script_declaration_output(
-                    module,
-                    &declaration.text,
-                    target,
-                    package_dir,
-                    root_dir,
-                )?;
+        if let Some(declaration) = &artifact.declaration
+            && file_types.contains(&FileType::TypeScriptDeclaration)
+        {
+            let declaration = self.emit_script_declaration_output(
+                module,
+                &declaration.text,
+                target,
+                package_dir,
+                root_dir,
+            )?;
 
-                entries.push(declaration);
-            }
+            entries.push(declaration);
         }
 
         Ok(entries)

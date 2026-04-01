@@ -24,7 +24,7 @@ impl TestProgram {
         let first_segment = self.program.strings.intern(first_segment);
         let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
         let symbol_id = self.resolve_absolute_symbol(
-            &symbols,
+            symbols,
             (namespace_scope, LocalScopeMark::end()),
             StaticKey::Name(first_segment),
         )?;
@@ -33,7 +33,7 @@ impl TestProgram {
         if segments.len() > 1 {
             let remaining_segments = &segments[1..];
             let symbol_id =
-                self.resolve_relative_symbol(&symbols, symbol_id.into_local(), remaining_segments)?;
+                self.resolve_relative_symbol(symbols, symbol_id.into_local(), remaining_segments)?;
             Some(symbol_id)
         } else {
             Some(symbol_id)

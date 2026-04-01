@@ -55,7 +55,6 @@ pub(crate) unsafe extern "C" fn destack_host_ios_register_runtime_bridge_binding
         location: bindings.location,
         media: bindings.media,
         notification: bindings.notification,
-        ..IosHostBindings::default()
     };
 
     register_ios_bindings(session_handle, bindings)

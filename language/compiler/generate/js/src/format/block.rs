@@ -7,7 +7,7 @@ use crate::{CodegenJsFormatter, FormatNode};
 
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
-    statements: &Vec<LocalNodeId<Statement>>,
+    statements: &[LocalNodeId<Statement>],
 ) -> FormatResult<()> {
     for (index, statement_id) in statements.iter().enumerate() {
         if index > 0 {

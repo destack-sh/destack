@@ -62,9 +62,7 @@ impl Compiler {
                 continue;
             }
 
-            if let Err(error) = self.reify_expression(&mut state, expression_id, &member_callees) {
-                return Err(error);
-            }
+            self.reify_expression(&mut state, expression_id, &member_callees)?
         }
 
         // normalize return if expressions introduced during reify

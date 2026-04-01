@@ -68,7 +68,7 @@ impl Compiler {
         output
             .outputs
             .entry(TargetOutputName::Manifest)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(OutputFile {
                 uri: Uri::from_path(manifest_path.path()),
                 content: OutputContent::json(

@@ -139,7 +139,7 @@ impl Compiler {
         // resolve pipeline options
         let module_ref = self.program.modules.get(module);
         let module_guard = module_ref.as_ref();
-        let options = self.pipeline_options_for_module(&module_guard, &target_config, level);
+        let options = self.pipeline_options_for_module(module_guard, &target_config, level);
 
         // count mir size before optimization
         let before = count_mir_size(&tree);

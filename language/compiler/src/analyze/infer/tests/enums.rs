@@ -136,7 +136,7 @@ const raw: int32 = status;
     let left_symbol = view.expect_reference_symbol(left_id);
     let left_symbol = canonical_symbol_id(
         &test.compiler,
-        &module,
+        module,
         view.symbols(),
         profile,
         left_symbol,
@@ -149,7 +149,7 @@ const raw: int32 = status;
     let mut types = view.types().clone();
     let assignability = is_type_assignable(
         &test.compiler,
-        &module,
+        module,
         profile,
         view.tree(),
         &symbols,
@@ -358,7 +358,7 @@ const status = Status.Active;
     // confirm the binding value type is the nominal enum reference
     let status_symbol = canonical_symbol_id(
         &test.compiler,
-        &enum_module,
+        enum_module,
         view.symbols(),
         view.profile_id(),
         status_symbol,
@@ -410,7 +410,7 @@ const status = Status.Active;
     );
     let assignable = is_type_assignable(
         &test.compiler,
-        &enum_module,
+        enum_module,
         view.profile_id(),
         view.tree(),
         &symbols,

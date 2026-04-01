@@ -962,9 +962,10 @@ impl Compiler {
                         ctx.type_view(),
                         &fallback_arguments,
                     );
-                let chosen_arguments = if syntax_requires_deferral && !fallback_requires_deferral {
-                    fallback_arguments
-                } else if syntax_arguments.is_empty() && !fallback_arguments.is_empty() {
+                let use_fallback_arguments = (syntax_requires_deferral
+                    && !fallback_requires_deferral)
+                    || (syntax_arguments.is_empty() && !fallback_arguments.is_empty());
+                let chosen_arguments = if use_fallback_arguments {
                     fallback_arguments
                 } else {
                     syntax_arguments
@@ -1247,7 +1248,7 @@ impl Compiler {
         let module = module.as_ref();
 
         Ok(self.with_module_tree_symbol_view_or_local_for_artifact(
-            &module,
+            module,
             profile_id,
             owner_module_id,
             tree,

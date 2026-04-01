@@ -124,7 +124,7 @@ impl<'a> ScriptLinker<'a> {
         for module_id in module_ids {
             let output_id = output_graph
                 .output_id_for_module(*module_id)
-                .unwrap_or_else(|| panic!("missing output id for module {:?}", module_id));
+                .unwrap_or_else(|| panic!("missing output id for module {module_id:?}"));
             let script = self.script_artifact(*module_id)?;
             let rewritten_module = self.rewrite_script_module(
                 output_id,

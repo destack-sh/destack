@@ -826,19 +826,17 @@ impl Compiler {
                     &arguments,
                 )?;
                 (Some(symbol), arguments)
+            } else if let Some(symbol) = lookup.receiver_context.nominal_symbol {
+                let arguments = lookup.inherited.arguments.clone();
+                let (symbol, arguments) = self.normalize_projection_receiver_reference(
+                    &mut ctx.type_context_reborrow(),
+                    expression_id.into_any(),
+                    symbol,
+                    &arguments,
+                )?;
+                (Some(symbol), arguments)
             } else {
-                if let Some(symbol) = lookup.receiver_context.nominal_symbol {
-                    let arguments = lookup.inherited.arguments.clone();
-                    let (symbol, arguments) = self.normalize_projection_receiver_reference(
-                        &mut ctx.type_context_reborrow(),
-                        expression_id.into_any(),
-                        symbol,
-                        &arguments,
-                    )?;
-                    (Some(symbol), arguments)
-                } else {
-                    (None, lookup.inherited.arguments.clone())
-                }
+                (None, lookup.inherited.arguments.clone())
             };
 
         // resolve member type through symbol lookup and remaining lookup paths
@@ -859,7 +857,7 @@ impl Compiler {
             )?;
             let member_instance_id = if static_arguments.is_some() {
                 if let Some(member_symbol) = lookup.member_symbol {
-                    let instance = self.record_member_instance_for_arguments(
+                    self.record_member_instance_for_arguments(
                         &mut ctx.reborrow(),
                         expression_id,
                         member_symbol,
@@ -867,8 +865,7 @@ impl Compiler {
                         lookup.extension_context.as_ref(),
                         &resolved_member.static_arguments,
                         &resolved_member.static_parameter_symbols,
-                    )?;
-                    instance
+                    )?
                 } else {
                     None
                 }

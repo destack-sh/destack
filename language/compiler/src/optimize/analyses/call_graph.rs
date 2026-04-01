@@ -979,7 +979,7 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
 
                 let name = strings.get(function.name);
                 let symbol = interner.intern(name.as_ref());
-                let signature = SignatureKey::from_function(&tree, function);
+                let signature = SignatureKey::from_function(tree, function);
 
                 definitions
                     .entry(symbol.clone())
@@ -1052,7 +1052,7 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
                             instruction_id,
                             instruction,
                             &symbols_by_function,
-                            &tree,
+                            tree,
                         ) else {
                             continue;
                         };
@@ -1065,7 +1065,7 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
                         *block_id,
                         &block.terminator,
                         &symbols_by_function,
-                        &tree,
+                        tree,
                     ) {
                         insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
                     }

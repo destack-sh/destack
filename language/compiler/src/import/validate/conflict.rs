@@ -39,7 +39,7 @@ impl Compiler {
                     };
 
                     // detect enum kind mismatches within a single symbol
-                    if let Some((node, other_node)) = self.enum_kind_mismatch_nodes(&tree, symbol) {
+                    if let Some((node, other_node)) = self.enum_kind_mismatch_nodes(tree, symbol) {
                         let error = ImportError::ConflictingBinding {
                             node: node.into_anchored(None),
                             other_node: other_node.into_anchored(None),
@@ -68,14 +68,14 @@ impl Compiler {
 
                         // check if symbols conflict based on space and merging rules
                         let import_kind_conflict =
-                            self.is_type_value_import_conflict(&tree, symbol, other_symbol);
+                            self.is_type_value_import_conflict(tree, symbol, other_symbol);
                         if !symbol.space.conflicts_with(other_symbol.space) && !import_kind_conflict
                         {
                             continue;
                         }
 
                         let enum_kind_mismatch =
-                            self.is_const_enum_mismatch(&tree, symbol, other_symbol);
+                            self.is_const_enum_mismatch(tree, symbol, other_symbol);
                         let can_merge = self.can_symbols_merge_declarations(
                             module.language_type,
                             symbol,
@@ -142,8 +142,8 @@ impl Compiler {
                 // validate redeclaration conflicts across switch case scopes
                 self.validate_switch_case_binding_conflicts(
                     module,
-                    &tree,
-                    &symbols,
+                    tree,
+                    symbols,
                     &mut reported_conflicts,
                 );
 

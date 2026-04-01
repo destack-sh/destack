@@ -1128,7 +1128,7 @@ impl ModuleLowerer<'_> {
         let module = self.compiler.program.modules.get(symbol_id.module_id);
         let module = module.as_ref();
         let dir = self.artifact_dir_data_if_present(symbol_id.module_id)?;
-        self.qualified_symbol_name_for_module(symbol_id, &module, &dir.symbols)
+        self.qualified_symbol_name_for_module(symbol_id, module, &dir.symbols)
     }
 
     /// Resolve the qualified name for a symbol and module pair.

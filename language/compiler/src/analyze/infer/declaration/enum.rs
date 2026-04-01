@@ -230,7 +230,7 @@ impl Compiler {
         let owner_module = owner_module.as_ref();
         Ok(self.enum_field_value_for_symbol_reference_read(
             SymbolTypeView::new(
-                &owner_module,
+                owner_module,
                 ctx.profile,
                 &owner_dir.symbols,
                 &owner_dir.types,

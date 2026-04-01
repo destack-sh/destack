@@ -510,7 +510,7 @@ impl Compiler {
             }
 
             // enqueue dependency targets for further discovery
-            let dependency_targets = self.collect_dependency_targets(module_id, &tree, &symbols);
+            let dependency_targets = self.collect_dependency_targets(module_id, tree, symbols);
             for dependency in dependency_targets {
                 // skip module bindings before resolving file targets
                 if self
@@ -590,7 +590,7 @@ impl Compiler {
         let source_module = self.program.modules.get(module_id);
         let source_module = source_module.as_ref();
         let target =
-            self.canonical_import_specifier(&source_module, profile_id, dependency.node, target)?;
+            self.canonical_import_specifier(source_module, profile_id, dependency.node, target)?;
 
         // match direct resolve import edge semantics
         let is_typescript_commonjs = self

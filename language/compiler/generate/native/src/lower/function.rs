@@ -824,7 +824,7 @@ impl<'a> FunctionLowerer<'a> {
                 let sig_ref =
                     self.build_indirect_call_signature(*signature, builder, "indirect call")?;
                 let (callee_value, environment_value) =
-                    self.lower_indirect_callable(*callee, *signature, &value_map, builder)?;
+                    self.lower_indirect_callable(*callee, *signature, value_map, builder)?;
                 let args = self.tree.get_arguments(*arguments);
                 let mut argument_values: Vec<cir::Value> =
                     args.iter().map(|v| value_map[v]).collect();
@@ -1260,7 +1260,7 @@ impl<'a> FunctionLowerer<'a> {
                 let sig_ref =
                     self.build_indirect_call_signature(*signature, builder, "tail call")?;
                 let (callee_value, environment_value) =
-                    self.lower_indirect_callable(*callee, *signature, &value_map, builder)?;
+                    self.lower_indirect_callable(*callee, *signature, value_map, builder)?;
                 let mut argument_values: Vec<cir::Value> =
                     arguments.iter().map(|v| value_map[v]).collect();
                 if let Some(environment_value) = environment_value {

@@ -440,7 +440,7 @@ impl Compiler {
         };
 
         // encode as base64 string
-        let _content = STANDARD.encode(&bytes);
+        let _content = STANDARD.encode(bytes);
 
         // create the anchor AST for the text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;

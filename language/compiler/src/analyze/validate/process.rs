@@ -83,7 +83,7 @@ impl Compiler {
             should_return_after_validation = true;
         } else {
             let mut ctx = TypeContext::new(
-                &module,
+                module,
                 profile,
                 &analyze_options,
                 tree,

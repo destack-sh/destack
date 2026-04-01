@@ -597,7 +597,7 @@ impl Compiler {
                 let symbol_id = self
                     .resolve_absolute_symbol_from_artifact(
                         module,
-                        &dir,
+                        dir,
                         profile,
                         item_node,
                         (scope_id, scope, LocalScopeMark::end()),
@@ -611,7 +611,7 @@ impl Compiler {
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol_from_artifact(
                             module,
-                            &dir,
+                            dir,
                             profile,
                             item_node,
                             (global_scope_id, global_scope, LocalScopeMark::end()),
@@ -636,10 +636,10 @@ impl Compiler {
                 let (expression_target_module, loader_override) = if let Some(item_id) = item_id {
                     let tree = &dir.tree;
                     let expression_target_module =
-                        self.parent_expression_target_module_for_dependency_item(&tree, item_id);
+                        self.parent_expression_target_module_for_dependency_item(tree, item_id);
                     let loader_override = self
                         .parent_expression_loader_override_for_dependency_item(
-                            module, profile, &tree, item_id,
+                            module, profile, tree, item_id,
                         )?;
                     (expression_target_module, loader_override)
                 } else {
@@ -658,8 +658,8 @@ impl Compiler {
                     let module_handle = self.program.modules.get(module.id);
                     let module_handle = module_handle.as_ref();
                     let Some(target_module) = self.resolve_import_maybe_from_artifact(
-                        &module_handle,
-                        &dir,
+                        module_handle,
+                        dir,
                         profile,
                         item_node,
                         source,

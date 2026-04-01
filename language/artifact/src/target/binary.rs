@@ -8,9 +8,9 @@ use crate::{ScriptArtifact, SourceMapArtifact};
 #[derive(Debug, Clone)]
 pub enum ModuleArtifact {
     /// One generated script artifact.
-    Script(ScriptArtifact),
+    Script(Box<ScriptArtifact>),
     /// One generated binary artifact.
-    Binary(BinaryArtifact),
+    Binary(Box<BinaryArtifact>),
 }
 
 /// One generated binary artifact.

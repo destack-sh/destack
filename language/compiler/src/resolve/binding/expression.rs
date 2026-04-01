@@ -155,7 +155,7 @@ impl Compiler {
                             }
                         };
                     let Some(remote_target) = self.resolve_import_maybe(
-                        &module_handle,
+                        module_handle,
                         imported_modules,
                         profile,
                         expression_id.into_global_any(module.id),
@@ -200,7 +200,7 @@ impl Compiler {
                         }
                     };
                 let Some(remote_target) = self.resolve_import_maybe(
-                    &module_handle,
+                    module_handle,
                     imported_modules,
                     profile,
                     expression_id.into_global_any(module.id),

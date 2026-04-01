@@ -34,7 +34,7 @@ impl Compiler {
         let bound_roots = {
             let module = module.as_ref();
             self.bind_module_roots(
-                &module,
+                module,
                 ast,
                 namespace_scope,
                 global_augmentation_scope,
@@ -51,7 +51,7 @@ impl Compiler {
             let module = module.as_ref();
             let scope = (namespace_scope, symbols.get_scope_mark(namespace_scope));
             self.attach_annotations(
-                &module,
+                module,
                 ast,
                 scope,
                 namespace_scope,
@@ -66,7 +66,7 @@ impl Compiler {
         // mark global augmentations (for declaration merging)
         {
             let module = module.as_ref();
-            self.mark_global_augmentation_symbols(&module, tree, symbols);
+            self.mark_global_augmentation_symbols(module, tree, symbols);
         }
 
         Ok(())

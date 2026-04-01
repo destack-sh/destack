@@ -313,7 +313,7 @@ impl From<TaskOutcome> for TaskStatus {
             TaskOutcome::Yield { requirement } => Self::Yielded { requirement },
             TaskOutcome::Skipped => Self::Skipped,
             TaskOutcome::Error { error } => Self::Failed { error },
-            TaskOutcome::Complete { .. } => Self::Complete,
+            TaskOutcome::Complete => Self::Complete,
         }
     }
 }

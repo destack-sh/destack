@@ -218,7 +218,7 @@ impl Compiler {
                     module_id,
                     profile,
                     &dir,
-                    &tree,
+                    tree,
                     dir.namespace_scope,
                     item,
                     cache.as_deref_mut(),
@@ -451,7 +451,7 @@ impl Compiler {
 
             let symbols = &dir.symbols;
             let key = StaticKey::Name(name);
-            let symbol_id = self.find_namespace_symbol_in_scope(&symbols, scope_id, key);
+            let symbol_id = self.find_namespace_symbol_in_scope(symbols, scope_id, key);
             if let Some(symbol_id) = symbol_id {
                 return Ok(Some(ExportAssignmentTarget::Namespace(
                     symbol_id.into_global(module_id),
@@ -718,7 +718,7 @@ impl Compiler {
             let space_order = self.export_spaces_for_kind(kind);
 
             let (preferred, fallback) =
-                self.find_symbol_in_scope(scope, key, space_order, &symbols, None);
+                self.find_symbol_in_scope(scope, key, space_order, symbols, None);
 
             if let Some(symbol_id) = preferred.or(fallback) {
                 let resolved = Some(symbol_id.into_global(namespace_symbol.module_id));
@@ -747,7 +747,7 @@ impl Compiler {
                         let space_order = self.export_spaces_for_kind(kind);
 
                         let (preferred, fallback) =
-                            self.find_symbol_in_scope(ns_scope, key, space_order, &symbols, None);
+                            self.find_symbol_in_scope(ns_scope, key, space_order, symbols, None);
 
                         if let Some(symbol_id) = preferred.or(fallback) {
                             let resolved = Some(symbol_id.into_global(namespace_symbol.module_id));

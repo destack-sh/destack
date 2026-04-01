@@ -109,8 +109,8 @@ impl TestProgram {
         // resolve the canonical symbol id
         canonical_symbol_id(
             &self.compiler,
-            &module,
-            &symbols,
+            module,
+            symbols,
             profile,
             symbol,
             CanonicalSymbolMode::FollowAliases,
@@ -407,7 +407,7 @@ pub(crate) fn extension_kinds_for_target(
         .test
         .compiler
         .visible_extension_symbols_for_target(
-            SymbolTypeView::new(&module, profile, view.symbols(), view.types()),
+            SymbolTypeView::new(module, profile, view.symbols(), view.types()),
             target_symbol,
         )
         .unwrap_or_default();
@@ -419,7 +419,7 @@ pub(crate) fn extension_kinds_for_target(
             view.test
                 .compiler
                 .extension_for_symbol_in_module(
-                    ModuleTypeView::new(&module, profile, view.types()),
+                    ModuleTypeView::new(module, profile, view.types()),
                     symbol,
                 )
                 .ok()

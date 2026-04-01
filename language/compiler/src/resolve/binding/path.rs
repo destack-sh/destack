@@ -449,7 +449,7 @@ impl Compiler {
                 let module = self.program.modules.get(pass.module.id);
                 let module = module.as_ref();
                 let resolved_member = self.resolve_static_member_symbol(
-                    &module,
+                    module,
                     pass.profile_id,
                     expression_id,
                     heritage_symbol,
@@ -1802,67 +1802,67 @@ impl Compiler {
         }
 
         // resolve inherited associated type names from enclosing declaration heritage
-        if space_order.spaces().contains(&SymbolSpace::Type) {
-            if let Some(associated_symbol) = self.resolve_heritage_associated_type_symbol(
+        if space_order.spaces().contains(&SymbolSpace::Type)
+            && let Some(associated_symbol) = self.resolve_heritage_associated_type_symbol(
                 pass,
                 expression_id,
                 scope,
                 first_segment,
                 tree,
-            )? {
-                if path.segments.len() == 1 {
-                    if associated_symbol.module_id == module.id {
-                        return Ok((
-                            self.resolve_symbol_to_expression(
-                                module,
-                                associated_symbol.local_id,
-                                path,
-                                static_arguments,
-                                symbols,
-                            ),
-                            single_path_segment_target(associated_symbol),
-                        ));
-                    }
-
+            )?
+        {
+            if path.segments.len() == 1 {
+                if associated_symbol.module_id == module.id {
                     return Ok((
-                        Expression::GlobalReference {
-                            path: path.clone(),
+                        self.resolve_symbol_to_expression(
+                            module,
+                            associated_symbol.local_id,
+                            path,
                             static_arguments,
-                            target_symbol: associated_symbol,
-                        },
+                            symbols,
+                        ),
                         single_path_segment_target(associated_symbol),
                     ));
                 }
 
-                let root_path = Path {
-                    segments: vec![first_segment].into(),
-                };
-                let root_expr = if associated_symbol.module_id == module.id {
-                    self.resolve_symbol_to_expression(
-                        module,
-                        associated_symbol.local_id,
-                        &root_path,
-                        None,
-                        symbols,
-                    )
-                } else {
-                    Expression::GlobalReference {
-                        path: root_path,
-                        static_arguments: None,
-                        target_symbol: associated_symbol,
-                    }
-                };
                 return Ok((
-                    self.build_member_chain(
-                        expression_id,
-                        root_expr,
-                        &path.slice(1..),
+                    Expression::GlobalReference {
+                        path: path.clone(),
                         static_arguments,
-                        tree,
-                    ),
+                        target_symbol: associated_symbol,
+                    },
                     single_path_segment_target(associated_symbol),
                 ));
             }
+
+            let root_path = Path {
+                segments: vec![first_segment].into(),
+            };
+            let root_expr = if associated_symbol.module_id == module.id {
+                self.resolve_symbol_to_expression(
+                    module,
+                    associated_symbol.local_id,
+                    &root_path,
+                    None,
+                    symbols,
+                )
+            } else {
+                Expression::GlobalReference {
+                    path: root_path,
+                    static_arguments: None,
+                    target_symbol: associated_symbol,
+                }
+            };
+            return Ok((
+                self.build_member_chain(
+                    expression_id,
+                    root_expr,
+                    &path.slice(1..),
+                    static_arguments,
+                    tree,
+                ),
+                single_path_segment_target(associated_symbol),
+            ));
         }
 
         // check for builtin types (boolean, int, string, etc.)

@@ -43,7 +43,7 @@ impl Compiler {
 
         // compute capture ctx
         self.compute_module_captures(
-            TreeSymbolView::new(&module, profile, tree, symbols),
+            TreeSymbolView::new(module, profile, tree, symbols),
             captures,
         )?;
 

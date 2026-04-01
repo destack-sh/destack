@@ -51,7 +51,7 @@ impl Compiler {
             ArtifactKey::DirBase { module } => {
                 let snapshot = self.require_artifact_dir_base(module)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,
@@ -60,7 +60,7 @@ impl Compiler {
             ArtifactKey::DirPrepared { module, profile } => {
                 let snapshot = self.require_artifact_dir_prepared(module, profile)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,
@@ -69,7 +69,7 @@ impl Compiler {
             ArtifactKey::DirResolved { module, profile } => {
                 let snapshot = self.require_artifact_dir_resolved(module, profile)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,
@@ -78,7 +78,7 @@ impl Compiler {
             ArtifactKey::DirDeclared { module, profile } => {
                 let snapshot = self.require_artifact_dir_declared(module, profile)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,
@@ -87,7 +87,7 @@ impl Compiler {
             ArtifactKey::DirInterface { module, profile } => {
                 let snapshot = self.require_artifact_dir_interface(module, profile)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,
@@ -96,7 +96,7 @@ impl Compiler {
             ArtifactKey::DirAnalyzed { module, profile } => {
                 let snapshot = self.require_artifact_dir_analyzed(module, profile)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,
@@ -105,7 +105,7 @@ impl Compiler {
             ArtifactKey::DirElaborated { module, profile } => {
                 let snapshot = self.require_artifact_dir_elaborated(module, profile)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,
@@ -114,7 +114,7 @@ impl Compiler {
             ArtifactKey::DirPatched { module, profile } => {
                 let snapshot = self.require_artifact_dir_patched(module, profile)?;
                 Ok(handle(
-                    &remote_module,
+                    remote_module,
                     &snapshot.tree,
                     &snapshot.symbols,
                     &snapshot.types,

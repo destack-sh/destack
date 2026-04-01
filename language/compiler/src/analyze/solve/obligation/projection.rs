@@ -222,9 +222,7 @@ impl Compiler {
         }
 
         // select associated comptime members from projection syntax
-        let Some(name) = *name else {
-            return None;
-        };
+        let name = (*name)?;
         let selection = self
             .select_associated_projection_member_symbol(
                 &mut ctx.reborrow(),

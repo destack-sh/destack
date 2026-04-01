@@ -52,7 +52,7 @@ impl Compiler {
             });
 
         self.query_static_member_symbol_inner(
-            &target_module,
+            target_module,
             profile,
             target_symbol,
             member_key,
@@ -347,7 +347,7 @@ impl Compiler {
                     });
 
                 if let Some(symbol) = self.query_static_member_symbol_inner(
-                    &remote_module,
+                    remote_module,
                     profile,
                     canonical_symbol,
                     member_key,
@@ -479,7 +479,7 @@ impl Compiler {
             });
 
         let Some(symbol) = self.query_static_member_symbol(
-            &target_module,
+            target_module,
             profile,
             target_symbol,
             member_key,

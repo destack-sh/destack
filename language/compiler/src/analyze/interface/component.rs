@@ -321,7 +321,7 @@ impl Compiler {
         let mut snapshot = Vec::new();
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        let ctx = SymbolTypeView::new(&module, profile, &dir.symbols, &dir.types);
+        let ctx = SymbolTypeView::new(module, profile, &dir.symbols, &dir.types);
         self.interface_value_snapshot_for_exports(ctx, &dir.exported_symbols, &mut snapshot);
 
         for exports in dir
@@ -417,12 +417,12 @@ impl Compiler {
                 .push(candidate);
         }
 
-        for component_module_id in component_modules.iter().copied() {
-            let Some(cycle_candidates) = candidates_by_module.get(&component_module_id) else {
+        for component_module_id in component_modules {
+            let Some(cycle_candidates) = candidates_by_module.get(component_module_id) else {
                 continue;
             };
 
-            let Some(dir) = component_dirs.get_mut(&component_module_id) else {
+            let Some(dir) = component_dirs.get_mut(component_module_id) else {
                 return Err(AnalyzeError::Internal {
                     message: format!(
                         "missing local interface dir for cycle reporting: module={component_module_id:?}, profile={profile:?}"
@@ -480,7 +480,7 @@ impl Compiler {
             let binding_exports = &dir.module_binding_exports;
 
             self.collect_interface_cycle_candidates_for_table(
-                &module,
+                module,
                 profile,
                 tree,
                 symbols,
@@ -492,7 +492,7 @@ impl Compiler {
 
             for binding in binding_exports.values() {
                 self.collect_interface_cycle_candidates_for_table(
-                    &module,
+                    module,
                     profile,
                     tree,
                     symbols,
@@ -746,7 +746,7 @@ impl Compiler {
             let types = &dir.types;
             let exported_symbols = &dir.exported_symbols;
             self.report_interface_unknown_exports_for_table(
-                TypeView::new(&module, profile, tree, symbols, types),
+                TypeView::new(module, profile, tree, symbols, types),
                 exported_symbols,
                 &mut warned_symbols,
             )?;
@@ -754,7 +754,7 @@ impl Compiler {
             let binding_exports = &dir.module_binding_exports;
             for binding in binding_exports.values() {
                 self.report_interface_unknown_exports_for_table(
-                    TypeView::new(&module, profile, tree, symbols, types),
+                    TypeView::new(module, profile, tree, symbols, types),
                     &binding.exports,
                     &mut warned_symbols,
                 )?;

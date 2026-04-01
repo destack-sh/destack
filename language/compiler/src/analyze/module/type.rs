@@ -94,7 +94,7 @@ impl Compiler {
         ) {
             let options = self.analyze_context_options_for_module(remote_module.id);
             let mut ctx = TypeContext::new(
-                &remote_module,
+                remote_module,
                 profile,
                 &options,
                 &snapshot.tree,

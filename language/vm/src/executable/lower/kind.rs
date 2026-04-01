@@ -2,8 +2,8 @@ use destack_mir as mir;
 
 use destack_heap::ReferenceMeta;
 
-use super::super::layout::repr_type;
-use super::super::value::{
+use crate::executable::layout::repr_type;
+use crate::executable::value::{
     PointerStorage, ValueKind, kind_from_type, pointer_storage_from_reference,
 };
 

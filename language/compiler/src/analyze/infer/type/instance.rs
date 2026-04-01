@@ -528,8 +528,7 @@ impl Compiler {
                     key,
                     symbol_space,
                     GlobalMergeCategory::Instance,
-                )
-                .map_err(AnalyzeError::from)?
+                )?
             } else {
                 Vec::new()
             }

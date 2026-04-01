@@ -92,10 +92,10 @@ impl Compiler {
         let mut types = analyzed.types.as_ref().clone();
 
         let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
-        self.elaborate_module_transform(&module_ref, profile, &mut tree, &mut symbols, &mut types)?;
+        self.elaborate_module_transform(module_ref, profile, &mut tree, &mut symbols, &mut types)?;
 
         let _timing = self.timing_scope(tags::ELABORATE_MODULE_REIFY);
-        self.elaborate_module_reify(&module_ref, profile, &mut tree, &mut symbols, &mut types)?;
+        self.elaborate_module_reify(module_ref, profile, &mut tree, &mut symbols, &mut types)?;
 
         let is_code_module = self.is_code_module(module);
 

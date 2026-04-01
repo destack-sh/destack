@@ -255,7 +255,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let types = &dir.types;
 
         // resolve struct members for the symbol
-        let Some(members) = self.struct_members_for_symbol(symbol, &symbols, &tree) else {
+        let Some(members) = self.struct_members_for_symbol(symbol, symbols, tree) else {
             return Ok(None);
         };
 

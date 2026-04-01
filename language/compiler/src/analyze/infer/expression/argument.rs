@@ -155,7 +155,7 @@ impl Compiler {
         let argument_module = self.program.modules.get(argument_node.module_id);
         let argument_module = argument_module.as_ref();
         let view = TreeSymbolView::new(
-            &argument_module,
+            argument_module,
             view.profile,
             &argument_snapshot.tree,
             &argument_snapshot.symbols,
@@ -209,7 +209,7 @@ impl Compiler {
         let argument_module = argument_module.as_ref();
         let argument_options = self.analyze_context_options_for_module(argument_module.id);
         let mut ctx = TypeContext::new(
-            &argument_module,
+            argument_module,
             ctx.profile,
             &argument_options,
             &argument_snapshot.tree,
@@ -361,13 +361,11 @@ impl Compiler {
                     symbol,
                     static_arguments,
                 }) => {
-                    let symbol = self
-                        .remap_typevalue_symbol_to_type_space(
-                            ctx.module_symbol_view(),
-                            &ctx.index,
-                            symbol,
-                        )
-                        .map_err(AnalyzeError::from)?;
+                    let symbol = self.remap_typevalue_symbol_to_type_space(
+                        ctx.module_symbol_view(),
+                        &ctx.index,
+                        symbol,
+                    )?;
                     Some((symbol, static_arguments))
                 }
                 _ => None,
