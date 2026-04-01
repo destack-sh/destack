@@ -6,7 +6,7 @@ use crate::{ArtifactFamily, ProfileKey};
 
 /// Dependency stamp captured for one artifact build.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct ArtifactDependency(pub u64);
 
 impl std::fmt::Debug for ArtifactDependency {
@@ -28,27 +28,47 @@ impl ArtifactDependency {
     }
 }
 
-/// Digest of a published semantic artifact.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-pub struct ArtifactDigest(pub u64);
-
-impl std::fmt::Debug for ArtifactDigest {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "a{:016x}", self.0)
-    }
+/// One exact live artifact version.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ArtifactVersion {
+    /// The semantic artifact slot.
+    pub key: ArtifactKey,
+    /// The exact reusable dependency stamp.
+    pub dependency: ArtifactDependency,
 }
 
-impl std::fmt::Display for ArtifactDigest {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "a{:016x}", self.0)
+impl ArtifactVersion {
+    /// Create one artifact version from one key and dependency.
+    pub fn new(key: ArtifactKey, dependency: ArtifactDependency) -> Self {
+        Self { key, dependency }
     }
-}
 
-impl ArtifactDigest {
-    /// Create a new artifact digest.
-    pub fn new(value: u64) -> Self {
-        Self(value)
+    /// Return the package referenced by this artifact version when one exists.
+    pub fn package_id(&self) -> Option<PackageId> {
+        self.key.package_id()
+    }
+
+    /// Return the module referenced by this artifact version when one exists.
+    pub fn module_id(&self) -> Option<ModuleId> {
+        self.key.module_id()
+    }
+
+    /// Return the profile referenced by this artifact version when one exists.
+    pub fn profile_id(&self) -> Option<ProfileId> {
+        self.key.profile_id()
+    }
+
+    /// Return the family of this artifact version.
+    pub fn family(&self) -> ArtifactFamily {
+        self.key.family()
+    }
+
+    /// Convert this live artifact version into one stable persisted image key.
+    pub fn image_key_with(
+        &self,
+        profile_key_for_id: impl Fn(ProfileId) -> ProfileKey,
+    ) -> ArtifactImageKey {
+        self.key.image_key_with(profile_key_for_id)
     }
 }
 
@@ -195,6 +215,14 @@ pub enum ArtifactImageKey {
 }
 
 impl ArtifactKey {
+    /// Return the package referenced by this artifact key when one exists.
+    pub fn package_id(&self) -> Option<PackageId> {
+        match self {
+            Self::PackageOutput { package, .. } => Some(*package),
+            _ => None,
+        }
+    }
+
     /// Build one module graph artifact key.
     pub fn module_graph(profile: ProfileId) -> Self {
         Self::ModuleGraph { profile }
@@ -412,7 +440,7 @@ impl ArtifactKey {
             } => ArtifactImageKey::MirBase {
                 module: *module,
                 profile: profile_key_for_id(*profile),
-                target: target.clone(),
+                target: *target,
             },
             Self::MirOptimized {
                 module,
@@ -421,15 +449,15 @@ impl ArtifactKey {
             } => ArtifactImageKey::MirOptimized {
                 module: *module,
                 profile: profile_key_for_id(*profile),
-                target: target.clone(),
+                target: *target,
             },
             Self::ModuleArtifact { module, target } => ArtifactImageKey::ModuleArtifact {
                 module: *module,
-                target: target.clone(),
+                target: *target,
             },
             Self::PackageOutput { package, target } => ArtifactImageKey::PackageOutput {
                 package: *package,
-                target: target.clone(),
+                target: *target,
             },
         }
     }
