@@ -8,12 +8,11 @@ use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId, matches a
 use crate::repository::{ModuleTsConfigContext, Profile, Repository, RepositoryError};
 use crate::revision::Revision;
 use crate::{
-    CompilerOptions, DestackOptions, DsPathAliases, EntryResolutionMode, EntrySource, Module,
-    ModuleDetection, ModuleFormat, Package, ProfileConfig, ProfileEnv, Target,
-    TargetDiscoveryIssue, TargetDiscoveryOptions, TsConfig, TsConfigOptions,
-    builtin_libs_for_type_entries, discover_typescript_type_entries,
-    normalize_typescript_lib_names, normalize_typescript_type_entries,
-    profile_flags_for_compiler_options, typescript_default_libs,
+    CompilerOptions, DsPathAliases, EntryResolutionMode, EntrySource, Module, ModuleDetection,
+    ModuleFormat, Package, PackageOptions, ProfileConfig, ProfileEnv, Target, TargetDiscoveryIssue,
+    TargetDiscoveryOptions, TsConfigDeclaration, TsConfigOptions, builtin_libs_for_type_entries,
+    discover_typescript_type_entries, normalize_typescript_lib_names,
+    normalize_typescript_type_entries, profile_flags_for_compiler_options, typescript_default_libs,
 };
 
 impl Repository {
@@ -34,16 +33,16 @@ impl Repository {
     }
 
     /// Access tsconfig for a module via closure.
-    pub fn read_tsconfig_for_module<T>(
+    pub fn read_tsconfig_declaration_for_module<T>(
         &self,
         revision: Revision,
         module: &Module,
-        read: impl FnOnce(&TsConfig) -> T,
+        read: impl FnOnce(&TsConfigDeclaration) -> T,
     ) -> Result<Option<T>, RepositoryError> {
         let Some(tsconfig_file_id) = module.tsconfig_file_id else {
             return Ok(None);
         };
-        let Some(tsconfig) = self.tsconfig(revision, tsconfig_file_id)? else {
+        let Some(tsconfig) = self.tsconfig_declaration(revision, tsconfig_file_id)? else {
             return Ok(None);
         };
 
@@ -57,24 +56,24 @@ impl Repository {
         module: &Module,
         read: impl FnOnce(&TsConfigOptions) -> T,
     ) -> Result<Option<T>, RepositoryError> {
-        self.read_tsconfig_for_module(revision, module, |tsconfig| read(&tsconfig.options))
+        self.read_tsconfig_declaration_for_module(revision, module, |tsconfig| {
+            let options = tsconfig.options();
+            read(&options)
+        })
     }
 
-    /// Access package config options for a module via closure.
-    pub fn read_destack_options_for_module<T>(
+    /// Access package options for a module via closure.
+    pub fn read_package_options_for_module<T>(
         &self,
         revision: Revision,
         module: &Module,
-        read: impl FnOnce(&DestackOptions) -> T,
+        read: impl FnOnce(&PackageOptions) -> T,
     ) -> Result<Option<T>, RepositoryError> {
-        let Some(package) = self.package(revision, module.package_id)? else {
-            return Ok(None);
-        };
-        let Some(config) = package.config.as_ref() else {
+        let Some(package_options) = self.package_options(revision, module.package_id)? else {
             return Ok(None);
         };
 
-        Ok(Some(read(&config.options)))
+        Ok(Some(read(&package_options)))
     }
 
     /// Return the package id for one target id when known.
@@ -122,10 +121,10 @@ impl Repository {
 
         let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(revision, &package, &module)?;
+        let package_options = self.package_options(revision, package.id)?;
 
-        let (target, profile_config) = if let Some(config) = package.config.as_ref() {
-            let target = config
-                .options
+        let (target, profile_config) = if let Some(package_options) = package_options.as_ref() {
+            let target = package_options
                 .default_target
                 .as_ref()
                 .and_then(|name| {
@@ -138,7 +137,7 @@ impl Repository {
             let profile_config = compiler_options
                 .profile
                 .as_ref()
-                .and_then(|name| config.options.profiles.get(name));
+                .and_then(|name| package_options.profiles.get(name));
             (target, profile_config)
         } else {
             (self.implicit_target_for_module(&module), None)
@@ -189,12 +188,13 @@ impl Repository {
 
         let (compiler_options, tsconfig_context) =
             self.profile_compiler_options_for_module(revision, &package, &module)?;
-        let profile_config = package.config.as_ref().and_then(|config| {
+        let package_options = self.package_options(revision, package.id)?;
+        let profile_config = package_options.as_ref().and_then(|package_options| {
             target
                 .profile
                 .as_ref()
                 .or(compiler_options.profile.as_ref())
-                .and_then(|name| config.options.profiles.get(name))
+                .and_then(|name| package_options.profiles.get(name))
         });
 
         let key = Self::profile_key_for_target(
@@ -277,11 +277,12 @@ impl Repository {
             return Ok(ModuleDetection::default());
         };
 
-        let Some(tsconfig) = self.tsconfig(revision, tsconfig_file_id)? else {
+        let Some(tsconfig) = self.tsconfig_declaration(revision, tsconfig_file_id)? else {
             return Ok(ModuleDetection::default());
         };
+        let options = tsconfig.options();
 
-        Ok(tsconfig.options.compiler.module_detection)
+        Ok(options.compiler.module_detection)
     }
 
     /// Return one tsconfig module format override.
@@ -294,10 +295,10 @@ impl Repository {
             return Ok(None);
         };
 
-        let Some(tsconfig) = self.tsconfig(revision, tsconfig_file_id)? else {
+        let Some(tsconfig) = self.tsconfig_declaration(revision, tsconfig_file_id)? else {
             return Ok(None);
         };
-        let module_target = tsconfig.options.compiler.module;
+        let module_target = tsconfig.options().compiler.module;
 
         Ok(ModuleFormat::from_tsconfig_target(module_target))
     }
@@ -334,9 +335,9 @@ impl Repository {
         let package_directory =
             package_path
                 .as_ref()
-                .ok_or_else(|| TargetDiscoveryIssue::MissingPackagePath {
+                .ok_or(TargetDiscoveryIssue::MissingPackagePath {
                     package: package_id,
-                    target: target_id.clone(),
+                    target: *target_id,
                 })?;
 
         // no manifest entries
@@ -434,16 +435,16 @@ impl Repository {
         let package_directory =
             package_path
                 .as_ref()
-                .ok_or_else(|| TargetDiscoveryIssue::MissingPackagePath {
+                .ok_or(TargetDiscoveryIssue::MissingPackagePath {
                     package: package_id,
-                    target: target_id.clone(),
+                    target: *target_id,
                 })?;
 
         let resolved_path = package_directory.join(entry_path);
         self.resolve_entry_module_id(revision, package_id, &resolved_path)
-            .ok_or_else(|| TargetDiscoveryIssue::MissingEntry {
+            .ok_or(TargetDiscoveryIssue::MissingEntry {
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
                 path: resolved_path,
             })
     }
@@ -463,9 +464,9 @@ impl Repository {
             let package_directory =
                 package_path
                     .as_ref()
-                    .ok_or_else(|| TargetDiscoveryIssue::MissingPackagePath {
+                    .ok_or(TargetDiscoveryIssue::MissingPackagePath {
                         package: package_id,
-                        target: target_id.clone(),
+                        target: *target_id,
                     })?;
             candidate_paths.push(package_directory.join(entry_path));
         }
@@ -487,7 +488,7 @@ impl Repository {
 
         Err(TargetDiscoveryIssue::MissingEntry {
             package: package_id,
-            target: target_id.clone(),
+            target: *target_id,
             path: missing_path,
         })
     }
@@ -602,16 +603,17 @@ impl Repository {
         package: &Package,
         module: &Module,
     ) -> Result<(CompilerOptions, Option<ModuleTsConfigContext>), RepositoryError> {
-        let mut compiler_options = package
-            .config
-            .as_ref()
-            .map(|config| config.options.compiler.clone())
+        let mut compiler_options = self
+            .package_options(revision, package.id)?
+            .map(|package_options| package_options.compiler)
             .unwrap_or_default();
 
-        let tsconfig_context = if package.config.is_none() {
-            self.read_tsconfig_for_module(revision, module, |tsconfig| ModuleTsConfigContext {
-                options: tsconfig.options.clone(),
-                directory: tsconfig.directory.clone(),
+        let tsconfig_context = if package.destack_file_id.is_none() {
+            self.read_tsconfig_declaration_for_module(revision, module, |tsconfig| {
+                ModuleTsConfigContext {
+                    options: tsconfig.options(),
+                    directory: tsconfig.directory.clone(),
+                }
             })?
         } else {
             None

@@ -550,7 +550,7 @@ impl RuntimeConfigJson {
                 host: Some(host.clone()),
                 ..RuntimeOptionsJson::default()
             },
-            Self::Options(options) => (**options).clone(),
+            Self::Options(options) => options.as_ref().clone(),
         }
     }
 }

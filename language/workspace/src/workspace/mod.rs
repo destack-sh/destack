@@ -1,7 +1,5 @@
 mod comptime;
-mod discovery;
 mod import;
-mod manifest;
 mod module;
 mod package;
 mod profile;
@@ -11,9 +9,7 @@ mod target;
 mod workspace;
 
 pub use comptime::*;
-pub(crate) use discovery::*;
 pub use import::*;
-pub use manifest::*;
 pub use module::*;
 pub use package::*;
 pub use profile::*;

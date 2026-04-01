@@ -1,8 +1,9 @@
-use destack_source::{File, FileContent, FileId, PathExt, Uri};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use super::config::{TsConfigJson, TsConfigOptions};
+use destack_source::{File, FileContent, FileId, PathExt, Uri};
+
+use crate::config::{TsConfigJson, TsConfigOptions};
 
 /// Template variable for the config directory path (e.g. `${configDir}`).
 /// <https://github.com/microsoft/TypeScript/pull/58042>
@@ -17,9 +18,9 @@ const TYPESCRIPT_EXTENSIONS: [&str; 4] = ["ts", "tsx", "mts", "cts"];
 /// JavaScript source file extensions recognized when `allowJs` is enabled.
 const JAVASCRIPT_EXTENSIONS: [&str; 4] = ["js", "jsx", "mjs", "cjs"];
 
-/// TypeScript configuration (usually from `tsconfig.json`).
+/// Parsed `tsconfig.json` declaration.
 #[derive(Debug, Clone)]
-pub struct TsConfig {
+pub struct TsConfigDeclaration {
     /// The id of the `tsconfig.json` file.
     pub file_id: FileId,
     /// Whether this is the root tsconfig in its context.
@@ -32,13 +33,11 @@ pub struct TsConfig {
     pub directory: PathBuf,
     /// Base directory from which to resolve path aliases.
     pub paths_base: PathBuf,
-    /// The normalized/resolved configuration options.
-    pub options: TsConfigOptions,
     /// The raw JSON content of the `tsconfig.json` file.
-    pub content: TsConfigJson,
+    pub json: TsConfigJson,
 }
 
-impl TsConfig {
+impl TsConfigDeclaration {
     /// Parse a tsconfig from a File with JSON content.
     pub fn parse(is_root: bool, file: &Arc<File>) -> Result<Self, serde_json::Error> {
         // extract the JSON value from file content
@@ -63,9 +62,6 @@ impl TsConfig {
             .expect("tsconfig.json must have a parent directory")
             .to_path_buf();
 
-        // create initial options from JSON
-        let options = TsConfigOptions::from(&tsconfig_json);
-
         let tsconfig = Self {
             file_id: file.id,
             is_root,
@@ -73,55 +69,54 @@ impl TsConfig {
             path,
             directory: directory.clone(),
             paths_base: directory,
-            content: tsconfig_json,
-            options,
+            json: tsconfig_json,
         };
         Ok(tsconfig)
     }
 
     /// Returns the base path from which to resolve aliases.
     pub fn base_path(&self) -> &Path {
-        self.content
+        self.json
             .compiler_options
             .base_url
             .as_deref()
             .unwrap_or_else(|| &self.directory)
     }
 
-    /// Refresh derived options after content changes.
-    pub fn refresh_options(&mut self) {
-        self.options = TsConfigOptions::from(&self.content);
+    /// Derive effective tsconfig options from this declaration.
+    pub fn options(&self) -> TsConfigOptions {
+        TsConfigOptions::from(&self.json)
     }
 
     /// Inherits settings from the given tsconfig into `self`.
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub fn extend_from(&mut self, tsconfig: &Self) {
         // files
-        if self.content.files.is_none()
-            && let Some(files) = &tsconfig.content.files
+        if self.json.files.is_none()
+            && let Some(files) = &tsconfig.json.files
         {
-            self.content.files = Some(files.clone());
+            self.json.files = Some(files.clone());
         }
 
         // include
-        if self.content.include.is_none()
-            && let Some(include) = &tsconfig.content.include
+        if self.json.include.is_none()
+            && let Some(include) = &tsconfig.json.include
         {
-            self.content.include = Some(include.clone());
+            self.json.include = Some(include.clone());
         }
 
         // exclude
-        if self.content.exclude.is_none()
-            && let Some(exclude) = &tsconfig.content.exclude
+        if self.json.exclude.is_none()
+            && let Some(exclude) = &tsconfig.json.exclude
         {
-            self.content.exclude = Some(exclude.clone());
+            self.json.exclude = Some(exclude.clone());
         }
 
-        let compiler_options = &mut self.content.compiler_options;
+        let compiler_options = &mut self.json.compiler_options;
 
         // compilerOptions.baseUrl
         if compiler_options.base_url.is_none()
-            && let Some(base_url) = &tsconfig.content.compiler_options.base_url
+            && let Some(base_url) = &tsconfig.json.compiler_options.base_url
         {
             compiler_options.base_url = Some(
                 if base_url.to_string_lossy().starts_with(TEMPLATE_VARIABLE) {
@@ -144,13 +139,13 @@ impl TsConfig {
                     }
                 },
             );
-            compiler_options.paths = tsconfig.content.compiler_options.paths.clone();
+            compiler_options.paths = tsconfig.json.compiler_options.paths.clone();
         }
 
         // compilerOptions.experimentalDecorators
         if compiler_options.experimental_decorators.is_none()
             && let Some(experimental_decorators) =
-                tsconfig.content.compiler_options.experimental_decorators
+                tsconfig.json.compiler_options.experimental_decorators
         {
             compiler_options.experimental_decorators = Some(experimental_decorators);
         }
@@ -158,17 +153,15 @@ impl TsConfig {
         // compilerOptions.emitDecoratorMetadata
         if compiler_options.emit_decorator_metadata.is_none()
             && let Some(emit_decorator_metadata) =
-                tsconfig.content.compiler_options.emit_decorator_metadata
+                tsconfig.json.compiler_options.emit_decorator_metadata
         {
             compiler_options.emit_decorator_metadata = Some(emit_decorator_metadata);
         }
 
         // compilerOptions.useDefineForClassFields
         if compiler_options.use_define_for_class_fields.is_none()
-            && let Some(use_define_for_class_fields) = tsconfig
-                .content
-                .compiler_options
-                .use_define_for_class_fields
+            && let Some(use_define_for_class_fields) =
+                tsconfig.json.compiler_options.use_define_for_class_fields
         {
             compiler_options.use_define_for_class_fields = Some(use_define_for_class_fields);
         }
@@ -178,7 +171,7 @@ impl TsConfig {
             .rewrite_relative_import_extensions
             .is_none()
             && let Some(rewrite_relative_import_extensions) = tsconfig
-                .content
+                .json
                 .compiler_options
                 .rewrite_relative_import_extensions
         {
@@ -188,29 +181,28 @@ impl TsConfig {
 
         // compilerOptions.jsx
         if compiler_options.jsx.is_none()
-            && let Some(jsx) = &tsconfig.content.compiler_options.jsx
+            && let Some(jsx) = &tsconfig.json.compiler_options.jsx
         {
             compiler_options.jsx = Some(jsx.clone());
         }
 
         // compilerOptions.jsxFactory
         if compiler_options.jsx_factory.is_none()
-            && let Some(jsx_factory) = &tsconfig.content.compiler_options.jsx_factory
+            && let Some(jsx_factory) = &tsconfig.json.compiler_options.jsx_factory
         {
             compiler_options.jsx_factory = Some(jsx_factory.clone());
         }
 
         // compilerOptions.jsxFragmentFactory
         if compiler_options.jsx_fragment_factory.is_none()
-            && let Some(jsx_fragment_factory) =
-                &tsconfig.content.compiler_options.jsx_fragment_factory
+            && let Some(jsx_fragment_factory) = &tsconfig.json.compiler_options.jsx_fragment_factory
         {
             compiler_options.jsx_fragment_factory = Some(jsx_fragment_factory.clone());
         }
 
         // compilerOptions.jsxImportSource
         if compiler_options.jsx_import_source.is_none()
-            && let Some(jsx_import_source) = &tsconfig.content.compiler_options.jsx_import_source
+            && let Some(jsx_import_source) = &tsconfig.json.compiler_options.jsx_import_source
         {
             compiler_options.jsx_import_source = Some(jsx_import_source.clone());
         }
@@ -218,7 +210,7 @@ impl TsConfig {
         // compilerOptions.verbatimModuleSyntax
         if compiler_options.verbatim_module_syntax.is_none()
             && let Some(verbatim_module_syntax) =
-                tsconfig.content.compiler_options.verbatim_module_syntax
+                tsconfig.json.compiler_options.verbatim_module_syntax
         {
             compiler_options.verbatim_module_syntax = Some(verbatim_module_syntax);
         }
@@ -226,14 +218,14 @@ impl TsConfig {
         // compilerOptions.preserveValueImports
         if compiler_options.preserve_value_imports.is_none()
             && let Some(preserve_value_imports) =
-                tsconfig.content.compiler_options.preserve_value_imports
+                tsconfig.json.compiler_options.preserve_value_imports
         {
             compiler_options.preserve_value_imports = Some(preserve_value_imports);
         }
 
         // compilerOptions.esModuleInterop
         if compiler_options.es_module_interop.is_none()
-            && let Some(es_module_interop) = tsconfig.content.compiler_options.es_module_interop
+            && let Some(es_module_interop) = tsconfig.json.compiler_options.es_module_interop
         {
             compiler_options.es_module_interop = Some(es_module_interop);
         }
@@ -241,7 +233,7 @@ impl TsConfig {
         // compilerOptions.allowSyntheticDefaultImports
         if compiler_options.allow_synthetic_default_imports.is_none()
             && let Some(allow_synthetic_default_imports) = tsconfig
-                .content
+                .json
                 .compiler_options
                 .allow_synthetic_default_imports
         {
@@ -252,28 +244,28 @@ impl TsConfig {
         // compilerOptions.importsNotUsedAsValues
         if compiler_options.imports_not_used_as_values.is_none()
             && let Some(imports_not_used_as_values) =
-                &tsconfig.content.compiler_options.imports_not_used_as_values
+                &tsconfig.json.compiler_options.imports_not_used_as_values
         {
             compiler_options.imports_not_used_as_values = Some(imports_not_used_as_values.clone());
         }
 
         // compilerOptions.target
         if compiler_options.target.is_none()
-            && let Some(target) = &tsconfig.content.compiler_options.target
+            && let Some(target) = &tsconfig.json.compiler_options.target
         {
             compiler_options.target = Some(target.clone());
         }
 
         // compilerOptions.module
         if compiler_options.module.is_none()
-            && let Some(module) = &tsconfig.content.compiler_options.module
+            && let Some(module) = &tsconfig.json.compiler_options.module
         {
             compiler_options.module = Some(module.clone());
         }
 
         // compilerOptions.allowJs
         if compiler_options.allow_js.is_none()
-            && let Some(allow_js) = tsconfig.content.compiler_options.allow_js
+            && let Some(allow_js) = tsconfig.json.compiler_options.allow_js
         {
             compiler_options.allow_js = Some(allow_js);
         }
@@ -291,7 +283,7 @@ impl TsConfig {
 
         let config_dir = self.directory.to_path_buf();
 
-        if let Some(base_url) = &self.content.compiler_options.base_url {
+        if let Some(base_url) = &self.json.compiler_options.base_url {
             // substitute template variable in `tsconfig.compilerOptions.baseUrl`
             let base_url = base_url
                 .to_string_lossy()
@@ -300,12 +292,12 @@ impl TsConfig {
                     || config_dir.normalize_with(base_url),
                     |stripped_path| config_dir.join(stripped_path.trim_start_matches('/')),
                 );
-            self.content.compiler_options.base_url = Some(base_url);
+            self.json.compiler_options.base_url = Some(base_url);
         }
 
-        if self.content.compiler_options.paths.is_some() {
+        if self.json.compiler_options.paths.is_some() {
             // paths_base should use base_url if set, otherwise config dir
-            if let Some(base_url) = &self.content.compiler_options.base_url {
+            if let Some(base_url) = &self.json.compiler_options.base_url {
                 self.paths_base = base_url.clone();
             }
 
@@ -316,7 +308,7 @@ impl TsConfig {
 
             // substitute template variable in `tsconfig.compilerOptions.paths`
             for paths in self
-                .content
+                .json
                 .compiler_options
                 .paths
                 .as_mut()
@@ -335,7 +327,7 @@ impl TsConfig {
         let normalized_path = path.normalize();
 
         // files take precedence over excludes
-        if self.content.files.as_ref().is_some_and(|files| {
+        if self.json.files.as_ref().is_some_and(|files| {
             files
                 .iter()
                 .any(|file| self.matches_tsconfig_file(file, &normalized_path))
@@ -344,9 +336,9 @@ impl TsConfig {
         }
 
         // include defaults to all supported source files unless files is set
-        let is_included = self.content.include.as_ref().map_or_else(
+        let is_included = self.json.include.as_ref().map_or_else(
             || {
-                if self.content.files.is_some() {
+                if self.json.files.is_some() {
                     false
                 } else {
                     self.matches_tsconfig_pattern(TSCONFIG_ALL_PATTERN, &normalized_path)
@@ -364,7 +356,7 @@ impl TsConfig {
         }
 
         // excludes only apply after the path was included
-        self.content.exclude.as_ref().is_none_or(|exclude| {
+        self.json.exclude.as_ref().is_none_or(|exclude| {
             !exclude
                 .iter()
                 .any(|pattern| self.matches_tsconfig_pattern(pattern, &normalized_path))
@@ -377,11 +369,11 @@ impl TsConfig {
         &self,
         path: &Path,
         specifier: &str,
-        resolve_reference: impl Fn(&Path) -> Option<TsConfig>,
+        resolve_reference: impl Fn(&Path) -> Option<TsConfigDeclaration>,
     ) -> Vec<PathBuf> {
-        let paths = self.content.resolve_path_alias(specifier, &self.paths_base);
+        let paths = self.json.resolve_path_alias(specifier, &self.paths_base);
 
-        for reference in &self.content.references {
+        for reference in &self.json.references {
             let reference_path = self.directory.normalize_with(&reference.path);
             let Some(tsconfig) = resolve_reference(&reference_path) else {
                 continue;
@@ -389,7 +381,7 @@ impl TsConfig {
 
             if path.starts_with(tsconfig.base_path()) {
                 let reference_paths = tsconfig
-                    .content
+                    .json
                     .resolve_path_alias(specifier, &tsconfig.paths_base);
                 return [reference_paths, paths].concat();
             }
@@ -490,7 +482,7 @@ impl TsConfig {
     /// Return whether one tsconfig input path has a supported source extension.
     fn is_supported_tsconfig_input(&self, path: &Path) -> bool {
         let allow_js = self
-            .content
+            .json
             .compiler_options
             .allow_js
             .is_some_and(|allow_js| allow_js);

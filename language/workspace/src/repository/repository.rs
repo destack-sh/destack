@@ -13,12 +13,11 @@ use parking_lot::RwLock;
 use crate::repository::{
     Builtins, ContentId, ContentStore, FileOrigin, QueryIndex, RepositoryError, RepositoryImage,
     RepositoryImageHeader, RepositoryImageKey, RepositoryImageStore, RepositoryOptions,
-    RepositorySnapshot,
+    RepositorySnapshot, discover_workspace_root,
 };
 use crate::revision::{Ref, Revision, RevisionData, SourceMap};
 use crate::{
-    Destack, FormatterOptions, LinterOptions, TsConfigOptions, Workspace, WorkspaceKind,
-    discover_workspace_root,
+    DestackDeclaration, FormatterOptions, LinterOptions, TsConfigOptions, Workspace, WorkspaceKind,
 };
 use destack_source::DiagnosticStore;
 
@@ -304,19 +303,21 @@ impl Repository {
 
     /// Return one repository-derived workspace view for one revision.
     pub fn workspace(&self, revision: Revision) -> Result<Workspace, RepositoryError> {
-        let config = self.workspace_config(revision)?;
-        let package_paths = self.workspace_package_paths(revision)?;
-        let kind = if package_paths.len() > 1 {
+        let workspace_declaration = self.workspace_destack_declaration(revision)?;
+        let package_ids = self.workspace_package_ids(revision)?;
+        let kind = if package_ids.len() > 1 {
             WorkspaceKind::Monorepo
         } else {
             WorkspaceKind::SinglePackage
         };
 
         Ok(Workspace {
+            destack_file_id: workspace_declaration
+                .as_ref()
+                .map(|declaration| declaration.file_id),
             root: self.root.clone(),
             kind,
-            config: config.map(Arc::new),
-            package_paths,
+            package_ids,
         })
     }
 
@@ -338,8 +339,8 @@ impl Repository {
         self.root.join(".destack")
     }
 
-    /// Load one `destack.json` file from disk when present.
-    pub fn load_destack_for_path(&self, path: &Path) -> Option<Destack> {
+    /// Load one `destack.json` declaration from disk when present.
+    pub fn load_destack_declaration_for_path(&self, path: &Path) -> Option<DestackDeclaration> {
         let content = self.fs.read_to_string(path).ok()?;
         let file = File::from_text_as_jsonc(
             FileId::new(0),
@@ -352,7 +353,7 @@ impl Repository {
         .ok()?;
         let file = Arc::new(file);
 
-        Destack::parse(&file).ok()
+        DestackDeclaration::parse(&file).ok()
     }
 
     /// Serialize the current repository image.
