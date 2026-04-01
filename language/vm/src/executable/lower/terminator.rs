@@ -5,7 +5,8 @@ use destack_mir as mir;
 
 use destack_heap::Value;
 
-use super::super::{Instruction, InstructionData, InstructionOperation, pack_optional_value};
+use crate::executable::{Instruction, InstructionData, InstructionOperation, pack_optional_value};
+
 use super::kind::{managed_pointee_type_for_value, managed_pointee_type_for_value_kind};
 use super::lower::BlockLowerer;
 use super::operation::{
@@ -13,6 +14,7 @@ use super::operation::{
     select_compare_branch_operation, select_switch_operation, select_switch_table_operation,
     swap_compare_operator,
 };
+use super::pool::Pool;
 use super::tree::ValueDecomposition;
 
 impl<'a> BlockLowerer<'a> {
@@ -21,7 +23,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         block: &mir::Block,
         instructions: &mut Vec<Instruction>,
-        pool: &mut super::pool::Pool,
+        pool: &mut Pool,
     ) -> Option<Instruction> {
         let mir::Terminator::Branch {
             condition,
@@ -140,7 +142,7 @@ impl<'a> BlockLowerer<'a> {
         &self,
         term: &mir::Terminator,
         decomposition_by_value: &HashMap<mir::Value, ValueDecomposition>,
-        pool: &mut super::pool::Pool,
+        pool: &mut Pool,
     ) -> Instruction {
         match term {
             mir::Terminator::Return { value } => Instruction {
@@ -386,13 +388,13 @@ impl<'a> BlockLowerer<'a> {
                             self.block_id()
                         )
                     });
-                let callee_index = self.function_index(*function);
+                let target = self.call_target(*function);
 
                 Instruction {
                     operation: InstructionOperation::CallBranch,
                     data: InstructionData::CallBranch {
                         function: function.id,
-                        callee_index,
+                        target,
                         arguments: args,
                         normal_resume_point,
                         unwind_resume_point,
@@ -426,7 +428,7 @@ impl<'a> BlockLowerer<'a> {
                         normal_resume_point,
                         unwind_resume_point,
                         cached_function: Cell::new(None),
-                        cached_index: Cell::new(None),
+                        cached_target: Cell::new(None),
                     },
                 }
             }
@@ -515,13 +517,13 @@ impl<'a> BlockLowerer<'a> {
                 } else {
                     let callee = self.tree.get(*function);
                     let copies = pool.parameter_copy_range(&callee.parameters, arguments);
-                    let callee_index = self.function_index(*function);
+                    let target = self.call_target(*function);
 
                     Instruction {
                         operation: InstructionOperation::TailCall,
                         data: InstructionData::TailCall {
                             function: function.id,
-                            callee_index,
+                            target,
                             copies,
                         },
                     }

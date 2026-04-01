@@ -11,9 +11,7 @@ use super::bind::{
     materialize_transferred_value_for_escape,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::executable::{
-    ArgumentRange, CopyRange, Executable, FunctionTarget, INVALID_FUNCTION_INDEX, is_invalid_value,
-};
+use crate::executable::{ArgumentRange, CallTarget, CopyRange, Executable, is_invalid_value};
 use crate::interpreter::{ExecutionOutcome, Interpreter};
 use crate::isolate::{
     ExternalCallContext, ExternalFn, ExternalFnPtr, SchemaRegistry, StringInterner,
@@ -29,35 +27,16 @@ struct LoweredCallee {
 }
 
 impl Interpreter {
-    /// Resolve one call target from function id and optional lowered index.
-    fn resolve_call_target(
-        executable: &Executable,
-        function: u32,
-        callee_index: u32,
-    ) -> (
-        mir::LocalNodeId<mir::Function>,
-        Option<crate::executable::FunctionTarget>,
-    ) {
-        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-        let resolved_target = if callee_index == INVALID_FUNCTION_INDEX {
-            Self::functions(executable).resolve(function_id)
-        } else {
-            Some(FunctionTarget::Lowered(callee_index))
-        };
-
-        (function_id, resolved_target)
-    }
-
-    /// Require one lowered callee from one resolved call target.
+    /// Require one lowered callee from one call target.
     fn resolve_lowered_callee(
         executable: &Executable,
         function_id: mir::LocalNodeId<mir::Function>,
-        resolved_target: Option<FunctionTarget>,
+        target: CallTarget,
     ) -> RuntimeResult<LoweredCallee> {
         // require a lowered target kind first
-        let callee_index = match resolved_target {
-            Some(FunctionTarget::Lowered(index)) => index,
-            Some(FunctionTarget::Import) | None => {
+        let lowered_index = match target {
+            CallTarget::Lowered(index) => index,
+            CallTarget::Import => {
                 return Err(RuntimeError::new(Error::UndefinedFunction {
                     function: function_id,
                 }));
@@ -66,7 +45,7 @@ impl Interpreter {
 
         // resolve the lowered function pointer
         let function_ptr = Self::functions(executable)
-            .get_ptr_by_index(callee_index)
+            .get_ptr_by_index(lowered_index)
             .ok_or_else(|| {
                 RuntimeError::new(Error::UndefinedFunction {
                     function: function_id,
@@ -324,7 +303,7 @@ impl Interpreter {
         memory: &mut destack_heap::MemoryContext<'_>,
         current_func: &crate::executable::Function,
         function: u32,
-        callee_index: u32,
+        target: CallTarget,
         destination: mir::Value,
         arguments: ArgumentRange,
         env: Option<Value>,
@@ -333,11 +312,10 @@ impl Interpreter {
         collect_stats: bool,
     ) -> RuntimeResult<()> {
         // resolve the target kind first
-        let (function_id, resolved_target) =
-            Self::resolve_call_target(executable, function, callee_index);
+        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
         // complete imported calls immediately in the caller frame
-        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+        if matches!(target, CallTarget::Import) {
             let caller = self
                 .call_stack
                 .last()
@@ -401,7 +379,7 @@ impl Interpreter {
         }
 
         // otherwise enter the lowered callee on a new frame
-        let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
+        let callee = Self::resolve_lowered_callee(executable, function_id, target)?;
         self.push_lowered_call_frame(
             executable,
             memory.heap_ref(),
@@ -430,7 +408,7 @@ impl Interpreter {
         memory: &mut destack_heap::MemoryContext<'_>,
         current_func: &crate::executable::Function,
         function: u32,
-        callee_index: u32,
+        target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Value>,
         normal_resume_point: engine::ResumePointId,
@@ -438,11 +416,10 @@ impl Interpreter {
         collect_stats: bool,
     ) -> RuntimeResult<()> {
         // resolve the target kind first
-        let (function_id, resolved_target) =
-            Self::resolve_call_target(executable, function, callee_index);
+        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
         // imported exceptional calls resume the normal branch immediately
-        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+        if matches!(target, CallTarget::Import) {
             let caller = self
                 .call_stack
                 .last()
@@ -476,7 +453,7 @@ impl Interpreter {
         }
 
         // otherwise push the lowered callee and record both continuations
-        let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
+        let callee = Self::resolve_lowered_callee(executable, function_id, target)?;
         let caller = self
             .call_stack
             .last()
@@ -516,7 +493,7 @@ impl Interpreter {
         memory: &mut destack_heap::MemoryContext<'_>,
         current_func: &crate::executable::Function,
         function: u32,
-        callee_index: u32,
+        target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Value>,
         copies: Option<CopyRange>,
@@ -550,11 +527,10 @@ impl Interpreter {
         };
 
         // resolve the callee target after the arguments are materialized
-        let (function_id, resolved_target) =
-            Self::resolve_call_target(executable, function, callee_index);
+        let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
         // complete imported tail calls before returning to the caller
-        if matches!(resolved_target, Some(FunctionTarget::Import)) {
+        if matches!(target, CallTarget::Import) {
             let result = self.call_imported_function(
                 executable,
                 schema,
@@ -619,7 +595,7 @@ impl Interpreter {
             )
             .map_err(RuntimeError::new)?
         };
-        let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
+        let callee = Self::resolve_lowered_callee(executable, function_id, target)?;
         self.reuse_tail_call_frame(
             executable,
             callee,

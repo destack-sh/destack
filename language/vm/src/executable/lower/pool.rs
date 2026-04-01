@@ -4,7 +4,7 @@ use destack_mir as mir;
 
 use super::tree::{BlockParameterMap, ValueDecomposition, ValueTree};
 use crate::executable::{
-    ArgumentRange, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase, SwitchRange,
+    ArgumentRange, CallTarget, CopyPair, CopyRange, INVALID_VALUE_ID, SwitchCase, SwitchRange,
 };
 
 // switch table density threshold
@@ -367,12 +367,12 @@ fn parameter_copy_range(
     }
 }
 
-/// Resolve a lowered function index for the given function id.
-pub(super) fn lookup_function_index(
-    function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
+/// Resolve one call target for the given function id.
+pub(super) fn lookup_call_target(
+    call_targets: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     function: mir::LocalNodeId<mir::Function>,
-) -> Option<u32> {
-    function_indices.get(&function).copied()
+) -> Option<CallTarget> {
+    call_targets.get(&function).copied()
 }
 
 /// Return one switch-case range from the pool.

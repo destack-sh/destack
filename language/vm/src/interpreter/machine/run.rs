@@ -6,7 +6,7 @@ use super::super::state::{Frame, StepState};
 use super::bind::TransferredValue;
 use super::step_instruction;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::executable::{Executable, FunctionTarget};
+use crate::executable::{CallTarget, Executable};
 use crate::interpreter::{
     Continuation, ExecutionOutcome, ExecutionOutput, Interpreter, YieldState,
 };
@@ -162,7 +162,7 @@ impl Interpreter {
 
         // resolve the function target before entering the main loop
         match Self::functions(executable).resolve(func_id) {
-            Some(FunctionTarget::Import) => {
+            Some(CallTarget::Import) => {
                 // call imports directly without entering the lowered machine
                 let handler =
                     self.external_for_id(executable, externals, externals_by_id, func_id)?;
@@ -178,7 +178,7 @@ impl Interpreter {
 
                 return Ok(self.complete_execution(memory.heap_ref(), value));
             }
-            Some(FunctionTarget::Lowered(_)) => {}
+            Some(CallTarget::Lowered(_)) => {}
 
             // reject missing functions loudly
             None => {

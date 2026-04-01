@@ -95,7 +95,7 @@ impl Interpreter {
             }
             Transfer::Call {
                 function,
-                callee_index,
+                target,
                 destination,
                 arguments,
                 env,
@@ -112,7 +112,7 @@ impl Interpreter {
                     memory,
                     current_func,
                     function,
-                    callee_index,
+                    target,
                     destination,
                     arguments,
                     env,
@@ -124,7 +124,7 @@ impl Interpreter {
             }
             Transfer::CallBranch {
                 function,
-                callee_index,
+                target,
                 arguments,
                 env,
                 normal_resume_point,
@@ -140,7 +140,7 @@ impl Interpreter {
                     memory,
                     current_func,
                     function,
-                    callee_index,
+                    target,
                     arguments,
                     env,
                     normal_resume_point,
@@ -151,7 +151,7 @@ impl Interpreter {
             }
             Transfer::TailCall {
                 function,
-                callee_index,
+                target,
                 arguments,
                 env,
                 copies,
@@ -164,7 +164,7 @@ impl Interpreter {
                 memory,
                 current_func,
                 function,
-                callee_index,
+                target,
                 arguments,
                 env,
                 copies,

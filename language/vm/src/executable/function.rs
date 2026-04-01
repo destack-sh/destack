@@ -58,12 +58,12 @@ pub(crate) struct FunctionTable {
     /// Lowered functions by dense index.
     functions: Vec<Function>,
     /// Callable target by function id.
-    target_by_id: HashMap<mir::LocalNodeId<mir::Function>, FunctionTarget>,
+    target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
 }
 
 /// Executable call target resolved for one function id.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FunctionTarget {
+pub(crate) enum CallTarget {
     /// The function id names one imported callable.
     Import,
     /// The function id names one lowered callable.
@@ -74,7 +74,7 @@ impl FunctionTable {
     /// Build a lowered function table from lowered functions and callable targets.
     pub(super) fn new(
         functions: Vec<Function>,
-        target_by_id: HashMap<mir::LocalNodeId<mir::Function>, FunctionTarget>,
+        target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     ) -> Self {
         Self {
             functions,
@@ -83,18 +83,15 @@ impl FunctionTable {
     }
 
     /// Resolve the callable target for the given function id.
-    pub(crate) fn resolve(
-        &self,
-        func_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<FunctionTarget> {
+    pub(crate) fn resolve(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<CallTarget> {
         self.target_by_id.get(&func_id).copied()
     }
 
     /// Resolve a lowered function index for the given id.
     pub(crate) fn index_for(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<u32> {
         match self.resolve(func_id)? {
-            FunctionTarget::Lowered(index) => Some(index),
-            FunctionTarget::Import => None,
+            CallTarget::Lowered(index) => Some(index),
+            CallTarget::Import => None,
         }
     }
 
