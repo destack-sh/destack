@@ -173,23 +173,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -200,7 +197,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -227,14 +224,25 @@ fn encode_destack_net_address_local_address_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
             let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::SocketAddress")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -258,14 +266,25 @@ fn encode_destack_net_address_peer_address_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketAddressVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.family as u64, 16));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length as u64, 32));
             let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::SocketAddress")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -273,11 +292,12 @@ fn encode_destack_net_address_peer_address_result(
 /// Decode arguments for destack.net.interface.interfaceIndex.
 #[inline]
 fn decode_destack_net_interface_interface_index_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((name,))
 }
 
@@ -320,6 +340,7 @@ fn encode_destack_net_interface_list_interfaces_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NetInterfaceVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -359,38 +380,14 @@ fn decode_destack_net_listener_bind_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let address_value = arg_value(args, 1, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
+    let address =
+        <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     Ok((handle, address))
 }
 
@@ -431,34 +428,10 @@ fn decode_destack_net_listener_listen_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketAddressVm, u32)> {
+    let context = &context.read();
     let address_value = arg_value(args, 0, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
+    let address =
+        <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     let backlog_value = arg_value(args, 1, "backlog", "uint32")?;
     let backlog = decode_uint32(backlog_value, "backlog", "uint32")?;
     Ok((address, backlog))
@@ -518,13 +491,21 @@ fn encode_destack_net_options_get_linger_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LingerVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.seconds as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::Linger")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -681,6 +662,7 @@ fn encode_destack_net_options_get_sock_opt_raw_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -812,35 +794,13 @@ fn decode_destack_net_options_set_linger_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, LingerVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let linger_value = arg_value(args, 1, "linger", "Linger")?;
-    let linger = {
-        if linger_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "linger", "Linger",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(linger_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "linger",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let linger_enabled = decode_bool(slots[0], "linger_enabled", "enabled")?;
-        let linger_seconds = decode_uint32(slots[1], "linger_seconds", "seconds")?;
-        LingerVm {
-            enabled: linger_enabled,
-            seconds: linger_seconds,
-        }
-    };
+    let linger = <LingerVm as VmAggregateCodec>::decode_with_context(context, linger_value)?;
     Ok((handle, linger))
 }
 
@@ -984,6 +944,7 @@ fn decode_destack_net_options_set_sock_opt_raw_args(
     SocketOptionName,
     VmSlice<u8>,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1127,6 +1088,7 @@ fn encode_destack_net_raw_packet_backend_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<PacketBackendDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1204,67 +1166,10 @@ fn decode_destack_net_raw_packet_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(PacketCaptureOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "PacketCaptureOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "PacketCaptureOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 6 fields",
-            ))
-            .boxed());
-        }
-        let options_backend_raw = decode_int32(slots[0], "options_backend_raw", "backend")?;
-        let options_backend = match options_backend_raw {
-            0i32 => PacketBackend::Auto,
-            1i32 => PacketBackend::AfPacket,
-            2i32 => PacketBackend::Bpf,
-            3i32 => PacketBackend::WinRawSocket,
-            255i32 => PacketBackend::Null,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_backend",
-                    "unknown PacketBackend value",
-                ))
-                .boxed());
-            }
-        };
-        let options_backend_policy_raw =
-            decode_int32(slots[1], "options_backend_policy_raw", "backendPolicy")?;
-        let options_backend_policy = match options_backend_policy_raw {
-            1i32 => PacketBackendSelectionPolicy::Strict,
-            2i32 => PacketBackendSelectionPolicy::AllowFallback,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_backend_policy",
-                    "unknown PacketBackendSelectionPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        let options_interface_index =
-            decode_uint32(slots[2], "options_interface_index", "interfaceIndex")?;
-        let options_snap_length = decode_uint32(slots[3], "options_snap_length", "snapLength")?;
-        let options_timeout_ms = decode_int32(slots[4], "options_timeout_ms", "timeoutMs")?;
-        let options_promiscuous = decode_bool(slots[5], "options_promiscuous", "promiscuous")?;
-        PacketCaptureOptionsVm {
-            backend: options_backend,
-            backend_policy: options_backend_policy,
-            interface_index: options_interface_index,
-            snap_length: options_snap_length,
-            timeout_ms: options_timeout_ms,
-            promiscuous: options_promiscuous,
-        }
-    };
+    let options =
+        <PacketCaptureOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((options,))
 }
 
@@ -1285,6 +1190,7 @@ fn decode_destack_net_raw_packet_receive_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1305,6 +1211,7 @@ fn encode_destack_net_raw_packet_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PacketCaptureRecordVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
@@ -1314,9 +1221,25 @@ fn encode_destack_net_raw_packet_receive_result(
                 Ok(vm::Value::int(value.timestamp_clock as i32 as i64, 32));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.truncated));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::PacketCaptureRecord")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1327,6 +1250,7 @@ fn decode_destack_net_raw_packet_send_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1358,53 +1282,14 @@ fn decode_destack_net_raw_packet_set_fanout_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, PacketFanoutOptionsVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let options_value = arg_value(args, 1, "options", "PacketFanoutOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "PacketFanoutOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let options_group_id = decode_uint16(slots[0], "options_group_id", "groupId")?;
-        let options_mode_raw = decode_int32(slots[1], "options_mode_raw", "mode")?;
-        let options_mode = match options_mode_raw {
-            0i32 => PacketFanoutMode::Hash,
-            1i32 => PacketFanoutMode::LoadBalance,
-            2i32 => PacketFanoutMode::Cpu,
-            3i32 => PacketFanoutMode::RoundRobin,
-            4i32 => PacketFanoutMode::Rollover,
-            5i32 => PacketFanoutMode::QueueMap,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_mode",
-                    "unknown PacketFanoutMode value",
-                ))
-                .boxed());
-            }
-        };
-        let options_flags = decode_uint16(slots[2], "options_flags", "flags")?;
-        PacketFanoutOptionsVm {
-            group_id: options_group_id,
-            mode: options_mode,
-            flags: options_flags,
-        }
-    };
+    let options =
+        <PacketFanoutOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((handle, options))
 }
 
@@ -1423,6 +1308,7 @@ fn decode_destack_net_raw_packet_set_filter_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1452,43 +1338,14 @@ fn decode_destack_net_raw_packet_set_rx_ring_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, PacketRingOptionsVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let options_value = arg_value(args, 1, "options", "PacketRingOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "PacketRingOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let options_block_size = decode_uint32(slots[0], "options_block_size", "blockSize")?;
-        let options_block_count = decode_uint32(slots[1], "options_block_count", "blockCount")?;
-        let options_frame_size = decode_uint32(slots[2], "options_frame_size", "frameSize")?;
-        let options_frame_count = decode_uint32(slots[3], "options_frame_count", "frameCount")?;
-        let options_retire_timeout_ms =
-            decode_uint32(slots[4], "options_retire_timeout_ms", "retireTimeoutMs")?;
-        PacketRingOptionsVm {
-            block_size: options_block_size,
-            block_count: options_block_count,
-            frame_size: options_frame_size,
-            frame_count: options_frame_count,
-            retire_timeout_ms: options_retire_timeout_ms,
-        }
-    };
+    let options =
+        <PacketRingOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((handle, options))
 }
 
@@ -1543,43 +1400,14 @@ fn decode_destack_net_raw_packet_set_tx_ring_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, PacketRingOptionsVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let options_value = arg_value(args, 1, "options", "PacketRingOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "PacketRingOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let options_block_size = decode_uint32(slots[0], "options_block_size", "blockSize")?;
-        let options_block_count = decode_uint32(slots[1], "options_block_count", "blockCount")?;
-        let options_frame_size = decode_uint32(slots[2], "options_frame_size", "frameSize")?;
-        let options_frame_count = decode_uint32(slots[3], "options_frame_count", "frameCount")?;
-        let options_retire_timeout_ms =
-            decode_uint32(slots[4], "options_retire_timeout_ms", "retireTimeoutMs")?;
-        PacketRingOptionsVm {
-            block_size: options_block_size,
-            block_count: options_block_count,
-            frame_size: options_frame_size,
-            frame_count: options_frame_count,
-            retire_timeout_ms: options_retire_timeout_ms,
-        }
-    };
+    let options =
+        <PacketRingOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((handle, options))
 }
 
@@ -1611,15 +1439,26 @@ fn encode_destack_net_raw_packet_stats_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PacketCaptureStatsVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.received_packets, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.dropped_packets, 64));
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.interface_dropped_packets, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::PacketCaptureStats")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1690,59 +1529,9 @@ fn decode_destack_net_resolve_lookup_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ResolveQueryVm,)> {
+    let context = &context.read();
     let query_value = arg_value(args, 0, "query", "ResolveQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "ResolveQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let query_host = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_host_inner = decode_string(slots[0], "query_host_inner", "host")?;
-            Some(query_host_inner)
-        };
-        let query_service = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_service_inner = decode_string(slots[1], "query_service_inner", "service")?;
-            Some(query_service_inner)
-        };
-        let query_family_raw = decode_int32(slots[2], "query_family_raw", "family")?;
-        let query_family = match query_family_raw {
-            0i32 => SocketFamily::Unspecified,
-            4i32 => SocketFamily::IPv4,
-            6i32 => SocketFamily::IPv6,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "query_family",
-                    "unknown SocketFamily value",
-                ))
-                .boxed());
-            }
-        };
-        let query_flags_inner = decode_uint32(slots[3], "query_flags_inner", "flags")?;
-        let query_flags = ResolveFlags(query_flags_inner);
-        ResolveQueryVm {
-            host: query_host,
-            service: query_service,
-            family: query_family,
-            flags: query_flags,
-        }
-    };
+    let query = <ResolveQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((query,))
 }
 
@@ -1752,6 +1541,7 @@ fn encode_destack_net_resolve_lookup_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketAddressVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1763,34 +1553,10 @@ fn decode_destack_net_resolve_reverse_lookup_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(SocketAddressVm, ReverseLookupFlags)> {
+    let context = &context.read();
     let address_value = arg_value(args, 0, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
+    let address =
+        <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     let flags_value = arg_value(args, 1, "flags", "ReverseLookupFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "ReverseLookupFlags")?;
     let flags = ReverseLookupFlags(flags_inner);
@@ -1803,6 +1569,7 @@ fn encode_destack_net_resolve_reverse_lookup_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<ReverseLookupNameVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1910,125 +1677,9 @@ fn decode_destack_net_route_route_add_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RouteEntryVm,)> {
+    let context = &context.read();
     let route_value = arg_value(args, 0, "route", "RouteEntry")?;
-    let route = {
-        if route_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "route",
-                "RouteEntry",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(route_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "route",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let route_family_raw = decode_int32(slots[0], "route_family_raw", "family")?;
-        let route_family = match route_family_raw {
-            0i32 => SocketFamily::Unspecified,
-            4i32 => SocketFamily::IPv4,
-            6i32 => SocketFamily::IPv6,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_family",
-                    "unknown SocketFamily value",
-                ))
-                .boxed());
-            }
-        };
-        let route_destination = {
-            if slots[1].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "route_destination",
-                    "destination",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[1])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_destination",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let route_destination_family =
-                decode_uint16(slots[0], "route_destination_family", "family")?;
-            let route_destination_length =
-                decode_uint32(slots[1], "route_destination_length", "length")?;
-            let route_destination_bytes =
-                decode_array::<u8>(context, slots[2], "route_destination_bytes", "bytes")?;
-            SocketAddressVm {
-                family: route_destination_family,
-                length: route_destination_length,
-                bytes: route_destination_bytes,
-            }
-        };
-        let route_prefix_length = decode_uint8(slots[2], "route_prefix_length", "prefixLength")?;
-        let route_gateway = {
-            if slots[3].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "route_gateway",
-                    "gateway",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[3])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_gateway",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let route_gateway_family = decode_uint16(slots[0], "route_gateway_family", "family")?;
-            let route_gateway_length = decode_uint32(slots[1], "route_gateway_length", "length")?;
-            let route_gateway_bytes =
-                decode_array::<u8>(context, slots[2], "route_gateway_bytes", "bytes")?;
-            SocketAddressVm {
-                family: route_gateway_family,
-                length: route_gateway_length,
-                bytes: route_gateway_bytes,
-            }
-        };
-        let route_interface_index =
-            decode_uint32(slots[4], "route_interface_index", "interfaceIndex")?;
-        let route_metric = decode_uint32(slots[5], "route_metric", "metric")?;
-        let route_kind_raw = decode_int32(slots[6], "route_kind_raw", "kind")?;
-        let route_kind = match route_kind_raw {
-            1i32 => RouteKind::Unicast,
-            2i32 => RouteKind::Local,
-            3i32 => RouteKind::Broadcast,
-            4i32 => RouteKind::Multicast,
-            5i32 => RouteKind::Blackhole,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_kind",
-                    "unknown RouteKind value",
-                ))
-                .boxed());
-            }
-        };
-        RouteEntryVm {
-            family: route_family,
-            destination: route_destination,
-            prefix_length: route_prefix_length,
-            gateway: route_gateway,
-            interface_index: route_interface_index,
-            metric: route_metric,
-            kind: route_kind,
-        }
-    };
+    let route = <RouteEntryVm as VmAggregateCodec>::decode_with_context(context, route_value)?;
     Ok((route,))
 }
 
@@ -2047,125 +1698,9 @@ fn decode_destack_net_route_route_delete_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RouteEntryVm,)> {
+    let context = &context.read();
     let route_value = arg_value(args, 0, "route", "RouteEntry")?;
-    let route = {
-        if route_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "route",
-                "RouteEntry",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(route_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "route",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let route_family_raw = decode_int32(slots[0], "route_family_raw", "family")?;
-        let route_family = match route_family_raw {
-            0i32 => SocketFamily::Unspecified,
-            4i32 => SocketFamily::IPv4,
-            6i32 => SocketFamily::IPv6,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_family",
-                    "unknown SocketFamily value",
-                ))
-                .boxed());
-            }
-        };
-        let route_destination = {
-            if slots[1].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "route_destination",
-                    "destination",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[1])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_destination",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let route_destination_family =
-                decode_uint16(slots[0], "route_destination_family", "family")?;
-            let route_destination_length =
-                decode_uint32(slots[1], "route_destination_length", "length")?;
-            let route_destination_bytes =
-                decode_array::<u8>(context, slots[2], "route_destination_bytes", "bytes")?;
-            SocketAddressVm {
-                family: route_destination_family,
-                length: route_destination_length,
-                bytes: route_destination_bytes,
-            }
-        };
-        let route_prefix_length = decode_uint8(slots[2], "route_prefix_length", "prefixLength")?;
-        let route_gateway = {
-            if slots[3].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "route_gateway",
-                    "gateway",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[3])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_gateway",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let route_gateway_family = decode_uint16(slots[0], "route_gateway_family", "family")?;
-            let route_gateway_length = decode_uint32(slots[1], "route_gateway_length", "length")?;
-            let route_gateway_bytes =
-                decode_array::<u8>(context, slots[2], "route_gateway_bytes", "bytes")?;
-            SocketAddressVm {
-                family: route_gateway_family,
-                length: route_gateway_length,
-                bytes: route_gateway_bytes,
-            }
-        };
-        let route_interface_index =
-            decode_uint32(slots[4], "route_interface_index", "interfaceIndex")?;
-        let route_metric = decode_uint32(slots[5], "route_metric", "metric")?;
-        let route_kind_raw = decode_int32(slots[6], "route_kind_raw", "kind")?;
-        let route_kind = match route_kind_raw {
-            1i32 => RouteKind::Unicast,
-            2i32 => RouteKind::Local,
-            3i32 => RouteKind::Broadcast,
-            4i32 => RouteKind::Multicast,
-            5i32 => RouteKind::Blackhole,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "route_kind",
-                    "unknown RouteKind value",
-                ))
-                .boxed());
-            }
-        };
-        RouteEntryVm {
-            family: route_family,
-            destination: route_destination,
-            prefix_length: route_prefix_length,
-            gateway: route_gateway,
-            interface_index: route_interface_index,
-            metric: route_metric,
-            kind: route_kind,
-        }
-    };
+    let route = <RouteEntryVm as VmAggregateCodec>::decode_with_context(context, route_value)?;
     Ok((route,))
 }
 
@@ -2207,6 +1742,7 @@ fn encode_destack_net_route_route_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<RouteEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2240,38 +1776,14 @@ fn decode_destack_net_socket_connect_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let address_value = arg_value(args, 1, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
+    let address =
+        <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     Ok((handle, address))
 }
 
@@ -2359,13 +1871,21 @@ fn encode_destack_net_socket_open_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::SocketPair")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2376,6 +1896,7 @@ fn decode_destack_net_socket_read_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2402,6 +1923,7 @@ fn decode_destack_net_socket_readv_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2429,6 +1951,7 @@ fn decode_destack_net_socket_recv_from_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketMessageFlags)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2447,6 +1970,7 @@ fn encode_destack_net_socket_recv_from_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvFromVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
@@ -2456,15 +1980,35 @@ fn encode_destack_net_socket_recv_from_result(
                 let field_1: RuntimeResult<vm::Value> =
                     Ok(vm::Value::uint(value.address.length as u64, 32));
                 let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("net::SocketAddress")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::SocketRecvFrom")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2481,6 +2025,7 @@ fn decode_destack_net_socket_recv_mmsg_args(
     bool,
     u32,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2507,6 +2052,7 @@ fn encode_destack_net_socket_recv_mmsg_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<SocketRecvMessageVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2525,6 +2071,7 @@ fn decode_destack_net_socket_recv_msg_args(
     bool,
     u32,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2556,6 +2103,7 @@ fn encode_destack_net_socket_recv_msg_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketRecvMessageVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
@@ -2566,9 +2114,19 @@ fn encode_destack_net_socket_recv_msg_result(
                     let field_1: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.length as u64, 32));
                     let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("net::SocketAddress")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
@@ -2586,17 +2144,50 @@ fn encode_destack_net_socket_recv_msg_result(
                         Ok(vm::Value::uint(value.uid as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.gid as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("net::SocketCredentials")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::SocketRecvMessage")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2607,6 +2198,7 @@ fn decode_destack_net_socket_send_mmsg_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<SocketSendBatchEntryVm>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2638,6 +2230,7 @@ fn decode_destack_net_socket_send_msg_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketSendMessageVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2645,110 +2238,8 @@ fn decode_destack_net_socket_send_msg_args(
     let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     let message_value = arg_value(args, 2, "message", "SocketSendMessage")?;
-    let message = {
-        if message_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "message",
-                "SocketSendMessage",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(message_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "message",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let message_address = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let message_address_inner = {
-                if slots[0].tag() != vm::ValueTag::Aggregate {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                        "message_address_inner",
-                        "address",
-                    ))
-                    .boxed());
-                }
-                let slots = context
-                    .aggregate_slots(slots[0])
-                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 3 {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "message_address_inner",
-                        "expected 3 fields",
-                    ))
-                    .boxed());
-                }
-                let message_address_inner_family =
-                    decode_uint16(slots[0], "message_address_inner_family", "family")?;
-                let message_address_inner_length =
-                    decode_uint32(slots[1], "message_address_inner_length", "length")?;
-                let message_address_inner_bytes =
-                    decode_array::<u8>(context, slots[2], "message_address_inner_bytes", "bytes")?;
-                SocketAddressVm {
-                    family: message_address_inner_family,
-                    length: message_address_inner_length,
-                    bytes: message_address_inner_bytes,
-                }
-            };
-            Some(message_address_inner)
-        };
-        let message_fds =
-            decode_array::<resource::TransferredHandle>(context, slots[1], "message_fds", "fds")?;
-        let message_control_inner =
-            decode_array::<u8>(context, slots[2], "message_control_inner", "control")?;
-        let message_control =
-            platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(message_control_inner);
-        let message_flags_inner = decode_uint32(slots[3], "message_flags_inner", "flags")?;
-        let message_flags = SocketMessageFlags(message_flags_inner);
-        let message_credentials = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let message_credentials_inner = {
-                if slots[4].tag() != vm::ValueTag::Aggregate {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                        "message_credentials_inner",
-                        "credentials",
-                    ))
-                    .boxed());
-                }
-                let slots = context
-                    .aggregate_slots(slots[4])
-                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 3 {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "message_credentials_inner",
-                        "expected 3 fields",
-                    ))
-                    .boxed());
-                }
-                let message_credentials_inner_pid =
-                    decode_uint32(slots[0], "message_credentials_inner_pid", "pid")?;
-                let message_credentials_inner_uid =
-                    decode_uint32(slots[1], "message_credentials_inner_uid", "uid")?;
-                let message_credentials_inner_gid =
-                    decode_uint32(slots[2], "message_credentials_inner_gid", "gid")?;
-                SocketCredentialsVm {
-                    pid: message_credentials_inner_pid,
-                    uid: message_credentials_inner_uid,
-                    gid: message_credentials_inner_gid,
-                }
-            };
-            Some(message_credentials_inner)
-        };
-        SocketSendMessageVm {
-            address: message_address,
-            fds: message_fds,
-            control: message_control,
-            flags: message_flags,
-            credentials: message_credentials,
-        }
-    };
+    let message =
+        <SocketSendMessageVm as VmAggregateCodec>::decode_with_context(context, message_value)?;
     Ok((handle, buffer, message))
 }
 
@@ -2769,6 +2260,7 @@ fn decode_destack_net_socket_send_to_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, SocketSendToVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2776,61 +2268,8 @@ fn decode_destack_net_socket_send_to_args(
     let buffer_value = arg_value(args, 1, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     let message_value = arg_value(args, 2, "message", "SocketSendTo")?;
-    let message = {
-        if message_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "message",
-                "SocketSendTo",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(message_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "message",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let message_address = {
-            if slots[0].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "message_address",
-                    "address",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[0])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "message_address",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let message_address_family =
-                decode_uint16(slots[0], "message_address_family", "family")?;
-            let message_address_length =
-                decode_uint32(slots[1], "message_address_length", "length")?;
-            let message_address_bytes =
-                decode_array::<u8>(context, slots[2], "message_address_bytes", "bytes")?;
-            SocketAddressVm {
-                family: message_address_family,
-                length: message_address_length,
-                bytes: message_address_bytes,
-            }
-        };
-        let message_flags_inner = decode_uint32(slots[1], "message_flags_inner", "flags")?;
-        let message_flags = SocketMessageFlags(message_flags_inner);
-        SocketSendToVm {
-            address: message_address,
-            flags: message_flags,
-        }
-    };
+    let message =
+        <SocketSendToVm as VmAggregateCodec>::decode_with_context(context, message_value)?;
     Ok((handle, buffer, message))
 }
 
@@ -2911,6 +2350,7 @@ fn decode_destack_net_socket_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2937,6 +2377,7 @@ fn decode_destack_net_socket_writev_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<VmSlice<u8>>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2977,6 +2418,7 @@ fn encode_destack_net_tcp_get_keep_alive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<KeepAliveConfigVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.enabled));
@@ -2986,9 +2428,22 @@ fn encode_destack_net_tcp_get_keep_alive_result(
                 Ok(vm::Value::uint(value.interval_seconds as u64, 32));
             let field_3: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.probe_count as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::KeepAliveConfig")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -3023,41 +2478,14 @@ fn decode_destack_net_tcp_set_keep_alive_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, KeepAliveConfigVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let config_value = arg_value(args, 1, "config", "KeepAliveConfig")?;
-    let config = {
-        if config_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "config",
-                "KeepAliveConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(config_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "config",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let config_enabled = decode_bool(slots[0], "config_enabled", "enabled")?;
-        let config_idle_seconds = decode_uint32(slots[1], "config_idle_seconds", "idleSeconds")?;
-        let config_interval_seconds =
-            decode_uint32(slots[2], "config_interval_seconds", "intervalSeconds")?;
-        let config_probe_count = decode_uint32(slots[3], "config_probe_count", "probeCount")?;
-        KeepAliveConfigVm {
-            enabled: config_enabled,
-            idle_seconds: config_idle_seconds,
-            interval_seconds: config_interval_seconds,
-            probe_count: config_probe_count,
-        }
-    };
+    let config =
+        <KeepAliveConfigVm as VmAggregateCodec>::decode_with_context(context, config_value)?;
     Ok((handle, config))
 }
 
@@ -3100,38 +2528,14 @@ fn decode_destack_net_udp_bind_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let address_value = arg_value(args, 1, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
+    let address =
+        <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     Ok((handle, address))
 }
 
@@ -3150,38 +2554,14 @@ fn decode_destack_net_udp_connect_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, SocketAddressVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let address_value = arg_value(args, 1, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
+    let address =
+        <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     Ok((handle, address))
 }
 
@@ -3296,39 +2676,16 @@ fn decode_destack_net_udp_join_multicast_source_v4_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, UdpSourceMembershipV4Vm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let membership_value = arg_value(args, 1, "membership", "UdpSourceMembershipV4")?;
-    let membership = {
-        if membership_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "membership",
-                "UdpSourceMembershipV4",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(membership_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "membership",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let membership_group = decode_string(slots[0], "membership_group", "group")?;
-        let membership_source = decode_string(slots[1], "membership_source", "source")?;
-        let membership_interface_address =
-            decode_string(slots[2], "membership_interface_address", "interfaceAddress")?;
-        UdpSourceMembershipV4Vm {
-            group: membership_group,
-            source: membership_source,
-            interface_address: membership_interface_address,
-        }
-    };
+    let membership = <UdpSourceMembershipV4Vm as VmAggregateCodec>::decode_with_context(
+        context,
+        membership_value,
+    )?;
     Ok((handle, membership))
 }
 
@@ -3347,39 +2704,16 @@ fn decode_destack_net_udp_join_multicast_source_v6_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, UdpSourceMembershipV6Vm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let membership_value = arg_value(args, 1, "membership", "UdpSourceMembershipV6")?;
-    let membership = {
-        if membership_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "membership",
-                "UdpSourceMembershipV6",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(membership_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "membership",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let membership_group = decode_string(slots[0], "membership_group", "group")?;
-        let membership_source = decode_string(slots[1], "membership_source", "source")?;
-        let membership_interface_index =
-            decode_uint32(slots[2], "membership_interface_index", "interfaceIndex")?;
-        UdpSourceMembershipV6Vm {
-            group: membership_group,
-            source: membership_source,
-            interface_index: membership_interface_index,
-        }
-    };
+    let membership = <UdpSourceMembershipV6Vm as VmAggregateCodec>::decode_with_context(
+        context,
+        membership_value,
+    )?;
     Ok((handle, membership))
 }
 
@@ -3395,17 +2729,23 @@ fn encode_destack_net_udp_join_multicast_source_v6_result(
 /// Decode arguments for destack.net.udp.joinMulticastV4.
 #[inline]
 fn decode_destack_net_udp_join_multicast_v4_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, vm::StringHandle)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let group_value = arg_value(args, 1, "group", "string")?;
-    let group = decode_string(group_value, "group", "string")?;
+    let group = decode_string(context, group_value, "group", "string")?;
     let interfaceaddress_value = arg_value(args, 2, "interfaceaddress", "string")?;
-    let interfaceaddress = decode_string(interfaceaddress_value, "interfaceaddress", "string")?;
+    let interfaceaddress = decode_string(
+        context,
+        interfaceaddress_value,
+        "interfaceaddress",
+        "string",
+    )?;
     Ok((handle, group, interfaceaddress))
 }
 
@@ -3421,15 +2761,16 @@ fn encode_destack_net_udp_join_multicast_v4_result(
 /// Decode arguments for destack.net.udp.joinMulticastV6.
 #[inline]
 fn decode_destack_net_udp_join_multicast_v6_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, u32)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let group_value = arg_value(args, 1, "group", "string")?;
-    let group = decode_string(group_value, "group", "string")?;
+    let group = decode_string(context, group_value, "group", "string")?;
     let interfaceindex_value = arg_value(args, 2, "interfaceindex", "uint32")?;
     let interfaceindex = decode_uint32(interfaceindex_value, "interfaceindex", "uint32")?;
     Ok((handle, group, interfaceindex))
@@ -3450,39 +2791,16 @@ fn decode_destack_net_udp_leave_multicast_source_v4_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, UdpSourceMembershipV4Vm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let membership_value = arg_value(args, 1, "membership", "UdpSourceMembershipV4")?;
-    let membership = {
-        if membership_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "membership",
-                "UdpSourceMembershipV4",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(membership_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "membership",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let membership_group = decode_string(slots[0], "membership_group", "group")?;
-        let membership_source = decode_string(slots[1], "membership_source", "source")?;
-        let membership_interface_address =
-            decode_string(slots[2], "membership_interface_address", "interfaceAddress")?;
-        UdpSourceMembershipV4Vm {
-            group: membership_group,
-            source: membership_source,
-            interface_address: membership_interface_address,
-        }
-    };
+    let membership = <UdpSourceMembershipV4Vm as VmAggregateCodec>::decode_with_context(
+        context,
+        membership_value,
+    )?;
     Ok((handle, membership))
 }
 
@@ -3501,39 +2819,16 @@ fn decode_destack_net_udp_leave_multicast_source_v6_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, UdpSourceMembershipV6Vm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let membership_value = arg_value(args, 1, "membership", "UdpSourceMembershipV6")?;
-    let membership = {
-        if membership_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "membership",
-                "UdpSourceMembershipV6",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(membership_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "membership",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let membership_group = decode_string(slots[0], "membership_group", "group")?;
-        let membership_source = decode_string(slots[1], "membership_source", "source")?;
-        let membership_interface_index =
-            decode_uint32(slots[2], "membership_interface_index", "interfaceIndex")?;
-        UdpSourceMembershipV6Vm {
-            group: membership_group,
-            source: membership_source,
-            interface_index: membership_interface_index,
-        }
-    };
+    let membership = <UdpSourceMembershipV6Vm as VmAggregateCodec>::decode_with_context(
+        context,
+        membership_value,
+    )?;
     Ok((handle, membership))
 }
 
@@ -3549,17 +2844,23 @@ fn encode_destack_net_udp_leave_multicast_source_v6_result(
 /// Decode arguments for destack.net.udp.leaveMulticastV4.
 #[inline]
 fn decode_destack_net_udp_leave_multicast_v4_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, vm::StringHandle)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let group_value = arg_value(args, 1, "group", "string")?;
-    let group = decode_string(group_value, "group", "string")?;
+    let group = decode_string(context, group_value, "group", "string")?;
     let interfaceaddress_value = arg_value(args, 2, "interfaceaddress", "string")?;
-    let interfaceaddress = decode_string(interfaceaddress_value, "interfaceaddress", "string")?;
+    let interfaceaddress = decode_string(
+        context,
+        interfaceaddress_value,
+        "interfaceaddress",
+        "string",
+    )?;
     Ok((handle, group, interfaceaddress))
 }
 
@@ -3575,15 +2876,16 @@ fn encode_destack_net_udp_leave_multicast_v4_result(
 /// Decode arguments for destack.net.udp.leaveMulticastV6.
 #[inline]
 fn decode_destack_net_udp_leave_multicast_v6_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle, u32)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let group_value = arg_value(args, 1, "group", "string")?;
-    let group = decode_string(group_value, "group", "string")?;
+    let group = decode_string(context, group_value, "group", "string")?;
     let interfaceindex_value = arg_value(args, 2, "interfaceindex", "uint32")?;
     let interfaceindex = decode_uint32(interfaceindex_value, "interfaceindex", "uint32")?;
     Ok((handle, group, interfaceindex))
@@ -3604,6 +2906,7 @@ fn decode_destack_net_udp_recv_from_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, VmSlice<u8>, UdpMessageFlags)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -3622,6 +2925,7 @@ fn encode_destack_net_udp_recv_from_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UdpReceiveVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = {
@@ -3630,16 +2934,36 @@ fn encode_destack_net_udp_recv_from_result(
                 let field_1: RuntimeResult<vm::Value> =
                     Ok(vm::Value::uint(value.address.length as u64, 32));
                 let field_2: RuntimeResult<vm::Value> = value.address.bytes.to_value(context);
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("net::SocketAddress")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
             let field_2: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.recv_flags.0 as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::UdpReceive")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -3655,38 +2979,14 @@ fn decode_destack_net_udp_send_to_args(
     VmSlice<u8>,
     UdpMessageFlags,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let address_value = arg_value(args, 1, "address", "SocketAddress")?;
-    let address = {
-        if address_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "address",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(address_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "address",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let address_family = decode_uint16(slots[0], "address_family", "family")?;
-        let address_length = decode_uint32(slots[1], "address_length", "length")?;
-        let address_bytes = decode_array::<u8>(context, slots[2], "address_bytes", "bytes")?;
-        SocketAddressVm {
-            family: address_family,
-            length: address_length,
-            bytes: address_bytes,
-        }
-    };
+    let address =
+        <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     let buffer_value = arg_value(args, 2, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     let sendflags_value = arg_value(args, 3, "sendflags", "UdpMessageFlags")?;
@@ -3709,15 +3009,21 @@ fn encode_destack_net_udp_send_to_result(
 /// Decode arguments for destack.net.udp.setMulticastInterfaceV4.
 #[inline]
 fn decode_destack_net_udp_set_multicast_interface_v4_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::SocketHandle, vm::StringHandle)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "SocketHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SocketHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SocketHandle(handle_inner);
     let interfaceaddress_value = arg_value(args, 1, "interfaceaddress", "string")?;
-    let interfaceaddress = decode_string(interfaceaddress_value, "interfaceaddress", "string")?;
+    let interfaceaddress = decode_string(
+        context,
+        interfaceaddress_value,
+        "interfaceaddress",
+        "string",
+    )?;
     Ok((handle, interfaceaddress))
 }
 
@@ -3889,6 +3195,7 @@ fn decode_destack_net_uds_uds_connect_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm,)> {
+    let context = &context.read();
     let address_value = arg_value(args, 0, "address", "UdsAddress")?;
     let address = <UdsAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     Ok((address,))
@@ -3911,6 +3218,7 @@ fn decode_destack_net_uds_uds_listen_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UdsAddressVm, u32)> {
+    let context = &context.read();
     let address_value = arg_value(args, 0, "address", "UdsAddress")?;
     let address = <UdsAddressVm as VmAggregateCodec>::decode_with_context(context, address_value)?;
     let backlog_value = arg_value(args, 1, "backlog", "uint32")?;
@@ -3947,13 +3255,21 @@ fn encode_destack_net_uds_uds_socket_pair_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SocketPairVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.first.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.second.0.0, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("net::SocketPair")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -7171,10 +6487,10 @@ fn destack_net_address_local_address_replay(
                 let result_value: SocketAddress = unsafe { out.read() };
                 let result_recorded_family = result_value.family;
                 let result_recorded_length = result_value.length;
-                let mut result_recorded_bytes = Vec::new();
-                for result_recorded_bytes_item in
-                    unsafe { result_value.bytes.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_bytes_slice = unsafe { result_value.bytes.as_slice()? };
+                let mut result_recorded_bytes =
+                    Vec::with_capacity(result_recorded_bytes_slice.len());
+                for result_recorded_bytes_item in result_recorded_bytes_slice.iter().cloned() {
                     let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
                     result_recorded_bytes.push(result_recorded_bytes_item_recorded);
                 }
@@ -7205,12 +6521,16 @@ fn destack_net_address_local_address_replay(
                 Ok(value) => {
                     let value_native_family = value.family;
                     let value_native_length = value.length;
-                    let mut value_native_bytes_values = Vec::new();
-                    for value_native_bytes_item in value.bytes.iter().cloned() {
-                        let value_native_bytes_decoded = value_native_bytes_item;
-                        value_native_bytes_values.push(value_native_bytes_decoded);
-                    }
-                    let value_native_bytes = binding.store_array(value_native_bytes_values);
+                    let value_native_bytes = binding.store_array_with(
+                        value.bytes.len(),
+                        |value_native_bytes_values| {
+                            for value_native_bytes_item in value.bytes {
+                                let value_native_bytes_decoded = value_native_bytes_item;
+                                value_native_bytes_values.push(value_native_bytes_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native = SocketAddress {
                         family: value_native_family,
                         length: value_native_length,
@@ -7250,10 +6570,10 @@ fn destack_net_address_peer_address_replay(
                 let result_value: SocketAddress = unsafe { out.read() };
                 let result_recorded_family = result_value.family;
                 let result_recorded_length = result_value.length;
-                let mut result_recorded_bytes = Vec::new();
-                for result_recorded_bytes_item in
-                    unsafe { result_value.bytes.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_bytes_slice = unsafe { result_value.bytes.as_slice()? };
+                let mut result_recorded_bytes =
+                    Vec::with_capacity(result_recorded_bytes_slice.len());
+                for result_recorded_bytes_item in result_recorded_bytes_slice.iter().cloned() {
                     let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
                     result_recorded_bytes.push(result_recorded_bytes_item_recorded);
                 }
@@ -7284,12 +6604,16 @@ fn destack_net_address_peer_address_replay(
                 Ok(value) => {
                     let value_native_family = value.family;
                     let value_native_length = value.length;
-                    let mut value_native_bytes_values = Vec::new();
-                    for value_native_bytes_item in value.bytes.iter().cloned() {
-                        let value_native_bytes_decoded = value_native_bytes_item;
-                        value_native_bytes_values.push(value_native_bytes_decoded);
-                    }
-                    let value_native_bytes = binding.store_array(value_native_bytes_values);
+                    let value_native_bytes = binding.store_array_with(
+                        value.bytes.len(),
+                        |value_native_bytes_values| {
+                            for value_native_bytes_item in value.bytes {
+                                let value_native_bytes_decoded = value_native_bytes_item;
+                                value_native_bytes_values.push(value_native_bytes_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native = SocketAddress {
                         family: value_native_family,
                         length: value_native_length,
@@ -7401,7 +6725,7 @@ fn destack_net_interface_interface_name_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = binding.store_string(value.as_str());
+                    let value_native = binding.store_string_owned(value);
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -7427,23 +6751,27 @@ fn destack_net_interface_list_interfaces_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<NetInterface> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_name = unsafe { result_recorded_item.name.as_str()? }.to_string();
                     let result_recorded_item_recorded_index = result_recorded_item.index;
                     let result_recorded_item_recorded_flags = result_recorded_item.flags;
                     let result_recorded_item_recorded_mtu = result_recorded_item.mtu;
-                    let mut result_recorded_item_recorded_mac_address = Vec::new();
-                    for result_recorded_item_recorded_mac_address_item in unsafe { result_recorded_item.mac_address.as_slice()? }.iter().cloned() {
+                    let result_recorded_item_recorded_mac_address_slice = unsafe { result_recorded_item.mac_address.as_slice()? };
+                    let mut result_recorded_item_recorded_mac_address = Vec::with_capacity(result_recorded_item_recorded_mac_address_slice.len());
+                    for result_recorded_item_recorded_mac_address_item in result_recorded_item_recorded_mac_address_slice.iter().cloned() {
                         let result_recorded_item_recorded_mac_address_item_recorded = result_recorded_item_recorded_mac_address_item;
                         result_recorded_item_recorded_mac_address.push(result_recorded_item_recorded_mac_address_item_recorded);
                     }
-                    let mut result_recorded_item_recorded_addresses = Vec::new();
-                    for result_recorded_item_recorded_addresses_item in unsafe { result_recorded_item.addresses.as_slice()? }.iter().cloned() {
+                    let result_recorded_item_recorded_addresses_slice = unsafe { result_recorded_item.addresses.as_slice()? };
+                    let mut result_recorded_item_recorded_addresses = Vec::with_capacity(result_recorded_item_recorded_addresses_slice.len());
+                    for result_recorded_item_recorded_addresses_item in result_recorded_item_recorded_addresses_slice.iter().cloned() {
                         let result_recorded_item_recorded_addresses_item_recorded_family = result_recorded_item_recorded_addresses_item.family;
                         let result_recorded_item_recorded_addresses_item_recorded_length = result_recorded_item_recorded_addresses_item.length;
-                        let mut result_recorded_item_recorded_addresses_item_recorded_bytes = Vec::new();
-                        for result_recorded_item_recorded_addresses_item_recorded_bytes_item in unsafe { result_recorded_item_recorded_addresses_item.bytes.as_slice()? }.iter().cloned() {
+                        let result_recorded_item_recorded_addresses_item_recorded_bytes_slice = unsafe { result_recorded_item_recorded_addresses_item.bytes.as_slice()? };
+                        let mut result_recorded_item_recorded_addresses_item_recorded_bytes = Vec::with_capacity(result_recorded_item_recorded_addresses_item_recorded_bytes_slice.len());
+                        for result_recorded_item_recorded_addresses_item_recorded_bytes_item in result_recorded_item_recorded_addresses_item_recorded_bytes_slice.iter().cloned() {
                             let result_recorded_item_recorded_addresses_item_recorded_bytes_item_recorded = result_recorded_item_recorded_addresses_item_recorded_bytes_item;
                             result_recorded_item_recorded_addresses_item_recorded_bytes.push(result_recorded_item_recorded_addresses_item_recorded_bytes_item_recorded);
                         }
@@ -7486,47 +6814,51 @@ fn destack_net_interface_list_interfaces_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_name = binding.store_string(value_native_item.name.as_str());
-                        let value_native_decoded_index = value_native_item.index;
-                        let value_native_decoded_flags = value_native_item.flags;
-                        let value_native_decoded_mtu = value_native_item.mtu;
-                        let mut value_native_decoded_mac_address_values = Vec::new();
-                        for value_native_decoded_mac_address_item in value_native_item.mac_address.iter().cloned() {
-                            let value_native_decoded_mac_address_decoded = value_native_decoded_mac_address_item;
-                            value_native_decoded_mac_address_values.push(value_native_decoded_mac_address_decoded);
-                        }
-                        let value_native_decoded_mac_address = binding.store_array(value_native_decoded_mac_address_values);
-                        let mut value_native_decoded_addresses_values = Vec::new();
-                        for value_native_decoded_addresses_item in value_native_item.addresses.iter().cloned() {
-                            let value_native_decoded_addresses_decoded_family = value_native_decoded_addresses_item.family;
-                            let value_native_decoded_addresses_decoded_length = value_native_decoded_addresses_item.length;
-                            let mut value_native_decoded_addresses_decoded_bytes_values = Vec::new();
-                            for value_native_decoded_addresses_decoded_bytes_item in value_native_decoded_addresses_item.bytes.iter().cloned() {
-                                let value_native_decoded_addresses_decoded_bytes_decoded = value_native_decoded_addresses_decoded_bytes_item;
-                                value_native_decoded_addresses_decoded_bytes_values.push(value_native_decoded_addresses_decoded_bytes_decoded);
-                            }
-                            let value_native_decoded_addresses_decoded_bytes = binding.store_array(value_native_decoded_addresses_decoded_bytes_values);
-                            let value_native_decoded_addresses_decoded = SocketAddress {
-                                family: value_native_decoded_addresses_decoded_family,
-                                length: value_native_decoded_addresses_decoded_length,
-                                bytes: value_native_decoded_addresses_decoded_bytes,
+                    let value_native = binding.store_array_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded_name = binding.store_string_owned(value_native_item.name);
+                            let value_native_decoded_index = value_native_item.index;
+                            let value_native_decoded_flags = value_native_item.flags;
+                            let value_native_decoded_mtu = value_native_item.mtu;
+                            let value_native_decoded_mac_address = binding.store_array_with(value_native_item.mac_address.len(), |value_native_decoded_mac_address_values| {
+                                for value_native_decoded_mac_address_item in value_native_item.mac_address {
+                                    let value_native_decoded_mac_address_decoded = value_native_decoded_mac_address_item;
+                                    value_native_decoded_mac_address_values.push(value_native_decoded_mac_address_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_decoded_addresses = binding.store_array_with(value_native_item.addresses.len(), |value_native_decoded_addresses_values| {
+                                for value_native_decoded_addresses_item in value_native_item.addresses {
+                                    let value_native_decoded_addresses_decoded_family = value_native_decoded_addresses_item.family;
+                                    let value_native_decoded_addresses_decoded_length = value_native_decoded_addresses_item.length;
+                                    let value_native_decoded_addresses_decoded_bytes = binding.store_array_with(value_native_decoded_addresses_item.bytes.len(), |value_native_decoded_addresses_decoded_bytes_values| {
+                                        for value_native_decoded_addresses_decoded_bytes_item in value_native_decoded_addresses_item.bytes {
+                                            let value_native_decoded_addresses_decoded_bytes_decoded = value_native_decoded_addresses_decoded_bytes_item;
+                                            value_native_decoded_addresses_decoded_bytes_values.push(value_native_decoded_addresses_decoded_bytes_decoded);
+                                        }
+                                        Ok(())
+                                    })?;
+                                    let value_native_decoded_addresses_decoded = SocketAddress {
+                                        family: value_native_decoded_addresses_decoded_family,
+                                        length: value_native_decoded_addresses_decoded_length,
+                                        bytes: value_native_decoded_addresses_decoded_bytes,
+                                    };
+                                    value_native_decoded_addresses_values.push(value_native_decoded_addresses_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_decoded = NetInterface {
+                                name: value_native_decoded_name,
+                                index: value_native_decoded_index,
+                                flags: value_native_decoded_flags,
+                                mtu: value_native_decoded_mtu,
+                                mac_address: value_native_decoded_mac_address,
+                                addresses: value_native_decoded_addresses,
                             };
-                            value_native_decoded_addresses_values.push(value_native_decoded_addresses_decoded);
+                            value_native_values.push(value_native_decoded);
                         }
-                        let value_native_decoded_addresses = binding.store_array(value_native_decoded_addresses_values);
-                        let value_native_decoded = NetInterface {
-                            name: value_native_decoded_name,
-                            index: value_native_decoded_index,
-                            flags: value_native_decoded_flags,
-                            mtu: value_native_decoded_mtu,
-                            mac_address: value_native_decoded_mac_address,
-                            addresses: value_native_decoded_addresses,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -8153,8 +7485,9 @@ fn destack_net_options_get_sock_opt_raw_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<u8> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded = result_recorded_item;
                     result_recorded.push(result_recorded_item_recorded);
                 }
@@ -8178,12 +7511,14 @@ fn destack_net_options_get_sock_opt_raw_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded = value_native_item;
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded = value_native_item;
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -9029,8 +8364,9 @@ fn destack_net_raw_packet_backend_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeSlice<PacketBackendDescriptor> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_name =
                         unsafe { result_recorded_item.name.as_str()? }.to_string();
@@ -9067,25 +8403,27 @@ fn destack_net_raw_packet_backend_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_backend = value_native_item.backend;
-                        let value_native_decoded_name =
-                            binding.store_string(value_native_item.name.as_str());
-                        let value_native_decoded_available = value_native_item.available;
-                        let value_native_decoded_priority = value_native_item.priority;
-                        let value_native_decoded_capability_flags =
-                            value_native_item.capability_flags;
-                        let value_native_decoded = PacketBackendDescriptor {
-                            backend: value_native_decoded_backend,
-                            name: value_native_decoded_name,
-                            available: value_native_decoded_available,
-                            priority: value_native_decoded_priority,
-                            capability_flags: value_native_decoded_capability_flags,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_slice(value_native_values);
+                    let value_native =
+                        binding.store_slice_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_backend = value_native_item.backend;
+                                let value_native_decoded_name =
+                                    binding.store_string_owned(value_native_item.name);
+                                let value_native_decoded_available = value_native_item.available;
+                                let value_native_decoded_priority = value_native_item.priority;
+                                let value_native_decoded_capability_flags =
+                                    value_native_item.capability_flags;
+                                let value_native_decoded = PacketBackendDescriptor {
+                                    backend: value_native_decoded_backend,
+                                    name: value_native_decoded_name,
+                                    available: value_native_decoded_available,
+                                    priority: value_native_decoded_priority,
+                                    capability_flags: value_native_decoded_capability_flags,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -9881,15 +9219,17 @@ fn destack_net_resolve_lookup_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<SocketAddress> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_family = result_recorded_item.family;
                     let result_recorded_item_recorded_length = result_recorded_item.length;
-                    let mut result_recorded_item_recorded_bytes = Vec::new();
+                    let result_recorded_item_recorded_bytes_slice =
+                        unsafe { result_recorded_item.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_bytes =
+                        Vec::with_capacity(result_recorded_item_recorded_bytes_slice.len());
                     for result_recorded_item_recorded_bytes_item in
-                        unsafe { result_recorded_item.bytes.as_slice()? }
-                            .iter()
-                            .cloned()
+                        result_recorded_item_recorded_bytes_slice.iter().cloned()
                     {
                         let result_recorded_item_recorded_bytes_item_recorded =
                             result_recorded_item_recorded_bytes_item;
@@ -9923,29 +9263,34 @@ fn destack_net_resolve_lookup_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_family = value_native_item.family;
-                        let value_native_decoded_length = value_native_item.length;
-                        let mut value_native_decoded_bytes_values = Vec::new();
-                        for value_native_decoded_bytes_item in
-                            value_native_item.bytes.iter().cloned()
-                        {
-                            let value_native_decoded_bytes_decoded =
-                                value_native_decoded_bytes_item;
-                            value_native_decoded_bytes_values
-                                .push(value_native_decoded_bytes_decoded);
-                        }
-                        let value_native_decoded_bytes =
-                            binding.store_array(value_native_decoded_bytes_values);
-                        let value_native_decoded = SocketAddress {
-                            family: value_native_decoded_family,
-                            length: value_native_decoded_length,
-                            bytes: value_native_decoded_bytes,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_family = value_native_item.family;
+                                let value_native_decoded_length = value_native_item.length;
+                                let value_native_decoded_bytes = binding.store_array_with(
+                                    value_native_item.bytes.len(),
+                                    |value_native_decoded_bytes_values| {
+                                        for value_native_decoded_bytes_item in
+                                            value_native_item.bytes
+                                        {
+                                            let value_native_decoded_bytes_decoded =
+                                                value_native_decoded_bytes_item;
+                                            value_native_decoded_bytes_values
+                                                .push(value_native_decoded_bytes_decoded);
+                                        }
+                                        Ok(())
+                                    },
+                                )?;
+                                let value_native_decoded = SocketAddress {
+                                    family: value_native_decoded_family,
+                                    length: value_native_decoded_length,
+                                    bytes: value_native_decoded_bytes,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -9979,8 +9324,9 @@ fn destack_net_resolve_reverse_lookup_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<ReverseLookupName> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_host =
                         unsafe { result_recorded_item.host.as_str()? }.to_string();
                     let result_recorded_item_recorded_service =
@@ -10011,19 +9357,21 @@ fn destack_net_resolve_reverse_lookup_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_host =
-                            binding.store_string(value_native_item.host.as_str());
-                        let value_native_decoded_service =
-                            binding.store_string(value_native_item.service.as_str());
-                        let value_native_decoded = ReverseLookupName {
-                            host: value_native_decoded_host,
-                            service: value_native_decoded_service,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_host =
+                                    binding.store_string_owned(value_native_item.host);
+                                let value_native_decoded_service =
+                                    binding.store_string_owned(value_native_item.service);
+                                let value_native_decoded = ReverseLookupName {
+                                    host: value_native_decoded_host,
+                                    service: value_native_decoded_service,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -10354,16 +9702,21 @@ fn destack_net_route_route_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<RouteEntry> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_family = result_recorded_item.family;
                     let result_recorded_item_recorded_destination_family =
                         result_recorded_item.destination.family;
                     let result_recorded_item_recorded_destination_length =
                         result_recorded_item.destination.length;
-                    let mut result_recorded_item_recorded_destination_bytes = Vec::new();
+                    let result_recorded_item_recorded_destination_bytes_slice =
+                        unsafe { result_recorded_item.destination.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_destination_bytes = Vec::with_capacity(
+                        result_recorded_item_recorded_destination_bytes_slice.len(),
+                    );
                     for result_recorded_item_recorded_destination_bytes_item in
-                        unsafe { result_recorded_item.destination.bytes.as_slice()? }
+                        result_recorded_item_recorded_destination_bytes_slice
                             .iter()
                             .cloned()
                     {
@@ -10383,9 +9736,12 @@ fn destack_net_route_route_list_replay(
                         result_recorded_item.gateway.family;
                     let result_recorded_item_recorded_gateway_length =
                         result_recorded_item.gateway.length;
-                    let mut result_recorded_item_recorded_gateway_bytes = Vec::new();
+                    let result_recorded_item_recorded_gateway_bytes_slice =
+                        unsafe { result_recorded_item.gateway.bytes.as_slice()? };
+                    let mut result_recorded_item_recorded_gateway_bytes =
+                        Vec::with_capacity(result_recorded_item_recorded_gateway_bytes_slice.len());
                     for result_recorded_item_recorded_gateway_bytes_item in
-                        unsafe { result_recorded_item.gateway.bytes.as_slice()? }
+                        result_recorded_item_recorded_gateway_bytes_slice
                             .iter()
                             .cloned()
                     {
@@ -10434,64 +9790,77 @@ fn destack_net_route_route_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_family = value_native_item.family;
-                        let value_native_decoded_destination_family =
-                            value_native_item.destination.family;
-                        let value_native_decoded_destination_length =
-                            value_native_item.destination.length;
-                        let mut value_native_decoded_destination_bytes_values = Vec::new();
-                        for value_native_decoded_destination_bytes_item in
-                            value_native_item.destination.bytes.iter().cloned()
-                        {
-                            let value_native_decoded_destination_bytes_decoded =
-                                value_native_decoded_destination_bytes_item;
-                            value_native_decoded_destination_bytes_values
-                                .push(value_native_decoded_destination_bytes_decoded);
-                        }
-                        let value_native_decoded_destination_bytes =
-                            binding.store_array(value_native_decoded_destination_bytes_values);
-                        let value_native_decoded_destination = SocketAddress {
-                            family: value_native_decoded_destination_family,
-                            length: value_native_decoded_destination_length,
-                            bytes: value_native_decoded_destination_bytes,
-                        };
-                        let value_native_decoded_prefix_length = value_native_item.prefix_length;
-                        let value_native_decoded_gateway_family = value_native_item.gateway.family;
-                        let value_native_decoded_gateway_length = value_native_item.gateway.length;
-                        let mut value_native_decoded_gateway_bytes_values = Vec::new();
-                        for value_native_decoded_gateway_bytes_item in
-                            value_native_item.gateway.bytes.iter().cloned()
-                        {
-                            let value_native_decoded_gateway_bytes_decoded =
-                                value_native_decoded_gateway_bytes_item;
-                            value_native_decoded_gateway_bytes_values
-                                .push(value_native_decoded_gateway_bytes_decoded);
-                        }
-                        let value_native_decoded_gateway_bytes =
-                            binding.store_array(value_native_decoded_gateway_bytes_values);
-                        let value_native_decoded_gateway = SocketAddress {
-                            family: value_native_decoded_gateway_family,
-                            length: value_native_decoded_gateway_length,
-                            bytes: value_native_decoded_gateway_bytes,
-                        };
-                        let value_native_decoded_interface_index =
-                            value_native_item.interface_index;
-                        let value_native_decoded_metric = value_native_item.metric;
-                        let value_native_decoded_kind = value_native_item.kind;
-                        let value_native_decoded = RouteEntry {
-                            family: value_native_decoded_family,
-                            destination: value_native_decoded_destination,
-                            prefix_length: value_native_decoded_prefix_length,
-                            gateway: value_native_decoded_gateway,
-                            interface_index: value_native_decoded_interface_index,
-                            metric: value_native_decoded_metric,
-                            kind: value_native_decoded_kind,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_family = value_native_item.family;
+                                let value_native_decoded_destination_family =
+                                    value_native_item.destination.family;
+                                let value_native_decoded_destination_length =
+                                    value_native_item.destination.length;
+                                let value_native_decoded_destination_bytes = binding
+                                    .store_array_with(
+                                        value_native_item.destination.bytes.len(),
+                                        |value_native_decoded_destination_bytes_values| {
+                                            for value_native_decoded_destination_bytes_item in
+                                                value_native_item.destination.bytes
+                                            {
+                                                let value_native_decoded_destination_bytes_decoded =
+                                                    value_native_decoded_destination_bytes_item;
+                                                value_native_decoded_destination_bytes_values.push(
+                                                    value_native_decoded_destination_bytes_decoded,
+                                                );
+                                            }
+                                            Ok(())
+                                        },
+                                    )?;
+                                let value_native_decoded_destination = SocketAddress {
+                                    family: value_native_decoded_destination_family,
+                                    length: value_native_decoded_destination_length,
+                                    bytes: value_native_decoded_destination_bytes,
+                                };
+                                let value_native_decoded_prefix_length =
+                                    value_native_item.prefix_length;
+                                let value_native_decoded_gateway_family =
+                                    value_native_item.gateway.family;
+                                let value_native_decoded_gateway_length =
+                                    value_native_item.gateway.length;
+                                let value_native_decoded_gateway_bytes = binding.store_array_with(
+                                    value_native_item.gateway.bytes.len(),
+                                    |value_native_decoded_gateway_bytes_values| {
+                                        for value_native_decoded_gateway_bytes_item in
+                                            value_native_item.gateway.bytes
+                                        {
+                                            let value_native_decoded_gateway_bytes_decoded =
+                                                value_native_decoded_gateway_bytes_item;
+                                            value_native_decoded_gateway_bytes_values
+                                                .push(value_native_decoded_gateway_bytes_decoded);
+                                        }
+                                        Ok(())
+                                    },
+                                )?;
+                                let value_native_decoded_gateway = SocketAddress {
+                                    family: value_native_decoded_gateway_family,
+                                    length: value_native_decoded_gateway_length,
+                                    bytes: value_native_decoded_gateway_bytes,
+                                };
+                                let value_native_decoded_interface_index =
+                                    value_native_item.interface_index;
+                                let value_native_decoded_metric = value_native_item.metric;
+                                let value_native_decoded_kind = value_native_item.kind;
+                                let value_native_decoded = RouteEntry {
+                                    family: value_native_decoded_family,
+                                    destination: value_native_decoded_destination,
+                                    prefix_length: value_native_decoded_prefix_length,
+                                    gateway: value_native_decoded_gateway,
+                                    interface_index: value_native_decoded_interface_index,
+                                    metric: value_native_decoded_metric,
+                                    kind: value_native_decoded_kind,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -10859,11 +10228,12 @@ fn destack_net_socket_recv_from_replay(
                 let result_recorded_bytes = result_value.bytes;
                 let result_recorded_address_family = result_value.address.family;
                 let result_recorded_address_length = result_value.address.length;
-                let mut result_recorded_address_bytes = Vec::new();
+                let result_recorded_address_bytes_slice =
+                    unsafe { result_value.address.bytes.as_slice()? };
+                let mut result_recorded_address_bytes =
+                    Vec::with_capacity(result_recorded_address_bytes_slice.len());
                 for result_recorded_address_bytes_item in
-                    unsafe { result_value.address.bytes.as_slice()? }
-                        .iter()
-                        .cloned()
+                    result_recorded_address_bytes_slice.iter().cloned()
                 {
                     let result_recorded_address_bytes_item_recorded =
                         result_recorded_address_bytes_item;
@@ -10903,13 +10273,18 @@ fn destack_net_socket_recv_from_replay(
                     let value_native_bytes = value.bytes;
                     let value_native_address_family = value.address.family;
                     let value_native_address_length = value.address.length;
-                    let mut value_native_address_bytes_values = Vec::new();
-                    for value_native_address_bytes_item in value.address.bytes.iter().cloned() {
-                        let value_native_address_bytes_decoded = value_native_address_bytes_item;
-                        value_native_address_bytes_values.push(value_native_address_bytes_decoded);
-                    }
-                    let value_native_address_bytes =
-                        binding.store_array(value_native_address_bytes_values);
+                    let value_native_address_bytes = binding.store_array_with(
+                        value.address.bytes.len(),
+                        |value_native_address_bytes_values| {
+                            for value_native_address_bytes_item in value.address.bytes {
+                                let value_native_address_bytes_decoded =
+                                    value_native_address_bytes_item;
+                                value_native_address_bytes_values
+                                    .push(value_native_address_bytes_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native_address = SocketAddress {
                         family: value_native_address_family,
                         length: value_native_address_length,
@@ -10953,92 +10328,51 @@ fn destack_net_socket_recv_mmsg_replay(
         NET_SOCKET_RECV_MMSG,
         binding.replay_payload_for(NET_SOCKET_RECV_MMSG)?,
         || match world {
-            RuntimeWorld::Host => unsafe {
-                platform_native::destack_net_recv_mmsg(
-                    binding,
-                    out,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            },
-            RuntimeWorld::Simulation => unsafe {
-                platform_simulation_native::destack_net_recv_mmsg(
-                    binding,
-                    out,
-                    handle,
-                    requests,
-                    maxfds,
-                    wantcredentials,
-                    maxcontrolbytes,
-                )
-            },
+            RuntimeWorld::Host => unsafe { platform_native::destack_net_recv_mmsg(binding, out, handle, requests, maxfds, wantcredentials, maxcontrolbytes) },
+            RuntimeWorld::Simulation => unsafe { platform_simulation_native::destack_net_recv_mmsg(binding, out, handle, requests, maxfds, wantcredentials, maxcontrolbytes) },
         },
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<SocketRecvMessage> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
-                    let result_recorded_item_recorded_address = if let Some(value) =
-                        result_recorded_item.address
-                    {
+                    let result_recorded_item_recorded_address = if let Some(value) = result_recorded_item.address {
                         let result_recorded_item_recorded_address_inner_family = value.family;
                         let result_recorded_item_recorded_address_inner_length = value.length;
-                        let mut result_recorded_item_recorded_address_inner_bytes = Vec::new();
-                        for result_recorded_item_recorded_address_inner_bytes_item in
-                            unsafe { value.bytes.as_slice()? }.iter().cloned()
-                        {
-                            let result_recorded_item_recorded_address_inner_bytes_item_recorded =
-                                result_recorded_item_recorded_address_inner_bytes_item;
-                            result_recorded_item_recorded_address_inner_bytes.push(
-                                result_recorded_item_recorded_address_inner_bytes_item_recorded,
-                            );
+                        let result_recorded_item_recorded_address_inner_bytes_slice = unsafe { value.bytes.as_slice()? };
+                        let mut result_recorded_item_recorded_address_inner_bytes = Vec::with_capacity(result_recorded_item_recorded_address_inner_bytes_slice.len());
+                        for result_recorded_item_recorded_address_inner_bytes_item in result_recorded_item_recorded_address_inner_bytes_slice.iter().cloned() {
+                            let result_recorded_item_recorded_address_inner_bytes_item_recorded = result_recorded_item_recorded_address_inner_bytes_item;
+                            result_recorded_item_recorded_address_inner_bytes.push(result_recorded_item_recorded_address_inner_bytes_item_recorded);
                         }
-                        let result_recorded_item_recorded_address_inner =
-                            SocketaddressReplayRecord {
-                                family: result_recorded_item_recorded_address_inner_family,
-                                length: result_recorded_item_recorded_address_inner_length,
-                                bytes: result_recorded_item_recorded_address_inner_bytes,
-                            };
+                        let result_recorded_item_recorded_address_inner = SocketaddressReplayRecord {
+                            family: result_recorded_item_recorded_address_inner_family,
+                            length: result_recorded_item_recorded_address_inner_length,
+                            bytes: result_recorded_item_recorded_address_inner_bytes,
+                        };
                         Some(result_recorded_item_recorded_address_inner)
                     } else {
                         None
                     };
                     let result_recorded_item_recorded_recv_flags = result_recorded_item.recv_flags;
-                    let result_recorded_item_recorded_payload_truncated =
-                        result_recorded_item.payload_truncated;
-                    let result_recorded_item_recorded_control_truncated =
-                        result_recorded_item.control_truncated;
-                    let mut result_recorded_item_recorded_control_inner = Vec::new();
-                    for result_recorded_item_recorded_control_inner_item in
-                        unsafe { result_recorded_item.control.0.as_slice()? }
-                            .iter()
-                            .cloned()
-                    {
-                        let result_recorded_item_recorded_control_inner_item_recorded =
-                            result_recorded_item_recorded_control_inner_item;
-                        result_recorded_item_recorded_control_inner
-                            .push(result_recorded_item_recorded_control_inner_item_recorded);
+                    let result_recorded_item_recorded_payload_truncated = result_recorded_item.payload_truncated;
+                    let result_recorded_item_recorded_control_truncated = result_recorded_item.control_truncated;
+                    let result_recorded_item_recorded_control_inner_slice = unsafe { result_recorded_item.control.0.as_slice()? };
+                    let mut result_recorded_item_recorded_control_inner = Vec::with_capacity(result_recorded_item_recorded_control_inner_slice.len());
+                    for result_recorded_item_recorded_control_inner_item in result_recorded_item_recorded_control_inner_slice.iter().cloned() {
+                        let result_recorded_item_recorded_control_inner_item_recorded = result_recorded_item_recorded_control_inner_item;
+                        result_recorded_item_recorded_control_inner.push(result_recorded_item_recorded_control_inner_item_recorded);
                     }
-                    let result_recorded_item_recorded_control =
-                        result_recorded_item_recorded_control_inner;
-                    let mut result_recorded_item_recorded_fds = Vec::new();
-                    for result_recorded_item_recorded_fds_item in
-                        unsafe { result_recorded_item.fds.as_slice()? }
-                            .iter()
-                            .cloned()
-                    {
-                        let result_recorded_item_recorded_fds_item_recorded =
-                            result_recorded_item_recorded_fds_item;
-                        result_recorded_item_recorded_fds
-                            .push(result_recorded_item_recorded_fds_item_recorded);
+                    let result_recorded_item_recorded_control = result_recorded_item_recorded_control_inner;
+                    let result_recorded_item_recorded_fds_slice = unsafe { result_recorded_item.fds.as_slice()? };
+                    let mut result_recorded_item_recorded_fds = Vec::with_capacity(result_recorded_item_recorded_fds_slice.len());
+                    for result_recorded_item_recorded_fds_item in result_recorded_item_recorded_fds_slice.iter().cloned() {
+                        let result_recorded_item_recorded_fds_item_recorded = result_recorded_item_recorded_fds_item;
+                        result_recorded_item_recorded_fds.push(result_recorded_item_recorded_fds_item_recorded);
                     }
-                    let result_recorded_item_recorded_credentials = if let Some(value) =
-                        result_recorded_item.credentials
-                    {
+                    let result_recorded_item_recorded_credentials = if let Some(value) = result_recorded_item.credentials {
                         let result_recorded_item_recorded_credentials_inner_pid = value.pid;
                         let result_recorded_item_recorded_credentials_inner_uid = value.uid;
                         let result_recorded_item_recorded_credentials_inner_gid = value.gid;
@@ -11072,7 +10406,9 @@ fn destack_net_socket_recv_mmsg_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(TraceError::from(error.as_ref()));
-                    NetSocketRecvMmsgReplayRecord { result }
+                    NetSocketRecvMmsgReplayRecord {
+                        result,
+                    }
                 };
                 return Ok(Some(payload));
             }
@@ -11083,63 +10419,47 @@ fn destack_net_socket_recv_mmsg_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_bytes = value_native_item.bytes;
-                        let value_native_decoded_address = if let Some(value) =
-                            value_native_item.address
-                        {
-                            let value_native_decoded_address_inner_family = value.family;
-                            let value_native_decoded_address_inner_length = value.length;
-                            let mut value_native_decoded_address_inner_bytes_values = Vec::new();
-                            for value_native_decoded_address_inner_bytes_item in
-                                value.bytes.iter().cloned()
-                            {
-                                let value_native_decoded_address_inner_bytes_decoded =
-                                    value_native_decoded_address_inner_bytes_item;
-                                value_native_decoded_address_inner_bytes_values
-                                    .push(value_native_decoded_address_inner_bytes_decoded);
-                            }
-                            let value_native_decoded_address_inner_bytes = binding
-                                .store_array(value_native_decoded_address_inner_bytes_values);
-                            let value_native_decoded_address_inner = SocketAddress {
-                                family: value_native_decoded_address_inner_family,
-                                length: value_native_decoded_address_inner_length,
-                                bytes: value_native_decoded_address_inner_bytes,
+                    let value_native = binding.store_array_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded_bytes = value_native_item.bytes;
+                            let value_native_decoded_address = if let Some(value) = value_native_item.address {
+                                let value_native_decoded_address_inner_family = value.family;
+                                let value_native_decoded_address_inner_length = value.length;
+                                let value_native_decoded_address_inner_bytes = binding.store_array_with(value.bytes.len(), |value_native_decoded_address_inner_bytes_values| {
+                                    for value_native_decoded_address_inner_bytes_item in value.bytes {
+                                        let value_native_decoded_address_inner_bytes_decoded = value_native_decoded_address_inner_bytes_item;
+                                        value_native_decoded_address_inner_bytes_values.push(value_native_decoded_address_inner_bytes_decoded);
+                                    }
+                                    Ok(())
+                                })?;
+                                let value_native_decoded_address_inner = SocketAddress {
+                                    family: value_native_decoded_address_inner_family,
+                                    length: value_native_decoded_address_inner_length,
+                                    bytes: value_native_decoded_address_inner_bytes,
+                                };
+                                Some(value_native_decoded_address_inner)
+                            } else {
+                                None
                             };
-                            Some(value_native_decoded_address_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_recv_flags = value_native_item.recv_flags;
-                        let value_native_decoded_payload_truncated =
-                            value_native_item.payload_truncated;
-                        let value_native_decoded_control_truncated =
-                            value_native_item.control_truncated;
-                        let mut value_native_decoded_control_inner_values = Vec::new();
-                        for value_native_decoded_control_inner_item in
-                            value_native_item.control.iter().cloned()
-                        {
-                            let value_native_decoded_control_inner_decoded =
-                                value_native_decoded_control_inner_item;
-                            value_native_decoded_control_inner_values
-                                .push(value_native_decoded_control_inner_decoded);
-                        }
-                        let value_native_decoded_control_inner =
-                            binding.store_array(value_native_decoded_control_inner_values);
-                        let value_native_decoded_control =
-                            platform_net::SocketControlBufferAbi::<platform_abi::NativeAbi>(
-                                value_native_decoded_control_inner,
-                            );
-                        let mut value_native_decoded_fds_values = Vec::new();
-                        for value_native_decoded_fds_item in value_native_item.fds.iter().cloned() {
-                            let value_native_decoded_fds_decoded = value_native_decoded_fds_item;
-                            value_native_decoded_fds_values.push(value_native_decoded_fds_decoded);
-                        }
-                        let value_native_decoded_fds =
-                            binding.store_array(value_native_decoded_fds_values);
-                        let value_native_decoded_credentials =
-                            if let Some(value) = value_native_item.credentials {
+                            let value_native_decoded_recv_flags = value_native_item.recv_flags;
+                            let value_native_decoded_payload_truncated = value_native_item.payload_truncated;
+                            let value_native_decoded_control_truncated = value_native_item.control_truncated;
+                            let value_native_decoded_control_inner = binding.store_array_with(value_native_item.control.len(), |value_native_decoded_control_inner_values| {
+                                for value_native_decoded_control_inner_item in value_native_item.control {
+                                    let value_native_decoded_control_inner_decoded = value_native_decoded_control_inner_item;
+                                    value_native_decoded_control_inner_values.push(value_native_decoded_control_inner_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_decoded_control = platform_net::SocketControlBufferAbi::<platform_abi::NativeAbi>(value_native_decoded_control_inner);
+                            let value_native_decoded_fds = binding.store_array_with(value_native_item.fds.len(), |value_native_decoded_fds_values| {
+                                for value_native_decoded_fds_item in value_native_item.fds {
+                                    let value_native_decoded_fds_decoded = value_native_decoded_fds_item;
+                                    value_native_decoded_fds_values.push(value_native_decoded_fds_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_decoded_credentials = if let Some(value) = value_native_item.credentials {
                                 let value_native_decoded_credentials_inner_pid = value.pid;
                                 let value_native_decoded_credentials_inner_uid = value.uid;
                                 let value_native_decoded_credentials_inner_gid = value.gid;
@@ -11152,19 +10472,20 @@ fn destack_net_socket_recv_mmsg_replay(
                             } else {
                                 None
                             };
-                        let value_native_decoded = SocketRecvMessage {
-                            bytes: value_native_decoded_bytes,
-                            address: value_native_decoded_address,
-                            recv_flags: value_native_decoded_recv_flags,
-                            payload_truncated: value_native_decoded_payload_truncated,
-                            control_truncated: value_native_decoded_control_truncated,
-                            control: value_native_decoded_control,
-                            fds: value_native_decoded_fds,
-                            credentials: value_native_decoded_credentials,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                            let value_native_decoded = SocketRecvMessage {
+                                bytes: value_native_decoded_bytes,
+                                address: value_native_decoded_address,
+                                recv_flags: value_native_decoded_recv_flags,
+                                payload_truncated: value_native_decoded_payload_truncated,
+                                control_truncated: value_native_decoded_control_truncated,
+                                control: value_native_decoded_control,
+                                fds: value_native_decoded_fds,
+                                credentials: value_native_decoded_credentials,
+                            };
+                            value_native_values.push(value_native_decoded);
+                        }
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -11231,9 +10552,12 @@ fn destack_net_socket_recv_msg_replay(
                 let result_recorded_address = if let Some(value) = result_value.address {
                     let result_recorded_address_inner_family = value.family;
                     let result_recorded_address_inner_length = value.length;
-                    let mut result_recorded_address_inner_bytes = Vec::new();
+                    let result_recorded_address_inner_bytes_slice =
+                        unsafe { value.bytes.as_slice()? };
+                    let mut result_recorded_address_inner_bytes =
+                        Vec::with_capacity(result_recorded_address_inner_bytes_slice.len());
                     for result_recorded_address_inner_bytes_item in
-                        unsafe { value.bytes.as_slice()? }.iter().cloned()
+                        result_recorded_address_inner_bytes_slice.iter().cloned()
                     {
                         let result_recorded_address_inner_bytes_item_recorded =
                             result_recorded_address_inner_bytes_item;
@@ -11252,21 +10576,21 @@ fn destack_net_socket_recv_msg_replay(
                 let result_recorded_recv_flags = result_value.recv_flags;
                 let result_recorded_payload_truncated = result_value.payload_truncated;
                 let result_recorded_control_truncated = result_value.control_truncated;
-                let mut result_recorded_control_inner = Vec::new();
+                let result_recorded_control_inner_slice =
+                    unsafe { result_value.control.0.as_slice()? };
+                let mut result_recorded_control_inner =
+                    Vec::with_capacity(result_recorded_control_inner_slice.len());
                 for result_recorded_control_inner_item in
-                    unsafe { result_value.control.0.as_slice()? }
-                        .iter()
-                        .cloned()
+                    result_recorded_control_inner_slice.iter().cloned()
                 {
                     let result_recorded_control_inner_item_recorded =
                         result_recorded_control_inner_item;
                     result_recorded_control_inner.push(result_recorded_control_inner_item_recorded);
                 }
                 let result_recorded_control = result_recorded_control_inner;
-                let mut result_recorded_fds = Vec::new();
-                for result_recorded_fds_item in
-                    unsafe { result_value.fds.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_fds_slice = unsafe { result_value.fds.as_slice()? };
+                let mut result_recorded_fds = Vec::with_capacity(result_recorded_fds_slice.len());
+                for result_recorded_fds_item in result_recorded_fds_slice.iter().cloned() {
                     let result_recorded_fds_item_recorded = result_recorded_fds_item;
                     result_recorded_fds.push(result_recorded_fds_item_recorded);
                 }
@@ -11317,15 +10641,18 @@ fn destack_net_socket_recv_msg_replay(
                     let value_native_address = if let Some(value) = value.address {
                         let value_native_address_inner_family = value.family;
                         let value_native_address_inner_length = value.length;
-                        let mut value_native_address_inner_bytes_values = Vec::new();
-                        for value_native_address_inner_bytes_item in value.bytes.iter().cloned() {
-                            let value_native_address_inner_bytes_decoded =
-                                value_native_address_inner_bytes_item;
-                            value_native_address_inner_bytes_values
-                                .push(value_native_address_inner_bytes_decoded);
-                        }
-                        let value_native_address_inner_bytes =
-                            binding.store_array(value_native_address_inner_bytes_values);
+                        let value_native_address_inner_bytes = binding.store_array_with(
+                            value.bytes.len(),
+                            |value_native_address_inner_bytes_values| {
+                                for value_native_address_inner_bytes_item in value.bytes {
+                                    let value_native_address_inner_bytes_decoded =
+                                        value_native_address_inner_bytes_item;
+                                    value_native_address_inner_bytes_values
+                                        .push(value_native_address_inner_bytes_decoded);
+                                }
+                                Ok(())
+                            },
+                        )?;
                         let value_native_address_inner = SocketAddress {
                             family: value_native_address_inner_family,
                             length: value_native_address_inner_length,
@@ -11338,22 +10665,29 @@ fn destack_net_socket_recv_msg_replay(
                     let value_native_recv_flags = value.recv_flags;
                     let value_native_payload_truncated = value.payload_truncated;
                     let value_native_control_truncated = value.control_truncated;
-                    let mut value_native_control_inner_values = Vec::new();
-                    for value_native_control_inner_item in value.control.iter().cloned() {
-                        let value_native_control_inner_decoded = value_native_control_inner_item;
-                        value_native_control_inner_values.push(value_native_control_inner_decoded);
-                    }
-                    let value_native_control_inner =
-                        binding.store_array(value_native_control_inner_values);
+                    let value_native_control_inner = binding.store_array_with(
+                        value.control.len(),
+                        |value_native_control_inner_values| {
+                            for value_native_control_inner_item in value.control {
+                                let value_native_control_inner_decoded =
+                                    value_native_control_inner_item;
+                                value_native_control_inner_values
+                                    .push(value_native_control_inner_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native_control = platform_net::SocketControlBufferAbi::<
                         platform_abi::NativeAbi,
                     >(value_native_control_inner);
-                    let mut value_native_fds_values = Vec::new();
-                    for value_native_fds_item in value.fds.iter().cloned() {
-                        let value_native_fds_decoded = value_native_fds_item;
-                        value_native_fds_values.push(value_native_fds_decoded);
-                    }
-                    let value_native_fds = binding.store_array(value_native_fds_values);
+                    let value_native_fds =
+                        binding.store_array_with(value.fds.len(), |value_native_fds_values| {
+                            for value_native_fds_item in value.fds {
+                                let value_native_fds_decoded = value_native_fds_item;
+                                value_native_fds_values.push(value_native_fds_decoded);
+                            }
+                            Ok(())
+                        })?;
                     let value_native_credentials = if let Some(value) = value.credentials {
                         let value_native_credentials_inner_pid = value.pid;
                         let value_native_credentials_inner_uid = value.uid;
@@ -12127,7 +11461,7 @@ fn destack_net_udp_get_multicast_interface_v4_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = binding.store_string(value.as_str());
+                    let value_native = binding.store_string_owned(value);
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -12771,11 +12105,12 @@ fn destack_net_udp_recv_from_replay(
                 let result_value: UdpReceive = unsafe { out.read() };
                 let result_recorded_address_family = result_value.address.family;
                 let result_recorded_address_length = result_value.address.length;
-                let mut result_recorded_address_bytes = Vec::new();
+                let result_recorded_address_bytes_slice =
+                    unsafe { result_value.address.bytes.as_slice()? };
+                let mut result_recorded_address_bytes =
+                    Vec::with_capacity(result_recorded_address_bytes_slice.len());
                 for result_recorded_address_bytes_item in
-                    unsafe { result_value.address.bytes.as_slice()? }
-                        .iter()
-                        .cloned()
+                    result_recorded_address_bytes_slice.iter().cloned()
                 {
                     let result_recorded_address_bytes_item_recorded =
                         result_recorded_address_bytes_item;
@@ -12815,13 +12150,18 @@ fn destack_net_udp_recv_from_replay(
                 Ok(value) => {
                     let value_native_address_family = value.address.family;
                     let value_native_address_length = value.address.length;
-                    let mut value_native_address_bytes_values = Vec::new();
-                    for value_native_address_bytes_item in value.address.bytes.iter().cloned() {
-                        let value_native_address_bytes_decoded = value_native_address_bytes_item;
-                        value_native_address_bytes_values.push(value_native_address_bytes_decoded);
-                    }
-                    let value_native_address_bytes =
-                        binding.store_array(value_native_address_bytes_values);
+                    let value_native_address_bytes = binding.store_array_with(
+                        value.address.bytes.len(),
+                        |value_native_address_bytes_values| {
+                            for value_native_address_bytes_item in value.address.bytes {
+                                let value_native_address_bytes_decoded =
+                                    value_native_address_bytes_item;
+                                value_native_address_bytes_values
+                                    .push(value_native_address_bytes_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native_address = SocketAddress {
                         family: value_native_address_family,
                         length: value_native_address_length,
@@ -15140,7 +14480,7 @@ fn destack_net_address_local_address_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: SocketAddressVm = value.clone();
                 let result_recorded_family = result_value.family;
@@ -15168,7 +14508,7 @@ fn destack_net_address_local_address_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15208,7 +14548,7 @@ fn destack_net_address_peer_address_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: SocketAddressVm = value.clone();
                 let result_recorded_family = result_value.family;
@@ -15236,7 +14576,7 @@ fn destack_net_address_peer_address_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15275,8 +14615,7 @@ fn destack_net_interface_interface_index_vm_replay(
                 platform_simulation_vm::destack_net_interface_index(binding, context, name)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -15296,8 +14635,7 @@ fn destack_net_interface_interface_index_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15330,7 +14668,7 @@ fn destack_net_interface_interface_name_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: vm::StringHandle = value.clone();
                 let result_recorded = {
@@ -15356,7 +14694,7 @@ fn destack_net_interface_interface_name_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15390,61 +14728,17 @@ fn destack_net_interface_list_interfaces_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<NetInterfaceVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 6 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 6 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_name =
-                            decode_string(slots[0], "result_recorded_item_name", "name")?;
-                        let result_recorded_item_index =
-                            decode_uint32(slots[1], "result_recorded_item_index", "index")?;
-                        let result_recorded_item_flags_inner =
-                            decode_uint64(slots[2], "result_recorded_item_flags_inner", "flags")?;
-                        let result_recorded_item_flags =
-                            NetInterfaceFlags(result_recorded_item_flags_inner);
-                        let result_recorded_item_mtu =
-                            decode_uint32(slots[3], "result_recorded_item_mtu", "mtu")?;
-                        let result_recorded_item_mac_address = decode_array::<u8>(
+                    let result_recorded_item =
+                        <NetInterfaceVm as VmAggregateCodec>::decode_with_context(
                             context,
-                            slots[4],
-                            "result_recorded_item_mac_address",
-                            "macAddress",
+                            result_recorded_item_value,
                         )?;
-                        let result_recorded_item_addresses = decode_array::<SocketAddressVm>(
-                            context,
-                            slots[5],
-                            "result_recorded_item_addresses",
-                            "addresses",
-                        )?;
-                        NetInterfaceVm {
-                            name: result_recorded_item_name,
-                            index: result_recorded_item_index,
-                            flags: result_recorded_item_flags,
-                            mtu: result_recorded_item_mtu,
-                            mac_address: result_recorded_item_mac_address,
-                            addresses: result_recorded_item_addresses,
-                        }
-                    };
                     let result_recorded_item_recorded_name = {
                         let result_recorded_item_recorded_name_ref = context
                             .string_ref(result_recorded_item.name)
@@ -15463,55 +14757,11 @@ fn destack_net_interface_list_interfaces_vm_replay(
                     for result_recorded_item_recorded_addresses_item_value in
                         result_recorded_item_recorded_addresses_raw
                     {
-                        let result_recorded_item_recorded_addresses_item = {
-                            if result_recorded_item_recorded_addresses_item_value.tag()
-                                != vm::ValueTag::Aggregate
-                            {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item_recorded_addresses_item",
-                                        "item",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(result_recorded_item_recorded_addresses_item_value)
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_recorded_addresses_item",
-                                        "expected 3 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_recorded_addresses_item_family =
-                                decode_uint16(
-                                    slots[0],
-                                    "result_recorded_item_recorded_addresses_item_family",
-                                    "family",
-                                )?;
-                            let result_recorded_item_recorded_addresses_item_length =
-                                decode_uint32(
-                                    slots[1],
-                                    "result_recorded_item_recorded_addresses_item_length",
-                                    "length",
-                                )?;
-                            let result_recorded_item_recorded_addresses_item_bytes =
-                                decode_array::<u8>(
-                                    context,
-                                    slots[2],
-                                    "result_recorded_item_recorded_addresses_item_bytes",
-                                    "bytes",
-                                )?;
-                            SocketAddressVm {
-                                family: result_recorded_item_recorded_addresses_item_family,
-                                length: result_recorded_item_recorded_addresses_item_length,
-                                bytes: result_recorded_item_recorded_addresses_item_bytes,
-                            }
-                        };
+                        let result_recorded_item_recorded_addresses_item =
+                            <SocketAddressVm as VmAggregateCodec>::decode_with_context(
+                                context,
+                                result_recorded_item_recorded_addresses_item_value,
+                            )?;
                         let result_recorded_item_recorded_addresses_item_recorded_family =
                             result_recorded_item_recorded_addresses_item.family;
                         let result_recorded_item_recorded_addresses_item_recorded_length =
@@ -15558,12 +14808,12 @@ fn destack_net_interface_list_interfaces_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_name = context
                             .string_handle(vm_result_item.name.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
@@ -15576,9 +14826,7 @@ fn destack_net_interface_list_interfaces_vm_replay(
                         )?;
                         let mut vm_result_item_value_addresses_values =
                             Vec::with_capacity(vm_result_item.addresses.len());
-                        for vm_result_item_value_addresses_item in
-                            vm_result_item.addresses.iter().cloned()
-                        {
+                        for vm_result_item_value_addresses_item in vm_result_item.addresses {
                             let vm_result_item_value_addresses_item_value_family =
                                 vm_result_item_value_addresses_item.family;
                             let vm_result_item_value_addresses_item_value_length =
@@ -15639,8 +14887,7 @@ fn destack_net_listener_accept_vm_replay(
                 platform_simulation_vm::destack_net_accept(binding, context, listener, flags)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SocketHandle = value.clone();
                 let result_recorded = result_value;
@@ -15660,8 +14907,7 @@ fn destack_net_listener_accept_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15694,8 +14940,7 @@ fn destack_net_listener_bind_vm_replay(
                 platform_simulation_vm::destack_net_bind(binding, context, handle, address)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetListenerBindReplayRecord {
@@ -15714,8 +14959,7 @@ fn destack_net_listener_bind_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -15744,8 +14988,7 @@ fn destack_net_listener_close_listener_vm_replay(
                 platform_simulation_vm::destack_net_close_listener(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetListenerCloseListenerReplayRecord {
@@ -15764,8 +15007,7 @@ fn destack_net_listener_close_listener_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -15797,8 +15039,7 @@ fn destack_net_listener_listen_vm_replay(
                 platform_simulation_vm::destack_net_listen(binding, context, address, backlog)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::ListenerHandle = value.clone();
                 let result_recorded = result_value;
@@ -15818,8 +15059,7 @@ fn destack_net_listener_listen_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15851,8 +15091,7 @@ fn destack_net_options_get_broadcast_vm_replay(
                 platform_simulation_vm::destack_net_get_broadcast(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -15872,8 +15111,7 @@ fn destack_net_options_get_broadcast_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15905,8 +15143,7 @@ fn destack_net_options_get_linger_vm_replay(
                 platform_simulation_vm::destack_net_get_linger(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: LingerVm = value.clone();
                 let result_recorded_enabled = result_value.enabled;
@@ -15931,8 +15168,7 @@ fn destack_net_options_get_linger_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -15969,8 +15205,7 @@ fn destack_net_options_get_only_v6_vm_replay(
                 platform_simulation_vm::destack_net_get_only_v6(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -15990,8 +15225,7 @@ fn destack_net_options_get_only_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16025,8 +15259,7 @@ fn destack_net_options_get_packet_mark_vm_replay(
                 platform_simulation_vm::destack_net_get_packet_mark(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -16046,8 +15279,7 @@ fn destack_net_options_get_packet_mark_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16081,8 +15313,7 @@ fn destack_net_options_get_read_timeout_vm_replay(
                 platform_simulation_vm::destack_net_get_read_timeout(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -16102,8 +15333,7 @@ fn destack_net_options_get_read_timeout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16137,8 +15367,7 @@ fn destack_net_options_get_recv_buffer_vm_replay(
                 platform_simulation_vm::destack_net_get_recv_buffer(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -16158,8 +15387,7 @@ fn destack_net_options_get_recv_buffer_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16193,8 +15421,7 @@ fn destack_net_options_get_send_buffer_vm_replay(
                 platform_simulation_vm::destack_net_get_send_buffer(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -16214,8 +15441,7 @@ fn destack_net_options_get_send_buffer_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16253,7 +15479,7 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<u8> = value.clone();
                 let result_recorded = result_value.read_bytes(context)?;
@@ -16274,7 +15500,7 @@ fn destack_net_options_get_sock_opt_raw_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16308,8 +15534,7 @@ fn destack_net_options_get_timestamping_vm_replay(
                 platform_simulation_vm::destack_net_get_timestamping(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SocketTimestampingMode = value.clone();
                 let result_recorded = result_value;
@@ -16329,8 +15554,7 @@ fn destack_net_options_get_timestamping_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16362,8 +15586,7 @@ fn destack_net_options_get_tos_vm_replay(
                 platform_simulation_vm::destack_net_get_tos(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -16383,8 +15606,7 @@ fn destack_net_options_get_tos_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16416,8 +15638,7 @@ fn destack_net_options_get_ttl_vm_replay(
                 platform_simulation_vm::destack_net_get_ttl(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -16437,8 +15658,7 @@ fn destack_net_options_get_ttl_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16472,8 +15692,7 @@ fn destack_net_options_get_write_timeout_vm_replay(
                 platform_simulation_vm::destack_net_get_write_timeout(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -16493,8 +15712,7 @@ fn destack_net_options_get_write_timeout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16529,8 +15747,7 @@ fn destack_net_options_set_broadcast_vm_replay(
                 platform_simulation_vm::destack_net_set_broadcast(binding, context, handle, enabled)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetBroadcastReplayRecord {
@@ -16549,8 +15766,7 @@ fn destack_net_options_set_broadcast_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16582,8 +15798,7 @@ fn destack_net_options_set_linger_vm_replay(
                 platform_simulation_vm::destack_net_set_linger(binding, context, handle, linger)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetLingerReplayRecord {
@@ -16602,8 +15817,7 @@ fn destack_net_options_set_linger_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16635,8 +15849,7 @@ fn destack_net_options_set_only_v6_vm_replay(
                 platform_simulation_vm::destack_net_set_only_v6(binding, context, handle, enabled)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetOnlyV6ReplayRecord {
@@ -16655,8 +15868,7 @@ fn destack_net_options_set_only_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16688,8 +15900,7 @@ fn destack_net_options_set_packet_mark_vm_replay(
                 platform_simulation_vm::destack_net_set_packet_mark(binding, context, handle, mark)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetPacketMarkReplayRecord {
@@ -16708,8 +15919,7 @@ fn destack_net_options_set_packet_mark_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16741,8 +15951,7 @@ fn destack_net_options_set_read_timeout_vm_replay(
                 binding, context, handle, timeoutms,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetReadTimeoutReplayRecord {
@@ -16761,8 +15970,7 @@ fn destack_net_options_set_read_timeout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16794,8 +16002,7 @@ fn destack_net_options_set_recv_buffer_vm_replay(
                 platform_simulation_vm::destack_net_set_recv_buffer(binding, context, handle, size)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetRecvBufferReplayRecord {
@@ -16814,8 +16021,7 @@ fn destack_net_options_set_recv_buffer_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16847,8 +16053,7 @@ fn destack_net_options_set_send_buffer_vm_replay(
                 platform_simulation_vm::destack_net_set_send_buffer(binding, context, handle, size)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetSendBufferReplayRecord {
@@ -16867,8 +16072,7 @@ fn destack_net_options_set_send_buffer_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16912,8 +16116,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
                 argument_value,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetSockOptRawReplayRecord {
@@ -16932,8 +16135,7 @@ fn destack_net_options_set_sock_opt_raw_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -16965,8 +16167,7 @@ fn destack_net_options_set_timestamping_vm_replay(
                 platform_simulation_vm::destack_net_set_timestamping(binding, context, handle, mode)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetTimestampingReplayRecord {
@@ -16985,8 +16186,7 @@ fn destack_net_options_set_timestamping_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17016,8 +16216,7 @@ fn destack_net_options_set_tos_vm_replay(
                 platform_simulation_vm::destack_net_set_tos(binding, context, handle, tos)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetTosReplayRecord {
@@ -17036,8 +16235,7 @@ fn destack_net_options_set_tos_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17067,8 +16265,7 @@ fn destack_net_options_set_ttl_vm_replay(
                 platform_simulation_vm::destack_net_set_ttl(binding, context, handle, ttl)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetTtlReplayRecord {
@@ -17087,8 +16284,7 @@ fn destack_net_options_set_ttl_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17120,8 +16316,7 @@ fn destack_net_options_set_write_timeout_vm_replay(
                 binding, context, handle, timeoutms,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetOptionsSetWriteTimeoutReplayRecord {
@@ -17140,8 +16335,7 @@ fn destack_net_options_set_write_timeout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17170,70 +16364,17 @@ fn destack_net_raw_packet_backend_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmSlice<PacketBackendDescriptorVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 5 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 5 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_backend_raw =
-                            decode_int32(slots[0], "result_recorded_item_backend_raw", "backend")?;
-                        let result_recorded_item_backend = match result_recorded_item_backend_raw {
-                            0i32 => PacketBackend::Auto,
-                            1i32 => PacketBackend::AfPacket,
-                            2i32 => PacketBackend::Bpf,
-                            3i32 => PacketBackend::WinRawSocket,
-                            255i32 => PacketBackend::Null,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_backend",
-                                        "unknown PacketBackend value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_name =
-                            decode_string(slots[1], "result_recorded_item_name", "name")?;
-                        let result_recorded_item_available =
-                            decode_bool(slots[2], "result_recorded_item_available", "available")?;
-                        let result_recorded_item_priority =
-                            decode_uint16(slots[3], "result_recorded_item_priority", "priority")?;
-                        let result_recorded_item_capability_flags_inner = decode_uint64(
-                            slots[4],
-                            "result_recorded_item_capability_flags_inner",
-                            "capabilityFlags",
+                    let result_recorded_item =
+                        <PacketBackendDescriptorVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
                         )?;
-                        let result_recorded_item_capability_flags = PacketBackendCapabilityFlags(
-                            result_recorded_item_capability_flags_inner,
-                        );
-                        PacketBackendDescriptorVm {
-                            backend: result_recorded_item_backend,
-                            name: result_recorded_item_name,
-                            available: result_recorded_item_available,
-                            priority: result_recorded_item_priority,
-                            capability_flags: result_recorded_item_capability_flags,
-                        }
-                    };
                     let result_recorded_item_recorded_backend = result_recorded_item.backend;
                     let result_recorded_item_recorded_name = {
                         let result_recorded_item_recorded_name_ref = context
@@ -17271,12 +16412,12 @@ fn destack_net_raw_packet_backend_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_backend = vm_result_item.backend;
                         let vm_result_item_value_name = context
                             .string_handle(vm_result_item.name.as_str())
@@ -17323,8 +16464,7 @@ fn destack_net_raw_packet_clear_fanout_vm_replay(
                 platform_simulation_vm::destack_net_packet_clear_fanout(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketClearFanoutReplayRecord {
@@ -17343,8 +16483,7 @@ fn destack_net_raw_packet_clear_fanout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17375,8 +16514,7 @@ fn destack_net_raw_packet_clear_filter_vm_replay(
                 platform_simulation_vm::destack_net_packet_clear_filter(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketClearFilterReplayRecord {
@@ -17395,8 +16533,7 @@ fn destack_net_raw_packet_clear_filter_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17427,8 +16564,7 @@ fn destack_net_raw_packet_clear_ring_vm_replay(
                 platform_simulation_vm::destack_net_packet_clear_ring(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketClearRingReplayRecord {
@@ -17447,8 +16583,7 @@ fn destack_net_raw_packet_clear_ring_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17477,8 +16612,7 @@ fn destack_net_raw_packet_open_vm_replay(
                 platform_simulation_vm::destack_net_packet_open(binding, context, options)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SocketHandle = value.clone();
                 let result_recorded = result_value;
@@ -17498,8 +16632,7 @@ fn destack_net_raw_packet_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17537,8 +16670,7 @@ fn destack_net_raw_packet_receive_vm_replay(
                 argument_payload,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: PacketCaptureRecordVm = value.clone();
                 let result_recorded_bytes = result_value.bytes;
@@ -17569,8 +16701,7 @@ fn destack_net_raw_packet_receive_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17619,8 +16750,7 @@ fn destack_net_raw_packet_send_vm_replay(
                 argument_payload,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -17640,8 +16770,7 @@ fn destack_net_raw_packet_send_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17676,8 +16805,7 @@ fn destack_net_raw_packet_set_fanout_vm_replay(
                 binding, context, handle, options,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketSetFanoutReplayRecord {
@@ -17696,8 +16824,7 @@ fn destack_net_raw_packet_set_fanout_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17732,8 +16859,7 @@ fn destack_net_raw_packet_set_filter_vm_replay(
                 filterprogram,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketSetFilterReplayRecord {
@@ -17752,8 +16878,7 @@ fn destack_net_raw_packet_set_filter_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17785,8 +16910,7 @@ fn destack_net_raw_packet_set_rx_ring_vm_replay(
                 binding, context, handle, options,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketSetRxRingReplayRecord {
@@ -17805,8 +16929,7 @@ fn destack_net_raw_packet_set_rx_ring_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17840,8 +16963,7 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketSetTimestampModeReplayRecord {
@@ -17860,8 +16982,7 @@ fn destack_net_raw_packet_set_timestamp_mode_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17893,8 +17014,7 @@ fn destack_net_raw_packet_set_tx_ring_vm_replay(
                 binding, context, handle, options,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawPacketSetTxRingReplayRecord {
@@ -17913,8 +17033,7 @@ fn destack_net_raw_packet_set_tx_ring_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17943,8 +17062,7 @@ fn destack_net_raw_packet_stats_vm_replay(
                 platform_simulation_vm::destack_net_packet_stats(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: PacketCaptureStatsVm = value.clone();
                 let result_recorded_received_packets = result_value.received_packets;
@@ -17972,8 +17090,7 @@ fn destack_net_raw_packet_stats_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18017,8 +17134,7 @@ fn destack_net_raw_set_header_included_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRawSetHeaderIncludedReplayRecord {
@@ -18037,8 +17153,7 @@ fn destack_net_raw_set_header_included_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18070,8 +17185,7 @@ fn destack_net_raw_socket_vm_replay(
                 platform_simulation_vm::destack_net_raw_socket(binding, context, family, protocol)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SocketHandle = value.clone();
                 let result_recorded = result_value;
@@ -18091,8 +17205,7 @@ fn destack_net_raw_socket_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18125,46 +17238,17 @@ fn destack_net_resolve_lookup_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<SocketAddressVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 3 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 3 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_family =
-                            decode_uint16(slots[0], "result_recorded_item_family", "family")?;
-                        let result_recorded_item_length =
-                            decode_uint32(slots[1], "result_recorded_item_length", "length")?;
-                        let result_recorded_item_bytes = decode_array::<u8>(
+                    let result_recorded_item =
+                        <SocketAddressVm as VmAggregateCodec>::decode_with_context(
                             context,
-                            slots[2],
-                            "result_recorded_item_bytes",
-                            "bytes",
+                            result_recorded_item_value,
                         )?;
-                        SocketAddressVm {
-                            family: result_recorded_item_family,
-                            length: result_recorded_item_length,
-                            bytes: result_recorded_item_bytes,
-                        }
-                    };
                     let result_recorded_item_recorded_family = result_recorded_item.family;
                     let result_recorded_item_recorded_length = result_recorded_item.length;
                     let result_recorded_item_recorded_bytes =
@@ -18193,12 +17277,12 @@ fn destack_net_resolve_lookup_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_family = vm_result_item.family;
                         let vm_result_item_value_length = vm_result_item.length;
                         let vm_result_item_value_bytes =
@@ -18242,39 +17326,17 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<ReverseLookupNameVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 2 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_host =
-                            decode_string(slots[0], "result_recorded_item_host", "host")?;
-                        let result_recorded_item_service =
-                            decode_string(slots[1], "result_recorded_item_service", "service")?;
-                        ReverseLookupNameVm {
-                            host: result_recorded_item_host,
-                            service: result_recorded_item_service,
-                        }
-                    };
+                    let result_recorded_item =
+                        <ReverseLookupNameVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
+                        )?;
                     let result_recorded_item_recorded_host = {
                         let result_recorded_item_recorded_host_ref = context
                             .string_ref(result_recorded_item.host)
@@ -18312,12 +17374,12 @@ fn destack_net_resolve_reverse_lookup_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_host = context
                             .string_handle(vm_result_item.host.as_str())
                             .map_err(Box::<RuntimeError>::from)?;
@@ -18358,8 +17420,7 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
                 platform_simulation_vm::destack_net_get_reuse_addr(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -18379,8 +17440,7 @@ fn destack_net_reuse_get_reuse_addr_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18412,8 +17472,7 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
                 platform_simulation_vm::destack_net_get_reuse_port(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -18433,8 +17492,7 @@ fn destack_net_reuse_get_reuse_port_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18469,8 +17527,7 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
                 binding, context, handle, enabled,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetReuseSetReuseAddrReplayRecord {
@@ -18489,8 +17546,7 @@ fn destack_net_reuse_set_reuse_addr_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18522,8 +17578,7 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
                 binding, context, handle, enabled,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetReuseSetReusePortReplayRecord {
@@ -18542,8 +17597,7 @@ fn destack_net_reuse_set_reuse_port_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18572,8 +17626,7 @@ fn destack_net_route_route_add_vm_replay(
                 platform_simulation_vm::destack_net_route_add(binding, context, route)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRouteRouteAddReplayRecord {
@@ -18592,8 +17645,7 @@ fn destack_net_route_route_add_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18622,8 +17674,7 @@ fn destack_net_route_route_delete_vm_replay(
                 platform_simulation_vm::destack_net_route_delete(binding, context, route)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetRouteRouteDeleteReplayRecord {
@@ -18642,8 +17693,7 @@ fn destack_net_route_route_delete_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18673,174 +17723,17 @@ fn destack_net_route_route_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<RouteEntryVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 7 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 7 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_family_raw =
-                            decode_int32(slots[0], "result_recorded_item_family_raw", "family")?;
-                        let result_recorded_item_family = match result_recorded_item_family_raw {
-                            0i32 => SocketFamily::Unspecified,
-                            4i32 => SocketFamily::IPv4,
-                            6i32 => SocketFamily::IPv6,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_family",
-                                        "unknown SocketFamily value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        let result_recorded_item_destination = {
-                            if slots[1].tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item_destination",
-                                        "destination",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(slots[1])
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_destination",
-                                        "expected 3 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_destination_family = decode_uint16(
-                                slots[0],
-                                "result_recorded_item_destination_family",
-                                "family",
-                            )?;
-                            let result_recorded_item_destination_length = decode_uint32(
-                                slots[1],
-                                "result_recorded_item_destination_length",
-                                "length",
-                            )?;
-                            let result_recorded_item_destination_bytes = decode_array::<u8>(
-                                context,
-                                slots[2],
-                                "result_recorded_item_destination_bytes",
-                                "bytes",
-                            )?;
-                            SocketAddressVm {
-                                family: result_recorded_item_destination_family,
-                                length: result_recorded_item_destination_length,
-                                bytes: result_recorded_item_destination_bytes,
-                            }
-                        };
-                        let result_recorded_item_prefix_length = decode_uint8(
-                            slots[2],
-                            "result_recorded_item_prefix_length",
-                            "prefixLength",
+                    let result_recorded_item =
+                        <RouteEntryVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
                         )?;
-                        let result_recorded_item_gateway = {
-                            if slots[3].tag() != vm::ValueTag::Aggregate {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_type(
-                                        "result_recorded_item_gateway",
-                                        "gateway",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let slots = context
-                                .aggregate_slots(slots[3])
-                                .map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_gateway",
-                                        "expected 3 fields",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                            let result_recorded_item_gateway_family = decode_uint16(
-                                slots[0],
-                                "result_recorded_item_gateway_family",
-                                "family",
-                            )?;
-                            let result_recorded_item_gateway_length = decode_uint32(
-                                slots[1],
-                                "result_recorded_item_gateway_length",
-                                "length",
-                            )?;
-                            let result_recorded_item_gateway_bytes = decode_array::<u8>(
-                                context,
-                                slots[2],
-                                "result_recorded_item_gateway_bytes",
-                                "bytes",
-                            )?;
-                            SocketAddressVm {
-                                family: result_recorded_item_gateway_family,
-                                length: result_recorded_item_gateway_length,
-                                bytes: result_recorded_item_gateway_bytes,
-                            }
-                        };
-                        let result_recorded_item_interface_index = decode_uint32(
-                            slots[4],
-                            "result_recorded_item_interface_index",
-                            "interfaceIndex",
-                        )?;
-                        let result_recorded_item_metric =
-                            decode_uint32(slots[5], "result_recorded_item_metric", "metric")?;
-                        let result_recorded_item_kind_raw =
-                            decode_int32(slots[6], "result_recorded_item_kind_raw", "kind")?;
-                        let result_recorded_item_kind = match result_recorded_item_kind_raw {
-                            1i32 => RouteKind::Unicast,
-                            2i32 => RouteKind::Local,
-                            3i32 => RouteKind::Broadcast,
-                            4i32 => RouteKind::Multicast,
-                            5i32 => RouteKind::Blackhole,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_kind",
-                                        "unknown RouteKind value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        RouteEntryVm {
-                            family: result_recorded_item_family,
-                            destination: result_recorded_item_destination,
-                            prefix_length: result_recorded_item_prefix_length,
-                            gateway: result_recorded_item_gateway,
-                            interface_index: result_recorded_item_interface_index,
-                            metric: result_recorded_item_metric,
-                            kind: result_recorded_item_kind,
-                        }
-                    };
                     let result_recorded_item_recorded_family = result_recorded_item.family;
                     let result_recorded_item_recorded_destination_family =
                         result_recorded_item.destination.family;
@@ -18898,12 +17791,12 @@ fn destack_net_route_route_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_family = vm_result_item.family;
                         let vm_result_item_value_destination_family =
                             vm_result_item.destination.family;
@@ -18972,8 +17865,7 @@ fn destack_net_socket_close_vm_replay(
                 platform_simulation_vm::destack_net_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetSocketCloseReplayRecord {
@@ -18992,8 +17884,7 @@ fn destack_net_socket_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -19025,8 +17916,7 @@ fn destack_net_socket_connect_vm_replay(
                 platform_simulation_vm::destack_net_connect(binding, context, handle, address)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetSocketConnectReplayRecord {
@@ -19045,8 +17935,7 @@ fn destack_net_socket_connect_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -19079,8 +17968,7 @@ fn destack_net_socket_open_vm_replay(
                 binding, context, family, sockettype, protocol,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SocketHandle = value.clone();
                 let result_recorded = result_value;
@@ -19100,8 +17988,7 @@ fn destack_net_socket_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19137,8 +18024,7 @@ fn destack_net_socket_open_pair_vm_replay(
                 binding, context, family, sockettype, protocol,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SocketPairVm = value.clone();
                 let result_recorded_first = result_value.first;
@@ -19163,8 +18049,7 @@ fn destack_net_socket_open_pair_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19202,8 +18087,7 @@ fn destack_net_socket_read_vm_replay(
                 platform_simulation_vm::destack_net_read(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -19223,8 +18107,7 @@ fn destack_net_socket_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19257,8 +18140,7 @@ fn destack_net_socket_readv_vm_replay(
                 platform_simulation_vm::destack_net_readv(binding, context, handle, buffers)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -19278,8 +18160,7 @@ fn destack_net_socket_readv_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19316,7 +18197,7 @@ fn destack_net_socket_recv_from_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: SocketRecvFromVm = value.clone();
                 let result_recorded_bytes = result_value.bytes;
@@ -19352,7 +18233,7 @@ fn destack_net_socket_recv_from_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19418,174 +18299,17 @@ fn destack_net_socket_recv_mmsg_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<SocketRecvMessageVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 8 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 8 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_bytes =
-                            decode_uint64(slots[0], "result_recorded_item_bytes", "bytes")?;
-                        let result_recorded_item_address = if slots[1].tag() == vm::ValueTag::Void {
-                            None
-                        } else {
-                            let result_recorded_item_address_inner = {
-                                if slots[1].tag() != vm::ValueTag::Aggregate {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_type(
-                                            "result_recorded_item_address_inner",
-                                            "address",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let slots = context
-                                    .aggregate_slots(slots[1])
-                                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 3 {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_address_inner",
-                                            "expected 3 fields",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                                let result_recorded_item_address_inner_family = decode_uint16(
-                                    slots[0],
-                                    "result_recorded_item_address_inner_family",
-                                    "family",
-                                )?;
-                                let result_recorded_item_address_inner_length = decode_uint32(
-                                    slots[1],
-                                    "result_recorded_item_address_inner_length",
-                                    "length",
-                                )?;
-                                let result_recorded_item_address_inner_bytes = decode_array::<u8>(
-                                    context,
-                                    slots[2],
-                                    "result_recorded_item_address_inner_bytes",
-                                    "bytes",
-                                )?;
-                                SocketAddressVm {
-                                    family: result_recorded_item_address_inner_family,
-                                    length: result_recorded_item_address_inner_length,
-                                    bytes: result_recorded_item_address_inner_bytes,
-                                }
-                            };
-                            Some(result_recorded_item_address_inner)
-                        };
-                        let result_recorded_item_recv_flags_inner = decode_uint32(
-                            slots[2],
-                            "result_recorded_item_recv_flags_inner",
-                            "recvFlags",
-                        )?;
-                        let result_recorded_item_recv_flags =
-                            SocketMessageFlags(result_recorded_item_recv_flags_inner);
-                        let result_recorded_item_payload_truncated = decode_bool(
-                            slots[3],
-                            "result_recorded_item_payload_truncated",
-                            "payloadTruncated",
-                        )?;
-                        let result_recorded_item_control_truncated = decode_bool(
-                            slots[4],
-                            "result_recorded_item_control_truncated",
-                            "controlTruncated",
-                        )?;
-                        let result_recorded_item_control_inner = decode_array::<u8>(
+                    let result_recorded_item =
+                        <SocketRecvMessageVm as VmAggregateCodec>::decode_with_context(
                             context,
-                            slots[5],
-                            "result_recorded_item_control_inner",
-                            "control",
+                            result_recorded_item_value,
                         )?;
-                        let result_recorded_item_control =
-                            platform_net::SocketControlBufferAbi::<platform_abi::VmAbi>(
-                                result_recorded_item_control_inner,
-                            );
-                        let result_recorded_item_fds = decode_array::<resource::TransferredHandle>(
-                            context,
-                            slots[6],
-                            "result_recorded_item_fds",
-                            "fds",
-                        )?;
-                        let result_recorded_item_credentials =
-                            if slots[7].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_credentials_inner = {
-                                    if slots[7].tag() != vm::ValueTag::Aggregate {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_type(
-                                                "result_recorded_item_credentials_inner",
-                                                "credentials",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                    let slots = context
-                                        .aggregate_slots(slots[7])
-                                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                                    if slots.len() != 3 {
-                                        return Err(RuntimeError::from(
-                                            PlatformError::invalid_argument_value(
-                                                "result_recorded_item_credentials_inner",
-                                                "expected 3 fields",
-                                            ),
-                                        )
-                                        .boxed());
-                                    }
-                                    let result_recorded_item_credentials_inner_pid = decode_uint32(
-                                        slots[0],
-                                        "result_recorded_item_credentials_inner_pid",
-                                        "pid",
-                                    )?;
-                                    let result_recorded_item_credentials_inner_uid = decode_uint32(
-                                        slots[1],
-                                        "result_recorded_item_credentials_inner_uid",
-                                        "uid",
-                                    )?;
-                                    let result_recorded_item_credentials_inner_gid = decode_uint32(
-                                        slots[2],
-                                        "result_recorded_item_credentials_inner_gid",
-                                        "gid",
-                                    )?;
-                                    SocketCredentialsVm {
-                                        pid: result_recorded_item_credentials_inner_pid,
-                                        uid: result_recorded_item_credentials_inner_uid,
-                                        gid: result_recorded_item_credentials_inner_gid,
-                                    }
-                                };
-                                Some(result_recorded_item_credentials_inner)
-                            };
-                        SocketRecvMessageVm {
-                            bytes: result_recorded_item_bytes,
-                            address: result_recorded_item_address,
-                            recv_flags: result_recorded_item_recv_flags,
-                            payload_truncated: result_recorded_item_payload_truncated,
-                            control_truncated: result_recorded_item_control_truncated,
-                            control: result_recorded_item_control,
-                            fds: result_recorded_item_fds,
-                            credentials: result_recorded_item_credentials,
-                        }
-                    };
                     let result_recorded_item_recorded_bytes = result_recorded_item.bytes;
                     let result_recorded_item_recorded_address =
                         if let Some(value) = result_recorded_item.address {
@@ -19679,12 +18403,12 @@ fn destack_net_socket_recv_mmsg_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_bytes = vm_result_item.bytes;
                         let vm_result_item_value_address =
                             if let Some(value) = vm_result_item.address {
@@ -19714,7 +18438,7 @@ fn destack_net_socket_recv_mmsg_vm_replay(
                             );
                         let mut vm_result_item_value_fds_values =
                             Vec::with_capacity(vm_result_item.fds.len());
-                        for vm_result_item_value_fds_item in vm_result_item.fds.iter().cloned() {
+                        for vm_result_item_value_fds_item in vm_result_item.fds {
                             let vm_result_item_value_fds_item_value = vm_result_item_value_fds_item;
                             vm_result_item_value_fds_values
                                 .push(vm_result_item_value_fds_item_value);
@@ -19797,7 +18521,7 @@ fn destack_net_socket_recv_msg_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: SocketRecvMessageVm = value.clone();
                 let result_recorded_bytes = result_value.bytes;
@@ -19874,7 +18598,7 @@ fn destack_net_socket_recv_msg_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19902,7 +18626,7 @@ fn destack_net_socket_recv_msg_vm_replay(
                         platform_abi::VmAbi,
                     >(vm_result_control_inner);
                     let mut vm_result_fds_values = Vec::with_capacity(value.fds.len());
-                    for vm_result_fds_item in value.fds.iter().cloned() {
+                    for vm_result_fds_item in value.fds {
                         let vm_result_fds_item_value = vm_result_fds_item;
                         vm_result_fds_values.push(vm_result_fds_item_value);
                     }
@@ -19960,8 +18684,7 @@ fn destack_net_socket_send_mmsg_vm_replay(
                 platform_simulation_vm::destack_net_send_mmsg(binding, context, handle, messages)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -19981,8 +18704,7 @@ fn destack_net_socket_send_mmsg_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20018,8 +18740,7 @@ fn destack_net_socket_send_msg_vm_replay(
                 binding, context, handle, buffer, message,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -20039,8 +18760,7 @@ fn destack_net_socket_send_msg_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20076,8 +18796,7 @@ fn destack_net_socket_send_to_vm_replay(
                 binding, context, handle, buffer, message,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -20097,8 +18816,7 @@ fn destack_net_socket_send_to_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20133,8 +18851,7 @@ fn destack_net_socket_set_nonblocking_vm_replay(
                 binding, context, handle, enabled,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetSocketSetNonblockingReplayRecord {
@@ -20153,8 +18870,7 @@ fn destack_net_socket_set_nonblocking_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20184,8 +18900,7 @@ fn destack_net_socket_shutdown_vm_replay(
                 platform_simulation_vm::destack_net_shutdown(binding, context, handle, how)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetSocketShutdownReplayRecord {
@@ -20204,8 +18919,7 @@ fn destack_net_socket_shutdown_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20235,8 +18949,7 @@ fn destack_net_socket_write_vm_replay(
                 platform_simulation_vm::destack_net_write(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -20256,8 +18969,7 @@ fn destack_net_socket_write_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20292,8 +19004,7 @@ fn destack_net_socket_writev_vm_replay(
                 platform_simulation_vm::destack_net_writev(binding, context, handle, buffers)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -20313,8 +19024,7 @@ fn destack_net_socket_writev_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20346,8 +19056,7 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
                 platform_simulation_vm::destack_net_get_keep_alive(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: KeepAliveConfigVm = value.clone();
                 let result_recorded_enabled = result_value.enabled;
@@ -20376,8 +19085,7 @@ fn destack_net_tcp_get_keep_alive_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20418,8 +19126,7 @@ fn destack_net_tcp_get_no_delay_vm_replay(
                 platform_simulation_vm::destack_net_get_no_delay(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -20439,8 +19146,7 @@ fn destack_net_tcp_get_no_delay_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20475,8 +19181,7 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
                 platform_simulation_vm::destack_net_set_keep_alive(binding, context, handle, config)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetTcpSetKeepAliveReplayRecord {
@@ -20495,8 +19200,7 @@ fn destack_net_tcp_set_keep_alive_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20528,8 +19232,7 @@ fn destack_net_tcp_set_no_delay_vm_replay(
                 platform_simulation_vm::destack_net_set_no_delay(binding, context, handle, enabled)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetTcpSetNoDelayReplayRecord {
@@ -20548,8 +19251,7 @@ fn destack_net_tcp_set_no_delay_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20581,8 +19283,7 @@ fn destack_net_udp_bind_vm_replay(
                 platform_simulation_vm::destack_net_udp_bind(binding, context, handle, address)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpBindReplayRecord {
@@ -20601,8 +19302,7 @@ fn destack_net_udp_bind_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20634,8 +19334,7 @@ fn destack_net_udp_connect_vm_replay(
                 platform_simulation_vm::destack_net_udp_connect(binding, context, handle, address)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpConnectReplayRecord {
@@ -20654,8 +19353,7 @@ fn destack_net_udp_connect_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20689,7 +19387,7 @@ fn destack_net_udp_get_multicast_interface_v4_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: vm::StringHandle = value.clone();
                 let result_recorded = {
@@ -20715,7 +19413,7 @@ fn destack_net_udp_get_multicast_interface_v4_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20753,8 +19451,7 @@ fn destack_net_udp_get_multicast_interface_v6_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -20774,8 +19471,7 @@ fn destack_net_udp_get_multicast_interface_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20809,8 +19505,7 @@ fn destack_net_udp_get_multicast_loop_vm_replay(
                 platform_simulation_vm::destack_net_get_multicast_loop(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -20830,8 +19525,7 @@ fn destack_net_udp_get_multicast_loop_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20865,8 +19559,7 @@ fn destack_net_udp_get_multicast_ttl_vm_replay(
                 platform_simulation_vm::destack_net_get_multicast_ttl(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -20886,8 +19579,7 @@ fn destack_net_udp_get_multicast_ttl_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20924,8 +19616,7 @@ fn destack_net_udp_join_multicast_source_v4_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpJoinMulticastSourceV4ReplayRecord {
@@ -20944,8 +19635,7 @@ fn destack_net_udp_join_multicast_source_v4_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20979,8 +19669,7 @@ fn destack_net_udp_join_multicast_source_v6_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpJoinMulticastSourceV6ReplayRecord {
@@ -20999,8 +19688,7 @@ fn destack_net_udp_join_multicast_source_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21041,8 +19729,7 @@ fn destack_net_udp_join_multicast_v4_vm_replay(
                 interfaceaddress,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpJoinMulticastV4ReplayRecord {
@@ -21061,8 +19748,7 @@ fn destack_net_udp_join_multicast_v4_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21103,8 +19789,7 @@ fn destack_net_udp_join_multicast_v6_vm_replay(
                 interfaceindex,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpJoinMulticastV6ReplayRecord {
@@ -21123,8 +19808,7 @@ fn destack_net_udp_join_multicast_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21158,8 +19842,7 @@ fn destack_net_udp_leave_multicast_source_v4_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpLeaveMulticastSourceV4ReplayRecord {
@@ -21178,8 +19861,7 @@ fn destack_net_udp_leave_multicast_source_v4_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21213,8 +19895,7 @@ fn destack_net_udp_leave_multicast_source_v6_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpLeaveMulticastSourceV6ReplayRecord {
@@ -21233,8 +19914,7 @@ fn destack_net_udp_leave_multicast_source_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21275,8 +19955,7 @@ fn destack_net_udp_leave_multicast_v4_vm_replay(
                 interfaceaddress,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpLeaveMulticastV4ReplayRecord {
@@ -21295,8 +19974,7 @@ fn destack_net_udp_leave_multicast_v4_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21337,8 +20015,7 @@ fn destack_net_udp_leave_multicast_v6_vm_replay(
                 interfaceindex,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpLeaveMulticastV6ReplayRecord {
@@ -21357,8 +20034,7 @@ fn destack_net_udp_leave_multicast_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21392,7 +20068,7 @@ fn destack_net_udp_recv_from_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: UdpReceiveVm = value.clone();
                 let result_recorded_address_family = result_value.address.family;
@@ -21428,7 +20104,7 @@ fn destack_net_udp_recv_from_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -21480,8 +20156,7 @@ fn destack_net_udp_send_to_vm_replay(
                 binding, context, handle, address, buffer, sendflags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -21501,8 +20176,7 @@ fn destack_net_udp_send_to_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -21545,8 +20219,7 @@ fn destack_net_udp_set_multicast_interface_v4_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpSetMulticastInterfaceV4ReplayRecord {
@@ -21565,8 +20238,7 @@ fn destack_net_udp_set_multicast_interface_v4_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21606,8 +20278,7 @@ fn destack_net_udp_set_multicast_interface_v6_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpSetMulticastInterfaceV6ReplayRecord {
@@ -21626,8 +20297,7 @@ fn destack_net_udp_set_multicast_interface_v6_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21659,8 +20329,7 @@ fn destack_net_udp_set_multicast_loop_vm_replay(
                 binding, context, handle, enabled,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpSetMulticastLoopReplayRecord {
@@ -21679,8 +20348,7 @@ fn destack_net_udp_set_multicast_loop_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21712,8 +20380,7 @@ fn destack_net_udp_set_multicast_ttl_vm_replay(
                 platform_simulation_vm::destack_net_set_multicast_ttl(binding, context, handle, ttl)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdpSetMulticastTtlReplayRecord {
@@ -21732,8 +20399,7 @@ fn destack_net_udp_set_multicast_ttl_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21762,8 +20428,7 @@ fn destack_net_udp_socket_vm_replay(
                 platform_simulation_vm::destack_net_udp_socket(binding, context, family)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SocketHandle = value.clone();
                 let result_recorded = result_value;
@@ -21783,8 +20448,7 @@ fn destack_net_udp_socket_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -21816,8 +20480,7 @@ fn destack_net_uds_uds_accept_vm_replay(
                 platform_simulation_vm::destack_net_uds_accept(binding, context, listener)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SocketHandle = value.clone();
                 let result_recorded = result_value;
@@ -21837,8 +20500,7 @@ fn destack_net_uds_uds_accept_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -21872,8 +20534,7 @@ fn destack_net_uds_uds_close_listener_vm_replay(
                 platform_simulation_vm::destack_net_uds_close_listener(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = NetUdsUdsCloseListenerReplayRecord {
@@ -21892,8 +20553,7 @@ fn destack_net_uds_uds_close_listener_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -21922,8 +20582,7 @@ fn destack_net_uds_uds_connect_vm_replay(
                 platform_simulation_vm::destack_net_uds_connect(binding, context, address)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SocketHandle = value.clone();
                 let result_recorded = result_value;
@@ -21943,8 +20602,7 @@ fn destack_net_uds_uds_connect_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -21979,8 +20637,7 @@ fn destack_net_uds_uds_listen_vm_replay(
                 platform_simulation_vm::destack_net_uds_listen(binding, context, address, backlog)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::ListenerHandle = value.clone();
                 let result_recorded = result_value;
@@ -22000,8 +20657,7 @@ fn destack_net_uds_uds_listen_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -22035,8 +20691,7 @@ fn destack_net_uds_uds_socket_pair_vm_replay(
                 platform_simulation_vm::destack_net_uds_socket_pair(binding, context, sockettype)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SocketPairVm = value.clone();
                 let result_recorded_first = result_value.first;
@@ -22061,8 +20716,7 @@ fn destack_net_uds_uds_socket_pair_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -24199,6 +22853,7 @@ pub(crate) fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: 
 
 /// Install VM bindings for net.
 pub(crate) fn install_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_net_vm_storage_types(isolate);
     register_net_vm_bindings(registry, isolate);
 }
 

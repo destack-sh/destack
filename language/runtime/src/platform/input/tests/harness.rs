@@ -417,7 +417,7 @@ impl<'call> InputHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes)?;
+                let bytes = VmSlice::from_bytes(&mut context.write(), bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -445,7 +445,7 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                value.read_bytes(context)
+                value.read_bytes(&context.read())
             }
         }
     }
@@ -617,7 +617,7 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let values = value.read_values(context)?;
+                let values = value.read_values(&context.read())?;
                 let mut records = Vec::with_capacity(values.len());
                 for value in values {
                     let id = context
@@ -800,13 +800,13 @@ impl<'call> InputHarnessContext<'call> {
                     .boxed()
                 })?;
 
-                let kinds = value.kinds.read_values(context)?;
-                let axes = value.axes.read_values(context)?;
+                let kinds = value.kinds.read_values(&context.read())?;
+                let axes = value.axes.read_values(&context.read())?;
                 let mut axis_codes = Vec::with_capacity(axes.len());
                 for axis in axes {
                     axis_codes.push(axis.code);
                 }
-                let buttons = value.buttons.read_values(context)?;
+                let buttons = value.buttons.read_values(&context.read())?;
                 let mut button_codes = Vec::with_capacity(buttons.len());
                 for button in buttons {
                     button_codes.push(button.code);
@@ -852,7 +852,7 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let data = value.data.read_bytes(context)?;
+                let data = value.data.read_bytes(&context.read())?;
                 Ok(InputRawHidReportRecord {
                     timestamp_ns: value.timestamp_ns,
                     sequence: value.sequence,
@@ -892,7 +892,7 @@ impl<'call> InputHarnessContext<'call> {
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
-                let contacts = value.contacts.read_values(context)?;
+                let contacts = value.contacts.read_values(&context.read())?;
                 Ok(InputTouchStateRecord {
                     timestamp_ns: value.timestamp_ns,
                     sequence: value.sequence,
@@ -926,8 +926,8 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let axes = value.axes.read_values(context)?;
-                let buttons = value.buttons.read_values(context)?;
+                let axes = value.axes.read_values(&context.read())?;
+                let buttons = value.buttons.read_values(&context.read())?;
                 Ok(InputGamepadStateRecord {
                     connected: value.connected,
                     axis_count: axes.len(),
@@ -970,8 +970,8 @@ impl<'call> InputHarnessContext<'call> {
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
-                let pressed_codes = value.pressed_codes.read_values(context)?;
-                let pressed_scan_codes = value.pressed_scan_codes.read_values(context)?;
+                let pressed_codes = value.pressed_codes.read_values(&context.read())?;
+                let pressed_scan_codes = value.pressed_scan_codes.read_values(&context.read())?;
 
                 Ok(InputKeyboardStateRecord {
                     device_id,
@@ -996,7 +996,7 @@ impl<'call> InputHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context should exist for vm pointer-state values");
-                let value = <InputPointerStateVm as VmAbiCodec>::into_value(value, context)
+                let value = <InputPointerStateVm as VmAbiCodec>::into_value(value, &context.read())
                     .expect("vm pointer state should decode");
 
                 InputPointerState::from_value(self.call_context, value)
@@ -1022,7 +1022,7 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                value.read_values(context)
+                value.read_values(&context.read())
             }
         }
     }
@@ -1067,7 +1067,7 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                value.read_values(context)
+                value.read_values(&context.read())
             }
         }
     }

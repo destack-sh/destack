@@ -94,7 +94,7 @@ pub(super) fn decode_clipboard_bytes(
                     as *mut vm::ExternalCallContext<'_>)
             };
 
-            value.read_bytes(vm_context)
+            value.read_bytes(&vm_context.read())
         }
     }
 }
@@ -135,13 +135,15 @@ pub(super) fn decode_clipboard_item_descriptors(
                     .expect("vm context should exist for vm harness")
                     as *mut vm::ExternalCallContext<'_>)
             };
-            let values = value.read_values(vm_context)?;
+            let values = value.read_values(&vm_context.read())?;
             let mut records = Vec::with_capacity(values.len());
 
             // decode each vm descriptor into one owned record
             for value in values {
-                let value =
-                    <ClipboardItemDescriptorVm as VmAbiCodec>::into_value(value, vm_context)?;
+                let value = <ClipboardItemDescriptorVm as VmAbiCodec>::into_value(
+                    value,
+                    &vm_context.read(),
+                )?;
                 records.push(ClipboardItemDescriptorRecord {
                     presentation_style: value.presentation_style,
                     representations: value
@@ -179,8 +181,8 @@ pub(super) fn string_clipboard_items_value(
                     bytes: None,
                 }],
             };
-            let item = ClipboardItemVm::from_value(vm_context, item)?;
-            let items = VmSlice::from_values(vm_context, &[item])?;
+            let item = ClipboardItemVm::from_value(&mut vm_context.write(), item)?;
+            let items = VmSlice::from_values(&mut vm_context.write(), &[item])?;
 
             Ok(HarnessValue::Vm(items))
         }
@@ -223,8 +225,8 @@ pub(super) fn html_clipboard_items_value(
                     bytes: Some(value.to_vec()),
                 }],
             };
-            let item = ClipboardItemVm::from_value(vm_context, item)?;
-            let items = VmSlice::from_values(vm_context, &[item])?;
+            let item = ClipboardItemVm::from_value(&mut vm_context.write(), item)?;
+            let items = VmSlice::from_values(&mut vm_context.write(), &[item])?;
 
             Ok(HarnessValue::Vm(items))
         }

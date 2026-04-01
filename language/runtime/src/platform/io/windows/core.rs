@@ -179,7 +179,7 @@ pub(crate) fn host_control_ioctl(
         }
 
         let output_len = (bytes_returned as usize).min(output_lane.len());
-        let output = binding.store_slice(output_lane[..output_len].to_vec());
+        let output = binding.store_slice_copy(&output_lane[..output_len]);
         return Ok(DescriptorResult {
             return_value: 0,
             output,
@@ -216,7 +216,7 @@ pub(crate) fn host_control_ioctl(
         }
 
         let output_len = (bytes_returned as usize).min(output_lane.len());
-        let output = binding.store_slice(output_lane[..output_len].to_vec());
+        let output = binding.store_slice_copy(&output_lane[..output_len]);
         return Ok(DescriptorResult {
             return_value: 0,
             output,

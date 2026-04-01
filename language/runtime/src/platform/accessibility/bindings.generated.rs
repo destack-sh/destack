@@ -250,23 +250,20 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -277,7 +274,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -317,35 +314,16 @@ fn decode_destack_accessibility_action_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityActionOpenOptionsVm)> {
+    let context = &context.read();
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
     let window = resource::WindowHandle(window_inner);
     let options_value = arg_value(args, 1, "options", "AccessibilityActionOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "AccessibilityActionOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let options_queue_capacity =
-            decode_uint32(slots[0], "options_queue_capacity", "queueCapacity")?;
-        AccessibilityActionOpenOptionsVm {
-            queue_capacity: options_queue_capacity,
-        }
-    };
+    let options = <AccessibilityActionOpenOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((window, options))
 }
 
@@ -385,6 +363,7 @@ fn encode_destack_accessibility_action_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AccessibilityActionVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             AccessibilityActionVm::AccessibilityActivateAction(value) => {
@@ -402,19 +381,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityActivateAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityAddToSelectionAction(value) => {
                 let tag_value = vm::Value::uint(1903946355u64, 32);
@@ -431,19 +442,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityAddToSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityClearSelectionAction(value) => {
                 let tag_value = vm::Value::uint(496612936u64, 32);
@@ -460,19 +503,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityClearSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityCollapseAction(value) => {
                 let tag_value = vm::Value::uint(1319128726u64, 32);
@@ -489,19 +564,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityCollapseAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityCustomActionInvocation(value) => {
                 let tag_value = vm::Value::uint(3631164633u64, 32);
@@ -518,20 +625,55 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.action_id.value());
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityCustomActionInvocation",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityDecrementAction(value) => {
                 let tag_value = vm::Value::uint(2031128575u64, 32);
@@ -548,19 +690,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDecrementAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityDismissAction(value) => {
                 let tag_value = vm::Value::uint(1872678456u64, 32);
@@ -577,19 +751,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDismissAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityExpandAction(value) => {
                 let tag_value = vm::Value::uint(2586860255u64, 32);
@@ -606,19 +812,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityExpandAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityFocusAction(value) => {
                 let tag_value = vm::Value::uint(430558043u64, 32);
@@ -635,19 +873,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityFocusAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityIncrementAction(value) => {
                 let tag_value = vm::Value::uint(1748811128u64, 32);
@@ -664,19 +934,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityIncrementAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityMoveTextSelectionAction(value) => {
                 let tag_value = vm::Value::uint(727684083u64, 32);
@@ -693,24 +995,65 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.unit as i32 as i64, 32));
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.count as i64, 32));
                     let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extend));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityMoveTextSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(value) => {
                 let tag_value = vm::Value::uint(3010974441u64, 32);
@@ -727,19 +1070,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityRemoveFromSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(value) => {
                 let tag_value = vm::Value::uint(2533321292u64, 32);
@@ -756,20 +1131,55 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.text.value());
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityReplaceSelectedTextAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityScrollAction(value) => {
                 let tag_value = vm::Value::uint(1817520472u64, 32);
@@ -786,21 +1196,56 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.direction as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityScrollAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityScrollIntoViewAction(value) => {
                 let tag_value = vm::Value::uint(1432855482u64, 32);
@@ -817,19 +1262,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityScrollIntoViewAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(value) => {
                 let tag_value = vm::Value::uint(129083950u64, 32);
@@ -846,30 +1323,77 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.align_to_start));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityScrollTextRangeIntoViewAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySelectAction(value) => {
                 let tag_value = vm::Value::uint(2850175718u64, 32);
@@ -886,19 +1410,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySelectAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetNumericValueAction(value) => {
                 let tag_value = vm::Value::uint(2297349432u64, 32);
@@ -915,20 +1471,55 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.value));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetNumericValueAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetSelectedTextRangeAction(value) => {
                 let tag_value = vm::Value::uint(3095104548u64, 32);
@@ -945,23 +1536,61 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.anchor_offset as u64, 32));
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.focus_offset as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetSelectedTextRangeAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(value) => {
                 let tag_value = vm::Value::uint(1445324535u64, 32);
@@ -978,20 +1607,55 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = value.selections.to_value(context);
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetSelectedTextRangesAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetTextValueAction(value) => {
                 let tag_value = vm::Value::uint(1550276491u64, 32);
@@ -1008,20 +1672,55 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.value.value());
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetTextValueAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityShowMenuAction(value) => {
                 let tag_value = vm::Value::uint(3837586638u64, 32);
@@ -1038,19 +1737,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityShowMenuAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityToggleAction(value) => {
                 let tag_value = vm::Value::uint(3853401430u64, 32);
@@ -1067,19 +1798,51 @@ fn encode_destack_accessibility_action_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityToggleAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -1108,6 +1871,7 @@ fn encode_destack_accessibility_action_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AccessibilityActionVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             AccessibilityActionVm::AccessibilityActivateAction(value) => {
@@ -1125,19 +1889,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityActivateAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityAddToSelectionAction(value) => {
                 let tag_value = vm::Value::uint(1903946355u64, 32);
@@ -1154,19 +1950,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityAddToSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityClearSelectionAction(value) => {
                 let tag_value = vm::Value::uint(496612936u64, 32);
@@ -1183,19 +2011,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityClearSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityCollapseAction(value) => {
                 let tag_value = vm::Value::uint(1319128726u64, 32);
@@ -1212,19 +2072,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityCollapseAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityCustomActionInvocation(value) => {
                 let tag_value = vm::Value::uint(3631164633u64, 32);
@@ -1241,20 +2133,55 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.action_id.value());
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityCustomActionInvocation",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityDecrementAction(value) => {
                 let tag_value = vm::Value::uint(2031128575u64, 32);
@@ -1271,19 +2198,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDecrementAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityDismissAction(value) => {
                 let tag_value = vm::Value::uint(1872678456u64, 32);
@@ -1300,19 +2259,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDismissAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityExpandAction(value) => {
                 let tag_value = vm::Value::uint(2586860255u64, 32);
@@ -1329,19 +2320,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityExpandAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityFocusAction(value) => {
                 let tag_value = vm::Value::uint(430558043u64, 32);
@@ -1358,19 +2381,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityFocusAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityIncrementAction(value) => {
                 let tag_value = vm::Value::uint(1748811128u64, 32);
@@ -1387,19 +2442,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityIncrementAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityMoveTextSelectionAction(value) => {
                 let tag_value = vm::Value::uint(727684083u64, 32);
@@ -1416,24 +2503,65 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.unit as i32 as i64, 32));
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.count as i64, 32));
                     let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.extend));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityMoveTextSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityRemoveFromSelectionAction(value) => {
                 let tag_value = vm::Value::uint(3010974441u64, 32);
@@ -1450,19 +2578,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityRemoveFromSelectionAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityReplaceSelectedTextAction(value) => {
                 let tag_value = vm::Value::uint(2533321292u64, 32);
@@ -1479,20 +2639,55 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.text.value());
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityReplaceSelectedTextAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityScrollAction(value) => {
                 let tag_value = vm::Value::uint(1817520472u64, 32);
@@ -1509,21 +2704,56 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.direction as i32 as i64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityScrollAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityScrollIntoViewAction(value) => {
                 let tag_value = vm::Value::uint(1432855482u64, 32);
@@ -1540,19 +2770,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityScrollIntoViewAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityScrollTextRangeIntoViewAction(value) => {
                 let tag_value = vm::Value::uint(129083950u64, 32);
@@ -1569,30 +2831,77 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::bool(value.align_to_start));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityScrollTextRangeIntoViewAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySelectAction(value) => {
                 let tag_value = vm::Value::uint(2850175718u64, 32);
@@ -1609,19 +2918,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySelectAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetNumericValueAction(value) => {
                 let tag_value = vm::Value::uint(2297349432u64, 32);
@@ -1638,20 +2979,55 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.value));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetNumericValueAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetSelectedTextRangeAction(value) => {
                 let tag_value = vm::Value::uint(3095104548u64, 32);
@@ -1668,23 +3044,61 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.anchor_offset as u64, 32));
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.focus_offset as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetSelectedTextRangeAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetSelectedTextRangesAction(value) => {
                 let tag_value = vm::Value::uint(1445324535u64, 32);
@@ -1701,20 +3115,55 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = value.selections.to_value(context);
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetSelectedTextRangesAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilitySetTextValueAction(value) => {
                 let tag_value = vm::Value::uint(1550276491u64, 32);
@@ -1731,20 +3180,55 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(value.value.value());
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilitySetTextValueAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityShowMenuAction(value) => {
                 let tag_value = vm::Value::uint(3837586638u64, 32);
@@ -1761,19 +3245,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityShowMenuAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityActionVm::AccessibilityToggleAction(value) => {
                 let tag_value = vm::Value::uint(3853401430u64, 32);
@@ -1790,19 +3306,51 @@ fn encode_destack_accessibility_action_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityActionMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityToggleAction",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityAction")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -1865,35 +3413,16 @@ fn decode_destack_accessibility_document_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityDocumentOpenOptionsVm)> {
+    let context = &context.read();
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
     let window = resource::WindowHandle(window_inner);
     let options_value = arg_value(args, 1, "options", "AccessibilityDocumentOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "AccessibilityDocumentOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 1 fields",
-            ))
-            .boxed());
-        }
-        let options_queue_capacity =
-            decode_uint32(slots[0], "options_queue_capacity", "queueCapacity")?;
-        AccessibilityDocumentOpenOptionsVm {
-            queue_capacity: options_queue_capacity,
-        }
-    };
+    let options = <AccessibilityDocumentOpenOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((window, options))
 }
 
@@ -1933,6 +3462,7 @@ fn encode_destack_accessibility_document_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AccessibilityDocumentQueryVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(value) => {
@@ -1957,22 +3487,65 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentRangeAtPointQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(value) => {
                 let tag_value = vm::Value::uint(150143220u64, 32);
@@ -1996,22 +3569,62 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.child_node_id.0, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentRangeForChildQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(value) => {
                 let tag_value = vm::Value::uint(1379004282u64, 32);
@@ -2035,24 +3648,67 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.unit as i32 as i64, 32));
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.offset as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentRangeForUnitQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
                 let tag_value = vm::Value::uint(657266885u64, 32);
@@ -2076,29 +3732,78 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(value) => {
                 let tag_value = vm::Value::uint(2184449520u64, 32);
@@ -2122,29 +3827,78 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(value) => {
                 let tag_value = vm::Value::uint(4215888034u64, 32);
@@ -2168,29 +3922,78 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadStyleRunsQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(value) => {
                 let tag_value = vm::Value::uint(299345949u64, 32);
@@ -2214,29 +4017,78 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadTextQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(value) => {
                 let tag_value = vm::Value::uint(477874338u64, 32);
@@ -2260,12 +4112,33 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.unit as i32 as i64, 32));
@@ -2274,17 +4147,48 @@ fn encode_destack_accessibility_document_read_result(
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadUnitRangesQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -2299,6 +4203,7 @@ fn decode_destack_accessibility_document_respond_args(
     resource::AccessibilityDocumentHandle,
     AccessibilityDocumentResponseVm,
 )> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "AccessibilityDocumentHandle")?;
     let handle_inner_inner = decode_uint64(
         handle_value,
@@ -2334,6 +4239,7 @@ fn decode_destack_accessibility_document_set_args(
     AccessibilityNodeId,
     AccessibilityTextDocumentVm,
 )> {
+    let context = &context.read();
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
@@ -2342,96 +4248,10 @@ fn decode_destack_accessibility_document_set_args(
     let nodeid_inner = decode_uint64(nodeid_value, "nodeid_inner", "AccessibilityNodeId")?;
     let nodeid = AccessibilityNodeId(nodeid_inner);
     let document_value = arg_value(args, 2, "document", "AccessibilityTextDocument")?;
-    let document = {
-        if document_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "document",
-                "AccessibilityTextDocument",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(document_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "document",
-                "expected 6 fields",
-            ))
-            .boxed());
-        }
-        let document_revision = decode_uint64(slots[0], "document_revision", "revision")?;
-        let document_document_range = {
-            if slots[1].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "document_document_range",
-                    "documentRange",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[1])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 2 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "document_document_range",
-                    "expected 2 fields",
-                ))
-                .boxed());
-            }
-            let document_document_range_start_offset = decode_uint32(
-                slots[0],
-                "document_document_range_start_offset",
-                "startOffset",
-            )?;
-            let document_document_range_end_offset =
-                decode_uint32(slots[1], "document_document_range_end_offset", "endOffset")?;
-            AccessibilityTextRangeVm {
-                start_offset: document_document_range_start_offset,
-                end_offset: document_document_range_end_offset,
-            }
-        };
-        let document_supported_selection_raw = decode_int32(
-            slots[2],
-            "document_supported_selection_raw",
-            "supportedSelection",
-        )?;
-        let document_supported_selection = match document_supported_selection_raw {
-            1i32 => AccessibilitySupportedTextSelection::None,
-            2i32 => AccessibilitySupportedTextSelection::Single,
-            3i32 => AccessibilitySupportedTextSelection::Multiple,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "document_supported_selection",
-                    "unknown AccessibilitySupportedTextSelection value",
-                ))
-                .boxed());
-            }
-        };
-        let document_supported_units_inner =
-            decode_uint32(slots[3], "document_supported_units_inner", "supportedUnits")?;
-        let document_supported_units = AccessibilityTextUnitFlags(document_supported_units_inner);
-        let document_selections = decode_slice::<AccessibilityTextSelectionVm>(
-            context,
-            slots[4],
-            "document_selections",
-            "selections",
-        )?;
-        let document_visible_ranges = decode_slice::<AccessibilityTextRangeVm>(
-            context,
-            slots[5],
-            "document_visible_ranges",
-            "visibleRanges",
-        )?;
-        AccessibilityTextDocumentVm {
-            revision: document_revision,
-            document_range: document_document_range,
-            supported_selection: document_supported_selection,
-            supported_units: document_supported_units,
-            selections: document_selections,
-            visible_ranges: document_visible_ranges,
-        }
-    };
+    let document = <AccessibilityTextDocumentVm as VmAggregateCodec>::decode_with_context(
+        context,
+        document_value,
+    )?;
     Ok((window, nodeid, document))
 }
 
@@ -2467,6 +4287,7 @@ fn encode_destack_accessibility_document_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<AccessibilityDocumentQueryVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             AccessibilityDocumentQueryVm::AccessibilityDocumentRangeAtPointQuery(value) => {
@@ -2491,22 +4312,65 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.x));
                     let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.y));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentRangeAtPointQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForChildQuery(value) => {
                 let tag_value = vm::Value::uint(150143220u64, 32);
@@ -2530,22 +4394,62 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.child_node_id.0, 64));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentRangeForChildQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentRangeForUnitQuery(value) => {
                 let tag_value = vm::Value::uint(1379004282u64, 32);
@@ -2569,24 +4473,67 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.unit as i32 as i64, 32));
                     let field_3: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.offset as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentRangeForUnitQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
                 let tag_value = vm::Value::uint(657266885u64, 32);
@@ -2610,29 +4557,78 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadEmbeddedObjectsQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadRangeBoundsQuery(value) => {
                 let tag_value = vm::Value::uint(2184449520u64, 32);
@@ -2656,29 +4652,78 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadRangeBoundsQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadStyleRunsQuery(value) => {
                 let tag_value = vm::Value::uint(4215888034u64, 32);
@@ -2702,29 +4747,78 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadStyleRunsQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadTextQuery(value) => {
                 let tag_value = vm::Value::uint(299345949u64, 32);
@@ -2748,29 +4842,78 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadTextQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             AccessibilityDocumentQueryVm::AccessibilityDocumentReadUnitRangesQuery(value) => {
                 let tag_value = vm::Value::uint(477874338u64, 32);
@@ -2794,12 +4937,33 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
                         let field_6: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.dropped_count, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                field_6?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityDocumentQueryMetadata",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(5, field_5?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(6, field_6?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::int(value.unit as i32 as i64, 32));
@@ -2808,17 +4972,48 @@ fn encode_destack_accessibility_document_try_read_result(
                             Ok(vm::Value::uint(value.range.start_offset as u64, 32));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.range.end_offset as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder(
+                                "accessibility::AccessibilityTextRange",
+                            )
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder(
+                            "accessibility::AccessibilityDocumentReadUnitRangesQuery",
+                        )
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("accessibility::AccessibilityDocumentQuery")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -2830,134 +5025,16 @@ fn decode_destack_accessibility_notification_post_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityNotificationVm)> {
+    let context = &context.read();
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
     let window = resource::WindowHandle(window_inner);
     let notification_value = arg_value(args, 1, "notification", "AccessibilityNotification")?;
-    let notification = {
-        if notification_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "notification",
-                "AccessibilityNotification",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(notification_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "notification",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let notification_kind_raw = decode_int32(slots[0], "notification_kind_raw", "kind")?;
-        let notification_kind = match notification_kind_raw {
-            1i32 => AccessibilityNotificationKind::Announcement,
-            2i32 => AccessibilityNotificationKind::FocusChanged,
-            3i32 => AccessibilityNotificationKind::LiveRegionChanged,
-            4i32 => AccessibilityNotificationKind::ScreenChanged,
-            5i32 => AccessibilityNotificationKind::LayoutChanged,
-            6i32 => AccessibilityNotificationKind::ChildrenChanged,
-            7i32 => AccessibilityNotificationKind::ValueChanged,
-            8i32 => AccessibilityNotificationKind::TextChanged,
-            9i32 => AccessibilityNotificationKind::SelectionChanged,
-            10i32 => AccessibilityNotificationKind::TextSelectionChanged,
-            11i32 => AccessibilityNotificationKind::TitleChanged,
-            12i32 => AccessibilityNotificationKind::SelectedChildrenChanged,
-            13i32 => AccessibilityNotificationKind::SelectedRowsChanged,
-            14i32 => AccessibilityNotificationKind::SelectedColumnsChanged,
-            15i32 => AccessibilityNotificationKind::RowCountChanged,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "notification_kind",
-                    "unknown AccessibilityNotificationKind value",
-                ))
-                .boxed());
-            }
-        };
-        let notification_node_id = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let notification_node_id_inner_inner =
-                decode_uint64(slots[1], "notification_node_id_inner_inner", "nodeId")?;
-            let notification_node_id_inner = AccessibilityNodeId(notification_node_id_inner_inner);
-            Some(notification_node_id_inner)
-        };
-        let notification_text = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let notification_text_inner =
-                decode_string(slots[2], "notification_text_inner", "text")?;
-            Some(notification_text_inner)
-        };
-        let notification_politeness = if slots[3].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let notification_politeness_inner_raw =
-                decode_int32(slots[3], "notification_politeness_inner_raw", "politeness")?;
-            let notification_politeness_inner = match notification_politeness_inner_raw {
-                1i32 => AccessibilityLiveRegionPoliteness::Off,
-                2i32 => AccessibilityLiveRegionPoliteness::Polite,
-                3i32 => AccessibilityLiveRegionPoliteness::Assertive,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "notification_politeness_inner",
-                        "unknown AccessibilityLiveRegionPoliteness value",
-                    ))
-                    .boxed());
-                }
-            };
-            Some(notification_politeness_inner)
-        };
-        let notification_text_range = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let notification_text_range_inner = {
-                if slots[4].tag() != vm::ValueTag::Aggregate {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                        "notification_text_range_inner",
-                        "textRange",
-                    ))
-                    .boxed());
-                }
-                let slots = context
-                    .aggregate_slots(slots[4])
-                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 2 {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "notification_text_range_inner",
-                        "expected 2 fields",
-                    ))
-                    .boxed());
-                }
-                let notification_text_range_inner_start_offset = decode_uint32(
-                    slots[0],
-                    "notification_text_range_inner_start_offset",
-                    "startOffset",
-                )?;
-                let notification_text_range_inner_end_offset = decode_uint32(
-                    slots[1],
-                    "notification_text_range_inner_end_offset",
-                    "endOffset",
-                )?;
-                AccessibilityTextRangeVm {
-                    start_offset: notification_text_range_inner_start_offset,
-                    end_offset: notification_text_range_inner_end_offset,
-                }
-            };
-            Some(notification_text_range_inner)
-        };
-        AccessibilityNotificationVm {
-            kind: notification_kind,
-            node_id: notification_node_id,
-            text: notification_text,
-            politeness: notification_politeness,
-            text_range: notification_text_range,
-        }
-    };
+    let notification = <AccessibilityNotificationVm as VmAggregateCodec>::decode_with_context(
+        context,
+        notification_value,
+    )?;
     Ok((window, notification))
 }
 
@@ -2976,64 +5053,16 @@ fn decode_destack_accessibility_tree_apply_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::WindowHandle, AccessibilityTreeUpdateVm)> {
+    let context = &context.read();
     let window_value = arg_value(args, 0, "window", "WindowHandle")?;
     let window_inner_inner = decode_uint64(window_value, "window_inner_inner", "WindowHandle")?;
     let window_inner = resource::ResourceId(window_inner_inner);
     let window = resource::WindowHandle(window_inner);
     let update_value = arg_value(args, 1, "update", "AccessibilityTreeUpdate")?;
-    let update = {
-        if update_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "update",
-                "AccessibilityTreeUpdate",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(update_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "update",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let update_root_node_id = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let update_root_node_id_inner_inner =
-                decode_uint64(slots[0], "update_root_node_id_inner_inner", "rootNodeId")?;
-            let update_root_node_id_inner = AccessibilityNodeId(update_root_node_id_inner_inner);
-            Some(update_root_node_id_inner)
-        };
-        let update_focused_node_id = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let update_focused_node_id_inner_inner = decode_uint64(
-                slots[1],
-                "update_focused_node_id_inner_inner",
-                "focusedNodeId",
-            )?;
-            let update_focused_node_id_inner =
-                AccessibilityNodeId(update_focused_node_id_inner_inner);
-            Some(update_focused_node_id_inner)
-        };
-        let update_nodes =
-            decode_slice::<AccessibilityNodeVm>(context, slots[2], "update_nodes", "nodes")?;
-        let update_removed_node_ids = decode_slice::<AccessibilityNodeId>(
-            context,
-            slots[3],
-            "update_removed_node_ids",
-            "removedNodeIds",
-        )?;
-        AccessibilityTreeUpdateVm {
-            root_node_id: update_root_node_id,
-            focused_node_id: update_focused_node_id,
-            nodes: update_nodes,
-            removed_node_ids: update_removed_node_ids,
-        }
-    };
+    let update = <AccessibilityTreeUpdateVm as VmAggregateCodec>::decode_with_context(
+        context,
+        update_value,
+    )?;
     Ok((window, update))
 }
 
@@ -4057,8 +6086,9 @@ fn destack_accessibility_action_read_replay(
                             sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
                             dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                         };
-                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::new();
-                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item in unsafe { value.selections.as_slice()? }.iter().cloned() {
+                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_slice = unsafe { value.selections.as_slice()? };
+                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_slice.len());
+                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item in result_recorded_accessibility_set_selected_text_ranges_action_selections_slice.iter().cloned() {
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
@@ -4161,7 +6191,7 @@ fn destack_accessibility_action_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AccessibilityactionReplayRecord::AccessibilityActivateAction(value) => {
-                            let value_native_accessibility_activate_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_activate_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_activate_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4181,7 +6211,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityActivateAction(value_native_accessibility_activate_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(value) => {
-                            let value_native_accessibility_add_to_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_add_to_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4201,7 +6231,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityAddToSelectionAction(value_native_accessibility_add_to_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(value) => {
-                            let value_native_accessibility_clear_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_clear_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_clear_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4221,7 +6251,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityClearSelectionAction(value_native_accessibility_clear_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(value) => {
-                            let value_native_accessibility_collapse_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_collapse_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_collapse_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4241,7 +6271,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityCollapseAction(value_native_accessibility_collapse_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(value) => {
-                            let value_native_accessibility_custom_action_invocation_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_custom_action_invocation_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
                             let value_native_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4254,7 +6284,7 @@ fn destack_accessibility_action_read_replay(
                                 sequence: value_native_accessibility_custom_action_invocation_metadata_sequence,
                                 dropped_count: value_native_accessibility_custom_action_invocation_metadata_dropped_count,
                             };
-                            let value_native_accessibility_custom_action_invocation_action_id = binding.store_string(value.action_id.as_str());
+                            let value_native_accessibility_custom_action_invocation_action_id = binding.store_string_owned(value.action_id);
                             let value_native_accessibility_custom_action_invocation = AccessibilityCustomActionInvocation {
                                 kind: value_native_accessibility_custom_action_invocation_kind,
                                 metadata: value_native_accessibility_custom_action_invocation_metadata,
@@ -4263,7 +6293,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityCustomActionInvocation(value_native_accessibility_custom_action_invocation)
                         }
                         AccessibilityactionReplayRecord::AccessibilityDecrementAction(value) => {
-                            let value_native_accessibility_decrement_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_decrement_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_decrement_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4283,7 +6313,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityDecrementAction(value_native_accessibility_decrement_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityDismissAction(value) => {
-                            let value_native_accessibility_dismiss_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_dismiss_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_dismiss_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4303,7 +6333,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityDismissAction(value_native_accessibility_dismiss_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityExpandAction(value) => {
-                            let value_native_accessibility_expand_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_expand_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_expand_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4323,7 +6353,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityExpandAction(value_native_accessibility_expand_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityFocusAction(value) => {
-                            let value_native_accessibility_focus_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_focus_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_focus_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4343,7 +6373,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityFocusAction(value_native_accessibility_focus_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityIncrementAction(value) => {
-                            let value_native_accessibility_increment_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_increment_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_increment_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4363,7 +6393,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityIncrementAction(value_native_accessibility_increment_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(value) => {
-                            let value_native_accessibility_move_text_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_move_text_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4389,7 +6419,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityMoveTextSelectionAction(value_native_accessibility_move_text_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(value) => {
-                            let value_native_accessibility_remove_from_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_remove_from_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4409,7 +6439,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityRemoveFromSelectionAction(value_native_accessibility_remove_from_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(value) => {
-                            let value_native_accessibility_replace_selected_text_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_replace_selected_text_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4422,7 +6452,7 @@ fn destack_accessibility_action_read_replay(
                                 sequence: value_native_accessibility_replace_selected_text_action_metadata_sequence,
                                 dropped_count: value_native_accessibility_replace_selected_text_action_metadata_dropped_count,
                             };
-                            let value_native_accessibility_replace_selected_text_action_text = binding.store_string(value.text.as_str());
+                            let value_native_accessibility_replace_selected_text_action_text = binding.store_string_owned(value.text);
                             let value_native_accessibility_replace_selected_text_action = AccessibilityReplaceSelectedTextAction {
                                 kind: value_native_accessibility_replace_selected_text_action_kind,
                                 metadata: value_native_accessibility_replace_selected_text_action_metadata,
@@ -4431,7 +6461,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityReplaceSelectedTextAction(value_native_accessibility_replace_selected_text_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityScrollAction(value) => {
-                            let value_native_accessibility_scroll_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_scroll_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4453,7 +6483,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityScrollAction(value_native_accessibility_scroll_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(value) => {
-                            let value_native_accessibility_scroll_into_view_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_into_view_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4473,7 +6503,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityScrollIntoViewAction(value_native_accessibility_scroll_into_view_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(value) => {
-                            let value_native_accessibility_scroll_text_range_into_view_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_text_range_into_view_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4502,7 +6532,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityScrollTextRangeIntoViewAction(value_native_accessibility_scroll_text_range_into_view_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySelectAction(value) => {
-                            let value_native_accessibility_select_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_select_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_select_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4522,7 +6552,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilitySelectAction(value_native_accessibility_select_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetNumericValueAction(value) => {
-                            let value_native_accessibility_set_numeric_value_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_numeric_value_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_numeric_value_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4544,7 +6574,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilitySetNumericValueAction(value_native_accessibility_set_numeric_value_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangeAction(value) => {
-                            let value_native_accessibility_set_selected_text_range_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_selected_text_range_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_selected_text_range_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4568,7 +6598,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilitySetSelectedTextRangeAction(value_native_accessibility_set_selected_text_range_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(value) => {
-                            let value_native_accessibility_set_selected_text_ranges_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_selected_text_ranges_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4581,17 +6611,18 @@ fn destack_accessibility_action_read_replay(
                                 sequence: value_native_accessibility_set_selected_text_ranges_action_metadata_sequence,
                                 dropped_count: value_native_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                             };
-                            let mut value_native_accessibility_set_selected_text_ranges_action_selections_values = Vec::new();
-                            for value_native_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
-                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
-                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
-                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded = AccessibilityTextSelection {
-                                    anchor_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset,
-                                    focus_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset,
-                                };
-                                value_native_accessibility_set_selected_text_ranges_action_selections_values.push(value_native_accessibility_set_selected_text_ranges_action_selections_decoded);
-                            }
-                            let value_native_accessibility_set_selected_text_ranges_action_selections = binding.store_slice(value_native_accessibility_set_selected_text_ranges_action_selections_values);
+                            let value_native_accessibility_set_selected_text_ranges_action_selections = binding.store_slice_with(value.selections.len(), |value_native_accessibility_set_selected_text_ranges_action_selections_values| {
+                                for value_native_accessibility_set_selected_text_ranges_action_selections_item in value.selections {
+                                    let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                                    let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                                    let value_native_accessibility_set_selected_text_ranges_action_selections_decoded = AccessibilityTextSelection {
+                                        anchor_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset,
+                                        focus_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset,
+                                    };
+                                    value_native_accessibility_set_selected_text_ranges_action_selections_values.push(value_native_accessibility_set_selected_text_ranges_action_selections_decoded);
+                                }
+                                Ok(())
+                            })?;
                             let value_native_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesAction {
                                 kind: value_native_accessibility_set_selected_text_ranges_action_kind,
                                 metadata: value_native_accessibility_set_selected_text_ranges_action_metadata,
@@ -4600,7 +6631,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilitySetSelectedTextRangesAction(value_native_accessibility_set_selected_text_ranges_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(value) => {
-                            let value_native_accessibility_set_text_value_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_text_value_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4613,7 +6644,7 @@ fn destack_accessibility_action_read_replay(
                                 sequence: value_native_accessibility_set_text_value_action_metadata_sequence,
                                 dropped_count: value_native_accessibility_set_text_value_action_metadata_dropped_count,
                             };
-                            let value_native_accessibility_set_text_value_action_value = binding.store_string(value.value.as_str());
+                            let value_native_accessibility_set_text_value_action_value = binding.store_string_owned(value.value);
                             let value_native_accessibility_set_text_value_action = AccessibilitySetTextValueAction {
                                 kind: value_native_accessibility_set_text_value_action_kind,
                                 metadata: value_native_accessibility_set_text_value_action_metadata,
@@ -4622,7 +6653,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilitySetTextValueAction(value_native_accessibility_set_text_value_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityShowMenuAction(value) => {
-                            let value_native_accessibility_show_menu_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_show_menu_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_show_menu_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -4642,7 +6673,7 @@ fn destack_accessibility_action_read_replay(
                             AccessibilityAction::AccessibilityShowMenuAction(value_native_accessibility_show_menu_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityToggleAction(value) => {
-                            let value_native_accessibility_toggle_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_toggle_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_toggle_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5112,8 +7143,9 @@ fn destack_accessibility_action_try_read_replay(
                             sequence: result_recorded_accessibility_set_selected_text_ranges_action_metadata_sequence,
                             dropped_count: result_recorded_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                         };
-                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::new();
-                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item in unsafe { value.selections.as_slice()? }.iter().cloned() {
+                        let result_recorded_accessibility_set_selected_text_ranges_action_selections_slice = unsafe { value.selections.as_slice()? };
+                        let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_slice.len());
+                        for result_recorded_accessibility_set_selected_text_ranges_action_selections_item in result_recorded_accessibility_set_selected_text_ranges_action_selections_slice.iter().cloned() {
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
@@ -5216,7 +7248,7 @@ fn destack_accessibility_action_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AccessibilityactionReplayRecord::AccessibilityActivateAction(value) => {
-                            let value_native_accessibility_activate_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_activate_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_activate_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_activate_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_activate_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5236,7 +7268,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityActivateAction(value_native_accessibility_activate_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityAddToSelectionAction(value) => {
-                            let value_native_accessibility_add_to_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_add_to_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_add_to_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_add_to_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_add_to_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5256,7 +7288,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityAddToSelectionAction(value_native_accessibility_add_to_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityClearSelectionAction(value) => {
-                            let value_native_accessibility_clear_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_clear_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_clear_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_clear_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_clear_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5276,7 +7308,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityClearSelectionAction(value_native_accessibility_clear_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityCollapseAction(value) => {
-                            let value_native_accessibility_collapse_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_collapse_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_collapse_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_collapse_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_collapse_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5296,7 +7328,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityCollapseAction(value_native_accessibility_collapse_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityCustomActionInvocation(value) => {
-                            let value_native_accessibility_custom_action_invocation_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_custom_action_invocation_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_custom_action_invocation_metadata_window = value.metadata.window;
                             let value_native_accessibility_custom_action_invocation_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_custom_action_invocation_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5309,7 +7341,7 @@ fn destack_accessibility_action_try_read_replay(
                                 sequence: value_native_accessibility_custom_action_invocation_metadata_sequence,
                                 dropped_count: value_native_accessibility_custom_action_invocation_metadata_dropped_count,
                             };
-                            let value_native_accessibility_custom_action_invocation_action_id = binding.store_string(value.action_id.as_str());
+                            let value_native_accessibility_custom_action_invocation_action_id = binding.store_string_owned(value.action_id);
                             let value_native_accessibility_custom_action_invocation = AccessibilityCustomActionInvocation {
                                 kind: value_native_accessibility_custom_action_invocation_kind,
                                 metadata: value_native_accessibility_custom_action_invocation_metadata,
@@ -5318,7 +7350,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityCustomActionInvocation(value_native_accessibility_custom_action_invocation)
                         }
                         AccessibilityactionReplayRecord::AccessibilityDecrementAction(value) => {
-                            let value_native_accessibility_decrement_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_decrement_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_decrement_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_decrement_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_decrement_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5338,7 +7370,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityDecrementAction(value_native_accessibility_decrement_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityDismissAction(value) => {
-                            let value_native_accessibility_dismiss_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_dismiss_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_dismiss_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_dismiss_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_dismiss_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5358,7 +7390,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityDismissAction(value_native_accessibility_dismiss_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityExpandAction(value) => {
-                            let value_native_accessibility_expand_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_expand_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_expand_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_expand_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_expand_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5378,7 +7410,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityExpandAction(value_native_accessibility_expand_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityFocusAction(value) => {
-                            let value_native_accessibility_focus_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_focus_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_focus_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_focus_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_focus_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5398,7 +7430,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityFocusAction(value_native_accessibility_focus_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityIncrementAction(value) => {
-                            let value_native_accessibility_increment_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_increment_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_increment_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_increment_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_increment_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5418,7 +7450,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityIncrementAction(value_native_accessibility_increment_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityMoveTextSelectionAction(value) => {
-                            let value_native_accessibility_move_text_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_move_text_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_move_text_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_move_text_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_move_text_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5444,7 +7476,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityMoveTextSelectionAction(value_native_accessibility_move_text_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityRemoveFromSelectionAction(value) => {
-                            let value_native_accessibility_remove_from_selection_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_remove_from_selection_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_remove_from_selection_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_remove_from_selection_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_remove_from_selection_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5464,7 +7496,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityRemoveFromSelectionAction(value_native_accessibility_remove_from_selection_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityReplaceSelectedTextAction(value) => {
-                            let value_native_accessibility_replace_selected_text_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_replace_selected_text_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_replace_selected_text_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_replace_selected_text_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_replace_selected_text_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5477,7 +7509,7 @@ fn destack_accessibility_action_try_read_replay(
                                 sequence: value_native_accessibility_replace_selected_text_action_metadata_sequence,
                                 dropped_count: value_native_accessibility_replace_selected_text_action_metadata_dropped_count,
                             };
-                            let value_native_accessibility_replace_selected_text_action_text = binding.store_string(value.text.as_str());
+                            let value_native_accessibility_replace_selected_text_action_text = binding.store_string_owned(value.text);
                             let value_native_accessibility_replace_selected_text_action = AccessibilityReplaceSelectedTextAction {
                                 kind: value_native_accessibility_replace_selected_text_action_kind,
                                 metadata: value_native_accessibility_replace_selected_text_action_metadata,
@@ -5486,7 +7518,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityReplaceSelectedTextAction(value_native_accessibility_replace_selected_text_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityScrollAction(value) => {
-                            let value_native_accessibility_scroll_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_scroll_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5508,7 +7540,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityScrollAction(value_native_accessibility_scroll_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityScrollIntoViewAction(value) => {
-                            let value_native_accessibility_scroll_into_view_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_into_view_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_scroll_into_view_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_into_view_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5528,7 +7560,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityScrollIntoViewAction(value_native_accessibility_scroll_into_view_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityScrollTextRangeIntoViewAction(value) => {
-                            let value_native_accessibility_scroll_text_range_into_view_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_scroll_text_range_into_view_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_scroll_text_range_into_view_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_scroll_text_range_into_view_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_scroll_text_range_into_view_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5557,7 +7589,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityScrollTextRangeIntoViewAction(value_native_accessibility_scroll_text_range_into_view_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySelectAction(value) => {
-                            let value_native_accessibility_select_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_select_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_select_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_select_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_select_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5577,7 +7609,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilitySelectAction(value_native_accessibility_select_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetNumericValueAction(value) => {
-                            let value_native_accessibility_set_numeric_value_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_numeric_value_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_numeric_value_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_numeric_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_numeric_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5599,7 +7631,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilitySetNumericValueAction(value_native_accessibility_set_numeric_value_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangeAction(value) => {
-                            let value_native_accessibility_set_selected_text_range_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_selected_text_range_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_selected_text_range_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_selected_text_range_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_selected_text_range_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5623,7 +7655,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilitySetSelectedTextRangeAction(value_native_accessibility_set_selected_text_range_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetSelectedTextRangesAction(value) => {
-                            let value_native_accessibility_set_selected_text_ranges_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_selected_text_ranges_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_selected_text_ranges_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_selected_text_ranges_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_selected_text_ranges_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5636,17 +7668,18 @@ fn destack_accessibility_action_try_read_replay(
                                 sequence: value_native_accessibility_set_selected_text_ranges_action_metadata_sequence,
                                 dropped_count: value_native_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                             };
-                            let mut value_native_accessibility_set_selected_text_ranges_action_selections_values = Vec::new();
-                            for value_native_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
-                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
-                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
-                                let value_native_accessibility_set_selected_text_ranges_action_selections_decoded = AccessibilityTextSelection {
-                                    anchor_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset,
-                                    focus_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset,
-                                };
-                                value_native_accessibility_set_selected_text_ranges_action_selections_values.push(value_native_accessibility_set_selected_text_ranges_action_selections_decoded);
-                            }
-                            let value_native_accessibility_set_selected_text_ranges_action_selections = binding.store_slice(value_native_accessibility_set_selected_text_ranges_action_selections_values);
+                            let value_native_accessibility_set_selected_text_ranges_action_selections = binding.store_slice_with(value.selections.len(), |value_native_accessibility_set_selected_text_ranges_action_selections_values| {
+                                for value_native_accessibility_set_selected_text_ranges_action_selections_item in value.selections {
+                                    let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
+                                    let value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset = value_native_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
+                                    let value_native_accessibility_set_selected_text_ranges_action_selections_decoded = AccessibilityTextSelection {
+                                        anchor_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_anchor_offset,
+                                        focus_offset: value_native_accessibility_set_selected_text_ranges_action_selections_decoded_focus_offset,
+                                    };
+                                    value_native_accessibility_set_selected_text_ranges_action_selections_values.push(value_native_accessibility_set_selected_text_ranges_action_selections_decoded);
+                                }
+                                Ok(())
+                            })?;
                             let value_native_accessibility_set_selected_text_ranges_action = AccessibilitySetSelectedTextRangesAction {
                                 kind: value_native_accessibility_set_selected_text_ranges_action_kind,
                                 metadata: value_native_accessibility_set_selected_text_ranges_action_metadata,
@@ -5655,7 +7688,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilitySetSelectedTextRangesAction(value_native_accessibility_set_selected_text_ranges_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilitySetTextValueAction(value) => {
-                            let value_native_accessibility_set_text_value_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_set_text_value_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_set_text_value_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_set_text_value_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_set_text_value_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5668,7 +7701,7 @@ fn destack_accessibility_action_try_read_replay(
                                 sequence: value_native_accessibility_set_text_value_action_metadata_sequence,
                                 dropped_count: value_native_accessibility_set_text_value_action_metadata_dropped_count,
                             };
-                            let value_native_accessibility_set_text_value_action_value = binding.store_string(value.value.as_str());
+                            let value_native_accessibility_set_text_value_action_value = binding.store_string_owned(value.value);
                             let value_native_accessibility_set_text_value_action = AccessibilitySetTextValueAction {
                                 kind: value_native_accessibility_set_text_value_action_kind,
                                 metadata: value_native_accessibility_set_text_value_action_metadata,
@@ -5677,7 +7710,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilitySetTextValueAction(value_native_accessibility_set_text_value_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityShowMenuAction(value) => {
-                            let value_native_accessibility_show_menu_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_show_menu_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_show_menu_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_show_menu_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_show_menu_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -5697,7 +7730,7 @@ fn destack_accessibility_action_try_read_replay(
                             AccessibilityAction::AccessibilityShowMenuAction(value_native_accessibility_show_menu_action)
                         }
                         AccessibilityactionReplayRecord::AccessibilityToggleAction(value) => {
-                            let value_native_accessibility_toggle_action_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_toggle_action_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_toggle_action_metadata_window = value.metadata.window;
                             let value_native_accessibility_toggle_action_metadata_node_id = value.metadata.node_id;
                             let value_native_accessibility_toggle_action_metadata_timestamp_ns = value.metadata.timestamp_ns;
@@ -6206,7 +8239,7 @@ fn destack_accessibility_document_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(value) => {
-                            let value_native_accessibility_document_range_at_point_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_at_point_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
@@ -6239,7 +8272,7 @@ fn destack_accessibility_document_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentRangeAtPointQuery(value_native_accessibility_document_range_at_point_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(value) => {
-                            let value_native_accessibility_document_range_for_child_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_child_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
@@ -6270,7 +8303,7 @@ fn destack_accessibility_document_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentRangeForChildQuery(value_native_accessibility_document_range_for_child_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(value) => {
-                            let value_native_accessibility_document_range_for_unit_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_unit_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
@@ -6303,7 +8336,7 @@ fn destack_accessibility_document_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentRangeForUnitQuery(value_native_accessibility_document_range_for_unit_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
-                            let value_native_accessibility_document_read_embedded_objects_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_embedded_objects_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
@@ -6339,7 +8372,7 @@ fn destack_accessibility_document_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadEmbeddedObjectsQuery(value_native_accessibility_document_read_embedded_objects_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(value) => {
-                            let value_native_accessibility_document_read_range_bounds_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_range_bounds_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
@@ -6375,7 +8408,7 @@ fn destack_accessibility_document_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadRangeBoundsQuery(value_native_accessibility_document_read_range_bounds_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(value) => {
-                            let value_native_accessibility_document_read_style_runs_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_style_runs_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
@@ -6411,7 +8444,7 @@ fn destack_accessibility_document_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadStyleRunsQuery(value_native_accessibility_document_read_style_runs_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(value) => {
-                            let value_native_accessibility_document_read_text_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_text_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_text_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
@@ -6447,7 +8480,7 @@ fn destack_accessibility_document_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadTextQuery(value_native_accessibility_document_read_text_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(value) => {
-                            let value_native_accessibility_document_read_unit_ranges_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_unit_ranges_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
@@ -6923,7 +8956,7 @@ fn destack_accessibility_document_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeAtPointQuery(value) => {
-                            let value_native_accessibility_document_range_at_point_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_at_point_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_range_at_point_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_range_at_point_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_range_at_point_query_metadata_node_id = value.metadata.node_id;
@@ -6956,7 +8989,7 @@ fn destack_accessibility_document_try_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentRangeAtPointQuery(value_native_accessibility_document_range_at_point_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForChildQuery(value) => {
-                            let value_native_accessibility_document_range_for_child_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_child_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_range_for_child_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_range_for_child_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_range_for_child_query_metadata_node_id = value.metadata.node_id;
@@ -6987,7 +9020,7 @@ fn destack_accessibility_document_try_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentRangeForChildQuery(value_native_accessibility_document_range_for_child_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentRangeForUnitQuery(value) => {
-                            let value_native_accessibility_document_range_for_unit_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_range_for_unit_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_range_for_unit_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_range_for_unit_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_range_for_unit_query_metadata_node_id = value.metadata.node_id;
@@ -7020,7 +9053,7 @@ fn destack_accessibility_document_try_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentRangeForUnitQuery(value_native_accessibility_document_range_for_unit_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadEmbeddedObjectsQuery(value) => {
-                            let value_native_accessibility_document_read_embedded_objects_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_embedded_objects_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_embedded_objects_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_embedded_objects_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_embedded_objects_query_metadata_node_id = value.metadata.node_id;
@@ -7056,7 +9089,7 @@ fn destack_accessibility_document_try_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadEmbeddedObjectsQuery(value_native_accessibility_document_read_embedded_objects_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadRangeBoundsQuery(value) => {
-                            let value_native_accessibility_document_read_range_bounds_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_range_bounds_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_range_bounds_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_range_bounds_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_range_bounds_query_metadata_node_id = value.metadata.node_id;
@@ -7092,7 +9125,7 @@ fn destack_accessibility_document_try_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadRangeBoundsQuery(value_native_accessibility_document_read_range_bounds_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadStyleRunsQuery(value) => {
-                            let value_native_accessibility_document_read_style_runs_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_style_runs_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_style_runs_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_style_runs_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_style_runs_query_metadata_node_id = value.metadata.node_id;
@@ -7128,7 +9161,7 @@ fn destack_accessibility_document_try_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadStyleRunsQuery(value_native_accessibility_document_read_style_runs_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadTextQuery(value) => {
-                            let value_native_accessibility_document_read_text_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_text_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_text_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_text_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_text_query_metadata_node_id = value.metadata.node_id;
@@ -7164,7 +9197,7 @@ fn destack_accessibility_document_try_read_replay(
                             AccessibilityDocumentQuery::AccessibilityDocumentReadTextQuery(value_native_accessibility_document_read_text_query)
                         }
                         AccessibilitydocumentqueryReplayRecord::AccessibilityDocumentReadUnitRangesQuery(value) => {
-                            let value_native_accessibility_document_read_unit_ranges_query_kind = binding.store_string(value.kind.as_str());
+                            let value_native_accessibility_document_read_unit_ranges_query_kind = binding.store_string_owned(value.kind);
                             let value_native_accessibility_document_read_unit_ranges_query_metadata_request_id = value.metadata.request_id;
                             let value_native_accessibility_document_read_unit_ranges_query_metadata_window = value.metadata.window;
                             let value_native_accessibility_document_read_unit_ranges_query_metadata_node_id = value.metadata.node_id;
@@ -7685,8 +9718,7 @@ fn destack_accessibility_action_close_vm_replay(
                 platform_simulation_vm::destack_accessibility_action_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityActionCloseReplayRecord {
@@ -7705,8 +9737,7 @@ fn destack_accessibility_action_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -7738,8 +9769,7 @@ fn destack_accessibility_action_open_vm_replay(
                 binding, context, window, options,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::AccessibilityActionHandle = value.clone();
                 let result_recorded = result_value;
@@ -7759,8 +9789,7 @@ fn destack_accessibility_action_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -7794,7 +9823,7 @@ fn destack_accessibility_action_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AccessibilityActionVm = value.clone();
                 let result_recorded = match result_value {
@@ -8288,17 +10317,7 @@ fn destack_accessibility_action_read_vm_replay(
                         let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.raw_values(context)?;
                         let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_raw.len());
                         for result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value in result_recorded_accessibility_set_selected_text_ranges_action_selections_raw {
-                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = {
-                                if result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "item")).boxed()); }
-                                let slots = context.aggregate_slots(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "expected 2 fields")).boxed()); }
-                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset = decode_uint32(slots[0], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset", "anchorOffset")?;
-                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset = decode_uint32(slots[1], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset", "focusOffset")?;
-                                AccessibilityTextSelectionVm {
-                                    anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset,
-                                    focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset,
-                                }
-                            };
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = <AccessibilityTextSelectionVm as VmAggregateCodec>::decode_with_context(context, result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value)?;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
@@ -8408,7 +10427,7 @@ fn destack_accessibility_action_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -8835,7 +10854,7 @@ fn destack_accessibility_action_read_vm_replay(
                                 dropped_count: vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                             };
                             let mut vm_result_accessibility_set_selected_text_ranges_action_selections_values = Vec::with_capacity(value.selections.len());
-                            for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
+                            for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections {
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value = AccessibilityTextSelection {
@@ -8943,7 +10962,7 @@ fn destack_accessibility_action_try_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AccessibilityActionVm = value.clone();
                 let result_recorded = match result_value {
@@ -9437,17 +11456,7 @@ fn destack_accessibility_action_try_read_vm_replay(
                         let result_recorded_accessibility_set_selected_text_ranges_action_selections_raw = value.selections.raw_values(context)?;
                         let mut result_recorded_accessibility_set_selected_text_ranges_action_selections = Vec::with_capacity(result_recorded_accessibility_set_selected_text_ranges_action_selections_raw.len());
                         for result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value in result_recorded_accessibility_set_selected_text_ranges_action_selections_raw {
-                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = {
-                                if result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "item")).boxed()); }
-                                let slots = context.aggregate_slots(result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                                if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_accessibility_set_selected_text_ranges_action_selections_item", "expected 2 fields")).boxed()); }
-                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset = decode_uint32(slots[0], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset", "anchorOffset")?;
-                                let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset = decode_uint32(slots[1], "result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset", "focusOffset")?;
-                                AccessibilityTextSelectionVm {
-                                    anchor_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_anchor_offset,
-                                    focus_offset: result_recorded_accessibility_set_selected_text_ranges_action_selections_item_focus_offset,
-                                }
-                            };
+                            let result_recorded_accessibility_set_selected_text_ranges_action_selections_item = <AccessibilityTextSelectionVm as VmAggregateCodec>::decode_with_context(context, result_recorded_accessibility_set_selected_text_ranges_action_selections_item_value)?;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_anchor_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded_focus_offset = result_recorded_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
                             let result_recorded_accessibility_set_selected_text_ranges_action_selections_item_recorded = AccessibilityTextSelection {
@@ -9557,7 +11566,7 @@ fn destack_accessibility_action_try_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -9984,7 +11993,7 @@ fn destack_accessibility_action_try_read_vm_replay(
                                 dropped_count: vm_result_accessibility_set_selected_text_ranges_action_metadata_dropped_count,
                             };
                             let mut vm_result_accessibility_set_selected_text_ranges_action_selections_values = Vec::with_capacity(value.selections.len());
-                            for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections.iter().cloned() {
+                            for vm_result_accessibility_set_selected_text_ranges_action_selections_item in value.selections {
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_anchor_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.anchor_offset;
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value_focus_offset = vm_result_accessibility_set_selected_text_ranges_action_selections_item.focus_offset;
                                 let vm_result_accessibility_set_selected_text_ranges_action_selections_item_value = AccessibilityTextSelection {
@@ -10096,8 +12105,7 @@ fn destack_accessibility_document_clear_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityDocumentClearReplayRecord {
@@ -10116,8 +12124,7 @@ fn destack_accessibility_document_clear_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -10150,8 +12157,7 @@ fn destack_accessibility_document_close_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityDocumentCloseReplayRecord {
@@ -10170,8 +12176,7 @@ fn destack_accessibility_document_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -10205,8 +12210,7 @@ fn destack_accessibility_document_open_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::AccessibilityDocumentHandle = value.clone();
                 let result_recorded = result_value;
@@ -10226,8 +12230,7 @@ fn destack_accessibility_document_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -10261,7 +12264,7 @@ fn destack_accessibility_document_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AccessibilityDocumentQueryVm = value.clone();
                 let result_recorded = match result_value {
@@ -10588,7 +12591,7 @@ fn destack_accessibility_document_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -10905,8 +12908,7 @@ fn destack_accessibility_document_respond_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityDocumentRespondReplayRecord {
@@ -10925,8 +12927,7 @@ fn destack_accessibility_document_respond_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -10959,8 +12960,7 @@ fn destack_accessibility_document_set_vm_replay(
                 binding, context, window, nodeid, document,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityDocumentSetReplayRecord {
@@ -10979,8 +12979,7 @@ fn destack_accessibility_document_set_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11010,7 +13009,7 @@ fn destack_accessibility_document_try_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: AccessibilityDocumentQueryVm = value.clone();
                 let result_recorded = match result_value {
@@ -11337,7 +13336,7 @@ fn destack_accessibility_document_try_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -11660,8 +13659,7 @@ fn destack_accessibility_notification_post_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityNotificationPostReplayRecord {
@@ -11680,8 +13678,7 @@ fn destack_accessibility_notification_post_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11713,8 +13710,7 @@ fn destack_accessibility_tree_apply_vm_replay(
                 binding, context, window, update,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityTreeApplyReplayRecord {
@@ -11733,8 +13729,7 @@ fn destack_accessibility_tree_apply_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11765,8 +13760,7 @@ fn destack_accessibility_tree_clear_vm_replay(
                 platform_simulation_vm::destack_accessibility_tree_clear(binding, context, window)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = AccessibilityTreeClearReplayRecord {
@@ -11785,8 +13779,7 @@ fn destack_accessibility_tree_clear_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -11821,8 +13814,7 @@ fn destack_accessibility_tree_hit_test_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: Option<AccessibilityNodeId> = value.clone();
                 let result_recorded = if let Some(value) = result_value {
@@ -11847,8 +13839,7 @@ fn destack_accessibility_tree_hit_test_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -12204,6 +14195,7 @@ pub(crate) fn install_accessibility_vm_bindings(
     registry: &mut BindingRegistry,
     isolate: &mut Isolate,
 ) {
+    super::abi_generated::register_accessibility_vm_storage_types(isolate);
     register_accessibility_vm_bindings(registry, isolate);
 }
 

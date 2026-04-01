@@ -126,10 +126,11 @@ fn process_stdio_slice_from_vm(
         return Ok(binding.store_slice(Vec::new()));
     }
 
-    let values = stdio.raw_values(context)?;
+    let values = stdio.raw_values(&context.read())?;
     let mut native_values = Vec::with_capacity(values.len());
     for value in values {
-        let value = <ProcessStdioVm as VmAggregateCodec>::decode_with_context(context, value)?;
+        let value =
+            <ProcessStdioVm as VmAggregateCodec>::decode_with_context(&context.read(), value)?;
         native_values.push(process_stdio_from_vm(binding, context, value)?);
     }
 
@@ -145,10 +146,11 @@ fn process_fd_action_slice_from_vm(
         return Ok(binding.store_slice(Vec::new()));
     }
 
-    let values = actions.raw_values(context)?;
+    let values = actions.raw_values(&context.read())?;
     let mut native_values = Vec::with_capacity(values.len());
     for value in values {
-        let value = <ProcessFdActionVm as VmAggregateCodec>::decode_with_context(context, value)?;
+        let value =
+            <ProcessFdActionVm as VmAggregateCodec>::decode_with_context(&context.read(), value)?;
         native_values.push(process_fd_action_from_vm(binding, context, value)?);
     }
 

@@ -61,7 +61,7 @@ fn test_device_bluetooth_vm_scan_open_closes_first_adapter_when_present() {
             Some(listed) => listed,
             None => return Ok(()),
         };
-        let listed = listed.read_values(vm_context)?;
+        let listed = listed.read_values(&vm_context.read())?;
         let Some(first) = listed.first() else {
             return Ok(());
         };

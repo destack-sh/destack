@@ -7,25 +7,25 @@ use destack_vm as vm;
 /// One VM runtime decode adapter.
 pub(crate) struct VmRuntimeDecode<'a, 'context> {
     /// The active VM binding call.
-    context: &'a vm::ExternalCallContext<'context>,
+    context: &'a mut vm::ExternalCallContext<'context>,
 }
 
 impl<'a, 'context> VmRuntimeDecode<'a, 'context> {
     /// Create one VM runtime decode adapter.
-    pub(crate) fn new(context: &'a vm::ExternalCallContext<'context>) -> Self {
+    pub(crate) fn new(context: &'a mut vm::ExternalCallContext<'context>) -> Self {
         Self { context }
     }
 
     /// Decode one VM binding value into one materialized Rust value.
-    pub(crate) fn decode<T: VmAbiCodec>(&self, value: T) -> RuntimeResult<T::Value> {
-        let codec = VmDecodeCodec::new(self.context);
+    pub(crate) fn decode<T: VmAbiCodec>(&mut self, value: T) -> RuntimeResult<T::Value> {
+        let mut codec = VmDecodeCodec::new(self.context);
 
         codec.decode(value)
     }
 
     /// Decode one optional VM binding value into one materialized Rust value.
     pub(crate) fn decode_optional<T: VmAbiCodec>(
-        &self,
+        &mut self,
         value: Option<T>,
     ) -> RuntimeResult<Option<T::Value>> {
         value.map(|value| self.decode(value)).transpose()

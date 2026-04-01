@@ -59,15 +59,18 @@ impl VmAbiCodec for FfiPointer {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
+
+/// Register VM storage schemas for ffi.
+pub(crate) fn register_ffi_vm_storage_types(_isolate: &mut vm::Isolate) {}

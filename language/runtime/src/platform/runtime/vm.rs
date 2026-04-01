@@ -50,7 +50,7 @@ pub(crate) fn destack_runtime_agent_create(
     options: Option<AgentCreateOptionsVm>,
 ) -> RuntimeResult<AgentHandle> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // decode create options
     let options = options.unwrap_or(AgentCreateOptionsVm {
@@ -125,7 +125,7 @@ pub(crate) fn destack_runtime_runtime_create(
     options: Option<RuntimeCreateOptionsVm>,
 ) -> RuntimeResult<RuntimeHandle> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // decode create options
     let options = options.unwrap_or(RuntimeCreateOptionsVm {
@@ -187,7 +187,7 @@ pub(crate) fn destack_runtime_world_create(
     options: Option<WorldCreateOptionsVm>,
 ) -> RuntimeResult<WorldHandle> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     let options = options.unwrap_or(WorldCreateOptionsVm {
         engine: None,
@@ -350,7 +350,7 @@ pub(crate) fn destack_runtime_runtime_list(
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<RuntimeDescriptorVm>> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // enumerate pinned runtimes in stable order
     let table = control_table().read();
@@ -392,7 +392,7 @@ pub(crate) fn destack_runtime_agent_list(
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<AgentDescriptorVm>> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // enumerate pinned agents in stable order
     let table = control_table().read();
@@ -433,7 +433,7 @@ pub(crate) fn destack_runtime_resource_list(
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<ResourceDescriptorVm>> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // enumerate pinned logical resources in stable order
     let table = control_table().read();
@@ -477,7 +477,7 @@ pub(crate) fn destack_runtime_entity_list(
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<TopologyEntityVm>> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // enumerate pinned topology entities in stable order
     let table = control_table().read();
@@ -501,7 +501,7 @@ pub(crate) fn destack_runtime_entity_view(
     entity_id: TopologyEntityIdVm,
 ) -> RuntimeResult<TopologyEntityVm> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // resolve one pinned topology entity
     let entity_id = runtime_decode.decode_optional(Some(entity_id))?;
@@ -531,7 +531,7 @@ pub(crate) fn destack_runtime_edge_list(
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<TopologyEdgeVm>> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // enumerate pinned topology edges in stable order
     let table = control_table().read();
@@ -555,7 +555,7 @@ pub(crate) fn destack_runtime_edge_view(
     edge_id: TopologyEdgeIdVm,
 ) -> RuntimeResult<TopologyEdgeVm> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // resolve one pinned topology edge
     let edge_id = runtime_decode.decode_optional(Some(edge_id))?;
@@ -648,7 +648,7 @@ pub(crate) fn destack_runtime_branch_list(
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<BranchDescriptorVm>> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // enumerate branch heads in stable order
     let table = control_table().read();
@@ -684,7 +684,7 @@ pub(crate) fn destack_runtime_branch_list(
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmArray::from_values(context, &descriptors)
+    VmArray::from_values(&mut context.write(), &descriptors)
 }
 
 /// Create one checkpoint on the active branch.
@@ -696,7 +696,7 @@ pub(crate) fn destack_runtime_checkpoint_create(
     labels: Option<VmArray<RuntimeLabelVm>>,
 ) -> RuntimeResult<CheckpointId> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // decode one checkpoint request
     let table = control_table().read();
@@ -744,7 +744,7 @@ pub(crate) fn destack_runtime_checkpoint_list(
     limit: Option<u32>,
 ) -> RuntimeResult<VmArray<CheckpointDescriptorVm>> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // enumerate checkpoints in stable order
     let table = control_table().read();
@@ -786,7 +786,7 @@ pub(crate) fn destack_runtime_checkpoint_list(
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmArray::from_values(context, &descriptors)
+    VmArray::from_values(&mut context.write(), &descriptors)
 }
 
 /// Capture one image at the active revision.
@@ -863,7 +863,7 @@ pub(crate) fn destack_runtime_image_list(
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmArray::from_values(context, &descriptors)
+    VmArray::from_values(&mut context.write(), &descriptors)
 }
 
 /// Describe one revision.
@@ -926,7 +926,7 @@ pub(crate) fn destack_runtime_revision_list(
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmArray::from_values(context, &descriptors)
+    VmArray::from_values(&mut context.write(), &descriptors)
 }
 
 /// Return the active branch for one world.
@@ -952,7 +952,7 @@ pub(crate) fn destack_runtime_world_fork(
     labels: Option<VmArray<RuntimeLabelVm>>,
 ) -> RuntimeResult<WorldHandle> {
     // request decode
-    let runtime_decode = VmRuntimeDecode::new(context);
+    let mut runtime_decode = VmRuntimeDecode::new(context);
 
     // decode one fork request
     let table = control_table().read();
@@ -1159,7 +1159,7 @@ pub(crate) fn destack_runtime_snapshot_import(
     let _world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
 
     // decode one stored snapshot payload
-    let payload = argument_payload.read_bytes(context)?;
+    let payload = argument_payload.read_bytes(&context.read())?;
     let snapshot = runtime::world::Snapshot::decode(&payload)?;
     let bytes = Arc::<[u8]>::from(payload);
 
@@ -1210,7 +1210,7 @@ pub(crate) fn destack_runtime_snapshot_list(
         })
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmArray::from_values(context, &descriptors)
+    VmArray::from_values(&mut context.write(), &descriptors)
 }
 
 /// Read one serialized snapshot payload.
@@ -1232,7 +1232,7 @@ pub(crate) fn destack_runtime_snapshot_read(
         ));
     }
 
-    VmArray::from_bytes(context, entry.bytes.as_ref())
+    VmArray::from_bytes(&mut context.write(), entry.bytes.as_ref())
 }
 
 /// Restore one world from one image.
@@ -1315,7 +1315,7 @@ pub(crate) fn destack_runtime_trace_mark(
     label: destack_vm::StringHandle,
 ) -> RuntimeResult<TraceSequence> {
     // decode the marker label from the vm call context
-    let codec = VmDecodeCodec::new(context);
+    let mut codec = VmDecodeCodec::new(context);
     let label = codec.decode(label)?;
 
     // resolve the live world and record the marker

@@ -126,23 +126,20 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -153,7 +150,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -167,6 +164,7 @@ fn decode_destack_random_secure_bytes_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
+    let context = &context.read();
     let buffer_value = arg_value(args, 0, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     Ok((buffer,))
@@ -187,6 +185,7 @@ fn decode_destack_random_secure_bytes_try_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
+    let context = &context.read();
     let buffer_value = arg_value(args, 0, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     Ok((buffer,))
@@ -207,6 +206,7 @@ fn encode_destack_random_secure_metadata_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SecureRandomMetadataVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
@@ -218,11 +218,31 @@ fn encode_destack_random_secure_metadata_result(
             let field_5: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.is_fips_approved));
             let field_6: RuntimeResult<vm::Value> =
                 Ok(vm::Value::float64(value.entropy_bits_per_byte));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("random::SecureRandomMetadata")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -256,13 +276,21 @@ fn encode_destack_random_stream_export_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<RandomStreamStateVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.version as u64, 32));
             let field_1: RuntimeResult<vm::Value> = value.bytes.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("random::RandomStreamState")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -273,6 +301,7 @@ fn decode_destack_random_stream_fill_bytes_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmSlice<u8>,)> {
+    let context = &context.read();
     let buffer_value = arg_value(args, 0, "buffer", "Slice<uint8>")?;
     let buffer = decode_slice::<u8>(context, buffer_value, "buffer", "Slice<uint8>")?;
     Ok((buffer,))
@@ -293,6 +322,7 @@ fn decode_destack_random_stream_fill_bytes_from_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream, VmSlice<u8>)> {
+    let context = &context.read();
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
     let stream_inner = decode_uint64(stream_value, "stream_inner", "RandomStream")?;
     let stream = RandomStream(stream_inner);
@@ -316,35 +346,13 @@ fn decode_destack_random_stream_import_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(RandomStream, RandomStreamStateVm)> {
+    let context = &context.read();
     let stream_value = arg_value(args, 0, "stream", "RandomStream")?;
     let stream_inner = decode_uint64(stream_value, "stream_inner", "RandomStream")?;
     let stream = RandomStream(stream_inner);
     let state_value = arg_value(args, 1, "state", "RandomStreamState")?;
-    let state = {
-        if state_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "state",
-                "RandomStreamState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(state_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "state",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let state_version = decode_uint32(slots[0], "state_version", "version")?;
-        let state_bytes = decode_array::<u8>(context, slots[1], "state_bytes", "bytes")?;
-        RandomStreamStateVm {
-            version: state_version,
-            bytes: state_bytes,
-        }
-    };
+    let state =
+        <RandomStreamStateVm as VmAggregateCodec>::decode_with_context(context, state_value)?;
     Ok((stream, state))
 }
 
@@ -936,8 +944,7 @@ fn destack_random_secure_metadata_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_source = value.source;
-                    let value_native_backend_name =
-                        binding.store_string(value.backend_name.as_str());
+                    let value_native_backend_name = binding.store_string_owned(value.backend_name);
                     let value_native_may_block = value.may_block;
                     let value_native_is_cryptographic = value.is_cryptographic;
                     let value_native_is_seeded = value.is_seeded;
@@ -977,10 +984,10 @@ fn destack_random_stream_export_replay(
             if let Ok(()) = result {
                 let result_value: RandomStreamState = unsafe { out.read() };
                 let result_recorded_version = result_value.version;
-                let mut result_recorded_bytes = Vec::new();
-                for result_recorded_bytes_item in
-                    unsafe { result_value.bytes.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_bytes_slice = unsafe { result_value.bytes.as_slice()? };
+                let mut result_recorded_bytes =
+                    Vec::with_capacity(result_recorded_bytes_slice.len());
+                for result_recorded_bytes_item in result_recorded_bytes_slice.iter().cloned() {
                     let result_recorded_bytes_item_recorded = result_recorded_bytes_item;
                     result_recorded_bytes.push(result_recorded_bytes_item_recorded);
                 }
@@ -1009,12 +1016,16 @@ fn destack_random_stream_export_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_version = value.version;
-                    let mut value_native_bytes_values = Vec::new();
-                    for value_native_bytes_item in value.bytes.iter().cloned() {
-                        let value_native_bytes_decoded = value_native_bytes_item;
-                        value_native_bytes_values.push(value_native_bytes_decoded);
-                    }
-                    let value_native_bytes = binding.store_array(value_native_bytes_values);
+                    let value_native_bytes = binding.store_array_with(
+                        value.bytes.len(),
+                        |value_native_bytes_values| {
+                            for value_native_bytes_item in value.bytes {
+                                let value_native_bytes_decoded = value_native_bytes_item;
+                                value_native_bytes_values.push(value_native_bytes_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native = RandomStreamState {
                         version: value_native_version,
                         bytes: value_native_bytes,
@@ -1508,7 +1519,7 @@ fn destack_random_secure_metadata_vm_replay(
         context,
         |context| platform_runtime_vm::destack_random_secure_metadata(binding, context),
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: SecureRandomMetadataVm = value.clone();
                 let result_recorded_source = result_value.source;
@@ -1549,7 +1560,7 @@ fn destack_random_secure_metadata_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1593,7 +1604,7 @@ fn destack_random_stream_export_vm_replay(
         context,
         |context| platform_runtime_vm::destack_random_stream_export(binding, context, stream),
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: RandomStreamStateVm = value.clone();
                 let result_recorded_version = result_value.version;
@@ -1619,7 +1630,7 @@ fn destack_random_stream_export_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1653,8 +1664,7 @@ fn destack_random_stream_import_vm_replay(
         |context| {
             platform_runtime_vm::destack_random_stream_import(binding, context, stream, state)
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = RandomStreamImportReplayRecord {
@@ -1673,8 +1683,7 @@ fn destack_random_stream_import_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1698,8 +1707,7 @@ fn destack_random_stream_jump_vm_replay(
         binding.replay_payload_for(RANDOM_STREAM_JUMP)?,
         context,
         |context| platform_runtime_vm::destack_random_stream_jump(binding, context, stream, jump),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = RandomStreamJumpReplayRecord {
@@ -1718,8 +1726,7 @@ fn destack_random_stream_jump_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -1742,8 +1749,7 @@ fn destack_random_stream_split_vm_replay(
         binding.replay_payload_for(RANDOM_STREAM_SPLIT)?,
         context,
         |context| platform_runtime_vm::destack_random_stream_split(binding, context, parent),
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: RandomStream = value.clone();
                 let result_recorded = result_value;
@@ -1763,8 +1769,7 @@ fn destack_random_stream_split_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -1809,8 +1814,14 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                                 )
                             }
                         },
-                        || unsafe { buffer.read_bytes(&*context_ptr) },
-                        |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
+                        || unsafe {
+                            let context = (&*context_ptr).read();
+                            buffer.read_bytes(&context)
+                        },
+                        |bytes| unsafe {
+                            let mut context = (&mut *context_ptr).write();
+                            buffer.write_bytes(&mut context, &bytes)
+                        },
                     );
                     encode_destack_random_secure_bytes_result(context, result)
                 })
@@ -1846,8 +1857,14 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                                 )
                             }
                         },
-                        || unsafe { buffer.read_bytes(&*context_ptr) },
-                        |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
+                        || unsafe {
+                            let context = (&*context_ptr).read();
+                            buffer.read_bytes(&context)
+                        },
+                        |bytes| unsafe {
+                            let mut context = (&mut *context_ptr).write();
+                            buffer.write_bytes(&mut context, &bytes)
+                        },
                     );
                     encode_destack_random_secure_bytes_try_result(context, result)
                 })
@@ -1943,8 +1960,14 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                                 )
                             }
                         },
-                        || unsafe { buffer.read_bytes(&*context_ptr) },
-                        |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
+                        || unsafe {
+                            let context = (&*context_ptr).read();
+                            buffer.read_bytes(&context)
+                        },
+                        |bytes| unsafe {
+                            let mut context = (&mut *context_ptr).write();
+                            buffer.write_bytes(&mut context, &bytes)
+                        },
                     );
                     encode_destack_random_stream_fill_bytes_result(context, result)
                 })
@@ -1982,8 +2005,14 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
                                 )
                             }
                         },
-                        || unsafe { buffer.read_bytes(&*context_ptr) },
-                        |bytes| unsafe { buffer.write_bytes(&mut *context_ptr, &bytes) },
+                        || unsafe {
+                            let context = (&*context_ptr).read();
+                            buffer.read_bytes(&context)
+                        },
+                        |bytes| unsafe {
+                            let mut context = (&mut *context_ptr).write();
+                            buffer.write_bytes(&mut context, &bytes)
+                        },
                     );
                     encode_destack_random_stream_fill_bytes_from_result(context, result)
                 })
@@ -2127,6 +2156,7 @@ pub(crate) fn register_random_vm_bindings(registry: &mut BindingRegistry, isolat
 
 /// Install VM bindings for random.
 pub(crate) fn install_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_random_vm_storage_types(isolate);
     register_random_vm_bindings(registry, isolate);
 }
 

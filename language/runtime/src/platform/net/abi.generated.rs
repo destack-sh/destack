@@ -61,13 +61,13 @@ impl VmAbiCodec for AcceptFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -116,13 +116,13 @@ impl VmAbiCodec for NetInterfaceFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -171,13 +171,13 @@ impl VmAbiCodec for PacketBackendCapabilityFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -197,7 +197,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -207,7 +207,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -244,7 +244,7 @@ impl VmAbiCodec for PathBytesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(
             self.0, context,
@@ -252,7 +252,7 @@ impl VmAbiCodec for PathBytesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(
@@ -274,7 +274,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -284,7 +284,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -321,7 +321,7 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(
             self.0, context,
@@ -329,7 +329,7 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(
@@ -380,13 +380,13 @@ impl VmAbiCodec for ResolveFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -435,13 +435,13 @@ impl VmAbiCodec for ResourceId {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -490,13 +490,13 @@ impl VmAbiCodec for ReverseLookupFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -516,7 +516,7 @@ pub type SocketControlBufferVm = SocketControlBufferAbi<VmAbi>;
 
 impl VmAggregateCodec for SocketControlBufferAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -526,7 +526,7 @@ impl VmAggregateCodec for SocketControlBufferAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -563,7 +563,7 @@ impl VmAbiCodec for SocketControlBufferAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketControlBufferValue(
             <VmArray<u8> as VmAbiCodec>::into_value(self.0, context)?,
@@ -571,7 +571,7 @@ impl VmAbiCodec for SocketControlBufferAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(
@@ -622,13 +622,13 @@ impl VmAbiCodec for SocketHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -677,13 +677,13 @@ impl VmAbiCodec for SocketMessageFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -732,13 +732,13 @@ impl VmAbiCodec for SocketOptionLevel {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -787,13 +787,13 @@ impl VmAbiCodec for SocketOptionName {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -842,13 +842,13 @@ impl VmAbiCodec for SocketProtocol {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -897,13 +897,13 @@ impl VmAbiCodec for SocketType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -952,13 +952,13 @@ impl VmAbiCodec for TransferredHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1007,13 +1007,13 @@ impl VmAbiCodec for UdpMessageFlags {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1083,13 +1083,13 @@ impl VmAbiCodec for PacketBackend {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1150,13 +1150,13 @@ impl VmAbiCodec for PacketBackendSelectionPolicy {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1229,13 +1229,13 @@ impl VmAbiCodec for PacketFanoutMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1302,13 +1302,13 @@ impl VmAbiCodec for PacketTimestampClock {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1372,13 +1372,13 @@ impl VmAbiCodec for PacketTimestampMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1448,13 +1448,13 @@ impl VmAbiCodec for RouteKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1518,13 +1518,13 @@ impl VmAbiCodec for SocketFamily {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1588,13 +1588,13 @@ impl VmAbiCodec for SocketShutdown {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1658,13 +1658,13 @@ impl VmAbiCodec for SocketTimestampingMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1703,32 +1703,38 @@ impl Clone for OsPathAbi<VmAbi> {
 
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             1243901586u32 => Self::OsPathBytes(
-                <fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <fs::OsPathBytesVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             2271740357u32 => Self::OsPathUtf16(
-                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
@@ -1743,27 +1749,42 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = match self {
+        match self {
             Self::OsPathBytes(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
                 let payload_value =
                     <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("net::OsPath")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::OsPathUtf16(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
                 let payload_value =
                     <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("net::OsPath")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
-        };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        }
     }
 }
 
@@ -1810,7 +1831,7 @@ impl VmAbiCodec for OsPathAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::OsPathBytes(value) => OsPathValue::OsPathBytes(
@@ -1824,7 +1845,7 @@ impl VmAbiCodec for OsPathAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -1872,36 +1893,43 @@ impl Clone for UdsAddressAbi<VmAbi> {
 
 impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "UdsAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             680113494u32 => Self::UdsAbstractAddress(
-                <UdsAbstractAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <UdsAbstractAddressVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             3869824463u32 => Self::UdsPathAddress(
-                <UdsPathAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <UdsPathAddressVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             2806614451u32 => Self::UdsUnnamedAddress(
-                <UdsUnnamedAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <UdsUnnamedAddressVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
@@ -1916,9 +1944,9 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = match self {
+        match self {
             Self::UdsAbstractAddress(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(680113494u32, context)?;
@@ -1926,26 +1954,50 @@ impl VmAggregateCodec for UdsAddressAbi<VmAbi> {
                     <UdsAbstractAddressVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("net::UdsAddress")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::UdsPathAddress(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(3869824463u32, context)?;
                 let payload_value =
                     <UdsPathAddressVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("net::UdsAddress")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::UdsUnnamedAddress(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(2806614451u32, context)?;
                 let payload_value =
                     <UdsUnnamedAddressVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("net::UdsAddress")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
-        };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        }
     }
 }
 
@@ -2000,7 +2052,7 @@ impl VmAbiCodec for UdsAddressAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::UdsAbstractAddress(value) => UdsAddressValue::UdsAbstractAddress(
@@ -2017,7 +2069,7 @@ impl VmAbiCodec for UdsAddressAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -2052,31 +2104,35 @@ pub type KeepAliveConfigVm = KeepAliveConfig;
 
 impl VmAggregateCodec for KeepAliveConfig {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "KeepAliveConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_enabled = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_idle_seconds = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_enabled =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_idle_seconds =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_interval_seconds =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_probe_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_probe_count =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         Ok(Self {
             enabled: field_enabled,
             idle_seconds: field_idle_seconds,
@@ -2087,17 +2143,32 @@ impl VmAggregateCodec for KeepAliveConfig {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.idle_seconds, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.interval_seconds, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.probe_count, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::KeepAliveConfig")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.idle_seconds, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.interval_seconds, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.probe_count, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2121,13 +2192,13 @@ impl VmAbiCodec for KeepAliveConfig {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2150,27 +2221,31 @@ pub type LingerVm = Linger;
 
 impl VmAggregateCodec for Linger {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value", "Linger",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_enabled = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_seconds = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_enabled =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_seconds =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             enabled: field_enabled,
             seconds: field_seconds,
@@ -2179,15 +2254,22 @@ impl VmAggregateCodec for Linger {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.seconds, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::Linger")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.seconds, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2211,13 +2293,13 @@ impl VmAbiCodec for Linger {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2269,36 +2351,44 @@ impl Clone for NetInterfaceAbi<VmAbi> {
 
 impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "NetInterface",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_index = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_flags =
-            <NetInterfaceFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_mtu = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_mac_address =
-            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_index =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_flags = <NetInterfaceFlags as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_mtu =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_mac_address = <VmArray<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 4,
+        )?;
         let field_addresses =
-            <VmArray<SocketAddressVm> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <VmArray<SocketAddressVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
+            )?;
         Ok(Self {
             name: field_name,
             index: field_index,
@@ -2311,22 +2401,42 @@ impl VmAggregateCodec for NetInterfaceAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.index, context)?,
-            <NetInterfaceFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.mtu, context)?,
-            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.mac_address, context)?,
-            <VmArray<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
-                self.addresses,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::NetInterface")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.index, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <NetInterfaceFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.mtu, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.mac_address, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmArray<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
+            self.addresses,
+            context,
+        )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2390,7 +2500,7 @@ impl VmAbiCodec for NetInterfaceAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(NetInterfaceValue {
             name: <vm::StringHandle as VmAbiCodec>::into_value(self.name, context)?,
@@ -2406,7 +2516,7 @@ impl VmAbiCodec for NetInterfaceAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -2458,30 +2568,33 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "OsPathBytes",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes =
-            <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             kind: field_kind,
             bytes: field_bytes,
@@ -2490,15 +2603,22 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::OsPathBytes")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2536,7 +2656,7 @@ impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathBytesValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -2545,7 +2665,7 @@ impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -2590,30 +2710,33 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "OsPathUtf16",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_utf16 =
-            <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             kind: field_kind,
             utf16: field_utf16,
@@ -2622,15 +2745,22 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::OsPathUtf16")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2668,7 +2798,7 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathUtf16Value {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -2677,7 +2807,7 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -2728,35 +2858,40 @@ impl Clone for PacketBackendDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PacketBackendDescriptor",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_backend =
-            <PacketBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_available = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_priority = <u16 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_backend = <PacketBackend as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_available =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_priority =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_capability_flags =
-            <PacketBackendCapabilityFlags as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+            <PacketBackendCapabilityFlags as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
             )?;
         Ok(Self {
             backend: field_backend,
@@ -2769,21 +2904,40 @@ impl VmAggregateCodec for PacketBackendDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <PacketBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.available, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::PacketBackendDescriptor")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <PacketBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.available, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u16 as VmAggregateCodec>::encode_with_context(self.priority, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <PacketBackendCapabilityFlags as VmAggregateCodec>::encode_with_context(
                 self.capability_flags,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2838,7 +2992,7 @@ impl VmAbiCodec for PacketBackendDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PacketBackendDescriptorValue {
             backend: <PacketBackend as VmAbiCodec>::into_value(self.backend, context)?,
@@ -2853,7 +3007,7 @@ impl VmAbiCodec for PacketBackendDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -2891,37 +3045,42 @@ pub type PacketCaptureOptionsVm = PacketCaptureOptions;
 
 impl VmAggregateCodec for PacketCaptureOptions {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PacketCaptureOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_backend =
-            <PacketBackend as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_backend = <PacketBackend as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_backend_policy =
-            <PacketBackendSelectionPolicy as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <PacketBackendSelectionPolicy as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
         let field_interface_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_snap_length = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_timeout_ms = <i32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_promiscuous = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_snap_length =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_timeout_ms =
+            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_promiscuous =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         Ok(Self {
             backend: field_backend,
             backend_policy: field_backend_policy,
@@ -2934,22 +3093,45 @@ impl VmAggregateCodec for PacketCaptureOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <PacketBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::PacketCaptureOptions")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <PacketBackend as VmAggregateCodec>::encode_with_context(self.backend, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <PacketBackendSelectionPolicy as VmAggregateCodec>::encode_with_context(
                 self.backend_policy,
                 context,
-            )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.snap_length, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.timeout_ms, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.promiscuous, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.snap_length, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i32 as VmAggregateCodec>::encode_with_context(self.timeout_ms, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.promiscuous, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -2973,13 +3155,13 @@ impl VmAbiCodec for PacketCaptureOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3008,33 +3190,39 @@ pub type PacketCaptureRecordVm = PacketCaptureRecord;
 
 impl VmAggregateCodec for PacketCaptureRecord {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PacketCaptureRecord",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_interface_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_timestamp_clock =
-            <PacketTimestampClock as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_truncated = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <PacketTimestampClock as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_truncated =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         Ok(Self {
             bytes: field_bytes,
             interface_index: field_interface_index,
@@ -3046,21 +3234,38 @@ impl VmAggregateCodec for PacketCaptureRecord {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
-            <PacketTimestampClock as VmAggregateCodec>::encode_with_context(
-                self.timestamp_clock,
-                context,
-            )?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.truncated, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::PacketCaptureRecord")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <PacketTimestampClock as VmAggregateCodec>::encode_with_context(
+            self.timestamp_clock,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.truncated, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3084,13 +3289,13 @@ impl VmAbiCodec for PacketCaptureRecord {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3115,20 +3320,21 @@ pub type PacketCaptureStatsVm = PacketCaptureStats;
 
 impl VmAggregateCodec for PacketCaptureStats {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PacketCaptureStats",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
@@ -3136,11 +3342,11 @@ impl VmAggregateCodec for PacketCaptureStats {
             .boxed());
         }
         let field_received_packets =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_dropped_packets =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_interface_dropped_packets =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             received_packets: field_received_packets,
             dropped_packets: field_dropped_packets,
@@ -3150,19 +3356,29 @@ impl VmAggregateCodec for PacketCaptureStats {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.received_packets, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.dropped_packets, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(
-                self.interface_dropped_packets,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::PacketCaptureStats")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.received_packets, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.dropped_packets, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u64 as VmAggregateCodec>::encode_with_context(
+            self.interface_dropped_packets,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3186,13 +3402,13 @@ impl VmAbiCodec for PacketCaptureStats {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3217,30 +3433,34 @@ pub type PacketFanoutOptionsVm = PacketFanoutOptions;
 
 impl VmAggregateCodec for PacketFanoutOptions {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PacketFanoutOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_group_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_mode =
-            <PacketFanoutMode as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_flags = <u16 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_group_id =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_mode = <PacketFanoutMode as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
+        let field_flags =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             group_id: field_group_id,
             mode: field_mode,
@@ -3250,16 +3470,26 @@ impl VmAggregateCodec for PacketFanoutOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u16 as VmAggregateCodec>::encode_with_context(self.group_id, context)?,
-            <PacketFanoutMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::PacketFanoutOptions")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u16 as VmAggregateCodec>::encode_with_context(self.group_id, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <PacketFanoutMode as VmAggregateCodec>::encode_with_context(self.mode, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u16 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3283,13 +3513,13 @@ impl VmAbiCodec for PacketFanoutOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3318,32 +3548,37 @@ pub type PacketRingOptionsVm = PacketRingOptions;
 
 impl VmAggregateCodec for PacketRingOptions {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "PacketRingOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_block_size = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_block_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_frame_size = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_frame_count = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_block_size =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_block_count =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_frame_size =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_frame_count =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_retire_timeout_ms =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         Ok(Self {
             block_size: field_block_size,
             block_count: field_block_count,
@@ -3355,18 +3590,37 @@ impl VmAggregateCodec for PacketRingOptions {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.block_size, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.block_count, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.frame_size, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.frame_count, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.retire_timeout_ms, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::PacketRingOptions")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.block_size, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.block_count, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.frame_size, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.frame_count, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.retire_timeout_ms, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3390,13 +3644,13 @@ impl VmAbiCodec for PacketRingOptions {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -3444,20 +3698,21 @@ impl Clone for ResolveQueryAbi<VmAbi> {
 
 impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ResolveQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -3465,13 +3720,19 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
             .boxed());
         }
         let field_host =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_service =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_family =
-            <SocketFamily as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags =
-            <ResolveFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_family = <SocketFamily as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 2,
+        )?;
+        let field_flags = <ResolveFlags as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 3,
+        )?;
         Ok(Self {
             host: field_host,
             service: field_service,
@@ -3482,22 +3743,35 @@ impl VmAggregateCodec for ResolveQueryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.host, context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.service,
-                context,
-            )?,
-            <SocketFamily as VmAggregateCodec>::encode_with_context(self.family, context)?,
-            <ResolveFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::ResolveQuery")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.host, context,
+        )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.service,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketFamily as VmAggregateCodec>::encode_with_context(self.family, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <ResolveFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3548,7 +3822,7 @@ impl VmAbiCodec for ResolveQueryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ResolveQueryValue {
             host: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.host, context)?,
@@ -3559,7 +3833,7 @@ impl VmAbiCodec for ResolveQueryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -3606,30 +3880,33 @@ impl Clone for ReverseLookupNameAbi<VmAbi> {
 
 impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ReverseLookupName",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_host =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_service =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_host = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_service = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             host: field_host,
             service: field_service,
@@ -3638,15 +3915,22 @@ impl VmAggregateCodec for ReverseLookupNameAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.host, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::ReverseLookupName")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.host, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.service, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3684,7 +3968,7 @@ impl VmAbiCodec for ReverseLookupNameAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ReverseLookupNameValue {
             host: <vm::StringHandle as VmAbiCodec>::into_value(self.host, context)?,
@@ -3693,7 +3977,7 @@ impl VmAbiCodec for ReverseLookupNameAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -3748,37 +4032,45 @@ impl Clone for RouteEntryAbi<VmAbi> {
 
 impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "RouteEntry",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_family =
-            <SocketFamily as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_family = <SocketFamily as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_destination =
-            <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_prefix_length = <u8 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_gateway =
-            <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <SocketAddressVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_prefix_length =
+            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_gateway = <SocketAddressVm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 3,
+        )?;
         let field_interface_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_metric = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_kind = <RouteKind as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_metric =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_kind =
+            <RouteKind as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         Ok(Self {
             family: field_family,
             destination: field_destination,
@@ -3792,20 +4084,46 @@ impl VmAggregateCodec for RouteEntryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <SocketFamily as VmAggregateCodec>::encode_with_context(self.family, context)?,
-            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.destination, context)?,
-            <u8 as VmAggregateCodec>::encode_with_context(self.prefix_length, context)?,
-            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.gateway, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.metric, context)?,
-            <RouteKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::RouteEntry")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketFamily as VmAggregateCodec>::encode_with_context(self.family, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.destination, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u8 as VmAggregateCodec>::encode_with_context(self.prefix_length, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.gateway, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.metric, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <RouteKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3865,7 +4183,7 @@ impl VmAbiCodec for RouteEntryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(RouteEntryValue {
             family: <SocketFamily as VmAbiCodec>::into_value(self.family, context)?,
@@ -3879,7 +4197,7 @@ impl VmAbiCodec for RouteEntryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -3931,30 +4249,34 @@ impl Clone for SocketAddressAbi<VmAbi> {
 
 impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_family = <u16 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_length = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_bytes =
-            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_family =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_length =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_bytes = <VmArray<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 2,
+        )?;
         Ok(Self {
             family: field_family,
             length: field_length,
@@ -3964,16 +4286,25 @@ impl VmAggregateCodec for SocketAddressAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u16 as VmAggregateCodec>::encode_with_context(self.family, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?,
-            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketAddress")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u16 as VmAggregateCodec>::encode_with_context(self.family, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.length, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4015,7 +4346,7 @@ impl VmAbiCodec for SocketAddressAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketAddressValue {
             family: <u16 as VmAbiCodec>::into_value(self.family, context)?,
@@ -4025,7 +4356,7 @@ impl VmAbiCodec for SocketAddressAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4052,29 +4383,33 @@ pub type SocketCredentialsVm = SocketCredentials;
 
 impl VmAggregateCodec for SocketCredentials {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketCredentials",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_pid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_uid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_gid = <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pid =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_uid =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_gid =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             pid: field_pid,
             uid: field_uid,
@@ -4084,16 +4419,24 @@ impl VmAggregateCodec for SocketCredentials {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.pid, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketCredentials")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.pid, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.uid, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.gid, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4117,13 +4460,13 @@ impl VmAbiCodec for SocketCredentials {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4146,20 +4489,21 @@ pub type SocketPairVm = SocketPair;
 
 impl VmAggregateCodec for SocketPair {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketPair",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -4167,9 +4511,13 @@ impl VmAggregateCodec for SocketPair {
             .boxed());
         }
         let field_first =
-            <resource::SocketHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <resource::SocketHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_second =
-            <resource::SocketHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <resource::SocketHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         Ok(Self {
             first: field_first,
             second: field_second,
@@ -4178,18 +4526,24 @@ impl VmAggregateCodec for SocketPair {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <resource::SocketHandle as VmAggregateCodec>::encode_with_context(self.first, context)?,
-            <resource::SocketHandle as VmAggregateCodec>::encode_with_context(
-                self.second,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketPair")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <resource::SocketHandle as VmAggregateCodec>::encode_with_context(self.first, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <resource::SocketHandle as VmAggregateCodec>::encode_with_context(
+            self.second,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4213,13 +4567,13 @@ impl VmAbiCodec for SocketPair {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4263,30 +4617,34 @@ impl Clone for SocketRecvBatchRequestAbi<VmAbi> {
 
 impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketRecvBatchRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_payload =
-            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_payload = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_recv_flags =
-            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <SocketMessageFlags as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         Ok(Self {
             payload: field_payload,
             recv_flags: field_recv_flags,
@@ -4295,18 +4653,24 @@ impl VmAggregateCodec for SocketRecvBatchRequestAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
-            <SocketMessageFlags as VmAggregateCodec>::encode_with_context(
-                self.recv_flags,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketRecvBatchRequest")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <SocketMessageFlags as VmAggregateCodec>::encode_with_context(
+            self.recv_flags,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4349,7 +4713,7 @@ impl VmAbiCodec for SocketRecvBatchRequestAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketRecvBatchRequestValue {
             payload: <VmSlice<u8> as VmAbiCodec>::into_value(self.payload, context)?,
@@ -4358,7 +4722,7 @@ impl VmAbiCodec for SocketRecvBatchRequestAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4405,31 +4769,36 @@ impl Clone for SocketRecvFromAbi<VmAbi> {
 
 impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketRecvFrom",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_address =
-            <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_bytes =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_address = <SocketAddressVm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         let field_recv_flags =
-            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <SocketMessageFlags as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             bytes: field_bytes,
             address: field_address,
@@ -4439,19 +4808,28 @@ impl VmAggregateCodec for SocketRecvFromAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?,
-            <SocketMessageFlags as VmAggregateCodec>::encode_with_context(
-                self.recv_flags,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketRecvFrom")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <SocketMessageFlags as VmAggregateCodec>::encode_with_context(
+            self.recv_flags,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4498,7 +4876,7 @@ impl VmAbiCodec for SocketRecvFromAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketRecvFromValue {
             bytes: <u64 as VmAbiCodec>::into_value(self.bytes, context)?,
@@ -4508,7 +4886,7 @@ impl VmAbiCodec for SocketRecvFromAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4566,44 +4944,49 @@ impl Clone for SocketRecvMessageAbi<VmAbi> {
 
 impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketRecvMessage",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_bytes =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_address =
-            <Option<SocketAddressVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_recv_flags =
-            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_payload_truncated =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_control_truncated =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_control =
-            <SocketControlBufferVm as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_fds =
-            <VmArray<resource::TransferredHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
+            <Option<SocketAddressVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
+        let field_recv_flags =
+            <SocketMessageFlags as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
+        let field_payload_truncated =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_control_truncated =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_control =
+            <SocketControlBufferVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
+            )?;
+        let field_fds = <VmArray<resource::TransferredHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         let field_credentials =
-            <Option<SocketCredentialsVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[7],
+            <Option<SocketCredentialsVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 7,
             )?;
         Ok(Self {
             bytes: field_bytes,
@@ -4619,35 +5002,62 @@ impl VmAggregateCodec for SocketRecvMessageAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-            <Option<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
-                self.address,
-                context,
-            )?,
-            <SocketMessageFlags as VmAggregateCodec>::encode_with_context(
-                self.recv_flags,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.payload_truncated, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.control_truncated, context)?,
-            <SocketControlBufferVm as VmAggregateCodec>::encode_with_context(
-                self.control,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketRecvMessage")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
+            self.address,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <SocketMessageFlags as VmAggregateCodec>::encode_with_context(
+            self.recv_flags,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.payload_truncated, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.control_truncated, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <SocketControlBufferVm as VmAggregateCodec>::encode_with_context(
+            self.control,
+            context,
+        )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<resource::TransferredHandle> as VmAggregateCodec>::encode_with_context(
                 self.fds, context,
-            )?,
+            )?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<SocketCredentialsVm> as VmAggregateCodec>::encode_with_context(
                 self.credentials,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4735,7 +5145,7 @@ impl VmAbiCodec for SocketRecvMessageAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketRecvMessageValue {
             bytes: <u64 as VmAbiCodec>::into_value(self.bytes, context)?,
@@ -4755,7 +5165,7 @@ impl VmAbiCodec for SocketRecvMessageAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4811,30 +5221,34 @@ impl Clone for SocketSendBatchEntryAbi<VmAbi> {
 
 impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketSendBatchEntry",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_payload =
-            <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_payload = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_message =
-            <SocketSendMessageVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <SocketSendMessageVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         Ok(Self {
             payload: field_payload,
             message: field_message,
@@ -4843,15 +5257,22 @@ impl VmAggregateCodec for SocketSendBatchEntryAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?,
-            <SocketSendMessageVm as VmAggregateCodec>::encode_with_context(self.message, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketSendBatchEntry")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.payload, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketSendMessageVm as VmAggregateCodec>::encode_with_context(self.message, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4889,7 +5310,7 @@ impl VmAbiCodec for SocketSendBatchEntryAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketSendBatchEntryValue {
             payload: <VmSlice<u8> as VmAbiCodec>::into_value(self.payload, context)?,
@@ -4898,7 +5319,7 @@ impl VmAbiCodec for SocketSendBatchEntryAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4949,20 +5370,21 @@ impl Clone for SocketSendMessageAbi<VmAbi> {
 
 impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketSendMessage",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -4970,18 +5392,20 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
             .boxed());
         }
         let field_address =
-            <Option<SocketAddressVm> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_fds =
-            <VmArray<resource::TransferredHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <Option<SocketAddressVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
             )?;
+        let field_fds = <VmArray<resource::TransferredHandle> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_control =
-            <SocketControlBufferVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags =
-            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <SocketControlBufferVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
+        let field_flags = <SocketMessageFlags as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 3,
+        )?;
         let field_credentials =
-            <Option<SocketCredentialsVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+            <Option<SocketCredentialsVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
             )?;
         Ok(Self {
             address: field_address,
@@ -4994,29 +5418,46 @@ impl VmAggregateCodec for SocketSendMessageAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
-                self.address,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketSendMessage")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<SocketAddressVm> as VmAggregateCodec>::encode_with_context(
+            self.address,
+            context,
+        )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<resource::TransferredHandle> as VmAggregateCodec>::encode_with_context(
                 self.fds, context,
-            )?,
-            <SocketControlBufferVm as VmAggregateCodec>::encode_with_context(
-                self.control,
-                context,
-            )?,
-            <SocketMessageFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <SocketControlBufferVm as VmAggregateCodec>::encode_with_context(
+            self.control,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketMessageFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<SocketCredentialsVm> as VmAggregateCodec>::encode_with_context(
                 self.credentials,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5077,7 +5518,7 @@ impl VmAbiCodec for SocketSendMessageAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketSendMessageValue {
             address: <Option<SocketAddressVm> as VmAbiCodec>::into_value(self.address, context)?,
@@ -5094,7 +5535,7 @@ impl VmAbiCodec for SocketSendMessageAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5147,30 +5588,33 @@ impl Clone for SocketSendToAbi<VmAbi> {
 
 impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SocketSendTo",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_address =
-            <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_flags =
-            <SocketMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_address = <SocketAddressVm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_flags = <SocketMessageFlags as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             address: field_address,
             flags: field_flags,
@@ -5179,15 +5623,22 @@ impl VmAggregateCodec for SocketSendToAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?,
-            <SocketMessageFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::SocketSendTo")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketMessageFlags as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5225,7 +5676,7 @@ impl VmAbiCodec for SocketSendToAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SocketSendToValue {
             address: <SocketAddressVm as VmAbiCodec>::into_value(self.address, context)?,
@@ -5234,7 +5685,7 @@ impl VmAbiCodec for SocketSendToAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5281,31 +5732,36 @@ impl Clone for UdpReceiveAbi<VmAbi> {
 
 impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "UdpReceive",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_address =
-            <SocketAddressVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_address = <SocketAddressVm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_bytes =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_recv_flags =
-            <UdpMessageFlags as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <UdpMessageFlags as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             address: field_address,
             bytes: field_bytes,
@@ -5315,16 +5771,26 @@ impl VmAggregateCodec for UdpReceiveAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-            <UdpMessageFlags as VmAggregateCodec>::encode_with_context(self.recv_flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::UdpReceive")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SocketAddressVm as VmAggregateCodec>::encode_with_context(self.address, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u64 as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <UdpMessageFlags as VmAggregateCodec>::encode_with_context(self.recv_flags, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5368,7 +5834,7 @@ impl VmAbiCodec for UdpReceiveAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UdpReceiveValue {
             address: <SocketAddressVm as VmAbiCodec>::into_value(self.address, context)?,
@@ -5378,7 +5844,7 @@ impl VmAbiCodec for UdpReceiveAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5426,32 +5892,37 @@ impl Clone for UdpSourceMembershipV4Abi<VmAbi> {
 
 impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "UdpSourceMembershipV4",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_group =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_source =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_group = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_source = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         let field_interface_address =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             group: field_group,
             source: field_source,
@@ -5461,19 +5932,29 @@ impl VmAggregateCodec for UdpSourceMembershipV4Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.group, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
-                self.interface_address,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::UdpSourceMembershipV4")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.group, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.interface_address,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5520,7 +6001,7 @@ impl VmAbiCodec for UdpSourceMembershipV4Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UdpSourceMembershipV4Value {
             group: <vm::StringHandle as VmAbiCodec>::into_value(self.group, context)?,
@@ -5533,7 +6014,7 @@ impl VmAbiCodec for UdpSourceMembershipV4Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5584,32 +6065,35 @@ impl Clone for UdpSourceMembershipV6Abi<VmAbi> {
 
 impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "UdpSourceMembershipV6",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_group =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_source =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_group = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_source = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         let field_interface_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             group: field_group,
             source: field_source,
@@ -5619,16 +6103,27 @@ impl VmAggregateCodec for UdpSourceMembershipV6Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.group, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::UdpSourceMembershipV6")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.group, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.source, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.interface_index, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5670,7 +6165,7 @@ impl VmAbiCodec for UdpSourceMembershipV6Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UdpSourceMembershipV6Value {
             group: <vm::StringHandle as VmAbiCodec>::into_value(self.group, context)?,
@@ -5680,7 +6175,7 @@ impl VmAbiCodec for UdpSourceMembershipV6Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5726,30 +6221,33 @@ impl Clone for UdsAbstractAddressAbi<VmAbi> {
 
 impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "UdsAbstractAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_abstract_name =
-            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_abstract_name = <VmArray<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             kind: field_kind,
             abstract_name: field_abstract_name,
@@ -5758,15 +6256,22 @@ impl VmAggregateCodec for UdsAbstractAddressAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.abstract_name, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::UdsAbstractAddress")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.abstract_name, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5809,7 +6314,7 @@ impl VmAbiCodec for UdsAbstractAddressAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UdsAbstractAddressValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -5818,7 +6323,7 @@ impl VmAbiCodec for UdsAbstractAddressAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5863,30 +6368,33 @@ impl Clone for UdsPathAddressAbi<VmAbi> {
 
 impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "UdsPathAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_path =
-            <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_path = <fs::OsPathVm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             kind: field_kind,
             path: field_path,
@@ -5895,15 +6403,22 @@ impl VmAggregateCodec for UdsPathAddressAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::UdsPathAddress")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <fs::OsPathVm as VmAggregateCodec>::encode_with_context(self.path, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5941,7 +6456,7 @@ impl VmAbiCodec for UdsPathAddressAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UdsPathAddressValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -5950,7 +6465,7 @@ impl VmAbiCodec for UdsPathAddressAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5993,41 +6508,46 @@ impl Clone for UdsUnnamedAddressAbi<VmAbi> {
 
 impl VmAggregateCodec for UdsUnnamedAddressAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "UdsUnnamedAddress",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         Ok(Self { kind: field_kind })
     }
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![<vm::StringHandle as VmAggregateCodec>::encode_with_context(
-            self.kind, context,
-        )?];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("net::UdsUnnamedAddress")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6061,7 +6581,7 @@ impl VmAbiCodec for UdsUnnamedAddressAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(UdsUnnamedAddressValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -6069,7 +6589,7 @@ impl VmAbiCodec for UdsUnnamedAddressAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6361,3 +6881,41 @@ pub const PACKET_BACKEND_CAP_SEND: PacketBackendCapabilityFlags =
 /// Backend capability flag bit for timestamp configuration.
 pub const PACKET_BACKEND_CAP_TIMESTAMP: PacketBackendCapabilityFlags =
     PacketBackendCapabilityFlags(4u64);
+
+/// Register VM storage schemas for net.
+pub(crate) fn register_net_vm_storage_types(isolate: &mut vm::Isolate) {
+    isolate.register_named_storage_type("net::PathBytes", 1);
+    isolate.register_named_storage_type("net::PathUtf16", 1);
+    isolate.register_named_storage_type("net::SocketControlBuffer", 1);
+    isolate.register_named_storage_type("net::KeepAliveConfig", 4);
+    isolate.register_named_storage_type("net::Linger", 2);
+    isolate.register_named_storage_type("net::NetInterface", 6);
+    isolate.register_named_storage_type("net::OsPathBytes", 2);
+    isolate.register_named_storage_type("net::OsPathUtf16", 2);
+    isolate.register_named_storage_type("net::PacketBackendDescriptor", 5);
+    isolate.register_named_storage_type("net::PacketCaptureOptions", 6);
+    isolate.register_named_storage_type("net::PacketCaptureRecord", 5);
+    isolate.register_named_storage_type("net::PacketCaptureStats", 3);
+    isolate.register_named_storage_type("net::PacketFanoutOptions", 3);
+    isolate.register_named_storage_type("net::PacketRingOptions", 5);
+    isolate.register_named_storage_type("net::ResolveQuery", 4);
+    isolate.register_named_storage_type("net::ReverseLookupName", 2);
+    isolate.register_named_storage_type("net::RouteEntry", 7);
+    isolate.register_named_storage_type("net::SocketAddress", 3);
+    isolate.register_named_storage_type("net::SocketCredentials", 3);
+    isolate.register_named_storage_type("net::SocketPair", 2);
+    isolate.register_named_storage_type("net::SocketRecvBatchRequest", 2);
+    isolate.register_named_storage_type("net::SocketRecvFrom", 3);
+    isolate.register_named_storage_type("net::SocketRecvMessage", 8);
+    isolate.register_named_storage_type("net::SocketSendBatchEntry", 2);
+    isolate.register_named_storage_type("net::SocketSendMessage", 5);
+    isolate.register_named_storage_type("net::SocketSendTo", 2);
+    isolate.register_named_storage_type("net::UdpReceive", 3);
+    isolate.register_named_storage_type("net::UdpSourceMembershipV4", 3);
+    isolate.register_named_storage_type("net::UdpSourceMembershipV6", 3);
+    isolate.register_named_storage_type("net::UdsAbstractAddress", 2);
+    isolate.register_named_storage_type("net::UdsPathAddress", 2);
+    isolate.register_named_storage_type("net::UdsUnnamedAddress", 1);
+    isolate.register_named_storage_type("net::OsPath", 2);
+    isolate.register_named_storage_type("net::UdsAddress", 2);
+}

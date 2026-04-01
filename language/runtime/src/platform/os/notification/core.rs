@@ -125,11 +125,12 @@ pub(crate) fn category_list_vm(
 
     // encode one category per registered notification category
     for category in categories {
-        let encoded_category = NotificationCategoryVm::from_value(context, category.clone())?;
+        let encoded_category =
+            NotificationCategoryVm::from_value(&mut context.write(), category.clone())?;
         encoded_categories.push(encoded_category);
     }
 
-    VmArray::from_values(context, &encoded_categories)
+    VmArray::from_values(&mut context.write(), &encoded_categories)
 }
 
 /// Encode scheduled descriptors into one VM array.
@@ -141,12 +142,14 @@ pub(crate) fn pending_list_vm(
 
     // encode one descriptor per scheduled notification
     for descriptor in descriptors {
-        let encoded_descriptor =
-            NotificationScheduledDescriptorVm::from_value(context, descriptor.clone())?;
+        let encoded_descriptor = NotificationScheduledDescriptorVm::from_value(
+            &mut context.write(),
+            descriptor.clone(),
+        )?;
         encoded_descriptors.push(encoded_descriptor);
     }
 
-    VmArray::from_values(context, &encoded_descriptors)
+    VmArray::from_values(&mut context.write(), &encoded_descriptors)
 }
 
 /// Encode one notification event into one VM value.
@@ -154,7 +157,7 @@ pub(crate) fn event_vm(
     context: &mut vm::ExternalCallContext<'_>,
     event: NotificationEventValue,
 ) -> RuntimeResult<NotificationEventVm> {
-    NotificationEventVm::from_value(context, event)
+    NotificationEventVm::from_value(&mut context.write(), event)
 }
 
 /// Encode one notification identifier into one VM handle.
@@ -162,5 +165,5 @@ pub(crate) fn id_vm(
     context: &mut vm::ExternalCallContext<'_>,
     id: &str,
 ) -> RuntimeResult<vm::StringHandle> {
-    <vm::StringHandle as VmAbiCodec>::from_value(context, id.to_string())
+    <vm::StringHandle as VmAbiCodec>::from_value(&mut context.write(), id.to_string())
 }

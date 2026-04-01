@@ -157,23 +157,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -184,7 +181,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -299,66 +296,14 @@ fn decode_destack_io_completion_submit_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CompletionHandle, CompletionOperationVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CompletionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CompletionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::CompletionHandle(handle_inner);
     let operation_value = arg_value(args, 1, "operation", "CompletionOperation")?;
-    let operation = {
-        if operation_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "operation",
-                "CompletionOperation",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(operation_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "operation",
-                "expected 8 fields",
-            ))
-            .boxed());
-        }
-        let operation_kind_raw = decode_int32(slots[0], "operation_kind_raw", "kind")?;
-        let operation_kind = match operation_kind_raw {
-            1i32 => CompletionOperationKind::Read,
-            2i32 => CompletionOperationKind::Write,
-            3i32 => CompletionOperationKind::Accept,
-            4i32 => CompletionOperationKind::Connect,
-            5i32 => CompletionOperationKind::Timeout,
-            6i32 => CompletionOperationKind::Fsync,
-            7i32 => CompletionOperationKind::Send,
-            8i32 => CompletionOperationKind::Receive,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "operation_kind",
-                    "unknown CompletionOperationKind value",
-                ))
-                .boxed());
-            }
-        };
-        let operation_target_inner = decode_uint64(slots[1], "operation_target_inner", "target")?;
-        let operation_target = resource::ResourceId(operation_target_inner);
-        let operation_key = decode_uint64(slots[2], "operation_key", "key")?;
-        let operation_offset = decode_uint64(slots[3], "operation_offset", "offset")?;
-        let operation_length = decode_uint32(slots[4], "operation_length", "length")?;
-        let operation_flags = decode_uint32(slots[5], "operation_flags", "flags")?;
-        let operation_argument0 = decode_uint64(slots[6], "operation_argument0", "argument0")?;
-        let operation_argument1 = decode_uint64(slots[7], "operation_argument1", "argument1")?;
-        CompletionOperationVm {
-            kind: operation_kind,
-            target: operation_target,
-            key: operation_key,
-            offset: operation_offset,
-            length: operation_length,
-            flags: operation_flags,
-            argument0: operation_argument0,
-            argument1: operation_argument1,
-        }
-    };
+    let operation =
+        <CompletionOperationVm as VmAggregateCodec>::decode_with_context(context, operation_value)?;
     Ok((handle, operation))
 }
 
@@ -377,6 +322,7 @@ fn decode_destack_io_completion_submit_batch_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::CompletionHandle, VmSlice<u64>, u32, u32)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "CompletionHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "CompletionHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -430,6 +376,7 @@ fn encode_destack_io_completion_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CompletionEventVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -477,39 +424,13 @@ fn decode_destack_io_control_ioctl_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::ResourceId, DescriptorRequestVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "ResourceId")?;
     let handle_inner = decode_uint64(handle_value, "handle_inner", "ResourceId")?;
     let handle = resource::ResourceId(handle_inner);
     let request_value = arg_value(args, 1, "request", "DescriptorRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "DescriptorRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let request_code = decode_uint64(slots[0], "request_code", "code")?;
-        let request_input = decode_slice::<u8>(context, slots[1], "request_input", "input")?;
-        let request_output_size = decode_uint32(slots[2], "request_output_size", "outputSize")?;
-        let request_flags = decode_uint32(slots[3], "request_flags", "flags")?;
-        DescriptorRequestVm {
-            code: request_code,
-            input: request_input,
-            output_size: request_output_size,
-            flags: request_flags,
-        }
-    };
+    let request =
+        <DescriptorRequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((handle, request))
 }
 
@@ -519,13 +440,21 @@ fn encode_destack_io_control_ioctl_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
             let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("io::DescriptorResult")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -558,40 +487,14 @@ fn decode_destack_io_device_control_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DeviceHandle, DescriptorRequestVm)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::DeviceHandle(handle_inner);
     let request_value = arg_value(args, 1, "request", "DescriptorRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "DescriptorRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let request_code = decode_uint64(slots[0], "request_code", "code")?;
-        let request_input = decode_slice::<u8>(context, slots[1], "request_input", "input")?;
-        let request_output_size = decode_uint32(slots[2], "request_output_size", "outputSize")?;
-        let request_flags = decode_uint32(slots[3], "request_flags", "flags")?;
-        DescriptorRequestVm {
-            code: request_code,
-            input: request_input,
-            output_size: request_output_size,
-            flags: request_flags,
-        }
-    };
+    let request =
+        <DescriptorRequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((handle, request))
 }
 
@@ -601,13 +504,21 @@ fn encode_destack_io_device_control_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<DescriptorResultVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::int(value.return_value, 64));
             let field_1: RuntimeResult<vm::Value> = value.output.to_value(context);
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("io::DescriptorResult")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -618,6 +529,7 @@ fn decode_destack_io_device_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm, u32, u32)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
@@ -644,6 +556,7 @@ fn decode_destack_io_device_read_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DeviceHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -670,6 +583,7 @@ fn decode_destack_io_device_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DeviceHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "DeviceHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DeviceHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -957,6 +871,7 @@ fn encode_destack_io_poll_wait_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PollEventVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1003,13 +918,21 @@ fn encode_destack_io_timerfd_get_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<TimerFdSpecVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.initial_ns, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.interval_ns, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("io::TimerFdSpec")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1081,36 +1004,13 @@ fn decode_destack_io_timerfd_set_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::TimerFdHandle, TimerFdSpecVm, TimerFdSetFlags)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "TimerFdHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "TimerFdHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::TimerFdHandle(handle_inner);
     let spec_value = arg_value(args, 1, "spec", "TimerFdSpec")?;
-    let spec = {
-        if spec_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "spec",
-                "TimerFdSpec",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(spec_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "spec",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let spec_initial_ns = decode_uint64(slots[0], "spec_initial_ns", "initialNs")?;
-        let spec_interval_ns = decode_uint64(slots[1], "spec_interval_ns", "intervalNs")?;
-        TimerFdSpecVm {
-            initial_ns: spec_initial_ns,
-            interval_ns: spec_interval_ns,
-        }
-    };
+    let spec = <TimerFdSpecVm as VmAggregateCodec>::decode_with_context(context, spec_value)?;
     let flags_value = arg_value(args, 2, "flags", "TimerFdSetFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "TimerFdSetFlags")?;
     let flags = TimerFdSetFlags(flags_inner);
@@ -1167,6 +1067,7 @@ fn encode_destack_io_uring_features_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UringFeaturesVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
@@ -1176,9 +1077,25 @@ fn encode_destack_io_uring_features_result(
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_fixed_buffers));
             let field_4: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.max_entries as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("io::UringFeatures")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1189,35 +1106,10 @@ fn decode_destack_io_uring_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(UringParametersVm,)> {
+    let context = &context.read();
     let parameters_value = arg_value(args, 0, "parameters", "UringParameters")?;
-    let parameters = {
-        if parameters_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "parameters",
-                "UringParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(parameters_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "parameters",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let parameters_entries = decode_uint32(slots[0], "parameters_entries", "entries")?;
-        let parameters_flags = decode_uint32(slots[1], "parameters_flags", "flags")?;
-        let parameters_sq_thread_idle_ms =
-            decode_uint32(slots[2], "parameters_sq_thread_idle_ms", "sqThreadIdleMs")?;
-        UringParametersVm {
-            entries: parameters_entries,
-            flags: parameters_flags,
-            sq_thread_idle_ms: parameters_sq_thread_idle_ms,
-        }
-    };
+    let parameters =
+        <UringParametersVm as VmAggregateCodec>::decode_with_context(context, parameters_value)?;
     Ok((parameters,))
 }
 
@@ -1238,6 +1130,7 @@ fn decode_destack_io_uring_register_buffers_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::UringHandle, VmSlice<u64>, VmSlice<u32>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "UringHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "UringHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -1264,6 +1157,7 @@ fn decode_destack_io_uring_register_files_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::UringHandle, VmSlice<resource::ResourceId>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "UringHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "UringHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2795,8 +2689,9 @@ fn destack_io_completion_wait_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<CompletionEvent> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_key = result_recorded_item.key;
                     let result_recorded_item_recorded_result = result_recorded_item.result;
                     let result_recorded_item_recorded_flags = result_recorded_item.flags;
@@ -2827,19 +2722,21 @@ fn destack_io_completion_wait_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_key = value_native_item.key;
-                        let value_native_decoded_result = value_native_item.result;
-                        let value_native_decoded_flags = value_native_item.flags;
-                        let value_native_decoded = CompletionEvent {
-                            key: value_native_decoded_key,
-                            result: value_native_decoded_result,
-                            flags: value_native_decoded_flags,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_key = value_native_item.key;
+                                let value_native_decoded_result = value_native_item.result;
+                                let value_native_decoded_flags = value_native_item.flags;
+                                let value_native_decoded = CompletionEvent {
+                                    key: value_native_decoded_key,
+                                    result: value_native_decoded_result,
+                                    flags: value_native_decoded_flags,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -2934,10 +2831,10 @@ fn destack_io_control_ioctl_replay(
             if let Ok(()) = result {
                 let result_value: DescriptorResult = unsafe { out.read() };
                 let result_recorded_return_value = result_value.return_value;
-                let mut result_recorded_output = Vec::new();
-                for result_recorded_output_item in
-                    unsafe { result_value.output.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_output_slice = unsafe { result_value.output.as_slice()? };
+                let mut result_recorded_output =
+                    Vec::with_capacity(result_recorded_output_slice.len());
+                for result_recorded_output_item in result_recorded_output_slice.iter().cloned() {
                     let result_recorded_output_item_recorded = result_recorded_output_item;
                     result_recorded_output.push(result_recorded_output_item_recorded);
                 }
@@ -2966,12 +2863,16 @@ fn destack_io_control_ioctl_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_return_value = value.return_value;
-                    let mut value_native_output_values = Vec::new();
-                    for value_native_output_item in value.output.iter().cloned() {
-                        let value_native_output_decoded = value_native_output_item;
-                        value_native_output_values.push(value_native_output_decoded);
-                    }
-                    let value_native_output = binding.store_slice(value_native_output_values);
+                    let value_native_output = binding.store_slice_with(
+                        value.output.len(),
+                        |value_native_output_values| {
+                            for value_native_output_item in value.output {
+                                let value_native_output_decoded = value_native_output_item;
+                                value_native_output_values.push(value_native_output_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native = DescriptorResult {
                         return_value: value_native_return_value,
                         output: value_native_output,
@@ -3058,10 +2959,10 @@ fn destack_io_device_control_replay(
             if let Ok(()) = result {
                 let result_value: DescriptorResult = unsafe { out.read() };
                 let result_recorded_return_value = result_value.return_value;
-                let mut result_recorded_output = Vec::new();
-                for result_recorded_output_item in
-                    unsafe { result_value.output.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_output_slice = unsafe { result_value.output.as_slice()? };
+                let mut result_recorded_output =
+                    Vec::with_capacity(result_recorded_output_slice.len());
+                for result_recorded_output_item in result_recorded_output_slice.iter().cloned() {
                     let result_recorded_output_item_recorded = result_recorded_output_item;
                     result_recorded_output.push(result_recorded_output_item_recorded);
                 }
@@ -3090,12 +2991,16 @@ fn destack_io_device_control_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_return_value = value.return_value;
-                    let mut value_native_output_values = Vec::new();
-                    for value_native_output_item in value.output.iter().cloned() {
-                        let value_native_output_decoded = value_native_output_item;
-                        value_native_output_values.push(value_native_output_decoded);
-                    }
-                    let value_native_output = binding.store_slice(value_native_output_values);
+                    let value_native_output = binding.store_slice_with(
+                        value.output.len(),
+                        |value_native_output_values| {
+                            for value_native_output_item in value.output {
+                                let value_native_output_decoded = value_native_output_item;
+                                value_native_output_values.push(value_native_output_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native = DescriptorResult {
                         return_value: value_native_return_value,
                         output: value_native_output,
@@ -3755,8 +3660,9 @@ fn destack_io_poll_wait_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<PollEvent> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_key = result_recorded_item.key;
                     let result_recorded_item_recorded_ready = result_recorded_item.ready;
                     let result_recorded_item_recorded_data = result_recorded_item.data;
@@ -3787,19 +3693,21 @@ fn destack_io_poll_wait_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_key = value_native_item.key;
-                        let value_native_decoded_ready = value_native_item.ready;
-                        let value_native_decoded_data = value_native_item.data;
-                        let value_native_decoded = PollEvent {
-                            key: value_native_decoded_key,
-                            ready: value_native_decoded_ready,
-                            data: value_native_decoded_data,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_key = value_native_item.key;
+                                let value_native_decoded_ready = value_native_item.ready;
+                                let value_native_decoded_data = value_native_item.data;
+                                let value_native_decoded = PollEvent {
+                                    key: value_native_decoded_key,
+                                    ready: value_native_decoded_ready,
+                                    data: value_native_decoded_data,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -5075,8 +4983,7 @@ fn destack_io_completion_cancel_vm_replay(
                 binding, context, handle, target,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -5096,8 +5003,7 @@ fn destack_io_completion_cancel_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5131,8 +5037,7 @@ fn destack_io_completion_close_vm_replay(
                 platform_simulation_vm::destack_io_completion_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoCompletionCloseReplayRecord {
@@ -5151,8 +5056,7 @@ fn destack_io_completion_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -5196,8 +5100,7 @@ fn destack_io_completion_enter_vm_replay(
                 flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -5217,8 +5120,7 @@ fn destack_io_completion_enter_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5252,8 +5154,7 @@ fn destack_io_completion_open_vm_replay(
                 platform_simulation_vm::destack_io_completion_open(binding, context, entries)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::CompletionHandle = value.clone();
                 let result_recorded = result_value;
@@ -5273,8 +5174,7 @@ fn destack_io_completion_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5309,8 +5209,7 @@ fn destack_io_completion_submit_vm_replay(
                 binding, context, handle, operation,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoCompletionSubmitReplayRecord {
@@ -5329,8 +5228,7 @@ fn destack_io_completion_submit_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -5374,8 +5272,7 @@ fn destack_io_completion_submit_batch_vm_replay(
                 operationwordstride,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -5395,8 +5292,7 @@ fn destack_io_completion_submit_batch_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5433,42 +5329,17 @@ fn destack_io_completion_wait_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<CompletionEventVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 3 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 3 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_key =
-                            decode_uint64(slots[0], "result_recorded_item_key", "key")?;
-                        let result_recorded_item_result =
-                            decode_int64(slots[1], "result_recorded_item_result", "result")?;
-                        let result_recorded_item_flags =
-                            decode_uint32(slots[2], "result_recorded_item_flags", "flags")?;
-                        CompletionEventVm {
-                            key: result_recorded_item_key,
-                            result: result_recorded_item_result,
-                            flags: result_recorded_item_flags,
-                        }
-                    };
+                    let result_recorded_item =
+                        <CompletionEventVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
+                        )?;
                     let result_recorded_item_recorded_key = result_recorded_item.key;
                     let result_recorded_item_recorded_result = result_recorded_item.result;
                     let result_recorded_item_recorded_flags = result_recorded_item.flags;
@@ -5496,12 +5367,12 @@ fn destack_io_completion_wait_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_key = vm_result_item.key;
                         let vm_result_item_value_result = vm_result_item.result;
                         let vm_result_item_value_flags = vm_result_item.flags;
@@ -5545,8 +5416,7 @@ fn destack_io_control_fcntl_vm_replay(
                 binding, context, handle, command, argument, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: i64 = value.clone();
                 let result_recorded = result_value;
@@ -5566,8 +5436,7 @@ fn destack_io_control_fcntl_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5603,7 +5472,7 @@ fn destack_io_control_ioctl_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: DescriptorResultVm = value.clone();
                 let result_recorded_return_value = result_value.return_value;
@@ -5629,7 +5498,7 @@ fn destack_io_control_ioctl_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5667,8 +5536,7 @@ fn destack_io_device_close_vm_replay(
                 platform_simulation_vm::destack_io_device_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoDeviceCloseReplayRecord {
@@ -5687,8 +5555,7 @@ fn destack_io_device_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -5721,7 +5588,7 @@ fn destack_io_device_control_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: DescriptorResultVm = value.clone();
                 let result_recorded_return_value = result_value.return_value;
@@ -5747,7 +5614,7 @@ fn destack_io_device_control_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5789,8 +5656,7 @@ fn destack_io_device_open_vm_replay(
                 platform_simulation_vm::destack_io_device_open(binding, context, path, flags, mode)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::DeviceHandle = value.clone();
                 let result_recorded = result_value;
@@ -5810,8 +5676,7 @@ fn destack_io_device_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5846,8 +5711,7 @@ fn destack_io_device_read_vm_replay(
                 platform_simulation_vm::destack_io_device_read(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -5867,8 +5731,7 @@ fn destack_io_device_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5903,8 +5766,7 @@ fn destack_io_device_write_vm_replay(
                 platform_simulation_vm::destack_io_device_write(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -5924,8 +5786,7 @@ fn destack_io_device_write_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -5961,8 +5822,7 @@ fn destack_io_event_attach_vm_replay(
                 binding, context, token, target, key,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoEventAttachReplayRecord {
@@ -5981,8 +5841,7 @@ fn destack_io_event_attach_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6011,8 +5870,7 @@ fn destack_io_event_close_vm_replay(
                 platform_simulation_vm::destack_io_event_close(binding, context, token)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoEventCloseReplayRecord {
@@ -6031,8 +5889,7 @@ fn destack_io_event_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6061,8 +5918,7 @@ fn destack_io_event_open_vm_replay(
                 platform_simulation_vm::destack_io_event_open(binding, context, initial)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: EventToken = value.clone();
                 let result_recorded = result_value;
@@ -6082,8 +5938,7 @@ fn destack_io_event_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -6121,8 +5976,7 @@ fn destack_io_event_signal_vm_replay(
                 argument_value,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoEventSignalReplayRecord {
@@ -6141,8 +5995,7 @@ fn destack_io_event_signal_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6171,8 +6024,7 @@ fn destack_io_poll_close_vm_replay(
                 platform_simulation_vm::destack_io_poll_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoPollCloseReplayRecord {
@@ -6191,8 +6043,7 @@ fn destack_io_poll_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6224,8 +6075,7 @@ fn destack_io_poll_deregister_vm_replay(
                 platform_simulation_vm::destack_io_poll_deregister(binding, context, handle, target)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoPollDeregisterReplayRecord {
@@ -6244,8 +6094,7 @@ fn destack_io_poll_deregister_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6274,8 +6123,7 @@ fn destack_io_poll_open_vm_replay(
                 platform_simulation_vm::destack_io_poll_open(binding, context, backend)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::PollHandle = value.clone();
                 let result_recorded = result_value;
@@ -6295,8 +6143,7 @@ fn destack_io_poll_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -6333,8 +6180,7 @@ fn destack_io_poll_register_vm_replay(
                 binding, context, handle, target, key, interest,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoPollRegisterReplayRecord {
@@ -6353,8 +6199,7 @@ fn destack_io_poll_register_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6388,8 +6233,7 @@ fn destack_io_poll_update_vm_replay(
                 binding, context, handle, target, key, interest,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoPollUpdateReplayRecord {
@@ -6408,8 +6252,7 @@ fn destack_io_poll_update_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6443,44 +6286,17 @@ fn destack_io_poll_wait_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<PollEventVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 3 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 3 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_key =
-                            decode_uint64(slots[0], "result_recorded_item_key", "key")?;
-                        let result_recorded_item_ready_inner =
-                            decode_uint32(slots[1], "result_recorded_item_ready_inner", "ready")?;
-                        let result_recorded_item_ready =
-                            PollInterest(result_recorded_item_ready_inner);
-                        let result_recorded_item_data =
-                            decode_int32(slots[2], "result_recorded_item_data", "data")?;
-                        PollEventVm {
-                            key: result_recorded_item_key,
-                            ready: result_recorded_item_ready,
-                            data: result_recorded_item_data,
-                        }
-                    };
+                    let result_recorded_item =
+                        <PollEventVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
+                        )?;
                     let result_recorded_item_recorded_key = result_recorded_item.key;
                     let result_recorded_item_recorded_ready = result_recorded_item.ready;
                     let result_recorded_item_recorded_data = result_recorded_item.data;
@@ -6508,12 +6324,12 @@ fn destack_io_poll_wait_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_key = vm_result_item.key;
                         let vm_result_item_value_ready = vm_result_item.ready;
                         let vm_result_item_value_data = vm_result_item.data;
@@ -6552,8 +6368,7 @@ fn destack_io_timerfd_close_vm_replay(
                 platform_simulation_vm::destack_io_timer_fd_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoTimerfdCloseReplayRecord {
@@ -6572,8 +6387,7 @@ fn destack_io_timerfd_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6602,8 +6416,7 @@ fn destack_io_timerfd_get_vm_replay(
                 platform_simulation_vm::destack_io_timer_fd_get(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: TimerFdSpecVm = value.clone();
                 let result_recorded_initial_ns = result_value.initial_ns;
@@ -6628,8 +6441,7 @@ fn destack_io_timerfd_get_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -6669,8 +6481,7 @@ fn destack_io_timerfd_open_vm_replay(
                 platform_simulation_vm::destack_io_timer_fd_open(binding, context, clock, flags)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::TimerFdHandle = value.clone();
                 let result_recorded = result_value;
@@ -6690,8 +6501,7 @@ fn destack_io_timerfd_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -6723,8 +6533,7 @@ fn destack_io_timerfd_read_vm_replay(
                 platform_simulation_vm::destack_io_timer_fd_read(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -6744,8 +6553,7 @@ fn destack_io_timerfd_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -6781,8 +6589,7 @@ fn destack_io_timerfd_set_vm_replay(
                 binding, context, handle, spec, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoTimerfdSetReplayRecord {
@@ -6801,8 +6608,7 @@ fn destack_io_timerfd_set_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6831,8 +6637,7 @@ fn destack_io_uring_close_vm_replay(
                 platform_simulation_vm::destack_io_uring_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoUringCloseReplayRecord {
@@ -6851,8 +6656,7 @@ fn destack_io_uring_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -6881,8 +6685,7 @@ fn destack_io_uring_features_vm_replay(
                 platform_simulation_vm::destack_io_uring_features(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: UringFeaturesVm = value.clone();
                 let result_recorded_has_submission_polling = result_value.has_submission_polling;
@@ -6913,8 +6716,7 @@ fn destack_io_uring_features_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -6957,8 +6759,7 @@ fn destack_io_uring_open_vm_replay(
                 platform_simulation_vm::destack_io_uring_open(binding, context, parameters)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::UringHandle = value.clone();
                 let result_recorded = result_value;
@@ -6978,8 +6779,7 @@ fn destack_io_uring_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -7015,8 +6815,7 @@ fn destack_io_uring_register_buffers_vm_replay(
                 binding, context, handle, addresses, lengths,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoUringRegisterBuffersReplayRecord {
@@ -7035,8 +6834,7 @@ fn destack_io_uring_register_buffers_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -7068,8 +6866,7 @@ fn destack_io_uring_register_files_vm_replay(
                 binding, context, handle, files,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoUringRegisterFilesReplayRecord {
@@ -7088,8 +6885,7 @@ fn destack_io_uring_register_files_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -7122,8 +6918,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoUringUnregisterBuffersReplayRecord {
@@ -7142,8 +6937,7 @@ fn destack_io_uring_unregister_buffers_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -7174,8 +6968,7 @@ fn destack_io_uring_unregister_files_vm_replay(
                 platform_simulation_vm::destack_io_uring_unregister_files(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IoUringUnregisterFilesReplayRecord {
@@ -7194,8 +6987,7 @@ fn destack_io_uring_unregister_files_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -7829,6 +7621,7 @@ pub(crate) fn register_io_vm_bindings(registry: &mut BindingRegistry, isolate: &
 
 /// Install VM bindings for io.
 pub(crate) fn install_io_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_io_vm_storage_types(isolate);
     register_io_vm_bindings(registry, isolate);
 }
 

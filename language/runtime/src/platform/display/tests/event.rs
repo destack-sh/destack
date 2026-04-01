@@ -88,7 +88,7 @@ fn backend_descriptors_for_host_execution(
             let vm_context =
                 unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
             values
-                .read_values(vm_context)?
+                .read_values(&vm_context.read())?
                 .into_iter()
                 .filter(|descriptor| {
                     support_allows_host_execution(descriptor.support)

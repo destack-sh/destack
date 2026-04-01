@@ -249,23 +249,20 @@ fn decode_float64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -276,7 +273,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -287,11 +284,12 @@ fn decode_array<T>(
 /// Decode arguments for destack.os.background.complete.
 #[inline]
 fn decode_destack_os_background_complete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, BackgroundTaskResult)> {
+    let context = &context.read();
     let executionid_value = arg_value(args, 0, "executionid", "string")?;
-    let executionid = decode_string(executionid_value, "executionid", "string")?;
+    let executionid = decode_string(context, executionid_value, "executionid", "string")?;
     let argument_result_value = arg_value(args, 1, "argument_result", "BackgroundTaskResult")?;
     let argument_result_raw = decode_int32(
         argument_result_value,
@@ -351,37 +349,12 @@ fn decode_destack_os_background_event_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(BackgroundEventOpenOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "BackgroundEventOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "BackgroundEventOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 2 fields",
-            ))
-            .boxed());
-        }
-        let options_include_task_ready =
-            decode_bool(slots[0], "options_include_task_ready", "includeTaskReady")?;
-        let options_include_task_expired = decode_bool(
-            slots[1],
-            "options_include_task_expired",
-            "includeTaskExpired",
-        )?;
-        BackgroundEventOpenOptionsVm {
-            include_task_ready: options_include_task_ready,
-            include_task_expired: options_include_task_expired,
-        }
-    };
+    let options = <BackgroundEventOpenOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((options,))
 }
 
@@ -418,6 +391,7 @@ fn encode_destack_os_background_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BackgroundEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             BackgroundEventVm::BackgroundTaskExpiredEvent(value) => {
@@ -435,19 +409,47 @@ fn encode_destack_os_background_event_read_result(
                             Ok(value.metadata.execution_id.value());
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::BackgroundEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::BackgroundTaskExpiredEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::BackgroundEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             BackgroundEventVm::BackgroundTaskReadyEvent(value) => {
                 let tag_value = vm::Value::uint(3682195369u64, 32);
@@ -464,19 +466,47 @@ fn encode_destack_os_background_event_read_result(
                             Ok(value.metadata.execution_id.value());
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::BackgroundEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::BackgroundTaskReadyEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::BackgroundEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -502,6 +532,7 @@ fn encode_destack_os_background_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<BackgroundEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             BackgroundEventVm::BackgroundTaskExpiredEvent(value) => {
@@ -519,19 +550,47 @@ fn encode_destack_os_background_event_try_read_result(
                             Ok(value.metadata.execution_id.value());
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::BackgroundEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::BackgroundTaskExpiredEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::BackgroundEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             BackgroundEventVm::BackgroundTaskReadyEvent(value) => {
                 let tag_value = vm::Value::uint(3682195369u64, 32);
@@ -548,19 +607,47 @@ fn encode_destack_os_background_event_try_read_result(
                             Ok(value.metadata.execution_id.value());
                         let field_4: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.deadline_unix_ns, 64));
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::BackgroundEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::BackgroundTaskReadyEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::BackgroundEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -572,6 +659,7 @@ fn encode_destack_os_background_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<BackgroundTaskDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -583,134 +671,10 @@ fn decode_destack_os_background_register_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(BackgroundTaskOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "BackgroundTaskOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "BackgroundTaskOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let options_identifier = decode_string(slots[0], "options_identifier", "identifier")?;
-        let options_trigger_raw = decode_int32(slots[1], "options_trigger_raw", "trigger")?;
-        let options_trigger = match options_trigger_raw {
-            1i32 => BackgroundTriggerKind::AppRefresh,
-            2i32 => BackgroundTriggerKind::Processing,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_trigger",
-                    "unknown BackgroundTriggerKind value",
-                ))
-                .boxed());
-            }
-        };
-        let options_schedule = {
-            if slots[2].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "options_schedule",
-                    "schedule",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[2])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_schedule",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let options_schedule_kind_raw =
-                decode_int32(slots[0], "options_schedule_kind_raw", "kind")?;
-            let options_schedule_kind = match options_schedule_kind_raw {
-                1i32 => BackgroundTaskScheduleKind::Once,
-                2i32 => BackgroundTaskScheduleKind::Recurring,
-                _ => {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "options_schedule_kind",
-                        "unknown BackgroundTaskScheduleKind value",
-                    ))
-                    .boxed());
-                }
-            };
-            let options_schedule_earliest_begin_unix_ns = if slots[1].tag() == vm::ValueTag::Void {
-                None
-            } else {
-                let options_schedule_earliest_begin_unix_ns_inner = decode_uint64(
-                    slots[1],
-                    "options_schedule_earliest_begin_unix_ns_inner",
-                    "earliestBeginUnixNs",
-                )?;
-                Some(options_schedule_earliest_begin_unix_ns_inner)
-            };
-            let options_schedule_repeat_interval_ns = if slots[2].tag() == vm::ValueTag::Void {
-                None
-            } else {
-                let options_schedule_repeat_interval_ns_inner = decode_uint64(
-                    slots[2],
-                    "options_schedule_repeat_interval_ns_inner",
-                    "repeatIntervalNs",
-                )?;
-                Some(options_schedule_repeat_interval_ns_inner)
-            };
-            BackgroundTaskScheduleVm {
-                kind: options_schedule_kind,
-                earliest_begin_unix_ns: options_schedule_earliest_begin_unix_ns,
-                repeat_interval_ns: options_schedule_repeat_interval_ns,
-            }
-        };
-        let options_network_raw = decode_int32(slots[3], "options_network_raw", "network")?;
-        let options_network = match options_network_raw {
-            1i32 => BackgroundNetworkRequirement::None,
-            2i32 => BackgroundNetworkRequirement::Connected,
-            3i32 => BackgroundNetworkRequirement::Unmetered,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_network",
-                    "unknown BackgroundNetworkRequirement value",
-                ))
-                .boxed());
-            }
-        };
-        let options_requires_charging =
-            decode_bool(slots[4], "options_requires_charging", "requiresCharging")?;
-        let options_requires_idle = decode_bool(slots[5], "options_requires_idle", "requiresIdle")?;
-        let options_conflict_policy_raw =
-            decode_int32(slots[6], "options_conflict_policy_raw", "conflictPolicy")?;
-        let options_conflict_policy = match options_conflict_policy_raw {
-            1i32 => BackgroundConflictPolicy::Replace,
-            2i32 => BackgroundConflictPolicy::Keep,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_conflict_policy",
-                    "unknown BackgroundConflictPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        BackgroundTaskOptionsVm {
-            identifier: options_identifier,
-            trigger: options_trigger,
-            schedule: options_schedule,
-            network: options_network,
-            requires_charging: options_requires_charging,
-            requires_idle: options_requires_idle,
-            conflict_policy: options_conflict_policy,
-        }
-    };
+    let options =
+        <BackgroundTaskOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((options,))
 }
 
@@ -737,11 +701,12 @@ fn encode_destack_os_background_status_result(
 /// Decode arguments for destack.os.background.triggerTest.
 #[inline]
 fn decode_destack_os_background_trigger_test_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let identifier_value = arg_value(args, 0, "identifier", "string")?;
-    let identifier = decode_string(identifier_value, "identifier", "string")?;
+    let identifier = decode_string(context, identifier_value, "identifier", "string")?;
     Ok((identifier,))
 }
 
@@ -759,11 +724,12 @@ fn encode_destack_os_background_trigger_test_result(
 /// Decode arguments for destack.os.background.unregister.
 #[inline]
 fn decode_destack_os_background_unregister_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let identifier_value = arg_value(args, 0, "identifier", "string")?;
-    let identifier = decode_string(identifier_value, "identifier", "string")?;
+    let identifier = decode_string(context, identifier_value, "identifier", "string")?;
     Ok((identifier,))
 }
 
@@ -782,232 +748,10 @@ fn decode_destack_os_calendar_event_create_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CalendarEventDraftVm,)> {
+    let context = &context.read();
     let event_value = arg_value(args, 0, "event", "CalendarEventDraft")?;
-    let event = {
-        if event_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event",
-                "CalendarEventDraft",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(event_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "event",
-                "expected 13 fields",
-            ))
-            .boxed());
-        }
-        let event_calendar_id = decode_string(slots[0], "event_calendar_id", "calendarId")?;
-        let event_title = decode_string(slots[1], "event_title", "title")?;
-        let event_notes = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_notes_inner = decode_string(slots[2], "event_notes_inner", "notes")?;
-            Some(event_notes_inner)
-        };
-        let event_location = if slots[3].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_location_inner = decode_string(slots[3], "event_location_inner", "location")?;
-            Some(event_location_inner)
-        };
-        let event_start_unix_ns = decode_uint64(slots[4], "event_start_unix_ns", "startUnixNs")?;
-        let event_end_unix_ns = decode_uint64(slots[5], "event_end_unix_ns", "endUnixNs")?;
-        let event_all_day = decode_bool(slots[6], "event_all_day", "allDay")?;
-        let event_time_zone = if slots[7].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_time_zone_inner =
-                decode_string(slots[7], "event_time_zone_inner", "timeZone")?;
-            Some(event_time_zone_inner)
-        };
-        let event_availability_raw =
-            decode_int32(slots[8], "event_availability_raw", "availability")?;
-        let event_availability = match event_availability_raw {
-            1i32 => CalendarAvailability::Busy,
-            2i32 => CalendarAvailability::Free,
-            3i32 => CalendarAvailability::Tentative,
-            4i32 => CalendarAvailability::OutOfOffice,
-            5i32 => CalendarAvailability::Unavailable,
-            6i32 => CalendarAvailability::Unknown,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "event_availability",
-                    "unknown CalendarAvailability value",
-                ))
-                .boxed());
-            }
-        };
-        let event_url = if slots[9].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_url_inner = decode_string(slots[9], "event_url_inner", "url")?;
-            Some(event_url_inner)
-        };
-        let event_recurrence_rule = if slots[10].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_recurrence_rule_inner = {
-                if slots[10].tag() != vm::ValueTag::Aggregate {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                        "event_recurrence_rule_inner",
-                        "recurrenceRule",
-                    ))
-                    .boxed());
-                }
-                let slots = context
-                    .aggregate_slots(slots[10])
-                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 11 {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "event_recurrence_rule_inner",
-                        "expected 11 fields",
-                    ))
-                    .boxed());
-                }
-                let event_recurrence_rule_inner_frequency_raw = decode_int32(
-                    slots[0],
-                    "event_recurrence_rule_inner_frequency_raw",
-                    "frequency",
-                )?;
-                let event_recurrence_rule_inner_frequency =
-                    match event_recurrence_rule_inner_frequency_raw {
-                        1i32 => CalendarRecurrenceFrequency::Daily,
-                        2i32 => CalendarRecurrenceFrequency::Weekly,
-                        3i32 => CalendarRecurrenceFrequency::Monthly,
-                        4i32 => CalendarRecurrenceFrequency::Yearly,
-                        _ => {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "event_recurrence_rule_inner_frequency",
-                                "unknown CalendarRecurrenceFrequency value",
-                            ))
-                            .boxed());
-                        }
-                    };
-                let event_recurrence_rule_inner_interval =
-                    decode_uint32(slots[1], "event_recurrence_rule_inner_interval", "interval")?;
-                let event_recurrence_rule_inner_count = if slots[2].tag() == vm::ValueTag::Void {
-                    None
-                } else {
-                    let event_recurrence_rule_inner_count_inner = decode_uint32(
-                        slots[2],
-                        "event_recurrence_rule_inner_count_inner",
-                        "count",
-                    )?;
-                    Some(event_recurrence_rule_inner_count_inner)
-                };
-                let event_recurrence_rule_inner_until_unix_ns =
-                    if slots[3].tag() == vm::ValueTag::Void {
-                        None
-                    } else {
-                        let event_recurrence_rule_inner_until_unix_ns_inner = decode_uint64(
-                            slots[3],
-                            "event_recurrence_rule_inner_until_unix_ns_inner",
-                            "untilUnixNs",
-                        )?;
-                        Some(event_recurrence_rule_inner_until_unix_ns_inner)
-                    };
-                let event_recurrence_rule_inner_by_week_days = decode_array::<u8>(
-                    context,
-                    slots[4],
-                    "event_recurrence_rule_inner_by_week_days",
-                    "byWeekDays",
-                )?;
-                let event_recurrence_rule_inner_by_weekday_ordinals =
-                    decode_array::<CalendarRecurrenceWeekdayVm>(
-                        context,
-                        slots[5],
-                        "event_recurrence_rule_inner_by_weekday_ordinals",
-                        "byWeekdayOrdinals",
-                    )?;
-                let event_recurrence_rule_inner_by_month_days = decode_array::<i8>(
-                    context,
-                    slots[6],
-                    "event_recurrence_rule_inner_by_month_days",
-                    "byMonthDays",
-                )?;
-                let event_recurrence_rule_inner_by_months = decode_array::<u8>(
-                    context,
-                    slots[7],
-                    "event_recurrence_rule_inner_by_months",
-                    "byMonths",
-                )?;
-                let event_recurrence_rule_inner_by_year_days = decode_array::<i16>(
-                    context,
-                    slots[8],
-                    "event_recurrence_rule_inner_by_year_days",
-                    "byYearDays",
-                )?;
-                let event_recurrence_rule_inner_by_week_numbers = decode_array::<i8>(
-                    context,
-                    slots[9],
-                    "event_recurrence_rule_inner_by_week_numbers",
-                    "byWeekNumbers",
-                )?;
-                let event_recurrence_rule_inner_by_set_positions = decode_array::<i16>(
-                    context,
-                    slots[10],
-                    "event_recurrence_rule_inner_by_set_positions",
-                    "bySetPositions",
-                )?;
-                CalendarRecurrenceRuleVm {
-                    frequency: event_recurrence_rule_inner_frequency,
-                    interval: event_recurrence_rule_inner_interval,
-                    count: event_recurrence_rule_inner_count,
-                    until_unix_ns: event_recurrence_rule_inner_until_unix_ns,
-                    by_week_days: event_recurrence_rule_inner_by_week_days,
-                    by_weekday_ordinals: event_recurrence_rule_inner_by_weekday_ordinals,
-                    by_month_days: event_recurrence_rule_inner_by_month_days,
-                    by_months: event_recurrence_rule_inner_by_months,
-                    by_year_days: event_recurrence_rule_inner_by_year_days,
-                    by_week_numbers: event_recurrence_rule_inner_by_week_numbers,
-                    by_set_positions: event_recurrence_rule_inner_by_set_positions,
-                }
-            };
-            Some(event_recurrence_rule_inner)
-        };
-        let event_attendees = if slots[11].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_attendees_inner = decode_array::<CalendarAttendeeVm>(
-                context,
-                slots[11],
-                "event_attendees_inner",
-                "attendees",
-            )?;
-            Some(event_attendees_inner)
-        };
-        let event_reminders = if slots[12].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_reminders_inner = decode_array::<CalendarReminderVm>(
-                context,
-                slots[12],
-                "event_reminders_inner",
-                "reminders",
-            )?;
-            Some(event_reminders_inner)
-        };
-        CalendarEventDraftVm {
-            calendar_id: event_calendar_id,
-            title: event_title,
-            notes: event_notes,
-            location: event_location,
-            start_unix_ns: event_start_unix_ns,
-            end_unix_ns: event_end_unix_ns,
-            all_day: event_all_day,
-            time_zone: event_time_zone,
-            availability: event_availability,
-            url: event_url,
-            recurrence_rule: event_recurrence_rule,
-            attendees: event_attendees,
-            reminders: event_reminders,
-        }
-    };
+    let event =
+        <CalendarEventDraftVm as VmAggregateCodec>::decode_with_context(context, event_value)?;
     Ok((event,))
 }
 
@@ -1025,11 +769,12 @@ fn encode_destack_os_calendar_event_create_result(
 /// Decode arguments for destack.os.calendar.eventDelete.
 #[inline]
 fn decode_destack_os_calendar_event_delete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     Ok((id,))
 }
 
@@ -1048,58 +793,10 @@ fn decode_destack_os_calendar_event_list_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CalendarEventQueryVm,)> {
+    let context = &context.read();
     let query_value = arg_value(args, 0, "query", "CalendarEventQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "CalendarEventQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let query_calendar_ids = decode_array::<vm::StringHandle>(
-            context,
-            slots[0],
-            "query_calendar_ids",
-            "calendarIds",
-        )?;
-        let query_start_unix_ns = decode_uint64(slots[1], "query_start_unix_ns", "startUnixNs")?;
-        let query_end_unix_ns = decode_uint64(slots[2], "query_end_unix_ns", "endUnixNs")?;
-        let query_limit = if slots[3].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_limit_inner = decode_uint32(slots[3], "query_limit_inner", "limit")?;
-            Some(query_limit_inner)
-        };
-        let query_include_canceled =
-            decode_bool(slots[4], "query_include_canceled", "includeCanceled")?;
-        let query_include_declined =
-            decode_bool(slots[5], "query_include_declined", "includeDeclined")?;
-        let query_include_recurrence_instances = decode_bool(
-            slots[6],
-            "query_include_recurrence_instances",
-            "includeRecurrenceInstances",
-        )?;
-        CalendarEventQueryVm {
-            calendar_ids: query_calendar_ids,
-            start_unix_ns: query_start_unix_ns,
-            end_unix_ns: query_end_unix_ns,
-            limit: query_limit,
-            include_canceled: query_include_canceled,
-            include_declined: query_include_declined,
-            include_recurrence_instances: query_include_recurrence_instances,
-        }
-    };
+    let query =
+        <CalendarEventQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((query,))
 }
 
@@ -1109,6 +806,7 @@ fn encode_destack_os_calendar_event_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CalendarEventVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1117,11 +815,12 @@ fn encode_destack_os_calendar_event_list_result(
 /// Decode arguments for destack.os.calendar.eventRead.
 #[inline]
 fn decode_destack_os_calendar_event_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     Ok((id,))
 }
 
@@ -1131,6 +830,7 @@ fn encode_destack_os_calendar_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CalendarEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
@@ -1198,12 +898,43 @@ fn encode_destack_os_calendar_event_read_result(
                     let field_9: RuntimeResult<vm::Value> = value.by_week_numbers.to_value(context);
                     let field_10: RuntimeResult<vm::Value> =
                         value.by_set_positions.to_value(context);
-                    context
-                        .allocate_aggregate(vec![
-                            field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                            field_7?, field_8?, field_9?, field_10?,
-                        ])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::CalendarRecurrenceRule")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(3, field_3?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(4, field_4?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(5, field_5?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(6, field_6?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(7, field_7?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(8, field_8?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(9, field_9?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(10, field_10?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
@@ -1215,13 +946,70 @@ fn encode_destack_os_calendar_event_read_result(
                 Some(value) => value.to_value(context),
                 None => Ok(vm::Value::VOID),
             };
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?, field_11?, field_12?, field_13?, field_14?,
-                    field_15?, field_16?, field_17?, field_18?, field_19?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::CalendarEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(9, field_9?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(10, field_10?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(11, field_11?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(12, field_12?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(13, field_13?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(14, field_14?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(15, field_15?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(16, field_16?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(17, field_17?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(18, field_18?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(19, field_19?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1232,234 +1020,12 @@ fn decode_destack_os_calendar_event_update_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, CalendarEventDraftVm)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     let event_value = arg_value(args, 1, "event", "CalendarEventDraft")?;
-    let event = {
-        if event_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "event",
-                "CalendarEventDraft",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(event_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 13 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "event",
-                "expected 13 fields",
-            ))
-            .boxed());
-        }
-        let event_calendar_id = decode_string(slots[0], "event_calendar_id", "calendarId")?;
-        let event_title = decode_string(slots[1], "event_title", "title")?;
-        let event_notes = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_notes_inner = decode_string(slots[2], "event_notes_inner", "notes")?;
-            Some(event_notes_inner)
-        };
-        let event_location = if slots[3].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_location_inner = decode_string(slots[3], "event_location_inner", "location")?;
-            Some(event_location_inner)
-        };
-        let event_start_unix_ns = decode_uint64(slots[4], "event_start_unix_ns", "startUnixNs")?;
-        let event_end_unix_ns = decode_uint64(slots[5], "event_end_unix_ns", "endUnixNs")?;
-        let event_all_day = decode_bool(slots[6], "event_all_day", "allDay")?;
-        let event_time_zone = if slots[7].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_time_zone_inner =
-                decode_string(slots[7], "event_time_zone_inner", "timeZone")?;
-            Some(event_time_zone_inner)
-        };
-        let event_availability_raw =
-            decode_int32(slots[8], "event_availability_raw", "availability")?;
-        let event_availability = match event_availability_raw {
-            1i32 => CalendarAvailability::Busy,
-            2i32 => CalendarAvailability::Free,
-            3i32 => CalendarAvailability::Tentative,
-            4i32 => CalendarAvailability::OutOfOffice,
-            5i32 => CalendarAvailability::Unavailable,
-            6i32 => CalendarAvailability::Unknown,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "event_availability",
-                    "unknown CalendarAvailability value",
-                ))
-                .boxed());
-            }
-        };
-        let event_url = if slots[9].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_url_inner = decode_string(slots[9], "event_url_inner", "url")?;
-            Some(event_url_inner)
-        };
-        let event_recurrence_rule = if slots[10].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_recurrence_rule_inner = {
-                if slots[10].tag() != vm::ValueTag::Aggregate {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                        "event_recurrence_rule_inner",
-                        "recurrenceRule",
-                    ))
-                    .boxed());
-                }
-                let slots = context
-                    .aggregate_slots(slots[10])
-                    .map_err(|error| RuntimeError::from(error).boxed())?;
-                if slots.len() != 11 {
-                    return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                        "event_recurrence_rule_inner",
-                        "expected 11 fields",
-                    ))
-                    .boxed());
-                }
-                let event_recurrence_rule_inner_frequency_raw = decode_int32(
-                    slots[0],
-                    "event_recurrence_rule_inner_frequency_raw",
-                    "frequency",
-                )?;
-                let event_recurrence_rule_inner_frequency =
-                    match event_recurrence_rule_inner_frequency_raw {
-                        1i32 => CalendarRecurrenceFrequency::Daily,
-                        2i32 => CalendarRecurrenceFrequency::Weekly,
-                        3i32 => CalendarRecurrenceFrequency::Monthly,
-                        4i32 => CalendarRecurrenceFrequency::Yearly,
-                        _ => {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "event_recurrence_rule_inner_frequency",
-                                "unknown CalendarRecurrenceFrequency value",
-                            ))
-                            .boxed());
-                        }
-                    };
-                let event_recurrence_rule_inner_interval =
-                    decode_uint32(slots[1], "event_recurrence_rule_inner_interval", "interval")?;
-                let event_recurrence_rule_inner_count = if slots[2].tag() == vm::ValueTag::Void {
-                    None
-                } else {
-                    let event_recurrence_rule_inner_count_inner = decode_uint32(
-                        slots[2],
-                        "event_recurrence_rule_inner_count_inner",
-                        "count",
-                    )?;
-                    Some(event_recurrence_rule_inner_count_inner)
-                };
-                let event_recurrence_rule_inner_until_unix_ns =
-                    if slots[3].tag() == vm::ValueTag::Void {
-                        None
-                    } else {
-                        let event_recurrence_rule_inner_until_unix_ns_inner = decode_uint64(
-                            slots[3],
-                            "event_recurrence_rule_inner_until_unix_ns_inner",
-                            "untilUnixNs",
-                        )?;
-                        Some(event_recurrence_rule_inner_until_unix_ns_inner)
-                    };
-                let event_recurrence_rule_inner_by_week_days = decode_array::<u8>(
-                    context,
-                    slots[4],
-                    "event_recurrence_rule_inner_by_week_days",
-                    "byWeekDays",
-                )?;
-                let event_recurrence_rule_inner_by_weekday_ordinals =
-                    decode_array::<CalendarRecurrenceWeekdayVm>(
-                        context,
-                        slots[5],
-                        "event_recurrence_rule_inner_by_weekday_ordinals",
-                        "byWeekdayOrdinals",
-                    )?;
-                let event_recurrence_rule_inner_by_month_days = decode_array::<i8>(
-                    context,
-                    slots[6],
-                    "event_recurrence_rule_inner_by_month_days",
-                    "byMonthDays",
-                )?;
-                let event_recurrence_rule_inner_by_months = decode_array::<u8>(
-                    context,
-                    slots[7],
-                    "event_recurrence_rule_inner_by_months",
-                    "byMonths",
-                )?;
-                let event_recurrence_rule_inner_by_year_days = decode_array::<i16>(
-                    context,
-                    slots[8],
-                    "event_recurrence_rule_inner_by_year_days",
-                    "byYearDays",
-                )?;
-                let event_recurrence_rule_inner_by_week_numbers = decode_array::<i8>(
-                    context,
-                    slots[9],
-                    "event_recurrence_rule_inner_by_week_numbers",
-                    "byWeekNumbers",
-                )?;
-                let event_recurrence_rule_inner_by_set_positions = decode_array::<i16>(
-                    context,
-                    slots[10],
-                    "event_recurrence_rule_inner_by_set_positions",
-                    "bySetPositions",
-                )?;
-                CalendarRecurrenceRuleVm {
-                    frequency: event_recurrence_rule_inner_frequency,
-                    interval: event_recurrence_rule_inner_interval,
-                    count: event_recurrence_rule_inner_count,
-                    until_unix_ns: event_recurrence_rule_inner_until_unix_ns,
-                    by_week_days: event_recurrence_rule_inner_by_week_days,
-                    by_weekday_ordinals: event_recurrence_rule_inner_by_weekday_ordinals,
-                    by_month_days: event_recurrence_rule_inner_by_month_days,
-                    by_months: event_recurrence_rule_inner_by_months,
-                    by_year_days: event_recurrence_rule_inner_by_year_days,
-                    by_week_numbers: event_recurrence_rule_inner_by_week_numbers,
-                    by_set_positions: event_recurrence_rule_inner_by_set_positions,
-                }
-            };
-            Some(event_recurrence_rule_inner)
-        };
-        let event_attendees = if slots[11].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_attendees_inner = decode_array::<CalendarAttendeeVm>(
-                context,
-                slots[11],
-                "event_attendees_inner",
-                "attendees",
-            )?;
-            Some(event_attendees_inner)
-        };
-        let event_reminders = if slots[12].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let event_reminders_inner = decode_array::<CalendarReminderVm>(
-                context,
-                slots[12],
-                "event_reminders_inner",
-                "reminders",
-            )?;
-            Some(event_reminders_inner)
-        };
-        CalendarEventDraftVm {
-            calendar_id: event_calendar_id,
-            title: event_title,
-            notes: event_notes,
-            location: event_location,
-            start_unix_ns: event_start_unix_ns,
-            end_unix_ns: event_end_unix_ns,
-            all_day: event_all_day,
-            time_zone: event_time_zone,
-            availability: event_availability,
-            url: event_url,
-            recurrence_rule: event_recurrence_rule,
-            attendees: event_attendees,
-            reminders: event_reminders,
-        }
-    };
+    let event =
+        <CalendarEventDraftVm as VmAggregateCodec>::decode_with_context(context, event_value)?;
     Ok((id, event))
 }
 
@@ -1478,6 +1044,7 @@ fn encode_destack_os_calendar_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<CalendarDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -1489,120 +1056,10 @@ fn decode_destack_os_contact_create_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ContactDraftVm,)> {
+    let context = &context.read();
     let contact_value = arg_value(args, 0, "contact", "ContactDraft")?;
-    let contact = {
-        if contact_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "contact",
-                "ContactDraft",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(contact_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "contact",
-                "expected 6 fields",
-            ))
-            .boxed());
-        }
-        let contact_name = {
-            if slots[0].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "contact_name",
-                    "name",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[0])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 8 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "contact_name",
-                    "expected 8 fields",
-                ))
-                .boxed());
-            }
-            let contact_name_given_name =
-                decode_string(slots[0], "contact_name_given_name", "givenName")?;
-            let contact_name_middle_name =
-                decode_string(slots[1], "contact_name_middle_name", "middleName")?;
-            let contact_name_family_name =
-                decode_string(slots[2], "contact_name_family_name", "familyName")?;
-            let contact_name_prefix = decode_string(slots[3], "contact_name_prefix", "prefix")?;
-            let contact_name_suffix = decode_string(slots[4], "contact_name_suffix", "suffix")?;
-            let contact_name_nickname =
-                decode_string(slots[5], "contact_name_nickname", "nickname")?;
-            let contact_name_phonetic_given_name = decode_string(
-                slots[6],
-                "contact_name_phonetic_given_name",
-                "phoneticGivenName",
-            )?;
-            let contact_name_phonetic_family_name = decode_string(
-                slots[7],
-                "contact_name_phonetic_family_name",
-                "phoneticFamilyName",
-            )?;
-            ContactNameVm {
-                given_name: contact_name_given_name,
-                middle_name: contact_name_middle_name,
-                family_name: contact_name_family_name,
-                prefix: contact_name_prefix,
-                suffix: contact_name_suffix,
-                nickname: contact_name_nickname,
-                phonetic_given_name: contact_name_phonetic_given_name,
-                phonetic_family_name: contact_name_phonetic_family_name,
-            }
-        };
-        let contact_phones =
-            decode_array::<ContactPhoneVm>(context, slots[1], "contact_phones", "phones")?;
-        let contact_emails =
-            decode_array::<ContactEmailVm>(context, slots[2], "contact_emails", "emails")?;
-        let contact_addresses =
-            decode_array::<ContactAddressVm>(context, slots[3], "contact_addresses", "addresses")?;
-        let contact_organization = {
-            if slots[4].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "contact_organization",
-                    "organization",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[4])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "contact_organization",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let contact_organization_company =
-                decode_string(slots[0], "contact_organization_company", "company")?;
-            let contact_organization_department =
-                decode_string(slots[1], "contact_organization_department", "department")?;
-            let contact_organization_title =
-                decode_string(slots[2], "contact_organization_title", "title")?;
-            ContactOrganizationVm {
-                company: contact_organization_company,
-                department: contact_organization_department,
-                title: contact_organization_title,
-            }
-        };
-        let contact_note = decode_string(slots[5], "contact_note", "note")?;
-        ContactDraftVm {
-            name: contact_name,
-            phones: contact_phones,
-            emails: contact_emails,
-            addresses: contact_addresses,
-            organization: contact_organization,
-            note: contact_note,
-        }
-    };
+    let contact =
+        <ContactDraftVm as VmAggregateCodec>::decode_with_context(context, contact_value)?;
     Ok((contact,))
 }
 
@@ -1620,11 +1077,12 @@ fn encode_destack_os_contact_create_result(
 /// Decode arguments for destack.os.contact.delete.
 #[inline]
 fn decode_destack_os_contact_delete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     Ok((id,))
 }
 
@@ -1643,57 +1101,9 @@ fn decode_destack_os_contact_list_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(ContactQueryVm,)> {
+    let context = &context.read();
     let query_value = arg_value(args, 0, "query", "ContactQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "ContactQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let query_cursor = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_cursor_inner = decode_string(slots[0], "query_cursor_inner", "cursor")?;
-            Some(query_cursor_inner)
-        };
-        let query_limit = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_limit_inner = decode_uint32(slots[1], "query_limit_inner", "limit")?;
-            Some(query_limit_inner)
-        };
-        let query_include_phones = decode_bool(slots[2], "query_include_phones", "includePhones")?;
-        let query_include_emails = decode_bool(slots[3], "query_include_emails", "includeEmails")?;
-        let query_include_addresses =
-            decode_bool(slots[4], "query_include_addresses", "includeAddresses")?;
-        let query_include_organization = decode_bool(
-            slots[5],
-            "query_include_organization",
-            "includeOrganization",
-        )?;
-        let query_include_notes = decode_bool(slots[6], "query_include_notes", "includeNotes")?;
-        ContactQueryVm {
-            cursor: query_cursor,
-            limit: query_limit,
-            include_phones: query_include_phones,
-            include_emails: query_include_emails,
-            include_addresses: query_include_addresses,
-            include_organization: query_include_organization,
-            include_notes: query_include_notes,
-        }
-    };
+    let query = <ContactQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((query,))
 }
 
@@ -1703,14 +1113,25 @@ fn encode_destack_os_contact_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ContactPageVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.contacts.to_value(context);
             let field_1: RuntimeResult<vm::Value> = Ok(value.next_cursor.value());
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_more));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::ContactPage")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1718,11 +1139,12 @@ fn encode_destack_os_contact_list_result(
 /// Decode arguments for destack.os.contact.read.
 #[inline]
 fn decode_destack_os_contact_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     Ok((id,))
 }
 
@@ -1732,6 +1154,7 @@ fn encode_destack_os_contact_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ContactVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
@@ -1744,12 +1167,34 @@ fn encode_destack_os_contact_read_result(
                 let field_5: RuntimeResult<vm::Value> = Ok(value.name.nickname.value());
                 let field_6: RuntimeResult<vm::Value> = Ok(value.name.phonetic_given_name.value());
                 let field_7: RuntimeResult<vm::Value> = Ok(value.name.phonetic_family_name.value());
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                        field_7?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::ContactName")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(3, field_3?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(4, field_4?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(5, field_5?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(6, field_6?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(7, field_7?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_2: RuntimeResult<vm::Value> = value.phones.to_value(context);
             let field_3: RuntimeResult<vm::Value> = value.emails.to_value(context);
@@ -1758,16 +1203,46 @@ fn encode_destack_os_contact_read_result(
                 let field_0: RuntimeResult<vm::Value> = Ok(value.organization.company.value());
                 let field_1: RuntimeResult<vm::Value> = Ok(value.organization.department.value());
                 let field_2: RuntimeResult<vm::Value> = Ok(value.organization.title.value());
-                context
-                    .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::ContactOrganization")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
             let field_6: RuntimeResult<vm::Value> = Ok(value.note.value());
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::Contact")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1778,59 +1253,11 @@ fn decode_destack_os_contact_search_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ContactQueryVm)> {
+    let context = &context.read();
     let querytext_value = arg_value(args, 0, "querytext", "string")?;
-    let querytext = decode_string(querytext_value, "querytext", "string")?;
+    let querytext = decode_string(context, querytext_value, "querytext", "string")?;
     let query_value = arg_value(args, 1, "query", "ContactQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "ContactQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let query_cursor = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_cursor_inner = decode_string(slots[0], "query_cursor_inner", "cursor")?;
-            Some(query_cursor_inner)
-        };
-        let query_limit = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_limit_inner = decode_uint32(slots[1], "query_limit_inner", "limit")?;
-            Some(query_limit_inner)
-        };
-        let query_include_phones = decode_bool(slots[2], "query_include_phones", "includePhones")?;
-        let query_include_emails = decode_bool(slots[3], "query_include_emails", "includeEmails")?;
-        let query_include_addresses =
-            decode_bool(slots[4], "query_include_addresses", "includeAddresses")?;
-        let query_include_organization = decode_bool(
-            slots[5],
-            "query_include_organization",
-            "includeOrganization",
-        )?;
-        let query_include_notes = decode_bool(slots[6], "query_include_notes", "includeNotes")?;
-        ContactQueryVm {
-            cursor: query_cursor,
-            limit: query_limit,
-            include_phones: query_include_phones,
-            include_emails: query_include_emails,
-            include_addresses: query_include_addresses,
-            include_organization: query_include_organization,
-            include_notes: query_include_notes,
-        }
-    };
+    let query = <ContactQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((querytext, query))
 }
 
@@ -1840,14 +1267,25 @@ fn encode_destack_os_contact_search_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ContactPageVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.contacts.to_value(context);
             let field_1: RuntimeResult<vm::Value> = Ok(value.next_cursor.value());
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_more));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::ContactPage")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -1858,122 +1296,12 @@ fn decode_destack_os_contact_update_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, ContactDraftVm)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     let contact_value = arg_value(args, 1, "contact", "ContactDraft")?;
-    let contact = {
-        if contact_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "contact",
-                "ContactDraft",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(contact_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "contact",
-                "expected 6 fields",
-            ))
-            .boxed());
-        }
-        let contact_name = {
-            if slots[0].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "contact_name",
-                    "name",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[0])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 8 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "contact_name",
-                    "expected 8 fields",
-                ))
-                .boxed());
-            }
-            let contact_name_given_name =
-                decode_string(slots[0], "contact_name_given_name", "givenName")?;
-            let contact_name_middle_name =
-                decode_string(slots[1], "contact_name_middle_name", "middleName")?;
-            let contact_name_family_name =
-                decode_string(slots[2], "contact_name_family_name", "familyName")?;
-            let contact_name_prefix = decode_string(slots[3], "contact_name_prefix", "prefix")?;
-            let contact_name_suffix = decode_string(slots[4], "contact_name_suffix", "suffix")?;
-            let contact_name_nickname =
-                decode_string(slots[5], "contact_name_nickname", "nickname")?;
-            let contact_name_phonetic_given_name = decode_string(
-                slots[6],
-                "contact_name_phonetic_given_name",
-                "phoneticGivenName",
-            )?;
-            let contact_name_phonetic_family_name = decode_string(
-                slots[7],
-                "contact_name_phonetic_family_name",
-                "phoneticFamilyName",
-            )?;
-            ContactNameVm {
-                given_name: contact_name_given_name,
-                middle_name: contact_name_middle_name,
-                family_name: contact_name_family_name,
-                prefix: contact_name_prefix,
-                suffix: contact_name_suffix,
-                nickname: contact_name_nickname,
-                phonetic_given_name: contact_name_phonetic_given_name,
-                phonetic_family_name: contact_name_phonetic_family_name,
-            }
-        };
-        let contact_phones =
-            decode_array::<ContactPhoneVm>(context, slots[1], "contact_phones", "phones")?;
-        let contact_emails =
-            decode_array::<ContactEmailVm>(context, slots[2], "contact_emails", "emails")?;
-        let contact_addresses =
-            decode_array::<ContactAddressVm>(context, slots[3], "contact_addresses", "addresses")?;
-        let contact_organization = {
-            if slots[4].tag() != vm::ValueTag::Aggregate {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                    "contact_organization",
-                    "organization",
-                ))
-                .boxed());
-            }
-            let slots = context
-                .aggregate_slots(slots[4])
-                .map_err(|error| RuntimeError::from(error).boxed())?;
-            if slots.len() != 3 {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "contact_organization",
-                    "expected 3 fields",
-                ))
-                .boxed());
-            }
-            let contact_organization_company =
-                decode_string(slots[0], "contact_organization_company", "company")?;
-            let contact_organization_department =
-                decode_string(slots[1], "contact_organization_department", "department")?;
-            let contact_organization_title =
-                decode_string(slots[2], "contact_organization_title", "title")?;
-            ContactOrganizationVm {
-                company: contact_organization_company,
-                department: contact_organization_department,
-                title: contact_organization_title,
-            }
-        };
-        let contact_note = decode_string(slots[5], "contact_note", "note")?;
-        ContactDraftVm {
-            name: contact_name,
-            phones: contact_phones,
-            emails: contact_emails,
-            addresses: contact_addresses,
-            organization: contact_organization,
-            note: contact_note,
-        }
-    };
+    let contact =
+        <ContactDraftVm as VmAggregateCodec>::decode_with_context(context, contact_value)?;
     Ok((id, contact))
 }
 
@@ -1992,49 +1320,12 @@ fn decode_destack_os_credentials_authenticate_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CredentialAuthenticationOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "CredentialAuthenticationOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "CredentialAuthenticationOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let options_title = decode_string(slots[0], "options_title", "title")?;
-        let options_subtitle = decode_string(slots[1], "options_subtitle", "subtitle")?;
-        let options_message = decode_string(slots[2], "options_message", "message")?;
-        let options_requirement_raw =
-            decode_int32(slots[3], "options_requirement_raw", "requirement")?;
-        let options_requirement = match options_requirement_raw {
-            1i32 => CredentialAuthenticationRequirement::BiometricOrDeviceCredential,
-            2i32 => CredentialAuthenticationRequirement::Biometric,
-            3i32 => CredentialAuthenticationRequirement::DeviceCredential,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_requirement",
-                    "unknown CredentialAuthenticationRequirement value",
-                ))
-                .boxed());
-            }
-        };
-        CredentialAuthenticationOptionsVm {
-            title: options_title,
-            subtitle: options_subtitle,
-            message: options_message,
-            requirement: options_requirement,
-        }
-    };
+    let options = <CredentialAuthenticationOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((options,))
 }
 
@@ -2044,14 +1335,22 @@ fn encode_destack_os_credentials_authenticate_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CredentialAuthenticationResultVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.authenticated));
             let field_1: RuntimeResult<vm::Value> =
                 Ok(vm::Value::int(value.mechanism as i32 as i64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::CredentialAuthenticationResult")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2059,18 +1358,20 @@ fn encode_destack_os_credentials_authenticate_result(
 /// Decode arguments for destack.os.credentials.contains.
 #[inline]
 fn decode_destack_os_credentials_contains_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, Option<vm::StringHandle>)> {
+    let context = &context.read();
     let service_value = arg_value(args, 0, "service", "string")?;
-    let service = decode_string(service_value, "service", "string")?;
+    let service = decode_string(context, service_value, "service", "string")?;
     let account_value = arg_value(args, 1, "account", "string")?;
-    let account = decode_string(account_value, "account", "string")?;
+    let account = decode_string(context, account_value, "account", "string")?;
     let accessgroup_value = arg_value(args, 2, "accessgroup", "string")?;
     let accessgroup = if accessgroup_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let accessgroup_inner = decode_string(accessgroup_value, "accessgroup_inner", "string")?;
+        let accessgroup_inner =
+            decode_string(context, accessgroup_value, "accessgroup_inner", "string")?;
         Some(accessgroup_inner)
     };
     Ok((service, account, accessgroup))
@@ -2090,18 +1391,20 @@ fn encode_destack_os_credentials_contains_result(
 /// Decode arguments for destack.os.credentials.delete.
 #[inline]
 fn decode_destack_os_credentials_delete_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, Option<vm::StringHandle>)> {
+    let context = &context.read();
     let service_value = arg_value(args, 0, "service", "string")?;
-    let service = decode_string(service_value, "service", "string")?;
+    let service = decode_string(context, service_value, "service", "string")?;
     let account_value = arg_value(args, 1, "account", "string")?;
-    let account = decode_string(account_value, "account", "string")?;
+    let account = decode_string(context, account_value, "account", "string")?;
     let accessgroup_value = arg_value(args, 2, "accessgroup", "string")?;
     let accessgroup = if accessgroup_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let accessgroup_inner = decode_string(accessgroup_value, "accessgroup_inner", "string")?;
+        let accessgroup_inner =
+            decode_string(context, accessgroup_value, "accessgroup_inner", "string")?;
         Some(accessgroup_inner)
     };
     Ok((service, account, accessgroup))
@@ -2122,46 +1425,9 @@ fn decode_destack_os_credentials_read_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CredentialQueryVm,)> {
+    let context = &context.read();
     let query_value = arg_value(args, 0, "query", "CredentialQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "CredentialQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let query_service = decode_string(slots[0], "query_service", "service")?;
-        let query_account = decode_string(slots[1], "query_account", "account")?;
-        let query_access_group = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_access_group_inner =
-                decode_string(slots[2], "query_access_group_inner", "accessGroup")?;
-            Some(query_access_group_inner)
-        };
-        let query_require_authentication = decode_bool(
-            slots[3],
-            "query_require_authentication",
-            "requireAuthentication",
-        )?;
-        CredentialQueryVm {
-            service: query_service,
-            account: query_account,
-            access_group: query_access_group,
-            require_authentication: query_require_authentication,
-        }
-    };
+    let query = <CredentialQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((query,))
 }
 
@@ -2171,6 +1437,7 @@ fn encode_destack_os_credentials_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<CredentialRecordVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.service.value());
@@ -2178,9 +1445,25 @@ fn encode_destack_os_credentials_read_result(
             let field_2: RuntimeResult<vm::Value> = value.bytes.to_value(context);
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.created_unix_ns, 64));
             let field_4: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.modified_unix_ns, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?, field_4?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::CredentialRecord")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2191,76 +1474,12 @@ fn decode_destack_os_credentials_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(CredentialWriteOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "CredentialWriteOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "CredentialWriteOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 7 fields",
-            ))
-            .boxed());
-        }
-        let options_service = decode_string(slots[0], "options_service", "service")?;
-        let options_account = decode_string(slots[1], "options_account", "account")?;
-        let options_access_group = if slots[2].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let options_access_group_inner =
-                decode_string(slots[2], "options_access_group_inner", "accessGroup")?;
-            Some(options_access_group_inner)
-        };
-        let options_bytes = decode_slice::<u8>(context, slots[3], "options_bytes", "bytes")?;
-        let options_accessibility_raw =
-            decode_int32(slots[4], "options_accessibility_raw", "accessibility")?;
-        let options_accessibility = match options_accessibility_raw {
-            1i32 => CredentialAccessibility::WhenUnlocked,
-            2i32 => CredentialAccessibility::AfterFirstUnlock,
-            3i32 => CredentialAccessibility::HostDefault,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_accessibility",
-                    "unknown CredentialAccessibility value",
-                ))
-                .boxed());
-            }
-        };
-        let options_authentication_raw =
-            decode_int32(slots[5], "options_authentication_raw", "authentication")?;
-        let options_authentication = match options_authentication_raw {
-            1i32 => CredentialAuthenticationPolicy::None,
-            2i32 => CredentialAuthenticationPolicy::UserPresence,
-            3i32 => CredentialAuthenticationPolicy::Biometric,
-            4i32 => CredentialAuthenticationPolicy::DeviceCredential,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_authentication",
-                    "unknown CredentialAuthenticationPolicy value",
-                ))
-                .boxed());
-            }
-        };
-        let options_replace_existing =
-            decode_bool(slots[6], "options_replace_existing", "replaceExisting")?;
-        CredentialWriteOptionsVm {
-            service: options_service,
-            account: options_account,
-            access_group: options_access_group,
-            bytes: options_bytes,
-            accessibility: options_accessibility,
-            authentication: options_authentication,
-            replace_existing: options_replace_existing,
-        }
-    };
+    let options = <CredentialWriteOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((options,))
 }
 
@@ -2320,11 +1539,12 @@ fn encode_destack_os_document_flush_result(
 /// Decode arguments for destack.os.document.open.
 #[inline]
 fn decode_destack_os_document_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, DocumentAccess)> {
+    let context = &context.read();
     let uri_value = arg_value(args, 0, "uri", "string")?;
-    let uri = decode_string(uri_value, "uri", "string")?;
+    let uri = decode_string(context, uri_value, "uri", "string")?;
     let access_value = arg_value(args, 1, "access", "DocumentAccess")?;
     let access_raw = decode_int32(access_value, "access_raw", "DocumentAccess")?;
     let access = match access_raw {
@@ -2382,46 +1602,10 @@ fn decode_destack_os_document_pick_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(DocumentPickOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "DocumentPickOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "DocumentPickOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 5 fields",
-            ))
-            .boxed());
-        }
-        let options_mime_types =
-            decode_array::<vm::StringHandle>(context, slots[0], "options_mime_types", "mimeTypes")?;
-        let options_extensions = decode_array::<vm::StringHandle>(
-            context,
-            slots[1],
-            "options_extensions",
-            "extensions",
-        )?;
-        let options_multiple = decode_bool(slots[2], "options_multiple", "multiple")?;
-        let options_allow_directories =
-            decode_bool(slots[3], "options_allow_directories", "allowDirectories")?;
-        let options_copy_to_sandbox =
-            decode_bool(slots[4], "options_copy_to_sandbox", "copyToSandbox")?;
-        DocumentPickOptionsVm {
-            mime_types: options_mime_types,
-            extensions: options_extensions,
-            multiple: options_multiple,
-            allow_directories: options_allow_directories,
-            copy_to_sandbox: options_copy_to_sandbox,
-        }
-    };
+    let options =
+        <DocumentPickOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((options,))
 }
 
@@ -2458,6 +1642,7 @@ fn encode_destack_os_document_pick_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2483,6 +1668,7 @@ fn encode_destack_os_document_pick_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<DocumentDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2511,6 +1697,7 @@ fn encode_destack_os_document_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2537,6 +1724,7 @@ fn encode_destack_os_document_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmSlice<u8>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -2548,6 +1736,7 @@ fn decode_destack_os_document_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::DocumentHandle, VmSlice<u8>, u64)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "DocumentHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "DocumentHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -2581,15 +1770,29 @@ fn encode_destack_os_host_identity_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<HostIdentityVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.hostname.value());
             let field_1: RuntimeResult<vm::Value> = Ok(value.kernel.value());
             let field_2: RuntimeResult<vm::Value> = Ok(value.release.value());
             let field_3: RuntimeResult<vm::Value> = Ok(value.architecture.value());
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::HostIdentity")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2611,14 +1814,25 @@ fn encode_destack_os_info_load_average_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LoadAverageVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.one));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.five));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.fifteen));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::LoadAverage")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2629,15 +1843,29 @@ fn encode_destack_os_info_system_snapshot_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SystemSnapshotVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.cpu_count as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.memory_total, 64));
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.memory_available, 64));
             let field_3: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.page_size, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::SystemSnapshot")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2656,11 +1884,12 @@ fn encode_destack_os_info_uptime_ns_result(
 /// Decode arguments for destack.os.intent.canOpenUrl.
 #[inline]
 fn decode_destack_os_intent_can_open_url_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let url_value = arg_value(args, 0, "url", "string")?;
-    let url = decode_string(url_value, "url", "string")?;
+    let url = decode_string(context, url_value, "url", "string")?;
     Ok((url,))
 }
 
@@ -2703,42 +1932,10 @@ fn decode_destack_os_intent_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(IntentOpenOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "IntentOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "IntentOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let options_include_open_url =
-            decode_bool(slots[0], "options_include_open_url", "includeOpenUrl")?;
-        let options_include_open_file =
-            decode_bool(slots[1], "options_include_open_file", "includeOpenFile")?;
-        let options_include_share = decode_bool(slots[2], "options_include_share", "includeShare")?;
-        let options_include_custom_action = decode_bool(
-            slots[3],
-            "options_include_custom_action",
-            "includeCustomAction",
-        )?;
-        IntentOpenOptionsVm {
-            include_open_url: options_include_open_url,
-            include_open_file: options_include_open_file,
-            include_share: options_include_share,
-            include_custom_action: options_include_custom_action,
-        }
-    };
+    let options =
+        <IntentOpenOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((options,))
 }
 
@@ -2759,6 +1956,7 @@ fn decode_destack_os_intent_open_path_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm,)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     Ok((path,))
@@ -2776,11 +1974,12 @@ fn encode_destack_os_intent_open_path_result(
 /// Decode arguments for destack.os.intent.openUrl.
 #[inline]
 fn decode_destack_os_intent_open_url_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let url_value = arg_value(args, 0, "url", "string")?;
-    let url = decode_string(url_value, "url", "string")?;
+    let url = decode_string(context, url_value, "url", "string")?;
     Ok((url,))
 }
 
@@ -2814,6 +2013,7 @@ fn encode_destack_os_intent_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<IntentEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             IntentEventVm::IntentCustomActionEvent(value) => {
@@ -2829,9 +2029,19 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.action.value());
@@ -2849,19 +2059,50 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentCustomActionPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentCustomActionEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentOpenFileEvent(value) => {
                 let tag_value = vm::Value::uint(1555330426u64, 32);
@@ -2876,9 +2117,19 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = match value.payload.path {
@@ -2888,13 +2139,27 @@ fn encode_destack_os_intent_read_result(
                                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, field_0?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, field_1?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
+                                let mut value_builder = context
+                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(0, tag_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(1, payload_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                             fs::OsPathVm::OsPathUtf16(value) => {
                                 let tag_value = vm::Value::uint(2271740357u64, 32);
@@ -2902,30 +2167,68 @@ fn encode_destack_os_intent_read_result(
                                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, field_0?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, field_1?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
+                                let mut value_builder = context
+                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(0, tag_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(1, payload_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                         };
                         let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentOpenFilePayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentOpenFileEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentOpenUrlEvent(value) => {
                 let tag_value = vm::Value::uint(3539197638u64, 32);
@@ -2940,23 +2243,54 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.url.value());
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentOpenUrlPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentOpenUrlEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentShareFilesEvent(value) => {
                 let tag_value = vm::Value::uint(2751280649u64, 32);
@@ -2971,9 +2305,19 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
@@ -2982,17 +2326,41 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentShareFilesPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentShareFilesEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentShareTextEvent(value) => {
                 let tag_value = vm::Value::uint(2932248757u64, 32);
@@ -3007,9 +2375,19 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
@@ -3017,17 +2395,41 @@ fn encode_destack_os_intent_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentShareTextPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentShareTextEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -3039,13 +2441,15 @@ fn decode_destack_os_intent_share_paths_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<fs::OsPathVm>, Option<vm::StringHandle>)> {
+    let context = &context.read();
     let paths_value = arg_value(args, 0, "paths", "OsPath[]")?;
     let paths = decode_array::<fs::OsPathVm>(context, paths_value, "paths", "OsPath[]")?;
     let mimetype_value = arg_value(args, 1, "mimetype", "string | void")?;
     let mimetype = if mimetype_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let mimetype_inner = decode_string(mimetype_value, "mimetype_inner", "string | void")?;
+        let mimetype_inner =
+            decode_string(context, mimetype_value, "mimetype_inner", "string | void")?;
         Some(mimetype_inner)
     };
     Ok((paths, mimetype))
@@ -3063,16 +2467,18 @@ fn encode_destack_os_intent_share_paths_result(
 /// Decode arguments for destack.os.intent.shareText.
 #[inline]
 fn decode_destack_os_intent_share_text_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, Option<vm::StringHandle>)> {
+    let context = &context.read();
     let text_value = arg_value(args, 0, "text", "string")?;
-    let text = decode_string(text_value, "text", "string")?;
+    let text = decode_string(context, text_value, "text", "string")?;
     let mimetype_value = arg_value(args, 1, "mimetype", "string | void")?;
     let mimetype = if mimetype_value.tag() == vm::ValueTag::Void {
         None
     } else {
-        let mimetype_inner = decode_string(mimetype_value, "mimetype_inner", "string | void")?;
+        let mimetype_inner =
+            decode_string(context, mimetype_value, "mimetype_inner", "string | void")?;
         Some(mimetype_inner)
     };
     Ok((text, mimetype))
@@ -3106,6 +2512,7 @@ fn encode_destack_os_intent_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<IntentEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             IntentEventVm::IntentCustomActionEvent(value) => {
@@ -3121,9 +2528,19 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.action.value());
@@ -3141,19 +2558,50 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![
-                                field_0?, field_1?, field_2?, field_3?, field_4?,
-                            ])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentCustomActionPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(4, field_4?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentCustomActionEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentOpenFileEvent(value) => {
                 let tag_value = vm::Value::uint(1555330426u64, 32);
@@ -3168,9 +2616,19 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = match value.payload.path {
@@ -3180,13 +2638,27 @@ fn encode_destack_os_intent_try_read_result(
                                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.bytes.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder("fs::OsPathBytes")
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, field_0?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, field_1?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
+                                let mut value_builder = context
+                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(0, tag_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(1, payload_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                             fs::OsPathVm::OsPathUtf16(value) => {
                                 let tag_value = vm::Value::uint(2271740357u64, 32);
@@ -3194,30 +2666,68 @@ fn encode_destack_os_intent_try_read_result(
                                     let field_0: RuntimeResult<vm::Value> = Ok(value.kind.value());
                                     let field_1: RuntimeResult<vm::Value> =
                                         value.utf16.0.to_value(context);
-                                    context
-                                        .allocate_aggregate(vec![field_0?, field_1?])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder("fs::OsPathUtf16")
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, field_0?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, field_1?)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }?;
-                                context
-                                    .allocate_aggregate(vec![tag_value, payload_value])
-                                    .map_err(Box::<RuntimeError>::from)
+                                let mut value_builder = context
+                                    .begin_named_storage_value_builder("fs::OsPath")
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(0, tag_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder
+                                    .write_component(1, payload_value)
+                                    .map_err(Box::<RuntimeError>::from)?;
+                                value_builder.finish().map_err(Box::<RuntimeError>::from)
                             }
                         };
                         let field_1: RuntimeResult<vm::Value> = match value.payload.mime_type {
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentOpenFilePayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentOpenFileEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentOpenUrlEvent(value) => {
                 let tag_value = vm::Value::uint(3539197638u64, 32);
@@ -3232,23 +2742,54 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.url.value());
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentOpenUrlPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentOpenUrlEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentShareFilesEvent(value) => {
                 let tag_value = vm::Value::uint(2751280649u64, 32);
@@ -3263,9 +2804,19 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
@@ -3274,17 +2825,41 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentShareFilesPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentShareFilesEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             IntentEventVm::IntentShareTextEvent(value) => {
                 let tag_value = vm::Value::uint(2932248757u64, 32);
@@ -3299,9 +2874,19 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = Ok(value.payload.text.value());
@@ -3309,17 +2894,41 @@ fn encode_destack_os_intent_try_read_result(
                             Some(value) => Ok(value.value()),
                             None => Ok(vm::Value::VOID),
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::IntentShareTextPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::IntentShareTextEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::IntentEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -3381,6 +2990,7 @@ fn encode_destack_os_lifecycle_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LifecycleEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             LifecycleEventVm::LifecycleBackgroundEvent(value) => {
@@ -3392,17 +3002,38 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleBackgroundEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleForegroundEvent(value) => {
                 let tag_value = vm::Value::uint(3282312588u64, 32);
@@ -3413,17 +3044,38 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleForegroundEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleLaunchEvent(value) => {
                 let tag_value = vm::Value::uint(3187108861u64, 32);
@@ -3434,17 +3086,38 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleLaunchEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleLowMemoryEvent(value) => {
                 let tag_value = vm::Value::uint(2573044905u64, 32);
@@ -3455,24 +3128,52 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.payload.severity as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleLowMemoryPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleLowMemoryEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleLowPowerModeChangedEvent(value) => {
                 let tag_value = vm::Value::uint(2275129359u64, 32);
@@ -3483,24 +3184,52 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.enabled));
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleLowPowerPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleLowPowerModeChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecyclePauseEvent(value) => {
                 let tag_value = vm::Value::uint(1318852949u64, 32);
@@ -3511,17 +3240,38 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecyclePauseEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleResumeEvent(value) => {
                 let tag_value = vm::Value::uint(314295220u64, 32);
@@ -3532,17 +3282,38 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleResumeEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleTerminateEvent(value) => {
                 let tag_value = vm::Value::uint(1662979592u64, 32);
@@ -3553,17 +3324,38 @@ fn encode_destack_os_lifecycle_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleTerminateEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -3600,6 +3392,7 @@ fn encode_destack_os_lifecycle_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LifecycleEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             LifecycleEventVm::LifecycleBackgroundEvent(value) => {
@@ -3611,17 +3404,38 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleBackgroundEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleForegroundEvent(value) => {
                 let tag_value = vm::Value::uint(3282312588u64, 32);
@@ -3632,17 +3446,38 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleForegroundEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleLaunchEvent(value) => {
                 let tag_value = vm::Value::uint(3187108861u64, 32);
@@ -3653,17 +3488,38 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleLaunchEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleLowMemoryEvent(value) => {
                 let tag_value = vm::Value::uint(2573044905u64, 32);
@@ -3674,24 +3530,52 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.payload.severity as u64, 32));
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleLowMemoryPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleLowMemoryEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleLowPowerModeChangedEvent(value) => {
                 let tag_value = vm::Value::uint(2275129359u64, 32);
@@ -3702,24 +3586,52 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> =
                             Ok(vm::Value::bool(value.payload.enabled));
-                        context
-                            .allocate_aggregate(vec![field_0?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleLowPowerPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleLowPowerModeChangedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecyclePauseEvent(value) => {
                 let tag_value = vm::Value::uint(1318852949u64, 32);
@@ -3730,17 +3642,38 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecyclePauseEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleResumeEvent(value) => {
                 let tag_value = vm::Value::uint(314295220u64, 32);
@@ -3751,17 +3684,38 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleResumeEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             LifecycleEventVm::LifecycleTerminateEvent(value) => {
                 let tag_value = vm::Value::uint(1662979592u64, 32);
@@ -3772,17 +3726,38 @@ fn encode_destack_os_lifecycle_try_read_result(
                             Ok(vm::Value::uint(value.metadata.timestamp_ns, 64));
                         let field_1: RuntimeResult<vm::Value> =
                             Ok(vm::Value::uint(value.metadata.sequence, 64));
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::LifecycleEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::LifecycleTerminateEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::LifecycleEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -3794,6 +3769,7 @@ fn encode_destack_os_location_last_known_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
@@ -3808,11 +3784,34 @@ fn encode_destack_os_location_last_known_result(
             let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
             let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::LocationSample")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -3857,56 +3856,10 @@ fn decode_destack_os_location_watch_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(LocationWatchOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "LocationWatchOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "LocationWatchOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let options_accuracy_raw = decode_int32(slots[0], "options_accuracy_raw", "accuracy")?;
-        let options_accuracy = match options_accuracy_raw {
-            1i32 => LocationAccuracy::Passive,
-            2i32 => LocationAccuracy::Low,
-            3i32 => LocationAccuracy::Balanced,
-            4i32 => LocationAccuracy::High,
-            5i32 => LocationAccuracy::Best,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "options_accuracy",
-                    "unknown LocationAccuracy value",
-                ))
-                .boxed());
-            }
-        };
-        let options_minimum_interval_ns =
-            decode_uint64(slots[1], "options_minimum_interval_ns", "minimumIntervalNs")?;
-        let options_minimum_distance_meters = decode_float64(
-            slots[2],
-            "options_minimum_distance_meters",
-            "minimumDistanceMeters",
-        )?;
-        let options_include_heading =
-            decode_bool(slots[3], "options_include_heading", "includeHeading")?;
-        LocationWatchOptionsVm {
-            accuracy: options_accuracy,
-            minimum_interval_ns: options_minimum_interval_ns,
-            minimum_distance_meters: options_minimum_distance_meters,
-            include_heading: options_include_heading,
-        }
-    };
+    let options =
+        <LocationWatchOptionsVm as VmAggregateCodec>::decode_with_context(context, options_value)?;
     Ok((options,))
 }
 
@@ -3943,6 +3896,7 @@ fn encode_destack_os_location_watch_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
@@ -3957,11 +3911,34 @@ fn encode_destack_os_location_watch_read_result(
             let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
             let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::LocationSample")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -3986,6 +3963,7 @@ fn encode_destack_os_location_watch_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<LocationSampleVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.latitude_degrees));
@@ -4000,11 +3978,34 @@ fn encode_destack_os_location_watch_try_read_result(
             let field_6: RuntimeResult<vm::Value> = Ok(vm::Value::float64(value.heading_degrees));
             let field_7: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.timestamp_unix_ns, 64));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::LocationSample")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -4015,6 +4016,7 @@ fn decode_destack_os_media_delete_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<vm::StringHandle>,)> {
+    let context = &context.read();
     let ids_value = arg_value(args, 0, "ids", "string[]")?;
     let ids = decode_array::<vm::StringHandle>(context, ids_value, "ids", "string[]")?;
     Ok((ids,))
@@ -4037,6 +4039,7 @@ fn decode_destack_os_media_import_path_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(fs::OsPathVm, MediaAssetKind)> {
+    let context = &context.read();
     let path_value = arg_value(args, 0, "path", "OsPath")?;
     let path = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, path_value)?;
     let kind_value = arg_value(args, 1, "kind", "MediaAssetKind")?;
@@ -4074,47 +4077,9 @@ fn decode_destack_os_media_list_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(MediaQueryVm,)> {
+    let context = &context.read();
     let query_value = arg_value(args, 0, "query", "MediaQuery")?;
-    let query = {
-        if query_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "query",
-                "MediaQuery",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(query_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "query",
-                "expected 4 fields",
-            ))
-            .boxed());
-        }
-        let query_cursor = if slots[0].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_cursor_inner = decode_string(slots[0], "query_cursor_inner", "cursor")?;
-            Some(query_cursor_inner)
-        };
-        let query_limit = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let query_limit_inner = decode_uint32(slots[1], "query_limit_inner", "limit")?;
-            Some(query_limit_inner)
-        };
-        let query_kinds =
-            decode_array::<MediaAssetKind>(context, slots[2], "query_kinds", "kinds")?;
-        let query_include_hidden = decode_bool(slots[3], "query_include_hidden", "includeHidden")?;
-        MediaQueryVm {
-            cursor: query_cursor,
-            limit: query_limit,
-            kinds: query_kinds,
-            include_hidden: query_include_hidden,
-        }
-    };
+    let query = <MediaQueryVm as VmAggregateCodec>::decode_with_context(context, query_value)?;
     Ok((query,))
 }
 
@@ -4124,14 +4089,25 @@ fn encode_destack_os_media_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MediaPageVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = value.assets.to_value(context);
             let field_1: RuntimeResult<vm::Value> = Ok(value.next_cursor.value());
             let field_2: RuntimeResult<vm::Value> = Ok(vm::Value::bool(value.has_more));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::MediaPage")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -4139,11 +4115,12 @@ fn encode_destack_os_media_list_result(
 /// Decode arguments for destack.os.media.read.
 #[inline]
 fn decode_destack_os_media_read_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     Ok((id,))
 }
 
@@ -4153,6 +4130,7 @@ fn encode_destack_os_media_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MediaAssetDescriptorVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(value.id.value());
@@ -4168,12 +4146,43 @@ fn encode_destack_os_media_read_result(
             let field_9: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.created_unix_ns, 64));
             let field_10: RuntimeResult<vm::Value> =
                 Ok(vm::Value::uint(value.modified_unix_ns, 64));
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?, field_9?, field_10?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::MediaAssetDescriptor")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(9, field_9?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(10, field_10?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -4184,6 +4193,7 @@ fn encode_destack_os_mount_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<MountEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -4195,6 +4205,7 @@ fn encode_destack_os_network_state_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NetworkStateVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> =
@@ -4225,12 +4236,37 @@ fn encode_destack_os_network_state_result(
                 Some(value) => Ok(vm::Value::float64(value)),
                 None => Ok(vm::Value::VOID),
             };
-            context
-                .allocate_aggregate(vec![
-                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?, field_7?,
-                    field_8?,
-                ])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::NetworkState")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(3, field_3?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(4, field_4?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(5, field_5?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(6, field_6?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(7, field_7?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(8, field_8?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -4291,6 +4327,7 @@ fn encode_destack_os_network_watch_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NetworkEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
@@ -4327,16 +4364,51 @@ fn encode_destack_os_network_watch_read_result(
                     Some(value) => Ok(vm::Value::float64(value)),
                     None => Ok(vm::Value::VOID),
                 };
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                        field_7?, field_8?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NetworkState")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(3, field_3?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(4, field_4?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(5, field_5?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(6, field_6?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(7, field_7?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(8, field_8?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::NetworkEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -4361,6 +4433,7 @@ fn encode_destack_os_network_watch_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NetworkEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.timestamp_ns, 64));
@@ -4397,16 +4470,51 @@ fn encode_destack_os_network_watch_try_read_result(
                     Some(value) => Ok(vm::Value::float64(value)),
                     None => Ok(vm::Value::VOID),
                 };
-                context
-                    .allocate_aggregate(vec![
-                        field_0?, field_1?, field_2?, field_3?, field_4?, field_5?, field_6?,
-                        field_7?, field_8?,
-                    ])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NetworkState")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, field_0?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, field_1?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(2, field_2?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(3, field_3?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(4, field_4?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(5, field_5?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(6, field_6?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(7, field_7?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(8, field_8?)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("os::NetworkEvent")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -4414,11 +4522,12 @@ fn encode_destack_os_network_watch_try_read_result(
 /// Decode arguments for destack.os.notification.cancel.
 #[inline]
 fn decode_destack_os_notification_cancel_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     Ok((id,))
 }
 
@@ -4446,6 +4555,7 @@ fn encode_destack_os_notification_category_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NotificationCategoryVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -4457,6 +4567,7 @@ fn decode_destack_os_notification_category_set_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<NotificationCategoryVm>,)> {
+    let context = &context.read();
     let categories_value = arg_value(args, 0, "categories", "NotificationCategory[]")?;
     let categories = decode_array::<NotificationCategoryVm>(
         context,
@@ -4508,37 +4619,12 @@ fn decode_destack_os_notification_event_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(NotificationEventOpenOptionsVm,)> {
+    let context = &context.read();
     let options_value = arg_value(args, 0, "options", "NotificationEventOpenOptions")?;
-    let options = {
-        if options_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "options",
-                "NotificationEventOpenOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(options_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "options",
-                "expected 3 fields",
-            ))
-            .boxed());
-        }
-        let options_include_delivered =
-            decode_bool(slots[0], "options_include_delivered", "includeDelivered")?;
-        let options_include_interacted =
-            decode_bool(slots[1], "options_include_interacted", "includeInteracted")?;
-        let options_include_dismissed =
-            decode_bool(slots[2], "options_include_dismissed", "includeDismissed")?;
-        NotificationEventOpenOptionsVm {
-            include_delivered: options_include_delivered,
-            include_interacted: options_include_interacted,
-            include_dismissed: options_include_dismissed,
-        }
-    };
+    let options = <NotificationEventOpenOptionsVm as VmAggregateCodec>::decode_with_context(
+        context,
+        options_value,
+    )?;
     Ok((options,))
 }
 
@@ -4578,6 +4664,7 @@ fn encode_destack_os_notification_event_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             NotificationEventVm::NotificationDeliveredEvent(value) => {
@@ -4660,33 +4747,92 @@ fn encode_destack_os_notification_event_read_result(
                                                 Ok(value.calendar.time_zone.value());
                                             let field_7: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::bool(value.calendar.repeats));
-                                            context
-                                                .allocate_aggregate(vec![
-                                                    field_0?, field_1?, field_2?, field_3?,
-                                                    field_4?, field_5?, field_6?, field_7?,
-                                                ])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "os::NotificationCalendarTrigger",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(2, field_2?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(3, field_3?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(4, field_4?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(5, field_5?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(6, field_6?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(7, field_7?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         };
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationCalendarDateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                     let tag_value = vm::Value::uint(2453791684u64, 32);
                                     let payload_value = {
                                         let field_0: RuntimeResult<vm::Value> =
                                             Ok(value.kind.value());
-                                        context
-                                            .allocate_aggregate(vec![field_0?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationImmediateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                     let tag_value = vm::Value::uint(2128434246u64, 32);
@@ -4695,13 +4841,31 @@ fn encode_destack_os_notification_event_read_result(
                                             Ok(value.kind.value());
                                         let field_1: RuntimeResult<vm::Value> =
                                             Ok(vm::Value::uint(value.interval_ns, 64));
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationTimeIntervalTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                             };
                             let field_11: RuntimeResult<vm::Value> =
@@ -4709,24 +4873,85 @@ fn encode_destack_os_notification_event_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("os::NotificationRequest")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(5, field_5?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(6, field_6?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(7, field_7?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(8, field_8?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(9, field_9?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(10, field_10?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(11, field_11?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::NotificationDeliveredEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             NotificationEventVm::NotificationDismissedEvent(value) => {
                 let tag_value = vm::Value::uint(667362994u64, 32);
@@ -4808,33 +5033,92 @@ fn encode_destack_os_notification_event_read_result(
                                                 Ok(value.calendar.time_zone.value());
                                             let field_7: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::bool(value.calendar.repeats));
-                                            context
-                                                .allocate_aggregate(vec![
-                                                    field_0?, field_1?, field_2?, field_3?,
-                                                    field_4?, field_5?, field_6?, field_7?,
-                                                ])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "os::NotificationCalendarTrigger",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(2, field_2?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(3, field_3?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(4, field_4?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(5, field_5?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(6, field_6?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(7, field_7?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         };
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationCalendarDateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                     let tag_value = vm::Value::uint(2453791684u64, 32);
                                     let payload_value = {
                                         let field_0: RuntimeResult<vm::Value> =
                                             Ok(value.kind.value());
-                                        context
-                                            .allocate_aggregate(vec![field_0?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationImmediateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                     let tag_value = vm::Value::uint(2128434246u64, 32);
@@ -4843,13 +5127,31 @@ fn encode_destack_os_notification_event_read_result(
                                             Ok(value.kind.value());
                                         let field_1: RuntimeResult<vm::Value> =
                                             Ok(vm::Value::uint(value.interval_ns, 64));
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationTimeIntervalTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                             };
                             let field_11: RuntimeResult<vm::Value> =
@@ -4857,24 +5159,85 @@ fn encode_destack_os_notification_event_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("os::NotificationRequest")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(5, field_5?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(6, field_6?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(7, field_7?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(8, field_8?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(9, field_9?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(10, field_10?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(11, field_11?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::NotificationDismissedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             NotificationEventVm::NotificationInteractedEvent(value) => {
                 let tag_value = vm::Value::uint(3098836618u64, 32);
@@ -4956,33 +5319,92 @@ fn encode_destack_os_notification_event_read_result(
                                                 Ok(value.calendar.time_zone.value());
                                             let field_7: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::bool(value.calendar.repeats));
-                                            context
-                                                .allocate_aggregate(vec![
-                                                    field_0?, field_1?, field_2?, field_3?,
-                                                    field_4?, field_5?, field_6?, field_7?,
-                                                ])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "os::NotificationCalendarTrigger",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(2, field_2?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(3, field_3?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(4, field_4?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(5, field_5?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(6, field_6?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(7, field_7?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         };
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationCalendarDateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                     let tag_value = vm::Value::uint(2453791684u64, 32);
                                     let payload_value = {
                                         let field_0: RuntimeResult<vm::Value> =
                                             Ok(value.kind.value());
-                                        context
-                                            .allocate_aggregate(vec![field_0?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationImmediateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                     let tag_value = vm::Value::uint(2128434246u64, 32);
@@ -4991,13 +5413,31 @@ fn encode_destack_os_notification_event_read_result(
                                             Ok(value.kind.value());
                                         let field_1: RuntimeResult<vm::Value> =
                                             Ok(vm::Value::uint(value.interval_ns, 64));
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationTimeIntervalTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                             };
                             let field_11: RuntimeResult<vm::Value> =
@@ -5005,16 +5445,63 @@ fn encode_destack_os_notification_event_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("os::NotificationRequest")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(5, field_5?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(6, field_6?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(7, field_7?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(8, field_8?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(9, field_9?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(10, field_10?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(11, field_11?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = match value.payload.action_id {
@@ -5026,17 +5513,41 @@ fn encode_destack_os_notification_event_read_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationInteractedPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::NotificationInteractedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -5065,6 +5576,7 @@ fn encode_destack_os_notification_event_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<NotificationEventVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| match value {
             NotificationEventVm::NotificationDeliveredEvent(value) => {
@@ -5147,33 +5659,92 @@ fn encode_destack_os_notification_event_try_read_result(
                                                 Ok(value.calendar.time_zone.value());
                                             let field_7: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::bool(value.calendar.repeats));
-                                            context
-                                                .allocate_aggregate(vec![
-                                                    field_0?, field_1?, field_2?, field_3?,
-                                                    field_4?, field_5?, field_6?, field_7?,
-                                                ])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "os::NotificationCalendarTrigger",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(2, field_2?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(3, field_3?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(4, field_4?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(5, field_5?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(6, field_6?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(7, field_7?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         };
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationCalendarDateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                     let tag_value = vm::Value::uint(2453791684u64, 32);
                                     let payload_value = {
                                         let field_0: RuntimeResult<vm::Value> =
                                             Ok(value.kind.value());
-                                        context
-                                            .allocate_aggregate(vec![field_0?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationImmediateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                     let tag_value = vm::Value::uint(2128434246u64, 32);
@@ -5182,13 +5753,31 @@ fn encode_destack_os_notification_event_try_read_result(
                                             Ok(value.kind.value());
                                         let field_1: RuntimeResult<vm::Value> =
                                             Ok(vm::Value::uint(value.interval_ns, 64));
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationTimeIntervalTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                             };
                             let field_11: RuntimeResult<vm::Value> =
@@ -5196,24 +5785,85 @@ fn encode_destack_os_notification_event_try_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("os::NotificationRequest")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(5, field_5?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(6, field_6?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(7, field_7?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(8, field_8?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(9, field_9?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(10, field_10?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(11, field_11?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::NotificationDeliveredEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             NotificationEventVm::NotificationDismissedEvent(value) => {
                 let tag_value = vm::Value::uint(667362994u64, 32);
@@ -5295,33 +5945,92 @@ fn encode_destack_os_notification_event_try_read_result(
                                                 Ok(value.calendar.time_zone.value());
                                             let field_7: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::bool(value.calendar.repeats));
-                                            context
-                                                .allocate_aggregate(vec![
-                                                    field_0?, field_1?, field_2?, field_3?,
-                                                    field_4?, field_5?, field_6?, field_7?,
-                                                ])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "os::NotificationCalendarTrigger",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(2, field_2?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(3, field_3?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(4, field_4?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(5, field_5?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(6, field_6?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(7, field_7?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         };
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationCalendarDateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                     let tag_value = vm::Value::uint(2453791684u64, 32);
                                     let payload_value = {
                                         let field_0: RuntimeResult<vm::Value> =
                                             Ok(value.kind.value());
-                                        context
-                                            .allocate_aggregate(vec![field_0?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationImmediateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                     let tag_value = vm::Value::uint(2128434246u64, 32);
@@ -5330,13 +6039,31 @@ fn encode_destack_os_notification_event_try_read_result(
                                             Ok(value.kind.value());
                                         let field_1: RuntimeResult<vm::Value> =
                                             Ok(vm::Value::uint(value.interval_ns, 64));
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationTimeIntervalTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                             };
                             let field_11: RuntimeResult<vm::Value> =
@@ -5344,24 +6071,85 @@ fn encode_destack_os_notification_event_try_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("os::NotificationRequest")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(5, field_5?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(6, field_6?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(7, field_7?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(8, field_8?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(9, field_9?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(10, field_10?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(11, field_11?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::NotificationDismissedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             NotificationEventVm::NotificationInteractedEvent(value) => {
                 let tag_value = vm::Value::uint(3098836618u64, 32);
@@ -5443,33 +6231,92 @@ fn encode_destack_os_notification_event_try_read_result(
                                                 Ok(value.calendar.time_zone.value());
                                             let field_7: RuntimeResult<vm::Value> =
                                                 Ok(vm::Value::bool(value.calendar.repeats));
-                                            context
-                                                .allocate_aggregate(vec![
-                                                    field_0?, field_1?, field_2?, field_3?,
-                                                    field_4?, field_5?, field_6?, field_7?,
-                                                ])
+                                            let mut value_builder = context
+                                                .begin_named_storage_value_builder(
+                                                    "os::NotificationCalendarTrigger",
+                                                )
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(0, field_0?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(1, field_1?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(2, field_2?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(3, field_3?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(4, field_4?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(5, field_5?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(6, field_6?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .write_component(7, field_7?)
+                                                .map_err(Box::<RuntimeError>::from)?;
+                                            value_builder
+                                                .finish()
                                                 .map_err(Box::<RuntimeError>::from)
                                         };
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationCalendarDateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationImmediateTrigger(value) => {
                                     let tag_value = vm::Value::uint(2453791684u64, 32);
                                     let payload_value = {
                                         let field_0: RuntimeResult<vm::Value> =
                                             Ok(value.kind.value());
-                                        context
-                                            .allocate_aggregate(vec![field_0?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationImmediateTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                                 NotificationTriggerVm::NotificationTimeIntervalTrigger(value) => {
                                     let tag_value = vm::Value::uint(2128434246u64, 32);
@@ -5478,13 +6325,31 @@ fn encode_destack_os_notification_event_try_read_result(
                                             Ok(value.kind.value());
                                         let field_1: RuntimeResult<vm::Value> =
                                             Ok(vm::Value::uint(value.interval_ns, 64));
-                                        context
-                                            .allocate_aggregate(vec![field_0?, field_1?])
-                                            .map_err(Box::<RuntimeError>::from)
+                                        let mut value_builder = context
+                                            .begin_named_storage_value_builder(
+                                                "os::NotificationTimeIntervalTrigger",
+                                            )
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(0, field_0?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder
+                                            .write_component(1, field_1?)
+                                            .map_err(Box::<RuntimeError>::from)?;
+                                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                                     }?;
-                                    context
-                                        .allocate_aggregate(vec![tag_value, payload_value])
-                                        .map_err(Box::<RuntimeError>::from)
+                                    let mut value_builder = context
+                                        .begin_named_storage_value_builder(
+                                            "os::NotificationTrigger",
+                                        )
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(0, tag_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder
+                                        .write_component(1, payload_value)
+                                        .map_err(Box::<RuntimeError>::from)?;
+                                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                                 }
                             };
                             let field_11: RuntimeResult<vm::Value> =
@@ -5492,16 +6357,63 @@ fn encode_destack_os_notification_event_try_read_result(
                                     Some(value) => Ok(value.value()),
                                     None => Ok(vm::Value::VOID),
                                 };
-                            context
-                                .allocate_aggregate(vec![
-                                    field_0?, field_1?, field_2?, field_3?, field_4?, field_5?,
-                                    field_6?, field_7?, field_8?, field_9?, field_10?, field_11?,
-                                ])
-                                .map_err(Box::<RuntimeError>::from)
+                            let mut value_builder = context
+                                .begin_named_storage_value_builder("os::NotificationRequest")
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(0, field_0?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(1, field_1?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(2, field_2?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(3, field_3?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(4, field_4?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(5, field_5?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(6, field_6?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(7, field_7?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(8, field_8?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(9, field_9?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(10, field_10?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder
+                                .write_component(11, field_11?)
+                                .map_err(Box::<RuntimeError>::from)?;
+                            value_builder.finish().map_err(Box::<RuntimeError>::from)
                         };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?, field_2?, field_3?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationEventMetadata")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(2, field_2?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(3, field_3?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
                     let field_2: RuntimeResult<vm::Value> = {
                         let field_0: RuntimeResult<vm::Value> = match value.payload.action_id {
@@ -5513,17 +6425,41 @@ fn encode_destack_os_notification_event_try_read_result(
                                 Some(value) => Ok(value.value()),
                                 None => Ok(vm::Value::VOID),
                             };
-                        context
-                            .allocate_aggregate(vec![field_0?, field_1?])
-                            .map_err(Box::<RuntimeError>::from)
+                        let mut value_builder = context
+                            .begin_named_storage_value_builder("os::NotificationInteractedPayload")
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(0, field_0?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder
+                            .write_component(1, field_1?)
+                            .map_err(Box::<RuntimeError>::from)?;
+                        value_builder.finish().map_err(Box::<RuntimeError>::from)
                     };
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("os::NotificationInteractedEvent")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }?;
-                context
-                    .allocate_aggregate(vec![tag_value, payload_value])
-                    .map_err(Box::<RuntimeError>::from)
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("os::NotificationEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
         })
         .and_then(|value| value)
@@ -5532,11 +6468,12 @@ fn encode_destack_os_notification_event_try_read_result(
 /// Decode arguments for destack.os.notification.pendingCancel.
 #[inline]
 fn decode_destack_os_notification_pending_cancel_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let id_value = arg_value(args, 0, "id", "string")?;
-    let id = decode_string(id_value, "id", "string")?;
+    let id = decode_string(context, id_value, "id", "string")?;
     Ok((id,))
 }
 
@@ -5564,6 +6501,7 @@ fn encode_destack_os_notification_pending_list_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<NotificationScheduledDescriptorVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -5586,106 +6524,10 @@ fn decode_destack_os_notification_post_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(NotificationRequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "NotificationRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "NotificationRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 12 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 12 fields",
-            ))
-            .boxed());
-        }
-        let request_title = decode_string(slots[0], "request_title", "title")?;
-        let request_subtitle = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_subtitle_inner =
-                decode_string(slots[1], "request_subtitle_inner", "subtitle")?;
-            Some(request_subtitle_inner)
-        };
-        let request_body = decode_string(slots[2], "request_body", "body")?;
-        let request_tag = decode_string(slots[3], "request_tag", "tag")?;
-        let request_channel_id = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_channel_id_inner =
-                decode_string(slots[4], "request_channel_id_inner", "channelId")?;
-            Some(request_channel_id_inner)
-        };
-        let request_priority_raw = decode_int32(slots[5], "request_priority_raw", "priority")?;
-        let request_priority = match request_priority_raw {
-            1i32 => NotificationPriority::Low,
-            2i32 => NotificationPriority::Normal,
-            3i32 => NotificationPriority::High,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_priority",
-                    "unknown NotificationPriority value",
-                ))
-                .boxed());
-            }
-        };
-        let request_badge_count = if slots[6].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_badge_count_inner =
-                decode_uint32(slots[6], "request_badge_count_inner", "badgeCount")?;
-            Some(request_badge_count_inner)
-        };
-        let request_sound = if slots[7].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_sound_inner = decode_string(slots[7], "request_sound_inner", "sound")?;
-            Some(request_sound_inner)
-        };
-        let request_category_id = if slots[8].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_category_id_inner =
-                decode_string(slots[8], "request_category_id_inner", "categoryId")?;
-            Some(request_category_id_inner)
-        };
-        let request_thread_id = if slots[9].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_thread_id_inner =
-                decode_string(slots[9], "request_thread_id_inner", "threadId")?;
-            Some(request_thread_id_inner)
-        };
-        let request_trigger =
-            <NotificationTriggerVm as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let request_action_id = if slots[11].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_action_id_inner =
-                decode_string(slots[11], "request_action_id_inner", "actionId")?;
-            Some(request_action_id_inner)
-        };
-        NotificationRequestVm {
-            title: request_title,
-            subtitle: request_subtitle,
-            body: request_body,
-            tag: request_tag,
-            channel_id: request_channel_id,
-            priority: request_priority,
-            badge_count: request_badge_count,
-            sound: request_sound,
-            category_id: request_category_id,
-            thread_id: request_thread_id,
-            trigger: request_trigger,
-            action_id: request_action_id,
-        }
-    };
+    let request =
+        <NotificationRequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((request,))
 }
 
@@ -5801,106 +6643,10 @@ fn decode_destack_os_notification_schedule_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(NotificationRequestVm,)> {
+    let context = &context.read();
     let request_value = arg_value(args, 0, "request", "NotificationRequest")?;
-    let request = {
-        if request_value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "request",
-                "NotificationRequest",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(request_value)
-            .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 12 {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                "request",
-                "expected 12 fields",
-            ))
-            .boxed());
-        }
-        let request_title = decode_string(slots[0], "request_title", "title")?;
-        let request_subtitle = if slots[1].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_subtitle_inner =
-                decode_string(slots[1], "request_subtitle_inner", "subtitle")?;
-            Some(request_subtitle_inner)
-        };
-        let request_body = decode_string(slots[2], "request_body", "body")?;
-        let request_tag = decode_string(slots[3], "request_tag", "tag")?;
-        let request_channel_id = if slots[4].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_channel_id_inner =
-                decode_string(slots[4], "request_channel_id_inner", "channelId")?;
-            Some(request_channel_id_inner)
-        };
-        let request_priority_raw = decode_int32(slots[5], "request_priority_raw", "priority")?;
-        let request_priority = match request_priority_raw {
-            1i32 => NotificationPriority::Low,
-            2i32 => NotificationPriority::Normal,
-            3i32 => NotificationPriority::High,
-            _ => {
-                return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                    "request_priority",
-                    "unknown NotificationPriority value",
-                ))
-                .boxed());
-            }
-        };
-        let request_badge_count = if slots[6].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_badge_count_inner =
-                decode_uint32(slots[6], "request_badge_count_inner", "badgeCount")?;
-            Some(request_badge_count_inner)
-        };
-        let request_sound = if slots[7].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_sound_inner = decode_string(slots[7], "request_sound_inner", "sound")?;
-            Some(request_sound_inner)
-        };
-        let request_category_id = if slots[8].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_category_id_inner =
-                decode_string(slots[8], "request_category_id_inner", "categoryId")?;
-            Some(request_category_id_inner)
-        };
-        let request_thread_id = if slots[9].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_thread_id_inner =
-                decode_string(slots[9], "request_thread_id_inner", "threadId")?;
-            Some(request_thread_id_inner)
-        };
-        let request_trigger =
-            <NotificationTriggerVm as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let request_action_id = if slots[11].tag() == vm::ValueTag::Void {
-            None
-        } else {
-            let request_action_id_inner =
-                decode_string(slots[11], "request_action_id_inner", "actionId")?;
-            Some(request_action_id_inner)
-        };
-        NotificationRequestVm {
-            title: request_title,
-            subtitle: request_subtitle,
-            body: request_body,
-            tag: request_tag,
-            channel_id: request_channel_id,
-            priority: request_priority,
-            badge_count: request_badge_count,
-            sound: request_sound,
-            category_id: request_category_id,
-            thread_id: request_thread_id,
-            trigger: request_trigger,
-            action_id: request_action_id,
-        }
-    };
+    let request =
+        <NotificationRequestVm as VmAggregateCodec>::decode_with_context(context, request_value)?;
     Ok((request,))
 }
 
@@ -5956,6 +6702,7 @@ fn decode_destack_os_permission_request_many_open_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<Permission>,)> {
+    let context = &context.read();
     let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
     let permissions =
         decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
@@ -6043,6 +6790,7 @@ fn encode_destack_os_permission_request_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -6071,6 +6819,7 @@ fn encode_destack_os_permission_request_try_read_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -6127,6 +6876,7 @@ fn decode_destack_os_permission_state_many_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(VmArray<Permission>,)> {
+    let context = &context.read();
     let permissions_value = arg_value(args, 0, "permissions", "Permission[]")?;
     let permissions =
         decode_array::<Permission>(context, permissions_value, "permissions", "Permission[]")?;
@@ -6139,6 +6889,7 @@ fn encode_destack_os_permission_state_many_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<VmArray<PermissionEntryVm>>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| value.to_value(context))
         .and_then(|value| value)
@@ -9119,11 +9870,11 @@ fn destack_os_background_event_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         BackgroundeventReplayRecord::BackgroundTaskExpiredEvent(value) => {
-                            let value_native_background_task_expired_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_background_task_expired_event_kind = binding.store_string_owned(value.kind);
                             let value_native_background_task_expired_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_expired_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_expired_event_metadata_identifier = binding.store_string(value.metadata.identifier.as_str());
-                            let value_native_background_task_expired_event_metadata_execution_id = binding.store_string(value.metadata.execution_id.as_str());
+                            let value_native_background_task_expired_event_metadata_identifier = binding.store_string_owned(value.metadata.identifier);
+                            let value_native_background_task_expired_event_metadata_execution_id = binding.store_string_owned(value.metadata.execution_id);
                             let value_native_background_task_expired_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_expired_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_expired_event_metadata_timestamp_ns,
@@ -9139,11 +9890,11 @@ fn destack_os_background_event_read_replay(
                             BackgroundEvent::BackgroundTaskExpiredEvent(value_native_background_task_expired_event)
                         }
                         BackgroundeventReplayRecord::BackgroundTaskReadyEvent(value) => {
-                            let value_native_background_task_ready_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_background_task_ready_event_kind = binding.store_string_owned(value.kind);
                             let value_native_background_task_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_ready_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_ready_event_metadata_identifier = binding.store_string(value.metadata.identifier.as_str());
-                            let value_native_background_task_ready_event_metadata_execution_id = binding.store_string(value.metadata.execution_id.as_str());
+                            let value_native_background_task_ready_event_metadata_identifier = binding.store_string_owned(value.metadata.identifier);
+                            let value_native_background_task_ready_event_metadata_execution_id = binding.store_string_owned(value.metadata.execution_id);
                             let value_native_background_task_ready_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_ready_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_ready_event_metadata_timestamp_ns,
@@ -9253,11 +10004,11 @@ fn destack_os_background_event_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         BackgroundeventReplayRecord::BackgroundTaskExpiredEvent(value) => {
-                            let value_native_background_task_expired_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_background_task_expired_event_kind = binding.store_string_owned(value.kind);
                             let value_native_background_task_expired_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_expired_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_expired_event_metadata_identifier = binding.store_string(value.metadata.identifier.as_str());
-                            let value_native_background_task_expired_event_metadata_execution_id = binding.store_string(value.metadata.execution_id.as_str());
+                            let value_native_background_task_expired_event_metadata_identifier = binding.store_string_owned(value.metadata.identifier);
+                            let value_native_background_task_expired_event_metadata_execution_id = binding.store_string_owned(value.metadata.execution_id);
                             let value_native_background_task_expired_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_expired_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_expired_event_metadata_timestamp_ns,
@@ -9273,11 +10024,11 @@ fn destack_os_background_event_try_read_replay(
                             BackgroundEvent::BackgroundTaskExpiredEvent(value_native_background_task_expired_event)
                         }
                         BackgroundeventReplayRecord::BackgroundTaskReadyEvent(value) => {
-                            let value_native_background_task_ready_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_background_task_ready_event_kind = binding.store_string_owned(value.kind);
                             let value_native_background_task_ready_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_background_task_ready_event_metadata_sequence = value.metadata.sequence;
-                            let value_native_background_task_ready_event_metadata_identifier = binding.store_string(value.metadata.identifier.as_str());
-                            let value_native_background_task_ready_event_metadata_execution_id = binding.store_string(value.metadata.execution_id.as_str());
+                            let value_native_background_task_ready_event_metadata_identifier = binding.store_string_owned(value.metadata.identifier);
+                            let value_native_background_task_ready_event_metadata_execution_id = binding.store_string_owned(value.metadata.execution_id);
                             let value_native_background_task_ready_event_metadata_deadline_unix_ns = value.metadata.deadline_unix_ns;
                             let value_native_background_task_ready_event_metadata = BackgroundEventMetadata {
                                 timestamp_ns: value_native_background_task_ready_event_metadata_timestamp_ns,
@@ -9318,8 +10069,9 @@ fn destack_os_background_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<BackgroundTaskDescriptor> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_identifier = unsafe { result_recorded_item.identifier.as_str()? }.to_string();
                     let result_recorded_item_recorded_trigger = result_recorded_item.trigger;
                     let result_recorded_item_recorded_schedule_kind = result_recorded_item.schedule.kind;
@@ -9377,44 +10129,45 @@ fn destack_os_background_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_identifier = binding.store_string(value_native_item.identifier.as_str());
-                        let value_native_decoded_trigger = value_native_item.trigger;
-                        let value_native_decoded_schedule_kind = value_native_item.schedule.kind;
-                        let value_native_decoded_schedule_earliest_begin_unix_ns = if let Some(value) = value_native_item.schedule.earliest_begin_unix_ns {
-                            let value_native_decoded_schedule_earliest_begin_unix_ns_inner = value;
-                            Some(value_native_decoded_schedule_earliest_begin_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_schedule_repeat_interval_ns = if let Some(value) = value_native_item.schedule.repeat_interval_ns {
-                            let value_native_decoded_schedule_repeat_interval_ns_inner = value;
-                            Some(value_native_decoded_schedule_repeat_interval_ns_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_schedule = BackgroundTaskSchedule {
-                            kind: value_native_decoded_schedule_kind,
-                            earliest_begin_unix_ns: value_native_decoded_schedule_earliest_begin_unix_ns,
-                            repeat_interval_ns: value_native_decoded_schedule_repeat_interval_ns,
-                        };
-                        let value_native_decoded_network = value_native_item.network;
-                        let value_native_decoded_requires_charging = value_native_item.requires_charging;
-                        let value_native_decoded_requires_idle = value_native_item.requires_idle;
-                        let value_native_decoded_conflict_policy = value_native_item.conflict_policy;
-                        let value_native_decoded = BackgroundTaskDescriptor {
-                            identifier: value_native_decoded_identifier,
-                            trigger: value_native_decoded_trigger,
-                            schedule: value_native_decoded_schedule,
-                            network: value_native_decoded_network,
-                            requires_charging: value_native_decoded_requires_charging,
-                            requires_idle: value_native_decoded_requires_idle,
-                            conflict_policy: value_native_decoded_conflict_policy,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native = binding.store_array_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded_identifier = binding.store_string_owned(value_native_item.identifier);
+                            let value_native_decoded_trigger = value_native_item.trigger;
+                            let value_native_decoded_schedule_kind = value_native_item.schedule.kind;
+                            let value_native_decoded_schedule_earliest_begin_unix_ns = if let Some(value) = value_native_item.schedule.earliest_begin_unix_ns {
+                                let value_native_decoded_schedule_earliest_begin_unix_ns_inner = value;
+                                Some(value_native_decoded_schedule_earliest_begin_unix_ns_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_schedule_repeat_interval_ns = if let Some(value) = value_native_item.schedule.repeat_interval_ns {
+                                let value_native_decoded_schedule_repeat_interval_ns_inner = value;
+                                Some(value_native_decoded_schedule_repeat_interval_ns_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_schedule = BackgroundTaskSchedule {
+                                kind: value_native_decoded_schedule_kind,
+                                earliest_begin_unix_ns: value_native_decoded_schedule_earliest_begin_unix_ns,
+                                repeat_interval_ns: value_native_decoded_schedule_repeat_interval_ns,
+                            };
+                            let value_native_decoded_network = value_native_item.network;
+                            let value_native_decoded_requires_charging = value_native_item.requires_charging;
+                            let value_native_decoded_requires_idle = value_native_item.requires_idle;
+                            let value_native_decoded_conflict_policy = value_native_item.conflict_policy;
+                            let value_native_decoded = BackgroundTaskDescriptor {
+                                identifier: value_native_decoded_identifier,
+                                trigger: value_native_decoded_trigger,
+                                schedule: value_native_decoded_schedule,
+                                network: value_native_decoded_network,
+                                requires_charging: value_native_decoded_requires_charging,
+                                requires_idle: value_native_decoded_requires_idle,
+                                conflict_policy: value_native_decoded_conflict_policy,
+                            };
+                            value_native_values.push(value_native_decoded);
+                        }
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -9526,11 +10279,10 @@ fn destack_os_host_identity_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native_hostname = binding.store_string(value.hostname.as_str());
-                    let value_native_kernel = binding.store_string(value.kernel.as_str());
-                    let value_native_release = binding.store_string(value.release.as_str());
-                    let value_native_architecture =
-                        binding.store_string(value.architecture.as_str());
+                    let value_native_hostname = binding.store_string_owned(value.hostname);
+                    let value_native_kernel = binding.store_string_owned(value.kernel);
+                    let value_native_release = binding.store_string_owned(value.release);
+                    let value_native_architecture = binding.store_string_owned(value.architecture);
                     let value_native = HostIdentity {
                         hostname: value_native_hostname,
                         kernel: value_native_kernel,
@@ -9973,13 +10725,15 @@ fn destack_os_intent_read_replay(
                         } else {
                             None
                         };
-                        let mut result_recorded_intent_custom_action_event_payload_paths = Vec::new();
-                        for result_recorded_intent_custom_action_event_payload_paths_item in unsafe { value.payload.paths.as_slice()? }.iter().cloned() {
+                        let result_recorded_intent_custom_action_event_payload_paths_slice = unsafe { value.payload.paths.as_slice()? };
+                        let mut result_recorded_intent_custom_action_event_payload_paths = Vec::with_capacity(result_recorded_intent_custom_action_event_payload_paths_slice.len());
+                        for result_recorded_intent_custom_action_event_payload_paths_item in result_recorded_intent_custom_action_event_payload_paths_slice.iter().cloned() {
                             let result_recorded_intent_custom_action_event_payload_paths_item_recorded = match result_recorded_intent_custom_action_event_payload_paths_item {
                                 fs::OsPath::OsPathBytes(value) => {
                                     let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::new();
-                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::with_capacity(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.len());
+                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.iter().cloned() {
                                         let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded = result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item;
                                         result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner.push(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded);
                                     }
@@ -9992,8 +10746,9 @@ fn destack_os_intent_read_replay(
                                 }
                                 fs::OsPath::OsPathUtf16(value) => {
                                     let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::new();
-                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.len());
+                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.iter().cloned() {
                                         let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded = result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item;
                                         result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner.push(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded);
                                     }
@@ -10051,8 +10806,9 @@ fn destack_os_intent_read_replay(
                         let result_recorded_intent_open_file_event_payload_path = match value.payload.path {
                             fs::OsPath::OsPathBytes(value) => {
                                 let result_recorded_intent_open_file_event_payload_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                                let mut result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = Vec::new();
-                                for result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
+                                let result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_slice = unsafe { value.bytes.0.as_slice()? };
+                                let mut result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = Vec::with_capacity(result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_slice.len());
+                                for result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_slice.iter().cloned() {
                                     let result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_recorded = result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
                                     result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner.push(result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_recorded);
                                 }
@@ -10065,8 +10821,9 @@ fn destack_os_intent_read_replay(
                             }
                             fs::OsPath::OsPathUtf16(value) => {
                                 let result_recorded_intent_open_file_event_payload_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                                let mut result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = Vec::new();
-                                for result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
+                                let result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_slice = unsafe { value.utf16.0.as_slice()? };
+                                let mut result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_slice.len());
+                                for result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_slice.iter().cloned() {
                                     let result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
                                     result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner.push(result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_recorded);
                                 }
@@ -10136,13 +10893,15 @@ fn destack_os_intent_read_replay(
                             sequence: result_recorded_intent_share_files_event_metadata_sequence,
                             source: result_recorded_intent_share_files_event_metadata_source,
                         };
-                        let mut result_recorded_intent_share_files_event_payload_paths = Vec::new();
-                        for result_recorded_intent_share_files_event_payload_paths_item in unsafe { value.payload.paths.as_slice()? }.iter().cloned() {
+                        let result_recorded_intent_share_files_event_payload_paths_slice = unsafe { value.payload.paths.as_slice()? };
+                        let mut result_recorded_intent_share_files_event_payload_paths = Vec::with_capacity(result_recorded_intent_share_files_event_payload_paths_slice.len());
+                        for result_recorded_intent_share_files_event_payload_paths_item in result_recorded_intent_share_files_event_payload_paths_slice.iter().cloned() {
                             let result_recorded_intent_share_files_event_payload_paths_item_recorded = match result_recorded_intent_share_files_event_payload_paths_item {
                                 fs::OsPath::OsPathBytes(value) => {
                                     let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::new();
-                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::with_capacity(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.len());
+                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.iter().cloned() {
                                         let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded = result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item;
                                         result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner.push(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded);
                                     }
@@ -10155,8 +10914,9 @@ fn destack_os_intent_read_replay(
                                 }
                                 fs::OsPath::OsPathUtf16(value) => {
                                     let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::new();
-                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.len());
+                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.iter().cloned() {
                                         let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded = result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item;
                                         result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner.push(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded);
                                     }
@@ -10245,11 +11005,11 @@ fn destack_os_intent_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         IntenteventReplayRecord::IntentCustomActionEvent(value) => {
-                            let value_native_intent_custom_action_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_custom_action_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_custom_action_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_metadata_source_inner)
                             } else {
                                 None
@@ -10259,58 +11019,61 @@ fn destack_os_intent_read_replay(
                                 sequence: value_native_intent_custom_action_event_metadata_sequence,
                                 source: value_native_intent_custom_action_event_metadata_source,
                             };
-                            let value_native_intent_custom_action_event_payload_action = binding.store_string(value.payload.action.as_str());
+                            let value_native_intent_custom_action_event_payload_action = binding.store_string_owned(value.payload.action);
                             let value_native_intent_custom_action_event_payload_url = if let Some(value) = value.payload.url {
-                                let value_native_intent_custom_action_event_payload_url_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_payload_url_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_payload_url_inner)
                             } else {
                                 None
                             };
-                            let mut value_native_intent_custom_action_event_payload_paths_values = Vec::new();
-                            for value_native_intent_custom_action_event_payload_paths_item in value.payload.paths.iter().cloned() {
-                                let value_native_intent_custom_action_event_payload_paths_decoded = match value_native_intent_custom_action_event_payload_paths_item {
-                                    fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values = Vec::new();
-                                        for value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
-                                            value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                            let value_native_intent_custom_action_event_payload_paths = binding.store_array_with(value.payload.paths.len(), |value_native_intent_custom_action_event_payload_paths_values| {
+                                for value_native_intent_custom_action_event_payload_paths_item in value.payload.paths {
+                                    let value_native_intent_custom_action_event_payload_paths_decoded = match value_native_intent_custom_action_event_payload_paths_item {
+                                        fs::OspathReplayRecord::OsPathBytes(value) => {
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array_with(value.bytes.len(), |value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values| {
+                                                for value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes {
+                                                    let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
+                                                    value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
+                                                kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind,
+                                                bytes: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes,
+                                            };
+                                            fs::OsPath::OsPathBytes(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes)
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
-                                            kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind,
-                                            bytes: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes,
-                                        };
-                                        fs::OsPath::OsPathBytes(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes)
-                                    }
-                                    fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values = Vec::new();
-                                        for value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
-                                            value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                        fs::OspathReplayRecord::OsPathUtf16(value) => {
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array_with(value.utf16.len(), |value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values| {
+                                                for value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16 {
+                                                    let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
+                                                    value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
+                                                kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind,
+                                                utf16: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16,
+                                            };
+                                            fs::OsPath::OsPathUtf16(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16)
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
-                                            kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind,
-                                            utf16: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16,
-                                        };
-                                        fs::OsPath::OsPathUtf16(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16)
-                                    }
-                                };
-                                value_native_intent_custom_action_event_payload_paths_values.push(value_native_intent_custom_action_event_payload_paths_decoded);
-                            }
-                            let value_native_intent_custom_action_event_payload_paths = binding.store_array(value_native_intent_custom_action_event_payload_paths_values);
+                                    };
+                                    value_native_intent_custom_action_event_payload_paths_values.push(value_native_intent_custom_action_event_payload_paths_decoded);
+                                }
+                                Ok(())
+                            })?;
                             let value_native_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
-                                let value_native_intent_custom_action_event_payload_text_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_payload_text_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_payload_text_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -10330,11 +11093,11 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentCustomActionEvent(value_native_intent_custom_action_event)
                         }
                         IntenteventReplayRecord::IntentOpenFileEvent(value) => {
-                            let value_native_intent_open_file_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_open_file_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_file_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_open_file_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_open_file_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_open_file_event_metadata_source_inner)
                             } else {
                                 None
@@ -10346,13 +11109,14 @@ fn destack_os_intent_read_replay(
                             };
                             let value_native_intent_open_file_event_payload_path = match value.payload.path {
                                 fs::OspathReplayRecord::OsPathBytes(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                    let mut value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values = Vec::new();
-                                    for value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                        let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
-                                        value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded);
-                                    }
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = binding.store_string_owned(value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = binding.store_array_with(value.bytes.len(), |value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values| {
+                                        for value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
+                                            value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded);
+                                        }
+                                        Ok(())
+                                    })?;
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes = fs::OsPathBytes {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_bytes_kind,
@@ -10361,13 +11125,14 @@ fn destack_os_intent_read_replay(
                                     fs::OsPath::OsPathBytes(value_native_intent_open_file_event_payload_path_os_path_bytes)
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                    let mut value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::new();
-                                    for value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                        let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
-                                        value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded);
-                                    }
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = binding.store_string_owned(value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = binding.store_array_with(value.utf16.len(), |value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values| {
+                                        for value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
+                                            value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded);
+                                        }
+                                        Ok(())
+                                    })?;
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16 = fs::OsPathUtf16 {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_utf16_kind,
@@ -10377,7 +11142,7 @@ fn destack_os_intent_read_replay(
                                 }
                             };
                             let value_native_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -10394,11 +11159,11 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentOpenFileEvent(value_native_intent_open_file_event)
                         }
                         IntenteventReplayRecord::IntentOpenUrlEvent(value) => {
-                            let value_native_intent_open_url_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_open_url_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_url_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_open_url_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_open_url_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_open_url_event_metadata_source_inner)
                             } else {
                                 None
@@ -10408,7 +11173,7 @@ fn destack_os_intent_read_replay(
                                 sequence: value_native_intent_open_url_event_metadata_sequence,
                                 source: value_native_intent_open_url_event_metadata_source,
                             };
-                            let value_native_intent_open_url_event_payload_url = binding.store_string(value.payload.url.as_str());
+                            let value_native_intent_open_url_event_payload_url = binding.store_string_owned(value.payload.url);
                             let value_native_intent_open_url_event_payload = IntentOpenUrlPayload {
                                 url: value_native_intent_open_url_event_payload_url,
                             };
@@ -10420,11 +11185,11 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentOpenUrlEvent(value_native_intent_open_url_event)
                         }
                         IntenteventReplayRecord::IntentShareFilesEvent(value) => {
-                            let value_native_intent_share_files_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_share_files_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_files_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_share_files_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_files_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_files_event_metadata_source_inner)
                             } else {
                                 None
@@ -10434,45 +11199,48 @@ fn destack_os_intent_read_replay(
                                 sequence: value_native_intent_share_files_event_metadata_sequence,
                                 source: value_native_intent_share_files_event_metadata_source,
                             };
-                            let mut value_native_intent_share_files_event_payload_paths_values = Vec::new();
-                            for value_native_intent_share_files_event_payload_paths_item in value.payload.paths.iter().cloned() {
-                                let value_native_intent_share_files_event_payload_paths_decoded = match value_native_intent_share_files_event_payload_paths_item {
-                                    fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values = Vec::new();
-                                        for value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
-                                            value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                            let value_native_intent_share_files_event_payload_paths = binding.store_array_with(value.payload.paths.len(), |value_native_intent_share_files_event_payload_paths_values| {
+                                for value_native_intent_share_files_event_payload_paths_item in value.payload.paths {
+                                    let value_native_intent_share_files_event_payload_paths_decoded = match value_native_intent_share_files_event_payload_paths_item {
+                                        fs::OspathReplayRecord::OsPathBytes(value) => {
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array_with(value.bytes.len(), |value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values| {
+                                                for value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes {
+                                                    let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
+                                                    value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
+                                                kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind,
+                                                bytes: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes,
+                                            };
+                                            fs::OsPath::OsPathBytes(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes)
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
-                                            kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind,
-                                            bytes: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes,
-                                        };
-                                        fs::OsPath::OsPathBytes(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes)
-                                    }
-                                    fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values = Vec::new();
-                                        for value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
-                                            value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                        fs::OspathReplayRecord::OsPathUtf16(value) => {
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array_with(value.utf16.len(), |value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values| {
+                                                for value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16 {
+                                                    let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
+                                                    value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
+                                                kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind,
+                                                utf16: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16,
+                                            };
+                                            fs::OsPath::OsPathUtf16(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16)
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
-                                            kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind,
-                                            utf16: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16,
-                                        };
-                                        fs::OsPath::OsPathUtf16(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16)
-                                    }
-                                };
-                                value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_decoded);
-                            }
-                            let value_native_intent_share_files_event_payload_paths = binding.store_array(value_native_intent_share_files_event_payload_paths_values);
+                                    };
+                                    value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_decoded);
+                                }
+                                Ok(())
+                            })?;
                             let value_native_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -10489,11 +11257,11 @@ fn destack_os_intent_read_replay(
                             IntentEvent::IntentShareFilesEvent(value_native_intent_share_files_event)
                         }
                         IntenteventReplayRecord::IntentShareTextEvent(value) => {
-                            let value_native_intent_share_text_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_share_text_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_text_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_share_text_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_text_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_text_event_metadata_source_inner)
                             } else {
                                 None
@@ -10503,9 +11271,9 @@ fn destack_os_intent_read_replay(
                                 sequence: value_native_intent_share_text_event_metadata_sequence,
                                 source: value_native_intent_share_text_event_metadata_source,
                             };
-                            let value_native_intent_share_text_event_payload_text = binding.store_string(value.payload.text.as_str());
+                            let value_native_intent_share_text_event_payload_text = binding.store_string_owned(value.payload.text);
                             let value_native_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -10573,13 +11341,15 @@ fn destack_os_intent_try_read_replay(
                         } else {
                             None
                         };
-                        let mut result_recorded_intent_custom_action_event_payload_paths = Vec::new();
-                        for result_recorded_intent_custom_action_event_payload_paths_item in unsafe { value.payload.paths.as_slice()? }.iter().cloned() {
+                        let result_recorded_intent_custom_action_event_payload_paths_slice = unsafe { value.payload.paths.as_slice()? };
+                        let mut result_recorded_intent_custom_action_event_payload_paths = Vec::with_capacity(result_recorded_intent_custom_action_event_payload_paths_slice.len());
+                        for result_recorded_intent_custom_action_event_payload_paths_item in result_recorded_intent_custom_action_event_payload_paths_slice.iter().cloned() {
                             let result_recorded_intent_custom_action_event_payload_paths_item_recorded = match result_recorded_intent_custom_action_event_payload_paths_item {
                                 fs::OsPath::OsPathBytes(value) => {
                                     let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::new();
-                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::with_capacity(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.len());
+                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.iter().cloned() {
                                         let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded = result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item;
                                         result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner.push(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded);
                                     }
@@ -10592,8 +11362,9 @@ fn destack_os_intent_try_read_replay(
                                 }
                                 fs::OsPath::OsPathUtf16(value) => {
                                     let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::new();
-                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.len());
+                                    for result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.iter().cloned() {
                                         let result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded = result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item;
                                         result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner.push(result_recorded_intent_custom_action_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded);
                                     }
@@ -10651,8 +11422,9 @@ fn destack_os_intent_try_read_replay(
                         let result_recorded_intent_open_file_event_payload_path = match value.payload.path {
                             fs::OsPath::OsPathBytes(value) => {
                                 let result_recorded_intent_open_file_event_payload_path_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                                let mut result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = Vec::new();
-                                for result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
+                                let result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_slice = unsafe { value.bytes.0.as_slice()? };
+                                let mut result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = Vec::with_capacity(result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_slice.len());
+                                for result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_slice.iter().cloned() {
                                     let result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_recorded = result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
                                     result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner.push(result_recorded_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item_recorded);
                                 }
@@ -10665,8 +11437,9 @@ fn destack_os_intent_try_read_replay(
                             }
                             fs::OsPath::OsPathUtf16(value) => {
                                 let result_recorded_intent_open_file_event_payload_path_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                                let mut result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = Vec::new();
-                                for result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
+                                let result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_slice = unsafe { value.utf16.0.as_slice()? };
+                                let mut result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_slice.len());
+                                for result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_slice.iter().cloned() {
                                     let result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_recorded = result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
                                     result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner.push(result_recorded_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_recorded);
                                 }
@@ -10736,13 +11509,15 @@ fn destack_os_intent_try_read_replay(
                             sequence: result_recorded_intent_share_files_event_metadata_sequence,
                             source: result_recorded_intent_share_files_event_metadata_source,
                         };
-                        let mut result_recorded_intent_share_files_event_payload_paths = Vec::new();
-                        for result_recorded_intent_share_files_event_payload_paths_item in unsafe { value.payload.paths.as_slice()? }.iter().cloned() {
+                        let result_recorded_intent_share_files_event_payload_paths_slice = unsafe { value.payload.paths.as_slice()? };
+                        let mut result_recorded_intent_share_files_event_payload_paths = Vec::with_capacity(result_recorded_intent_share_files_event_payload_paths_slice.len());
+                        for result_recorded_intent_share_files_event_payload_paths_item in result_recorded_intent_share_files_event_payload_paths_slice.iter().cloned() {
                             let result_recorded_intent_share_files_event_payload_paths_item_recorded = match result_recorded_intent_share_files_event_payload_paths_item {
                                 fs::OsPath::OsPathBytes(value) => {
                                     let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::new();
-                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice = unsafe { value.bytes.0.as_slice()? };
+                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner = Vec::with_capacity(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.len());
+                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item in result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_slice.iter().cloned() {
                                         let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded = result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item;
                                         result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner.push(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_bytes_bytes_inner_item_recorded);
                                     }
@@ -10755,8 +11530,9 @@ fn destack_os_intent_try_read_replay(
                                 }
                                 fs::OsPath::OsPathUtf16(value) => {
                                     let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::new();
-                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
+                                    let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice = unsafe { value.utf16.0.as_slice()? };
+                                    let mut result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.len());
+                                    for result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item in result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_slice.iter().cloned() {
                                         let result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded = result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item;
                                         result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner.push(result_recorded_intent_share_files_event_payload_paths_item_recorded_os_path_utf16_utf16_inner_item_recorded);
                                     }
@@ -10845,11 +11621,11 @@ fn destack_os_intent_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         IntenteventReplayRecord::IntentCustomActionEvent(value) => {
-                            let value_native_intent_custom_action_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_custom_action_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_custom_action_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_custom_action_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_custom_action_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_custom_action_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_metadata_source_inner)
                             } else {
                                 None
@@ -10859,58 +11635,61 @@ fn destack_os_intent_try_read_replay(
                                 sequence: value_native_intent_custom_action_event_metadata_sequence,
                                 source: value_native_intent_custom_action_event_metadata_source,
                             };
-                            let value_native_intent_custom_action_event_payload_action = binding.store_string(value.payload.action.as_str());
+                            let value_native_intent_custom_action_event_payload_action = binding.store_string_owned(value.payload.action);
                             let value_native_intent_custom_action_event_payload_url = if let Some(value) = value.payload.url {
-                                let value_native_intent_custom_action_event_payload_url_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_payload_url_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_payload_url_inner)
                             } else {
                                 None
                             };
-                            let mut value_native_intent_custom_action_event_payload_paths_values = Vec::new();
-                            for value_native_intent_custom_action_event_payload_paths_item in value.payload.paths.iter().cloned() {
-                                let value_native_intent_custom_action_event_payload_paths_decoded = match value_native_intent_custom_action_event_payload_paths_item {
-                                    fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values = Vec::new();
-                                        for value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
-                                            value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                            let value_native_intent_custom_action_event_payload_paths = binding.store_array_with(value.payload.paths.len(), |value_native_intent_custom_action_event_payload_paths_values| {
+                                for value_native_intent_custom_action_event_payload_paths_item in value.payload.paths {
+                                    let value_native_intent_custom_action_event_payload_paths_decoded = match value_native_intent_custom_action_event_payload_paths_item {
+                                        fs::OspathReplayRecord::OsPathBytes(value) => {
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array_with(value.bytes.len(), |value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values| {
+                                                for value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes {
+                                                    let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
+                                                    value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
+                                                kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind,
+                                                bytes: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes,
+                                            };
+                                            fs::OsPath::OsPathBytes(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes)
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner_values);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes_inner);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
-                                            kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_kind,
-                                            bytes: value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes_bytes,
-                                        };
-                                        fs::OsPath::OsPathBytes(value_native_intent_custom_action_event_payload_paths_decoded_os_path_bytes)
-                                    }
-                                    fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values = Vec::new();
-                                        for value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
-                                            value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                        fs::OspathReplayRecord::OsPathUtf16(value) => {
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array_with(value.utf16.len(), |value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values| {
+                                                for value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16 {
+                                                    let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
+                                                    value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner);
+                                            let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
+                                                kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind,
+                                                utf16: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16,
+                                            };
+                                            fs::OsPath::OsPathUtf16(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16)
                                         }
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner_values);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16_inner);
-                                        let value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
-                                            kind: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_kind,
-                                            utf16: value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16_utf16,
-                                        };
-                                        fs::OsPath::OsPathUtf16(value_native_intent_custom_action_event_payload_paths_decoded_os_path_utf16)
-                                    }
-                                };
-                                value_native_intent_custom_action_event_payload_paths_values.push(value_native_intent_custom_action_event_payload_paths_decoded);
-                            }
-                            let value_native_intent_custom_action_event_payload_paths = binding.store_array(value_native_intent_custom_action_event_payload_paths_values);
+                                    };
+                                    value_native_intent_custom_action_event_payload_paths_values.push(value_native_intent_custom_action_event_payload_paths_decoded);
+                                }
+                                Ok(())
+                            })?;
                             let value_native_intent_custom_action_event_payload_text = if let Some(value) = value.payload.text {
-                                let value_native_intent_custom_action_event_payload_text_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_payload_text_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_payload_text_inner)
                             } else {
                                 None
                             };
                             let value_native_intent_custom_action_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_custom_action_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_custom_action_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -10930,11 +11709,11 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentCustomActionEvent(value_native_intent_custom_action_event)
                         }
                         IntenteventReplayRecord::IntentOpenFileEvent(value) => {
-                            let value_native_intent_open_file_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_open_file_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_open_file_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_file_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_open_file_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_open_file_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_open_file_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_open_file_event_metadata_source_inner)
                             } else {
                                 None
@@ -10946,13 +11725,14 @@ fn destack_os_intent_try_read_replay(
                             };
                             let value_native_intent_open_file_event_payload_path = match value.payload.path {
                                 fs::OspathReplayRecord::OsPathBytes(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                    let mut value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values = Vec::new();
-                                    for value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                        let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
-                                        value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded);
-                                    }
-                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_kind = binding.store_string_owned(value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner = binding.store_array_with(value.bytes.len(), |value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values| {
+                                        for value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_item;
+                                            value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner_decoded);
+                                        }
+                                        Ok(())
+                                    })?;
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_bytes_bytes_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_bytes = fs::OsPathBytes {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_bytes_kind,
@@ -10961,13 +11741,14 @@ fn destack_os_intent_try_read_replay(
                                     fs::OsPath::OsPathBytes(value_native_intent_open_file_event_payload_path_os_path_bytes)
                                 }
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                    let mut value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::new();
-                                    for value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                        let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
-                                        value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded);
-                                    }
-                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_kind = binding.store_string_owned(value.kind);
+                                    let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner = binding.store_array_with(value.utf16.len(), |value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values| {
+                                        for value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded = value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
+                                            value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_decoded);
+                                        }
+                                        Ok(())
+                                    })?;
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_open_file_event_payload_path_os_path_utf16_utf16_inner);
                                     let value_native_intent_open_file_event_payload_path_os_path_utf16 = fs::OsPathUtf16 {
                                         kind: value_native_intent_open_file_event_payload_path_os_path_utf16_kind,
@@ -10977,7 +11758,7 @@ fn destack_os_intent_try_read_replay(
                                 }
                             };
                             let value_native_intent_open_file_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_open_file_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_open_file_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -10994,11 +11775,11 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentOpenFileEvent(value_native_intent_open_file_event)
                         }
                         IntenteventReplayRecord::IntentOpenUrlEvent(value) => {
-                            let value_native_intent_open_url_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_open_url_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_open_url_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_open_url_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_open_url_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_open_url_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_open_url_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_open_url_event_metadata_source_inner)
                             } else {
                                 None
@@ -11008,7 +11789,7 @@ fn destack_os_intent_try_read_replay(
                                 sequence: value_native_intent_open_url_event_metadata_sequence,
                                 source: value_native_intent_open_url_event_metadata_source,
                             };
-                            let value_native_intent_open_url_event_payload_url = binding.store_string(value.payload.url.as_str());
+                            let value_native_intent_open_url_event_payload_url = binding.store_string_owned(value.payload.url);
                             let value_native_intent_open_url_event_payload = IntentOpenUrlPayload {
                                 url: value_native_intent_open_url_event_payload_url,
                             };
@@ -11020,11 +11801,11 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentOpenUrlEvent(value_native_intent_open_url_event)
                         }
                         IntenteventReplayRecord::IntentShareFilesEvent(value) => {
-                            let value_native_intent_share_files_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_share_files_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_share_files_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_files_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_share_files_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_share_files_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_files_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_files_event_metadata_source_inner)
                             } else {
                                 None
@@ -11034,45 +11815,48 @@ fn destack_os_intent_try_read_replay(
                                 sequence: value_native_intent_share_files_event_metadata_sequence,
                                 source: value_native_intent_share_files_event_metadata_source,
                             };
-                            let mut value_native_intent_share_files_event_payload_paths_values = Vec::new();
-                            for value_native_intent_share_files_event_payload_paths_item in value.payload.paths.iter().cloned() {
-                                let value_native_intent_share_files_event_payload_paths_decoded = match value_native_intent_share_files_event_payload_paths_item {
-                                    fs::OspathReplayRecord::OsPathBytes(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values = Vec::new();
-                                        for value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
-                                            value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                            let value_native_intent_share_files_event_payload_paths = binding.store_array_with(value.payload.paths.len(), |value_native_intent_share_files_event_payload_paths_values| {
+                                for value_native_intent_share_files_event_payload_paths_item in value.payload.paths {
+                                    let value_native_intent_share_files_event_payload_paths_decoded = match value_native_intent_share_files_event_payload_paths_item {
+                                        fs::OspathReplayRecord::OsPathBytes(value) => {
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array_with(value.bytes.len(), |value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values| {
+                                                for value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item in value.bytes {
+                                                    let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_item;
+                                                    value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
+                                                kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind,
+                                                bytes: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes,
+                                            };
+                                            fs::OsPath::OsPathBytes(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes)
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner_values);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes_inner);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes = fs::OsPathBytes {
-                                            kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_kind,
-                                            bytes: value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes_bytes,
-                                        };
-                                        fs::OsPath::OsPathBytes(value_native_intent_share_files_event_payload_paths_decoded_os_path_bytes)
-                                    }
-                                    fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                        let mut value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values = Vec::new();
-                                        for value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
-                                            value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                        fs::OspathReplayRecord::OsPathUtf16(value) => {
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind = binding.store_string_owned(value.kind);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array_with(value.utf16.len(), |value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values| {
+                                                for value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item in value.utf16 {
+                                                    let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded = value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_item;
+                                                    value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values.push(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_decoded);
+                                                }
+                                                Ok(())
+                                            })?;
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner);
+                                            let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
+                                                kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind,
+                                                utf16: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16,
+                                            };
+                                            fs::OsPath::OsPathUtf16(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16)
                                         }
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner = binding.store_array(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner_values);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16_inner);
-                                        let value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16 = fs::OsPathUtf16 {
-                                            kind: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_kind,
-                                            utf16: value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16_utf16,
-                                        };
-                                        fs::OsPath::OsPathUtf16(value_native_intent_share_files_event_payload_paths_decoded_os_path_utf16)
-                                    }
-                                };
-                                value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_decoded);
-                            }
-                            let value_native_intent_share_files_event_payload_paths = binding.store_array(value_native_intent_share_files_event_payload_paths_values);
+                                    };
+                                    value_native_intent_share_files_event_payload_paths_values.push(value_native_intent_share_files_event_payload_paths_decoded);
+                                }
+                                Ok(())
+                            })?;
                             let value_native_intent_share_files_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_files_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_files_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -11089,11 +11873,11 @@ fn destack_os_intent_try_read_replay(
                             IntentEvent::IntentShareFilesEvent(value_native_intent_share_files_event)
                         }
                         IntenteventReplayRecord::IntentShareTextEvent(value) => {
-                            let value_native_intent_share_text_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_intent_share_text_event_kind = binding.store_string_owned(value.kind);
                             let value_native_intent_share_text_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_intent_share_text_event_metadata_sequence = value.metadata.sequence;
                             let value_native_intent_share_text_event_metadata_source = if let Some(value) = value.metadata.source {
-                                let value_native_intent_share_text_event_metadata_source_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_text_event_metadata_source_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_text_event_metadata_source_inner)
                             } else {
                                 None
@@ -11103,9 +11887,9 @@ fn destack_os_intent_try_read_replay(
                                 sequence: value_native_intent_share_text_event_metadata_sequence,
                                 source: value_native_intent_share_text_event_metadata_source,
                             };
-                            let value_native_intent_share_text_event_payload_text = binding.store_string(value.payload.text.as_str());
+                            let value_native_intent_share_text_event_payload_text = binding.store_string_owned(value.payload.text);
                             let value_native_intent_share_text_event_payload_mime_type = if let Some(value) = value.payload.mime_type {
-                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string(value.as_str());
+                                let value_native_intent_share_text_event_payload_mime_type_inner = binding.store_string_owned(value);
                                 Some(value_native_intent_share_text_event_payload_mime_type_inner)
                             } else {
                                 None
@@ -11397,7 +12181,7 @@ fn destack_os_lifecycle_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         LifecycleeventReplayRecord::LifecycleBackgroundEvent(value) => {
-                            let value_native_lifecycle_background_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_background_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_background_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_background_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_background_event_metadata = LifecycleEventMetadata {
@@ -11411,7 +12195,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleBackgroundEvent(value_native_lifecycle_background_event)
                         }
                         LifecycleeventReplayRecord::LifecycleForegroundEvent(value) => {
-                            let value_native_lifecycle_foreground_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_foreground_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_foreground_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_foreground_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_foreground_event_metadata = LifecycleEventMetadata {
@@ -11425,7 +12209,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleForegroundEvent(value_native_lifecycle_foreground_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLaunchEvent(value) => {
-                            let value_native_lifecycle_launch_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_launch_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_launch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_launch_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_launch_event_metadata = LifecycleEventMetadata {
@@ -11439,7 +12223,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleLaunchEvent(value_native_lifecycle_launch_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowMemoryEvent(value) => {
-                            let value_native_lifecycle_low_memory_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_low_memory_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_low_memory_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_memory_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_memory_event_metadata = LifecycleEventMetadata {
@@ -11458,7 +12242,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleLowMemoryEvent(value_native_lifecycle_low_memory_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowPowerModeChangedEvent(value) => {
-                            let value_native_lifecycle_low_power_mode_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_low_power_mode_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata = LifecycleEventMetadata {
@@ -11477,7 +12261,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleLowPowerModeChangedEvent(value_native_lifecycle_low_power_mode_changed_event)
                         }
                         LifecycleeventReplayRecord::LifecyclePauseEvent(value) => {
-                            let value_native_lifecycle_pause_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_pause_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_pause_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_pause_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_pause_event_metadata = LifecycleEventMetadata {
@@ -11491,7 +12275,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecyclePauseEvent(value_native_lifecycle_pause_event)
                         }
                         LifecycleeventReplayRecord::LifecycleResumeEvent(value) => {
-                            let value_native_lifecycle_resume_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_resume_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_resume_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_resume_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_resume_event_metadata = LifecycleEventMetadata {
@@ -11505,7 +12289,7 @@ fn destack_os_lifecycle_read_replay(
                             LifecycleEvent::LifecycleResumeEvent(value_native_lifecycle_resume_event)
                         }
                         LifecycleeventReplayRecord::LifecycleTerminateEvent(value) => {
-                            let value_native_lifecycle_terminate_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_terminate_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_terminate_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_terminate_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_terminate_event_metadata = LifecycleEventMetadata {
@@ -11745,7 +12529,7 @@ fn destack_os_lifecycle_try_read_replay(
                 Ok(value) => {
                     let value_native = match value {
                         LifecycleeventReplayRecord::LifecycleBackgroundEvent(value) => {
-                            let value_native_lifecycle_background_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_background_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_background_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_background_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_background_event_metadata = LifecycleEventMetadata {
@@ -11759,7 +12543,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleBackgroundEvent(value_native_lifecycle_background_event)
                         }
                         LifecycleeventReplayRecord::LifecycleForegroundEvent(value) => {
-                            let value_native_lifecycle_foreground_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_foreground_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_foreground_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_foreground_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_foreground_event_metadata = LifecycleEventMetadata {
@@ -11773,7 +12557,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleForegroundEvent(value_native_lifecycle_foreground_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLaunchEvent(value) => {
-                            let value_native_lifecycle_launch_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_launch_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_launch_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_launch_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_launch_event_metadata = LifecycleEventMetadata {
@@ -11787,7 +12571,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleLaunchEvent(value_native_lifecycle_launch_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowMemoryEvent(value) => {
-                            let value_native_lifecycle_low_memory_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_low_memory_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_low_memory_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_memory_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_memory_event_metadata = LifecycleEventMetadata {
@@ -11806,7 +12590,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleLowMemoryEvent(value_native_lifecycle_low_memory_event)
                         }
                         LifecycleeventReplayRecord::LifecycleLowPowerModeChangedEvent(value) => {
-                            let value_native_lifecycle_low_power_mode_changed_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_low_power_mode_changed_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_low_power_mode_changed_event_metadata = LifecycleEventMetadata {
@@ -11825,7 +12609,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleLowPowerModeChangedEvent(value_native_lifecycle_low_power_mode_changed_event)
                         }
                         LifecycleeventReplayRecord::LifecyclePauseEvent(value) => {
-                            let value_native_lifecycle_pause_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_pause_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_pause_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_pause_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_pause_event_metadata = LifecycleEventMetadata {
@@ -11839,7 +12623,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecyclePauseEvent(value_native_lifecycle_pause_event)
                         }
                         LifecycleeventReplayRecord::LifecycleResumeEvent(value) => {
-                            let value_native_lifecycle_resume_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_resume_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_resume_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_resume_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_resume_event_metadata = LifecycleEventMetadata {
@@ -11853,7 +12637,7 @@ fn destack_os_lifecycle_try_read_replay(
                             LifecycleEvent::LifecycleResumeEvent(value_native_lifecycle_resume_event)
                         }
                         LifecycleeventReplayRecord::LifecycleTerminateEvent(value) => {
-                            let value_native_lifecycle_terminate_event_kind = binding.store_string(value.kind.as_str());
+                            let value_native_lifecycle_terminate_event_kind = binding.store_string_owned(value.kind);
                             let value_native_lifecycle_terminate_event_metadata_timestamp_ns = value.metadata.timestamp_ns;
                             let value_native_lifecycle_terminate_event_metadata_sequence = value.metadata.sequence;
                             let value_native_lifecycle_terminate_event_metadata = LifecycleEventMetadata {
@@ -12313,8 +13097,9 @@ fn destack_os_mount_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<MountEntry> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_source = if let Some(value) = result_recorded_item.source {
                         let result_recorded_item_recorded_source_inner = unsafe { value.as_str()? }.to_string();
                         Some(result_recorded_item_recorded_source_inner)
@@ -12324,8 +13109,9 @@ fn destack_os_mount_list_replay(
                     let result_recorded_item_recorded_target = match result_recorded_item.target {
                         fs::OsPath::OsPathBytes(value) => {
                             let result_recorded_item_recorded_target_os_path_bytes_kind = unsafe { value.kind.as_str()? }.to_string();
-                            let mut result_recorded_item_recorded_target_os_path_bytes_bytes_inner = Vec::new();
-                            for result_recorded_item_recorded_target_os_path_bytes_bytes_inner_item in unsafe { value.bytes.0.as_slice()? }.iter().cloned() {
+                            let result_recorded_item_recorded_target_os_path_bytes_bytes_inner_slice = unsafe { value.bytes.0.as_slice()? };
+                            let mut result_recorded_item_recorded_target_os_path_bytes_bytes_inner = Vec::with_capacity(result_recorded_item_recorded_target_os_path_bytes_bytes_inner_slice.len());
+                            for result_recorded_item_recorded_target_os_path_bytes_bytes_inner_item in result_recorded_item_recorded_target_os_path_bytes_bytes_inner_slice.iter().cloned() {
                                 let result_recorded_item_recorded_target_os_path_bytes_bytes_inner_item_recorded = result_recorded_item_recorded_target_os_path_bytes_bytes_inner_item;
                                 result_recorded_item_recorded_target_os_path_bytes_bytes_inner.push(result_recorded_item_recorded_target_os_path_bytes_bytes_inner_item_recorded);
                             }
@@ -12338,8 +13124,9 @@ fn destack_os_mount_list_replay(
                         }
                         fs::OsPath::OsPathUtf16(value) => {
                             let result_recorded_item_recorded_target_os_path_utf16_kind = unsafe { value.kind.as_str()? }.to_string();
-                            let mut result_recorded_item_recorded_target_os_path_utf16_utf16_inner = Vec::new();
-                            for result_recorded_item_recorded_target_os_path_utf16_utf16_inner_item in unsafe { value.utf16.0.as_slice()? }.iter().cloned() {
+                            let result_recorded_item_recorded_target_os_path_utf16_utf16_inner_slice = unsafe { value.utf16.0.as_slice()? };
+                            let mut result_recorded_item_recorded_target_os_path_utf16_utf16_inner = Vec::with_capacity(result_recorded_item_recorded_target_os_path_utf16_utf16_inner_slice.len());
+                            for result_recorded_item_recorded_target_os_path_utf16_utf16_inner_item in result_recorded_item_recorded_target_os_path_utf16_utf16_inner_slice.iter().cloned() {
                                 let result_recorded_item_recorded_target_os_path_utf16_utf16_inner_item_recorded = result_recorded_item_recorded_target_os_path_utf16_utf16_inner_item;
                                 result_recorded_item_recorded_target_os_path_utf16_utf16_inner.push(result_recorded_item_recorded_target_os_path_utf16_utf16_inner_item_recorded);
                             }
@@ -12393,67 +13180,70 @@ fn destack_os_mount_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_source = if let Some(value) = value_native_item.source {
-                            let value_native_decoded_source_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_source_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_target = match value_native_item.target {
-                            fs::OspathReplayRecord::OsPathBytes(value) => {
-                                let value_native_decoded_target_os_path_bytes_kind = binding.store_string(value.kind.as_str());
-                                let mut value_native_decoded_target_os_path_bytes_bytes_inner_values = Vec::new();
-                                for value_native_decoded_target_os_path_bytes_bytes_inner_item in value.bytes.iter().cloned() {
-                                    let value_native_decoded_target_os_path_bytes_bytes_inner_decoded = value_native_decoded_target_os_path_bytes_bytes_inner_item;
-                                    value_native_decoded_target_os_path_bytes_bytes_inner_values.push(value_native_decoded_target_os_path_bytes_bytes_inner_decoded);
+                    let value_native = binding.store_array_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded_source = if let Some(value) = value_native_item.source {
+                                let value_native_decoded_source_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_source_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_target = match value_native_item.target {
+                                fs::OspathReplayRecord::OsPathBytes(value) => {
+                                    let value_native_decoded_target_os_path_bytes_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_target_os_path_bytes_bytes_inner = binding.store_array_with(value.bytes.len(), |value_native_decoded_target_os_path_bytes_bytes_inner_values| {
+                                        for value_native_decoded_target_os_path_bytes_bytes_inner_item in value.bytes {
+                                            let value_native_decoded_target_os_path_bytes_bytes_inner_decoded = value_native_decoded_target_os_path_bytes_bytes_inner_item;
+                                            value_native_decoded_target_os_path_bytes_bytes_inner_values.push(value_native_decoded_target_os_path_bytes_bytes_inner_decoded);
+                                        }
+                                        Ok(())
+                                    })?;
+                                    let value_native_decoded_target_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_decoded_target_os_path_bytes_bytes_inner);
+                                    let value_native_decoded_target_os_path_bytes = fs::OsPathBytes {
+                                        kind: value_native_decoded_target_os_path_bytes_kind,
+                                        bytes: value_native_decoded_target_os_path_bytes_bytes,
+                                    };
+                                    fs::OsPath::OsPathBytes(value_native_decoded_target_os_path_bytes)
                                 }
-                                let value_native_decoded_target_os_path_bytes_bytes_inner = binding.store_array(value_native_decoded_target_os_path_bytes_bytes_inner_values);
-                                let value_native_decoded_target_os_path_bytes_bytes = platform_fs::PathBytesAbi::<platform_abi::NativeAbi>(value_native_decoded_target_os_path_bytes_bytes_inner);
-                                let value_native_decoded_target_os_path_bytes = fs::OsPathBytes {
-                                    kind: value_native_decoded_target_os_path_bytes_kind,
-                                    bytes: value_native_decoded_target_os_path_bytes_bytes,
-                                };
-                                fs::OsPath::OsPathBytes(value_native_decoded_target_os_path_bytes)
-                            }
-                            fs::OspathReplayRecord::OsPathUtf16(value) => {
-                                let value_native_decoded_target_os_path_utf16_kind = binding.store_string(value.kind.as_str());
-                                let mut value_native_decoded_target_os_path_utf16_utf16_inner_values = Vec::new();
-                                for value_native_decoded_target_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
-                                    let value_native_decoded_target_os_path_utf16_utf16_inner_decoded = value_native_decoded_target_os_path_utf16_utf16_inner_item;
-                                    value_native_decoded_target_os_path_utf16_utf16_inner_values.push(value_native_decoded_target_os_path_utf16_utf16_inner_decoded);
+                                fs::OspathReplayRecord::OsPathUtf16(value) => {
+                                    let value_native_decoded_target_os_path_utf16_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_target_os_path_utf16_utf16_inner = binding.store_array_with(value.utf16.len(), |value_native_decoded_target_os_path_utf16_utf16_inner_values| {
+                                        for value_native_decoded_target_os_path_utf16_utf16_inner_item in value.utf16 {
+                                            let value_native_decoded_target_os_path_utf16_utf16_inner_decoded = value_native_decoded_target_os_path_utf16_utf16_inner_item;
+                                            value_native_decoded_target_os_path_utf16_utf16_inner_values.push(value_native_decoded_target_os_path_utf16_utf16_inner_decoded);
+                                        }
+                                        Ok(())
+                                    })?;
+                                    let value_native_decoded_target_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_decoded_target_os_path_utf16_utf16_inner);
+                                    let value_native_decoded_target_os_path_utf16 = fs::OsPathUtf16 {
+                                        kind: value_native_decoded_target_os_path_utf16_kind,
+                                        utf16: value_native_decoded_target_os_path_utf16_utf16,
+                                    };
+                                    fs::OsPath::OsPathUtf16(value_native_decoded_target_os_path_utf16)
                                 }
-                                let value_native_decoded_target_os_path_utf16_utf16_inner = binding.store_array(value_native_decoded_target_os_path_utf16_utf16_inner_values);
-                                let value_native_decoded_target_os_path_utf16_utf16 = platform_fs::PathUtf16Abi::<platform_abi::NativeAbi>(value_native_decoded_target_os_path_utf16_utf16_inner);
-                                let value_native_decoded_target_os_path_utf16 = fs::OsPathUtf16 {
-                                    kind: value_native_decoded_target_os_path_utf16_kind,
-                                    utf16: value_native_decoded_target_os_path_utf16_utf16,
-                                };
-                                fs::OsPath::OsPathUtf16(value_native_decoded_target_os_path_utf16)
-                            }
-                        };
-                        let value_native_decoded_file_system = if let Some(value) = value_native_item.file_system {
-                            let value_native_decoded_file_system_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_file_system_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_host_flags = if let Some(value) = value_native_item.host_flags {
-                            let value_native_decoded_host_flags_inner = value;
-                            Some(value_native_decoded_host_flags_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded = MountEntry {
-                            source: value_native_decoded_source,
-                            target: value_native_decoded_target,
-                            file_system: value_native_decoded_file_system,
-                            host_flags: value_native_decoded_host_flags,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                            };
+                            let value_native_decoded_file_system = if let Some(value) = value_native_item.file_system {
+                                let value_native_decoded_file_system_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_file_system_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_host_flags = if let Some(value) = value_native_item.host_flags {
+                                let value_native_decoded_host_flags_inner = value;
+                                Some(value_native_decoded_host_flags_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded = MountEntry {
+                                source: value_native_decoded_source,
+                                target: value_native_decoded_target,
+                                file_system: value_native_decoded_file_system,
+                                host_flags: value_native_decoded_host_flags,
+                            };
+                            value_native_values.push(value_native_decoded);
+                        }
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -13086,11 +13876,13 @@ fn destack_os_notification_category_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<NotificationCategory> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_id = unsafe { result_recorded_item.id.as_str()? }.to_string();
-                    let mut result_recorded_item_recorded_actions = Vec::new();
-                    for result_recorded_item_recorded_actions_item in unsafe { result_recorded_item.actions.as_slice()? }.iter().cloned() {
+                    let result_recorded_item_recorded_actions_slice = unsafe { result_recorded_item.actions.as_slice()? };
+                    let mut result_recorded_item_recorded_actions = Vec::with_capacity(result_recorded_item_recorded_actions_slice.len());
+                    for result_recorded_item_recorded_actions_item in result_recorded_item_recorded_actions_slice.iter().cloned() {
                         let result_recorded_item_recorded_actions_item_recorded_id = unsafe { result_recorded_item_recorded_actions_item.id.as_str()? }.to_string();
                         let result_recorded_item_recorded_actions_item_recorded_title = unsafe { result_recorded_item_recorded_actions_item.title.as_str()? }.to_string();
                         let result_recorded_item_recorded_actions_item_recorded_style = result_recorded_item_recorded_actions_item.style;
@@ -13147,47 +13939,49 @@ fn destack_os_notification_category_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_id = binding.store_string(value_native_item.id.as_str());
-                        let mut value_native_decoded_actions_values = Vec::new();
-                        for value_native_decoded_actions_item in value_native_item.actions.iter().cloned() {
-                            let value_native_decoded_actions_decoded_id = binding.store_string(value_native_decoded_actions_item.id.as_str());
-                            let value_native_decoded_actions_decoded_title = binding.store_string(value_native_decoded_actions_item.title.as_str());
-                            let value_native_decoded_actions_decoded_style = value_native_decoded_actions_item.style;
-                            let value_native_decoded_actions_decoded_foreground = value_native_decoded_actions_item.foreground;
-                            let value_native_decoded_actions_decoded_authentication_required = value_native_decoded_actions_item.authentication_required;
-                            let value_native_decoded_actions_decoded_text_input_button_title = if let Some(value) = value_native_decoded_actions_item.text_input_button_title {
-                                let value_native_decoded_actions_decoded_text_input_button_title_inner = binding.store_string(value.as_str());
-                                Some(value_native_decoded_actions_decoded_text_input_button_title_inner)
-                            } else {
-                                None
+                    let value_native = binding.store_array_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded_id = binding.store_string_owned(value_native_item.id);
+                            let value_native_decoded_actions = binding.store_array_with(value_native_item.actions.len(), |value_native_decoded_actions_values| {
+                                for value_native_decoded_actions_item in value_native_item.actions {
+                                    let value_native_decoded_actions_decoded_id = binding.store_string_owned(value_native_decoded_actions_item.id);
+                                    let value_native_decoded_actions_decoded_title = binding.store_string_owned(value_native_decoded_actions_item.title);
+                                    let value_native_decoded_actions_decoded_style = value_native_decoded_actions_item.style;
+                                    let value_native_decoded_actions_decoded_foreground = value_native_decoded_actions_item.foreground;
+                                    let value_native_decoded_actions_decoded_authentication_required = value_native_decoded_actions_item.authentication_required;
+                                    let value_native_decoded_actions_decoded_text_input_button_title = if let Some(value) = value_native_decoded_actions_item.text_input_button_title {
+                                        let value_native_decoded_actions_decoded_text_input_button_title_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_actions_decoded_text_input_button_title_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_actions_decoded_text_input_placeholder = if let Some(value) = value_native_decoded_actions_item.text_input_placeholder {
+                                        let value_native_decoded_actions_decoded_text_input_placeholder_inner = binding.store_string_owned(value);
+                                        Some(value_native_decoded_actions_decoded_text_input_placeholder_inner)
+                                    } else {
+                                        None
+                                    };
+                                    let value_native_decoded_actions_decoded = NotificationAction {
+                                        id: value_native_decoded_actions_decoded_id,
+                                        title: value_native_decoded_actions_decoded_title,
+                                        style: value_native_decoded_actions_decoded_style,
+                                        foreground: value_native_decoded_actions_decoded_foreground,
+                                        authentication_required: value_native_decoded_actions_decoded_authentication_required,
+                                        text_input_button_title: value_native_decoded_actions_decoded_text_input_button_title,
+                                        text_input_placeholder: value_native_decoded_actions_decoded_text_input_placeholder,
+                                    };
+                                    value_native_decoded_actions_values.push(value_native_decoded_actions_decoded);
+                                }
+                                Ok(())
+                            })?;
+                            let value_native_decoded = NotificationCategory {
+                                id: value_native_decoded_id,
+                                actions: value_native_decoded_actions,
                             };
-                            let value_native_decoded_actions_decoded_text_input_placeholder = if let Some(value) = value_native_decoded_actions_item.text_input_placeholder {
-                                let value_native_decoded_actions_decoded_text_input_placeholder_inner = binding.store_string(value.as_str());
-                                Some(value_native_decoded_actions_decoded_text_input_placeholder_inner)
-                            } else {
-                                None
-                            };
-                            let value_native_decoded_actions_decoded = NotificationAction {
-                                id: value_native_decoded_actions_decoded_id,
-                                title: value_native_decoded_actions_decoded_title,
-                                style: value_native_decoded_actions_decoded_style,
-                                foreground: value_native_decoded_actions_decoded_foreground,
-                                authentication_required: value_native_decoded_actions_decoded_authentication_required,
-                                text_input_button_title: value_native_decoded_actions_decoded_text_input_button_title,
-                                text_input_placeholder: value_native_decoded_actions_decoded_text_input_placeholder,
-                            };
-                            value_native_decoded_actions_values.push(value_native_decoded_actions_decoded);
+                            value_native_values.push(value_native_decoded);
                         }
-                        let value_native_decoded_actions = binding.store_array(value_native_decoded_actions_values);
-                        let value_native_decoded = NotificationCategory {
-                            id: value_native_decoded_id,
-                            actions: value_native_decoded_actions,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -13213,8 +14007,9 @@ fn destack_os_notification_pending_list_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<NotificationScheduledDescriptor> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_id = unsafe { result_recorded_item.id.as_str()? }.to_string();
                     let result_recorded_item_recorded_request_title = unsafe { result_recorded_item.request.title.as_str()? }.to_string();
                     let result_recorded_item_recorded_request_subtitle = if let Some(value) = result_recorded_item.request.subtitle {
@@ -13355,127 +14150,128 @@ fn destack_os_notification_pending_list_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_id = binding.store_string(value_native_item.id.as_str());
-                        let value_native_decoded_request_title = binding.store_string(value_native_item.request.title.as_str());
-                        let value_native_decoded_request_subtitle = if let Some(value) = value_native_item.request.subtitle {
-                            let value_native_decoded_request_subtitle_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_request_subtitle_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_request_body = binding.store_string(value_native_item.request.body.as_str());
-                        let value_native_decoded_request_tag = binding.store_string(value_native_item.request.tag.as_str());
-                        let value_native_decoded_request_channel_id = if let Some(value) = value_native_item.request.channel_id {
-                            let value_native_decoded_request_channel_id_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_request_channel_id_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_request_priority = value_native_item.request.priority;
-                        let value_native_decoded_request_badge_count = if let Some(value) = value_native_item.request.badge_count {
-                            let value_native_decoded_request_badge_count_inner = value;
-                            Some(value_native_decoded_request_badge_count_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_request_sound = if let Some(value) = value_native_item.request.sound {
-                            let value_native_decoded_request_sound_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_request_sound_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_request_category_id = if let Some(value) = value_native_item.request.category_id {
-                            let value_native_decoded_request_category_id_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_request_category_id_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_request_thread_id = if let Some(value) = value_native_item.request.thread_id {
-                            let value_native_decoded_request_thread_id_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_request_thread_id_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_request_trigger = match value_native_item.request.trigger {
-                            NotificationtriggerReplayRecord::NotificationCalendarDateTrigger(value) => {
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_year = value.calendar.year;
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_month = value.calendar.month;
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_day = value.calendar.day;
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_hour = value.calendar.hour;
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_minute = value.calendar.minute;
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_second = value.calendar.second;
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_time_zone = binding.store_string(value.calendar.time_zone.as_str());
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_repeats = value.calendar.repeats;
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar = NotificationCalendarTrigger {
-                                    year: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_year,
-                                    month: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_month,
-                                    day: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_day,
-                                    hour: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_hour,
-                                    minute: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_minute,
-                                    second: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_second,
-                                    time_zone: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_time_zone,
-                                    repeats: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_repeats,
-                                };
-                                let value_native_decoded_request_trigger_notification_calendar_date_trigger = NotificationCalendarDateTrigger {
-                                    kind: value_native_decoded_request_trigger_notification_calendar_date_trigger_kind,
-                                    calendar: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar,
-                                };
-                                NotificationTrigger::NotificationCalendarDateTrigger(value_native_decoded_request_trigger_notification_calendar_date_trigger)
-                            }
-                            NotificationtriggerReplayRecord::NotificationImmediateTrigger(value) => {
-                                let value_native_decoded_request_trigger_notification_immediate_trigger_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_request_trigger_notification_immediate_trigger = NotificationImmediateTrigger {
-                                    kind: value_native_decoded_request_trigger_notification_immediate_trigger_kind,
-                                };
-                                NotificationTrigger::NotificationImmediateTrigger(value_native_decoded_request_trigger_notification_immediate_trigger)
-                            }
-                            NotificationtriggerReplayRecord::NotificationTimeIntervalTrigger(value) => {
-                                let value_native_decoded_request_trigger_notification_time_interval_trigger_kind = binding.store_string(value.kind.as_str());
-                                let value_native_decoded_request_trigger_notification_time_interval_trigger_interval_ns = value.interval_ns;
-                                let value_native_decoded_request_trigger_notification_time_interval_trigger = NotificationTimeIntervalTrigger {
-                                    kind: value_native_decoded_request_trigger_notification_time_interval_trigger_kind,
-                                    interval_ns: value_native_decoded_request_trigger_notification_time_interval_trigger_interval_ns,
-                                };
-                                NotificationTrigger::NotificationTimeIntervalTrigger(value_native_decoded_request_trigger_notification_time_interval_trigger)
-                            }
-                        };
-                        let value_native_decoded_request_action_id = if let Some(value) = value_native_item.request.action_id {
-                            let value_native_decoded_request_action_id_inner = binding.store_string(value.as_str());
-                            Some(value_native_decoded_request_action_id_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded_request = NotificationRequest {
-                            title: value_native_decoded_request_title,
-                            subtitle: value_native_decoded_request_subtitle,
-                            body: value_native_decoded_request_body,
-                            tag: value_native_decoded_request_tag,
-                            channel_id: value_native_decoded_request_channel_id,
-                            priority: value_native_decoded_request_priority,
-                            badge_count: value_native_decoded_request_badge_count,
-                            sound: value_native_decoded_request_sound,
-                            category_id: value_native_decoded_request_category_id,
-                            thread_id: value_native_decoded_request_thread_id,
-                            trigger: value_native_decoded_request_trigger,
-                            action_id: value_native_decoded_request_action_id,
-                        };
-                        let value_native_decoded_scheduled_unix_ns = if let Some(value) = value_native_item.scheduled_unix_ns {
-                            let value_native_decoded_scheduled_unix_ns_inner = value;
-                            Some(value_native_decoded_scheduled_unix_ns_inner)
-                        } else {
-                            None
-                        };
-                        let value_native_decoded = NotificationScheduledDescriptor {
-                            id: value_native_decoded_id,
-                            request: value_native_decoded_request,
-                            scheduled_unix_ns: value_native_decoded_scheduled_unix_ns,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native = binding.store_array_with(value.len(), |value_native_values| {
+                        for value_native_item in value {
+                            let value_native_decoded_id = binding.store_string_owned(value_native_item.id);
+                            let value_native_decoded_request_title = binding.store_string_owned(value_native_item.request.title);
+                            let value_native_decoded_request_subtitle = if let Some(value) = value_native_item.request.subtitle {
+                                let value_native_decoded_request_subtitle_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_request_subtitle_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_request_body = binding.store_string_owned(value_native_item.request.body);
+                            let value_native_decoded_request_tag = binding.store_string_owned(value_native_item.request.tag);
+                            let value_native_decoded_request_channel_id = if let Some(value) = value_native_item.request.channel_id {
+                                let value_native_decoded_request_channel_id_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_request_channel_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_request_priority = value_native_item.request.priority;
+                            let value_native_decoded_request_badge_count = if let Some(value) = value_native_item.request.badge_count {
+                                let value_native_decoded_request_badge_count_inner = value;
+                                Some(value_native_decoded_request_badge_count_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_request_sound = if let Some(value) = value_native_item.request.sound {
+                                let value_native_decoded_request_sound_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_request_sound_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_request_category_id = if let Some(value) = value_native_item.request.category_id {
+                                let value_native_decoded_request_category_id_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_request_category_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_request_thread_id = if let Some(value) = value_native_item.request.thread_id {
+                                let value_native_decoded_request_thread_id_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_request_thread_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_request_trigger = match value_native_item.request.trigger {
+                                NotificationtriggerReplayRecord::NotificationCalendarDateTrigger(value) => {
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_year = value.calendar.year;
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_month = value.calendar.month;
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_day = value.calendar.day;
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_hour = value.calendar.hour;
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_minute = value.calendar.minute;
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_second = value.calendar.second;
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_time_zone = binding.store_string_owned(value.calendar.time_zone);
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_repeats = value.calendar.repeats;
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar = NotificationCalendarTrigger {
+                                        year: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_year,
+                                        month: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_month,
+                                        day: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_day,
+                                        hour: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_hour,
+                                        minute: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_minute,
+                                        second: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_second,
+                                        time_zone: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_time_zone,
+                                        repeats: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar_repeats,
+                                    };
+                                    let value_native_decoded_request_trigger_notification_calendar_date_trigger = NotificationCalendarDateTrigger {
+                                        kind: value_native_decoded_request_trigger_notification_calendar_date_trigger_kind,
+                                        calendar: value_native_decoded_request_trigger_notification_calendar_date_trigger_calendar,
+                                    };
+                                    NotificationTrigger::NotificationCalendarDateTrigger(value_native_decoded_request_trigger_notification_calendar_date_trigger)
+                                }
+                                NotificationtriggerReplayRecord::NotificationImmediateTrigger(value) => {
+                                    let value_native_decoded_request_trigger_notification_immediate_trigger_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_request_trigger_notification_immediate_trigger = NotificationImmediateTrigger {
+                                        kind: value_native_decoded_request_trigger_notification_immediate_trigger_kind,
+                                    };
+                                    NotificationTrigger::NotificationImmediateTrigger(value_native_decoded_request_trigger_notification_immediate_trigger)
+                                }
+                                NotificationtriggerReplayRecord::NotificationTimeIntervalTrigger(value) => {
+                                    let value_native_decoded_request_trigger_notification_time_interval_trigger_kind = binding.store_string_owned(value.kind);
+                                    let value_native_decoded_request_trigger_notification_time_interval_trigger_interval_ns = value.interval_ns;
+                                    let value_native_decoded_request_trigger_notification_time_interval_trigger = NotificationTimeIntervalTrigger {
+                                        kind: value_native_decoded_request_trigger_notification_time_interval_trigger_kind,
+                                        interval_ns: value_native_decoded_request_trigger_notification_time_interval_trigger_interval_ns,
+                                    };
+                                    NotificationTrigger::NotificationTimeIntervalTrigger(value_native_decoded_request_trigger_notification_time_interval_trigger)
+                                }
+                            };
+                            let value_native_decoded_request_action_id = if let Some(value) = value_native_item.request.action_id {
+                                let value_native_decoded_request_action_id_inner = binding.store_string_owned(value);
+                                Some(value_native_decoded_request_action_id_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded_request = NotificationRequest {
+                                title: value_native_decoded_request_title,
+                                subtitle: value_native_decoded_request_subtitle,
+                                body: value_native_decoded_request_body,
+                                tag: value_native_decoded_request_tag,
+                                channel_id: value_native_decoded_request_channel_id,
+                                priority: value_native_decoded_request_priority,
+                                badge_count: value_native_decoded_request_badge_count,
+                                sound: value_native_decoded_request_sound,
+                                category_id: value_native_decoded_request_category_id,
+                                thread_id: value_native_decoded_request_thread_id,
+                                trigger: value_native_decoded_request_trigger,
+                                action_id: value_native_decoded_request_action_id,
+                            };
+                            let value_native_decoded_scheduled_unix_ns = if let Some(value) = value_native_item.scheduled_unix_ns {
+                                let value_native_decoded_scheduled_unix_ns_inner = value;
+                                Some(value_native_decoded_scheduled_unix_ns_inner)
+                            } else {
+                                None
+                            };
+                            let value_native_decoded = NotificationScheduledDescriptor {
+                                id: value_native_decoded_id,
+                                request: value_native_decoded_request,
+                                scheduled_unix_ns: value_native_decoded_scheduled_unix_ns,
+                            };
+                            value_native_values.push(value_native_decoded);
+                        }
+                        Ok(())
+                    })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -13615,8 +14411,9 @@ fn destack_os_permission_state_many_replay(
         |result| {
             if let Ok(()) = result {
                 let result_value: NativeArray<PermissionEntry> = unsafe { out.read() };
-                let mut result_recorded = Vec::new();
-                for result_recorded_item in unsafe { result_value.as_slice()? }.iter().cloned() {
+                let result_recorded_slice = unsafe { result_value.as_slice()? };
+                let mut result_recorded = Vec::with_capacity(result_recorded_slice.len());
+                for result_recorded_item in result_recorded_slice.iter().cloned() {
                     let result_recorded_item_recorded_permission = result_recorded_item.permission;
                     let result_recorded_item_recorded_state = result_recorded_item.state;
                     let result_recorded_item_recorded = PermissionEntry {
@@ -13645,17 +14442,19 @@ fn destack_os_permission_state_many_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let mut value_native_values = Vec::new();
-                    for value_native_item in value.iter().cloned() {
-                        let value_native_decoded_permission = value_native_item.permission;
-                        let value_native_decoded_state = value_native_item.state;
-                        let value_native_decoded = PermissionEntry {
-                            permission: value_native_decoded_permission,
-                            state: value_native_decoded_state,
-                        };
-                        value_native_values.push(value_native_decoded);
-                    }
-                    let value_native = binding.store_array(value_native_values);
+                    let value_native =
+                        binding.store_array_with(value.len(), |value_native_values| {
+                            for value_native_item in value {
+                                let value_native_decoded_permission = value_native_item.permission;
+                                let value_native_decoded_state = value_native_item.state;
+                                let value_native_decoded = PermissionEntry {
+                                    permission: value_native_decoded_permission,
+                                    state: value_native_decoded_state,
+                                };
+                                value_native_values.push(value_native_decoded);
+                            }
+                            Ok(())
+                        })?;
                     unsafe { out.write(value_native) };
                     Ok(())
                 }
@@ -15933,8 +16732,7 @@ fn destack_os_background_event_close_vm_replay(
                 platform_simulation_vm::destack_os_background_event_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = OsBackgroundEventCloseReplayRecord {
@@ -15953,8 +16751,7 @@ fn destack_os_background_event_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -15985,8 +16782,7 @@ fn destack_os_background_event_open_vm_replay(
                 platform_simulation_vm::destack_os_background_event_open(binding, context, options)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::BackgroundEventHandle = value.clone();
                 let result_recorded = result_value;
@@ -16006,8 +16802,7 @@ fn destack_os_background_event_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16041,7 +16836,7 @@ fn destack_os_background_event_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: BackgroundEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -16123,7 +16918,7 @@ fn destack_os_background_event_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16197,7 +16992,7 @@ fn destack_os_background_event_try_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: BackgroundEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -16279,7 +17074,7 @@ fn destack_os_background_event_try_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16352,59 +17147,13 @@ fn destack_os_background_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<BackgroundTaskDescriptorVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 7 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 7 fields")).boxed()); }
-                        let result_recorded_item_identifier = decode_string(slots[0], "result_recorded_item_identifier", "identifier")?;
-                        let result_recorded_item_trigger_raw = decode_int32(slots[1], "result_recorded_item_trigger_raw", "trigger")?;
-                        let result_recorded_item_trigger = match result_recorded_item_trigger_raw { 1i32 => BackgroundTriggerKind::AppRefresh, 2i32 => BackgroundTriggerKind::Processing , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_trigger", "unknown BackgroundTriggerKind value")).boxed()), };
-                        let result_recorded_item_schedule = {
-                            if slots[2].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_schedule", "schedule")).boxed()); }
-                            let slots = context.aggregate_slots(slots[2]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_schedule", "expected 3 fields")).boxed()); }
-                            let result_recorded_item_schedule_kind_raw = decode_int32(slots[0], "result_recorded_item_schedule_kind_raw", "kind")?;
-                            let result_recorded_item_schedule_kind = match result_recorded_item_schedule_kind_raw { 1i32 => BackgroundTaskScheduleKind::Once, 2i32 => BackgroundTaskScheduleKind::Recurring , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_schedule_kind", "unknown BackgroundTaskScheduleKind value")).boxed()), };
-                            let result_recorded_item_schedule_earliest_begin_unix_ns = if slots[1].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_schedule_earliest_begin_unix_ns_inner = decode_uint64(slots[1], "result_recorded_item_schedule_earliest_begin_unix_ns_inner", "earliestBeginUnixNs")?;
-                                Some(result_recorded_item_schedule_earliest_begin_unix_ns_inner)
-                            };
-                            let result_recorded_item_schedule_repeat_interval_ns = if slots[2].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_schedule_repeat_interval_ns_inner = decode_uint64(slots[2], "result_recorded_item_schedule_repeat_interval_ns_inner", "repeatIntervalNs")?;
-                                Some(result_recorded_item_schedule_repeat_interval_ns_inner)
-                            };
-                            BackgroundTaskScheduleVm {
-                                kind: result_recorded_item_schedule_kind,
-                                earliest_begin_unix_ns: result_recorded_item_schedule_earliest_begin_unix_ns,
-                                repeat_interval_ns: result_recorded_item_schedule_repeat_interval_ns,
-                            }
-                        };
-                        let result_recorded_item_network_raw = decode_int32(slots[3], "result_recorded_item_network_raw", "network")?;
-                        let result_recorded_item_network = match result_recorded_item_network_raw { 1i32 => BackgroundNetworkRequirement::None, 2i32 => BackgroundNetworkRequirement::Connected, 3i32 => BackgroundNetworkRequirement::Unmetered , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_network", "unknown BackgroundNetworkRequirement value")).boxed()), };
-                        let result_recorded_item_requires_charging = decode_bool(slots[4], "result_recorded_item_requires_charging", "requiresCharging")?;
-                        let result_recorded_item_requires_idle = decode_bool(slots[5], "result_recorded_item_requires_idle", "requiresIdle")?;
-                        let result_recorded_item_conflict_policy_raw = decode_int32(slots[6], "result_recorded_item_conflict_policy_raw", "conflictPolicy")?;
-                        let result_recorded_item_conflict_policy = match result_recorded_item_conflict_policy_raw { 1i32 => BackgroundConflictPolicy::Replace, 2i32 => BackgroundConflictPolicy::Keep , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_conflict_policy", "unknown BackgroundConflictPolicy value")).boxed()), };
-                        BackgroundTaskDescriptorVm {
-                            identifier: result_recorded_item_identifier,
-                            trigger: result_recorded_item_trigger,
-                            schedule: result_recorded_item_schedule,
-                            network: result_recorded_item_network,
-                            requires_charging: result_recorded_item_requires_charging,
-                            requires_idle: result_recorded_item_requires_idle,
-                            conflict_policy: result_recorded_item_conflict_policy,
-                        }
-                    };
+                    let result_recorded_item = <BackgroundTaskDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
                     let result_recorded_item_recorded_identifier = {
                         let result_recorded_item_recorded_identifier_ref = context.string_ref(result_recorded_item.identifier).map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_item_recorded_identifier_ref.as_str().to_string()
@@ -16462,12 +17211,12 @@ fn destack_os_background_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_identifier = context.string_handle(vm_result_item.identifier.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_trigger = vm_result_item.trigger;
                         let vm_result_item_value_schedule_kind = vm_result_item.schedule.kind;
@@ -16530,8 +17279,7 @@ fn destack_os_background_status_vm_replay(
                 platform_simulation_vm::destack_os_background_status(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: BackgroundStatus = value.clone();
                 let result_recorded = result_value;
@@ -16551,8 +17299,7 @@ fn destack_os_background_status_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16584,7 +17331,7 @@ fn destack_os_host_identity_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: HostIdentityVm = value.clone();
                 let result_recorded_hostname = {
@@ -16634,7 +17381,7 @@ fn destack_os_host_identity_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16682,8 +17429,7 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
                 platform_simulation_vm::destack_os_boot_time_unix_ns(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -16703,8 +17449,7 @@ fn destack_os_info_boot_time_unix_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16735,8 +17480,7 @@ fn destack_os_info_load_average_vm_replay(
                 platform_simulation_vm::destack_os_load_average(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: LoadAverageVm = value.clone();
                 let result_recorded_one = result_value.one;
@@ -16763,8 +17507,7 @@ fn destack_os_info_load_average_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16802,8 +17545,7 @@ fn destack_os_info_system_snapshot_vm_replay(
                 platform_simulation_vm::destack_os_system_snapshot(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SystemSnapshotVm = value.clone();
                 let result_recorded_cpu_count = result_value.cpu_count;
@@ -16832,8 +17574,7 @@ fn destack_os_info_system_snapshot_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16873,8 +17614,7 @@ fn destack_os_info_uptime_ns_vm_replay(
                 platform_simulation_vm::destack_os_uptime_ns(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -16894,8 +17634,7 @@ fn destack_os_info_uptime_ns_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16929,8 +17668,7 @@ fn destack_os_intent_can_open_url_vm_replay(
                 platform_simulation_vm::destack_os_intent_can_open_url(binding, context, url)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -16950,8 +17688,7 @@ fn destack_os_intent_can_open_url_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -16983,8 +17720,7 @@ fn destack_os_intent_close_vm_replay(
                 platform_simulation_vm::destack_os_intent_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = OsIntentCloseReplayRecord {
@@ -17003,8 +17739,7 @@ fn destack_os_intent_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -17033,8 +17768,7 @@ fn destack_os_intent_open_vm_replay(
                 platform_simulation_vm::destack_os_intent_open(binding, context, options)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::IntentHandle = value.clone();
                 let result_recorded = result_value;
@@ -17054,8 +17788,7 @@ fn destack_os_intent_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17089,7 +17822,7 @@ fn destack_os_intent_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: IntentEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -17455,7 +18188,7 @@ fn destack_os_intent_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -17483,7 +18216,7 @@ fn destack_os_intent_read_vm_replay(
                                 None
                             };
                             let mut vm_result_intent_custom_action_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
-                            for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths.iter().cloned() {
+                            for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_custom_action_event_payload_paths_item_value = match vm_result_intent_custom_action_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -17498,7 +18231,7 @@ fn destack_os_intent_read_vm_replay(
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                        for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
+                                        for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
                                             vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
                                         }
@@ -17569,7 +18302,7 @@ fn destack_os_intent_read_vm_replay(
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                    for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
+                                    for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
                                         vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value);
                                     }
@@ -17641,7 +18374,7 @@ fn destack_os_intent_read_vm_replay(
                                 source: vm_result_intent_share_files_event_metadata_source,
                             };
                             let mut vm_result_intent_share_files_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
-                            for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths.iter().cloned() {
+                            for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_share_files_event_payload_paths_item_value = match vm_result_intent_share_files_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -17656,7 +18389,7 @@ fn destack_os_intent_read_vm_replay(
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                        for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
+                                        for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
                                             vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
                                         }
@@ -17751,7 +18484,7 @@ fn destack_os_intent_try_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: IntentEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -18117,7 +18850,7 @@ fn destack_os_intent_try_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18145,7 +18878,7 @@ fn destack_os_intent_try_read_vm_replay(
                                 None
                             };
                             let mut vm_result_intent_custom_action_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
-                            for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths.iter().cloned() {
+                            for vm_result_intent_custom_action_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_custom_action_event_payload_paths_item_value = match vm_result_intent_custom_action_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -18160,7 +18893,7 @@ fn destack_os_intent_try_read_vm_replay(
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                        for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
+                                        for vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
                                             vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_custom_action_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
                                         }
@@ -18231,7 +18964,7 @@ fn destack_os_intent_try_read_vm_replay(
                                 fs::OspathReplayRecord::OsPathUtf16(value) => {
                                     let vm_result_intent_open_file_event_payload_path_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                     let mut vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                    for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
+                                    for vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item in value.utf16 {
                                         let vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value = vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item;
                                         vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_values.push(vm_result_intent_open_file_event_payload_path_os_path_utf16_utf16_inner_item_value);
                                     }
@@ -18303,7 +19036,7 @@ fn destack_os_intent_try_read_vm_replay(
                                 source: vm_result_intent_share_files_event_metadata_source,
                             };
                             let mut vm_result_intent_share_files_event_payload_paths_values = Vec::with_capacity(value.payload.paths.len());
-                            for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths.iter().cloned() {
+                            for vm_result_intent_share_files_event_payload_paths_item in value.payload.paths {
                                 let vm_result_intent_share_files_event_payload_paths_item_value = match vm_result_intent_share_files_event_payload_paths_item {
                                     fs::OspathReplayRecord::OsPathBytes(value) => {
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_bytes_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
@@ -18318,7 +19051,7 @@ fn destack_os_intent_try_read_vm_replay(
                                     fs::OspathReplayRecord::OsPathUtf16(value) => {
                                         let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                         let mut vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                        for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
+                                        for vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item in value.utf16 {
                                             let vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value = vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item;
                                             vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_values.push(vm_result_intent_share_files_event_payload_paths_item_value_os_path_utf16_utf16_inner_item_value);
                                         }
@@ -18412,8 +19145,7 @@ fn destack_os_lifecycle_close_vm_replay(
                 platform_simulation_vm::destack_os_lifecycle_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = OsLifecycleCloseReplayRecord {
@@ -18432,8 +19164,7 @@ fn destack_os_lifecycle_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -18461,8 +19192,7 @@ fn destack_os_lifecycle_open_vm_replay(
                 platform_simulation_vm::destack_os_lifecycle_open(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::LifecycleEventHandle = value.clone();
                 let result_recorded = result_value;
@@ -18482,8 +19212,7 @@ fn destack_os_lifecycle_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18517,7 +19246,7 @@ fn destack_os_lifecycle_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: LifecycleEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -18687,7 +19416,7 @@ fn destack_os_lifecycle_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18841,8 +19570,7 @@ fn destack_os_lifecycle_state_vm_replay(
                 platform_simulation_vm::destack_os_lifecycle_state(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: LifecycleState = value.clone();
                 let result_recorded = result_value;
@@ -18862,8 +19590,7 @@ fn destack_os_lifecycle_state_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -18896,7 +19623,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: LifecycleEventVm = value.clone();
                 let result_recorded = match result_value {
@@ -19066,7 +19793,7 @@ fn destack_os_lifecycle_try_read_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19220,8 +19947,7 @@ fn destack_os_location_last_known_vm_replay(
                 platform_simulation_vm::destack_os_location_last_known(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: LocationSampleVm = value.clone();
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
@@ -19260,8 +19986,7 @@ fn destack_os_location_last_known_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19311,8 +20036,7 @@ fn destack_os_location_services_enabled_vm_replay(
                 platform_simulation_vm::destack_os_location_services_enabled(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: bool = value.clone();
                 let result_recorded = result_value;
@@ -19332,8 +20056,7 @@ fn destack_os_location_services_enabled_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19367,8 +20090,7 @@ fn destack_os_location_watch_close_vm_replay(
                 platform_simulation_vm::destack_os_location_watch_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = OsLocationWatchCloseReplayRecord {
@@ -19387,8 +20109,7 @@ fn destack_os_location_watch_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -19419,8 +20140,7 @@ fn destack_os_location_watch_open_vm_replay(
                 platform_simulation_vm::destack_os_location_watch_open(binding, context, options)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::LocationWatchHandle = value.clone();
                 let result_recorded = result_value;
@@ -19440,8 +20160,7 @@ fn destack_os_location_watch_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19476,8 +20195,7 @@ fn destack_os_location_watch_read_vm_replay(
                 binding, context, handle, timeoutns,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: LocationSampleVm = value.clone();
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
@@ -19516,8 +20234,7 @@ fn destack_os_location_watch_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19568,8 +20285,7 @@ fn destack_os_location_watch_try_read_vm_replay(
                 platform_simulation_vm::destack_os_location_watch_try_read(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: LocationSampleVm = value.clone();
                 let result_recorded_latitude_degrees = result_value.latitude_degrees;
@@ -19608,8 +20324,7 @@ fn destack_os_location_watch_try_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -19658,42 +20373,13 @@ fn destack_os_mount_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<MountEntryVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 4 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 4 fields")).boxed()); }
-                        let result_recorded_item_source = if slots[0].tag() == vm::ValueTag::Void {
-                            None
-                        } else {
-                            let result_recorded_item_source_inner = decode_string(slots[0], "result_recorded_item_source_inner", "source")?;
-                            Some(result_recorded_item_source_inner)
-                        };
-                        let result_recorded_item_target = <fs::OsPathVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-                        let result_recorded_item_file_system = if slots[2].tag() == vm::ValueTag::Void {
-                            None
-                        } else {
-                            let result_recorded_item_file_system_inner = decode_string(slots[2], "result_recorded_item_file_system_inner", "fileSystem")?;
-                            Some(result_recorded_item_file_system_inner)
-                        };
-                        let result_recorded_item_host_flags = if slots[3].tag() == vm::ValueTag::Void {
-                            None
-                        } else {
-                            let result_recorded_item_host_flags_inner = decode_uint64(slots[3], "result_recorded_item_host_flags_inner", "hostFlags")?;
-                            Some(result_recorded_item_host_flags_inner)
-                        };
-                        MountEntryVm {
-                            source: result_recorded_item_source,
-                            target: result_recorded_item_target,
-                            file_system: result_recorded_item_file_system,
-                            host_flags: result_recorded_item_host_flags,
-                        }
-                    };
+                    let result_recorded_item = <MountEntryVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
                     let result_recorded_item_recorded_source = if let Some(value) = result_recorded_item.source {
                         let result_recorded_item_recorded_source_inner = {
                             let result_recorded_item_recorded_source_inner_ref = context.string_ref(value).map_err(|error| RuntimeError::from(error).boxed())?;
@@ -19779,12 +20465,12 @@ fn destack_os_mount_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_source = if let Some(value) = vm_result_item.source {
                             let vm_result_item_value_source_inner = context.string_handle(value.as_str()).map_err(Box::<RuntimeError>::from)?;
                             Some(vm_result_item_value_source_inner)
@@ -19805,7 +20491,7 @@ fn destack_os_mount_list_vm_replay(
                             fs::OspathReplayRecord::OsPathUtf16(value) => {
                                 let vm_result_item_value_target_os_path_utf16_kind = context.string_handle(value.kind.as_str()).map_err(Box::<RuntimeError>::from)?;
                                 let mut vm_result_item_value_target_os_path_utf16_utf16_inner_values = Vec::with_capacity(value.utf16.len());
-                                for vm_result_item_value_target_os_path_utf16_utf16_inner_item in value.utf16.iter().cloned() {
+                                for vm_result_item_value_target_os_path_utf16_utf16_inner_item in value.utf16 {
                                     let vm_result_item_value_target_os_path_utf16_utf16_inner_item_value = vm_result_item_value_target_os_path_utf16_utf16_inner_item;
                                     vm_result_item_value_target_os_path_utf16_utf16_inner_values.push(vm_result_item_value_target_os_path_utf16_utf16_inner_item_value);
                                 }
@@ -19865,8 +20551,7 @@ fn destack_os_network_state_vm_replay(
                 platform_simulation_vm::destack_os_network_state(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: NetworkStateVm = value.clone();
                 let result_recorded_connection_type = result_value.connection_type;
@@ -19937,8 +20622,7 @@ fn destack_os_network_state_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20022,8 +20706,7 @@ fn destack_os_network_watch_close_vm_replay(
                 platform_simulation_vm::destack_os_network_watch_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = OsNetworkWatchCloseReplayRecord {
@@ -20042,8 +20725,7 @@ fn destack_os_network_watch_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -20071,8 +20753,7 @@ fn destack_os_network_watch_open_vm_replay(
                 platform_simulation_vm::destack_os_network_watch_open(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::NetworkWatchHandle = value.clone();
                 let result_recorded = result_value;
@@ -20092,8 +20773,7 @@ fn destack_os_network_watch_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20128,8 +20808,7 @@ fn destack_os_network_watch_read_vm_replay(
                 binding, context, handle, timeoutns,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: NetworkEventVm = value.clone();
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
@@ -20212,8 +20891,7 @@ fn destack_os_network_watch_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20305,8 +20983,7 @@ fn destack_os_network_watch_try_read_vm_replay(
                 platform_simulation_vm::destack_os_network_watch_try_read(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: NetworkEventVm = value.clone();
                 let result_recorded_timestamp_ns = result_value.timestamp_ns;
@@ -20389,8 +21066,7 @@ fn destack_os_network_watch_try_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -20480,23 +21156,13 @@ fn destack_os_notification_category_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<NotificationCategoryVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 2 fields")).boxed()); }
-                        let result_recorded_item_id = decode_string(slots[0], "result_recorded_item_id", "id")?;
-                        let result_recorded_item_actions = decode_array::<NotificationActionVm>(context, slots[1], "result_recorded_item_actions", "actions")?;
-                        NotificationCategoryVm {
-                            id: result_recorded_item_id,
-                            actions: result_recorded_item_actions,
-                        }
-                    };
+                    let result_recorded_item = <NotificationCategoryVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
                     let result_recorded_item_recorded_id = {
                         let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_item_recorded_id_ref.as_str().to_string()
@@ -20504,38 +21170,7 @@ fn destack_os_notification_category_list_vm_replay(
                     let result_recorded_item_recorded_actions_raw = result_recorded_item.actions.raw_values(context)?;
                     let mut result_recorded_item_recorded_actions = Vec::with_capacity(result_recorded_item_recorded_actions_raw.len());
                     for result_recorded_item_recorded_actions_item_value in result_recorded_item_recorded_actions_raw {
-                        let result_recorded_item_recorded_actions_item = {
-                            if result_recorded_item_recorded_actions_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_recorded_actions_item", "item")).boxed()); }
-                            let slots = context.aggregate_slots(result_recorded_item_recorded_actions_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 7 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_actions_item", "expected 7 fields")).boxed()); }
-                            let result_recorded_item_recorded_actions_item_id = decode_string(slots[0], "result_recorded_item_recorded_actions_item_id", "id")?;
-                            let result_recorded_item_recorded_actions_item_title = decode_string(slots[1], "result_recorded_item_recorded_actions_item_title", "title")?;
-                            let result_recorded_item_recorded_actions_item_style_raw = decode_int32(slots[2], "result_recorded_item_recorded_actions_item_style_raw", "style")?;
-                            let result_recorded_item_recorded_actions_item_style = match result_recorded_item_recorded_actions_item_style_raw { 1i32 => NotificationActionStyle::Default, 2i32 => NotificationActionStyle::Destructive, 3i32 => NotificationActionStyle::TextInput , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_recorded_actions_item_style", "unknown NotificationActionStyle value")).boxed()), };
-                            let result_recorded_item_recorded_actions_item_foreground = decode_bool(slots[3], "result_recorded_item_recorded_actions_item_foreground", "foreground")?;
-                            let result_recorded_item_recorded_actions_item_authentication_required = decode_bool(slots[4], "result_recorded_item_recorded_actions_item_authentication_required", "authenticationRequired")?;
-                            let result_recorded_item_recorded_actions_item_text_input_button_title = if slots[5].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_recorded_actions_item_text_input_button_title_inner = decode_string(slots[5], "result_recorded_item_recorded_actions_item_text_input_button_title_inner", "textInputButtonTitle")?;
-                                Some(result_recorded_item_recorded_actions_item_text_input_button_title_inner)
-                            };
-                            let result_recorded_item_recorded_actions_item_text_input_placeholder = if slots[6].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_recorded_actions_item_text_input_placeholder_inner = decode_string(slots[6], "result_recorded_item_recorded_actions_item_text_input_placeholder_inner", "textInputPlaceholder")?;
-                                Some(result_recorded_item_recorded_actions_item_text_input_placeholder_inner)
-                            };
-                            NotificationActionVm {
-                                id: result_recorded_item_recorded_actions_item_id,
-                                title: result_recorded_item_recorded_actions_item_title,
-                                style: result_recorded_item_recorded_actions_item_style,
-                                foreground: result_recorded_item_recorded_actions_item_foreground,
-                                authentication_required: result_recorded_item_recorded_actions_item_authentication_required,
-                                text_input_button_title: result_recorded_item_recorded_actions_item_text_input_button_title,
-                                text_input_placeholder: result_recorded_item_recorded_actions_item_text_input_placeholder,
-                            }
-                        };
+                        let result_recorded_item_recorded_actions_item = <NotificationActionVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_recorded_actions_item_value)?;
                         let result_recorded_item_recorded_actions_item_recorded_id = {
                             let result_recorded_item_recorded_actions_item_recorded_id_ref = context.string_ref(result_recorded_item_recorded_actions_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
                             result_recorded_item_recorded_actions_item_recorded_id_ref.as_str().to_string()
@@ -20601,15 +21236,15 @@ fn destack_os_notification_category_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let mut vm_result_item_value_actions_values = Vec::with_capacity(vm_result_item.actions.len());
-                        for vm_result_item_value_actions_item in vm_result_item.actions.iter().cloned() {
+                        for vm_result_item_value_actions_item in vm_result_item.actions {
                             let vm_result_item_value_actions_item_value_id = context.string_handle(vm_result_item_value_actions_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_item_value_actions_item_value_title = context.string_handle(vm_result_item_value_actions_item.title.as_str()).map_err(Box::<RuntimeError>::from)?;
                             let vm_result_item_value_actions_item_value_style = vm_result_item_value_actions_item.style;
@@ -20673,96 +21308,13 @@ fn destack_os_notification_pending_list_vm_replay(
             }
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<NotificationScheduledDescriptorVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item", "item")).boxed()); }
-                        let slots = context.aggregate_slots(result_recorded_item_value).map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 3 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item", "expected 3 fields")).boxed()); }
-                        let result_recorded_item_id = decode_string(slots[0], "result_recorded_item_id", "id")?;
-                        let result_recorded_item_request = {
-                            if slots[1].tag() != vm::ValueTag::Aggregate { return Err(RuntimeError::from(PlatformError::invalid_argument_type("result_recorded_item_request", "request")).boxed()); }
-                            let slots = context.aggregate_slots(slots[1]).map_err(|error| RuntimeError::from(error).boxed())?;
-                            if slots.len() != 12 { return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request", "expected 12 fields")).boxed()); }
-                            let result_recorded_item_request_title = decode_string(slots[0], "result_recorded_item_request_title", "title")?;
-                            let result_recorded_item_request_subtitle = if slots[1].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_subtitle_inner = decode_string(slots[1], "result_recorded_item_request_subtitle_inner", "subtitle")?;
-                                Some(result_recorded_item_request_subtitle_inner)
-                            };
-                            let result_recorded_item_request_body = decode_string(slots[2], "result_recorded_item_request_body", "body")?;
-                            let result_recorded_item_request_tag = decode_string(slots[3], "result_recorded_item_request_tag", "tag")?;
-                            let result_recorded_item_request_channel_id = if slots[4].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_channel_id_inner = decode_string(slots[4], "result_recorded_item_request_channel_id_inner", "channelId")?;
-                                Some(result_recorded_item_request_channel_id_inner)
-                            };
-                            let result_recorded_item_request_priority_raw = decode_int32(slots[5], "result_recorded_item_request_priority_raw", "priority")?;
-                            let result_recorded_item_request_priority = match result_recorded_item_request_priority_raw { 1i32 => NotificationPriority::Low, 2i32 => NotificationPriority::Normal, 3i32 => NotificationPriority::High , _ => return Err(RuntimeError::from(PlatformError::invalid_argument_value("result_recorded_item_request_priority", "unknown NotificationPriority value")).boxed()), };
-                            let result_recorded_item_request_badge_count = if slots[6].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_badge_count_inner = decode_uint32(slots[6], "result_recorded_item_request_badge_count_inner", "badgeCount")?;
-                                Some(result_recorded_item_request_badge_count_inner)
-                            };
-                            let result_recorded_item_request_sound = if slots[7].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_sound_inner = decode_string(slots[7], "result_recorded_item_request_sound_inner", "sound")?;
-                                Some(result_recorded_item_request_sound_inner)
-                            };
-                            let result_recorded_item_request_category_id = if slots[8].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_category_id_inner = decode_string(slots[8], "result_recorded_item_request_category_id_inner", "categoryId")?;
-                                Some(result_recorded_item_request_category_id_inner)
-                            };
-                            let result_recorded_item_request_thread_id = if slots[9].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_thread_id_inner = decode_string(slots[9], "result_recorded_item_request_thread_id_inner", "threadId")?;
-                                Some(result_recorded_item_request_thread_id_inner)
-                            };
-                            let result_recorded_item_request_trigger = <NotificationTriggerVm as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-                            let result_recorded_item_request_action_id = if slots[11].tag() == vm::ValueTag::Void {
-                                None
-                            } else {
-                                let result_recorded_item_request_action_id_inner = decode_string(slots[11], "result_recorded_item_request_action_id_inner", "actionId")?;
-                                Some(result_recorded_item_request_action_id_inner)
-                            };
-                            NotificationRequestVm {
-                                title: result_recorded_item_request_title,
-                                subtitle: result_recorded_item_request_subtitle,
-                                body: result_recorded_item_request_body,
-                                tag: result_recorded_item_request_tag,
-                                channel_id: result_recorded_item_request_channel_id,
-                                priority: result_recorded_item_request_priority,
-                                badge_count: result_recorded_item_request_badge_count,
-                                sound: result_recorded_item_request_sound,
-                                category_id: result_recorded_item_request_category_id,
-                                thread_id: result_recorded_item_request_thread_id,
-                                trigger: result_recorded_item_request_trigger,
-                                action_id: result_recorded_item_request_action_id,
-                            }
-                        };
-                        let result_recorded_item_scheduled_unix_ns = if slots[2].tag() == vm::ValueTag::Void {
-                            None
-                        } else {
-                            let result_recorded_item_scheduled_unix_ns_inner = decode_uint64(slots[2], "result_recorded_item_scheduled_unix_ns_inner", "scheduledUnixNs")?;
-                            Some(result_recorded_item_scheduled_unix_ns_inner)
-                        };
-                        NotificationScheduledDescriptorVm {
-                            id: result_recorded_item_id,
-                            request: result_recorded_item_request,
-                            scheduled_unix_ns: result_recorded_item_scheduled_unix_ns,
-                        }
-                    };
+                    let result_recorded_item = <NotificationScheduledDescriptorVm as VmAggregateCodec>::decode_with_context(context, result_recorded_item_value)?;
                     let result_recorded_item_recorded_id = {
                         let result_recorded_item_recorded_id_ref = context.string_ref(result_recorded_item.id).map_err(|error| RuntimeError::from(error).boxed())?;
                         result_recorded_item_recorded_id_ref.as_str().to_string()
@@ -20942,12 +21494,12 @@ fn destack_os_notification_pending_list_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_id = context.string_handle(vm_result_item.id.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_request_title = context.string_handle(vm_result_item.request.title.as_str()).map_err(Box::<RuntimeError>::from)?;
                         let vm_result_item_value_request_subtitle = if let Some(value) = vm_result_item.request.subtitle {
@@ -21095,8 +21647,7 @@ fn destack_os_notification_permission_state_vm_replay(
                 platform_simulation_vm::destack_os_notification_permission_state(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: NotificationPermissionState = value.clone();
                 let result_recorded = result_value;
@@ -21116,8 +21667,7 @@ fn destack_os_notification_permission_state_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -21151,8 +21701,7 @@ fn destack_os_permission_state_vm_replay(
                 platform_simulation_vm::destack_os_permission_state(binding, context, permission)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: PermissionState = value.clone();
                 let result_recorded = result_value;
@@ -21172,8 +21721,7 @@ fn destack_os_permission_state_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -21210,84 +21758,17 @@ fn destack_os_permission_state_many_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: VmArray<PermissionEntryVm> = value.clone();
                 let result_recorded_raw = result_value.raw_values(context)?;
                 let mut result_recorded = Vec::with_capacity(result_recorded_raw.len());
                 for result_recorded_item_value in result_recorded_raw {
-                    let result_recorded_item = {
-                        if result_recorded_item_value.tag() != vm::ValueTag::Aggregate {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                                "result_recorded_item",
-                                "item",
-                            ))
-                            .boxed());
-                        }
-                        let slots = context
-                            .aggregate_slots(result_recorded_item_value)
-                            .map_err(|error| RuntimeError::from(error).boxed())?;
-                        if slots.len() != 2 {
-                            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
-                                "result_recorded_item",
-                                "expected 2 fields",
-                            ))
-                            .boxed());
-                        }
-                        let result_recorded_item_permission_raw = decode_int32(
-                            slots[0],
-                            "result_recorded_item_permission_raw",
-                            "permission",
+                    let result_recorded_item =
+                        <PermissionEntryVm as VmAggregateCodec>::decode_with_context(
+                            context,
+                            result_recorded_item_value,
                         )?;
-                        let result_recorded_item_permission =
-                            match result_recorded_item_permission_raw {
-                                1i32 => Permission::Location,
-                                2i32 => Permission::LocationBackground,
-                                3i32 => Permission::Camera,
-                                4i32 => Permission::Microphone,
-                                5i32 => Permission::Bluetooth,
-                                6i32 => Permission::Notifications,
-                                7i32 => Permission::ContactsRead,
-                                8i32 => Permission::ContactsWrite,
-                                9i32 => Permission::MediaRead,
-                                10i32 => Permission::MediaWrite,
-                                11i32 => Permission::Motion,
-                                12i32 => Permission::ClipboardRead,
-                                13i32 => Permission::CalendarRead,
-                                14i32 => Permission::CalendarWrite,
-                                _ => {
-                                    return Err(RuntimeError::from(
-                                        PlatformError::invalid_argument_value(
-                                            "result_recorded_item_permission",
-                                            "unknown Permission value",
-                                        ),
-                                    )
-                                    .boxed());
-                                }
-                            };
-                        let result_recorded_item_state_raw =
-                            decode_int32(slots[1], "result_recorded_item_state_raw", "state")?;
-                        let result_recorded_item_state = match result_recorded_item_state_raw {
-                            1i32 => PermissionState::Granted,
-                            2i32 => PermissionState::Denied,
-                            3i32 => PermissionState::Prompt,
-                            4i32 => PermissionState::Restricted,
-                            5i32 => PermissionState::Limited,
-                            _ => {
-                                return Err(RuntimeError::from(
-                                    PlatformError::invalid_argument_value(
-                                        "result_recorded_item_state",
-                                        "unknown PermissionState value",
-                                    ),
-                                )
-                                .boxed());
-                            }
-                        };
-                        PermissionEntryVm {
-                            permission: result_recorded_item_permission,
-                            state: result_recorded_item_state,
-                        }
-                    };
                     let result_recorded_item_recorded_permission = result_recorded_item.permission;
                     let result_recorded_item_recorded_state = result_recorded_item.state;
                     let result_recorded_item_recorded = PermissionEntry {
@@ -21313,12 +21794,12 @@ fn destack_os_permission_state_many_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let mut vm_result_values = Vec::with_capacity(value.len());
-                    for vm_result_item in value.iter().cloned() {
+                    for vm_result_item in value {
                         let vm_result_item_value_permission = vm_result_item.permission;
                         let vm_result_item_value_state = vm_result_item.state;
                         let vm_result_item_value = PermissionEntry {
@@ -21354,8 +21835,7 @@ fn destack_os_power_state_vm_replay(
                 platform_simulation_vm::destack_os_power_state(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: PowerState = value.clone();
                 let result_recorded = result_value;
@@ -21375,8 +21855,7 @@ fn destack_os_power_state_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -23928,6 +24407,7 @@ pub(crate) fn register_os_vm_bindings(registry: &mut BindingRegistry, isolate: &
 
 /// Install VM bindings for os.
 pub(crate) fn install_os_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_os_vm_storage_types(isolate);
     register_os_vm_bindings(registry, isolate);
 }
 

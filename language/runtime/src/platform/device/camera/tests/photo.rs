@@ -135,7 +135,7 @@ fn test_device_camera_vm_photo_queries_follow_one_open_stream_config_when_presen
                     vm_context,
                     stream_handle,
                 )?;
-                let photo_state = VmAbiCodec::into_value(photo_state, vm_context)?;
+                let photo_state = VmAbiCodec::into_value(photo_state, &vm_context.read())?;
 
                 // query still-photo capabilities
                 let photo_capabilities =
@@ -144,7 +144,8 @@ fn test_device_camera_vm_photo_queries_follow_one_open_stream_config_when_presen
                         vm_context,
                         stream_handle,
                     )?;
-                let photo_capabilities = VmAbiCodec::into_value(photo_capabilities, vm_context)?;
+                let photo_capabilities =
+                    VmAbiCodec::into_value(photo_capabilities, &vm_context.read())?;
 
                 // assert that still-photo config tracks the opened stream config
                 let state_options = photo_state
@@ -196,8 +197,10 @@ fn test_device_camera_vm_take_photo_returns_one_photo_for_one_open_stream_when_p
                     flash_mode: None,
                     red_eye_reduction_enabled: None,
                 };
-                let settings =
-                    <CameraPhotoSettings as VmAbiCodec>::from_value(vm_context, settings)?;
+                let settings = <CameraPhotoSettings as VmAbiCodec>::from_value(
+                    &mut vm_context.write(),
+                    settings,
+                )?;
                 let photo = device_vm::destack_device_camera_stream_take_photo(
                     context.call_context,
                     vm_context,
@@ -205,7 +208,7 @@ fn test_device_camera_vm_take_photo_returns_one_photo_for_one_open_stream_when_p
                     settings,
                     5_000_000_000,
                 )?;
-                let photo = VmAbiCodec::into_value(photo, vm_context)?;
+                let photo = VmAbiCodec::into_value(photo, &vm_context.read())?;
 
                 // photo shape
                 assert_eq!(photo.width, capability.config.width);

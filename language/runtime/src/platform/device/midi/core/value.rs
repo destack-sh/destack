@@ -274,7 +274,7 @@ impl MidiInputRecordValue {
             data_format: self.data_format,
             protocol: self.protocol,
             framing: self.framing,
-            data: VmSlice::from_bytes(context, &self.data)?,
+            data: VmSlice::from_bytes(&mut context.write(), &self.data)?,
         })
     }
 }
@@ -308,7 +308,7 @@ impl MidiOutputRecordValue {
 
     /// Decode one VM output record into owned bytes.
     pub(crate) fn from_vm(
-        context: &vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalCallContext<'_>,
         record: MidiOutputRecordVm,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -316,7 +316,7 @@ impl MidiOutputRecordValue {
             data_format: record.data_format,
             protocol: record.protocol,
             framing: record.framing,
-            data: SmallVec::from_vec(record.data.read_bytes(context)?),
+            data: SmallVec::from_vec(record.data.read_bytes(&context.read())?),
         })
     }
 }

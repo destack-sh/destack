@@ -42,14 +42,14 @@ use destack_vm as vm;
 /// Decode one VM binding payload into one native binding payload.
 fn native_value_from_vm<Native, Vm>(
     binding: &BindingCallContext,
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     value: Vm,
 ) -> RuntimeResult<Native>
 where
     Native: NativeAbiCodec<Value = Vm::Value>,
     Vm: VmAbiCodec,
 {
-    let value = value.into_value(context)?;
+    let value = value.into_value(&context.read())?;
 
     Ok(Native::from_value(binding, value))
 }
@@ -65,7 +65,7 @@ where
 {
     let value = unsafe { value.into_value()? };
 
-    Vm::from_value(context, value)
+    Vm::from_value(&mut context.write(), value)
 }
 
 /// Call one native out-parameter binding and encode the result for the VM.
@@ -3492,7 +3492,7 @@ pub(crate) fn destack_device_serial_read_into(
     timeoutns: u64,
 ) -> RuntimeResult<u64> {
     // copy the VM buffer into host memory for the read call
-    let mut bytes = buffer.read_bytes(context)?;
+    let mut bytes = buffer.read_bytes(&context.read())?;
 
     // invoke the host read and then copy the results back into VM memory
     let read = call_out(|out| {
@@ -3501,7 +3501,7 @@ pub(crate) fn destack_device_serial_read_into(
             device_host::destack_device_serial_read_into(binding, out, handle, buffer, timeoutns)
         }
     })?;
-    buffer.write_bytes(context, &bytes)?;
+    buffer.write_bytes(&mut context.write(), &bytes)?;
 
     Ok(read)
 }
@@ -3583,14 +3583,14 @@ pub(crate) fn destack_device_serial_try_read_into(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     // copy the VM buffer into host memory for the poll call
-    let mut bytes = buffer.read_bytes(context)?;
+    let mut bytes = buffer.read_bytes(&context.read())?;
 
     // invoke the host read and then copy the results back into VM memory
     let read = call_out(|out| {
         let buffer = native_bytes_from_vec(&mut bytes);
         unsafe { device_host::destack_device_serial_try_read_into(binding, out, handle, buffer) }
     })?;
-    buffer.write_bytes(context, &bytes)?;
+    buffer.write_bytes(&mut context.write(), &bytes)?;
 
     Ok(read)
 }

@@ -286,7 +286,7 @@ pub(super) fn calendar_query_harness_value(
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
-            let query = CalendarEventQueryVm::from_value(vm_context, query)?;
+            let query = CalendarEventQueryVm::from_value(&mut vm_context.write(), query)?;
 
             Ok(HarnessValue::Vm(query))
         }
@@ -305,7 +305,7 @@ pub(super) fn calendar_draft_harness_value(
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
-            let draft = CalendarEventDraftVm::from_value(vm_context, draft)
+            let draft = CalendarEventDraftVm::from_value(&mut vm_context.write(), draft)
                 .expect("vm calendar draft should encode");
 
             HarnessValue::Vm(draft)
@@ -379,11 +379,14 @@ pub(super) fn decode_calendar_descriptors(
                     .expect("vm context should exist for vm harness")
                     as *mut ExternalCallContext<'_>)
             };
-            let descriptors = descriptors.read_values(vm_context)?;
+            let descriptors = descriptors.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(descriptors.len());
 
             for descriptor in descriptors {
-                decoded.push(CalendarDescriptorVm::into_value(descriptor, vm_context)?);
+                decoded.push(CalendarDescriptorVm::into_value(
+                    descriptor,
+                    &vm_context.read(),
+                )?);
             }
 
             Ok(decoded)
@@ -414,11 +417,11 @@ pub(super) fn decode_calendar_events(
                     .expect("vm context should exist for vm harness")
                     as *mut ExternalCallContext<'_>)
             };
-            let events = events.read_values(vm_context)?;
+            let events = events.read_values(&vm_context.read())?;
             let mut decoded = Vec::with_capacity(events.len());
 
             for event in events {
-                decoded.push(CalendarEventVm::into_value(event, vm_context)?);
+                decoded.push(CalendarEventVm::into_value(event, &vm_context.read())?);
             }
 
             Ok(decoded)
@@ -441,7 +444,7 @@ pub(super) fn decode_calendar_event(
                     as *mut ExternalCallContext<'_>)
             };
 
-            CalendarEventVm::into_value(event, vm_context)
+            CalendarEventVm::into_value(event, &vm_context.read())
         }
     }
 }

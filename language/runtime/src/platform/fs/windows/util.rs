@@ -229,7 +229,7 @@ pub(super) fn utf16_units(path: PathUtf16, name: &str) -> RuntimeResult<Vec<u16>
 
 /// Build a UTF-16 path payload from units.
 pub(super) fn path_utf16_from_units(binding: &BindingCallContext, units: &[u16]) -> PathUtf16 {
-    PathUtf16Abi::<NativeAbi>(binding.store_array(units.to_vec()))
+    PathUtf16Abi::<NativeAbi>(binding.store_array_copy(units))
 }
 
 /// Build a UTF-16 path payload from a PathBuf.

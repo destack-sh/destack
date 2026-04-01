@@ -278,11 +278,11 @@ fn path_utf16_vec(_path: &Path) -> Vec<u16> {
 
 /// Decode raw bytes from a VM path reference.
 fn path_ref_bytes_vm(
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<Vec<u8>> {
     match path {
-        OsPathVm::OsPathBytes(path) => path.bytes.0.read_bytes(context),
+        OsPathVm::OsPathBytes(path) => path.bytes.0.read_bytes(&context.read()),
         OsPathVm::OsPathUtf16(_) => Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "path",
             "expected byte path",
@@ -293,16 +293,16 @@ fn path_ref_bytes_vm(
 
 /// Decode a VM path reference into a string.
 fn path_ref_string_vm(
-    context: &vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     path: OsPathVm,
 ) -> RuntimeResult<String> {
     match path {
         OsPathVm::OsPathBytes(path) => {
-            let bytes = path.bytes.0.read_bytes(context)?;
+            let bytes = path.bytes.0.read_bytes(&context.read())?;
             Ok(String::from_utf8_lossy(&bytes).to_string())
         }
         OsPathVm::OsPathUtf16(path) => {
-            let units = path.utf16.0.read_values(context)?;
+            let units = path.utf16.0.read_values(&context.read())?;
             Ok(String::from_utf16_lossy(&units))
         }
     }
@@ -313,7 +313,7 @@ fn decode_dirent_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<DirentVm> {
-    DirentVm::decode_with_context(context, value)
+    DirentVm::decode_with_context(&context.read(), value)
 }
 
 /// Decode a VM watch event from an aggregate value.
@@ -321,14 +321,14 @@ fn decode_watch_event_vm(
     context: &mut vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<WatchEventVm> {
-    WatchEventVm::decode_with_context(context, value)
+    WatchEventVm::decode_with_context(&context.read(), value)
 }
 
 fn decode_string_value(
     _context: &vm::ExternalCallContext<'_>,
     value: vm::Value,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
+    if value.tag() != vm::ValueTag::ManagedReference {
         return Err(
             RuntimeError::from(PlatformError::invalid_argument_type("string", "string")).boxed(),
         );
@@ -604,7 +604,7 @@ fn socket_address_vm_from_host_port(
     family: SocketFamily,
 ) -> RuntimeResult<SocketAddressVm> {
     let address = socket_address_native_from_host_port(binding, host, port, family)?;
-    let bytes = VmArray::from_bytes(context, address.bytes()).map_err(|error| {
+    let bytes = VmArray::from_bytes(&mut context.write(), address.bytes()).map_err(|error| {
         RuntimeError::from(PlatformError::invalid_argument_value(
             "address.bytes",
             format!("failed to encode vm byte array: {error}"),
@@ -648,7 +648,7 @@ fn array_u8_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<u8>,
 ) -> RuntimeResult<Vec<u8>> {
-    values.read_bytes(context)
+    values.read_bytes(&context.read())
 }
 
 fn array_string_native(values: NativeArray<NativeStringRef>) -> RuntimeResult<Vec<String>> {
@@ -664,7 +664,7 @@ fn array_string_vm(
     context: &mut vm::ExternalCallContext<'_>,
     values: VmArray<vm::StringHandle>,
 ) -> RuntimeResult<Vec<String>> {
-    let values = values.raw_values(context)?;
+    let values = values.raw_values(&context.read())?;
     let mut decoded = Vec::with_capacity(values.len());
     for value in values {
         let handle = decode_string_value(context, value)?;

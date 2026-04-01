@@ -34,7 +34,7 @@ where
 {
     let value = unsafe { value.into_value()? };
 
-    Vm::from_value(context, value)
+    Vm::from_value(&mut context.write(), value)
 }
 
 /// Convert one native runtime string into one VM string handle.
@@ -51,14 +51,14 @@ fn native_string_to_vm(
 /// Decode one VM binding payload into one native binding payload.
 fn native_value_from_vm<Native, Vm>(
     binding: &BindingCallContext,
-    context: &destack_vm::ExternalCallContext<'_>,
+    context: &mut destack_vm::ExternalCallContext<'_>,
     value: Vm,
 ) -> RuntimeResult<Native>
 where
     Native: platform::NativeAbiCodec<Value = Vm::Value>,
     Vm: platform::VmAbiCodec,
 {
-    let value = value.into_value(context)?;
+    let value = value.into_value(&context.read())?;
 
     Ok(Native::from_value(binding, value))
 }
@@ -104,7 +104,7 @@ pub(crate) fn destack_display_drag_session_read_bytes(
         host_display::destack_display_drag_session_read_bytes(binding, out, session, itemindex)
     })?;
 
-    VmSlice::from_bytes(context, unsafe { value.as_slice()? })
+    VmSlice::from_bytes(&mut context.write(), unsafe { value.as_slice()? })
 }
 
 /// Read one drag session item as one path.
@@ -499,7 +499,7 @@ fn window_icon_image_from_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     image: WindowIconImageVm,
 ) -> RuntimeResult<WindowIconImage> {
-    let pixels = image.pixels.read_bytes(context)?;
+    let pixels = image.pixels.read_bytes(&context.read())?;
 
     Ok(WindowIconImage {
         width: image.width,
@@ -515,7 +515,7 @@ fn window_icon_set_from_vm(
     context: &mut destack_vm::ExternalCallContext<'_>,
     icon_set: WindowIconSetVm,
 ) -> RuntimeResult<WindowIconSet> {
-    let images = icon_set.images.read_values(context)?;
+    let images = icon_set.images.read_values(&context.read())?;
     let mut native_images = Vec::with_capacity(images.len());
 
     for image in images {
@@ -1180,7 +1180,7 @@ pub(crate) fn destack_display_monitor_modes(
     })?;
     let modes = unsafe { modes.as_slice()? };
 
-    VmSlice::from_values(context, modes)
+    VmSlice::from_values(&mut context.write(), modes)
 }
 
 /// Open one display endpoint.
@@ -1582,9 +1582,9 @@ pub(crate) fn destack_display_monitor_gamma_ramp(
     let blue = unsafe { ramp.blue.as_slice()? };
 
     Ok(DisplayGammaRampVm {
-        red: VmSlice::from_values(context, red)?,
-        green: VmSlice::from_values(context, green)?,
-        blue: VmSlice::from_values(context, blue)?,
+        red: VmSlice::from_values(&mut context.write(), red)?,
+        green: VmSlice::from_values(&mut context.write(), green)?,
+        blue: VmSlice::from_values(&mut context.write(), blue)?,
     })
 }
 
@@ -1604,9 +1604,9 @@ pub(crate) fn destack_display_monitor_set_gamma_ramp(
     handle: resource::DisplayHandle,
     ramp: DisplayGammaRampVm,
 ) -> RuntimeResult<()> {
-    let red = binding.store_slice(ramp.red.read_values(context)?);
-    let green = binding.store_slice(ramp.green.read_values(context)?);
-    let blue = binding.store_slice(ramp.blue.read_values(context)?);
+    let red = binding.store_slice(ramp.red.read_values(&context.read())?);
+    let green = binding.store_slice(ramp.green.read_values(&context.read())?);
+    let blue = binding.store_slice(ramp.blue.read_values(&context.read())?);
     let ramp = DisplayGammaRamp { red, green, blue };
 
     unsafe { host_display::destack_display_monitor_set_gamma_ramp(binding, handle, ramp) }

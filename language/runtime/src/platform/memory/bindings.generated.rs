@@ -246,13 +246,21 @@ fn encode_destack_memory_map_allocate_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProtectedMemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("memory::ProtectedMemoryRange")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -348,13 +356,21 @@ fn encode_destack_memory_map_reserve_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("memory::MemoryRange")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -430,13 +446,21 @@ fn encode_destack_memory_protect_remap_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<ProtectedMemoryRangeVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("memory::ProtectedMemoryRange")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -2083,8 +2107,7 @@ fn destack_memory_advise_advise_range_vm_replay(
                 binding, context, address, length, advice,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryAdviseAdviseRangeReplayRecord {
@@ -2103,8 +2126,7 @@ fn destack_memory_advise_advise_range_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2136,8 +2158,7 @@ fn destack_memory_advise_discard_vm_replay(
                 platform_simulation_vm::destack_memory_discard(binding, context, address, length)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryAdviseDiscardReplayRecord {
@@ -2156,8 +2177,7 @@ fn destack_memory_advise_discard_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2189,8 +2209,7 @@ fn destack_memory_lock_lock_range_vm_replay(
                 platform_simulation_vm::destack_memory_lock(binding, context, address, length)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryLockLockRangeReplayRecord {
@@ -2209,8 +2228,7 @@ fn destack_memory_lock_lock_range_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2242,8 +2260,7 @@ fn destack_memory_lock_unlock_vm_replay(
                 platform_simulation_vm::destack_memory_unlock(binding, context, address, length)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryLockUnlockReplayRecord {
@@ -2262,8 +2279,7 @@ fn destack_memory_lock_unlock_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2307,8 +2323,7 @@ fn destack_memory_map_allocate_vm_replay(
                 flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProtectedMemoryRangeVm = value.clone();
                 let result_recorded_address = result_value.address;
@@ -2333,8 +2348,7 @@ fn destack_memory_map_allocate_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2375,8 +2389,7 @@ fn destack_memory_map_commit_vm_replay(
                 binding, context, address, length, protection,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryMapCommitReplayRecord {
@@ -2395,8 +2408,7 @@ fn destack_memory_map_commit_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2428,8 +2440,7 @@ fn destack_memory_map_decommit_vm_replay(
                 platform_simulation_vm::destack_memory_decommit(binding, context, address, length)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryMapDecommitReplayRecord {
@@ -2448,8 +2459,7 @@ fn destack_memory_map_decommit_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2481,8 +2491,7 @@ fn destack_memory_map_release_vm_replay(
                 platform_simulation_vm::destack_memory_release(binding, context, address, length)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryMapReleaseReplayRecord {
@@ -2501,8 +2510,7 @@ fn destack_memory_map_release_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2539,8 +2547,7 @@ fn destack_memory_map_reserve_vm_replay(
                 flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: MemoryRangeVm = value.clone();
                 let result_recorded_address = result_value.address;
@@ -2565,8 +2572,7 @@ fn destack_memory_map_reserve_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2608,8 +2614,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
                 )
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryProtectFlushInstructionCacheReplayRecord {
@@ -2628,8 +2633,7 @@ fn destack_memory_protect_flush_instruction_cache_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2662,8 +2666,7 @@ fn destack_memory_protect_protect_range_vm_replay(
                 binding, context, address, length, protection,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = MemoryProtectProtectRangeReplayRecord {
@@ -2682,8 +2685,7 @@ fn destack_memory_protect_protect_range_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -2717,8 +2719,7 @@ fn destack_memory_protect_remap_vm_replay(
                 binding, context, address, oldlength, newlength, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: ProtectedMemoryRangeVm = value.clone();
                 let result_recorded_address = result_value.address;
@@ -2743,8 +2744,7 @@ fn destack_memory_protect_remap_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2782,8 +2782,7 @@ fn destack_memory_query_allocation_granularity_vm_replay(
                 platform_simulation_vm::destack_memory_allocation_granularity(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -2803,8 +2802,7 @@ fn destack_memory_query_allocation_granularity_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2835,8 +2833,7 @@ fn destack_memory_query_huge_page_size_vm_replay(
                 platform_simulation_vm::destack_memory_huge_page_size(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: Option<u64> = value.clone();
                 let result_recorded = if let Some(value) = result_value {
@@ -2861,8 +2858,7 @@ fn destack_memory_query_huge_page_size_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -2898,8 +2894,7 @@ fn destack_memory_query_page_size_vm_replay(
                 platform_simulation_vm::destack_memory_page_size(binding, context)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -2919,8 +2914,7 @@ fn destack_memory_query_page_size_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3255,6 +3249,7 @@ pub(crate) fn register_memory_vm_bindings(registry: &mut BindingRegistry, isolat
 
 /// Install VM bindings for memory.
 pub(crate) fn install_memory_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_memory_vm_storage_types(isolate);
     register_memory_vm_bindings(registry, isolate);
 }
 

@@ -3439,7 +3439,7 @@ pub fn destack_fs_mmap_file(
     }
 
     // allocate one zeroed vm slice
-    let mapping = VmSlice::from_bytes(context, &vec![0u8; length])?;
+    let mapping = VmSlice::from_bytes(&mut context.write(), &vec![0u8; length])?;
 
     // seed the mapping from the host file
     let _ = destack_fs_pread(binding, context, handle, mapping, offset)?;
@@ -3488,7 +3488,7 @@ pub fn destack_fs_mmap_anonymous(
     let length = validate_vm_mmap_length(length)?;
 
     // allocate one zeroed vm slice
-    let mapping = VmSlice::from_bytes(context, &vec![0u8; length])?;
+    let mapping = VmSlice::from_bytes(&mut context.write(), &vec![0u8; length])?;
 
     // record the mapping metadata
     let key = vm_mapping_key(mapping);

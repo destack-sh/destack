@@ -1063,42 +1063,6 @@ pub(crate) unsafe fn destack_os_document_open(
     Ok(())
 }
 
-/// Pick documents from host picker UI.
-///
-/// Open host picker UI and return selected document descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, and host file-picker bridges on desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) unsafe fn destack_os_document_pick(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<DocumentDescriptor>,
-    options: DocumentPickOptions,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let options = unsafe { DocumentPickOptions::into_value(options)? };
-    let values = document::pick_native(binding, options)?;
-    let values = binding.store_array(values);
-
-    unsafe {
-        out.write(values);
-    }
-
-    Ok(())
-}
-
 /// Close one document-picker transaction.
 ///
 /// Close one document-picker transaction handle and release host routing state.
@@ -2803,40 +2767,6 @@ pub(crate) unsafe fn destack_os_notification_post(
     Ok(())
 }
 
-/// Request host notification permission.
-///
-/// Request notification permission through host authorization flow and return resulting permission state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification permission request APIs where supported.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) unsafe fn destack_os_notification_request_permission(
-    binding: &BindingCallContext,
-    out: *mut NotificationPermissionState,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-
-    let result = notification::request_permission(binding)?;
-
-    unsafe {
-        out.write(result);
-    }
-
-    Ok(())
-}
-
 /// Close one notification-permission request transaction.
 ///
 /// Close one notification-permission request handle and release host routing state.
@@ -3055,73 +2985,6 @@ pub(crate) unsafe fn destack_os_permission_open_settings(
     binding: &BindingCallContext,
 ) -> RuntimeResult<()> {
     permission::open_settings(binding)
-}
-
-/// Request one permission.
-///
-/// Request host authorization for one permission selector.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission-request dialogs and policy APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) unsafe fn destack_os_permission_request(
-    binding: &BindingCallContext,
-    out: *mut PermissionState,
-    permission: Permission,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let result = permission::request(binding, permission)?;
-
-    unsafe { out.write(result) };
-
-    Ok(())
-}
-
-/// Request multiple permissions.
-///
-/// Request host authorization for one selector list and return resulting states.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses batched host permission request APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
-#[cfg(any(test, feature = "execution"))]
-pub(crate) unsafe fn destack_os_permission_request_many(
-    binding: &BindingCallContext,
-    out: *mut NativeArray<PermissionEntry>,
-    permissions: NativeArray<Permission>,
-) -> RuntimeResult<()> {
-    if out.is_null() {
-        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
-    }
-    let permissions = unsafe { permissions.as_slice()? };
-    let permissions = permissions.to_vec();
-    let result = permission::request_many(binding, permissions)?;
-    let result = binding.store_array(result);
-
-    unsafe { out.write(result) };
-
-    Ok(())
 }
 
 /// Close one permission-request transaction.

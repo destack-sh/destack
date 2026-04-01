@@ -257,9 +257,9 @@ impl TestSerialPort {
     /// Build one binding descriptor for this endpoint.
     fn descriptor(&self, binding: &BindingCallContext) -> SerialPortDescriptor {
         SerialPortDescriptor {
-            id: binding.store_string(self.id.as_str()),
+            id: binding.store_string_owned(self.id.clone()),
             transport: SerialPortTransport::Unknown,
-            name: binding.store_string(self.name.as_str()),
+            name: binding.store_string_owned(self.name.clone()),
             manufacturer: None,
             product: None,
             serial_number: None,
@@ -849,7 +849,7 @@ fn test_serial_event_from_record(
 fn store_test_serial_path(binding: &BindingCallContext, path: &str) -> fs::OsPath {
     #[cfg(unix)]
     {
-        let bytes = binding.store_array(path.as_bytes().to_vec());
+        let bytes = binding.store_array_copy(path.as_bytes());
 
         core_fs::path_ref_from_bytes(fs::PathBytesAbi::<NativeAbi>(bytes))
     }

@@ -161,7 +161,7 @@ impl<'call> ProcessHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<Signal>, VmSlice<Signal>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let signals = VmSlice::from_values(context, signals)?;
+                let signals = VmSlice::from_values(&mut context.write(), signals)?;
                 Ok(self.harness_value_vm(signals))
             }
             None => {
@@ -178,7 +178,7 @@ impl<'call> ProcessHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<GroupId>, VmSlice<GroupId>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let groups = VmSlice::from_values(context, groups)?;
+                let groups = VmSlice::from_values(&mut context.write(), groups)?;
                 Ok(self.harness_value_vm(groups))
             }
             None => {
@@ -324,7 +324,7 @@ impl<'call> ProcessHarnessContext<'call> {
         match self.vm_context_mut() {
             Some(context) => {
                 let cpus = ProcessCpuSetVm {
-                    cpus: VmArray::from_values(context, cpus)?,
+                    cpus: VmArray::from_values(&mut context.write(), cpus)?,
                 };
                 Ok(self.harness_value_vm(cpus))
             }
@@ -403,7 +403,7 @@ impl<'call> ProcessHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm string-slice value");
-                let values = values.read_values(context)?;
+                let values = values.read_values(&context.read())?;
                 values
                     .into_iter()
                     .map(|value| vm_string(context, value))
@@ -426,7 +426,7 @@ impl<'call> ProcessHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm byte-array value");
-                values.read_bytes(context)
+                values.read_bytes(&context.read())
             }
         }
     }
@@ -461,7 +461,7 @@ impl<'call> ProcessHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm group-id slice value");
-                value.read_values(context)
+                value.read_values(&context.read())
             }
         }
     }
@@ -480,7 +480,7 @@ impl<'call> ProcessHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm signal-array value");
-                value.read_values(context)
+                value.read_values(&context.read())
             }
         }
     }
@@ -500,7 +500,7 @@ impl<'call> ProcessHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm cpu-set value");
-                value.cpus.read_values(context)
+                value.cpus.read_values(&context.read())
             }
         }
     }

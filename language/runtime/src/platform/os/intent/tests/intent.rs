@@ -177,7 +177,7 @@ fn decode_vm_path(
         let fs::OsPathVm::OsPathBytes(path) = path else {
             panic!("expected one byte path on unix");
         };
-        let bytes = path.bytes.0.read_bytes(context)?;
+        let bytes = path.bytes.0.read_bytes(&context.read())?;
 
         Ok(String::from_utf8(bytes).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
@@ -192,7 +192,7 @@ fn decode_vm_path(
         let fs::OsPathVm::OsPathUtf16(path) = path else {
             panic!("expected one utf16 path on windows");
         };
-        let units = path.utf16.0.read_values(context)?;
+        let units = path.utf16.0.read_values(&context.read())?;
 
         Ok(String::from_utf16(&units).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(
@@ -207,7 +207,7 @@ fn decode_vm_path(
         let fs::OsPathVm::OsPathBytes(path) = path else {
             panic!("expected one byte path");
         };
-        let bytes = path.bytes.0.read_bytes(context)?;
+        let bytes = path.bytes.0.read_bytes(&context.read())?;
 
         Ok(String::from_utf8(bytes).map_err(|_| {
             RuntimeError::from(PlatformError::invalid_argument_value(

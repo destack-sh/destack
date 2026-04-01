@@ -75,13 +75,13 @@ impl VmAbiCodec for SecurityPolicyMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -123,20 +123,21 @@ impl Clone for SecurityPolicyRuleAbi<VmAbi> {
 
 impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SecurityPolicyRule",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -144,9 +145,12 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
             .boxed());
         }
         let field_capability =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_mode =
-            <SecurityPolicyMode as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
+        let field_mode = <SecurityPolicyMode as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             capability: field_capability,
             mode: field_mode,
@@ -155,15 +159,22 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?,
-            <SecurityPolicyMode as VmAggregateCodec>::encode_with_context(self.mode, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("security::SecurityPolicyRule")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SecurityPolicyMode as VmAggregateCodec>::encode_with_context(self.mode, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -203,7 +214,7 @@ impl VmAbiCodec for SecurityPolicyRuleAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SecurityPolicyRuleValue {
             capability: <vm::StringHandle as VmAbiCodec>::into_value(self.capability, context)?,
@@ -212,7 +223,7 @@ impl VmAbiCodec for SecurityPolicyRuleAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -229,4 +240,9 @@ pub struct SecuritypolicyruleReplayRecord {
     pub capability: String,
     /// Decision mode for the capability.
     pub mode: SecurityPolicyMode,
+}
+
+/// Register VM storage schemas for security.
+pub(crate) fn register_security_vm_storage_types(isolate: &mut vm::Isolate) {
+    isolate.register_named_storage_type("security::SecurityPolicyRule", 2);
 }

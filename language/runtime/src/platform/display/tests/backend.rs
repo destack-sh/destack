@@ -439,7 +439,7 @@ fn backend_descriptors(
             let vm_context =
                 unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
             values
-                .read_values(vm_context)?
+                .read_values(&vm_context.read())?
                 .into_iter()
                 .map(|descriptor| BackendDescriptorSummary {
                     backend: descriptor.backend,
@@ -840,7 +840,7 @@ pub(crate) fn test_display_window_remaining_surface_calls_follow_backend_contrac
                     };
                     let vm_context =
                         unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
-                    values.read_values(vm_context)?.len()
+                    values.read_values(&vm_context.read())?.len()
                 }
             };
             assert!(batch_len > 0);
@@ -866,7 +866,7 @@ pub(crate) fn test_display_window_remaining_surface_calls_follow_backend_contrac
                             let vm_context = unsafe {
                                 &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
                             };
-                            values.read_values(vm_context)?.len()
+                            values.read_values(&vm_context.read())?.len()
                         }
                     };
                     assert!(batch_len <= 8);
@@ -1168,7 +1168,7 @@ pub(crate) fn test_display_backend_identity_tracks_strict_backend_selection() {
                     };
                     let vm_context =
                         unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
-                    let values = values.read_values(vm_context)?;
+                    let values = values.read_values(&vm_context.read())?;
                     if let Some(value) = values.first() {
                         assert_eq!(value.backend, backend);
                     }
@@ -1318,7 +1318,7 @@ pub(crate) fn test_display_x11_capabilities_match_implemented_contract() {
                 let vm_context =
                     unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
                 values
-                    .read_values(vm_context)?
+                    .read_values(&vm_context.read())?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::X11)
                     .map(|descriptor| {
@@ -1579,7 +1579,7 @@ pub(crate) fn test_display_wayland_capabilities_match_implemented_contract() {
                 let vm_context =
                     unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
                 values
-                    .read_values(vm_context)?
+                    .read_values(&vm_context.read())?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::Wayland)
                     .map(|descriptor| {
@@ -2165,7 +2165,7 @@ pub(crate) fn test_display_win32_capabilities_match_implemented_contract() {
                 let vm_context =
                     unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
                 values
-                    .read_values(vm_context)?
+                    .read_values(&vm_context.read())?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::Win32)
                     .map(|descriptor| {
@@ -2321,7 +2321,7 @@ pub(crate) fn test_display_appkit_capabilities_match_implemented_contract() {
                 let vm_context =
                     unsafe { &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>) };
                 values
-                    .read_values(vm_context)?
+                    .read_values(&vm_context.read())?
                     .into_iter()
                     .find(|descriptor| descriptor.backend == DisplayBackend::AppKit)
                     .map(|descriptor| {

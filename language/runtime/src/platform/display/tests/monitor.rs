@@ -251,9 +251,9 @@ pub(crate) fn test_monitor_gamma_ramp_lane_roundtrips_current_values() {
                         &mut *(vm_context as *mut destack_vm::ExternalCallContext<'_>)
                     })
                     .expect("vm context should exist for vm harness");
-                let red = value.red.read_values(vm_context)?;
-                let green = value.green.read_values(vm_context)?;
-                let blue = value.blue.read_values(vm_context)?;
+                let red = value.red.read_values(&vm_context.read())?;
+                let green = value.green.read_values(&vm_context.read())?;
+                let blue = value.blue.read_values(&vm_context.read())?;
                 (red.len(), green.len(), blue.len(), HarnessValue::Vm(value))
             }
         };

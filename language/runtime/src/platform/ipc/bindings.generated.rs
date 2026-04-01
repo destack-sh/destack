@@ -94,23 +94,20 @@ fn decode_uint64(
 /// Decode a string argument.
 #[allow(dead_code)]
 fn decode_string(
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
 ) -> RuntimeResult<vm::StringHandle> {
-    if value.tag() != vm::ValueTag::String {
-        return Err(
-            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
-        );
-    }
-
-    Ok(vm::StringHandle::new(value))
+    context.string_handle_from_value(value).map_err(|_| {
+        RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
+    })
 }
 
 /// Decode a slice argument.
 #[allow(dead_code)]
 fn decode_slice<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -121,7 +118,7 @@ fn decode_slice<T>(
 /// Decode an array argument.
 #[allow(dead_code)]
 fn decode_array<T>(
-    context: &mut vm::ExternalCallContext<'_>,
+    context: &vm::ExternalReadContext<'_, '_>,
     value: vm::Value,
     name: &'static str,
     expected: &'static str,
@@ -155,11 +152,12 @@ fn encode_destack_ipc_message_queue_close_result(
 /// Decode arguments for destack.ipc.message.queueOpen.
 #[inline]
 fn decode_destack_ipc_message_queue_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u32, u32, u32, u32)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
     let flags = decode_uint32(flags_value, "flags", "uint32")?;
     let mode_value = arg_value(args, 2, "mode", "uint32")?;
@@ -188,6 +186,7 @@ fn decode_destack_ipc_message_queue_receive_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::MessageQueueHandle, u64, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "MessageQueueHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "MessageQueueHandle")?;
@@ -206,13 +205,21 @@ fn encode_destack_ipc_message_queue_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<MessageQueueReceiveVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes as u64, 32));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.priority as u64, 32));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("ipc::MessageQueueReceive")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -223,6 +230,7 @@ fn decode_destack_ipc_message_queue_send_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::MessageQueueHandle, u32, u64, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "MessageQueueHandle")?;
     let handle_inner_inner =
         decode_uint64(handle_value, "handle_inner_inner", "MessageQueueHandle")?;
@@ -254,11 +262,12 @@ fn encode_destack_ipc_message_queue_send_result(
 /// Decode arguments for destack.ipc.message.queueUnlink.
 #[inline]
 fn decode_destack_ipc_message_queue_unlink_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle,)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     Ok((name,))
 }
 
@@ -310,13 +319,21 @@ fn encode_destack_ipc_pipe_open_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<PipePairVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.read.0.0, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.write.0.0, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("ipc::PipePair")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -327,6 +344,7 @@ fn decode_destack_ipc_pipe_read_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::PipeHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "PipeHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "PipeHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -353,6 +371,7 @@ fn decode_destack_ipc_pipe_write_args(
     context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(resource::PipeHandle, VmSlice<u8>)> {
+    let context = &context.read();
     let handle_value = arg_value(args, 0, "handle", "PipeHandle")?;
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "PipeHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
@@ -399,11 +418,12 @@ fn encode_destack_ipc_shared_memory_close_result(
 /// Decode arguments for destack.ipc.sharedMemory.create.
 #[inline]
 fn decode_destack_ipc_shared_memory_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u64, u32)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let size_value = arg_value(args, 1, "size", "uint64")?;
     let size = decode_uint64(size_value, "size", "uint64")?;
     let flags_value = arg_value(args, 2, "flags", "uint32")?;
@@ -448,13 +468,21 @@ fn encode_destack_ipc_shared_memory_map_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<SharedMemoryMappingVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.address, 64));
             let field_1: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.length, 64));
-            context
-                .allocate_aggregate(vec![field_0?, field_1?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("ipc::SharedMemoryMapping")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -462,11 +490,12 @@ fn encode_destack_ipc_shared_memory_map_result(
 /// Decode arguments for destack.ipc.sharedMemory.open.
 #[inline]
 fn decode_destack_ipc_shared_memory_open_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u32)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let flags_value = arg_value(args, 1, "flags", "uint32")?;
     let flags = decode_uint32(flags_value, "flags", "uint32")?;
     Ok((name, flags))
@@ -572,11 +601,12 @@ fn encode_destack_ipc_sync_futex_wake_result(
 /// Decode arguments for destack.ipc.sync.semaphoreCreate.
 #[inline]
 fn decode_destack_ipc_sync_semaphore_create_args(
-    _context: &mut vm::ExternalCallContext<'_>,
+    context: &mut vm::ExternalCallContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(vm::StringHandle, u32, u32)> {
+    let context = &context.read();
     let name_value = arg_value(args, 0, "name", "string")?;
-    let name = decode_string(name_value, "name", "string")?;
+    let name = decode_string(context, name_value, "name", "string")?;
     let initial_value = arg_value(args, 1, "initial", "uint32")?;
     let initial = decode_uint32(initial_value, "initial", "uint32")?;
     let flags_value = arg_value(args, 2, "flags", "uint32")?;
@@ -664,6 +694,7 @@ fn encode_destack_ipc_unix_receive_result(
     context: &mut vm::ExternalCallContext<'_>,
     result: RuntimeResult<UnixReceiveAncillaryVm>,
 ) -> RuntimeResult<vm::Value> {
+    let context = &mut context.write();
     result
         .map(|value| {
             let field_0: RuntimeResult<vm::Value> = Ok(vm::Value::uint(value.bytes, 64));
@@ -678,15 +709,35 @@ fn encode_destack_ipc_unix_receive_result(
                         Ok(vm::Value::uint(value.uid as u64, 32));
                     let field_2: RuntimeResult<vm::Value> =
                         Ok(vm::Value::uint(value.gid as u64, 32));
-                    context
-                        .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                        .map_err(Box::<RuntimeError>::from)
+                    let mut value_builder = context
+                        .begin_named_storage_value_builder("ipc::UnixPeerCredentials")
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(0, field_0?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(1, field_1?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder
+                        .write_component(2, field_2?)
+                        .map_err(Box::<RuntimeError>::from)?;
+                    value_builder.finish().map_err(Box::<RuntimeError>::from)
                 }
                 None => Ok(vm::Value::VOID),
             };
-            context
-                .allocate_aggregate(vec![field_0?, field_1?, field_2?])
-                .map_err(Box::<RuntimeError>::from)
+            let mut value_builder = context
+                .begin_named_storage_value_builder("ipc::UnixReceiveAncillary")
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(0, field_0?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(1, field_1?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder
+                .write_component(2, field_2?)
+                .map_err(Box::<RuntimeError>::from)?;
+            value_builder.finish().map_err(Box::<RuntimeError>::from)
         })
         .and_then(|value| value)
 }
@@ -701,6 +752,7 @@ fn decode_destack_ipc_unix_send_args(
     VmSlice<u8>,
     VmSlice<resource::TransferredHandle>,
 )> {
+    let context = &context.read();
     let socket_value = arg_value(args, 0, "socket", "SocketHandle")?;
     let socket_inner_inner = decode_uint64(socket_value, "socket_inner_inner", "SocketHandle")?;
     let socket_inner = resource::ResourceId(socket_inner_inner);
@@ -2440,10 +2492,10 @@ fn destack_ipc_unix_receive_replay(
             if let Ok(()) = result {
                 let result_value: UnixReceiveAncillary = unsafe { out.read() };
                 let result_recorded_bytes = result_value.bytes;
-                let mut result_recorded_handles = Vec::new();
-                for result_recorded_handles_item in
-                    unsafe { result_value.handles.as_slice()? }.iter().cloned()
-                {
+                let result_recorded_handles_slice = unsafe { result_value.handles.as_slice()? };
+                let mut result_recorded_handles =
+                    Vec::with_capacity(result_recorded_handles_slice.len());
+                for result_recorded_handles_item in result_recorded_handles_slice.iter().cloned() {
                     let result_recorded_handles_item_recorded = result_recorded_handles_item;
                     result_recorded_handles.push(result_recorded_handles_item_recorded);
                 }
@@ -2491,12 +2543,16 @@ fn destack_ipc_unix_receive_replay(
             match payload.result {
                 Ok(value) => {
                     let value_native_bytes = value.bytes;
-                    let mut value_native_handles_values = Vec::new();
-                    for value_native_handles_item in value.handles.iter().cloned() {
-                        let value_native_handles_decoded = value_native_handles_item;
-                        value_native_handles_values.push(value_native_handles_decoded);
-                    }
-                    let value_native_handles = binding.store_array(value_native_handles_values);
+                    let value_native_handles = binding.store_array_with(
+                        value.handles.len(),
+                        |value_native_handles_values| {
+                            for value_native_handles_item in value.handles {
+                                let value_native_handles_decoded = value_native_handles_item;
+                                value_native_handles_values.push(value_native_handles_decoded);
+                            }
+                            Ok(())
+                        },
+                    )?;
                     let value_native_credentials = if let Some(value) = value.credentials {
                         let value_native_credentials_inner_pid = if let Some(value) = value.pid {
                             let value_native_credentials_inner_pid_inner = value;
@@ -2991,8 +3047,7 @@ fn destack_ipc_message_queue_close_vm_replay(
                 platform_simulation_vm::destack_ipc_message_queue_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcMessageQueueCloseReplayRecord {
@@ -3011,8 +3066,7 @@ fn destack_ipc_message_queue_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3059,8 +3113,7 @@ fn destack_ipc_message_queue_open_vm_replay(
                 maxmessagebytes,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::MessageQueueHandle = value.clone();
                 let result_recorded = result_value;
@@ -3080,8 +3133,7 @@ fn destack_ipc_message_queue_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3117,8 +3169,7 @@ fn destack_ipc_message_queue_receive_vm_replay(
                 binding, context, handle, timeoutns, buffer,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: MessageQueueReceiveVm = value.clone();
                 let result_recorded_bytes = result_value.bytes;
@@ -3143,8 +3194,7 @@ fn destack_ipc_message_queue_receive_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3196,8 +3246,7 @@ fn destack_ipc_message_queue_send_vm_replay(
                 argument_payload,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcMessageQueueSendReplayRecord {
@@ -3216,8 +3265,7 @@ fn destack_ipc_message_queue_send_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3248,8 +3296,7 @@ fn destack_ipc_message_queue_unlink_vm_replay(
                 platform_simulation_vm::destack_ipc_message_queue_unlink(binding, context, name)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcMessageQueueUnlinkReplayRecord {
@@ -3268,8 +3315,7 @@ fn destack_ipc_message_queue_unlink_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3298,8 +3344,7 @@ fn destack_ipc_pipe_close_vm_replay(
                 platform_simulation_vm::destack_ipc_pipe_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcPipeCloseReplayRecord {
@@ -3318,8 +3363,7 @@ fn destack_ipc_pipe_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3348,8 +3392,7 @@ fn destack_ipc_pipe_open_vm_replay(
                 platform_simulation_vm::destack_ipc_pipe_open(binding, context, flags)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: PipePairVm = value.clone();
                 let result_recorded_read = result_value.read;
@@ -3374,8 +3417,7 @@ fn destack_ipc_pipe_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3415,8 +3457,7 @@ fn destack_ipc_pipe_read_vm_replay(
                 platform_simulation_vm::destack_ipc_pipe_read(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -3436,8 +3477,7 @@ fn destack_ipc_pipe_read_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3472,8 +3512,7 @@ fn destack_ipc_pipe_write_vm_replay(
                 platform_simulation_vm::destack_ipc_pipe_write(binding, context, handle, buffer)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -3493,8 +3532,7 @@ fn destack_ipc_pipe_write_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3528,8 +3566,7 @@ fn destack_ipc_shared_memory_close_vm_replay(
                 platform_simulation_vm::destack_ipc_shared_memory_close(binding, context, handle)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcSharedMemoryCloseReplayRecord {
@@ -3548,8 +3585,7 @@ fn destack_ipc_shared_memory_close_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3582,8 +3618,7 @@ fn destack_ipc_shared_memory_create_vm_replay(
                 binding, context, name, size, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SharedMemoryHandle = value.clone();
                 let result_recorded = result_value;
@@ -3603,8 +3638,7 @@ fn destack_ipc_shared_memory_create_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3641,8 +3675,7 @@ fn destack_ipc_shared_memory_map_vm_replay(
                 binding, context, handle, offset, length, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: SharedMemoryMappingVm = value.clone();
                 let result_recorded_address = result_value.address;
@@ -3667,8 +3700,7 @@ fn destack_ipc_shared_memory_map_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3708,8 +3740,7 @@ fn destack_ipc_shared_memory_open_vm_replay(
                 binding, context, name, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SharedMemoryHandle = value.clone();
                 let result_recorded = result_value;
@@ -3729,8 +3760,7 @@ fn destack_ipc_shared_memory_open_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3765,8 +3795,7 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
                 binding, context, address, length,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcSharedMemoryUnmapReplayRecord {
@@ -3785,8 +3814,7 @@ fn destack_ipc_shared_memory_unmap_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3830,8 +3858,7 @@ fn destack_ipc_sync_futex_wait_vm_replay(
                 timeoutns,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcSyncFutexWaitReplayRecord {
@@ -3850,8 +3877,7 @@ fn destack_ipc_sync_futex_wait_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -3888,8 +3914,7 @@ fn destack_ipc_sync_futex_wake_vm_replay(
                 count,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u32 = value.clone();
                 let result_recorded = result_value;
@@ -3909,8 +3934,7 @@ fn destack_ipc_sync_futex_wake_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -3946,8 +3970,7 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
                 binding, context, name, initial, flags,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: resource::SemaphoreHandle = value.clone();
                 let result_recorded = result_value;
@@ -3967,8 +3990,7 @@ fn destack_ipc_sync_semaphore_create_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -4003,8 +4025,7 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
                 platform_simulation_vm::destack_ipc_semaphore_post(binding, context, handle, count)
             }
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcSyncSemaphorePostReplayRecord {
@@ -4023,8 +4044,7 @@ fn destack_ipc_sync_semaphore_post_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -4056,8 +4076,7 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
                 binding, context, handle, timeoutns,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(()) = result {
                 let result_recorded = ();
                 let payload = IpcSyncSemaphoreWaitReplayRecord {
@@ -4076,8 +4095,7 @@ fn destack_ipc_sync_semaphore_wait_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(()) => Ok(()),
@@ -4110,7 +4128,7 @@ fn destack_ipc_unix_receive_vm_replay(
             ),
         },
         |context, result| {
-            let _ = &context;
+            let context = &context.read();
             if let Ok(value) = result {
                 let result_value: UnixReceiveAncillaryVm = value.clone();
                 let result_recorded_bytes = result_value.bytes;
@@ -4170,13 +4188,13 @@ fn destack_ipc_unix_receive_vm_replay(
             Ok(None)
         },
         |context, payload| {
-            let _ = &context;
+            let context = &mut context.write();
             // replay result
             match payload.result {
                 Ok(value) => {
                     let vm_result_bytes = value.bytes;
                     let mut vm_result_handles_values = Vec::with_capacity(value.handles.len());
-                    for vm_result_handles_item in value.handles.iter().cloned() {
+                    for vm_result_handles_item in value.handles {
                         let vm_result_handles_item_value = vm_result_handles_item;
                         vm_result_handles_values.push(vm_result_handles_item_value);
                     }
@@ -4244,8 +4262,7 @@ fn destack_ipc_unix_send_vm_replay(
                 handles,
             ),
         },
-        |context, result| {
-            let _ = &context;
+        |_context, result| {
             if let Ok(value) = result {
                 let result_value: u64 = value.clone();
                 let result_recorded = result_value;
@@ -4265,8 +4282,7 @@ fn destack_ipc_unix_send_vm_replay(
 
             Ok(None)
         },
-        |context, payload| {
-            let _ = &context;
+        |_context, payload| {
             // replay result
             match payload.result {
                 Ok(value) => {
@@ -4721,6 +4737,7 @@ pub(crate) fn register_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: 
 
 /// Install VM bindings for ipc.
 pub(crate) fn install_ipc_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
+    super::abi_generated::register_ipc_vm_storage_types(isolate);
     register_ipc_vm_bindings(registry, isolate);
 }
 

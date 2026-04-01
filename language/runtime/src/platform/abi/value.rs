@@ -16,14 +16,44 @@ pub trait VmValueCodec: Copy {
 pub trait VmAggregateCodec: Copy {
     /// Decode a value from a VM slot with context access.
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self>;
+
+    /// Decode one value from one VM value view with context access.
+    fn decode_value_ref_with_context(
+        _context: &vm::ExternalReadContext<'_, '_>,
+        _value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        Err(RuntimeError::from(PlatformError::invalid_argument_type(
+            "value",
+            "aggregate value",
+        ))
+        .boxed())
+    }
+
+    /// Decode one semantic component from one VM value view.
+    fn decode_component_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+        index: u32,
+    ) -> RuntimeResult<Self> {
+        // prefer nested storage views when the component has one
+        if let Ok(component_ref) = value_ref.component_ref(index) {
+            return Self::decode_value_ref_with_context(context, &component_ref);
+        }
+
+        let value = value_ref
+            .component_value(index)
+            .map_err(Box::<RuntimeError>::from)?;
+
+        Self::decode_with_context(context, value)
+    }
 
     /// Encode a value into a VM slot with context access.
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value>;
 }
 
@@ -44,7 +74,7 @@ pub trait VmCollectionElement: VmAggregateCodec {
 
 impl<T: VmValueCodec> VmAggregateCodec for T {
     fn decode_with_context(
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         T::decode(value)
@@ -52,7 +82,7 @@ impl<T: VmValueCodec> VmAggregateCodec for T {
 
     fn encode_with_context(
         self,
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         Ok(T::encode(self))
     }
@@ -60,7 +90,7 @@ impl<T: VmValueCodec> VmAggregateCodec for T {
 
 impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         if value.tag() == vm::ValueTag::Void {
@@ -71,9 +101,16 @@ impl<T: VmAggregateCodec> VmAggregateCodec for Option<T> {
         Ok(Some(decoded))
     }
 
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        Ok(Some(T::decode_value_ref_with_context(context, value_ref)?))
+    }
+
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         match self {
             Some(value) => T::encode_with_context(value, context),
@@ -226,20 +263,33 @@ impl VmValueCodec for f64 {
     }
 }
 
-impl VmValueCodec for vm::StringHandle {
+impl VmValueCodec for vm::RawPointer {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::String {
-            return Err(RuntimeError::from(PlatformError::invalid_argument_type(
-                "value", "string",
-            ))
-            .boxed());
-        }
-
-        Ok(vm::StringHandle::new(value))
+        value.as_raw_pointer().ok_or_else(|| {
+            RuntimeError::from(PlatformError::invalid_argument_type("value", "raw pointer")).boxed()
+        })
     }
 
     fn encode(self) -> vm::Value {
-        self.value()
+        vm::Value::raw_pointer(self)
+    }
+}
+
+impl VmAggregateCodec for vm::StringHandle {
+    fn decode_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value: vm::Value,
+    ) -> RuntimeResult<Self> {
+        context
+            .string_handle_from_value(value)
+            .map_err(Box::<RuntimeError>::from)
+    }
+
+    fn encode_with_context(
+        self,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
+    ) -> RuntimeResult<vm::Value> {
+        Ok(self.value())
     }
 }
 
@@ -251,19 +301,9 @@ macro_rules! value_collection_elements {
     };
 }
 
-value_collection_elements!(
-    bool,
-    i8,
-    i16,
-    i32,
-    i64,
-    u16,
-    u32,
-    u64,
-    f32,
-    f64,
-    vm::StringHandle,
-);
+value_collection_elements!(bool, i8, i16, i32, i64, u16, u32, u64, f32, f64,);
+
+impl VmCollectionElement for vm::StringHandle {}
 
 impl VmCollectionElement for u8 {
     const STORAGE: VmCollectionStorage = VmCollectionStorage::Bytes;

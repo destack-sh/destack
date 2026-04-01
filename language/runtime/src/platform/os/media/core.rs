@@ -48,7 +48,7 @@ pub(crate) fn page_vm(
     context: &mut vm::ExternalCallContext<'_>,
     page: MediaPageValue,
 ) -> RuntimeResult<MediaPageVm> {
-    MediaPageVm::from_value(context, page)
+    MediaPageVm::from_value(&mut context.write(), page)
 }
 
 /// Encode one media asset descriptor into one VM value.
@@ -56,7 +56,7 @@ pub(crate) fn descriptor_vm(
     context: &mut vm::ExternalCallContext<'_>,
     descriptor: MediaAssetDescriptorValue,
 ) -> RuntimeResult<MediaAssetDescriptorVm> {
-    MediaAssetDescriptorVm::from_value(context, descriptor)
+    MediaAssetDescriptorVm::from_value(&mut context.write(), descriptor)
 }
 
 /// Encode one identifier into one VM string handle.
@@ -64,5 +64,5 @@ pub(crate) fn id_vm(
     context: &mut vm::ExternalCallContext<'_>,
     id: &str,
 ) -> RuntimeResult<vm::StringHandle> {
-    <vm::StringHandle as VmAbiCodec>::from_value(context, id.to_string())
+    <vm::StringHandle as VmAbiCodec>::from_value(&mut context.write(), id.to_string())
 }

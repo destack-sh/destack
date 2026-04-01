@@ -34,7 +34,7 @@ pub(crate) fn store_backend_descriptors_vm(
         .map(|value| value.into_vm(context))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmSlice::from_values(context, &descriptors)
+    VmSlice::from_values(&mut context.write(), &descriptors)
 }
 
 /// Store native port descriptors as one binding slice.
@@ -60,7 +60,7 @@ pub(crate) fn store_port_descriptors_vm(
         .map(|value| value.into_vm(context))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmSlice::from_values(context, &descriptors)
+    VmSlice::from_values(&mut context.write(), &descriptors)
 }
 
 /// Store native input records as one binding array.
@@ -86,7 +86,7 @@ pub(crate) fn store_input_records_vm(
         .map(|value| value.into_vm(context))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmArray::from_values(context, &records)
+    VmArray::from_values(&mut context.write(), &records)
 }
 
 /// Store one native input record.
@@ -128,7 +128,7 @@ pub(crate) fn store_events_vm(
         .map(|value| value.into_vm(context))
         .collect::<RuntimeResult<Vec<_>>>()?;
 
-    VmSlice::from_values(context, &events)
+    VmSlice::from_values(&mut context.write(), &events)
 }
 
 /// Store one native MIDI event.

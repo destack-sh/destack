@@ -110,7 +110,8 @@ impl<'call> NetHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => Ok(self.harness_value_vm(
-                VmSlice::from_bytes(context, bytes).expect("vm test byte slice should allocate"),
+                VmSlice::from_bytes(&mut context.write(), bytes)
+                    .expect("vm test byte slice should allocate"),
             )),
             None => Ok(self.harness_value(self.call_context.store_slice(bytes.to_vec()))),
         }
@@ -149,7 +150,7 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm byte-slice value");
-                value.read_bytes(context)
+                value.read_bytes(&context.read())
             }
         }
     }
@@ -206,7 +207,7 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm interface list");
-                let interfaces = value.read_values(context)?;
+                let interfaces = value.read_values(&context.read())?;
                 let mut decoded = Vec::with_capacity(interfaces.len());
                 for interface in interfaces {
                     let name = context
@@ -242,7 +243,7 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm packet-backend list");
-                let descriptors = value.read_values(context)?;
+                let descriptors = value.read_values(&context.read())?;
                 let mut decoded = Vec::with_capacity(descriptors.len());
                 for descriptor in descriptors {
                     let name = context
@@ -279,7 +280,7 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm route list");
-                let routes = value.read_values(context)?;
+                let routes = value.read_values(&context.read())?;
                 let mut decoded = Vec::with_capacity(routes.len());
                 for route in routes {
                     decoded.push(RouteEntry {
@@ -289,7 +290,7 @@ impl<'call> NetHarnessContext<'call> {
                             length: route.destination.length,
                             bytes: self
                                 .call_context
-                                .store_array(route.destination.bytes.read_bytes(context)?),
+                                .store_array(route.destination.bytes.read_bytes(&context.read())?),
                         },
                         prefix_length: route.prefix_length,
                         gateway: SocketAddress {
@@ -297,7 +298,7 @@ impl<'call> NetHarnessContext<'call> {
                             length: route.gateway.length,
                             bytes: self
                                 .call_context
-                                .store_array(route.gateway.bytes.read_bytes(context)?),
+                                .store_array(route.gateway.bytes.read_bytes(&context.read())?),
                         },
                         interface_index: route.interface_index,
                         metric: route.metric,
@@ -316,7 +317,7 @@ impl<'call> NetHarnessContext<'call> {
                 let vm_buffers = buffers
                     .iter()
                     .map(|buffer| {
-                        VmSlice::from_bytes(context, buffer)
+                        VmSlice::from_bytes(&mut context.write(), buffer)
                             .expect("vm test byte slice should allocate")
                     })
                     .collect::<Vec<_>>();
@@ -344,7 +345,7 @@ impl<'call> NetHarnessContext<'call> {
                 let vm_buffers = buffers
                     .iter()
                     .map(|buffer| {
-                        VmSlice::from_bytes(context, &vec![0_u8; buffer.len()])
+                        VmSlice::from_bytes(&mut context.write(), &vec![0_u8; buffer.len()])
                             .expect("vm test byte slice should allocate")
                     })
                     .collect::<Vec<_>>();
@@ -416,12 +417,16 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm nested byte-slice value");
-                let raw_values = value.raw_values(context)?;
+                let raw_values = value.raw_values(&context.read())?;
                 let mut buffers = Vec::with_capacity(raw_values.len());
                 for raw in raw_values {
-                    let buffer =
-                        VmSlice::<u8>::from_value(context, raw, "buffers", "VmSlice<VmSlice<u8>>")?;
-                    buffers.push(buffer.read_bytes(context)?);
+                    let buffer = VmSlice::<u8>::from_value(
+                        &context.read(),
+                        raw,
+                        "buffers",
+                        "VmSlice<VmSlice<u8>>",
+                    )?;
+                    buffers.push(buffer.read_bytes(&context.read())?);
                 }
                 Ok(buffers)
             }
@@ -764,7 +769,7 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm recv-mmsg decode");
-                let values = value.read_values(context)?;
+                let values = value.read_values(&context.read())?;
                 Ok(values.iter().map(|value| value.bytes).collect())
             }
         }
@@ -795,10 +800,10 @@ impl<'call> NetHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm recv-mmsg request decode");
-                let requests = requests.read_values(context)?;
+                let requests = requests.read_values(&context.read())?;
                 let mut payloads = Vec::with_capacity(requests.len());
                 for (request, count) in requests.iter().zip(counts.iter()) {
-                    let payload = request.payload.read_bytes(context)?;
+                    let payload = request.payload.read_bytes(&context.read())?;
                     let count = (*count as usize).min(payload.len());
                     payloads.push(payload[..count].to_vec());
                 }
@@ -818,9 +823,10 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let message = SocketSendMessageVm {
                     address: None,
-                    fds: VmArray::from_values(context, &[]).expect("empty fd array should encode"),
+                    fds: VmArray::from_values(&mut context.write(), &[])
+                        .expect("empty fd array should encode"),
                     control: platform_net::SocketControlBufferAbi::<VmAbi>(
-                        VmArray::from_bytes(context, &[])
+                        VmArray::from_bytes(&mut context.write(), &[])
                             .expect("vm test byte array should allocate"),
                     ),
                     flags: SocketMessageFlags(flags),
@@ -887,9 +893,10 @@ impl<'call> NetHarnessContext<'call> {
                 };
                 let message = SocketSendMessageVm {
                     address: Some(address),
-                    fds: VmArray::from_values(context, &[]).expect("empty fd array should encode"),
+                    fds: VmArray::from_values(&mut context.write(), &[])
+                        .expect("empty fd array should encode"),
                     control: platform_net::SocketControlBufferAbi::<VmAbi>(
-                        VmArray::from_bytes(context, control)
+                        VmArray::from_bytes(&mut context.write(), control)
                             .expect("vm test byte array should allocate"),
                     ),
                     flags: SocketMessageFlags(flags),
@@ -957,13 +964,13 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let mut entries = Vec::with_capacity(buffers.len());
                 for buffer in buffers {
-                    let payload = VmSlice::from_bytes(context, buffer)
+                    let payload = VmSlice::from_bytes(&mut context.write(), buffer)
                         .expect("vm test byte slice should allocate");
                     let message = SocketSendMessageVm {
                         address: None,
-                        fds: VmArray::from_values(context, &[])?,
+                        fds: VmArray::from_values(&mut context.write(), &[])?,
                         control: platform_net::SocketControlBufferAbi::<VmAbi>(
-                            VmArray::from_bytes(context, &[])
+                            VmArray::from_bytes(&mut context.write(), &[])
                                 .expect("vm test byte array should allocate"),
                         ),
                         flags: SocketMessageFlags(send_flags),
@@ -972,7 +979,7 @@ impl<'call> NetHarnessContext<'call> {
                     entries.push(platform_net::SocketSendBatchEntryVm { payload, message });
                 }
 
-                let entries = VmSlice::from_values(context, &entries)?;
+                let entries = VmSlice::from_values(&mut context.write(), &entries)?;
                 Ok(self.harness_value_vm(entries))
             }
             None => {
@@ -1023,15 +1030,16 @@ impl<'call> NetHarnessContext<'call> {
             Some(context) => {
                 let mut requests = Vec::with_capacity(buffers.len());
                 for buffer in buffers.iter() {
-                    let payload = VmSlice::from_bytes(context, &vec![0u8; buffer.len()])
-                        .expect("vm test byte slice should allocate");
+                    let payload =
+                        VmSlice::from_bytes(&mut context.write(), &vec![0u8; buffer.len()])
+                            .expect("vm test byte slice should allocate");
                     requests.push(platform_net::SocketRecvBatchRequestVm {
                         payload,
                         recv_flags: SocketMessageFlags(recv_flags),
                     });
                 }
 
-                let requests = VmSlice::from_values(context, &requests)?;
+                let requests = VmSlice::from_values(&mut context.write(), &requests)?;
                 Ok(self.harness_value_vm(requests))
             }
             None => {

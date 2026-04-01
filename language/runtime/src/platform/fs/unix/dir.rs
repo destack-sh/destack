@@ -55,7 +55,7 @@ fn read_next_visible_dirent(
         }
 
         // materialize one visible entry
-        let name = PathBytesAbi::<NativeAbi>(binding.store_array(name_bytes.to_vec()));
+        let name = PathBytesAbi::<NativeAbi>(binding.store_array_copy(name_bytes));
         return Ok(Some(Dirent {
             name: core_fs::path_ref_from_bytes(name),
             kind,

@@ -24,7 +24,7 @@ pub(crate) fn window_event_metadata(
 
 /// Build one `OsPath` payload from one UTF-8 string path.
 pub(crate) fn os_path_from_utf8(context: &BindingCallContext, value: &str) -> platform_fs::OsPath {
-    let bytes = PathBytesAbi::<NativeAbi>(context.store_array(value.as_bytes().to_vec()));
+    let bytes = PathBytesAbi::<NativeAbi>(context.store_array_copy(value.as_bytes()));
 
     core_fs::path_ref_from_bytes(bytes)
 }

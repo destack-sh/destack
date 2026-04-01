@@ -52,5 +52,5 @@ pub(crate) fn sample_vm(
     context: &mut vm::ExternalCallContext<'_>,
     sample: LocationSample,
 ) -> RuntimeResult<LocationSampleVm> {
-    LocationSampleVm::from_value(context, sample)
+    LocationSampleVm::from_value(&mut context.write(), sample)
 }

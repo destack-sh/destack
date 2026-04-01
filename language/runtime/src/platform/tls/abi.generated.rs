@@ -75,13 +75,13 @@ impl VmAbiCodec for TlsHandshakeStatus {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -145,13 +145,13 @@ impl VmAbiCodec for TlsHostnameVerificationMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -212,13 +212,13 @@ impl VmAbiCodec for TlsRole {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -285,13 +285,13 @@ impl VmAbiCodec for TlsSessionResumptionMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -352,13 +352,13 @@ impl VmAbiCodec for TlsSessionResumptionState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -419,13 +419,13 @@ impl VmAbiCodec for TlsVersion {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -473,34 +473,39 @@ impl Clone for TlsContextOptionsAbi<VmAbi> {
 
 impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "TlsContextOptions",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_role = <TlsRole as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_role =
+            <TlsRole as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_min_version =
-            <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <TlsVersion as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_max_version =
-            <TlsVersion as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_verify_peer = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <TlsVersion as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_verify_peer =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_alpn_protocols =
-            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
+            )?;
         Ok(Self {
             role: field_role,
             min_version: field_min_version,
@@ -512,21 +517,39 @@ impl VmAggregateCodec for TlsContextOptionsAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <TlsRole as VmAggregateCodec>::encode_with_context(self.role, context)?,
-            <TlsVersion as VmAggregateCodec>::encode_with_context(self.min_version, context)?,
-            <TlsVersion as VmAggregateCodec>::encode_with_context(self.max_version, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.verify_peer, context)?,
-            <VmSlice<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
-                self.alpn_protocols,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("tls::TlsContextOptions")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <TlsRole as VmAggregateCodec>::encode_with_context(self.role, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <TlsVersion as VmAggregateCodec>::encode_with_context(self.min_version, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <TlsVersion as VmAggregateCodec>::encode_with_context(self.max_version, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.verify_peer, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmSlice<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(
+            self.alpn_protocols,
+            context,
+        )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -581,7 +604,7 @@ impl VmAbiCodec for TlsContextOptionsAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(TlsContextOptionsValue {
             role: <TlsRole as VmAbiCodec>::into_value(self.role, context)?,
@@ -596,7 +619,7 @@ impl VmAbiCodec for TlsContextOptionsAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -625,4 +648,9 @@ pub struct TlscontextoptionsReplayRecord {
     pub verify_peer: bool,
     /// Application layer protocol identifiers in preference order.
     pub alpn_protocols: Vec<Vec<u8>>,
+}
+
+/// Register VM storage schemas for tls.
+pub(crate) fn register_tls_vm_storage_types(isolate: &mut vm::Isolate) {
+    isolate.register_named_storage_type("tls::TlsContextOptions", 5);
 }

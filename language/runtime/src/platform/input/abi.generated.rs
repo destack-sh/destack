@@ -61,13 +61,13 @@ impl VmAbiCodec for DisplayDragOperationMask {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -116,13 +116,13 @@ impl VmAbiCodec for DisplayDragSessionHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -142,7 +142,7 @@ pub type PathBytesVm = PathBytesAbi<VmAbi>;
 
 impl VmAggregateCodec for PathBytesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -152,7 +152,7 @@ impl VmAggregateCodec for PathBytesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -189,7 +189,7 @@ impl VmAbiCodec for PathBytesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PathBytesValue(<VmArray<u8> as VmAbiCodec>::into_value(
             self.0, context,
@@ -197,7 +197,7 @@ impl VmAbiCodec for PathBytesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<VmArray<u8> as VmAbiCodec>::from_value(
@@ -219,7 +219,7 @@ pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 
 impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(
@@ -229,7 +229,7 @@ impl VmAggregateCodec for PathUtf16Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
         <VmArray<u16> as VmAggregateCodec>::encode_with_context(self.0, context)
     }
@@ -266,7 +266,7 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(PathUtf16Value(<VmArray<u16> as VmAbiCodec>::into_value(
             self.0, context,
@@ -274,7 +274,7 @@ impl VmAbiCodec for PathUtf16Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self(<VmArray<u16> as VmAbiCodec>::from_value(
@@ -325,13 +325,13 @@ impl VmAbiCodec for ResourceId {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -380,13 +380,13 @@ impl VmAbiCodec for WindowHandle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -450,13 +450,13 @@ impl VmAbiCodec for ClipboardItemRepresentationKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -520,13 +520,13 @@ impl VmAbiCodec for ClipboardPresentationStyle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -590,13 +590,13 @@ impl VmAbiCodec for DisplayDragItemKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -663,13 +663,13 @@ impl VmAbiCodec for DisplayDragOperation {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -733,13 +733,13 @@ impl VmAbiCodec for InputCapabilityMetadataFidelity {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -806,13 +806,13 @@ impl VmAbiCodec for InputCapabilityMetadataOrigin {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -876,13 +876,13 @@ impl VmAbiCodec for InputClipboardCommandType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -952,13 +952,13 @@ impl VmAbiCodec for InputCoordinateSpace {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1037,13 +1037,13 @@ impl VmAbiCodec for InputDeviceCapabilityKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1116,13 +1116,13 @@ impl VmAbiCodec for InputDeviceKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1315,13 +1315,13 @@ impl VmAbiCodec for InputEditIntentType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1418,13 +1418,13 @@ impl VmAbiCodec for InputEventAction {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1494,13 +1494,13 @@ impl VmAbiCodec for InputGamepadBatteryState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1567,13 +1567,13 @@ impl VmAbiCodec for InputGamepadConnectionType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1637,13 +1637,13 @@ impl VmAbiCodec for InputGamepadControlKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1707,13 +1707,13 @@ impl VmAbiCodec for InputGamepadMappingType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1774,13 +1774,13 @@ impl VmAbiCodec for InputHapticEffectType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1841,13 +1841,13 @@ impl VmAbiCodec for InputHapticsResult {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1914,13 +1914,13 @@ impl VmAbiCodec for InputKeyLocation {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -1984,13 +1984,13 @@ impl VmAbiCodec for InputPenToolKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2054,13 +2054,13 @@ impl VmAbiCodec for InputPointerGrabMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2127,13 +2127,13 @@ impl VmAbiCodec for InputPointerType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2194,13 +2194,13 @@ impl VmAbiCodec for InputReadMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2285,13 +2285,13 @@ impl VmAbiCodec for InputSensorKind {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2367,13 +2367,13 @@ impl VmAbiCodec for InputTextInputType {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2440,13 +2440,13 @@ impl VmAbiCodec for InputTouchContactPhase {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2510,13 +2510,13 @@ impl VmAbiCodec for InputWheelDeltaMode {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -2571,63 +2571,78 @@ impl Clone for InputEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             1953975626u32 => Self::InputCompositionEvent(
-                <InputCompositionEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputCompositionEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             1711088174u32 => Self::InputDeviceEvent(
-                <InputDeviceEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <InputDeviceEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             4057440654u32 => Self::InputGamepadEvent(
-                <InputGamepadEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <InputGamepadEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             2680346764u32 => Self::InputKeyEvent(
-                <InputKeyEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <InputKeyEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             4073494792u32 => Self::InputPointerButtonEvent(
-                <InputPointerButtonEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputPointerButtonEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             2712240874u32 => Self::InputPointerMotionEvent(
-                <InputPointerMotionEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputPointerMotionEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             4279710721u32 => Self::InputScrollEvent(
-                <InputScrollEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <InputScrollEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             1143015131u32 => Self::InputSensorEvent(
-                <InputSensorEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <InputSensorEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             2362503160u32 => Self::InputTextEvent(
-                <InputTextEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <InputTextEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             1845998728u32 => Self::InputTouchEvent(
-                <InputTouchEventVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <InputTouchEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
@@ -2642,9 +2657,9 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = match self {
+        match self {
             Self::InputCompositionEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1953975626u32, context)?;
@@ -2652,28 +2667,64 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
                     <InputCompositionEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputDeviceEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1711088174u32, context)?;
                 let payload_value =
                     <InputDeviceEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputGamepadEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(4057440654u32, context)?;
                 let payload_value =
                     <InputGamepadEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputKeyEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(2680346764u32, context)?;
                 let payload_value =
                     <InputKeyEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputPointerButtonEvent(value) => {
                 let tag_value =
@@ -2682,7 +2733,16 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
                     <InputPointerButtonEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputPointerMotionEvent(value) => {
                 let tag_value =
@@ -2691,40 +2751,82 @@ impl VmAggregateCodec for InputEventAbi<VmAbi> {
                     <InputPointerMotionEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputScrollEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(4279710721u32, context)?;
                 let payload_value =
                     <InputScrollEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputSensorEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1143015131u32, context)?;
                 let payload_value =
                     <InputSensorEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputTextEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(2362503160u32, context)?;
                 let payload_value =
                     <InputTextEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputTouchEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1845998728u32, context)?;
                 let payload_value =
                     <InputTouchEventVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
-        };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        }
     }
 }
 
@@ -2839,7 +2941,7 @@ impl VmAbiCodec for InputEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::InputCompositionEvent(value) => InputEventValue::InputCompositionEvent(
@@ -2877,7 +2979,7 @@ impl VmAbiCodec for InputEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -2949,41 +3051,42 @@ impl Clone for InputMonitorEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputMonitorEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             3150676780u32 => Self::InputMonitorChangeEvent(
-                <InputMonitorChangeEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputMonitorChangeEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             1147506405u32 => Self::InputMonitorConnectEvent(
-                <InputMonitorConnectEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputMonitorConnectEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             1352806727u32 => Self::InputMonitorDisconnectEvent(
-                <InputMonitorDisconnectEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputMonitorDisconnectEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             _ => {
@@ -2999,9 +3102,9 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = match self {
+        match self {
             Self::InputMonitorChangeEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(3150676780u32, context)?;
@@ -3009,7 +3112,16 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
                     <InputMonitorChangeEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputMonitorConnectEvent(value) => {
                 let tag_value =
@@ -3018,7 +3130,16 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
                     <InputMonitorConnectEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputMonitorDisconnectEvent(value) => {
                 let tag_value =
@@ -3027,12 +3148,18 @@ impl VmAggregateCodec for InputMonitorEventAbi<VmAbi> {
                     <InputMonitorDisconnectEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputMonitorEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
-        };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        }
     }
 }
 
@@ -3099,7 +3226,7 @@ impl VmAbiCodec for InputMonitorEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::InputMonitorChangeEvent(value) => {
@@ -3122,7 +3249,7 @@ impl VmAbiCodec for InputMonitorEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -3181,46 +3308,47 @@ impl Clone for InputTextSessionEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextSessionEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             4057164605u32 => Self::InputClipboardCommandEvent(
-                <InputClipboardCommandEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputClipboardCommandEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             3333766718u32 => Self::InputCompositionEvent(
-                <InputCompositionEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputCompositionEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             1399939898u32 => Self::InputEditIntentEvent(
-                <InputEditIntentEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputEditIntentEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             1300893244u32 => Self::InputTextSessionStateEvent(
-                <InputTextSessionStateEventVm as VmAggregateCodec>::decode_with_context(
-                    context, slots[1],
+                <InputTextSessionStateEventVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
                 )?,
             ),
             _ => {
@@ -3236,9 +3364,9 @@ impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = match self {
+        match self {
             Self::InputClipboardCommandEvent(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(4057164605u32, context)?;
@@ -3246,7 +3374,16 @@ impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
                     <InputClipboardCommandEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputCompositionEvent(value) => {
                 let tag_value =
@@ -3255,7 +3392,16 @@ impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
                     <InputCompositionEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputEditIntentEvent(value) => {
                 let tag_value =
@@ -3264,7 +3410,16 @@ impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
                     <InputEditIntentEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::InputTextSessionStateEvent(value) => {
                 let tag_value =
@@ -3273,12 +3428,18 @@ impl VmAggregateCodec for InputTextSessionEventAbi<VmAbi> {
                     <InputTextSessionStateEventVm as VmAggregateCodec>::encode_with_context(
                         value, context,
                     )?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::InputTextSessionEvent")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
-        };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        }
     }
 }
 
@@ -3355,7 +3516,7 @@ impl VmAbiCodec for InputTextSessionEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::InputClipboardCommandEvent(value) => {
@@ -3381,7 +3542,7 @@ impl VmAbiCodec for InputTextSessionEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -3441,32 +3602,38 @@ impl Clone for OsPathAbi<VmAbi> {
 
 impl VmAggregateCodec for OsPathAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value", "OsPath",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let tag = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let tag = <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let decoded = match tag {
             1243901586u32 => Self::OsPathBytes(
-                <fs::OsPathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <fs::OsPathBytesVm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             2271740357u32 => Self::OsPathUtf16(
-                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?,
+                <fs::OsPathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+                    context, value_ref, 1,
+                )?,
             ),
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
@@ -3481,27 +3648,42 @@ impl VmAggregateCodec for OsPathAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = match self {
+        match self {
             Self::OsPathBytes(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(1243901586u32, context)?;
                 let payload_value =
                     <fs::OsPathBytesVm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::OsPath")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
             Self::OsPathUtf16(value) => {
                 let tag_value =
                     <u32 as VmAggregateCodec>::encode_with_context(2271740357u32, context)?;
                 let payload_value =
                     <fs::OsPathUtf16Vm as VmAggregateCodec>::encode_with_context(value, context)?;
-                vec![tag_value, payload_value]
+                let mut value_builder = context
+                    .begin_named_storage_value_builder("input::OsPath")
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(0, tag_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder
+                    .write_component(1, payload_value)
+                    .map_err(Box::<RuntimeError>::from)?;
+                value_builder.finish().map_err(Box::<RuntimeError>::from)
             }
-        };
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        }
     }
 }
 
@@ -3548,7 +3730,7 @@ impl VmAbiCodec for OsPathAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         let owned = match self {
             Self::OsPathBytes(value) => OsPathValue::OsPathBytes(
@@ -3562,7 +3744,7 @@ impl VmAbiCodec for OsPathAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         match value {
@@ -3611,20 +3793,21 @@ impl Clone for ClipboardItemAbi<VmAbi> {
 
 impl VmAggregateCodec for ClipboardItemAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ClipboardItem",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -3632,13 +3815,10 @@ impl VmAggregateCodec for ClipboardItemAbi<VmAbi> {
             .boxed());
         }
         let field_presentation_style =
-            <ClipboardPresentationStyle as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+            <ClipboardPresentationStyle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
             )?;
-        let field_representations =
-            <VmSlice<ClipboardItemRepresentationVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
-            )?;
+        let field_representations = <VmSlice<ClipboardItemRepresentationVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             presentation_style: field_presentation_style,
             representations: field_representations,
@@ -3647,21 +3827,28 @@ impl VmAggregateCodec for ClipboardItemAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::ClipboardItem")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <ClipboardPresentationStyle as VmAggregateCodec>::encode_with_context(
                 self.presentation_style,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmSlice<ClipboardItemRepresentationVm> as VmAggregateCodec>::encode_with_context(
                 self.representations,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3712,7 +3899,7 @@ impl VmAbiCodec for ClipboardItemAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ClipboardItemValue {
             presentation_style: <ClipboardPresentationStyle as VmAbiCodec>::into_value(
@@ -3727,7 +3914,7 @@ impl VmAbiCodec for ClipboardItemAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -3778,20 +3965,21 @@ impl Clone for ClipboardItemDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for ClipboardItemDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ClipboardItemDescriptor",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -3799,10 +3987,10 @@ impl VmAggregateCodec for ClipboardItemDescriptorAbi<VmAbi> {
             .boxed());
         }
         let field_presentation_style =
-            <ClipboardPresentationStyle as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+            <ClipboardPresentationStyle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
             )?;
-        let field_representations = <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_representations = <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             presentation_style: field_presentation_style,
             representations: field_representations,
@@ -3811,15 +3999,24 @@ impl VmAggregateCodec for ClipboardItemDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <ClipboardPresentationStyle as VmAggregateCodec>::encode_with_context(self.presentation_style, context)?,
-            <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAggregateCodec>::encode_with_context(self.representations, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::ClipboardItemDescriptor")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <ClipboardPresentationStyle as VmAggregateCodec>::encode_with_context(
+                self.presentation_style,
+                context,
+            )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmSlice<ClipboardItemRepresentationDescriptorVm> as VmAggregateCodec>::encode_with_context(self.representations, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -3870,7 +4067,7 @@ impl VmAbiCodec for ClipboardItemDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ClipboardItemDescriptorValue {
             presentation_style: <ClipboardPresentationStyle as VmAbiCodec>::into_value(
@@ -3886,7 +4083,7 @@ impl VmAbiCodec for ClipboardItemDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -3946,20 +4143,21 @@ impl Clone for ClipboardItemRepresentationAbi<VmAbi> {
 
 impl VmAggregateCodec for ClipboardItemRepresentationAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ClipboardItemRepresentation",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
@@ -3967,19 +4165,27 @@ impl VmAggregateCodec for ClipboardItemRepresentationAbi<VmAbi> {
             .boxed());
         }
         let field_mime_type =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_kind =
-            <ClipboardItemRepresentationKind as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <ClipboardItemRepresentationKind as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
         let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_text =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_path =
-            <Option<fs::OsPathVm> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_bytes =
-            <Option<VmSlice<u8>> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
+            )?;
+        let field_path = <Option<fs::OsPathVm> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 4,
+        )?;
+        let field_bytes = <Option<VmSlice<u8>> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 5,
+        )?;
         Ok(Self {
             mime_type: field_mime_type,
             kind: field_kind,
@@ -3992,25 +4198,46 @@ impl VmAggregateCodec for ClipboardItemRepresentationAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::ClipboardItemRepresentation")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <ClipboardItemRepresentationKind as VmAggregateCodec>::encode_with_context(
                 self.kind, context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.name, context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.text, context,
-            )?,
-            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?,
-            <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.name, context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.text, context,
+        )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<fs::OsPathVm> as VmAggregateCodec>::encode_with_context(self.path, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<VmSlice<u8>> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4068,7 +4295,7 @@ impl VmAbiCodec for ClipboardItemRepresentationAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ClipboardItemRepresentationValue {
             mime_type: <vm::StringHandle as VmAbiCodec>::into_value(self.mime_type, context)?,
@@ -4081,7 +4308,7 @@ impl VmAbiCodec for ClipboardItemRepresentationAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4137,20 +4364,21 @@ impl Clone for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "ClipboardItemRepresentationDescriptor",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
@@ -4158,17 +4386,22 @@ impl VmAggregateCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
             .boxed());
         }
         let field_mime_type =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_kind =
-            <ClipboardItemRepresentationKind as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <ClipboardItemRepresentationKind as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
         let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_is_directory =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_byte_length =
-            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_byte_length = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 4,
+        )?;
         Ok(Self {
             mime_type: field_mime_type,
             kind: field_kind,
@@ -4180,22 +4413,40 @@ impl VmAggregateCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::ClipboardItemRepresentationDescriptor")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.mime_type, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <ClipboardItemRepresentationKind as VmAggregateCodec>::encode_with_context(
                 self.kind, context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.name, context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?,
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.byte_length, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.name, context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.byte_length, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4249,7 +4500,7 @@ impl VmAbiCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(ClipboardItemRepresentationDescriptorValue {
             mime_type: <vm::StringHandle as VmAbiCodec>::into_value(self.mime_type, context)?,
@@ -4261,7 +4512,7 @@ impl VmAbiCodec for ClipboardItemRepresentationDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4315,37 +4566,44 @@ impl Clone for DisplayDragItemDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "DisplayDragItemDescriptor",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind = <display::DisplayDragItemKind as VmAggregateCodec>::decode_with_context(
-            context, slots[0],
-        )?;
+        let field_kind =
+            <display::DisplayDragItemKind as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_item_type =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_is_directory =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_byte_length =
-            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_byte_length = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 4,
+        )?;
         Ok(Self {
             kind: field_kind,
             item_type: field_item_type,
@@ -4357,25 +4615,42 @@ impl VmAggregateCodec for DisplayDragItemDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::DisplayDragItemDescriptor")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <display::DisplayDragItemKind as VmAggregateCodec>::encode_with_context(
                 self.kind, context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.item_type,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.name, context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?,
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.byte_length, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.item_type,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.name, context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_directory, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.byte_length, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4432,7 +4707,7 @@ impl VmAbiCodec for DisplayDragItemDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayDragItemDescriptorValue {
             kind: <display::DisplayDragItemKind as VmAbiCodec>::into_value(self.kind, context)?,
@@ -4447,7 +4722,7 @@ impl VmAbiCodec for DisplayDragItemDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4477,28 +4752,31 @@ pub type DisplayDragPositionVm = DisplayDragPosition;
 
 impl VmAggregateCodec for DisplayDragPosition {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "DisplayDragPosition",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_x = <i32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_y = <i32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_x =
+            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_y =
+            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             x: field_x,
             y: field_y,
@@ -4507,15 +4785,20 @@ impl VmAggregateCodec for DisplayDragPosition {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::DisplayDragPosition")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <i32 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4539,13 +4822,13 @@ impl VmAbiCodec for DisplayDragPosition {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4597,44 +4880,37 @@ impl Clone for DisplayDragTransferAbi<VmAbi> {
 
 impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "DisplayDragTransfer",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_session =
-            <resource::DisplayDragSessionHandle as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
-            )?;
-        let field_is_external = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_session = <resource::DisplayDragSessionHandle as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_is_external =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_allowed_operations =
-            <display::DisplayDragOperationMask as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+            <display::DisplayDragOperationMask as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
-        let field_proposed_operation =
-            <Option<display::DisplayDragOperation> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
-            )?;
-        let field_position =
-            <Option<display::DisplayDragPositionVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
-            )?;
-        let field_items = <VmSlice<display::DisplayDragItemDescriptorVm> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_proposed_operation = <Option<display::DisplayDragOperation> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_position = <Option<display::DisplayDragPositionVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_items = <VmSlice<display::DisplayDragItemDescriptorVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         Ok(Self {
             session: field_session,
             is_external: field_is_external,
@@ -4647,19 +4923,53 @@ impl VmAggregateCodec for DisplayDragTransferAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <resource::DisplayDragSessionHandle as VmAggregateCodec>::encode_with_context(self.session, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_external, context)?,
-            <display::DisplayDragOperationMask as VmAggregateCodec>::encode_with_context(self.allowed_operations, context)?,
-            <Option<display::DisplayDragOperation> as VmAggregateCodec>::encode_with_context(self.proposed_operation, context)?,
-            <Option<display::DisplayDragPositionVm> as VmAggregateCodec>::encode_with_context(self.position, context)?,
-            <VmSlice<display::DisplayDragItemDescriptorVm> as VmAggregateCodec>::encode_with_context(self.items, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::DisplayDragTransfer")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <resource::DisplayDragSessionHandle as VmAggregateCodec>::encode_with_context(
+                self.session,
+                context,
+            )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_external, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <display::DisplayDragOperationMask as VmAggregateCodec>::encode_with_context(
+                self.allowed_operations,
+                context,
+            )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<display::DisplayDragOperation> as VmAggregateCodec>::encode_with_context(
+                self.proposed_operation,
+                context,
+            )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<display::DisplayDragPositionVm> as VmAggregateCodec>::encode_with_context(
+                self.position,
+                context,
+            )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmSlice<display::DisplayDragItemDescriptorVm> as VmAggregateCodec>::encode_with_context(self.items, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4745,7 +5055,7 @@ impl VmAbiCodec for DisplayDragTransferAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(DisplayDragTransferValue {
             session: <resource::DisplayDragSessionHandle as VmAbiCodec>::into_value(
@@ -4772,7 +5082,7 @@ impl VmAbiCodec for DisplayDragTransferAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -4823,32 +5133,39 @@ pub type InputAxisMetadataVm = InputAxisMetadata;
 
 impl VmAggregateCodec for InputAxisMetadata {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputAxisMetadata",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_minimum = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_maximum = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flat = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_fuzz = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_resolution = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_code =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_minimum =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_maximum =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_flat =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_fuzz =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_resolution =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         Ok(Self {
             code: field_code,
             minimum: field_minimum,
@@ -4861,19 +5178,39 @@ impl VmAggregateCodec for InputAxisMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.code, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.minimum, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.maximum, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.flat, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.fuzz, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputAxisMetadata")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.code, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.minimum, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.maximum, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.flat, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.fuzz, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4897,13 +5234,13 @@ impl VmAbiCodec for InputAxisMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -4926,28 +5263,31 @@ pub type InputButtonMetadataVm = InputButtonMetadata;
 
 impl VmAggregateCodec for InputButtonMetadata {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputButtonMetadata",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_analog = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_code =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_analog =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             code: field_code,
             analog: field_analog,
@@ -4956,15 +5296,21 @@ impl VmAggregateCodec for InputButtonMetadata {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.code, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.analog, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputButtonMetadata")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.code, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.analog, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -4988,13 +5334,13 @@ impl VmAbiCodec for InputButtonMetadata {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -5044,39 +5390,41 @@ impl Clone for InputClipboardCommandEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputClipboardCommandEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputClipboardCommandEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_command = <InputClipboardCommandType as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
         )?;
-        let field_clipboard_items =
-            <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
+        let field_command =
+            <InputClipboardCommandType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
+        let field_clipboard_items = <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_is_composing =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -5088,27 +5436,44 @@ impl VmAggregateCodec for InputClipboardCommandEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputClipboardCommandType as VmAggregateCodec>::encode_with_context(
-                self.command,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputClipboardCommandEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputClipboardCommandType as VmAggregateCodec>::encode_with_context(
+            self.command,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::encode_with_context(
                 self.clipboard_items,
                 context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5171,7 +5536,7 @@ impl VmAbiCodec for InputClipboardCommandEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputClipboardCommandEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -5187,7 +5552,7 @@ impl VmAbiCodec for InputClipboardCommandEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5241,33 +5606,37 @@ impl Clone for InputCompositionEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputCompositionEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_payload =
-            <InputCompositionEventPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+            <InputCompositionEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
         Ok(Self {
             kind: field_kind,
@@ -5278,22 +5647,32 @@ impl VmAggregateCodec for InputCompositionEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputCompositionEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputCompositionEventPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5340,7 +5719,7 @@ impl VmAbiCodec for InputCompositionEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputCompositionEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -5353,7 +5732,7 @@ impl VmAbiCodec for InputCompositionEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5406,34 +5785,37 @@ impl Clone for InputCompositionEventPayloadAbi<VmAbi> {
 
 impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputCompositionEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_text =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_action = <InputEventAction as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         let field_selection_start =
-            <i32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_selection_end =
-            <i32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <i32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         Ok(Self {
             action: field_action,
             text: field_text,
@@ -5444,17 +5826,32 @@ impl VmAggregateCodec for InputCompositionEventPayloadAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.selection_start, context)?,
-            <i32 as VmAggregateCodec>::encode_with_context(self.selection_end, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputCompositionEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i32 as VmAggregateCodec>::encode_with_context(self.selection_start, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i32 as VmAggregateCodec>::encode_with_context(self.selection_end, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -5500,7 +5897,7 @@ impl VmAbiCodec for InputCompositionEventPayloadAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputCompositionEventPayloadValue {
             action: <InputEventAction as VmAbiCodec>::into_value(self.action, context)?,
@@ -5511,7 +5908,7 @@ impl VmAbiCodec for InputCompositionEventPayloadAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -5602,85 +5999,84 @@ impl Clone for InputDeviceCapabilitiesAbi<VmAbi> {
 
 impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDeviceCapabilities",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 24 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 24 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 24 fields",
             ))
             .boxed());
         }
-        let field_kinds =
-            <VmArray<InputDeviceCapabilityKind> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+        let field_kinds = <VmArray<InputDeviceCapabilityKind> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_axes =
+            <VmArray<InputAxisMetadataVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
-        let field_axes = <VmArray<InputAxisMetadataVm> as VmAggregateCodec>::decode_with_context(
-            context, slots[1],
-        )?;
         let field_buttons =
-            <VmArray<InputButtonMetadataVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+            <VmArray<InputButtonMetadataVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
         let field_metadata_origin =
-            <InputCapabilityMetadataOrigin as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+            <InputCapabilityMetadataOrigin as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
             )?;
         let field_axis_metadata_fidelity =
-            <InputCapabilityMetadataFidelity as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+            <InputCapabilityMetadataFidelity as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
             )?;
         let field_button_metadata_fidelity =
-            <InputCapabilityMetadataFidelity as VmAggregateCodec>::decode_with_context(
-                context, slots[5],
+            <InputCapabilityMetadataFidelity as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
             )?;
         let field_supports_relative_pointer =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         let field_supports_pointer_grab =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
         let field_supports_pointer_capture =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
         let field_supports_pointer_warp =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
         let field_supports_text_input =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
         let field_supports_composition =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
         let field_supports_edit_intents =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
         let field_supports_rumble =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
         let field_supports_trigger_rumble =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
         let field_supports_sensors =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
         let field_supports_battery_state =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
         let field_supports_light_control =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
         let field_supports_raw_hid =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
         let field_supports_player_index =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 19)?;
         let field_supports_pointer_coalescing =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 20)?;
         let field_supports_pointer_prediction =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[21])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 21)?;
         let field_supports_pen_hover_distance =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[22])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 22)?;
         let field_supports_pen_orientation_angles =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[23])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 23)?;
         Ok(Self {
             kinds: field_kinds,
             axes: field_axes,
@@ -5711,71 +6107,160 @@ impl VmAggregateCodec for InputDeviceCapabilitiesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputDeviceCapabilities")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<InputDeviceCapabilityKind> as VmAggregateCodec>::encode_with_context(
                 self.kinds, context,
-            )?,
+            )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<InputAxisMetadataVm> as VmAggregateCodec>::encode_with_context(
                 self.axes, context,
-            )?,
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<InputButtonMetadataVm> as VmAggregateCodec>::encode_with_context(
                 self.buttons,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputCapabilityMetadataOrigin as VmAggregateCodec>::encode_with_context(
                 self.metadata_origin,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputCapabilityMetadataFidelity as VmAggregateCodec>::encode_with_context(
                 self.axis_metadata_fidelity,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputCapabilityMetadataFidelity as VmAggregateCodec>::encode_with_context(
                 self.button_metadata_fidelity,
                 context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.supports_relative_pointer,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_pointer_grab, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.supports_pointer_capture,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_pointer_warp, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_text_input, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_composition, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_edit_intents, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_trigger_rumble, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_sensors, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_battery_state, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_light_control, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_raw_hid, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_player_index, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.supports_pointer_coalescing,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.supports_pointer_prediction,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.supports_pen_hover_distance,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(
-                self.supports_pen_orientation_angles,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+            self.supports_relative_pointer,
+            context,
+        )?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_pointer_grab, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+            self.supports_pointer_capture,
+            context,
+        )?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_pointer_warp, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_text_input, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_composition, context)?;
+        value_builder
+            .write_component(11, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_edit_intents, context)?;
+        value_builder
+            .write_component(12, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?;
+        value_builder
+            .write_component(13, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_trigger_rumble, context)?;
+        value_builder
+            .write_component(14, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_sensors, context)?;
+        value_builder
+            .write_component(15, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_battery_state, context)?;
+        value_builder
+            .write_component(16, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_light_control, context)?;
+        value_builder
+            .write_component(17, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_raw_hid, context)?;
+        value_builder
+            .write_component(18, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_player_index, context)?;
+        value_builder
+            .write_component(19, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+            self.supports_pointer_coalescing,
+            context,
+        )?;
+        value_builder
+            .write_component(20, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+            self.supports_pointer_prediction,
+            context,
+        )?;
+        value_builder
+            .write_component(21, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+            self.supports_pen_hover_distance,
+            context,
+        )?;
+        value_builder
+            .write_component(22, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <bool as VmAggregateCodec>::encode_with_context(
+            self.supports_pen_orientation_angles,
+            context,
+        )?;
+        value_builder
+            .write_component(23, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6014,7 +6499,7 @@ impl VmAbiCodec for InputDeviceCapabilitiesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputDeviceCapabilitiesValue {
             kinds: <VmArray<InputDeviceCapabilityKind> as VmAbiCodec>::into_value(
@@ -6104,7 +6589,7 @@ impl VmAbiCodec for InputDeviceCapabilitiesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6280,67 +6765,90 @@ impl Clone for InputDeviceDescriptorAbi<VmAbi> {
 
 impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDeviceDescriptor",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 24 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 24 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 24 fields",
             ))
             .boxed());
         }
-        let field_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_id = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_instance_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_hardware_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_serial_number =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
+            )?;
         let field_location_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
+            )?;
         let field_guid =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
+            )?;
+        let field_name = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 6,
+        )?;
         let field_transport =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_kind =
-            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_vendor_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_product_id = <u16 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_key_count = <u16 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 7,
+            )?;
+        let field_kind = <InputDeviceKind as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 8,
+        )?;
+        let field_vendor_id =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_product_id =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+        let field_key_count =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
         let field_button_count =
-            <u16 as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_axis_count = <u16 as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+        let field_axis_count =
+            <u16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+        let field_connected =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
         let field_supports_exclusive_grab =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
         let field_supports_raw =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
         let field_supports_text =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
         let field_supports_rumble =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[18])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 18)?;
         let field_supports_battery =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[19])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 19)?;
         let field_supports_light =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[20])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 20)?;
         let field_supports_raw_hid =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[21])?;
-        let field_is_virtual = <bool as VmAggregateCodec>::decode_with_context(context, slots[22])?;
-        let field_is_system = <bool as VmAggregateCodec>::decode_with_context(context, slots[23])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 21)?;
+        let field_is_virtual =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 22)?;
+        let field_is_system =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 23)?;
         Ok(Self {
             id: field_id,
             instance_id: field_instance_id,
@@ -6371,45 +6879,137 @@ impl VmAggregateCodec for InputDeviceDescriptorAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.instance_id, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.hardware_id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.serial_number,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.location_id,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.guid, context,
-            )?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.transport, context)?,
-            <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.vendor_id, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.product_id, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.key_count, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.button_count, context)?,
-            <u16 as VmAggregateCodec>::encode_with_context(self.axis_count, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_exclusive_grab, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_raw, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_text, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_battery, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_light, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_raw_hid, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_system, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputDeviceDescriptor")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.id, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.instance_id, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.hardware_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.serial_number,
+            context,
+        )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.location_id,
+            context,
+        )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.guid, context,
+        )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.name, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.transport, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u16 as VmAggregateCodec>::encode_with_context(self.vendor_id, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u16 as VmAggregateCodec>::encode_with_context(self.product_id, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u16 as VmAggregateCodec>::encode_with_context(self.key_count, context)?;
+        value_builder
+            .write_component(11, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u16 as VmAggregateCodec>::encode_with_context(self.button_count, context)?;
+        value_builder
+            .write_component(12, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u16 as VmAggregateCodec>::encode_with_context(self.axis_count, context)?;
+        value_builder
+            .write_component(13, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?;
+        value_builder
+            .write_component(14, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_exclusive_grab, context)?;
+        value_builder
+            .write_component(15, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_raw, context)?;
+        value_builder
+            .write_component(16, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_text, context)?;
+        value_builder
+            .write_component(17, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?;
+        value_builder
+            .write_component(18, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_battery, context)?;
+        value_builder
+            .write_component(19, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_light, context)?;
+        value_builder
+            .write_component(20, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_raw_hid, context)?;
+        value_builder
+            .write_component(21, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_virtual, context)?;
+        value_builder
+            .write_component(22, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_system, context)?;
+        value_builder
+            .write_component(23, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6569,7 +7169,7 @@ impl VmAbiCodec for InputDeviceDescriptorAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputDeviceDescriptorValue {
             id: <vm::StringHandle as VmAbiCodec>::into_value(self.id, context)?,
@@ -6609,7 +7209,7 @@ impl VmAbiCodec for InputDeviceDescriptorAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6687,33 +7287,38 @@ impl Clone for InputDeviceEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDeviceEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <InputDeviceEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
         )?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_payload =
+            <InputDeviceEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -6723,22 +7328,31 @@ impl VmAggregateCodec for InputDeviceEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputDeviceEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputDeviceEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputDeviceEventPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6785,7 +7399,7 @@ impl VmAbiCodec for InputDeviceEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputDeviceEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -6795,7 +7409,7 @@ impl VmAbiCodec for InputDeviceEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -6822,31 +7436,34 @@ pub type InputDeviceEventPayloadVm = InputDeviceEventPayload;
 
 impl VmAggregateCodec for InputDeviceEventPayload {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputDeviceEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_action = <InputEventAction as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_backend_code =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <i64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             action: field_action,
             backend_code: field_backend_code,
@@ -6856,16 +7473,27 @@ impl VmAggregateCodec for InputDeviceEventPayload {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
-            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputDeviceEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -6889,13 +7517,13 @@ impl VmAbiCodec for InputDeviceEventPayload {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -6951,48 +7579,50 @@ impl Clone for InputEditIntentEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputEditIntentEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputEditIntentEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_input_type =
-            <InputEditIntentType as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <InputEditIntentType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_data =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
+            )?;
         let field_target_ranges =
-            <VmSlice<InputTextRangeVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[4],
+            <VmSlice<InputTextRangeVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
             )?;
-        let field_clipboard_items =
-            <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::decode_with_context(
-                context, slots[5],
-            )?;
-        let field_drag =
-            <Option<display::DisplayDragTransferVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
-            )?;
+        let field_clipboard_items = <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_drag = <Option<display::DisplayDragTransferVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         let field_is_composing =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -7007,37 +7637,64 @@ impl VmAggregateCodec for InputEditIntentEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputEditIntentType as VmAggregateCodec>::encode_with_context(
-                self.input_type,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.data, context,
-            )?,
-            <VmSlice<InputTextRangeVm> as VmAggregateCodec>::encode_with_context(
-                self.target_ranges,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputEditIntentEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEditIntentType as VmAggregateCodec>::encode_with_context(
+            self.input_type,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.data, context,
+        )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmSlice<InputTextRangeVm> as VmAggregateCodec>::encode_with_context(
+            self.target_ranges,
+            context,
+        )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<VmSlice<ClipboardItemDescriptorVm>> as VmAggregateCodec>::encode_with_context(
                 self.clipboard_items,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<display::DisplayDragTransferVm> as VmAggregateCodec>::encode_with_context(
                 self.drag, context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7121,7 +7778,7 @@ impl VmAbiCodec for InputEditIntentEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputEditIntentEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -7145,7 +7802,7 @@ impl VmAbiCodec for InputEditIntentEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7209,33 +7866,38 @@ impl Clone for InputEventMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputEventMetadata",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_sequence =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_target_window =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
             )?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
@@ -7247,20 +7909,35 @@ impl VmAggregateCodec for InputEventMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputEventMetadata")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.target_window,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7311,7 +7988,7 @@ impl VmAbiCodec for InputEventMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -7325,7 +8002,7 @@ impl VmAbiCodec for InputEventMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7354,20 +8031,21 @@ pub type InputGamepadBatteryStatusVm = InputGamepadBatteryStatus;
 
 impl VmAggregateCodec for InputGamepadBatteryStatus {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputGamepadBatteryStatus",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
@@ -7375,8 +8053,11 @@ impl VmAggregateCodec for InputGamepadBatteryStatus {
             .boxed());
         }
         let field_state =
-            <InputGamepadBatteryState as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_level = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputGamepadBatteryState as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
+        let field_level =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             state: field_state,
             level: field_level,
@@ -7385,17 +8066,22 @@ impl VmAggregateCodec for InputGamepadBatteryStatus {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputGamepadBatteryState as VmAggregateCodec>::encode_with_context(
-                self.state, context,
-            )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.level, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputGamepadBatteryStatus")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputGamepadBatteryState as VmAggregateCodec>::encode_with_context(
+            self.state, context,
+        )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.level, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7419,13 +8105,13 @@ impl VmAbiCodec for InputGamepadBatteryStatus {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -7450,29 +8136,33 @@ pub type InputGamepadButtonStateVm = InputGamepadButtonState;
 
 impl VmAggregateCodec for InputGamepadButtonState {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputGamepadButtonState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_pressed = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_touched = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_value = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+        let field_pressed =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_touched =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_value =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         Ok(Self {
             pressed: field_pressed,
             touched: field_touched,
@@ -7482,16 +8172,26 @@ impl VmAggregateCodec for InputGamepadButtonState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.pressed, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputGamepadButtonState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.pressed, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7515,13 +8215,13 @@ impl VmAbiCodec for InputGamepadButtonState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -7567,33 +8267,38 @@ impl Clone for InputGamepadEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputGamepadEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <InputGamepadEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
         )?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_payload =
+            <InputGamepadEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -7603,22 +8308,32 @@ impl VmAggregateCodec for InputGamepadEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputGamepadEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputGamepadEventPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7665,7 +8380,7 @@ impl VmAbiCodec for InputGamepadEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputGamepadEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -7675,7 +8390,7 @@ impl VmAbiCodec for InputGamepadEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -7715,38 +8430,46 @@ pub type InputGamepadEventPayloadVm = InputGamepadEventPayload;
 
 impl VmAggregateCodec for InputGamepadEventPayload {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputGamepadEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
             ))
             .boxed());
         }
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_action = <InputEventAction as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_control_kind =
-            <InputGamepadControlKind as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputGamepadControlKind as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_control_index =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_backend_code =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_value = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_pressed = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_touched = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <i64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_value =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_pressed =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_touched =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
         Ok(Self {
             action: field_action,
             control_kind: field_control_kind,
@@ -7761,24 +8484,53 @@ impl VmAggregateCodec for InputGamepadEventPayload {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <InputGamepadControlKind as VmAggregateCodec>::encode_with_context(
-                self.control_kind,
-                context,
-            )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.control_index, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
-            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.pressed, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputGamepadEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputGamepadControlKind as VmAggregateCodec>::encode_with_context(
+            self.control_kind,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.control_index, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.value, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.pressed, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.touched, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7802,13 +8554,13 @@ impl VmAbiCodec for InputGamepadEventPayload {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -7847,39 +8599,47 @@ pub type InputGamepadMotionStateVm = InputGamepadMotionState;
 
 impl VmAggregateCodec for InputGamepadMotionState {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputGamepadMotionState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_acceleration_x =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_acceleration_y =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_acceleration_z =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_gravity_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_gravity_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_gravity_z = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_gyroscope_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_gyroscope_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_gyroscope_z = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_gravity_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_gravity_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_gravity_z =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_gyroscope_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_gyroscope_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+        let field_gyroscope_z =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             acceleration_x: field_acceleration_x,
@@ -7896,23 +8656,62 @@ impl VmAggregateCodec for InputGamepadMotionState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_z, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_z, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_z, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputGamepadMotionState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_x, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_y, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.acceleration_z, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_x, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_y, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.gravity_z, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_x, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_y, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.gyroscope_z, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -7936,13 +8735,13 @@ impl VmAbiCodec for InputGamepadMotionState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -8028,78 +8827,95 @@ impl Clone for InputGamepadStateAbi<VmAbi> {
 
 impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputGamepadState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 23 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 23 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 23 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_connected =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_instance_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
+            )?;
         let field_guid =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
+            )?;
         let field_raw_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
+            )?;
         let field_mapping_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 6,
+            )?;
         let field_mapping =
-            <InputGamepadMappingType as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <InputGamepadMappingType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 7,
+            )?;
         let field_connection_type =
-            <InputGamepadConnectionType as VmAggregateCodec>::decode_with_context(
-                context, slots[8],
+            <InputGamepadConnectionType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 8,
             )?;
         let field_player_index =
-            <Option<u8> as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_slot_index =
-            <Option<u8> as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_battery = <InputGamepadBatteryStatusVm as VmAggregateCodec>::decode_with_context(
-            context, slots[11],
+            <Option<u8> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_slot_index = <Option<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 10,
         )?;
-        let field_supports_rumble =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_supports_trigger_rumble =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_supports_motion_sensors =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[14])?;
-        let field_supports_touch =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[15])?;
-        let field_supports_light =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[16])?;
-        let field_motion_sensors_enabled =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[17])?;
-        let field_motion_sample_rate_hz =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[18])?;
-        let field_axes =
-            <VmArray<f64> as VmAggregateCodec>::decode_with_context(context, slots[19])?;
-        let field_buttons =
-            <VmArray<InputGamepadButtonStateVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[20],
+        let field_battery =
+            <InputGamepadBatteryStatusVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 11,
             )?;
+        let field_supports_rumble =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
+        let field_supports_trigger_rumble =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+        let field_supports_motion_sensors =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
+        let field_supports_touch =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 15)?;
+        let field_supports_light =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 16)?;
+        let field_motion_sensors_enabled =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 17)?;
+        let field_motion_sample_rate_hz =
+            <Option<f64> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 18,
+            )?;
+        let field_axes = <VmArray<f64> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 19,
+        )?;
+        let field_buttons = <VmArray<InputGamepadButtonStateVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 20)?;
         let field_touches =
-            <VmArray<InputGamepadTouchStateVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[21],
+            <VmArray<InputGamepadTouchStateVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 21,
             )?;
         let field_motion =
-            <Option<InputGamepadMotionStateVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[22],
+            <Option<InputGamepadMotionStateVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 22,
             )?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
@@ -8130,68 +8946,153 @@ impl VmAggregateCodec for InputGamepadStateAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.instance_id,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.guid, context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.raw_name,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.mapping_name,
-                context,
-            )?,
-            <InputGamepadMappingType as VmAggregateCodec>::encode_with_context(
-                self.mapping,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputGamepadState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.instance_id,
+            context,
+        )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.guid, context,
+        )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.raw_name,
+            context,
+        )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.mapping_name,
+            context,
+        )?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputGamepadMappingType as VmAggregateCodec>::encode_with_context(
+            self.mapping,
+            context,
+        )?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputGamepadConnectionType as VmAggregateCodec>::encode_with_context(
                 self.connection_type,
                 context,
-            )?,
-            <Option<u8> as VmAggregateCodec>::encode_with_context(self.player_index, context)?,
-            <Option<u8> as VmAggregateCodec>::encode_with_context(self.slot_index, context)?,
+            )?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<u8> as VmAggregateCodec>::encode_with_context(self.player_index, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<u8> as VmAggregateCodec>::encode_with_context(self.slot_index, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputGamepadBatteryStatusVm as VmAggregateCodec>::encode_with_context(
                 self.battery,
                 context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_trigger_rumble, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_motion_sensors, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_touch, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_light, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.motion_sensors_enabled, context)?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(
-                self.motion_sample_rate_hz,
-                context,
-            )?,
-            <VmArray<f64> as VmAggregateCodec>::encode_with_context(self.axes, context)?,
+            )?;
+        value_builder
+            .write_component(11, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_rumble, context)?;
+        value_builder
+            .write_component(12, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_trigger_rumble, context)?;
+        value_builder
+            .write_component(13, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_motion_sensors, context)?;
+        value_builder
+            .write_component(14, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_touch, context)?;
+        value_builder
+            .write_component(15, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_light, context)?;
+        value_builder
+            .write_component(16, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.motion_sensors_enabled, context)?;
+        value_builder
+            .write_component(17, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<f64> as VmAggregateCodec>::encode_with_context(
+            self.motion_sample_rate_hz,
+            context,
+        )?;
+        value_builder
+            .write_component(18, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmArray<f64> as VmAggregateCodec>::encode_with_context(self.axes, context)?;
+        value_builder
+            .write_component(19, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<InputGamepadButtonStateVm> as VmAggregateCodec>::encode_with_context(
                 self.buttons,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(20, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<InputGamepadTouchStateVm> as VmAggregateCodec>::encode_with_context(
                 self.touches,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(21, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputGamepadMotionStateVm> as VmAggregateCodec>::encode_with_context(
                 self.motion,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(22, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8378,7 +9279,7 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputGamepadStateValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -8441,7 +9342,7 @@ impl VmAbiCodec for InputGamepadStateAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8528,31 +9429,37 @@ pub type InputGamepadTouchStateVm = InputGamepadTouchState;
 
 impl VmAggregateCodec for InputGamepadTouchState {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputGamepadTouchState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_touch_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_surface_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_touch_id =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_surface_id =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_pressure =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         Ok(Self {
             touch_id: field_touch_id,
             surface_id: field_surface_id,
@@ -8564,18 +9471,35 @@ impl VmAggregateCodec for InputGamepadTouchState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.touch_id, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.surface_id, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputGamepadTouchState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.touch_id, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.surface_id, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8599,13 +9523,13 @@ impl VmAbiCodec for InputGamepadTouchState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -8636,36 +9560,39 @@ pub type InputHapticEffectParametersVm = InputHapticEffectParameters;
 
 impl VmAggregateCodec for InputHapticEffectParameters {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputHapticEffectParameters",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_duration_ms = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_duration_ms =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_start_delay_ms =
-            <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_strong_magnitude =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_weak_magnitude =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_left_trigger = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_left_trigger =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         let field_right_trigger =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         Ok(Self {
             duration_ms: field_duration_ms,
             start_delay_ms: field_start_delay_ms,
@@ -8678,19 +9605,42 @@ impl VmAggregateCodec for InputHapticEffectParameters {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.duration_ms, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.start_delay_ms, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.strong_magnitude, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.weak_magnitude, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.left_trigger, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.right_trigger, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputHapticEffectParameters")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.duration_ms, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.start_delay_ms, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.strong_magnitude, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.weak_magnitude, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.left_trigger, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.right_trigger, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8714,13 +9664,13 @@ impl VmAbiCodec for InputHapticEffectParameters {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -8766,32 +9716,38 @@ impl Clone for InputKeyEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputKeyEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_payload =
-            <InputKeyEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <InputKeyEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -8801,22 +9757,31 @@ impl VmAggregateCodec for InputKeyEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputKeyEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputKeyEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputKeyEventPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -8858,7 +9823,7 @@ impl VmAbiCodec for InputKeyEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputKeyEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -8868,7 +9833,7 @@ impl VmAbiCodec for InputKeyEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -8932,46 +9897,57 @@ impl Clone for InputKeyEventPayloadAbi<VmAbi> {
 
 impl VmAggregateCodec for InputKeyEventPayloadAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputKeyEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_action = <InputEventAction as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_key =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_code =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_location =
-            <InputKeyLocation as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
+        let field_location = <InputKeyLocation as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 3,
+        )?;
+        let field_backend_code =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         let field_backend_scan_code =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <i64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         let field_backend_modifiers =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
         let field_modifier_state =
-            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_repeat = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <InputModifierStateVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 8,
+            )?;
+        let field_repeat =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
         let field_is_composing =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
         Ok(Self {
             action: field_action,
             key: field_key,
@@ -8989,29 +9965,70 @@ impl VmAggregateCodec for InputKeyEventPayloadAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.key, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.code, context,
-            )?,
-            <InputKeyLocation as VmAggregateCodec>::encode_with_context(self.location, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_scan_code, context)?,
-            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_modifiers, context)?,
-            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
-                self.modifier_state,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.repeat, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputKeyEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(self.key, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.code, context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputKeyLocation as VmAggregateCodec>::encode_with_context(self.location, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_scan_code, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_modifiers, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+            self.modifier_state,
+            context,
+        )?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.repeat, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9100,7 +10117,7 @@ impl VmAbiCodec for InputKeyEventPayloadAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputKeyEventPayloadValue {
             action: <InputEventAction as VmAbiCodec>::into_value(self.action, context)?,
@@ -9121,7 +10138,7 @@ impl VmAbiCodec for InputKeyEventPayloadAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9182,20 +10199,21 @@ impl Clone for InputKeyboardLayoutInfoAbi<VmAbi> {
 
 impl VmAggregateCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputKeyboardLayoutInfo",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -9203,13 +10221,21 @@ impl VmAggregateCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
             .boxed());
         }
         let field_layout_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_name =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_locale =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_variant =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
+            )?;
         Ok(Self {
             layout_id: field_layout_id,
             name: field_name,
@@ -9220,28 +10246,39 @@ impl VmAggregateCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.layout_id,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.name, context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.locale,
-                context,
-            )?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.variant,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputKeyboardLayoutInfo")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.layout_id,
+            context,
+        )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.name, context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.locale,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.variant,
+            context,
+        )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9299,7 +10336,7 @@ impl VmAbiCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputKeyboardLayoutInfoValue {
             layout_id: <Option<vm::StringHandle> as VmAbiCodec>::into_value(
@@ -9313,7 +10350,7 @@ impl VmAbiCodec for InputKeyboardLayoutInfoAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9381,52 +10418,63 @@ impl Clone for InputKeyboardStateAbi<VmAbi> {
 
 impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputKeyboardState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_sequence =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_backend_modifiers =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_modifier_state =
-            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <InputModifierStateVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
+            )?;
         let field_pressed_codes =
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[5],
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
             )?;
         let field_pressed_keys =
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[6],
+            <VmArray<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 6,
             )?;
         let field_pressed_backend_codes =
-            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <VmArray<u32> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 7,
+            )?;
         let field_pressed_scan_codes =
-            <VmArray<u32> as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <VmArray<u32> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 8,
+            )?;
         let field_layout =
-            <Option<InputKeyboardLayoutInfoVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[9],
+            <Option<InputKeyboardLayoutInfoVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 9,
             )?;
         let field_is_composing =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -9444,42 +10492,80 @@ impl VmAggregateCodec for InputKeyboardStateAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_modifiers, context)?,
-            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
-                self.modifier_state,
-                context,
-            )?,
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.pressed_codes,
-                context,
-            )?,
-            <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.pressed_keys,
-                context,
-            )?,
-            <VmArray<u32> as VmAggregateCodec>::encode_with_context(
-                self.pressed_backend_codes,
-                context,
-            )?,
-            <VmArray<u32> as VmAggregateCodec>::encode_with_context(
-                self.pressed_scan_codes,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputKeyboardState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_modifiers, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+            self.modifier_state,
+            context,
+        )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.pressed_codes,
+            context,
+        )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmArray<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.pressed_keys,
+            context,
+        )?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmArray<u32> as VmAggregateCodec>::encode_with_context(
+            self.pressed_backend_codes,
+            context,
+        )?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <VmArray<u32> as VmAggregateCodec>::encode_with_context(
+            self.pressed_scan_codes,
+            context,
+        )?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputKeyboardLayoutInfoVm> as VmAggregateCodec>::encode_with_context(
                 self.layout,
                 context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9588,7 +10674,7 @@ impl VmAbiCodec for InputKeyboardStateAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputKeyboardStateValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -9624,7 +10710,7 @@ impl VmAbiCodec for InputKeyboardStateAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9695,42 +10781,51 @@ pub type InputModifierStateVm = InputModifierState;
 
 impl VmAggregateCodec for InputModifierState {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputModifierState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 12 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 12 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 12 fields",
             ))
             .boxed());
         }
-        let field_is_alt = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_is_alt =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_is_alt_graph =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_is_caps_lock =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_is_control = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_is_fn = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_is_fn_lock = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_is_meta = <bool as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_is_num_lock = <bool as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_is_control =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_is_fn =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_is_fn_lock =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_is_meta =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_is_num_lock =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
         let field_is_scroll_lock =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_is_shift = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_is_symbol = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+        let field_is_shift =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_is_symbol =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
         let field_is_symbol_lock =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[11])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
         Ok(Self {
             is_alt: field_is_alt,
             is_alt_graph: field_is_alt_graph,
@@ -9749,25 +10844,71 @@ impl VmAggregateCodec for InputModifierState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.is_alt, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_alt_graph, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_caps_lock, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_control, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_fn, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_fn_lock, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_meta, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_num_lock, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_scroll_lock, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_shift, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_symbol, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_symbol_lock, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputModifierState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_alt, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_alt_graph, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_caps_lock, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_control, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <bool as VmAggregateCodec>::encode_with_context(self.is_fn, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_fn_lock, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_meta, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_num_lock, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_scroll_lock, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_shift, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_symbol, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_symbol_lock, context)?;
+        value_builder
+            .write_component(11, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9791,13 +10932,13 @@ impl VmAbiCodec for InputModifierState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -9841,31 +10982,33 @@ impl Clone for InputMonitorChangeEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputMonitorChangeEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
         Ok(Self {
             kind: field_kind,
@@ -9875,18 +11018,25 @@ impl VmAggregateCodec for InputMonitorChangeEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputMonitorChangeEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -9929,7 +11079,7 @@ impl VmAbiCodec for InputMonitorChangeEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputMonitorChangeEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -9941,7 +11091,7 @@ impl VmAbiCodec for InputMonitorChangeEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -9989,31 +11139,33 @@ impl Clone for InputMonitorConnectEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputMonitorConnectEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
         Ok(Self {
             kind: field_kind,
@@ -10023,18 +11175,25 @@ impl VmAggregateCodec for InputMonitorConnectEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputMonitorConnectEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10077,7 +11236,7 @@ impl VmAbiCodec for InputMonitorConnectEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputMonitorConnectEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -10089,7 +11248,7 @@ impl VmAbiCodec for InputMonitorConnectEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10137,31 +11296,33 @@ impl Clone for InputMonitorDisconnectEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputMonitorDisconnectEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_with_context(
-                context, slots[1],
+            <InputMonitorEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
             )?;
         Ok(Self {
             kind: field_kind,
@@ -10171,18 +11332,25 @@ impl VmAggregateCodec for InputMonitorDisconnectEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputMonitorDisconnectEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputMonitorEventMetadataVm as VmAggregateCodec>::encode_with_context(
                 self.metadata,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10225,7 +11393,7 @@ impl VmAbiCodec for InputMonitorDisconnectEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputMonitorDisconnectEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -10237,7 +11405,7 @@ impl VmAbiCodec for InputMonitorDisconnectEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10293,35 +11461,45 @@ impl Clone for InputMonitorEventMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputMonitorEventMetadata",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_sequence =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_instance_id =
-            <Option<vm::StringHandle> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <Option<vm::StringHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
+            )?;
         let field_device_kind =
-            <InputDeviceKind as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_connected = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <InputDeviceKind as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
+            )?;
+        let field_connected =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -10334,22 +11512,44 @@ impl VmAggregateCodec for InputMonitorEventMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
-                self.instance_id,
-                context,
-            )?,
-            <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.device_kind, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputMonitorEventMetadata")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<vm::StringHandle> as VmAggregateCodec>::encode_with_context(
+            self.instance_id,
+            context,
+        )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputDeviceKind as VmAggregateCodec>::encode_with_context(self.device_kind, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.connected, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10413,7 +11613,7 @@ impl VmAbiCodec for InputMonitorEventMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputMonitorEventMetadataValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -10429,7 +11629,7 @@ impl VmAbiCodec for InputMonitorEventMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10478,20 +11678,21 @@ pub type InputPenStateVm = InputPenState;
 
 impl VmAggregateCodec for InputPenState {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPenState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
@@ -10499,21 +11700,35 @@ impl VmAggregateCodec for InputPenState {
             .boxed());
         }
         let field_tool_kind =
-            <InputPenToolKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputPenToolKind as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
+        let field_pressure =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_tangential_pressure =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_tilt_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_tilt_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         let field_altitude_angle_radians =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <Option<f64> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
+            )?;
         let field_azimuth_angle_radians =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <Option<f64> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 6,
+            )?;
         let field_hover_distance =
-            <Option<f64> as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_twist = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_in_contact = <bool as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_in_range = <bool as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+            <Option<f64> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 7,
+            )?;
+        let field_twist =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+        let field_in_contact =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_in_range =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
         Ok(Self {
             tool_kind: field_tool_kind,
             pressure: field_pressure,
@@ -10531,30 +11746,68 @@ impl VmAggregateCodec for InputPenState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputPenToolKind as VmAggregateCodec>::encode_with_context(self.tool_kind, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tangential_pressure, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(
-                self.altitude_angle_radians,
-                context,
-            )?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(
-                self.azimuth_angle_radians,
-                context,
-            )?,
-            <Option<f64> as VmAggregateCodec>::encode_with_context(self.hover_distance, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.in_contact, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.in_range, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPenState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputPenToolKind as VmAggregateCodec>::encode_with_context(self.tool_kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.tangential_pressure, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<f64> as VmAggregateCodec>::encode_with_context(
+            self.altitude_angle_radians,
+            context,
+        )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<f64> as VmAggregateCodec>::encode_with_context(
+            self.azimuth_angle_radians,
+            context,
+        )?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<f64> as VmAggregateCodec>::encode_with_context(self.hover_distance, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.in_contact, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.in_range, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10578,13 +11831,13 @@ impl VmAbiCodec for InputPenState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -10630,33 +11883,37 @@ impl Clone for InputPointerButtonEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPointerButtonEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_payload =
-            <InputPointerButtonEventPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+            <InputPointerButtonEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
         Ok(Self {
             kind: field_kind,
@@ -10667,22 +11924,32 @@ impl VmAggregateCodec for InputPointerButtonEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPointerButtonEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputPointerButtonEventPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10729,7 +11996,7 @@ impl VmAbiCodec for InputPointerButtonEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputPointerButtonEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -10742,7 +12009,7 @@ impl VmAbiCodec for InputPointerButtonEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -10794,49 +12061,63 @@ pub type InputPointerButtonEventPayloadVm = InputPointerButtonEventPayload;
 
 impl VmAggregateCodec for InputPointerButtonEventPayload {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPointerButtonEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 14 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 14 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 14 fields",
             ))
             .boxed());
         }
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_action = <InputEventAction as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_pointer_id =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_pointer_type =
-            <InputPointerType as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_button = <i16 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_coordinate_space =
-            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_modifier_state =
-            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_contact =
-            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[12],
+            <InputPointerType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
+        let field_is_primary =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_button =
+            <i16 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_buttons =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_backend_code =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_backend_value =
+            <i64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_position_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+        let field_position_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 10,
+            )?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 11,
+            )?;
+        let field_contact = <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 12)?;
         let field_pen =
-            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[13])?;
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 13,
+            )?;
         Ok(Self {
             action: field_action,
             pointer_id: field_pointer_id,
@@ -10857,39 +12138,90 @@ impl VmAggregateCodec for InputPointerButtonEventPayload {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
-            <InputPointerType as VmAggregateCodec>::encode_with_context(
-                self.pointer_type,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
-            <i16 as VmAggregateCodec>::encode_with_context(self.button, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
-            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
-            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
-                self.coordinate_space,
-                context,
-            )?,
-            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
-                self.modifier_state,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPointerButtonEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputPointerType as VmAggregateCodec>::encode_with_context(
+            self.pointer_type,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <i16 as VmAggregateCodec>::encode_with_context(self.button, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+            self.coordinate_space,
+            context,
+        )?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+            self.modifier_state,
+            context,
+        )?;
+        value_builder
+            .write_component(11, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
                 self.contact,
                 context,
-            )?,
-            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(12, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?;
+        value_builder
+            .write_component(13, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -10913,13 +12245,13 @@ impl VmAbiCodec for InputPointerButtonEventPayload {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -10942,28 +12274,31 @@ pub type InputPointerContactGeometryVm = InputPointerContactGeometry;
 
 impl VmAggregateCodec for InputPointerContactGeometry {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPointerContactGeometry",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_width = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_height = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_width =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_height =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             width: field_width,
             height: field_height,
@@ -10972,15 +12307,20 @@ impl VmAggregateCodec for InputPointerContactGeometry {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPointerContactGeometry")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11004,13 +12344,13 @@ impl VmAbiCodec for InputPointerContactGeometry {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -11056,33 +12396,37 @@ impl Clone for InputPointerMotionEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPointerMotionEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_payload =
-            <InputPointerMotionEventPayloadVm as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+            <InputPointerMotionEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
         Ok(Self {
             kind: field_kind,
@@ -11093,22 +12437,32 @@ impl VmAggregateCodec for InputPointerMotionEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPointerMotionEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <InputPointerMotionEventPayloadVm as VmAggregateCodec>::encode_with_context(
                 self.payload,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11155,7 +12509,7 @@ impl VmAbiCodec for InputPointerMotionEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputPointerMotionEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -11168,7 +12522,7 @@ impl VmAbiCodec for InputPointerMotionEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -11243,55 +12597,62 @@ impl Clone for InputPointerMotionEventPayloadAbi<VmAbi> {
 
 impl VmAggregateCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPointerMotionEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 15 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 15 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 15 fields",
             ))
             .boxed());
         }
-        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pointer_id =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_pointer_type =
-            <InputPointerType as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <InputPointerType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_is_primary =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_coordinate_space =
-            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <InputCoordinateSpace as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
+            )?;
+        let field_position_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_position_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_delta_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_delta_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_buttons =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
         let field_backend_buttons =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
         let field_modifier_state =
-            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_contact =
-            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[11],
+            <InputModifierStateVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 10,
             )?;
+        let field_contact = <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
         let field_pen =
-            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_coalesced_samples =
-            <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[13],
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 12,
             )?;
-        let field_predicted_samples =
-            <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[14],
-            )?;
+        let field_coalesced_samples = <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 13)?;
+        let field_predicted_samples = <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
         Ok(Self {
             pointer_id: field_pointer_id,
             pointer_type: field_pointer_type,
@@ -11313,46 +12674,102 @@ impl VmAggregateCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
-            <InputPointerType as VmAggregateCodec>::encode_with_context(
-                self.pointer_type,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
-            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
-                self.coordinate_space,
-                context,
-            )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_buttons, context)?,
-            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
-                self.modifier_state,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPointerMotionEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputPointerType as VmAggregateCodec>::encode_with_context(
+            self.pointer_type,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+            self.coordinate_space,
+            context,
+        )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_buttons, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+            self.modifier_state,
+            context,
+        )?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
                 self.contact,
                 context,
-            )?,
-            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
+            )?;
+        value_builder
+            .write_component(11, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?;
+        value_builder
+            .write_component(12, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::encode_with_context(
                 self.coalesced_samples,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(13, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmSlice<InputPointerMotionSampleVm> as VmAggregateCodec>::encode_with_context(
                 self.predicted_samples,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(14, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11478,7 +12895,7 @@ impl VmAbiCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputPointerMotionEventPayloadValue {
             pointer_id: <u64 as VmAbiCodec>::into_value(self.pointer_id, context)?,
@@ -11515,7 +12932,7 @@ impl VmAbiCodec for InputPointerMotionEventPayloadAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -11582,20 +12999,21 @@ pub type InputPointerMotionSampleVm = InputPointerMotionSample;
 
 impl VmAggregateCodec for InputPointerMotionSample {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPointerMotionSample",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 8 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 8 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 8 fields",
@@ -11603,18 +13021,24 @@ impl VmAggregateCodec for InputPointerMotionSample {
             .boxed());
         }
         let field_coordinate_space =
-            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_contact =
-            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[5],
+            <InputCoordinateSpace as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
             )?;
+        let field_position_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_position_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_delta_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_delta_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_contact = <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         let field_pen =
-            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 6,
+            )?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
         Ok(Self {
             coordinate_space: field_coordinate_space,
             position_x: field_position_x,
@@ -11629,27 +13053,57 @@ impl VmAggregateCodec for InputPointerMotionSample {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
-                self.coordinate_space,
-                context,
-            )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPointerMotionSample")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+            self.coordinate_space,
+            context,
+        )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
                 self.contact,
                 context,
-            )?,
-            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11673,13 +13127,13 @@ impl VmAbiCodec for InputPointerMotionSample {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -11749,49 +13203,66 @@ impl Clone for InputPointerStateAbi<VmAbi> {
 
 impl VmAggregateCodec for InputPointerStateAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputPointerState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 15 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 15 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 15 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_sequence =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_pointer_type =
-            <InputPointerType as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_coordinate_space =
-            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
-        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[11])?;
-        let field_modifier_state =
-            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[12])?;
-        let field_pen =
-            <Option<InputPenStateVm> as VmAggregateCodec>::decode_with_context(context, slots[13])?;
-        let field_contact =
-            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[14],
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
+        let field_pointer_id =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_pointer_type =
+            <InputPointerType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 4,
+            )?;
+        let field_is_primary =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_coordinate_space =
+            <InputCoordinateSpace as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 6,
+            )?;
+        let field_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+        let field_delta_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_delta_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
+        let field_buttons =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 11)?;
+        let field_modifier_state =
+            <InputModifierStateVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 12,
+            )?;
+        let field_pen =
+            <Option<InputPenStateVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 13,
+            )?;
+        let field_contact = <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 14)?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -11813,40 +13284,94 @@ impl VmAggregateCodec for InputPointerStateAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
-            <InputPointerType as VmAggregateCodec>::encode_with_context(
-                self.pointer_type,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
-            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
-                self.coordinate_space,
-                context,
-            )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
-            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
-                self.modifier_state,
-                context,
-            )?,
-            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputPointerState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputPointerType as VmAggregateCodec>::encode_with_context(
+            self.pointer_type,
+            context,
+        )?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+            self.coordinate_space,
+            context,
+        )?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?;
+        value_builder
+            .write_component(11, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+            self.modifier_state,
+            context,
+        )?;
+        value_builder
+            .write_component(12, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<InputPenStateVm> as VmAggregateCodec>::encode_with_context(self.pen, context)?;
+        value_builder
+            .write_component(13, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
                 self.contact,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(14, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -11956,7 +13481,7 @@ impl VmAbiCodec for InputPointerStateAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputPointerStateValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -11987,7 +13512,7 @@ impl VmAbiCodec for InputPointerStateAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12061,30 +13586,36 @@ impl Clone for InputRawHidReportAbi<VmAbi> {
 
 impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputRawHidReport",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_report_id = <u8 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_data = <VmSlice<u8> as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_sequence =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_report_id =
+            <u8 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_data = <VmSlice<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 3,
+        )?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
             sequence: field_sequence,
@@ -12095,17 +13626,32 @@ impl VmAggregateCodec for InputRawHidReportAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <u8 as VmAggregateCodec>::encode_with_context(self.report_id, context)?,
-            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputRawHidReport")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u8 as VmAggregateCodec>::encode_with_context(self.report_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmSlice<u8> as VmAggregateCodec>::encode_with_context(self.data, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12151,7 +13697,7 @@ impl VmAbiCodec for InputRawHidReportAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputRawHidReportValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -12162,7 +13708,7 @@ impl VmAbiCodec for InputRawHidReportAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12211,33 +13757,38 @@ impl Clone for InputScrollEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputScrollEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <InputScrollEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
         )?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_payload =
+            <InputScrollEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12247,22 +13798,31 @@ impl VmAggregateCodec for InputScrollEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputScrollEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputScrollEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputScrollEventPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12309,7 +13869,7 @@ impl VmAbiCodec for InputScrollEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputScrollEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -12319,7 +13879,7 @@ impl VmAbiCodec for InputScrollEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12360,41 +13920,56 @@ pub type InputScrollEventPayloadVm = InputScrollEventPayload;
 
 impl VmAggregateCodec for InputScrollEventPayload {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputScrollEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 10 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 10 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 10 fields",
             ))
             .boxed());
         }
-        let field_pointer_id =
-            <Option<u64> as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_pointer_id = <Option<u64> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_pointer_type =
-            <Option<InputPointerType> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <Option<InputPointerType> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_delta_mode =
-            <InputWheelDeltaMode as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_delta_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_delta_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <InputWheelDeltaMode as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
+        let field_delta_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_delta_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_position_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_position_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         let field_coordinate_space =
-            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_buttons = <u32 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <InputCoordinateSpace as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 7,
+            )?;
+        let field_buttons =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
         let field_modifier_state =
-            <InputModifierStateVm as VmAggregateCodec>::decode_with_context(context, slots[9])?;
+            <InputModifierStateVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 9,
+            )?;
         Ok(Self {
             pointer_id: field_pointer_id,
             pointer_type: field_pointer_type,
@@ -12411,35 +13986,70 @@ impl VmAggregateCodec for InputScrollEventPayload {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <Option<u64> as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
-            <Option<InputPointerType> as VmAggregateCodec>::encode_with_context(
-                self.pointer_type,
-                context,
-            )?,
-            <InputWheelDeltaMode as VmAggregateCodec>::encode_with_context(
-                self.delta_mode,
-                context,
-            )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
-            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
-                self.coordinate_space,
-                context,
-            )?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?,
-            <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
-                self.modifier_state,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputScrollEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <Option<u64> as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<InputPointerType> as VmAggregateCodec>::encode_with_context(
+            self.pointer_type,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputWheelDeltaMode as VmAggregateCodec>::encode_with_context(
+            self.delta_mode,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_x, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.delta_y, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+            self.coordinate_space,
+            context,
+        )?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.buttons, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputModifierStateVm as VmAggregateCodec>::encode_with_context(
+            self.modifier_state,
+            context,
+        )?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12463,13 +14073,13 @@ impl VmAbiCodec for InputScrollEventPayload {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12496,32 +14106,35 @@ pub type InputSensorConfigVm = InputSensorConfig;
 
 impl VmAggregateCodec for InputSensorConfig {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputSensorConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_enabled = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_enabled =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_sample_rate_hz =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_batch_latency_ms =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_flags =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         Ok(Self {
             enabled: field_enabled,
             sample_rate_hz: field_sample_rate_hz,
@@ -12532,17 +14145,31 @@ impl VmAggregateCodec for InputSensorConfig {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.sample_rate_hz, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputSensorConfig")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.sample_rate_hz, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12566,13 +14193,13 @@ impl VmAbiCodec for InputSensorConfig {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12601,35 +14228,38 @@ pub type InputSensorDescriptorVm = InputSensorDescriptor;
 
 impl VmAggregateCodec for InputSensorDescriptor {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputSensorDescriptor",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 5 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 5 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 5 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <InputSensorKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <InputSensorKind as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_min_sample_rate_hz =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_max_sample_rate_hz =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_resolution = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_resolution =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         let field_supports_wake =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         Ok(Self {
             kind: field_kind,
             min_sample_rate_hz: field_min_sample_rate_hz,
@@ -12641,18 +14271,37 @@ impl VmAggregateCodec for InputSensorDescriptor {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputSensorKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.min_sample_rate_hz, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.max_sample_rate_hz, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.supports_wake, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputSensorDescriptor")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputSensorKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.min_sample_rate_hz, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.max_sample_rate_hz, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.resolution, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.supports_wake, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12676,13 +14325,13 @@ impl VmAbiCodec for InputSensorDescriptor {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12709,32 +14358,35 @@ pub type InputSensorEffectiveConfigVm = InputSensorEffectiveConfig;
 
 impl VmAggregateCodec for InputSensorEffectiveConfig {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputSensorEffectiveConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_enabled = <bool as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_enabled =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_sample_rate_hz =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_batch_latency_ms =
-            <u32 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_flags =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         Ok(Self {
             enabled: field_enabled,
             sample_rate_hz: field_sample_rate_hz,
@@ -12745,17 +14397,31 @@ impl VmAggregateCodec for InputSensorEffectiveConfig {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.sample_rate_hz, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputSensorEffectiveConfig")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.enabled, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.sample_rate_hz, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.batch_latency_ms, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12779,13 +14445,13 @@ impl VmAbiCodec for InputSensorEffectiveConfig {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -12831,33 +14497,38 @@ impl Clone for InputSensorEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputSensorEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_payload = <InputSensorEventPayloadVm as VmAggregateCodec>::decode_with_context(
-            context, slots[2],
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
         )?;
+        let field_metadata =
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_payload =
+            <InputSensorEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -12867,22 +14538,31 @@ impl VmAggregateCodec for InputSensorEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputSensorEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputSensorEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputSensorEventPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -12929,7 +14609,7 @@ impl VmAbiCodec for InputSensorEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputSensorEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -12939,7 +14619,7 @@ impl VmAbiCodec for InputSensorEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -12974,35 +14654,42 @@ pub type InputSensorEventPayloadVm = InputSensorEventPayload;
 
 impl VmAggregateCodec for InputSensorEventPayload {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputSensorEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_backend_code = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_action = <InputEventAction as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_backend_code =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_backend_value =
-            <i64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_z = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_w = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <i64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_z =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_w =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         Ok(Self {
             action: field_action,
             backend_code: field_backend_code,
@@ -13016,20 +14703,43 @@ impl VmAggregateCodec for InputSensorEventPayload {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?,
-            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputSensorEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.backend_code, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <i64 as VmAggregateCodec>::encode_with_context(self.backend_value, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13053,13 +14763,13 @@ impl VmAbiCodec for InputSensorEventPayload {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13092,34 +14802,42 @@ pub type InputSensorSampleVm = InputSensorSample;
 
 impl VmAggregateCodec for InputSensorSample {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputSensorSample",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <InputSensorKind as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_z = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_w = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_flags = <u32 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+        let field_kind = <InputSensorKind as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_z =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_w =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_flags =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         Ok(Self {
             kind: field_kind,
             timestamp_ns: field_timestamp_ns,
@@ -13133,20 +14851,42 @@ impl VmAggregateCodec for InputSensorSample {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputSensorKind as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputSensorSample")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputSensorKind as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.z, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.w, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <u32 as VmAggregateCodec>::encode_with_context(self.flags, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13170,13 +14910,13 @@ impl VmAbiCodec for InputSensorSample {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13222,32 +14962,38 @@ impl Clone for InputTextEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_payload =
-            <InputTextEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <InputTextEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -13257,22 +15003,31 @@ impl VmAggregateCodec for InputTextEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputTextEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputTextEventPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13316,7 +15071,7 @@ impl VmAbiCodec for InputTextEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputTextEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -13326,7 +15081,7 @@ impl VmAbiCodec for InputTextEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -13372,30 +15127,32 @@ impl Clone for InputTextEventPayloadAbi<VmAbi> {
 
 impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_text =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_is_composing =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             text: field_text,
             is_composing: field_is_composing,
@@ -13404,15 +15161,22 @@ impl VmAggregateCodec for InputTextEventPayloadAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_composing, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13450,7 +15214,7 @@ impl VmAbiCodec for InputTextEventPayloadAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputTextEventPayloadValue {
             text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
@@ -13459,7 +15223,7 @@ impl VmAbiCodec for InputTextEventPayloadAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -13487,20 +15251,21 @@ pub type InputTextGeometryVm = InputTextGeometry;
 
 impl VmAggregateCodec for InputTextGeometry {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextGeometry",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -13508,16 +15273,20 @@ impl VmAggregateCodec for InputTextGeometry {
             .boxed());
         }
         let field_local_to_target_transform =
-            <InputTextTransform2DVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <InputTextTransform2DVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_editor_rectangle =
-            <InputTextRectangleVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputTextRectangleVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_caret_rectangle =
-            <Option<InputTextRectangleVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[2],
+            <Option<InputTextRectangleVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
             )?;
         let field_composing_rectangle =
-            <Option<InputTextRectangleVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+            <Option<InputTextRectangleVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
             )?;
         Ok(Self {
             local_to_target_transform: field_local_to_target_transform,
@@ -13529,29 +15298,42 @@ impl VmAggregateCodec for InputTextGeometry {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputTextTransform2DVm as VmAggregateCodec>::encode_with_context(
-                self.local_to_target_transform,
-                context,
-            )?,
-            <InputTextRectangleVm as VmAggregateCodec>::encode_with_context(
-                self.editor_rectangle,
-                context,
-            )?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextGeometry")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputTextTransform2DVm as VmAggregateCodec>::encode_with_context(
+            self.local_to_target_transform,
+            context,
+        )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputTextRectangleVm as VmAggregateCodec>::encode_with_context(
+            self.editor_rectangle,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputTextRectangleVm> as VmAggregateCodec>::encode_with_context(
                 self.caret_rectangle,
                 context,
-            )?,
+            )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputTextRectangleVm> as VmAggregateCodec>::encode_with_context(
                 self.composing_rectangle,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13575,13 +15357,13 @@ impl VmAbiCodec for InputTextGeometry {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13604,28 +15386,31 @@ pub type InputTextRangeVm = InputTextRange;
 
 impl VmAggregateCodec for InputTextRange {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextRange",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_start_offset = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_end_offset = <u32 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_start_offset =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_end_offset =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         Ok(Self {
             start_offset: field_start_offset,
             end_offset: field_end_offset,
@@ -13634,15 +15419,22 @@ impl VmAggregateCodec for InputTextRange {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.start_offset, context)?,
-            <u32 as VmAggregateCodec>::encode_with_context(self.end_offset, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextRange")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.start_offset, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.end_offset, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13666,13 +15458,13 @@ impl VmAbiCodec for InputTextRange {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13699,30 +15491,35 @@ pub type InputTextRectangleVm = InputTextRectangle;
 
 impl VmAggregateCodec for InputTextRectangle {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextRectangle",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_width = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_height = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+        let field_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_width =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_height =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         Ok(Self {
             x: field_x,
             y: field_y,
@@ -13733,17 +15530,28 @@ impl VmAggregateCodec for InputTextRectangle {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextRectangle")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.width, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.height, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13767,13 +15575,13 @@ impl VmAbiCodec for InputTextRectangle {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13800,20 +15608,21 @@ pub type InputTextSessionConfigVm = InputTextSessionConfig;
 
 impl VmAggregateCodec for InputTextSessionConfig {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextSessionConfig",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
@@ -13821,12 +15630,17 @@ impl VmAggregateCodec for InputTextSessionConfig {
             .boxed());
         }
         let field_target =
-            <InputWindowTargetVm as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+            <InputWindowTargetVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
+            )?;
         let field_input_type =
-            <InputTextInputType as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputTextInputType as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_is_multiline =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_is_secure = <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_is_secure =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
         Ok(Self {
             target: field_target,
             input_type: field_input_type,
@@ -13837,20 +15651,34 @@ impl VmAggregateCodec for InputTextSessionConfig {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputWindowTargetVm as VmAggregateCodec>::encode_with_context(self.target, context)?,
-            <InputTextInputType as VmAggregateCodec>::encode_with_context(
-                self.input_type,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_multiline, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_secure, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextSessionConfig")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputWindowTargetVm as VmAggregateCodec>::encode_with_context(self.target, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputTextInputType as VmAggregateCodec>::encode_with_context(
+            self.input_type,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_multiline, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_secure, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -13874,13 +15702,13 @@ impl VmAbiCodec for InputTextSessionConfig {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -13926,32 +15754,38 @@ impl Clone for InputTextSessionStateAbi<VmAbi> {
 
 impl VmAggregateCodec for InputTextSessionStateAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextSessionState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_text =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_text = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_selection =
-            <InputTextRangeVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputTextRangeVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_composing =
-            <Option<InputTextRangeVm> as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <Option<InputTextRangeVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             text: field_text,
             selection: field_selection,
@@ -13961,19 +15795,29 @@ impl VmAggregateCodec for InputTextSessionStateAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?,
-            <InputTextRangeVm as VmAggregateCodec>::encode_with_context(self.selection, context)?,
-            <Option<InputTextRangeVm> as VmAggregateCodec>::encode_with_context(
-                self.composing,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextSessionState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.text, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputTextRangeVm as VmAggregateCodec>::encode_with_context(self.selection, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <Option<InputTextRangeVm> as VmAggregateCodec>::encode_with_context(
+            self.composing,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14020,7 +15864,7 @@ impl VmAbiCodec for InputTextSessionStateAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputTextSessionStateValue {
             text: <vm::StringHandle as VmAbiCodec>::into_value(self.text, context)?,
@@ -14033,7 +15877,7 @@ impl VmAbiCodec for InputTextSessionStateAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14084,32 +15928,38 @@ impl Clone for InputTextSessionStateEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputTextSessionStateEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextSessionStateEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_state =
-            <InputTextSessionStateVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <InputTextSessionStateVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -14119,21 +15969,30 @@ impl VmAggregateCodec for InputTextSessionStateEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputTextSessionStateVm as VmAggregateCodec>::encode_with_context(
-                self.state, context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextSessionStateEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputTextSessionStateVm as VmAggregateCodec>::encode_with_context(
+            self.state, context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14175,7 +16034,7 @@ impl VmAbiCodec for InputTextSessionStateEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputTextSessionStateEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -14185,7 +16044,7 @@ impl VmAbiCodec for InputTextSessionStateEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14218,32 +16077,39 @@ pub type InputTextTransform2DVm = InputTextTransform2D;
 
 impl VmAggregateCodec for InputTextTransform2D {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTextTransform2D",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 6 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 6 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 6 fields",
             ))
             .boxed());
         }
-        let field_xx = <f64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_xy = <f64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_yx = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_yy = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_tx = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_ty = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+        let field_xx =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_xy =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_yx =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_yy =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_tx =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_ty =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         Ok(Self {
             xx: field_xx,
             xy: field_xy,
@@ -14256,19 +16122,36 @@ impl VmAggregateCodec for InputTextTransform2D {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <f64 as VmAggregateCodec>::encode_with_context(self.xx, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.xy, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.yx, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.yy, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tx, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.ty, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTextTransform2D")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.xx, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.xy, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.yx, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.yy, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.tx, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.ty, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14292,13 +16175,13 @@ impl VmAbiCodec for InputTextTransform2D {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14335,36 +16218,47 @@ pub type InputTouchContactStateVm = InputTouchContactState;
 
 impl VmAggregateCodec for InputTouchContactState {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTouchContactState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 9 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 9 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 9 fields",
             ))
             .boxed());
         }
-        let field_contact_id = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_contact_id =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
         let field_phase =
-            <InputTouchContactPhase as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
-        let field_radius_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_radius_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[7])?;
-        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
+            <InputTouchContactPhase as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_pressure =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
+        let field_radius_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
+        let field_radius_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_tilt_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_tilt_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
         Ok(Self {
             contact_id: field_contact_id,
             phase: field_phase,
@@ -14380,22 +16274,53 @@ impl VmAggregateCodec for InputTouchContactState {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.contact_id, context)?,
-            <InputTouchContactPhase as VmAggregateCodec>::encode_with_context(self.phase, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.radius_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.radius_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTouchContactState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.contact_id, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputTouchContactPhase as VmAggregateCodec>::encode_with_context(self.phase, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.x, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.y, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.radius_x, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.radius_y, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14419,13 +16344,13 @@ impl VmAbiCodec for InputTouchContactState {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14471,32 +16396,38 @@ impl Clone for InputTouchEventAbi<VmAbi> {
 
 impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTouchEvent",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 3 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 3 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 3 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_metadata =
-            <InputEventMetadataVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+            <InputEventMetadataVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
         let field_payload =
-            <InputTouchEventPayloadVm as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <InputTouchEventPayloadVm as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         Ok(Self {
             kind: field_kind,
             metadata: field_metadata,
@@ -14506,22 +16437,31 @@ impl VmAggregateCodec for InputTouchEventAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
-                self.metadata,
-                context,
-            )?,
-            <InputTouchEventPayloadVm as VmAggregateCodec>::encode_with_context(
-                self.payload,
-                context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTouchEvent")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputEventMetadataVm as VmAggregateCodec>::encode_with_context(
+            self.metadata,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputTouchEventPayloadVm as VmAggregateCodec>::encode_with_context(
+            self.payload,
+            context,
+        )?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14565,7 +16505,7 @@ impl VmAbiCodec for InputTouchEventAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputTouchEventValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -14575,7 +16515,7 @@ impl VmAbiCodec for InputTouchEventAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14618,42 +16558,51 @@ pub type InputTouchEventPayloadVm = InputTouchEventPayload;
 
 impl VmAggregateCodec for InputTouchEventPayload {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTouchEventPayload",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 11 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 11 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 11 fields",
             ))
             .boxed());
         }
-        let field_action =
-            <InputEventAction as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_pointer_id = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_is_primary = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
-        let field_position_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_position_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+        let field_action = <InputEventAction as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_pointer_id =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
+        let field_is_primary =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
+        let field_position_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_position_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         let field_coordinate_space =
-            <InputCoordinateSpace as VmAggregateCodec>::decode_with_context(context, slots[5])?;
-        let field_pressure = <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
-        let field_contact =
-            <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[7],
+            <InputCoordinateSpace as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 5,
             )?;
-        let field_tilt_x = <f64 as VmAggregateCodec>::decode_with_context(context, slots[8])?;
-        let field_tilt_y = <f64 as VmAggregateCodec>::decode_with_context(context, slots[9])?;
-        let field_twist = <f64 as VmAggregateCodec>::decode_with_context(context, slots[10])?;
+        let field_pressure =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
+        let field_contact = <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::decode_component_with_context(context, value_ref, 7)?;
+        let field_tilt_x =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 8)?;
+        let field_tilt_y =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 9)?;
+        let field_twist =
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 10)?;
         Ok(Self {
             action: field_action,
             pointer_id: field_pointer_id,
@@ -14671,30 +16620,69 @@ impl VmAggregateCodec for InputTouchEventPayload {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?,
-            <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
-                self.coordinate_space,
-                context,
-            )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTouchEventPayload")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <InputEventAction as VmAggregateCodec>::encode_with_context(self.action, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.pointer_id, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_primary, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_x, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.position_y, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <InputCoordinateSpace as VmAggregateCodec>::encode_with_context(
+            self.coordinate_space,
+            context,
+        )?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.pressure, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<InputPointerContactGeometryVm> as VmAggregateCodec>::encode_with_context(
                 self.contact,
                 context,
-            )?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(7, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.tilt_x, context)?;
+        value_builder
+            .write_component(8, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.tilt_y, context)?;
+        value_builder
+            .write_component(9, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <f64 as VmAggregateCodec>::encode_with_context(self.twist, context)?;
+        value_builder
+            .write_component(10, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14718,13 +16706,13 @@ impl VmAbiCodec for InputTouchEventPayload {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -14772,33 +16760,38 @@ impl Clone for InputTouchStateAbi<VmAbi> {
 
 impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputTouchState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 4 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 4 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 4 fields",
             ))
             .boxed());
         }
-        let field_timestamp_ns = <u64 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_sequence = <u64 as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_timestamp_ns =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_sequence =
+            <u64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 1)?;
         let field_device_id =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 2,
+            )?;
         let field_contacts =
-            <VmArray<InputTouchContactStateVm> as VmAggregateCodec>::decode_with_context(
-                context, slots[3],
+            <VmArray<InputTouchContactStateVm> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 3,
             )?;
         Ok(Self {
             timestamp_ns: field_timestamp_ns,
@@ -14810,20 +16803,35 @@ impl VmAggregateCodec for InputTouchStateAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?,
-            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?,
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputTouchState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.timestamp_ns, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u64 as VmAggregateCodec>::encode_with_context(self.sequence, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.device_id, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <VmArray<InputTouchContactStateVm> as VmAggregateCodec>::encode_with_context(
                 self.contacts,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14874,7 +16882,7 @@ impl VmAbiCodec for InputTouchStateAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(InputTouchStateValue {
             timestamp_ns: <u64 as VmAbiCodec>::into_value(self.timestamp_ns, context)?,
@@ -14888,7 +16896,7 @@ impl VmAbiCodec for InputTouchStateAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -14916,20 +16924,21 @@ pub type InputWindowTargetVm = InputWindowTarget;
 
 impl VmAggregateCodec for InputWindowTarget {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "InputWindowTarget",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 1 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 1 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 1 fields",
@@ -14937,8 +16946,8 @@ impl VmAggregateCodec for InputWindowTarget {
             .boxed());
         }
         let field_window =
-            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_with_context(
-                context, slots[0],
+            <Option<resource::WindowHandle> as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 0,
             )?;
         Ok(Self {
             window: field_window,
@@ -14947,17 +16956,20 @@ impl VmAggregateCodec for InputWindowTarget {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::InputWindowTarget")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
             <Option<resource::WindowHandle> as VmAggregateCodec>::encode_with_context(
                 self.window,
                 context,
-            )?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+            )?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -14981,13 +16993,13 @@ impl VmAbiCodec for InputWindowTarget {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -15031,30 +17043,33 @@ impl Clone for OsPathBytesAbi<VmAbi> {
 
 impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "OsPathBytes",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes =
-            <fs::PathBytesVm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_bytes = <fs::PathBytesVm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             kind: field_kind,
             bytes: field_bytes,
@@ -15063,15 +17078,22 @@ impl VmAggregateCodec for OsPathBytesAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::OsPathBytes")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <fs::PathBytesVm as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15109,7 +17131,7 @@ impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathBytesValue {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -15118,7 +17140,7 @@ impl VmAbiCodec for OsPathBytesAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15163,30 +17185,33 @@ impl Clone for OsPathUtf16Abi<VmAbi> {
 
 impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "OsPathUtf16",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_kind =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_utf16 =
-            <fs::PathUtf16Vm as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_kind = <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
+        let field_utf16 = <fs::PathUtf16Vm as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             kind: field_kind,
             utf16: field_utf16,
@@ -15195,15 +17220,22 @@ impl VmAggregateCodec for OsPathUtf16Abi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?,
-            <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("input::OsPathUtf16")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.kind, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <fs::PathUtf16Vm as VmAggregateCodec>::encode_with_context(self.utf16, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -15241,7 +17273,7 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(OsPathUtf16Value {
             kind: <vm::StringHandle as VmAbiCodec>::into_value(self.kind, context)?,
@@ -15250,7 +17282,7 @@ impl VmAbiCodec for OsPathUtf16Abi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -15988,4 +18020,82 @@ pub enum OspathReplayRecord {
     OsPathBytes(fs::OspathbytesReplayRecord),
     /// OsPathUtf16 variant.
     OsPathUtf16(fs::Ospathutf16ReplayRecord),
+}
+
+/// Register VM storage schemas for input.
+pub(crate) fn register_input_vm_storage_types(isolate: &mut vm::Isolate) {
+    isolate.register_named_storage_type("input::PathBytes", 1);
+    isolate.register_named_storage_type("input::PathUtf16", 1);
+    isolate.register_named_storage_type("input::ClipboardItem", 2);
+    isolate.register_named_storage_type("input::ClipboardItemDescriptor", 2);
+    isolate.register_named_storage_type("input::ClipboardItemRepresentation", 6);
+    isolate.register_named_storage_type("input::ClipboardItemRepresentationDescriptor", 5);
+    isolate.register_named_storage_type("input::DisplayDragItemDescriptor", 5);
+    isolate.register_named_storage_type("input::DisplayDragPosition", 2);
+    isolate.register_named_storage_type("input::DisplayDragTransfer", 6);
+    isolate.register_named_storage_type("input::InputAxisMetadata", 6);
+    isolate.register_named_storage_type("input::InputButtonMetadata", 2);
+    isolate.register_named_storage_type("input::InputClipboardCommandEvent", 5);
+    isolate.register_named_storage_type("input::InputCompositionEvent", 3);
+    isolate.register_named_storage_type("input::InputCompositionEventPayload", 4);
+    isolate.register_named_storage_type("input::InputDeviceCapabilities", 24);
+    isolate.register_named_storage_type("input::InputDeviceDescriptor", 24);
+    isolate.register_named_storage_type("input::InputDeviceEvent", 3);
+    isolate.register_named_storage_type("input::InputDeviceEventPayload", 3);
+    isolate.register_named_storage_type("input::InputEditIntentEvent", 8);
+    isolate.register_named_storage_type("input::InputEventMetadata", 4);
+    isolate.register_named_storage_type("input::InputGamepadBatteryStatus", 2);
+    isolate.register_named_storage_type("input::InputGamepadButtonState", 3);
+    isolate.register_named_storage_type("input::InputGamepadEvent", 3);
+    isolate.register_named_storage_type("input::InputGamepadEventPayload", 8);
+    isolate.register_named_storage_type("input::InputGamepadMotionState", 10);
+    isolate.register_named_storage_type("input::InputGamepadState", 23);
+    isolate.register_named_storage_type("input::InputGamepadTouchState", 5);
+    isolate.register_named_storage_type("input::InputHapticEffectParameters", 6);
+    isolate.register_named_storage_type("input::InputKeyEvent", 3);
+    isolate.register_named_storage_type("input::InputKeyEventPayload", 11);
+    isolate.register_named_storage_type("input::InputKeyboardLayoutInfo", 4);
+    isolate.register_named_storage_type("input::InputKeyboardState", 11);
+    isolate.register_named_storage_type("input::InputModifierState", 12);
+    isolate.register_named_storage_type("input::InputMonitorChangeEvent", 2);
+    isolate.register_named_storage_type("input::InputMonitorConnectEvent", 2);
+    isolate.register_named_storage_type("input::InputMonitorDisconnectEvent", 2);
+    isolate.register_named_storage_type("input::InputMonitorEventMetadata", 6);
+    isolate.register_named_storage_type("input::InputPenState", 11);
+    isolate.register_named_storage_type("input::InputPointerButtonEvent", 3);
+    isolate.register_named_storage_type("input::InputPointerButtonEventPayload", 14);
+    isolate.register_named_storage_type("input::InputPointerContactGeometry", 2);
+    isolate.register_named_storage_type("input::InputPointerMotionEvent", 3);
+    isolate.register_named_storage_type("input::InputPointerMotionEventPayload", 15);
+    isolate.register_named_storage_type("input::InputPointerMotionSample", 8);
+    isolate.register_named_storage_type("input::InputPointerState", 15);
+    isolate.register_named_storage_type("input::InputRawHidReport", 4);
+    isolate.register_named_storage_type("input::InputScrollEvent", 3);
+    isolate.register_named_storage_type("input::InputScrollEventPayload", 10);
+    isolate.register_named_storage_type("input::InputSensorConfig", 4);
+    isolate.register_named_storage_type("input::InputSensorDescriptor", 5);
+    isolate.register_named_storage_type("input::InputSensorEffectiveConfig", 4);
+    isolate.register_named_storage_type("input::InputSensorEvent", 3);
+    isolate.register_named_storage_type("input::InputSensorEventPayload", 7);
+    isolate.register_named_storage_type("input::InputSensorSample", 7);
+    isolate.register_named_storage_type("input::InputTextEvent", 3);
+    isolate.register_named_storage_type("input::InputTextEventPayload", 2);
+    isolate.register_named_storage_type("input::InputTextGeometry", 4);
+    isolate.register_named_storage_type("input::InputTextRange", 2);
+    isolate.register_named_storage_type("input::InputTextRectangle", 4);
+    isolate.register_named_storage_type("input::InputTextSessionConfig", 4);
+    isolate.register_named_storage_type("input::InputTextSessionState", 3);
+    isolate.register_named_storage_type("input::InputTextSessionStateEvent", 3);
+    isolate.register_named_storage_type("input::InputTextTransform2D", 6);
+    isolate.register_named_storage_type("input::InputTouchContactState", 9);
+    isolate.register_named_storage_type("input::InputTouchEvent", 3);
+    isolate.register_named_storage_type("input::InputTouchEventPayload", 11);
+    isolate.register_named_storage_type("input::InputTouchState", 4);
+    isolate.register_named_storage_type("input::InputWindowTarget", 1);
+    isolate.register_named_storage_type("input::OsPathBytes", 2);
+    isolate.register_named_storage_type("input::OsPathUtf16", 2);
+    isolate.register_named_storage_type("input::InputEvent", 2);
+    isolate.register_named_storage_type("input::InputMonitorEvent", 2);
+    isolate.register_named_storage_type("input::InputTextSessionEvent", 2);
+    isolate.register_named_storage_type("input::OsPath", 2);
 }

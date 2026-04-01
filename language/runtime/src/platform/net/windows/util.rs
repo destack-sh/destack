@@ -137,7 +137,7 @@ pub(super) fn socket_address_raw_from_storage(
         let pointer = storage as *const _ as *const u8;
         std::slice::from_raw_parts(pointer, length as usize)
     };
-    let bytes = binding.store_array(bytes.to_vec());
+    let bytes = binding.store_array_copy(bytes);
 
     // build the raw address payload
     Ok(SocketAddress {

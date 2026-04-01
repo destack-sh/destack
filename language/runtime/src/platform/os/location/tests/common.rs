@@ -52,7 +52,7 @@ pub(super) fn decode_location_sample(
                     as *mut vm::ExternalCallContext<'_>)
             };
 
-            <LocationSampleVm as VmAbiCodec>::into_value(value, vm_context)
+            <LocationSampleVm as VmAbiCodec>::into_value(value, &vm_context.read())
         }
     }
 }

@@ -60,13 +60,13 @@ impl VmAbiCodec for RandomStream {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -127,13 +127,13 @@ impl VmAbiCodec for RandomStreamDomain {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -203,13 +203,13 @@ impl VmAbiCodec for SecureRandomSource {
 
     fn into_value(
         self,
-        _context: &vm::ExternalCallContext<'_>,
+        _context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut vm::ExternalCallContext<'_>,
+        _context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
@@ -251,29 +251,32 @@ impl Clone for RandomStreamStateAbi<VmAbi> {
 
 impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "RandomStreamState",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 2 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 2 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 2 fields",
             ))
             .boxed());
         }
-        let field_version = <u32 as VmAggregateCodec>::decode_with_context(context, slots[0])?;
-        let field_bytes =
-            <VmArray<u8> as VmAggregateCodec>::decode_with_context(context, slots[1])?;
+        let field_version =
+            <u32 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 0)?;
+        let field_bytes = <VmArray<u8> as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 1,
+        )?;
         Ok(Self {
             version: field_version,
             bytes: field_bytes,
@@ -282,15 +285,22 @@ impl VmAggregateCodec for RandomStreamStateAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <u32 as VmAggregateCodec>::encode_with_context(self.version, context)?,
-            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("random::RandomStreamState")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <u32 as VmAggregateCodec>::encode_with_context(self.version, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <VmArray<u8> as VmAggregateCodec>::encode_with_context(self.bytes, context)?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -328,7 +338,7 @@ impl VmAbiCodec for RandomStreamStateAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(RandomStreamStateValue {
             version: <u32 as VmAbiCodec>::into_value(self.version, context)?,
@@ -337,7 +347,7 @@ impl VmAbiCodec for RandomStreamStateAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -392,38 +402,44 @@ impl Clone for SecureRandomMetadataAbi<VmAbi> {
 
 impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
     fn decode_with_context(
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
         value: vm::Value,
     ) -> RuntimeResult<Self> {
-        if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::from(AbiPlatformError::invalid_argument_type(
-                "value",
-                "SecureRandomMetadata",
-            ))
-            .boxed());
-        }
-        let slots = context
-            .aggregate_slots(value)
+        let value_ref = context
+            .value_ref(value)
             .map_err(|error| RuntimeError::from(error).boxed())?;
-        if slots.len() != 7 {
+        <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
+    }
+
+    fn decode_value_ref_with_context(
+        context: &vm::ExternalReadContext<'_, '_>,
+        value_ref: &vm::VmValueRef<'_, '_>,
+    ) -> RuntimeResult<Self> {
+        let component_count = value_ref.component_count();
+        if component_count != 7 {
             return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                 "value",
                 "expected 7 fields",
             ))
             .boxed());
         }
-        let field_source =
-            <SecureRandomSource as VmAggregateCodec>::decode_with_context(context, slots[0])?;
+        let field_source = <SecureRandomSource as VmAggregateCodec>::decode_component_with_context(
+            context, value_ref, 0,
+        )?;
         let field_backend_name =
-            <vm::StringHandle as VmAggregateCodec>::decode_with_context(context, slots[1])?;
-        let field_may_block = <bool as VmAggregateCodec>::decode_with_context(context, slots[2])?;
+            <vm::StringHandle as VmAggregateCodec>::decode_component_with_context(
+                context, value_ref, 1,
+            )?;
+        let field_may_block =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 2)?;
         let field_is_cryptographic =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[3])?;
-        let field_is_seeded = <bool as VmAggregateCodec>::decode_with_context(context, slots[4])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 3)?;
+        let field_is_seeded =
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 4)?;
         let field_is_fips_approved =
-            <bool as VmAggregateCodec>::decode_with_context(context, slots[5])?;
+            <bool as VmAggregateCodec>::decode_component_with_context(context, value_ref, 5)?;
         let field_entropy_bits_per_byte =
-            <f64 as VmAggregateCodec>::decode_with_context(context, slots[6])?;
+            <f64 as VmAggregateCodec>::decode_component_with_context(context, value_ref, 6)?;
         Ok(Self {
             source: field_source,
             backend_name: field_backend_name,
@@ -437,23 +453,49 @@ impl VmAggregateCodec for SecureRandomMetadataAbi<VmAbi> {
 
     fn encode_with_context(
         self,
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
     ) -> RuntimeResult<vm::Value> {
-        let slots = vec![
-            <SecureRandomSource as VmAggregateCodec>::encode_with_context(self.source, context)?,
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(
-                self.backend_name,
-                context,
-            )?,
-            <bool as VmAggregateCodec>::encode_with_context(self.may_block, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_cryptographic, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_seeded, context)?,
-            <bool as VmAggregateCodec>::encode_with_context(self.is_fips_approved, context)?,
-            <f64 as VmAggregateCodec>::encode_with_context(self.entropy_bits_per_byte, context)?,
-        ];
-        context
-            .allocate_aggregate(slots)
-            .map_err(Box::<RuntimeError>::from)
+        let mut value_builder = context
+            .begin_named_storage_value_builder("random::SecureRandomMetadata")
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <SecureRandomSource as VmAggregateCodec>::encode_with_context(self.source, context)?;
+        value_builder
+            .write_component(0, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value = <vm::StringHandle as VmAggregateCodec>::encode_with_context(
+            self.backend_name,
+            context,
+        )?;
+        value_builder
+            .write_component(1, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.may_block, context)?;
+        value_builder
+            .write_component(2, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_cryptographic, context)?;
+        value_builder
+            .write_component(3, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_seeded, context)?;
+        value_builder
+            .write_component(4, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <bool as VmAggregateCodec>::encode_with_context(self.is_fips_approved, context)?;
+        value_builder
+            .write_component(5, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        let component_value =
+            <f64 as VmAggregateCodec>::encode_with_context(self.entropy_bits_per_byte, context)?;
+        value_builder
+            .write_component(6, component_value)
+            .map_err(Box::<RuntimeError>::from)?;
+        value_builder.finish().map_err(Box::<RuntimeError>::from)
     }
 }
 
@@ -525,7 +567,7 @@ impl VmAbiCodec for SecureRandomMetadataAbi<VmAbi> {
 
     fn into_value(
         self,
-        context: &vm::ExternalCallContext<'_>,
+        context: &vm::ExternalReadContext<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SecureRandomMetadataValue {
             source: <SecureRandomSource as VmAbiCodec>::into_value(self.source, context)?,
@@ -542,7 +584,7 @@ impl VmAbiCodec for SecureRandomMetadataAbi<VmAbi> {
     }
 
     fn from_value(
-        context: &mut vm::ExternalCallContext<'_>,
+        context: &mut vm::ExternalWriteContext<'_, '_>,
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
@@ -589,4 +631,10 @@ pub struct SecurerandommetadataReplayRecord {
     pub is_fips_approved: bool,
     /// Estimated entropy bits per output byte.
     pub entropy_bits_per_byte: f64,
+}
+
+/// Register VM storage schemas for random.
+pub(crate) fn register_random_vm_storage_types(isolate: &mut vm::Isolate) {
+    isolate.register_named_storage_type("random::RandomStreamState", 2);
+    isolate.register_named_storage_type("random::SecureRandomMetadata", 7);
 }

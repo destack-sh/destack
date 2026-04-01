@@ -165,7 +165,7 @@ fn test_device_camera_vm_recording_queries_follow_one_open_stream_when_present()
                     vm_context,
                     stream_handle,
                 )?;
-                let recording_state = VmAbiCodec::into_value(recording_state, vm_context)?;
+                let recording_state = VmAbiCodec::into_value(recording_state, &vm_context.read())?;
 
                 // query recording capabilities
                 let recording_capabilities =
@@ -175,7 +175,7 @@ fn test_device_camera_vm_recording_queries_follow_one_open_stream_when_present()
                         stream_handle,
                     )?;
                 let recording_capabilities =
-                    VmAbiCodec::into_value(recording_capabilities, vm_context)?;
+                    VmAbiCodec::into_value(recording_capabilities, &vm_context.read())?;
 
                 // baseline state
                 assert!(!recording_state.active);
@@ -316,7 +316,7 @@ fn test_device_camera_vm_recording_start_and_stop_return_one_output_descriptor_w
                 // start one recording
                 let output_path = unique_recording_path();
                 let options = recording_options_value(context.call_context, &output_path)?;
-                let options = VmAbiCodec::from_value(vm_context, options)?;
+                let options = VmAbiCodec::from_value(&mut vm_context.write(), options)?;
                 device_vm::destack_device_camera_stream_start_recording(
                     context.call_context,
                     vm_context,
@@ -334,7 +334,7 @@ fn test_device_camera_vm_recording_start_and_stop_return_one_output_descriptor_w
                     stream_handle,
                     2_000_000_000,
                 )?;
-                let recording = VmAbiCodec::into_value(recording, vm_context)?;
+                let recording = VmAbiCodec::into_value(recording, &vm_context.read())?;
                 let recorded_path = path_buf_from_value(recording.path);
                 assert_eq!(recorded_path, output_path);
                 assert!(recorded_path.exists());
@@ -436,7 +436,7 @@ fn test_device_camera_vm_linux_recording_start_and_stop_return_one_output_descri
                     vm_context,
                     stream_handle,
                 )?;
-                let capabilities = VmAbiCodec::into_value(capabilities, vm_context)?;
+                let capabilities = VmAbiCodec::into_value(capabilities, &vm_context.read())?;
                 if capabilities.containers.is_empty() {
                     return Ok(());
                 }
@@ -451,7 +451,7 @@ fn test_device_camera_vm_linux_recording_start_and_stop_return_one_output_descri
                 // start one recording
                 let output_path = unique_recording_path();
                 let options = recording_options_value(context.call_context, &output_path)?;
-                let options = VmAbiCodec::from_value(vm_context, options)?;
+                let options = VmAbiCodec::from_value(&mut vm_context.write(), options)?;
                 device_vm::destack_device_camera_stream_start_recording(
                     context.call_context,
                     vm_context,
@@ -469,7 +469,7 @@ fn test_device_camera_vm_linux_recording_start_and_stop_return_one_output_descri
                     stream_handle,
                     5_000_000_000,
                 )?;
-                let recording = VmAbiCodec::into_value(recording, vm_context)?;
+                let recording = VmAbiCodec::into_value(recording, &vm_context.read())?;
                 let recorded_path = path_buf_from_value(recording.path);
                 assert_eq!(recorded_path, output_path);
                 assert!(recorded_path.exists());

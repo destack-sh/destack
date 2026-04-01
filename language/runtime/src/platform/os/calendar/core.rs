@@ -71,11 +71,12 @@ pub(crate) fn list_vm(
 
     // encode one descriptor per host calendar
     for descriptor in descriptors {
-        let encoded_descriptor = CalendarDescriptorVm::from_value(context, descriptor.clone())?;
+        let encoded_descriptor =
+            CalendarDescriptorVm::from_value(&mut context.write(), descriptor.clone())?;
         encoded_descriptors.push(encoded_descriptor);
     }
 
-    VmArray::from_values(context, &encoded_descriptors)
+    VmArray::from_values(&mut context.write(), &encoded_descriptors)
 }
 
 /// Encode one calendar event list into one VM array.
@@ -87,11 +88,11 @@ pub(crate) fn event_list_vm(
 
     // encode one event per host calendar event
     for event in events {
-        let encoded_event = CalendarEventVm::from_value(context, event.clone())?;
+        let encoded_event = CalendarEventVm::from_value(&mut context.write(), event.clone())?;
         encoded_events.push(encoded_event);
     }
 
-    VmArray::from_values(context, &encoded_events)
+    VmArray::from_values(&mut context.write(), &encoded_events)
 }
 
 /// Encode one calendar event into one VM value.
@@ -99,7 +100,7 @@ pub(crate) fn event_vm(
     context: &mut vm::ExternalCallContext<'_>,
     event: CalendarEventValue,
 ) -> RuntimeResult<CalendarEventVm> {
-    CalendarEventVm::from_value(context, event)
+    CalendarEventVm::from_value(&mut context.write(), event)
 }
 
 /// Encode one identifier into one VM string handle.
@@ -107,5 +108,5 @@ pub(crate) fn id_vm(
     context: &mut vm::ExternalCallContext<'_>,
     id: &str,
 ) -> RuntimeResult<vm::StringHandle> {
-    <vm::StringHandle as VmAbiCodec>::from_value(context, id.to_string())
+    <vm::StringHandle as VmAbiCodec>::from_value(&mut context.write(), id.to_string())
 }

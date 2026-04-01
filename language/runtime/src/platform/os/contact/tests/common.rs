@@ -317,7 +317,7 @@ pub(super) fn contact_query_harness_value(
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
-            let query = ContactQueryVm::from_value(vm_context, query)?;
+            let query = ContactQueryVm::from_value(&mut vm_context.write(), query)?;
 
             Ok(HarnessValue::Vm(query))
         }
@@ -336,7 +336,7 @@ pub(super) fn contact_draft_harness_value(
     match context.vm_context {
         Some(vm_context) => {
             let vm_context = unsafe { &mut *(vm_context as *mut ExternalCallContext<'_>) };
-            let draft = ContactDraftVm::from_value(vm_context, draft)
+            let draft = ContactDraftVm::from_value(&mut vm_context.write(), draft)
                 .expect("vm contact draft should encode");
 
             HarnessValue::Vm(draft)
@@ -402,7 +402,7 @@ pub(super) fn decode_contact_page(
                     as *mut ExternalCallContext<'_>)
             };
 
-            ContactPageVm::into_value(page, vm_context)
+            ContactPageVm::into_value(page, &vm_context.read())
         }
     }
 }
@@ -422,7 +422,7 @@ pub(super) fn decode_contact(
                     as *mut ExternalCallContext<'_>)
             };
 
-            ContactVm::into_value(contact, vm_context)
+            ContactVm::into_value(contact, &vm_context.read())
         }
     }
 }

@@ -104,7 +104,7 @@ impl<'call> TlsHarnessContext<'call> {
                     .iter()
                     .map(|value| vm_test_string(context, value))
                     .collect::<Vec<_>>();
-                let values = VmSlice::from_values(context, &handles)?;
+                let values = VmSlice::from_values(&mut context.write(), &handles)?;
                 Ok(self.harness_value_vm(values))
             }
             None => {
@@ -124,7 +124,7 @@ impl<'call> TlsHarnessContext<'call> {
     ) -> RuntimeResult<HarnessValue<NativeSlice<u8>, VmSlice<u8>>> {
         match self.vm_context_mut() {
             Some(context) => {
-                let bytes = VmSlice::from_bytes(context, bytes)?;
+                let bytes = VmSlice::from_bytes(&mut context.write(), bytes)?;
                 Ok(self.harness_value_vm(bytes))
             }
             None => {
@@ -152,7 +152,7 @@ impl<'call> TlsHarnessContext<'call> {
             Some(context) => {
                 let mut protocols = Vec::with_capacity(values.len());
                 for value in values {
-                    protocols.push(VmSlice::from_bytes(context, value)?);
+                    protocols.push(VmSlice::from_bytes(&mut context.write(), value)?);
                 }
                 let values = vm_slice_of_slices(context, &protocols);
                 Ok(self.harness_value_vm(values))
@@ -193,7 +193,7 @@ impl<'call> TlsHarnessContext<'call> {
                 let context = self
                     .vm_context_mut()
                     .expect("vm context required for vm byte-slice value");
-                value.read_bytes(context)
+                value.read_bytes(&context.read())
             }
         }
     }
@@ -301,7 +301,7 @@ fn vm_slice_of_slices(
     let values = slices
         .iter()
         .copied()
-        .map(|slice| slice.to_value(context))
+        .map(|slice| slice.to_value(&mut context.write()))
         .collect::<RuntimeResult<Vec<_>>>()
         .expect("vm test slice values should encode");
     let data = vm_test_raw_values(context, values);

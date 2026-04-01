@@ -117,7 +117,8 @@ pub(crate) fn destack_ipc_message_queue_receive(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<MessageQueueReceiveVm> {
     // copy the VM buffer into host memory for the receive call
-    let mut bytes = buffer.read_bytes(context)?;
+    let read = context.read();
+    let mut bytes = buffer.read_bytes(&read)?;
 
     // invoke host receive and copy buffer contents back into VM memory
     let receive: MessageQueueReceive = call_out(|out| {
@@ -126,7 +127,8 @@ pub(crate) fn destack_ipc_message_queue_receive(
             super::host::destack_ipc_message_queue_receive(binding, out, handle, timeoutns, buffer)
         }
     })?;
-    buffer.write_bytes(context, &bytes)?;
+    let mut write = context.write();
+    buffer.write_bytes(&mut write, &bytes)?;
 
     Ok(receive)
 }
@@ -156,7 +158,8 @@ pub(crate) fn destack_ipc_message_queue_send(
     timeoutns: u64,
     argument_payload: VmSlice<u8>,
 ) -> RuntimeResult<()> {
-    let mut bytes = argument_payload.read_bytes(context)?;
+    let read = context.read();
+    let mut bytes = argument_payload.read_bytes(&read)?;
     let payload = native_bytes_from_vec(&mut bytes);
     unsafe {
         super::host::destack_ipc_message_queue_send(binding, handle, priority, timeoutns, payload)
@@ -263,14 +266,16 @@ pub(crate) fn destack_ipc_pipe_read(
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
     // copy the VM buffer into host memory for the read call
-    let mut bytes = buffer.read_bytes(context)?;
+    let read = context.read();
+    let mut bytes = buffer.read_bytes(&read)?;
 
     // invoke host read and copy buffer contents back into VM memory
     let read = call_out(|out| {
         let buffer = native_bytes_from_vec(&mut bytes);
         unsafe { super::host::destack_ipc_pipe_read(binding, out, handle, buffer) }
     })?;
-    buffer.write_bytes(context, &bytes)?;
+    let mut write = context.write();
+    buffer.write_bytes(&mut write, &bytes)?;
 
     Ok(read)
 }
@@ -298,7 +303,8 @@ pub(crate) fn destack_ipc_pipe_write(
     handle: resource::PipeHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let mut bytes = buffer.read_bytes(context)?;
+    let read = context.read();
+    let mut bytes = buffer.read_bytes(&read)?;
     let payload = native_bytes_from_vec(&mut bytes);
     call_out(|out| unsafe { super::host::destack_ipc_pipe_write(binding, out, handle, payload) })
 }
@@ -612,10 +618,11 @@ pub(crate) fn destack_ipc_unix_receive(
     })?;
 
     let handles = unsafe { receive.handles.as_slice()? };
+    let mut write = context.write();
 
     Ok(UnixReceiveAncillaryVm {
         bytes: receive.bytes,
-        handles: VmArray::from_values(context, handles)?,
+        handles: VmArray::from_values(&mut write, handles)?,
         credentials: receive.credentials,
     })
 }
@@ -644,8 +651,9 @@ pub(crate) fn destack_ipc_unix_send(
     argument_payload: VmSlice<u8>,
     handles: VmSlice<resource::TransferredHandle>,
 ) -> RuntimeResult<u64> {
-    let mut payload = argument_payload.read_bytes(context)?;
-    let mut handles = handles.read_values(context)?;
+    let read = context.read();
+    let mut payload = argument_payload.read_bytes(&read)?;
+    let mut handles = handles.read_values(&read)?;
 
     call_out(|out| unsafe {
         super::host::destack_ipc_unix_send(
