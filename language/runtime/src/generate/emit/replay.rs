@@ -716,31 +716,33 @@ impl<'a> ModuleCodegen<'a> {
             return lines;
         }
 
-        let values_var = format!("{name}_values");
+        let builder_var = format!("{name}_builder");
         let item_var = format!("{name}_item");
         let item_value_var = format!("{name}_item_value");
-        // replay payloads are owned, so rebuild VM collections from owned items
-        lines.push(format!(
-            "let mut {values_var} = Vec::with_capacity({value_expr}.len());"
-        ));
+        let inner_type = self.vm_type_for_binding(inner);
+
+        // replay payloads are owned, so rebuild VM collections directly in final VM storage
+        if is_array {
+            lines.push(format!(
+                "let mut {builder_var} = VmArray::<{inner_type}>::builder(context, {value_expr}.len())?;"
+            ));
+        } else {
+            lines.push(format!(
+                "let mut {builder_var} = VmSlice::<{inner_type}>::builder(context, {value_expr}.len())?;"
+            ));
+        }
+
         lines.push(format!("for {item_var} in {value_expr} {{"));
         lines.extend(
             self.render_replay_to_vm_binding_lines(inner, &item_value_var, &item_var)
                 .into_iter()
                 .map(|line| format!("    {line}")),
         );
-        lines.push(format!("    {values_var}.push({item_value_var});"));
+        lines.push(format!(
+            "    {builder_var}.push(context, {item_value_var})?;"
+        ));
         lines.push("}".to_string());
-
-        if is_array {
-            lines.push(format!(
-                "let {name} = VmArray::from_values(context, &{values_var})?;"
-            ));
-        } else {
-            lines.push(format!(
-                "let {name} = VmSlice::from_values(context, &{values_var})?;"
-            ));
-        }
+        lines.push(format!("let {name} = {builder_var}.finish()?;"));
 
         lines
     }
