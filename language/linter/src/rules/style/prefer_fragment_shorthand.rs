@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Expression};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_path_segments;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 // #Correctness: prefer-fragment-shorthand works but would be better with canonical DIR symbols?
@@ -142,22 +143,19 @@ fn is_fragment_tag(ctx: &LintAstContext<'_>, left: Option<ast::LocalNodeId<Expre
         return false;
     };
 
-    let left_expr = ctx.tree.get(left_id);
-
-    // check for simple path like `Fragment`
-    let Expression::Path { path, .. } = left_expr else {
+    let Some(path_segments) = expression_path_segments(ctx.tree, left_id) else {
         return false;
     };
 
     // check if the path is "Fragment" (single segment)
-    if path.segments.len() == 1 {
-        let name_str = ctx.strings.get(path.segments[0]);
+    if path_segments.len() == 1 {
+        let name_str = ctx.strings.get(path_segments[0]);
         return name_str.as_ref() == "Fragment";
     }
 
     // also check for fully qualified React.Fragment or similar
-    if path.segments.len() == 2 {
-        let last_segment = ctx.strings.get(path.segments[1]);
+    if path_segments.len() == 2 {
+        let last_segment = ctx.strings.get(path_segments[1]);
         return last_segment.as_ref() == "Fragment";
     }
 

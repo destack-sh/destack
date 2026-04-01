@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Declaration, FunctionKind, FunctionMode, Key, Nam
 use destack_workspace::{LintSeverity, ObjectShorthandMode};
 use regex::Regex;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::{expression_path_segments, span_has_comment_trivia};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -416,14 +416,14 @@ fn redundant_property_name(ctx: &LintAstContext<'_>, property: &ast::Property) -
     };
 
     let property_name = property_key_redundant_name(ctx, key)?;
-    let ast::Expression::Path { path, .. } = ctx.tree.get(*value_id) else {
+    let Some(path_segments) = expression_path_segments(ctx.tree, *value_id) else {
         return None;
     };
-    if path.segments.len() != 1 {
+    if path_segments.len() != 1 {
         return None;
     }
 
-    (ctx.strings.get(path.segments[0]) == &property_name).then_some(property_name)
+    (ctx.strings.get(path_segments[0]) == &property_name).then_some(property_name)
 }
 
 /// Return one longform method name when it can be reduced to shorthand.

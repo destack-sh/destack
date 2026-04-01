@@ -5,6 +5,7 @@ use destack_ast::{
 use destack_core::StringId;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_path_segments;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -325,12 +326,8 @@ fn is_path_with_name(
     expression_id: LocalNodeId<Expression>,
     name: StringId,
 ) -> bool {
-    let expression = tree.get(expression_id);
-    if let Expression::Path { path, .. } = expression {
-        return path.segments.len() == 1 && path.segments[0] == name;
-    }
-
-    false
+    expression_path_segments(tree, expression_id)
+        .is_some_and(|path_segments| path_segments.as_slice() == [name])
 }
 
 /// Unwrap one statement wrapper when present.

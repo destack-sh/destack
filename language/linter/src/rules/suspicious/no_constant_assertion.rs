@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_statement_span;
+use crate::rules::common::{expression_path_segments, expression_statement_span};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -144,28 +144,21 @@ fn is_assert_call(ctx: &LintAstContext<'_>, callee_id: ast::LocalNodeId<Expressi
     let callee = ctx.tree.get(callee_id);
 
     match callee {
-        // direct call: assert(...) or Debug.assert(...)
-        Expression::Path { path, .. } => {
-            if let Some(last_segment) = path.segments.last() {
+        // direct or qualified call: assert(...) or Debug.assert(...)
+        Expression::Identifier { .. }
+        | Expression::QualifiedReference { .. }
+        | Expression::Member { .. } => {
+            let Some(path_segments) = expression_path_segments(ctx.tree, callee_id) else {
+                return false;
+            };
+
+            if let Some(last_segment) = path_segments.last() {
                 let name = ctx.strings.get(*last_segment);
                 matches!(name.as_ref(), "assert" | "ok" | "strictEqual" | "deepEqual")
             } else {
                 false
             }
         }
-
-        // member call: console.assert(...), Debug.assert(...)
-        Expression::Member {
-            name: Some(name), ..
-        } => {
-            let member_name = ctx.strings.get(*name);
-            matches!(
-                member_name.as_ref(),
-                "assert" | "ok" | "strictEqual" | "deepEqual"
-            )
-        }
-        Expression::Member { name: None, .. } => false,
-
         _ => false,
     }
 }

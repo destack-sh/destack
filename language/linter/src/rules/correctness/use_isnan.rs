@@ -258,8 +258,10 @@ fn is_nan_identifier(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Ex
             .last()
             .is_some_and(|expression_id| is_nan_identifier(ctx, *expression_id)),
 
-        // check path forms: NaN or Number.NaN
-        Expression::Path { .. } => {
+        // check reference forms: NaN or Number.NaN
+        Expression::Identifier { .. }
+        | Expression::QualifiedReference { .. }
+        | Expression::Member { .. } => {
             let Some(segments) = expression_path_segments(ctx.tree, expr_id) else {
                 return false;
             };

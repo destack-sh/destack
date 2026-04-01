@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Declaration};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_path_segments;
 use crate::{LintAstContext, LintDiagnostic, LintRule, declare_lint};
 
 declare_lint! {
@@ -52,12 +53,8 @@ impl LintRule for PreferNamedExtension {
 
             // check if the target type appears to be from another module
             // (has a path with more than one segment)
-            let target_expr = ctx.tree.get(*target_type);
-            let is_foreign = if let ast::Expression::Path { path, .. } = target_expr {
-                path.segments.len() > 1
-            } else {
-                false
-            };
+            let is_foreign = expression_path_segments(ctx.tree, *target_type)
+                .is_some_and(|path_segments| path_segments.len() > 1);
 
             if is_foreign {
                 let severity = ctx.get_effective_severity(meta, node_id);

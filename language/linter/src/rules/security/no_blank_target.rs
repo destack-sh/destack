@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Argument, Expression};
 use destack_workspace::LintSeverity;
 use url::Url;
 
-use crate::rules::common::expression_static_string_literal_syntax;
+use crate::rules::common::{expression_path_segments, expression_static_string_literal_syntax};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -161,17 +161,14 @@ fn checked_target_attribute_name(
         return None;
     };
 
-    // resolve left expr
-    let left_expr = ctx.tree.get(left_id);
-
     // check for simple path like `a`
-    let Expression::Path { path, .. } = left_expr else {
+    let Some(path_segments) = expression_path_segments(ctx.tree, left_id) else {
         return None;
     };
 
     // check if the path has exactly one segment and a checked tag name
-    if path.segments.len() == 1 {
-        let name_str = ctx.strings.get(path.segments[0]);
+    if path_segments.len() == 1 {
+        let name_str = ctx.strings.get(path_segments[0]);
         return match name_str.as_ref() {
             "a" | "area" => Some("href"),
             "form" => Some("action"),

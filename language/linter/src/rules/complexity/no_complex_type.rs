@@ -146,7 +146,7 @@ impl NodeVisitor for TypeComplexityVisitor {
         // track expressions that increase type nesting depth
         let increases_depth = matches!(
             expression,
-            Expression::Path {
+            Expression::QualifiedReference {
                 static_arguments: Some(arguments),
                 ..
             } if !arguments.is_empty()

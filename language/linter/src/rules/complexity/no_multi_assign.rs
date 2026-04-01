@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_outer_parenthesized_syntax, expression_statement_ancestor,
+    expression_outer_parenthesized_syntax, expression_path_segments, expression_statement_ancestor,
     expression_unwrap_parenthesized_syntax,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
@@ -189,8 +189,7 @@ fn no_multi_assign_fix(
     // collect lhs texts and keep simple paths only
     let mut left_texts = Vec::new();
     for left_id in left_ids {
-        let left_expression = ctx.tree.get(left_id);
-        if !matches!(left_expression, ast::Expression::Path { .. }) {
+        if expression_path_segments(ctx.tree, left_id).is_none() {
             return None;
         }
 

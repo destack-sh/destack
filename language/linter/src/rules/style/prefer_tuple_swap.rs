@@ -1,6 +1,7 @@
 use destack_ast::{self as ast, Expression, Pattern};
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_path_segments;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -201,16 +202,12 @@ fn get_simple_path_from_expression(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
 ) -> Option<String> {
-    let expression = ctx.tree.get(expression_id);
-    match expression {
-        Expression::Path { path, .. } => {
-            if path.segments.len() != 1 {
-                return None;
-            }
-            Some(ctx.strings.get(path.segments[0]).to_string())
-        }
-        _ => None,
+    let path_segments = expression_path_segments(ctx.tree, expression_id)?;
+    if path_segments.len() != 1 {
+        return None;
     }
+
+    Some(ctx.strings.get(path_segments[0]).to_string())
 }
 
 #[cfg(test)]

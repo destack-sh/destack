@@ -2,7 +2,8 @@ use destack_ast::{self as ast, AssignOperator, BinaryOperator, ScalarLiteral};
 use destack_workspace::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
-    expression_is_equal, expression_unwrap_parenthesized_syntax, span_has_comment_trivia,
+    expression_is_equal, expression_path_segments, expression_unwrap_parenthesized_syntax,
+    span_has_comment_trivia,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -294,24 +295,22 @@ fn can_fix_assignment_target(
 
     match expression {
         // bare references are safe rewrite targets
-        ast::Expression::Path { .. } | ast::Expression::This => true,
+        ast::Expression::Identifier { .. }
+        | ast::Expression::QualifiedReference { .. }
+        | ast::Expression::This => true,
 
         // dot member targets are safe when their receiver is stable
         ast::Expression::Member { left, .. } => {
             let object_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
-            matches!(
-                ctx.tree.get(object_id),
-                ast::Expression::Path { .. } | ast::Expression::This
-            )
+            expression_path_segments(ctx.tree, object_id).is_some()
+                || matches!(ctx.tree.get(object_id), ast::Expression::This)
         }
 
         // bracket member targets are safe when receiver and index are stable
         ast::Expression::Index { left, index, .. } => {
             let object_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
-            let object_is_stable = matches!(
-                ctx.tree.get(object_id),
-                ast::Expression::Path { .. } | ast::Expression::This
-            );
+            let object_is_stable = expression_path_segments(ctx.tree, object_id).is_some()
+                || matches!(ctx.tree.get(object_id), ast::Expression::This);
 
             let index_is_stable_literal = index.is_some_and(|index_id| {
                 let index_id = expression_unwrap_parenthesized_syntax(ctx.tree, index_id);

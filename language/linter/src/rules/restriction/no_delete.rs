@@ -90,7 +90,7 @@ fn no_delete_fix(
     let target_id = expression_unwrap_parenthesized_syntax(ctx.tree, *value);
     let target_expression = ctx.tree.get(target_id);
     let target_is_assignable_property = match target_expression {
-        ast::Expression::Path { path, .. } => path.segments.len() > 1,
+        ast::Expression::Member { .. } | ast::Expression::PrivateMember { .. } => true,
         ast::Expression::Index { .. } => true,
         _ => false,
     };

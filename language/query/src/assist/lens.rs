@@ -374,9 +374,10 @@ fn decorator_name_id(
             ast::Expression::Call { left, .. } => {
                 expression_id = *left;
             }
-            ast::Expression::Path { path, .. } => {
+            ast::Expression::QualifiedReference { path, .. } => {
                 return path.segments.last().copied();
             }
+            ast::Expression::Identifier { name } => return Some(*name),
             _ => return None,
         }
     }

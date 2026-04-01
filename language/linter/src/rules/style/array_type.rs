@@ -144,7 +144,7 @@ fn source_array_syntax(
     }
 
     // generic path: Array<T>
-    if let ast::Expression::Path {
+    if let ast::Expression::QualifiedReference {
         static_arguments: Some(static_arguments),
         ..
     } = expression
@@ -316,7 +316,8 @@ fn array_type_fix(
 fn type_argument_needs_parentheses(expression: &ast::Expression) -> bool {
     !matches!(
         expression,
-        ast::Expression::Path { .. }
+        ast::Expression::Identifier { .. }
+            | ast::Expression::QualifiedReference { .. }
             | ast::Expression::TypeLiteral(_)
             | ast::Expression::Member { .. }
             | ast::Expression::PrivateMember { .. }

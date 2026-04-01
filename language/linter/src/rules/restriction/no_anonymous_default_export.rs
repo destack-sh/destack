@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_ast::{self as ast, Declaration, DependencyMode, Expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_unwrap_parenthesized_syntax;
+use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_syntax};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
 declare_lint! {
@@ -109,7 +109,9 @@ impl LintRule for NoAnonymousDefaultExport {
                 let value = ctx.tree.get(value_id);
 
                 // skip named or call expression exports
-                if matches!(value, Expression::Path { .. } | Expression::Call { .. }) {
+                if expression_path_segments(ctx.tree, value_id).is_some()
+                    || matches!(value, Expression::Call { .. })
+                {
                     continue;
                 }
 

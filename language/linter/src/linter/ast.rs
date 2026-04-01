@@ -5,6 +5,7 @@ use destack_ast::{self as ast, Annotation, Argument, Expression, ScalarLiteral, 
 use destack_source::{EditBuilder, File};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
 
+use crate::rules::common::expression_path_segments;
 use crate::{
     ConstValue, LintAstAnalysisCache, LintDiagnostic, LintMeta, LintRegexParse, LintRequirement,
     find_control_character, find_control_characters, find_misleading_character_class,
@@ -240,16 +241,13 @@ impl<'a> LintAstContext<'a> {
         }
     }
 
-    /// Resolve the decorator path if the decorator is a path or call expression.
+    /// Resolve the decorator path if the decorator is a reference-like expression.
     pub(crate) fn decorator_path(
         &self,
         decorator_id: ast::LocalNodeId<ast::Decorator>,
-    ) -> Option<&ast::Path> {
+    ) -> Option<Vec<ast::StringId>> {
         let call = self.decorator_call(decorator_id);
-        match self.tree.get(call.callee) {
-            Expression::Path { path, .. } => Some(path),
-            _ => None,
-        }
+        expression_path_segments(self.tree, call.callee)
     }
 
     /// Resolve the decorator name as a dot separated string.
@@ -258,13 +256,13 @@ impl<'a> LintAstContext<'a> {
         decorator_id: ast::LocalNodeId<ast::Decorator>,
     ) -> Option<String> {
         let path = self.decorator_path(decorator_id)?;
-        if path.segments.is_empty() {
+        if path.is_empty() {
             return None;
         }
 
         let mut segments = Vec::new();
-        for segment in &path.segments {
-            segments.push(self.strings.get(*segment).to_string());
+        for segment in path {
+            segments.push(self.strings.get(segment).to_string());
         }
         Some(segments.join("."))
     }
@@ -282,14 +280,14 @@ impl<'a> LintAstContext<'a> {
 
         // check decorator name (must be single segment: allow, warn, deny, forbid)
         let call = self.decorator_call(*node);
-        let Expression::Path { path, .. } = self.tree.get(call.callee) else {
+        let Some(path) = expression_path_segments(self.tree, call.callee) else {
             return None;
         };
-        if path.segments.len() != 1 {
+        if path.len() != 1 {
             return None;
         }
 
-        let name = self.strings.get(path.segments[0]);
+        let name = self.strings.get(path[0]);
         let (severity, is_forbidden) = match name.as_ref() {
             "allow" => (LintSeverity::Off, false),
             "warn" => (LintSeverity::Warning, false),
