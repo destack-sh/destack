@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use super::super::layout::{Layout, repr_type};
-use super::super::value::ValueKind;
+use crate::executable::layout::{Layout, repr_type};
+use crate::executable::value::ValueKind;
 use crate::executable::{ElementAccess, FieldAccess, TypedAccess, UNKNOWN_ARRAY_LENGTH};
 
 /// Build one field access descriptor from one compiled layout.

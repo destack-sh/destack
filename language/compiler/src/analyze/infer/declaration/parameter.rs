@@ -368,7 +368,7 @@ impl Compiler {
                 (Some(cached), None)
             } else if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
                 TreeSymbolView::new(
-                    &owner_module,
+                    owner_module,
                     ctx.profile,
                     &owner_dir.tree,
                     &owner_dir.symbols,

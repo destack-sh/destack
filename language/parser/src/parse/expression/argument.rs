@@ -154,18 +154,17 @@ impl Parser {
 
         // static argument start
         let start_cursor = allow_newline_prefix.then(|| self.scanner_cursor_from(self.pos_index()));
-        let has_static_argument_start = if self.peek_is(TokenType::LessThan) {
-            true
-        } else if self.peek_is(TokenType::ShiftLeft) {
-            true
-        } else if let Some(cursor) = start_cursor {
-            cursor.has_line_break_before
-                && self.with_pos(cursor.index, |parser| {
-                    parser.peek_is(TokenType::LessThan) || parser.peek_is(TokenType::ShiftLeft)
-                })
-        } else {
-            false
-        };
+        let has_static_argument_start =
+            if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
+                true
+            } else if let Some(cursor) = start_cursor {
+                cursor.has_line_break_before
+                    && self.with_pos(cursor.index, |parser| {
+                        parser.peek_is(TokenType::LessThan) || parser.peek_is(TokenType::ShiftLeft)
+                    })
+            } else {
+                false
+            };
         if !has_static_argument_start {
             return None;
         }

@@ -149,28 +149,28 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
             static_arguments,
             target_symbol,
         } = expression
+            && static_arguments.is_none()
+            && path.segments.len() > 1
         {
-            if static_arguments.is_none() && path.segments.len() > 1 {
-                let mut current_symbol = *target_symbol;
+            let mut current_symbol = *target_symbol;
 
-                for segment in path.segments.iter().copied().skip(1) {
-                    let member_key = StaticKey::Name(segment);
-                    let Some(member_symbol) = self.compiler.query_static_member_symbol(
-                        self.module,
-                        self.profile,
-                        current_symbol,
-                        member_key,
-                        tree,
-                        self.symbols,
-                    ) else {
-                        break;
-                    };
-                    current_symbol = member_symbol;
-                }
+            for segment in path.segments.iter().copied().skip(1) {
+                let member_key = StaticKey::Name(segment);
+                let Some(member_symbol) = self.compiler.query_static_member_symbol(
+                    self.module,
+                    self.profile,
+                    current_symbol,
+                    member_key,
+                    tree,
+                    self.symbols,
+                ) else {
+                    break;
+                };
+                current_symbol = member_symbol;
+            }
 
-                if current_symbol != *target_symbol {
-                    self.dependencies.push(current_symbol);
-                }
+            if current_symbol != *target_symbol {
+                self.dependencies.push(current_symbol);
             }
         }
 

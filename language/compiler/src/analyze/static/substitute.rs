@@ -213,7 +213,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 .compiler
                 .analyze_context_options_for_module(reference_module.id);
             let mut ctx = TypeContext::new(
-                &reference_module,
+                reference_module,
                 self.profile,
                 &reference_options,
                 &reference_snapshot.tree,

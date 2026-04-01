@@ -363,7 +363,8 @@ impl Compiler {
         tracing::debug!(%event, %args, ?task_id);
 
         // process
-        let outcome = match artifact_key {
+
+        match artifact_key {
             ArtifactKey::ModuleGraph { profile } => self.process_module_graph(*profile).into(),
             ArtifactKey::Ast { module } => self.process_ast(*module).into(),
             ArtifactKey::DirBase { module } => self.process_dir_base(*module).into(),
@@ -414,10 +415,7 @@ impl Compiler {
                     .program
                     .profile_id_for_target(*module, target)
                     .unwrap_or_else(|| {
-                        panic!(
-                            "missing profile for module {:?} target {:?}",
-                            module, target
-                        )
+                        panic!("missing profile for module {module:?} target {target:?}")
                     });
 
                 self.process_module_artifact(*module, profile, target.clone())
@@ -426,9 +424,7 @@ impl Compiler {
             ArtifactKey::PackageOutput { package, target } => {
                 self.process_package_output(*package, target.clone()).into()
             }
-        };
-
-        outcome
+        }
     }
 
     /// Handle the outcome of a processed task.

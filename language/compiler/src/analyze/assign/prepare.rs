@@ -34,7 +34,7 @@ impl Compiler {
         let module = module.as_ref();
         let options = self.analyze_context_options_for_module(module.id);
         let mut owner_ctx = TypeContext::new(
-            &module,
+            module,
             ctx.profile,
             &options,
             &dir.tree,

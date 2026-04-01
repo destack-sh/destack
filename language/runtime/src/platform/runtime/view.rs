@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
@@ -31,7 +32,7 @@ pub(crate) struct PinnedWorldView {
     /// The pinned revision metadata.
     pub revision: Revision,
     /// The pinned world image.
-    pub image: Arc<Image>,
+    pub image: Rc<Image>,
 }
 
 impl PinnedWorldView {

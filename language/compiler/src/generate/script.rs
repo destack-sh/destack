@@ -30,7 +30,7 @@ impl Compiler {
         let target_id = TargetId::new(module.package_id, &target.name);
         self.artifacts.publish(
             ArtifactKey::module_artifact(module_id, target_id),
-            ModuleArtifact::Script(artifact),
+            ModuleArtifact::Script(Box::new(artifact)),
         );
 
         // map backend diagnostics into compiler diagnostics

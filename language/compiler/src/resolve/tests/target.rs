@@ -1356,7 +1356,7 @@ export * from "react";
         .compiler
         .run_to_completion(|compiler| {
             compiler.resolve_import(
-                &module,
+                module,
                 &mut imported_modules,
                 profile_id,
                 anchor,

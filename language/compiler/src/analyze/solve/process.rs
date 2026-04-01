@@ -50,7 +50,7 @@ impl Compiler {
         };
         // solve transient infer constraints
         let mut ctx = InferContext::new(
-            &module,
+            module,
             profile,
             &options,
             tree,

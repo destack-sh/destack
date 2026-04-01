@@ -413,7 +413,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     );
     let canonical_symbol = canonical_symbol_id(
         &test.compiler,
-        &module,
+        module,
         view.symbols(),
         profile,
         thing_symbol,

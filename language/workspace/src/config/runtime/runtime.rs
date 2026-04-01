@@ -533,12 +533,12 @@ pub enum RuntimeConfigJson {
     /// Runtime host shorthand.
     Host(String),
     /// Full runtime configuration object.
-    Options(RuntimeOptionsJson),
+    Options(Box<RuntimeOptionsJson>),
 }
 
 impl Default for RuntimeConfigJson {
     fn default() -> Self {
-        Self::Options(RuntimeOptionsJson::default())
+        Self::Options(Box::default())
     }
 }
 
@@ -550,7 +550,7 @@ impl RuntimeConfigJson {
                 host: Some(host.clone()),
                 ..RuntimeOptionsJson::default()
             },
-            Self::Options(options) => options.clone(),
+            Self::Options(options) => (**options).clone(),
         }
     }
 }

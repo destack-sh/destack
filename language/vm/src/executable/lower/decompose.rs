@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
-use super::super::{Instruction, InstructionData, InstructionOperation};
+use crate::executable::{Instruction, InstructionData, InstructionOperation};
+
 use super::kind::value_type_for_value;
 use super::pool::Pool;
 use super::tree::{

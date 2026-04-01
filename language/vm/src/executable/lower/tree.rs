@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use {destack_engine as engine, destack_mir as mir};
 
-use super::super::layout::repr_type;
+use crate::executable::layout::repr_type;
 
 /// One lowered runtime value slot.
 #[derive(Clone, Copy, Debug)]

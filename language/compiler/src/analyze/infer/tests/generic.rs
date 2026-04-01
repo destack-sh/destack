@@ -439,7 +439,7 @@ let boxed: Box<Node> = value;
     let mut types = view.types().clone();
     let assignable = is_type_assignable(
         &test.compiler,
-        &module,
+        module,
         profile,
         view.tree(),
         &symbols,
@@ -536,7 +536,7 @@ let number_value: number = value;
     let mut types = view.types().clone();
     let assignable = is_type_assignable(
         &test.compiler,
-        &module,
+        module,
         profile,
         view.tree(),
         &symbols,
@@ -592,7 +592,7 @@ let ok: boolean = value;
     let mut types = view.types().clone();
     let assignable = is_type_assignable(
         &test.compiler,
-        &module,
+        module,
         profile,
         view.tree(),
         &symbols,

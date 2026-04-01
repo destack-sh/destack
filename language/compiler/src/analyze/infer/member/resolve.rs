@@ -316,7 +316,7 @@ impl Compiler {
                     let remote_module = self.program.modules.get(member_symbol.module_id);
                     let remote_module = remote_module.as_ref();
                     let mut view = TypeContext::new(
-                        &remote_module,
+                        remote_module,
                         ctx.profile,
                         &remote_options,
                         &remote_dir.tree,
@@ -1003,13 +1003,11 @@ impl Compiler {
         let Some(symbol) = symbol else {
             return Ok(None);
         };
-        let symbol = self
-            .remap_typevalue_symbol_to_type_space(
-                ModuleSymbolView::new(module, profile, symbols),
-                index,
-                symbol,
-            )
-            .map_err(AnalyzeError::from)?;
+        let symbol = self.remap_typevalue_symbol_to_type_space(
+            ModuleSymbolView::new(module, profile, symbols),
+            index,
+            symbol,
+        )?;
         self.resolve_member_symbol_for_symbol(
             module,
             owner_module_id,
@@ -1097,7 +1095,7 @@ impl Compiler {
         let owner_symbol_entry = owner_dir.symbols.get_symbol(symbol.local_id);
         let remote_module = self.program.modules.get(symbol.module_id);
         let remote_module = remote_module.as_ref();
-        let is_ambient_lib = self.module_is_ambient_lib(&remote_module);
+        let is_ambient_lib = self.module_is_ambient_lib(remote_module);
         let allow_merge = remote_module.language_type.supports_declaration_merging()
             || owner_symbol_entry.origin.is_global_augmentation()
             || is_ambient_lib;

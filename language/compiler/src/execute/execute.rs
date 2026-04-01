@@ -180,7 +180,7 @@ impl Compiler {
 
             // lower the comptime expression to MIR
             let (mir_tree, strings, function_id) =
-                self.lower_comptime_expression(&module, profile_id, *body)?;
+                self.lower_comptime_expression(module, profile_id, *body)?;
 
             // execute the MIR with the interpreter
             let mut options = vm::IsolateOptions::comptime();

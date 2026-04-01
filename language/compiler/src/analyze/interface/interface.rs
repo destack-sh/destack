@@ -117,7 +117,7 @@ impl Compiler {
             if self.is_code_module(module_id) {
                 let options = self.analyze_context_options_for_module(module_id);
                 let mut ctx = TypeContext::new(
-                    &module,
+                    module,
                     profile,
                     &options,
                     tree.as_ref(),

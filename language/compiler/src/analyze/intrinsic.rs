@@ -122,7 +122,7 @@ impl Compiler {
                 // resolve the binding name id
                 let symbol_id = local_symbol_id.into_global(module_id);
                 let canonical_symbol_id = self.canonical_symbol_id(
-                    ModuleSymbolView::new(&module, profile, &symbols),
+                    ModuleSymbolView::new(module, profile, symbols),
                     symbol_id,
                     CanonicalSymbolMode::FollowAliases,
                 );

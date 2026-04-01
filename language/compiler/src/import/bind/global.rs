@@ -67,7 +67,7 @@ impl Compiler {
         let mut visitor = GlobalAugmentationVisitor::new(symbols);
         for (declaration_id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
             if matches!(declaration, Declaration::Global { .. }) {
-                visitor.visit_declaration(tree, declaration_id, &declaration);
+                visitor.visit_declaration(tree, declaration_id, declaration);
             }
         }
     }

@@ -25,10 +25,10 @@ impl Compiler {
 
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        self.validate_dependency_top_level(&module, tree, roots);
-        self.validate_export_local_item_names(&module, tree, roots);
-        self.validate_binding_conflicts(&module, tree, symbols, global_augmentation_scope);
-        self.validate_export_conflicts(&module, tree, symbols, roots);
+        self.validate_dependency_top_level(module, tree, roots);
+        self.validate_export_local_item_names(module, tree, roots);
+        self.validate_binding_conflicts(module, tree, symbols, global_augmentation_scope);
+        self.validate_export_conflicts(module, tree, symbols, roots);
         Ok(())
     }
 }

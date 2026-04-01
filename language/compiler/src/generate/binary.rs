@@ -33,7 +33,7 @@ impl Compiler {
         .map_err(|error| self.map_binary_generate_error(module_id, &target.name, profile, error))?;
         self.artifacts.publish(
             ArtifactKey::module_artifact(module_id, target_id.clone()),
-            ModuleArtifact::Binary(artifact),
+            ModuleArtifact::Binary(Box::new(artifact)),
         );
 
         // map backend diagnostics into compiler diagnostics

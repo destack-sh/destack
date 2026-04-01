@@ -421,19 +421,19 @@ impl Compiler {
             options
         };
         let apply_target_restrictions =
-            |options: CompilerOptions| self.compiler_options_for_module_target(&module, options);
+            |options: CompilerOptions| self.compiler_options_for_module_target(module, options);
 
         // use tsconfig options for ts/js modules when available
         if module.language_type.is_typescript() || module.language_type.is_javascript() {
             if let Some(options) = self
                 .program
-                .with_tsconfig_options(&module, |ts| ts.compiler.clone())
+                .with_tsconfig_options(module, |ts| ts.compiler.clone())
             {
                 let mut analyze_options = AnalyzeOptions::from(&options);
 
                 if let Some(ds_options) = self
                     .program
-                    .with_config_options(&module, |ds| ds.compiler.clone())
+                    .with_config_options(module, |ds| ds.compiler.clone())
                 {
                     let ds_options = apply_language_defaults(ds_options);
                     let (ds_options, is_native_output) = apply_target_restrictions(ds_options);
@@ -450,7 +450,7 @@ impl Compiler {
 
             if let Some(options) = self
                 .program
-                .with_config_options(&module, |ds| ds.compiler.clone())
+                .with_config_options(module, |ds| ds.compiler.clone())
             {
                 let options = apply_language_defaults(options);
                 let (options, _is_native_output) = apply_target_restrictions(options);
@@ -462,7 +462,7 @@ impl Compiler {
 
         if let Some(options) = self
             .program
-            .with_config_options(&module, |ds| ds.compiler.clone())
+            .with_config_options(module, |ds| ds.compiler.clone())
         {
             let options = apply_language_defaults(options);
             let (options, _is_native_output) = apply_target_restrictions(options);
@@ -484,9 +484,9 @@ impl Compiler {
         // start from config defaults
         let mut options = self
             .program
-            .with_config_options(&module, |ds| ds.compiler.clone())
+            .with_config_options(module, |ds| ds.compiler.clone())
             .map(|options| ModuleCheckOptions::from_destack_config(&options))
-            .or_else(|| self.module_check_options_from_path(&module))
+            .or_else(|| self.module_check_options_from_path(module))
             .unwrap_or_else(
                 || ModuleCheckOptions::from_destack_config(&CompilerOptions::default()),
             );
@@ -494,7 +494,7 @@ impl Compiler {
         // overlay tsconfig options when present
         if let Some(ts_options) = self
             .program
-            .with_tsconfig_options(&module, |ts| ts.compiler.clone())
+            .with_tsconfig_options(module, |ts| ts.compiler.clone())
         {
             options.apply_tsconfig(&ts_options);
         }

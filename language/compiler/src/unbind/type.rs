@@ -880,7 +880,7 @@ impl Compiler {
             let argument_module = argument_module.as_ref();
             if let Some(dir) = self.artifacts.dir_patched(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -894,7 +894,7 @@ impl Compiler {
                 .dir_elaborated(node.module_id, context.profile)
             {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -905,7 +905,7 @@ impl Compiler {
             }
             if let Some(dir) = self.artifacts.dir_analyzed(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -919,7 +919,7 @@ impl Compiler {
                 .dir_interface(node.module_id, context.profile)
             {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -930,7 +930,7 @@ impl Compiler {
             }
             if let Some(dir) = self.artifacts.dir_declared(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -941,7 +941,7 @@ impl Compiler {
             }
             if let Some(dir) = self.artifacts.dir_resolved(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -952,7 +952,7 @@ impl Compiler {
             }
             if let Some(dir) = self.artifacts.dir_prepared(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -963,7 +963,7 @@ impl Compiler {
             }
             if let Some(dir) = self.artifacts.dir_base(node.module_id) {
                 return self.unbind_argument(
-                    &argument_module,
+                    argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,

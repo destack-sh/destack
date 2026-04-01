@@ -106,7 +106,7 @@ impl<'a> BinaryLinker<'a> {
             let module = self.compiler.program.modules.get(*module_id);
             let binary_files = crate::emit::emit_binary_artifact_files(
                 module.as_ref(),
-                &binary,
+                binary,
                 self.target,
                 self.package_dir,
                 self.root_dir,

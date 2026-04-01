@@ -77,7 +77,7 @@ impl Compiler {
         ) = {
             let module_handle = self.program.modules.get(module);
             let module_guard = module_handle.as_ref();
-            self.ensure_module_version_matches_guard::<ImportError>(&module_guard, module_version)?;
+            self.ensure_module_version_matches_guard::<ImportError>(module_guard, module_version)?;
             let ast = ast.expect("missing AST on parsed module");
             let anchor_id = ast
                 .anchor_expression

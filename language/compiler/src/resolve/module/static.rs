@@ -102,7 +102,7 @@ impl Compiler {
         // gather parent nodes for @if annotations
         for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
             if self
-                .decorator_call_named(&tree, annotation_id, if_name)
+                .decorator_call_named(tree, annotation_id, if_name)
                 .is_none()
             {
                 continue;
@@ -152,13 +152,13 @@ impl Compiler {
                 module_id,
                 profile_id,
                 declaration_id.into_any(),
-                &tree,
+                tree,
                 import_meta,
             )?;
 
             // deactivate declarations that are gated out
             if matches!(condition, Some(false)) {
-                self.deactivate_declaration(tree, symbols, &types, declaration_id);
+                self.deactivate_declaration(tree, symbols, types, declaration_id);
                 continue;
             }
 
@@ -168,7 +168,7 @@ impl Compiler {
                 profile_id,
                 tree,
                 symbols,
-                &types,
+                types,
                 declaration_id,
                 import_meta,
             )?;
@@ -196,7 +196,7 @@ impl Compiler {
         let mut removed_expressions = HashSet::new();
         for expression_id in expression_targets {
             // skip expressions under inactive declarations
-            if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+            if !self.is_node_active(tree, symbols, expression_id.into_any()) {
                 continue;
             }
 
@@ -205,7 +205,7 @@ impl Compiler {
                 module_id,
                 profile_id,
                 expression_id.into_any(),
-                &tree,
+                tree,
                 import_meta,
             )?;
             let Some(condition) = condition else {
@@ -231,13 +231,13 @@ impl Compiler {
                 };
 
                 // mark the expression node as inactive
-                self.mark_inactive_subtree(tree, &types, expression_id.into_any());
+                self.mark_inactive_subtree(tree, types, expression_id.into_any());
 
                 removed_expressions.insert(expression_id.id);
 
                 // deactivate declarations gated out at the expression level
                 if let Some(declaration_id) = declaration_id {
-                    self.deactivate_declaration(tree, symbols, &types, declaration_id);
+                    self.deactivate_declaration(tree, symbols, types, declaration_id);
                 }
             }
         }
@@ -292,7 +292,7 @@ impl Compiler {
         }
 
         // skip resolving static if annotations in later passes
-        self.mark_static_if_annotations_inactive(tree, &types);
+        self.mark_static_if_annotations_inactive(tree, types);
 
         Ok(())
     }

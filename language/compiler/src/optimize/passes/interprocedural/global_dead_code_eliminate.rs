@@ -125,6 +125,25 @@ fn collect_used_globals(tree: &mir::NodeTree) -> HashSet<mir::LocalNodeId<mir::G
     used
 }
 
+/// Collect globals referenced by one debug value location.
+fn collect_debug_location_globals(
+    location: &mir::DebugValueLocation,
+    used: &mut HashSet<mir::LocalNodeId<mir::Global>>,
+) {
+    // direct global locations
+    if let mir::DebugValueLocation::Global(global_id) = location {
+        used.insert(*global_id);
+        return;
+    }
+
+    // composite fragments
+    if let mir::DebugValueLocation::Composite(fragments) = location {
+        for fragment in fragments {
+            collect_debug_location_globals(&fragment.location, used);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,24 +253,5 @@ block0:
         test.assert_output(input);
         let global = test.tree.get(global_id);
         assert!(global.linkage.is_defined());
-    }
-}
-
-/// Collect globals referenced by one debug value location.
-fn collect_debug_location_globals(
-    location: &mir::DebugValueLocation,
-    used: &mut HashSet<mir::LocalNodeId<mir::Global>>,
-) {
-    // direct global locations
-    if let mir::DebugValueLocation::Global(global_id) = location {
-        used.insert(*global_id);
-        return;
-    }
-
-    // composite fragments
-    if let mir::DebugValueLocation::Composite(fragments) = location {
-        for fragment in fragments {
-            collect_debug_location_globals(&fragment.location, used);
-        }
     }
 }

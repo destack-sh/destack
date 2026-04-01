@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
 use std::thread::{self, ThreadId};
 
@@ -112,7 +113,7 @@ pub(crate) struct WorldViewEntry {
     /// The pinned revision metadata.
     pub revision: Revision,
     /// The pinned world image.
-    pub image: Arc<Image>,
+    pub image: Rc<Image>,
 }
 
 /// One stored snapshot entry.

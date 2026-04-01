@@ -795,7 +795,7 @@ impl TestProgram {
         let file = files
             .iter()
             .find(|file| self.normalize_uri_path(package_id, &file.uri) == expected_path)
-            .unwrap_or_else(|| panic!("missing output file '{}'", expected_path));
+            .unwrap_or_else(|| panic!("missing output file '{expected_path}'"));
 
         match &file.content {
             OutputContent::Text { code, file_type } => LinkedTextFile {
@@ -990,7 +990,7 @@ impl TestProgram {
     fn normalize_uri_path(&self, package_id: PackageId, uri: &Uri) -> String {
         let path = uri
             .to_path()
-            .unwrap_or_else(|| panic!("uri '{}' is not a path", uri));
+            .unwrap_or_else(|| panic!("uri '{uri}' is not a path"));
 
         self.normalize_package_path(package_id, path)
     }

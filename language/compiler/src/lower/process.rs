@@ -132,7 +132,7 @@ impl Compiler {
 
             let mut lowerer = ModuleLowerer::new(
                 self,
-                &module,
+                module,
                 profile,
                 &dir.tree,
                 &dir.roots,

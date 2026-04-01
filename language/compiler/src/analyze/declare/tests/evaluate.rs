@@ -117,7 +117,7 @@ fn resolve_declared_namespace_annotation_type(
 
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let mut type_context = TypeContext::new(
-        &module,
+        module,
         profile,
         &options,
         &tree,
@@ -469,7 +469,7 @@ declare const segment: AuditStore.Segment;
 
     // count
     assert_count_matches_integer_or_symbol_name(
-        SymbolTypeView::new(&module, profile, &dir.symbols, types),
+        SymbolTypeView::new(module, profile, &dir.symbols, types),
         count,
         1024,
         StaticKey::Name(test.program.strings.intern("SegmentBytes")),
@@ -546,13 +546,13 @@ comptime const Dependent: number = ProjectionPlan<Row>.Scalar;
     let scalar_key = StaticKey::Name(test.program.strings.intern("Scalar"));
     let scalar_symbol = test
         .compiler
-        .query_static_member_symbol(&module, profile, owner_symbol, scalar_key, tree, symbols)
+        .query_static_member_symbol(module, profile, owner_symbol, scalar_key, tree, symbols)
         .expect("expected Scalar member symbol");
 
     let dependent_key = StaticKey::Name(test.program.strings.intern("Dependent"));
     let dependent_symbol = test
         .compiler
-        .query_static_member_symbol(&module, profile, owner_symbol, dependent_key, tree, symbols)
+        .query_static_member_symbol(module, profile, owner_symbol, dependent_key, tree, symbols)
         .expect("expected Dependent member symbol");
 
     assert!(
@@ -830,7 +830,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     };
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let mut type_context = TypeContext::new(
-        &module,
+        module,
         profile,
         &options,
         &tree,
@@ -861,7 +861,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     let segment_bytes_symbol = test
         .compiler
         .query_static_member_symbol(
-            &module,
+            module,
             profile,
             segment_plan_symbol,
             StaticKey::Name(test.program.strings.intern("SegmentBytes")),
@@ -882,7 +882,7 @@ declare const metricSegment: SegmentPlan<int32>.SegmentBytes;
     }];
     let options = test.compiler.analyze_context_options_for_module(module.id);
     let mut ctx = TypeContext::new(
-        &module,
+        module,
         profile,
         &options,
         &tree,

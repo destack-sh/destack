@@ -3,18 +3,10 @@ use serde::Deserialize;
 use super::{LinterOptions, UnicodeRegexpRequireFlag, UnicodeRegexpRequireFlagJson};
 
 /// Performance-category linter options.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct LinterPerformanceOptions {
     /// Required Unicode regex flag for `require-unicode-regexp`.
     pub require_unicode_regexp_require_flag: UnicodeRegexpRequireFlag,
-}
-
-impl Default for LinterPerformanceOptions {
-    fn default() -> Self {
-        Self {
-            require_unicode_regexp_require_flag: UnicodeRegexpRequireFlag::default(),
-        }
-    }
 }
 
 /// Performance-category linter JSON options.

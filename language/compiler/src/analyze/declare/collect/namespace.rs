@@ -66,7 +66,7 @@ impl Compiler {
             let binding_ty_id = self.build_namespace_type_from_exports(
                 &mut ctx.reborrow(),
                 &exports,
-                &binding_namespace_exports,
+                binding_namespace_exports,
                 binding_source_id,
                 module_bindings,
                 module_binding_exports,

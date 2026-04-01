@@ -162,7 +162,7 @@ impl Compiler {
                         remote_target
                     } else {
                         let Some(remote_target) = self.resolve_import_maybe(
-                            &module_handle,
+                            module_handle,
                             imported_modules,
                             profile,
                             item_id.into_global_any(module.id),
@@ -189,13 +189,13 @@ impl Compiler {
                         profile,
                         Some(imported_modules),
                         target,
-                        self.import_edge_kind(&module_handle, source),
+                        self.import_edge_kind(module_handle, source),
                         None,
                     )
                     .unwrap_or_else(|| destack_dir::ModuleResolution::from_target(remote_target))
                 };
                 let remote_symbol_target = self.select_symbol_target_for_dependency(
-                    &module_handle,
+                    module_handle,
                     kind,
                     target_module,
                     remote_target,
@@ -272,7 +272,7 @@ impl Compiler {
                             Ok(resolved) => resolved,
                             Err(error @ ResolveError::MissingSymbol { .. }) => {
                                 if !self.default_import_uses_namespace_fallback(
-                                    &module_handle,
+                                    module_handle,
                                     source,
                                     kind,
                                     profile,

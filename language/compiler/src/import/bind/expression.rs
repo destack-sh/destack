@@ -2854,7 +2854,7 @@ let Foo: Foo = Foo;
         let symbols = &dir.symbols;
         let name = test.program.strings.intern("Foo");
         let key = StaticKey::Name(name);
-        let (type_count, value_count, type_value_count) = count_symbol_spaces(&symbols, key);
+        let (type_count, value_count, type_value_count) = count_symbol_spaces(symbols, key);
 
         assert_eq!(type_count, 1);
         assert_eq!(value_count, 0);

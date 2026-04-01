@@ -46,6 +46,6 @@ impl Compiler {
             return Ok(());
         };
 
-        self.commit_solved_infer_table(tree, symbols, types, infer, &module, profile)
+        self.commit_solved_infer_table(tree, symbols, types, infer, module, profile)
     }
 }

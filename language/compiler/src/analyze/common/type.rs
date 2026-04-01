@@ -1596,10 +1596,8 @@ impl Compiler {
         symbol: GlobalSymbolId,
         source_id: LocalNodeIdAny,
     ) -> Option<LocalTypeId> {
-        match self.require_alias_target_type_id_for_symbol(ctx, symbol, source_id) {
-            Ok(result) => result,
-            Err(_) => None,
-        }
+        self.require_alias_target_type_id_for_symbol(ctx, symbol, source_id)
+            .unwrap_or_default()
     }
 
     /// Import the alias target type for a symbol when available, yielding on unmet requirements.

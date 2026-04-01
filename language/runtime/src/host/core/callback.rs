@@ -1,5 +1,3 @@
-#![cfg_attr(test, allow(dead_code))]
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::error::not_supported;
 use crate::host::core::{

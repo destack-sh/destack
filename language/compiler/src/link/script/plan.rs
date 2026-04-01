@@ -42,19 +42,19 @@ impl ChunkedScriptOutputBuilder {
         output_kind: ScriptOutputKind,
     ) {
         // reuse manual groups first
-        if let Some(output_name) = output_name {
-            if let Some(output_index) = self.output_index_by_manual_name.get(output_name) {
-                self.push_module_to_output(module_id, *output_index);
-                return;
-            }
+        if let Some(output_name) = output_name
+            && let Some(output_index) = self.output_index_by_manual_name.get(output_name)
+        {
+            self.push_module_to_output(module_id, *output_index);
+            return;
         }
 
         // otherwise reuse automatic dependent-entry groups
-        if let Some(group_key) = group_key.clone() {
-            if let Some(output_index) = self.output_index_by_group_key.get(&group_key) {
-                self.push_module_to_output(module_id, *output_index);
-                return;
-            }
+        if let Some(group_key) = group_key.clone()
+            && let Some(output_index) = self.output_index_by_group_key.get(&group_key)
+        {
+            self.push_module_to_output(module_id, *output_index);
+            return;
         }
 
         // otherwise start one new output
@@ -369,12 +369,12 @@ impl<'a> ScriptLinker<'a> {
     ) -> Option<ScriptOutputGroupKey> {
         // direct import() targets need their own lazy grouping even when
         // one eager entry also reaches the same module statically
-        if dynamic_target_modules.contains(&module_id) {
-            if let Some(entry_set) = dynamic_target_sets.get(&module_id) {
-                return Some(ScriptOutputGroupKey::DynamicEntries(
-                    entry_set.iter().copied().collect(),
-                ));
-            }
+        if dynamic_target_modules.contains(&module_id)
+            && let Some(entry_set) = dynamic_target_sets.get(&module_id)
+        {
+            return Some(ScriptOutputGroupKey::DynamicEntries(
+                entry_set.iter().copied().collect(),
+            ));
         }
 
         // keep eagerly reachable modules in eager groups even when lazy subgraphs also use them

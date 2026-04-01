@@ -377,8 +377,7 @@ impl<'a> ArtifactImageStore<'a> {
                     return Err(ArtifactImageError::SizeLimitExceeded {
                         limit: ARTIFACT_IMAGE_LIMIT_BYTES,
                         actual: metadata.size_bytes,
-                    }
-                    .into());
+                    });
                 }
 
                 let Some(prefix) = self
@@ -463,8 +462,7 @@ impl<'a> ArtifactImageStore<'a> {
                     return Err(ArtifactImageError::SizeLimitExceeded {
                         limit: ARTIFACT_IMAGE_LIMIT_BYTES,
                         actual: metadata.size_bytes,
-                    }
-                    .into());
+                    });
                 }
 
                 let Some(bytes) = self.store.read(&image_path)? else {

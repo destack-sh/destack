@@ -121,8 +121,9 @@ pub(crate) fn can_merge_declarations(
 
         // class and function declarations merge with ambient namespaces in any order
         if matches!(other.symbol_type, SymbolType::Class | SymbolType::Function) {
-            if !language_type.supports_declaration_merging()
-                && !(language_type.is_destack() && other.symbol_type == SymbolType::Function)
+            let supports_function_namespace_merge =
+                language_type.is_destack() && other.symbol_type == SymbolType::Function;
+            if !(language_type.supports_declaration_merging() || supports_function_namespace_merge)
             {
                 return false;
             }

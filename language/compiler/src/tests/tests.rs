@@ -1727,7 +1727,7 @@ impl TestProgram {
             .map(LocalNodeId::into_any)
             .unwrap_or(anchor_node);
         let unbound = self.compiler.unbind_module_from_parts(
-            &module,
+            module,
             &tree,
             &symbols,
             &roots,

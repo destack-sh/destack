@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
@@ -46,9 +46,9 @@ pub(crate) struct Lineage {
     /// The known checkpoint metadata records.
     pub checkpoints: BTreeMap<CheckpointId, Checkpoint>,
     /// The known image metadata records.
-    pub images: BTreeMap<ImageId, Arc<Image>>,
+    pub images: BTreeMap<ImageId, Rc<Image>>,
     /// The known trace image records keyed by revision identifier.
-    pub trace_images: BTreeMap<RevisionId, Arc<TraceImage>>,
+    pub trace_images: BTreeMap<RevisionId, Rc<TraceImage>>,
     /// The committed observation history keyed by branch.
     pub observations: BTreeMap<BranchId, Vec<ObservationRecord>>,
 }
@@ -59,9 +59,9 @@ pub(crate) struct RevisionBacking {
     /// The resolved revision metadata.
     pub revision: Revision,
     /// The resolved world image.
-    pub image: Arc<Image>,
+    pub image: Rc<Image>,
     /// The resolved trace image.
-    pub trace_image: Arc<TraceImage>,
+    pub trace_image: Rc<TraceImage>,
 }
 
 /// One restore plan for reaching one specific revision.
@@ -72,9 +72,9 @@ pub(crate) struct RevisionRestorePlan {
     /// The nearest materialized base revision.
     pub base_revision: Revision,
     /// The materialized image for the base revision.
-    pub image: Arc<Image>,
+    pub image: Rc<Image>,
     /// The materialized trace image for the target revision.
-    pub trace_image: Arc<TraceImage>,
+    pub trace_image: Rc<TraceImage>,
 }
 
 impl RevisionRestorePlan {
@@ -94,7 +94,7 @@ pub(crate) struct MomentRestorePlan {
     /// The nearest materialized base revision.
     pub base_revision: Revision,
     /// The materialized image for the base revision.
-    pub image: Arc<Image>,
+    pub image: Rc<Image>,
 }
 
 impl MomentRestorePlan {
@@ -110,7 +110,7 @@ pub(crate) struct CommittedRevision {
     /// The committed world revision metadata.
     pub revision: Revision,
     /// The committed world image.
-    pub image: Arc<Image>,
+    pub image: Rc<Image>,
     /// The committed checkpoint metadata, when created.
     pub checkpoint: Option<Checkpoint>,
 }
@@ -142,7 +142,7 @@ pub struct LineageSnapshot {
 
 impl Lineage {
     /// Create one lineage with one fully materialized root revision.
-    pub(crate) fn new_root(image: Arc<Image>, trace_image: Arc<TraceImage>) -> Self {
+    pub(crate) fn new_root(image: Rc<Image>, trace_image: Rc<TraceImage>) -> Self {
         let mut branches = BTreeMap::new();
         let mut revisions = BTreeMap::new();
         let mut images = BTreeMap::new();
@@ -227,12 +227,12 @@ impl Lineage {
         let images = snapshot
             .images
             .into_iter()
-            .map(|(image_id, image)| (image_id, Arc::new(image)))
+            .map(|(image_id, image)| (image_id, Rc::new(image)))
             .collect();
         let trace_images = snapshot
             .trace_images
             .into_iter()
-            .map(|(revision_id, trace_image)| (revision_id, Arc::new(trace_image)))
+            .map(|(revision_id, trace_image)| (revision_id, Rc::new(trace_image)))
             .collect();
 
         Self {
@@ -339,8 +339,8 @@ impl Lineage {
         })?;
 
         image.id = self.allocate_image_id();
-        let image = Arc::new(image);
-        let trace_image = Arc::new(trace_image);
+        let image = Rc::new(image);
+        let trace_image = Rc::new(trace_image);
         let revision = Revision {
             id: self.allocate_revision_id(),
             branch_id,

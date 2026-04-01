@@ -73,10 +73,7 @@ impl Compiler {
             return Ok(());
         }
 
-        let module = {
-            let module = self.program.modules.get(module_id);
-            module
-        };
+        let module = { self.program.modules.get(module_id) };
         let prepared = self.require_artifact_dir_prepared(module_id, profile)?;
         let mut tree = prepared.tree.as_ref().clone();
         let mut symbols = prepared.symbols.as_ref().clone();

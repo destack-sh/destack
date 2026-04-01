@@ -63,7 +63,7 @@ impl Compiler {
 
             let options = self.analyze_context_options_for_module(module.id);
             let mut ctx = TypeContext::new(
-                &module,
+                module,
                 profile,
                 &options,
                 tree,
@@ -93,7 +93,7 @@ impl Compiler {
         }
 
         // select runtime roots for the inference pass
-        let runtime_roots = self.collect_runtime_roots(&module, tree, roots);
+        let runtime_roots = self.collect_runtime_roots(module, tree, roots);
         let infer_roots = runtime_roots.clone();
 
         // skip infer entirely when no roots require infer work
@@ -104,7 +104,7 @@ impl Compiler {
         // resolve builtins before resolving type-import operator dependencies
         self.require_language_environment(profile)
             .map_err(AnalyzeError::from)?;
-        self.require_type_import_dependencies_for_infer(&module, profile, tree)?;
+        self.require_type_import_dependencies_for_infer(module, profile, tree)?;
 
         // establish infer dependency preconditions
         self.require_dir_interface(module_id, profile)?;
@@ -117,7 +117,7 @@ impl Compiler {
         let mut session = InferSession::new(profile, options);
         let (infer_table, context) = session.parts_mut();
         let mut ctx = InferContext::new(
-            &module,
+            module,
             profile,
             &options,
             tree,

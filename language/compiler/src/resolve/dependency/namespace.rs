@@ -212,8 +212,8 @@ impl Compiler {
             let module_handle = self.program.modules.get(module.id);
             let module_handle = module_handle.as_ref();
             let Some(target_module) = self.resolve_import_maybe_from_artifact(
-                &module_handle,
-                &dir,
+                module_handle,
+                dir,
                 profile,
                 item_id.into_global_any(module.id),
                 source.unwrap_or(DependencySource::ExportStatement),

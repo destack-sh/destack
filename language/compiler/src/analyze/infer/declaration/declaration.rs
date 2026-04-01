@@ -3587,7 +3587,7 @@ impl Compiler {
                 // infer from non code module targets
                 if *kind == DependencyKind::Value && !target.is_code() {
                     let ty_id =
-                        self.infer_data_module_type(&target, item_id.into_any(), ctx.types)?;
+                        self.infer_data_module_type(target, item_id.into_any(), ctx.types)?;
 
                     // set the type on the remote target symbol
                     ctx.types.set_value_type(*target_symbol, ty_id);

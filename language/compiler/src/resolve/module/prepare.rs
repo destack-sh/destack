@@ -59,7 +59,7 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.as_ref();
         self.ensure_module_profile_matches_guard::<ResolveError>(
-            &module,
+            module,
             module_version,
             profile_id,
             profile_version,
@@ -146,7 +146,7 @@ impl Compiler {
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_EXPORTS);
             self.build_module_exports(
-                &module,
+                module,
                 &tree,
                 &mut symbols,
                 &roots,
@@ -164,7 +164,7 @@ impl Compiler {
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_BINDING_EXPORTS);
             self.build_module_binding_exports(
-                &module,
+                module,
                 &tree,
                 &mut symbols,
                 &module_bindings,
@@ -339,7 +339,7 @@ impl Compiler {
         )?;
         let module = module.as_ref();
         self.ensure_module_profile_matches_guard::<ResolveError>(
-            &module,
+            module,
             module_version,
             profile_id,
             profile_version,
