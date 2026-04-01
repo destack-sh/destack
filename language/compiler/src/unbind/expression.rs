@@ -618,7 +618,14 @@ impl Compiler {
                             self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
                         }).collect()
                     });
-                    ast::Expression::Path { path, static_arguments }
+
+                    if path.segments.len() == 1 && static_arguments.is_none() {
+                        ast::Expression::Identifier {
+                            name: path.segments[0],
+                        }
+                    } else {
+                        ast::Expression::QualifiedReference { path, static_arguments }
+                    }
                 }
 
                 dir::Expression::PrivateIdentifier { name } => {
@@ -632,20 +639,13 @@ impl Compiler {
                     let path = ast::Path {
                         segments: smallvec![import_id, meta_id],
                     };
-                    ast::Expression::Path {
+                    ast::Expression::QualifiedReference {
                         path,
                         static_arguments: None,
                     }
                 }
                 dir::Expression::This => {
-                    let this_id = ast_strings.intern("this");
-                    let path = ast::Path {
-                        segments: smallvec![this_id],
-                    };
-                    ast::Expression::Path {
-                        path,
-                        static_arguments: None,
-                    }
+                    ast::Expression::This
                 }
                 dir::Expression::Super => {
                     ast::Expression::Super

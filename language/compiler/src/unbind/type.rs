@@ -171,7 +171,7 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::Expression::Path {
+                ast::Expression::QualifiedReference {
                     path,
                     static_arguments,
                 }
@@ -1442,7 +1442,7 @@ impl Compiler {
                 segments: smallvec![symbol_name, member_name],
             };
             return ast_tree.insert(
-                ast::Expression::Path {
+                ast::Expression::QualifiedReference {
                     path,
                     static_arguments: None,
                 },
