@@ -5,7 +5,8 @@ use destack_mir as mir;
 use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{
-    ArgumentRange, Executable, Function, FunctionTable, Instruction, SwitchCase, SwitchRange,
+    ArgumentRange, Executable, Function, FunctionTable, Instruction, StorageComponentLayout,
+    StorageLayout, SwitchCase, SwitchRange,
 };
 use crate::isolate::{GlobalStorage, StringInterner};
 use crate::options::IsolateOptions;
@@ -143,6 +144,88 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
         &self.executable.tree
     }
 
+    /// Return the compiled storage layout for one MIR type.
+    #[inline]
+    pub(crate) fn storage_layout(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<&StorageLayout, Error> {
+        self.executable
+            .storage_layout(ty)
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "compiled storage layout".to_string(),
+                actual: format!("{ty:?}"),
+            })
+    }
+
+    /// Return the storage byte width for one MIR type.
+    #[inline]
+    pub(crate) fn storage_byte_len(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<usize, Error> {
+        Ok(self.storage_layout(ty)?.byte_len)
+    }
+
+    /// Return the storage stride for one MIR type.
+    #[inline]
+    pub(crate) fn storage_stride(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<usize, Error> {
+        Ok(self.storage_layout(ty)?.stride())
+    }
+
+    /// Return the semantic component count for one storage type.
+    #[inline]
+    pub(crate) fn storage_component_count(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Result<usize, Error> {
+        self.storage_layout(ty)?
+            .component_count()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "aggregate storage type".to_string(),
+                actual: format!("{ty:?}"),
+            })
+    }
+
+    /// Return one semantic component layout by index.
+    #[inline]
+    pub(crate) fn storage_component_layout(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        index: u32,
+    ) -> Result<StorageComponentLayout, Error> {
+        self.storage_layout(ty)?
+            .component(index)
+            .ok_or_else(|| Error::InvalidFieldAccess {
+                index,
+                field_count: self
+                    .storage_layout(ty)
+                    .ok()
+                    .and_then(StorageLayout::component_count)
+                    .unwrap_or(0),
+            })
+    }
+
+    /// Return the MIR type stored in one SSA value slot.
+    #[inline]
+    pub(crate) fn value_type(
+        &self,
+        value: mir::Value,
+    ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
+        let frame_layout = unsafe { (*self.frame).frame_layout };
+        let frame_layout = self
+            .executable
+            .frame_layout_by_id(frame_layout)
+            .ok_or(Error::InvalidInstruction)?;
+        let slot_index = frame_layout
+            .value_slots
+            .start
+            .checked_add(value.0)
+            .ok_or(Error::InvalidInstruction)?;
+        let slot = frame_layout
+            .slot(slot_index)
+            .ok_or(Error::InvalidInstruction)?;
+
+        Ok(slot.ty)
+    }
+
     /// Borrow the isolate options.
     #[inline]
     pub(crate) fn options(&self) -> &IsolateOptions {
@@ -237,48 +320,11 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     /// Execute one intrinsic against the current interpreter and heap state.
     pub(crate) fn execute_intrinsic(
         &mut self,
+        destination: mir::Value,
         intrinsic: mir::Intrinsic,
         args: &[Value],
     ) -> RuntimeResult<Value> {
-        self.execute_intrinsic_resolved(intrinsic, args)
-    }
-
-    /// Allocate an aggregate on the managed heap.
-    #[inline]
-    pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        // specialize the common singleton and pair cases
-        match values.as_slice() {
-            [value] => return self.allocate_single(*value),
-            [first, second] => return self.allocate_pair(*first, *second),
-            _ => {}
-        }
-
-        // allocate the general aggregate payload
-        let handle = self
-            .heap()
-            .allocate_packed_values(values)
-            .unwrap_or_else(|error| panic!("{error}"));
-        Value::aggregate(handle)
-    }
-
-    /// Allocate a 2-element aggregate on the managed heap.
-    #[inline]
-    pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        let handle = self
-            .heap()
-            .allocate_packed_pair(first, second)
-            .unwrap_or_else(|error| panic!("{error}"));
-        Value::aggregate(handle)
-    }
-
-    /// Allocate a 1-element aggregate on the managed heap.
-    #[inline]
-    pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
-        let handle = self
-            .heap()
-            .allocate_packed_single(value)
-            .unwrap_or_else(|error| panic!("{error}"));
-        Value::aggregate(handle)
+        self.execute_intrinsic_resolved(destination, intrinsic, args)
     }
 
     /// Move the state to a new frame and function.

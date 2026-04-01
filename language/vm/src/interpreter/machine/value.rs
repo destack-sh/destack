@@ -1,5 +1,6 @@
+use crate::executable;
+
 use super::prelude::*;
-use destack_heap::PackedValues;
 
 /// Build a global id from a raw value.
 #[inline]
@@ -67,36 +68,28 @@ pub(crate) fn value_to_usize(value: Value) -> Result<usize, Error> {
     })
 }
 
-/// Load aggregate slots for an aggregate value.
-pub(crate) fn aggregate_slots<'a>(
-    state: &'a StepState<'_, '_>,
-    value: Value,
-) -> Result<PackedValues<'a>, Error> {
-    // require aggregate payload
-    let handle = value
-        .as_managed_reference()
-        .ok_or_else(|| Error::TypeMismatch {
-            expected: "aggregate".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+/// Materialize one composite result for the destination slot type by component index.
+pub(crate) fn materialize_composite_by_index<F>(
+    state: &mut StepState<'_, '_>,
+    destination: mir::Value,
+    mut component_value: F,
+) -> Result<Value, Error>
+where
+    F: FnMut(&mut StepState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Value, Error>,
+{
+    let composite_type = state.value_type(destination)?;
+    let repr_composite_type = executable::repr_type(state.tree(), composite_type);
 
-    // validate the managed allocation and decode packed values
-    let heap = state.heap_ref();
-    if !heap.is_managed_allocated(handle) {
-        return Err(Error::InvalidManagedReference);
+    // fnvalue stays boxed in the vm so nested storage only carries one managed reference
+    if matches!(
+        state.tree().get(repr_composite_type),
+        mir::Type::FunctionValue { .. }
+    ) {
+        let function = component_value(state, 0, composite_type)?;
+        let environment = component_value(state, 1, composite_type)?;
+
+        return access::allocate_function_value(state, composite_type, function, environment);
     }
 
-    heap.packed_values(handle)
-        .ok_or(Error::InvalidManagedReference)
-}
-
-/// Load aggregate slots and convert them into one owned slot list.
-pub(crate) fn aggregate_slots_vec(
-    state: &StepState<'_, '_>,
-    value: Value,
-) -> Result<Vec<Value>, Error> {
-    // decode aggregate slots once
-    let slots = aggregate_slots(state, value)?;
-
-    Ok(slots.into_vec())
+    access::allocate_stack_storage_value_by_index(state, composite_type, component_value)
 }

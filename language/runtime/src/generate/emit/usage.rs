@@ -772,7 +772,10 @@ pub(crate) fn binding_type_requires_vm_for_encode(binding_type: &BindingType) ->
 /// Return true if decoding a binding type needs a runtime context.
 pub(crate) fn binding_type_requires_context_for_decode(binding_type: &BindingType) -> bool {
     match binding_type {
-        BindingType::StringSlice | BindingType::Slice(_) | BindingType::Array(_) => true,
+        BindingType::String
+        | BindingType::StringSlice
+        | BindingType::Slice(_)
+        | BindingType::Array(_) => true,
         BindingType::Struct { .. } | BindingType::TaggedUnion { .. } => true,
         BindingType::Enum { backing, .. } => matches!(backing, EnumBackingType::String),
         BindingType::Optional(inner) => binding_type_requires_context_for_decode(inner),

@@ -1,23 +1,54 @@
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet};
 
-use destack_mir as mir;
+use {destack_engine as engine, destack_mir as mir};
 
-use destack_heap::{
-    ManagedReference, RawPointer, ReferenceMap, ReferenceMeta, SharedPointer, Value,
-};
+use destack_heap::{ManagedReference, RawPointer, ReferenceMeta, SharedPointer, Value};
 
+use super::storage::{StorageLayout, repr_type};
 use super::value::{PointerStorage, ValueKind, kind_from_type, pointer_storage_from_reference};
 use super::{
-    ArgumentRange, Block, ConstValue, CopyPair, CopyRange, Function, INVALID_FUNCTION_INDEX,
-    INVALID_VALUE_ID, Instruction, InstructionData, InstructionOperation, SwitchCase, SwitchRange,
-    UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT, UNKNOWN_SLOT_COUNT, pack_optional_value,
+    ArgumentRange, Block, ConstValue, CopyPair, CopyRange, ElementAccess, FieldAccess, Function,
+    INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, Instruction, InstructionData, InstructionOperation,
+    SwitchCase, SwitchRange, TypedAccess, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT,
+    pack_optional_value,
 };
 
 // switch table density threshold
 const SWITCH_TABLE_MIN_DENSITY: f64 = 0.5;
 // cap the number of jump table entries
 const SWITCH_TABLE_MAX_RANGE: usize = 2048;
+
+/// One lowered runtime value slot.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct LoweredValueSlot {
+    /// The logical source carried by this slot.
+    pub source: engine::FrameSlotSource,
+    /// The MIR type stored in this slot.
+    pub ty: mir::LocalNodeId<mir::Type>,
+}
+
+/// One recursively decomposed value slot tree.
+#[derive(Clone, Debug)]
+struct ComponentSlots {
+    /// The slot id for this value or component.
+    slot: mir::Value,
+    /// The semantic type stored at this node.
+    ty: mir::LocalNodeId<mir::Type>,
+    /// The child components in semantic source order.
+    components: Vec<ComponentSlots>,
+}
+
+/// One lowering-time decomposition table for semantic values.
+#[derive(Clone, Debug, Default)]
+pub(super) struct DeferredBlockParams {
+    /// The decomposed value trees by root semantic value.
+    by_value: HashMap<mir::Value, ComponentSlots>,
+    /// The decomposed parameter trees by block and root parameter value.
+    by_block: HashMap<mir::LocalNodeId<mir::Block>, HashMap<mir::Value, ComponentSlots>>,
+    /// The block parameter roots that are carried decomposed.
+    roots: HashSet<mir::Value>,
+}
 
 /// Table mapping SSA value ids to their inferred kind.
 struct ValueKinds {
@@ -438,14 +469,75 @@ fn select_store_operation(value_kinds: &ValueKinds, pointer: mir::Value) -> Inst
     }
 }
 
-/// Pick a field get handler based on field count (inline optimization).
-fn select_field_get_operation(field_count: u32, index: u32) -> InstructionOperation {
-    // small aggregates (≤2 fields) use inline slot storage
-    // only use fast path if index is known to be valid
-    if field_count > 0 && field_count <= 2 && index < field_count {
-        InstructionOperation::FieldGetInline
-    } else {
-        InstructionOperation::FieldGet
+/// Pick a field get handler based on inferred aggregate storage.
+fn select_field_get_operation(
+    value_kinds: &ValueKinds,
+    aggregate: mir::Value,
+    field_count: u32,
+    index: u32,
+) -> InstructionOperation {
+    match value_kinds.get(aggregate) {
+        // small aggregates (≤2 fields) use inline slot storage
+        Some(ValueKind::Composite { .. })
+            if field_count > 0 && field_count <= 2 && index < field_count =>
+        {
+            InstructionOperation::FieldGetInline
+        }
+        Some(ValueKind::Composite { .. }) => InstructionOperation::FieldGet,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => InstructionOperation::FieldLoadManaged,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => InstructionOperation::FieldLoadRaw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => InstructionOperation::FieldLoadStack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => InstructionOperation::FieldLoad,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => InstructionOperation::FieldLoadGlobal,
+        _ => InstructionOperation::FieldLoad,
+    }
+}
+
+/// Pick an element get handler based on inferred array storage.
+fn select_element_get_operation(
+    value_kinds: &ValueKinds,
+    array: mir::Value,
+) -> InstructionOperation {
+    match value_kinds.get(array) {
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => {
+            InstructionOperation::ElementGet
+        }
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Managed,
+            ..
+        }) => InstructionOperation::ElementLoadManaged,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Raw,
+            ..
+        }) => InstructionOperation::ElementLoadRaw,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Stack,
+            ..
+        }) => InstructionOperation::ElementLoadStack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => InstructionOperation::ElementLoad,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Global,
+            ..
+        }) => InstructionOperation::ElementLoadGlobal,
+        _ => InstructionOperation::ElementLoad,
     }
 }
 
@@ -455,7 +547,7 @@ fn select_field_addr_operation(
     aggregate: mir::Value,
 ) -> InstructionOperation {
     match value_kinds.get(aggregate) {
-        Some(ValueKind::Aggregate { .. }) => InstructionOperation::FieldAddrAggregate,
+        Some(ValueKind::Composite { .. }) => InstructionOperation::FieldAddrComposite,
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
             ..
@@ -486,8 +578,8 @@ fn select_element_addr_operation(
     array: mir::Value,
 ) -> InstructionOperation {
     match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
-            InstructionOperation::ElementAddrAggregate
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => {
+            InstructionOperation::ElementAddrComposite
         }
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
@@ -519,7 +611,7 @@ fn select_field_load_operation(
     aggregate: mir::Value,
 ) -> InstructionOperation {
     match value_kinds.get(aggregate) {
-        Some(ValueKind::Aggregate { .. }) => InstructionOperation::FieldLoadAggregate,
+        Some(ValueKind::Composite { .. }) => InstructionOperation::FieldLoadComposite,
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
             ..
@@ -551,17 +643,17 @@ fn select_field_store_operation(
     field_count: u32,
     index: u32,
 ) -> InstructionOperation {
-    // small managed aggregates (≤2 fields) use inline slot storage
+    // small managed composites (≤2 fields) use inline slot storage
     if field_count > 0
         && field_count <= 2
         && index < field_count
-        && let Some(ValueKind::Aggregate { .. }) = value_kinds.get(aggregate)
+        && let Some(ValueKind::Composite { .. }) = value_kinds.get(aggregate)
     {
         return InstructionOperation::FieldStoreInline;
     }
 
     match value_kinds.get(aggregate) {
-        Some(ValueKind::Aggregate { .. }) => InstructionOperation::FieldStoreAggregate,
+        Some(ValueKind::Composite { .. }) => InstructionOperation::FieldStoreComposite,
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
             ..
@@ -592,8 +684,8 @@ fn select_element_load_operation(
     array: mir::Value,
 ) -> InstructionOperation {
     match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
-            InstructionOperation::ElementLoadAggregate
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => {
+            InstructionOperation::ElementLoadComposite
         }
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
@@ -625,8 +717,8 @@ fn select_element_store_operation(
     array: mir::Value,
 ) -> InstructionOperation {
     match value_kinds.get(array) {
-        Some(ValueKind::Array { .. }) | Some(ValueKind::Aggregate { .. }) => {
-            InstructionOperation::ElementStoreAggregate
+        Some(ValueKind::Array { .. }) | Some(ValueKind::Composite { .. }) => {
+            InstructionOperation::ElementStoreComposite
         }
         Some(ValueKind::Pointer {
             storage: PointerStorage::Managed,
@@ -685,6 +777,200 @@ fn select_switch_table_operation(
     }
 }
 
+/// Return whether this type can stay decomposed across ordinary CFG edges.
+fn can_cross_block_decompose_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> bool {
+    matches!(
+        tree.get(repr_type(tree, ty)),
+        mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
+    )
+}
+
+/// Return the blocks whose entry parameters must stay materialized for resume.
+fn resume_target_blocks(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashSet<mir::LocalNodeId<mir::Block>> {
+    let mut blocks = HashSet::new();
+
+    // reserve the semantic resume targets
+    for block_id in &function.blocks {
+        let block = tree.get(*block_id);
+
+        match &block.terminator {
+            mir::Terminator::Yield { resume, .. } => {
+                blocks.insert(*resume);
+            }
+            mir::Terminator::Call {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | mir::Terminator::CallIndirect {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | mir::Terminator::CallVirtual {
+                normal_target,
+                unwind_target,
+                ..
+            }
+            | mir::Terminator::CallInterface {
+                normal_target,
+                unwind_target,
+                ..
+            } => {
+                blocks.insert(*normal_target);
+                blocks.insert(*unwind_target);
+            }
+            _ => {}
+        }
+    }
+
+    blocks
+}
+
+/// Append one disaggregated hidden slot tree for the given component type.
+fn push_hidden_value_tree(
+    tree: &mir::NodeTree,
+    owner: mir::Value,
+    ty: mir::LocalNodeId<mir::Type>,
+    slots: &mut Vec<LoweredValueSlot>,
+) -> ComponentSlots {
+    let slot = mir::Value::new(slots.len() as u32);
+    let repr_ty = repr_type(tree, ty);
+
+    // allocate this node first so nested materialization has one destination
+    slots.push(LoweredValueSlot {
+        source: engine::FrameSlotSource::DisaggregatedValue(owner),
+        ty,
+    });
+
+    let components = match tree.get(repr_ty) {
+        mir::Type::Struct { fields, .. } => fields
+            .iter()
+            .map(|field| push_hidden_value_tree(tree, owner, tree.get(*field).ty, slots))
+            .collect(),
+        mir::Type::Tuple { elements, .. } => elements
+            .iter()
+            .map(|element| push_hidden_value_tree(tree, owner, *element, slots))
+            .collect(),
+        mir::Type::Array {
+            element, length, ..
+        } => (0..usize::try_from(*length).unwrap_or(usize::MAX))
+            .map(|_| push_hidden_value_tree(tree, owner, *element, slots))
+            .collect(),
+        _ => Vec::new(),
+    };
+
+    ComponentSlots {
+        slot,
+        ty,
+        components,
+    }
+}
+
+/// Append lowered hidden child slots for the given semantic type.
+fn push_hidden_components(
+    tree: &mir::NodeTree,
+    owner: mir::Value,
+    ty: mir::LocalNodeId<mir::Type>,
+    slots: &mut Vec<LoweredValueSlot>,
+) -> Vec<ComponentSlots> {
+    match tree.get(repr_type(tree, ty)) {
+        mir::Type::Struct { fields, .. } => fields
+            .iter()
+            .map(|field| push_hidden_value_tree(tree, owner, tree.get(*field).ty, slots))
+            .collect(),
+        mir::Type::Tuple { elements, .. } => elements
+            .iter()
+            .map(|element| push_hidden_value_tree(tree, owner, *element, slots))
+            .collect(),
+        mir::Type::Array {
+            element, length, ..
+        } => (0..usize::try_from(*length).unwrap_or(usize::MAX))
+            .map(|_| push_hidden_value_tree(tree, owner, *element, slots))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Analyze lowered runtime value slots and decomposed block parameters for one function.
+pub(super) fn analyze_lowered_value_slots(
+    tree: &mir::NodeTree,
+    function: &mir::Function,
+) -> (Vec<LoweredValueSlot>, DeferredBlockParams) {
+    let mut slots = function
+        .value_types
+        .iter()
+        .enumerate()
+        .map(|(index, ty)| LoweredValueSlot {
+            source: engine::FrameSlotSource::Value(mir::Value::new(index as u32)),
+            ty: *ty,
+        })
+        .collect::<Vec<_>>();
+    let mut decomposed = DeferredBlockParams::default();
+    let resume_blocks = resume_target_blocks(function, tree);
+
+    // reserve hidden child slots for all decomposable semantic values
+    for (index, ty) in function.value_types.iter().enumerate() {
+        let value = mir::Value::new(index as u32);
+        if !can_cross_block_decompose_type(tree, *ty) {
+            continue;
+        }
+
+        let components = push_hidden_components(tree, value, *ty, &mut slots);
+        decomposed.by_value.insert(
+            value,
+            ComponentSlots {
+                slot: value,
+                ty: *ty,
+                components,
+            },
+        );
+    }
+
+    // reserve hidden child slots for ordinary CFG block parameters
+    for block_id in &function.blocks {
+        if function.entry == Some(*block_id) || resume_blocks.contains(block_id) {
+            continue;
+        }
+
+        let block = tree.get(*block_id);
+        let mut params = HashMap::new();
+
+        for parameter in &block.parameters {
+            if !can_cross_block_decompose_type(tree, parameter.ty) {
+                continue;
+            }
+
+            let components = decomposed
+                .by_value
+                .get(&parameter.value)
+                .cloned()
+                .unwrap_or_else(|| ComponentSlots {
+                    slot: parameter.value,
+                    ty: parameter.ty,
+                    components: push_hidden_components(
+                        tree,
+                        parameter.value,
+                        parameter.ty,
+                        &mut slots,
+                    ),
+                });
+
+            params.insert(parameter.value, components);
+            decomposed.roots.insert(parameter.value);
+        }
+
+        if !params.is_empty() {
+            decomposed.by_block.insert(*block_id, params);
+        }
+    }
+
+    (slots, decomposed)
+}
+
 /// Lower a MIR function into the interpreter function form.
 pub(super) fn lower_function(
     tree: &mir::NodeTree,
@@ -696,6 +982,9 @@ pub(super) fn lower_function(
         (destack_engine::ResumePointId, destack_engine::ResumePointId),
     >,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+    value_slots: &[LoweredValueSlot],
+    deferred_block_params: &DeferredBlockParams,
 ) -> Option<Function> {
     // load function
     let func = tree.get(func_id);
@@ -792,8 +1081,9 @@ pub(super) fn lower_function(
     }
 
     // compute value kinds for typed dispatch
-    let value_count = compute_value_count_from_mir(tree, func, &mir_blocks);
-    let value_kinds = build_value_kinds(tree, func, &mir_blocks, value_count);
+    let value_count = value_slots.len();
+    let value_types = value_slots.iter().map(|slot| slot.ty).collect::<Vec<_>>();
+    let value_kinds = build_value_kinds(tree, func, &mir_blocks, &value_types, value_count);
     let value_uses = compute_value_use_counts(tree, &mir_blocks, value_count);
 
     // build local id to local index mapping
@@ -852,10 +1142,12 @@ pub(super) fn lower_function(
             function_indices,
             &value_kinds,
             &value_uses,
-            &func.value_types,
+            &value_types,
             &mut argument_pool,
             &mut switch_case_pool,
             &mut copy_pool,
+            storage_layouts,
+            deferred_block_params,
         );
         blocks.push(block);
     }
@@ -900,11 +1192,21 @@ fn lower_block(
     argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+    deferred_block_params: &DeferredBlockParams,
 ) -> Block {
     // preallocate instruction list
     let mut instructions = Vec::with_capacity(block.instructions.len() + 1);
     let mut mir_instruction_offsets = Vec::with_capacity(block.instructions.len() + 2);
     mir_instruction_offsets.push(0);
+    let mut deferred_composites = HashMap::new();
+
+    // seed block-entry decomposed parameters from their hidden child slots
+    if let Some(parameters) = deferred_block_params.by_block.get(&mir_block) {
+        for tree in parameters.values() {
+            seed_component_slots(tree, &mut deferred_composites);
+        }
+    }
 
     // convert regular instructions
     let mut inst_index = 0usize;
@@ -913,6 +1215,24 @@ fn lower_block(
         let inst_id = block.instructions[inst_index];
         let inst = tree.get(inst_id);
 
+        // keep pure struct, tuple, and array values decomposed until a place is required
+        if try_lower_deferred_composite_instruction(
+            tree,
+            inst,
+            value_types,
+            argument_pool,
+            deferred_block_params,
+            &mut deferred_composites,
+            &mut instructions,
+        ) {
+            inst_index += 1;
+            mir_instruction_offsets.push(instructions.len() as u32);
+            continue;
+        }
+
+        // flush deferred composites before any instruction that may require a place
+        flush_deferred_composites(&mut instructions, argument_pool, &mut deferred_composites);
+
         // attempt addr + load/store fusion
         if let Some((instruction, skip)) = try_fuse_addr_access(
             tree,
@@ -920,6 +1240,7 @@ fn lower_block(
             block.instructions.get(inst_index + 1).copied(),
             value_kinds,
             value_uses,
+            storage_layouts,
         ) {
             instructions.push(instruction);
             inst_index += skip;
@@ -951,6 +1272,7 @@ fn lower_block(
             copy_pool,
             function_indices,
             local_index_by_id,
+            storage_layouts,
         );
         instructions.push(instruction);
         inst_index += 1;
@@ -958,17 +1280,58 @@ fn lower_block(
     }
 
     // try to fuse compare + branch
-    if let Some(fused) = try_fuse_compare_branch(
-        tree,
-        block,
-        &mut instructions,
-        block_index_map,
-        block_parameters,
-        value_uses,
-        copy_pool,
-    ) {
+    let allow_compare_branch_fusion = deferred_composites.is_empty()
+        && match &block.terminator {
+            mir::Terminator::Branch {
+                then_target,
+                else_target,
+                ..
+            } => {
+                !deferred_block_params.by_block.contains_key(then_target)
+                    && !deferred_block_params.by_block.contains_key(else_target)
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                !deferred_block_params.by_block.contains_key(&success.target)
+                    && !deferred_block_params.by_block.contains_key(&failure.target)
+            }
+            _ => true,
+        };
+    if allow_compare_branch_fusion
+        && let Some(fused) = try_fuse_compare_branch(
+            tree,
+            block,
+            &mut instructions,
+            block_index_map,
+            block_parameters,
+            value_uses,
+            copy_pool,
+        )
+    {
         instructions.push(fused);
     } else {
+        let requires_materialized_boundary = matches!(
+            block.terminator,
+            mir::Terminator::Return { .. }
+                | mir::Terminator::Throw { .. }
+                | mir::Terminator::Trap { .. }
+                | mir::Terminator::Unreachable
+                | mir::Terminator::Yield { .. }
+                | mir::Terminator::Call { .. }
+                | mir::Terminator::CallIndirect { .. }
+                | mir::Terminator::CallVirtual { .. }
+                | mir::Terminator::CallInterface { .. }
+                | mir::Terminator::TailCall { .. }
+                | mir::Terminator::TailCallIndirect { .. }
+                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallInterface { .. }
+        );
+
+        if requires_materialized_boundary {
+            flush_deferred_composites(&mut instructions, argument_pool, &mut deferred_composites);
+        }
+
         // append lowered terminator
         let terminator = lower_terminator(
             tree,
@@ -986,6 +1349,8 @@ fn lower_block(
             argument_pool,
             switch_case_pool,
             copy_pool,
+            deferred_block_params,
+            &deferred_composites,
         );
         instructions.push(terminator);
     }
@@ -1003,6 +1368,484 @@ fn lower_block(
     }
 }
 
+/// One block-local pure composite value kept decomposed in lowering.
+#[derive(Clone, Debug)]
+struct DeferredComposite {
+    /// The semantic component values in source order.
+    elements: Vec<mir::Value>,
+}
+
+/// One deferred dynamic element.get plan.
+struct IndexSelectPlan {
+    /// The destination slot to write.
+    dest: mir::Value,
+    /// The candidate values in source order.
+    elements: Vec<mir::Value>,
+}
+
+/// One deferred dynamic element.set plan for one slot.
+struct SelectByIndexPlan {
+    /// The destination slot to write.
+    dest: mir::Value,
+    /// The matching array index for this destination.
+    match_index: u64,
+    /// The replacement value when the index matches.
+    then_value: mir::Value,
+    /// The original value when the index does not match.
+    else_value: mir::Value,
+}
+
+/// Seed one decomposed slot tree into the deferred composite map.
+fn seed_component_slots(
+    tree: &ComponentSlots,
+    deferred_composites: &mut HashMap<mir::Value, DeferredComposite>,
+) {
+    if tree.components.is_empty() {
+        return;
+    }
+
+    deferred_composites.insert(
+        tree.slot,
+        DeferredComposite {
+            elements: tree
+                .components
+                .iter()
+                .map(|component| component.slot)
+                .collect(),
+        },
+    );
+
+    for component in &tree.components {
+        seed_component_slots(component, deferred_composites);
+    }
+}
+
+/// Return whether this semantic type can stay decomposed during lowering.
+fn can_defer_composite_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> bool {
+    matches!(
+        tree.get(repr_type(tree, ty)),
+        mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
+    )
+}
+
+/// Project one deferred composite value through a constant component path.
+fn project_deferred_value_path(
+    value: mir::Value,
+    path: &[usize],
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
+) -> Option<mir::Value> {
+    let mut current = value;
+
+    for index in path {
+        let composite = deferred_composites.get(&current)?;
+        current = *composite.elements.get(*index)?;
+    }
+
+    Some(current)
+}
+
+/// Collect one dynamic index-select plan for a destination component tree.
+fn collect_index_select_plan(
+    target: &ComponentSlots,
+    source_elements: &[mir::Value],
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
+    path: &mut Vec<usize>,
+    plans: &mut Vec<IndexSelectPlan>,
+) -> bool {
+    if target.components.is_empty() {
+        let mut elements = Vec::with_capacity(source_elements.len());
+
+        for source in source_elements {
+            let Some(projected) = project_deferred_value_path(*source, path, deferred_composites)
+            else {
+                return false;
+            };
+            elements.push(projected);
+        }
+
+        plans.push(IndexSelectPlan {
+            dest: target.slot,
+            elements,
+        });
+        return true;
+    }
+
+    for (index, component) in target.components.iter().enumerate() {
+        path.push(index);
+
+        let is_valid =
+            collect_index_select_plan(component, source_elements, deferred_composites, path, plans);
+
+        path.pop();
+
+        if !is_valid {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Collect one dynamic element-set plan for a destination component tree.
+fn collect_select_by_index_plan(
+    target: &ComponentSlots,
+    source_value: mir::Value,
+    replacement_value: mir::Value,
+    match_index: u64,
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
+    path: &mut Vec<usize>,
+    plans: &mut Vec<SelectByIndexPlan>,
+) -> bool {
+    if target.components.is_empty() {
+        let Some(then_value) =
+            project_deferred_value_path(replacement_value, path, deferred_composites)
+        else {
+            return false;
+        };
+        let Some(else_value) = project_deferred_value_path(source_value, path, deferred_composites)
+        else {
+            return false;
+        };
+
+        plans.push(SelectByIndexPlan {
+            dest: target.slot,
+            match_index,
+            then_value,
+            else_value,
+        });
+        return true;
+    }
+
+    for (index, component) in target.components.iter().enumerate() {
+        path.push(index);
+
+        let is_valid = collect_select_by_index_plan(
+            component,
+            source_value,
+            replacement_value,
+            match_index,
+            deferred_composites,
+            path,
+            plans,
+        );
+
+        path.pop();
+
+        if !is_valid {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Emit one collected dynamic element.get plan.
+fn emit_index_select_plan(
+    instructions: &mut Vec<Instruction>,
+    argument_pool: &mut Vec<mir::Value>,
+    index: mir::Value,
+    plans: Vec<IndexSelectPlan>,
+) {
+    for plan in plans {
+        let elements = push_argument_range(argument_pool, &plan.elements);
+
+        instructions.push(Instruction {
+            operation: InstructionOperation::IndexSelect,
+            data: InstructionData::IndexSelect {
+                dest: plan.dest,
+                index,
+                elements,
+            },
+        });
+    }
+}
+
+/// Emit one collected dynamic element.set plan.
+fn emit_select_by_index_plan(
+    instructions: &mut Vec<Instruction>,
+    index: mir::Value,
+    plans: Vec<SelectByIndexPlan>,
+) {
+    for plan in plans {
+        instructions.push(Instruction {
+            operation: InstructionOperation::SelectByIndex,
+            data: InstructionData::SelectByIndex {
+                dest: plan.dest,
+                index,
+                match_index: plan.match_index,
+                then_value: plan.then_value,
+                else_value: plan.else_value,
+            },
+        });
+    }
+}
+
+/// Try to lower one instruction through the block-local deferred composite model.
+fn try_lower_deferred_composite_instruction(
+    tree: &mir::NodeTree,
+    inst: &mir::Instruction,
+    value_types: &[mir::LocalNodeId<mir::Type>],
+    argument_pool: &mut Vec<mir::Value>,
+    deferred_block_params: &DeferredBlockParams,
+    deferred_composites: &mut HashMap<mir::Value, DeferredComposite>,
+    instructions: &mut Vec<Instruction>,
+) -> bool {
+    match inst {
+        // pure construction
+        mir::Instruction::Struct {
+            destination,
+            fields,
+            ..
+        } => {
+            deferred_composites.insert(
+                *destination,
+                DeferredComposite {
+                    elements: tree.get_arguments(*fields).to_vec(),
+                },
+            );
+
+            true
+        }
+        mir::Instruction::Tuple {
+            destination,
+            elements,
+            ..
+        } => {
+            deferred_composites.insert(
+                *destination,
+                DeferredComposite {
+                    elements: tree.get_arguments(*elements).to_vec(),
+                },
+            );
+
+            true
+        }
+        mir::Instruction::Array {
+            destination,
+            elements,
+            ..
+        } => {
+            deferred_composites.insert(
+                *destination,
+                DeferredComposite {
+                    elements: tree.get_arguments(*elements).to_vec(),
+                },
+            );
+
+            true
+        }
+
+        // pure projection
+        mir::Instruction::FieldGet {
+            destination,
+            aggregate,
+            index,
+        } => {
+            let Some(aggregate) = deferred_composites.get(aggregate) else {
+                return false;
+            };
+            let Some(source) = aggregate.elements.get(*index as usize).copied() else {
+                return false;
+            };
+            let destination_type = value_type_for_value(*destination, value_types);
+
+            if can_defer_composite_type(tree, destination_type)
+                && let Some(source_composite) = deferred_composites.get(&source).cloned()
+            {
+                deferred_composites.insert(*destination, source_composite);
+                return true;
+            }
+
+            instructions.push(Instruction {
+                operation: InstructionOperation::Copy,
+                data: InstructionData::Copy {
+                    dest: *destination,
+                    source,
+                },
+            });
+
+            true
+        }
+        // pure updates
+        mir::Instruction::FieldSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        } => {
+            let Some(aggregate) = deferred_composites.get(aggregate).cloned() else {
+                return false;
+            };
+            if aggregate.elements.get(*index as usize).is_none() {
+                return false;
+            }
+
+            let mut elements = aggregate.elements;
+            elements[*index as usize] = *value;
+
+            deferred_composites.insert(*destination, DeferredComposite { elements });
+
+            true
+        }
+        mir::Instruction::ElementGet {
+            destination,
+            array,
+            index,
+        } => {
+            let Some(array) = deferred_composites.get(array) else {
+                return false;
+            };
+
+            let destination_type = value_type_for_value(*destination, value_types);
+
+            if can_defer_composite_type(tree, destination_type) {
+                let Some(destination_tree) = deferred_block_params.by_value.get(destination) else {
+                    return false;
+                };
+
+                let mut plans = Vec::new();
+                let mut path = Vec::new();
+                let is_valid = collect_index_select_plan(
+                    destination_tree,
+                    &array.elements,
+                    deferred_composites,
+                    &mut path,
+                    &mut plans,
+                );
+                if !is_valid {
+                    return false;
+                }
+
+                emit_index_select_plan(instructions, argument_pool, *index, plans);
+                seed_component_slots(destination_tree, deferred_composites);
+                return true;
+            }
+
+            let elements = push_argument_range(argument_pool, &array.elements);
+            instructions.push(Instruction {
+                operation: InstructionOperation::IndexSelect,
+                data: InstructionData::IndexSelect {
+                    dest: *destination,
+                    index: *index,
+                    elements,
+                },
+            });
+
+            true
+        }
+        mir::Instruction::ElementSet {
+            destination,
+            array,
+            index,
+            value,
+        } => {
+            let Some(array) = deferred_composites.get(array) else {
+                return false;
+            };
+            let Some(destination_tree) = deferred_block_params.by_value.get(destination) else {
+                return false;
+            };
+
+            if destination_tree.components.len() != array.elements.len() {
+                return false;
+            }
+
+            let mut plans = Vec::new();
+
+            for (match_index, (destination_element, source_element)) in destination_tree
+                .components
+                .iter()
+                .zip(&array.elements)
+                .enumerate()
+            {
+                let mut path = Vec::new();
+                let is_valid = collect_select_by_index_plan(
+                    destination_element,
+                    *source_element,
+                    *value,
+                    match_index as u64,
+                    deferred_composites,
+                    &mut path,
+                    &mut plans,
+                );
+                if !is_valid {
+                    return false;
+                }
+            }
+
+            emit_select_by_index_plan(instructions, *index, plans);
+            seed_component_slots(destination_tree, deferred_composites);
+            true
+        }
+
+        _ => false,
+    }
+}
+
+/// Flush all deferred composite values into explicit composite instructions.
+fn flush_deferred_composites(
+    instructions: &mut Vec<Instruction>,
+    argument_pool: &mut Vec<mir::Value>,
+    deferred_composites: &mut HashMap<mir::Value, DeferredComposite>,
+) {
+    // collect roots before recursive emission mutates the map
+    let roots = deferred_composites.keys().copied().collect::<Vec<_>>();
+    let mut emitted = HashSet::new();
+
+    // emit each deferred value in dependency order
+    for value in roots {
+        emit_deferred_composite(
+            value,
+            deferred_composites,
+            instructions,
+            argument_pool,
+            &mut emitted,
+        );
+    }
+
+    // clear the block-local deferred state after emission
+    deferred_composites.clear();
+}
+
+/// Emit one deferred composite value and all deferred dependencies it references.
+fn emit_deferred_composite(
+    value: mir::Value,
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
+    instructions: &mut Vec<Instruction>,
+    argument_pool: &mut Vec<mir::Value>,
+    emitted: &mut HashSet<mir::Value>,
+) {
+    // skip already emitted or already materialized values
+    if emitted.contains(&value) {
+        return;
+    }
+    let Some(composite) = deferred_composites.get(&value) else {
+        return;
+    };
+
+    // materialize deferred children before this parent
+    for element in &composite.elements {
+        emit_deferred_composite(
+            *element,
+            deferred_composites,
+            instructions,
+            argument_pool,
+            emitted,
+        );
+    }
+
+    // emit one explicit materialization at the boundary
+    let elements = push_argument_range(argument_pool, &composite.elements);
+    instructions.push(Instruction {
+        operation: InstructionOperation::Composite,
+        data: InstructionData::Composite {
+            dest: value,
+            elements,
+        },
+    });
+    emitted.insert(value);
+}
+
 /// Try to fuse addr + load/store into a single lowered instruction.
 fn try_fuse_addr_access(
     tree: &mir::NodeTree,
@@ -1010,6 +1853,7 @@ fn try_fuse_addr_access(
     next_inst_id: Option<mir::LocalNodeId<mir::Instruction>>,
     value_kinds: &ValueKinds,
     value_uses: &[u32],
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
 ) -> Option<(Instruction, usize)> {
     // bail if there is no next instruction
     let next_inst_id = next_inst_id?;
@@ -1037,6 +1881,13 @@ fn try_fuse_addr_access(
                 .and_then(|kind| field_count_from_kind(tree, kind))
                 .unwrap_or(UNKNOWN_FIELD_COUNT);
 
+            // precompute the field access descriptor when the pointee is known
+            let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *aggregate)
+                .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *aggregate));
+            let field = pointee_type.and_then(|pointee_type| {
+                field_access_for_pointee(storage_layouts, pointee_type, *index)
+            });
+
             match next_inst {
                 mir::Instruction::Load {
                     destination: load_dest,
@@ -1047,14 +1898,10 @@ fn try_fuse_addr_access(
                         operation: select_field_load_operation(value_kinds, *aggregate),
                         data: InstructionData::FieldLoad {
                             dest: *load_dest,
-                            aggregate: *aggregate,
+                            composite: *aggregate,
                             index: *index,
                             field_count,
-                            managed_pointee: managed_pointee_type_for_value_kind(
-                                value_kinds,
-                                *aggregate,
-                            ),
-                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *aggregate),
+                            field,
                         },
                     },
                     2,
@@ -1068,16 +1915,12 @@ fn try_fuse_addr_access(
                             *index,
                         ),
                         data: InstructionData::FieldStore {
-                            aggregate: *aggregate,
+                            composite: *aggregate,
                             index: *index,
                             value: *value,
                             reference: reference_meta_for_value(value_kinds, *destination),
                             field_count,
-                            managed_pointee: managed_pointee_type_for_value_kind(
-                                value_kinds,
-                                *aggregate,
-                            ),
-                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *aggregate),
+                            field,
                         },
                     },
                     2,
@@ -1100,6 +1943,12 @@ fn try_fuse_addr_access(
                 .and_then(|kind| array_length_from_kind(tree, kind))
                 .unwrap_or(UNKNOWN_ARRAY_LENGTH);
 
+            // precompute the element access descriptor when the pointee is known
+            let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *array)
+                .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *array));
+            let element = pointee_type
+                .and_then(|pointee_type| element_access_for_pointee(storage_layouts, pointee_type));
+
             match next_inst {
                 mir::Instruction::Load {
                     destination: load_dest,
@@ -1113,11 +1962,7 @@ fn try_fuse_addr_access(
                             array: *array,
                             index: *index,
                             array_length,
-                            managed_pointee: managed_pointee_type_for_value_kind(
-                                value_kinds,
-                                *array,
-                            ),
-                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *array),
+                            element,
                         },
                     },
                     2,
@@ -1131,11 +1976,7 @@ fn try_fuse_addr_access(
                             value: *value,
                             reference: reference_meta_for_value(value_kinds, *destination),
                             array_length,
-                            managed_pointee: managed_pointee_type_for_value_kind(
-                                value_kinds,
-                                *array,
-                            ),
-                            raw_pointee: raw_pointee_type_for_value_kind(value_kinds, *array),
+                            element,
                         },
                     },
                     2,
@@ -1498,6 +2339,7 @@ fn lower_instruction(
     copy_pool: &mut Vec<CopyPair>,
     function_indices: &HashMap<mir::LocalNodeId<mir::Function>, u32>,
     local_index_by_id: &HashMap<mir::LocalNodeId<mir::Local>, u32>,
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
 ) -> Instruction {
     // map instruction opcode to lowered form
     match inst {
@@ -1835,22 +2677,42 @@ fn lower_instruction(
             ..
         } => Instruction {
             operation: select_load_operation(value_kinds, *pointer),
-            data: InstructionData::Load {
-                dest: *destination,
-                pointer: *pointer,
-                managed_pointee: managed_pointee_type_for_value(tree, value_types, *pointer),
-                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
+            data: {
+                // resolve one compiled typed access descriptor when the pointee is known
+                let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *pointer)
+                    .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *pointer))
+                    .or_else(|| managed_pointee_type_for_value(tree, value_types, *pointer))
+                    .or_else(|| raw_pointee_type_for_value(tree, value_types, *pointer));
+                let access = pointee_type.and_then(|pointee_type| {
+                    typed_access_for_pointee(storage_layouts, pointee_type)
+                });
+
+                InstructionData::Load {
+                    dest: *destination,
+                    pointer: *pointer,
+                    access,
+                }
             },
         },
 
         mir::Instruction::Store { pointer, value } => Instruction {
             operation: select_store_operation(value_kinds, *pointer),
-            data: InstructionData::Store {
-                pointer: *pointer,
-                value: *value,
-                reference: reference_meta_for_value(value_kinds, *pointer),
-                managed_pointee: managed_pointee_type_for_value(tree, value_types, *pointer),
-                raw_pointee: raw_pointee_type_for_value(tree, value_types, *pointer),
+            data: {
+                // resolve one compiled typed access descriptor when the pointee is known
+                let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *pointer)
+                    .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *pointer))
+                    .or_else(|| managed_pointee_type_for_value(tree, value_types, *pointer))
+                    .or_else(|| raw_pointee_type_for_value(tree, value_types, *pointer));
+                let access = pointee_type.and_then(|pointee_type| {
+                    typed_access_for_pointee(storage_layouts, pointee_type)
+                });
+
+                InstructionData::Store {
+                    pointer: *pointer,
+                    value: *value,
+                    reference: reference_meta_for_value(value_kinds, *pointer),
+                    access,
+                }
             },
         },
 
@@ -1878,12 +2740,38 @@ fn lower_instruction(
                 .get(*aggregate)
                 .and_then(|kind| field_count_from_kind(tree, kind))
                 .unwrap_or(UNKNOWN_FIELD_COUNT);
-            Instruction {
-                operation: select_field_get_operation(field_count, *index),
-                data: InstructionData::FieldGet {
-                    dest: *destination,
-                    aggregate: *aggregate,
-                    index: *index,
+            let operation =
+                select_field_get_operation(value_kinds, *aggregate, field_count, *index);
+
+            // resolve one compiled field descriptor when the pointee type is known
+            let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *aggregate)
+                .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *aggregate))
+                .or_else(|| managed_pointee_type_for_value(tree, value_types, *aggregate))
+                .or_else(|| raw_pointee_type_for_value(tree, value_types, *aggregate));
+            let field = pointee_type.and_then(|pointee_type| {
+                field_access_for_pointee(storage_layouts, pointee_type, *index)
+            });
+
+            match operation {
+                InstructionOperation::FieldGet | InstructionOperation::FieldGetInline => {
+                    Instruction {
+                        operation,
+                        data: InstructionData::FieldGet {
+                            dest: *destination,
+                            composite: *aggregate,
+                            index: *index,
+                        },
+                    }
+                }
+                _ => Instruction {
+                    operation,
+                    data: InstructionData::FieldLoad {
+                        dest: *destination,
+                        composite: *aggregate,
+                        index: *index,
+                        field_count,
+                        field,
+                    },
                 },
             }
         }
@@ -1895,17 +2783,27 @@ fn lower_instruction(
             ..
         } => Instruction {
             operation: select_field_addr_operation(value_kinds, *aggregate),
-            data: InstructionData::FieldAddr {
-                dest: *destination,
-                aggregate: *aggregate,
-                index: *index,
-                reference: reference_meta_for_value(value_kinds, *destination),
-                field_count: value_kinds
-                    .get(*aggregate)
-                    .and_then(|kind| field_count_from_kind(tree, kind))
-                    .unwrap_or(UNKNOWN_FIELD_COUNT),
-                managed_pointee: managed_pointee_type_for_value(tree, value_types, *aggregate),
-                raw_pointee: raw_pointee_type_for_value(tree, value_types, *aggregate),
+            data: {
+                // resolve one compiled field descriptor when the pointee type is known
+                let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *aggregate)
+                    .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *aggregate))
+                    .or_else(|| managed_pointee_type_for_value(tree, value_types, *aggregate))
+                    .or_else(|| raw_pointee_type_for_value(tree, value_types, *aggregate));
+                let field = pointee_type.and_then(|pointee_type| {
+                    field_access_for_pointee(storage_layouts, pointee_type, *index)
+                });
+
+                InstructionData::FieldAddr {
+                    dest: *destination,
+                    composite: *aggregate,
+                    index: *index,
+                    reference: reference_meta_for_value(value_kinds, *destination),
+                    field_count: value_kinds
+                        .get(*aggregate)
+                        .and_then(|kind| field_count_from_kind(tree, kind))
+                        .unwrap_or(UNKNOWN_FIELD_COUNT),
+                    field,
+                }
             },
         },
 
@@ -1918,7 +2816,7 @@ fn lower_instruction(
             operation: InstructionOperation::FieldSet,
             data: InstructionData::FieldSet {
                 dest: *destination,
-                aggregate: *aggregate,
+                composite: *aggregate,
                 index: *index,
                 value: *value,
             },
@@ -1928,14 +2826,42 @@ fn lower_instruction(
             destination,
             array,
             index,
-        } => Instruction {
-            operation: InstructionOperation::ElementGet,
-            data: InstructionData::ElementGet {
-                dest: *destination,
-                array: *array,
-                index: *index,
-            },
-        },
+        } => {
+            let operation = select_element_get_operation(value_kinds, *array);
+            let array_length = value_kinds
+                .get(*array)
+                .and_then(|kind| array_length_from_kind(tree, kind))
+                .unwrap_or(UNKNOWN_ARRAY_LENGTH);
+
+            // resolve one compiled element descriptor when the pointee type is known
+            let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *array)
+                .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *array))
+                .or_else(|| managed_pointee_type_for_value(tree, value_types, *array))
+                .or_else(|| raw_pointee_type_for_value(tree, value_types, *array));
+            let element = pointee_type
+                .and_then(|pointee_type| element_access_for_pointee(storage_layouts, pointee_type));
+
+            match operation {
+                InstructionOperation::ElementGet => Instruction {
+                    operation,
+                    data: InstructionData::ElementGet {
+                        dest: *destination,
+                        array: *array,
+                        index: *index,
+                    },
+                },
+                _ => Instruction {
+                    operation,
+                    data: InstructionData::ElementLoad {
+                        dest: *destination,
+                        array: *array,
+                        index: *index,
+                        array_length,
+                        element,
+                    },
+                },
+            }
+        }
 
         mir::Instruction::ElementAddr {
             destination,
@@ -1944,17 +2870,27 @@ fn lower_instruction(
             ..
         } => Instruction {
             operation: select_element_addr_operation(value_kinds, *array),
-            data: InstructionData::ElementAddr {
-                dest: *destination,
-                array: *array,
-                index: *index,
-                reference: reference_meta_for_value(value_kinds, *destination),
-                array_length: value_kinds
-                    .get(*array)
-                    .and_then(|kind| array_length_from_kind(tree, kind))
-                    .unwrap_or(UNKNOWN_ARRAY_LENGTH),
-                managed_pointee: managed_pointee_type_for_value(tree, value_types, *array),
-                raw_pointee: raw_pointee_type_for_value(tree, value_types, *array),
+            data: {
+                // resolve one compiled element descriptor when the pointee type is known
+                let pointee_type = managed_pointee_type_for_value_kind(value_kinds, *array)
+                    .or_else(|| raw_pointee_type_for_value_kind(value_kinds, *array))
+                    .or_else(|| managed_pointee_type_for_value(tree, value_types, *array))
+                    .or_else(|| raw_pointee_type_for_value(tree, value_types, *array));
+                let element = pointee_type.and_then(|pointee_type| {
+                    element_access_for_pointee(storage_layouts, pointee_type)
+                });
+
+                InstructionData::ElementAddr {
+                    dest: *destination,
+                    array: *array,
+                    index: *index,
+                    reference: reference_meta_for_value(value_kinds, *destination),
+                    array_length: value_kinds
+                        .get(*array)
+                        .and_then(|kind| array_length_from_kind(tree, kind))
+                        .unwrap_or(UNKNOWN_ARRAY_LENGTH),
+                    element,
+                }
             },
         },
 
@@ -1980,8 +2916,8 @@ fn lower_instruction(
         } => {
             let args = push_argument_range(argument_pool, tree.get_arguments(*fields));
             Instruction {
-                operation: InstructionOperation::Aggregate,
-                data: InstructionData::Aggregate {
+                operation: InstructionOperation::Composite,
+                data: InstructionData::Composite {
                     dest: *destination,
                     elements: args,
                 },
@@ -1995,8 +2931,8 @@ fn lower_instruction(
         } => {
             let args = push_argument_range(argument_pool, tree.get_arguments(*elements));
             Instruction {
-                operation: InstructionOperation::Aggregate,
-                data: InstructionData::Aggregate {
+                operation: InstructionOperation::Composite,
+                data: InstructionData::Composite {
                     dest: *destination,
                     elements: args,
                 },
@@ -2010,28 +2946,21 @@ fn lower_instruction(
         } => {
             let args = push_argument_range(argument_pool, tree.get_arguments(*elements));
             Instruction {
-                operation: InstructionOperation::Aggregate,
-                data: InstructionData::Aggregate {
+                operation: InstructionOperation::Composite,
+                data: InstructionData::Composite {
                     dest: *destination,
                     elements: args,
                 },
             }
         }
 
-        mir::Instruction::VectorSplat { destination, value } => {
-            let dest_type = value_type_for_value(*destination, value_types);
-            let mir::Type::Vector { lanes, .. } = tree.get(dest_type) else {
-                panic!("expected vector type for {destination:?}");
-            };
-            Instruction {
-                operation: InstructionOperation::VectorSplat,
-                data: InstructionData::VectorSplat {
-                    dest: *destination,
-                    value: *value,
-                    lanes: *lanes,
-                },
-            }
-        }
+        mir::Instruction::VectorSplat { destination, value } => Instruction {
+            operation: InstructionOperation::VectorSplat,
+            data: InstructionData::VectorSplat {
+                dest: *destination,
+                value: *value,
+            },
+        },
 
         mir::Instruction::VectorExtract {
             destination,
@@ -2144,6 +3073,8 @@ fn lower_instruction(
         } => {
             let view_type = value_type_for_value(*view, value_types);
             let args = push_argument_range(argument_pool, tree.get_arguments(*indices));
+            let element = tensor_element_type_for_view_type(tree, view_type)
+                .and_then(|element_type| tensor_element_access(storage_layouts, element_type));
             Instruction {
                 operation: InstructionOperation::TensorLoad,
                 data: InstructionData::TensorLoad {
@@ -2151,6 +3082,7 @@ fn lower_instruction(
                     view: *view,
                     indices: args,
                     view_type,
+                    element,
                 },
             }
         }
@@ -2162,6 +3094,8 @@ fn lower_instruction(
         } => {
             let view_type = value_type_for_value(*view, value_types);
             let args = push_argument_range(argument_pool, tree.get_arguments(*indices));
+            let element = tensor_element_type_for_view_type(tree, view_type)
+                .and_then(|element_type| tensor_element_access(storage_layouts, element_type));
             Instruction {
                 operation: InstructionOperation::TensorStore,
                 data: InstructionData::TensorStore {
@@ -2169,18 +3103,22 @@ fn lower_instruction(
                     indices: args,
                     value: *value,
                     view_type,
+                    element,
                 },
             }
         }
 
         mir::Instruction::TensorFill { view, value } => {
             let view_type = value_type_for_value(*view, value_types);
+            let element = tensor_element_type_for_view_type(tree, view_type)
+                .and_then(|element_type| tensor_element_access(storage_layouts, element_type));
             Instruction {
                 operation: InstructionOperation::TensorFill,
                 data: InstructionData::TensorFill {
                     view: *view,
                     value: *value,
                     view_type,
+                    element,
                 },
             }
         }
@@ -2188,6 +3126,10 @@ fn lower_instruction(
         mir::Instruction::TensorCopy { target, source } => {
             let target_type = value_type_for_value(*target, value_types);
             let source_type = value_type_for_value(*source, value_types);
+            let target_element = tensor_element_type_for_view_type(tree, target_type)
+                .and_then(|element_type| tensor_element_access(storage_layouts, element_type));
+            let source_element = tensor_element_type_for_view_type(tree, source_type)
+                .and_then(|element_type| tensor_element_access(storage_layouts, element_type));
             Instruction {
                 operation: InstructionOperation::TensorCopy,
                 data: InstructionData::TensorCopy {
@@ -2195,6 +3137,8 @@ fn lower_instruction(
                     source: *source,
                     target_type,
                     source_type,
+                    target_element,
+                    source_element,
                 },
             }
         }
@@ -2549,6 +3493,8 @@ fn lower_instruction(
             let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
             let dest_type = value_type_for_value(*destination, value_types);
             let source_type = value_type_for_value(*view, value_types);
+            let element = tensor_element_type_for_view_type(tree, source_type)
+                .and_then(|element_type| tensor_element_access(storage_layouts, element_type));
             Instruction {
                 operation: InstructionOperation::TensorView,
                 data: InstructionData::TensorView {
@@ -2560,6 +3506,7 @@ fn lower_instruction(
                     strides_count: *strides_count,
                     source_type,
                     dest_type,
+                    element,
                 },
             }
         }
@@ -2573,10 +3520,12 @@ fn lower_instruction(
             data: InstructionData::ManagedAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
+                storage_type: *layout,
                 layout_id: tree.type_layout_id(*layout),
-                byte_len: managed_byte_len_from_type(tree, *layout).unwrap_or(0),
-                trace: managed_reference_map_from_type(tree, *layout)
-                    .unwrap_or_else(ReferenceMap::empty),
+                byte_len: storage_layouts
+                    .get(layout)
+                    .map(|layout| layout.byte_len)
+                    .unwrap_or(0),
             },
         },
 
@@ -2604,7 +3553,10 @@ fn lower_instruction(
             data: InstructionData::RawAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
-                byte_len: raw_byte_len_from_type(tree, *layout).unwrap_or(0),
+                byte_len: storage_layouts
+                    .get(layout)
+                    .map(|layout| layout.byte_len)
+                    .unwrap_or(0),
             },
         },
 
@@ -2622,7 +3574,7 @@ fn lower_instruction(
             data: InstructionData::StackAlloc {
                 dest: *destination,
                 reference: reference_meta_for_value(value_kinds, *destination),
-                slot_count: slot_count_from_type(tree, *layout).unwrap_or(UNKNOWN_SLOT_COUNT),
+                storage_type: *layout,
             },
         },
 
@@ -2715,13 +3667,14 @@ fn build_value_kinds(
     tree: &mir::NodeTree,
     func: &mir::Function,
     mir_blocks: &[mir::LocalNodeId<mir::Block>],
+    value_types: &[mir::LocalNodeId<mir::Type>],
     value_count: usize,
 ) -> ValueKinds {
     // allocate value kinds
     let mut value_kinds = ValueKinds::new(value_count);
 
     // seed explicit value types
-    for (index, ty) in func.value_types.iter().enumerate() {
+    for (index, ty) in value_types.iter().enumerate() {
         let value = mir::Value(index as u32);
         value_kinds.set(value, kind_from_type(tree, *ty));
     }
@@ -2766,16 +3719,19 @@ fn build_value_kinds(
                 let Some(dest) = inst.destination() else {
                     continue;
                 };
-                if value_kinds.get(dest).is_some() {
-                    continue;
-                }
-                let Some(kind) =
-                    infer_instruction_kind(tree, inst, &value_kinds, &func.value_types)
+                let Some(kind) = infer_instruction_kind(tree, inst, &value_kinds, value_types)
                 else {
                     continue;
                 };
-                value_kinds.set(dest, kind);
-                changed = true;
+                let next_kind = match value_kinds.get(dest) {
+                    Some(existing) => merge_block_param_kind(existing, kind),
+                    None => kind,
+                };
+
+                if value_kinds.get(dest) != Some(next_kind) {
+                    value_kinds.set(dest, next_kind);
+                    changed = true;
+                }
             }
         }
     }
@@ -2837,6 +3793,30 @@ fn reference_meta_for_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>
         ValueKind::Pointer { reference, .. } => reference,
         _ => ReferenceMeta::NONE,
     }
+}
+
+/// Rebuild one address-producing result kind from the source storage class.
+fn pointer_result_kind_from_source(
+    tree: &mir::NodeTree,
+    result_type: mir::LocalNodeId<mir::Type>,
+    source_kind: ValueKind,
+) -> Option<ValueKind> {
+    let ValueKind::Pointer { storage, .. } = source_kind else {
+        return Some(kind_from_type(tree, result_type));
+    };
+
+    let ValueKind::Pointer {
+        pointee, reference, ..
+    } = kind_from_type(tree, result_type)
+    else {
+        return None;
+    };
+
+    Some(ValueKind::Pointer {
+        pointee,
+        storage,
+        reference,
+    })
 }
 
 /// Infer the value kind for a MIR instruction.
@@ -2966,14 +3946,24 @@ fn infer_instruction_kind(
             let aggregate_kind = value_kinds.get(*aggregate)?;
             kind_from_field(tree, aggregate_kind, *index)
         }
-        mir::Instruction::FieldAddr { result_type, .. } => Some(kind_from_type(tree, *result_type)),
+        mir::Instruction::FieldAddr {
+            aggregate,
+            result_type,
+            ..
+        } => {
+            let source_kind = value_kinds.get(*aggregate)?;
+            pointer_result_kind_from_source(tree, *result_type, source_kind)
+        }
         mir::Instruction::FieldSet { aggregate, .. } => value_kinds.get(*aggregate),
         mir::Instruction::ElementGet { array, .. } => {
             let array_kind = value_kinds.get(*array)?;
             kind_from_element(tree, array_kind)
         }
-        mir::Instruction::ElementAddr { result_type, .. } => {
-            Some(kind_from_type(tree, *result_type))
+        mir::Instruction::ElementAddr {
+            array, result_type, ..
+        } => {
+            let source_kind = value_kinds.get(*array)?;
+            pointer_result_kind_from_source(tree, *result_type, source_kind)
         }
         mir::Instruction::ElementSet { array, .. } => value_kinds.get(*array),
         mir::Instruction::Struct { ty, .. } => Some(kind_from_type(tree, *ty)),
@@ -3112,7 +4102,7 @@ fn kind_from_pointer(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind>
 
 /// Resolve the field kind for an aggregate value.
 fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<ValueKind> {
-    let ValueKind::Aggregate { ty } = kind else {
+    let ValueKind::Composite { ty } = kind else {
         return None;
     };
 
@@ -3142,42 +4132,11 @@ fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind>
     // resolve element kind for array layouts
     match kind {
         ValueKind::Array { element, .. } => Some(kind_from_type(tree, element)),
-        ValueKind::Aggregate { ty } => match tree.get(ty) {
+        ValueKind::Composite { ty } => match tree.get(ty) {
             mir::Type::Array { element, .. } => Some(kind_from_type(tree, *element)),
             _ => None,
         },
         _ => None,
-    }
-}
-
-/// Resolve the slot count for a concrete type layout.
-fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Option<u32> {
-    // map types to slot counts
-    match tree.get(ty) {
-        mir::Type::Struct {
-            fields,
-            copyability: _,
-        } => u32::try_from(fields.len()).ok(),
-        mir::Type::Tuple {
-            elements,
-            copyability: _,
-        } => u32::try_from(elements.len()).ok(),
-        mir::Type::Array { length, .. } => u32::try_from(*length).ok(),
-        mir::Type::Newtype { inner, .. } => slot_count_from_type(tree, *inner),
-        mir::Type::FunctionValue { .. } => Some(2),
-        mir::Type::Void => Some(1),
-        mir::Type::Boolean
-        | mir::Type::Int { .. }
-        | mir::Type::Isize
-        | mir::Type::Usize
-        | mir::Type::Float { .. }
-        | mir::Type::TypeDescriptor
-        | mir::Type::TypeId
-        | mir::Type::Reference { .. }
-        | mir::Type::FunctionPointer { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. }
-        | mir::Type::TensorReference { .. } => Some(1),
     }
 }
 
@@ -3189,7 +4148,7 @@ fn raw_pointee_type_for_value_kind(
     match value_kinds.get(value) {
         Some(ValueKind::Pointer {
             pointee,
-            storage: PointerStorage::Raw,
+            storage: PointerStorage::Raw | PointerStorage::Stack,
             ..
         }) => Some(pointee),
         _ => None,
@@ -3215,7 +4174,7 @@ fn managed_pointee_type_for_value(
     value_types: &[mir::LocalNodeId<mir::Type>],
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    let ty = value_type_for_value(value, value_types);
+    let ty = repr_type(tree, value_type_for_value(value, value_types));
 
     match tree.get(ty) {
         mir::Type::Reference {
@@ -3228,14 +4187,6 @@ fn managed_pointee_type_for_value(
             element,
             ..
         } => Some(*element),
-        mir::Type::Newtype { inner, .. } => match tree.get(*inner) {
-            mir::Type::Reference {
-                kind: mir::ReferenceKind::Managed,
-                pointee,
-                ..
-            } => Some(*pointee),
-            _ => None,
-        },
         _ => None,
     }
 }
@@ -3245,7 +4196,7 @@ fn raw_pointee_type_for_value(
     value_types: &[mir::LocalNodeId<mir::Type>],
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    let ty = value_type_for_value(value, value_types);
+    let ty = repr_type(tree, value_type_for_value(value, value_types));
 
     match tree.get(ty) {
         mir::Type::Reference {
@@ -3255,7 +4206,7 @@ fn raw_pointee_type_for_value(
             ..
         } if matches!(
             pointer_storage_from_reference(*address_space, *kind),
-            PointerStorage::Raw
+            PointerStorage::Raw | PointerStorage::Stack
         ) =>
         {
             Some(*pointee)
@@ -3267,226 +4218,104 @@ fn raw_pointee_type_for_value(
             ..
         } if matches!(
             pointer_storage_from_reference(*address_space, *kind),
-            PointerStorage::Raw
+            PointerStorage::Raw | PointerStorage::Stack
         ) =>
         {
             Some(*element)
         }
-        mir::Type::Newtype { inner, .. } => match tree.get(*inner) {
-            mir::Type::Reference {
-                kind,
-                address_space,
-                pointee,
-                ..
-            } if matches!(
-                pointer_storage_from_reference(*address_space, *kind),
-                PointerStorage::Raw
-            ) =>
-            {
-                Some(*pointee)
-            }
-            _ => None,
-        },
         _ => None,
     }
 }
 
-fn managed_byte_len_from_type(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Option<u32> {
-    match tree.get(ty) {
-        mir::Type::Void => Some(0),
-        mir::Type::Boolean => Some(1),
-        mir::Type::Int { width, .. } => Some((*width as u32).div_ceil(8)),
-        mir::Type::Isize | mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
-            Some(tree.pointer_bytes() as u32)
-        }
-        mir::Type::Reference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        }
-        | mir::Type::TensorReference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        } => Some(tree.data_layout.managed_reference_layout.bytes as u32),
-        mir::Type::Reference { .. }
-        | mir::Type::FunctionPointer { .. }
-        | mir::Type::TensorReference { .. } => Some(tree.pointer_bytes() as u32),
-        mir::Type::Float { width } => Some((*width as u32).div_ceil(8)),
-        mir::Type::Newtype { inner, .. } => managed_byte_len_from_type(tree, *inner),
-        mir::Type::Array { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::Struct { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => tree.type_layout(ty).map(|layout| layout.size),
-    }
+/// Build one field access descriptor from one compiled storage layout.
+fn field_access_for_pointee(
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+    pointee_type: mir::LocalNodeId<mir::Type>,
+    index: u32,
+) -> Option<FieldAccess> {
+    let layout = storage_layouts.get(&pointee_type)?;
+    let field = layout.field(index)?;
+    let is_scalar = storage_layouts
+        .get(&field.ty)
+        .is_some_and(StorageLayout::is_scalar);
+
+    Some(FieldAccess {
+        value_type: field.ty,
+        byte_offset: field.offset,
+        byte_len: field.byte_len,
+        is_scalar,
+    })
 }
 
-fn managed_reference_map_from_type(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> Option<ReferenceMap> {
-    match tree.get(ty) {
-        mir::Type::Void
-        | mir::Type::Boolean
-        | mir::Type::Int { .. }
-        | mir::Type::Isize
-        | mir::Type::Usize
-        | mir::Type::Float { .. }
-        | mir::Type::TypeDescriptor
-        | mir::Type::TypeId
-        | mir::Type::FunctionPointer { .. } => Some(ReferenceMap::empty()),
-        mir::Type::Reference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        }
-        | mir::Type::TensorReference {
-            kind: mir::ReferenceKind::Managed,
-            ..
-        } => Some(ReferenceMap::ReferenceOffsets { offsets: vec![0] }),
-        mir::Type::Reference { .. } | mir::Type::TensorReference { .. } => {
-            Some(ReferenceMap::empty())
-        }
-        mir::Type::Newtype { inner, .. } => managed_reference_map_from_type(tree, *inner),
-        mir::Type::Struct { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => {
-            let layout = tree.type_layout(ty)?;
-            let mut offsets = Vec::new();
+/// Build one element access descriptor from one compiled storage layout.
+fn element_access_for_pointee(
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+    pointee_type: mir::LocalNodeId<mir::Type>,
+) -> Option<ElementAccess> {
+    let layout = storage_layouts.get(&pointee_type)?;
+    let element = layout.element()?;
+    let is_scalar = storage_layouts
+        .get(&element.ty)
+        .is_some_and(StorageLayout::is_scalar);
 
-            for field in &layout.fields {
-                append_managed_reference_offsets(tree, field.ty, field.offset, &mut offsets)?;
-            }
-
-            if offsets.is_empty() {
-                Some(ReferenceMap::empty())
-            } else {
-                Some(ReferenceMap::ReferenceOffsets { offsets })
-            }
-        }
-        mir::Type::Array {
-            element, length, ..
-        } => {
-            let layout = tree.type_layout(ty)?;
-            let mir::LayoutType::Array { element_stride, .. } = &layout.layout_type else {
-                return None;
-            };
-            let mut offsets = Vec::new();
-            append_managed_reference_offsets(tree, *element, 0, &mut offsets)?;
-
-            if offsets.is_empty() {
-                Some(ReferenceMap::empty())
-            } else {
-                Some(ReferenceMap::RepeatedReferenceOffsets {
-                    count: *length as u32,
-                    element_size: *element_stride,
-                    offsets,
-                })
-            }
-        }
-    }
+    Some(ElementAccess {
+        value_type: element.ty,
+        byte_stride: element.stride,
+        byte_len: element.byte_len,
+        is_scalar,
+    })
 }
 
-fn append_managed_reference_offsets(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-    base_offset: u32,
-    offsets: &mut Vec<u32>,
-) -> Option<()> {
-    match tree.get(ty) {
-        mir::Type::Void
-        | mir::Type::Boolean
-        | mir::Type::Int { .. }
-        | mir::Type::Isize
-        | mir::Type::Usize
-        | mir::Type::Float { .. }
-        | mir::Type::TypeDescriptor
-        | mir::Type::TypeId
-        | mir::Type::FunctionPointer { .. }
-        | mir::Type::Reference { .. }
-        | mir::Type::TensorReference { .. } => {
-            if matches!(
-                tree.get(ty),
-                mir::Type::Reference {
-                    kind: mir::ReferenceKind::Managed,
-                    ..
-                } | mir::Type::TensorReference {
-                    kind: mir::ReferenceKind::Managed,
-                    ..
-                }
-            ) {
-                offsets.push(base_offset);
-            }
-        }
-        mir::Type::Newtype { inner, .. } => {
-            append_managed_reference_offsets(tree, *inner, base_offset, offsets)?;
-        }
-        mir::Type::Struct { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => {
-            let layout = tree.type_layout(ty)?;
-            for field in &layout.fields {
-                append_managed_reference_offsets(
-                    tree,
-                    field.ty,
-                    base_offset.saturating_add(field.offset),
-                    offsets,
-                )?;
-            }
-        }
-        mir::Type::Array {
-            element, length, ..
-        } => {
-            let layout = tree.type_layout(ty)?;
-            let mir::LayoutType::Array { element_stride, .. } = &layout.layout_type else {
-                return None;
-            };
+/// Build one typed pointee access descriptor from one compiled storage layout.
+fn typed_access_for_pointee(
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+    pointee_type: mir::LocalNodeId<mir::Type>,
+) -> Option<TypedAccess> {
+    let layout = storage_layouts.get(&pointee_type)?;
+    let is_scalar = layout.is_scalar();
 
-            for index in 0..*length as u32 {
-                let element_base =
-                    base_offset.saturating_add(index.saturating_mul(*element_stride));
-                append_managed_reference_offsets(tree, *element, element_base, offsets)?;
-            }
-        }
-    }
-
-    Some(())
+    Some(TypedAccess {
+        value_type: pointee_type,
+        byte_len: layout.byte_len,
+        is_scalar,
+    })
 }
 
-/// Resolve the byte size for one raw allocation type.
-fn raw_byte_len_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Option<u32> {
+/// Build one tensor element descriptor from one compiled element storage layout.
+fn tensor_element_access(
+    storage_layouts: &HashMap<mir::LocalNodeId<mir::Type>, StorageLayout>,
+    element_type: mir::LocalNodeId<mir::Type>,
+) -> Option<ElementAccess> {
+    let layout = storage_layouts.get(&element_type)?;
+    let is_scalar = layout.is_scalar();
+
+    Some(ElementAccess {
+        value_type: element_type,
+        byte_stride: layout.stride(),
+        byte_len: layout.byte_len,
+        is_scalar,
+    })
+}
+
+/// Resolve the tensor element type for one tensor value or reference type.
+fn tensor_element_type_for_view_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    let ty = repr_type(tree, ty);
+
     match tree.get(ty) {
-        mir::Type::Void => Some(0),
-        mir::Type::Boolean => Some(1),
-        mir::Type::Int { width, .. } => Some((*width as u32).div_ceil(8)),
-        mir::Type::Isize
-        | mir::Type::Usize
-        | mir::Type::TypeDescriptor
-        | mir::Type::TypeId
-        | mir::Type::Reference { .. }
-        | mir::Type::FunctionPointer { .. }
-        | mir::Type::TensorReference { .. } => Some(tree.pointer_bytes() as u32),
-        mir::Type::Float { width } => Some((*width as u32).div_ceil(8)),
-        mir::Type::Newtype { inner, .. } => raw_byte_len_from_type(tree, *inner),
-        mir::Type::Array { .. }
-        | mir::Type::Tuple { .. }
-        | mir::Type::Struct { .. }
-        | mir::Type::FunctionValue { .. }
-        | mir::Type::Vector { .. }
-        | mir::Type::Tensor { .. } => tree.type_layout(ty).map(|layout| layout.size),
+        mir::Type::Tensor { element, .. } | mir::Type::TensorReference { element, .. } => {
+            Some(*element)
+        }
+        _ => None,
     }
 }
 
 /// Resolve the field count for a struct or tuple kind.
 fn field_count_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u32> {
     match kind {
-        ValueKind::Aggregate { ty } => match tree.get(ty) {
+        ValueKind::Composite { ty } => match tree.get(ty) {
             mir::Type::Struct {
                 fields,
                 copyability: _,
@@ -3522,7 +4351,7 @@ fn array_length_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u64> 
                 Some(length)
             }
         }
-        ValueKind::Aggregate { ty } => match tree.get(ty) {
+        ValueKind::Composite { ty } => match tree.get(ty) {
             mir::Type::Array { length, .. } => Some(*length),
             _ => None,
         },
@@ -3531,83 +4360,6 @@ fn array_length_from_kind(tree: &mir::NodeTree, kind: ValueKind) -> Option<u64> 
             _ => None,
         },
         _ => None,
-    }
-}
-
-/// Compute the number of SSA values required by a function.
-fn compute_value_count_from_mir(
-    tree: &mir::NodeTree,
-    func: &mir::Function,
-    mir_blocks: &[mir::LocalNodeId<mir::Block>],
-) -> usize {
-    // start with no max value id
-    let mut max_value: Option<u32> = None;
-
-    // scan function parameters
-    for param in &func.parameters {
-        update_max_value(&mut max_value, param.value);
-    }
-
-    // scan blocks and instructions
-    for block_id in mir_blocks {
-        let block = tree.get(*block_id);
-
-        // scan block parameters
-        for param in &block.parameters {
-            update_max_value(&mut max_value, param.value);
-        }
-
-        // scan block instructions
-        for inst_id in &block.instructions {
-            let inst = tree.get(*inst_id);
-
-            // scan instruction destination
-            if let Some(dest) = inst.destination() {
-                update_max_value(&mut max_value, dest);
-            }
-
-            // scan inline instruction uses
-            for value in inst.uses() {
-                update_max_value(&mut max_value, value);
-            }
-
-            // scan externalized argument lists
-            match inst {
-                mir::Instruction::Call { arguments, .. }
-                | mir::Instruction::CallIndirect { arguments, .. }
-                | mir::Instruction::Intrinsic { arguments, .. } => {
-                    for value in tree.get_arguments(*arguments) {
-                        update_max_value(&mut max_value, *value);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        // scan terminator uses
-        for value in block.terminator.uses() {
-            update_max_value(&mut max_value, value);
-        }
-    }
-
-    max_value.map(|id| id as usize + 1).unwrap_or(0)
-}
-
-/// Update the tracked maximum SSA value id.
-fn update_max_value(max_value: &mut Option<u32>, value: mir::Value) {
-    // grab the raw value id
-    let id = value.0;
-
-    // update max tracking
-    match max_value {
-        Some(current) => {
-            if id > *current {
-                *current = id;
-            }
-        }
-        None => {
-            *max_value = Some(id);
-        }
     }
 }
 
@@ -3707,6 +4459,96 @@ fn push_copy_range(
     }
 }
 
+/// Append undefined copies for one decomposed destination tree.
+fn push_undefined_component_copies(pool: &mut Vec<CopyPair>, target: &ComponentSlots) {
+    if target.components.is_empty() {
+        pool.push(CopyPair {
+            dest: target.slot.0,
+            src: INVALID_VALUE_ID,
+        });
+        return;
+    }
+
+    for component in &target.components {
+        push_undefined_component_copies(pool, component);
+    }
+}
+
+/// Append one decomposed source value into one destination component tree.
+fn push_component_copies(
+    pool: &mut Vec<CopyPair>,
+    target: &ComponentSlots,
+    source: mir::Value,
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
+) {
+    if target.components.is_empty() {
+        pool.push(CopyPair {
+            dest: target.slot.0,
+            src: source.0,
+        });
+        return;
+    }
+
+    let source_components = deferred_composites.get(&source).unwrap_or_else(|| {
+        panic!("missing deferred composite for cross block transfer: {source:?}")
+    });
+
+    debug_assert_eq!(
+        source_components.elements.len(),
+        target.components.len(),
+        "mismatched deferred component count for {:?}",
+        target.ty
+    );
+
+    for (component, source_component) in target.components.iter().zip(&source_components.elements) {
+        push_component_copies(pool, component, *source_component, deferred_composites);
+    }
+}
+
+/// Append one block-edge copy plan, expanding decomposed destination parameters.
+fn push_block_copy_range(
+    pool: &mut Vec<CopyPair>,
+    parameters: &[mir::Value],
+    arguments: &[mir::Value],
+    deferred_parameters: Option<&HashMap<mir::Value, ComponentSlots>>,
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
+) -> CopyRange {
+    if parameters.is_empty() {
+        return CopyRange::empty();
+    }
+
+    let start = pool.len();
+
+    for (index, parameter) in parameters.iter().enumerate() {
+        if let Some(target) = deferred_parameters.and_then(|targets| targets.get(parameter)) {
+            if let Some(source) = arguments.get(index) {
+                push_component_copies(pool, target, *source, deferred_composites);
+            } else {
+                push_undefined_component_copies(pool, target);
+            }
+
+            continue;
+        }
+
+        let src = arguments
+            .get(index)
+            .map(|value| value.0)
+            .unwrap_or(INVALID_VALUE_ID);
+        pool.push(CopyPair {
+            dest: parameter.0,
+            src,
+        });
+    }
+
+    CopyRange {
+        start: start as u32,
+        len: (pool.len() - start) as u32,
+        is_contiguous: false,
+        contiguous_src: 0,
+        contiguous_dest: 0,
+    }
+}
+
 /// Append parameter copies to the pool and return their range.
 fn push_copy_range_from_params(
     pool: &mut Vec<CopyPair>,
@@ -3782,6 +4624,8 @@ fn push_switch_case_range(
     block_index_map: &HashMap<mir::LocalNodeId<mir::Block>, usize>,
     block_parameters: &[Vec<mir::Value>],
     cases: &[mir::SwitchCase],
+    deferred_block_params: &DeferredBlockParams,
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
 ) -> SwitchRange {
     // fast path: no cases
     if cases.is_empty() {
@@ -3804,7 +4648,14 @@ fn push_switch_case_range(
             .get(target_index)
             .map(|params| params.as_slice())
             .unwrap_or_default();
-        let copies = push_copy_range(copy_pool, target_parameters, &case.arguments);
+        let deferred_parameters = deferred_block_params.by_block.get(&case.target);
+        let copies = push_block_copy_range(
+            copy_pool,
+            target_parameters,
+            &case.arguments,
+            deferred_parameters,
+            deferred_composites,
+        );
         switch_case_pool.push(SwitchCase {
             value: case.value,
             target: target_index as u32,
@@ -3828,6 +4679,8 @@ fn push_switch_table_range(
     cases: &[mir::SwitchCase],
     default_target: u32,
     default_copies: CopyRange,
+    deferred_block_params: &DeferredBlockParams,
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
 ) -> Option<(i64, SwitchRange)> {
     // bail if there are no cases
     if cases.is_empty() {
@@ -3885,7 +4738,14 @@ fn push_switch_table_range(
             .get(target_index)
             .map(|params| params.as_slice())
             .unwrap_or_default();
-        let copies = push_copy_range(copy_pool, target_parameters, &case.arguments);
+        let deferred_parameters = deferred_block_params.by_block.get(&case.target);
+        let copies = push_block_copy_range(
+            copy_pool,
+            target_parameters,
+            &case.arguments,
+            deferred_parameters,
+            deferred_composites,
+        );
         let offset = (case.value - min_value) as usize;
         let slot = &mut switch_case_pool[start + offset];
         slot.value = case.value;
@@ -3924,6 +4784,8 @@ fn lower_terminator(
     argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
+    deferred_block_params: &DeferredBlockParams,
+    deferred_composites: &HashMap<mir::Value, DeferredComposite>,
 ) -> Instruction {
     // map terminator opcode to lowered form
     match term {
@@ -3941,7 +4803,14 @@ fn lower_terminator(
                 .get(target_index)
                 .map(|params| params.as_slice())
                 .unwrap_or_default();
-            let copies = push_copy_range(copy_pool, target_parameters, arguments);
+            let deferred_parameters = deferred_block_params.by_block.get(target);
+            let copies = push_block_copy_range(
+                copy_pool,
+                target_parameters,
+                arguments,
+                deferred_parameters,
+                deferred_composites,
+            );
 
             // assemble lowered jump
             Instruction {
@@ -3971,8 +4840,22 @@ fn lower_terminator(
                 .get(else_index)
                 .map(|params| params.as_slice())
                 .unwrap_or_default();
-            let then_copies = push_copy_range(copy_pool, then_parameters, then_arguments);
-            let else_copies = push_copy_range(copy_pool, else_parameters, else_arguments);
+            let then_deferred = deferred_block_params.by_block.get(then_target);
+            let else_deferred = deferred_block_params.by_block.get(else_target);
+            let then_copies = push_block_copy_range(
+                copy_pool,
+                then_parameters,
+                then_arguments,
+                then_deferred,
+                deferred_composites,
+            );
+            let else_copies = push_block_copy_range(
+                copy_pool,
+                else_parameters,
+                else_arguments,
+                else_deferred,
+                deferred_composites,
+            );
 
             // assemble lowered branch
             Instruction {
@@ -4004,8 +4887,22 @@ fn lower_terminator(
                 .get(failure_index)
                 .map(|params| params.as_slice())
                 .unwrap_or_default();
-            let success_copies = push_copy_range(copy_pool, success_parameters, &success.arguments);
-            let failure_copies = push_copy_range(copy_pool, failure_parameters, &failure.arguments);
+            let success_deferred = deferred_block_params.by_block.get(&success.target);
+            let failure_deferred = deferred_block_params.by_block.get(&failure.target);
+            let success_copies = push_block_copy_range(
+                copy_pool,
+                success_parameters,
+                &success.arguments,
+                success_deferred,
+                deferred_composites,
+            );
+            let failure_copies = push_block_copy_range(
+                copy_pool,
+                failure_parameters,
+                &failure.arguments,
+                failure_deferred,
+                deferred_composites,
+            );
 
             // assemble lowered check
             Instruction {
@@ -4032,7 +4929,14 @@ fn lower_terminator(
                 .get(default_index)
                 .map(|params| params.as_slice())
                 .unwrap_or_default();
-            let default_copies = push_copy_range(copy_pool, default_parameters, default_arguments);
+            let default_deferred = deferred_block_params.by_block.get(default);
+            let default_copies = push_block_copy_range(
+                copy_pool,
+                default_parameters,
+                default_arguments,
+                default_deferred,
+                deferred_composites,
+            );
 
             // try jump table for dense switches
             if let Some((min_value, table_range)) = push_switch_table_range(
@@ -4043,6 +4947,8 @@ fn lower_terminator(
                 cases,
                 default_index as u32,
                 default_copies,
+                deferred_block_params,
+                deferred_composites,
             ) {
                 Instruction {
                     operation: select_switch_table_operation(value_kinds, *value),
@@ -4063,6 +4969,8 @@ fn lower_terminator(
                     block_index_map,
                     block_parameters,
                     cases,
+                    deferred_block_params,
+                    deferred_composites,
                 );
                 Instruction {
                     operation: select_switch_operation(value_kinds, *value),

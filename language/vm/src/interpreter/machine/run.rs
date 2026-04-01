@@ -3,13 +3,14 @@ use std::ptr::NonNull;
 use destack_mir as mir;
 
 use super::super::state::{Frame, StepState};
+use super::bind::TransferredValue;
 use super::step_instruction;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTarget};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput, YieldState};
 use crate::interpreter::Interpreter;
 use crate::isolate::{
-    ExternalCallContext, ExternalFn, ExternalFnPtr, GlobalStorage, StringInterner,
+    ExternalCallContext, ExternalFn, ExternalFnPtr, GlobalStorage, SchemaRegistry, StringInterner,
 };
 use crate::options::IsolateOptions;
 use destack_heap::Value;
@@ -23,6 +24,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -35,6 +37,7 @@ impl Interpreter {
             isolate_id,
             executable,
             options,
+            schema,
             string_interner,
             globals,
             externals,
@@ -60,6 +63,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -81,6 +85,7 @@ impl Interpreter {
             isolate_id,
             executable,
             options,
+            schema,
             string_interner,
             globals,
             externals,
@@ -100,6 +105,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -112,6 +118,7 @@ impl Interpreter {
             isolate_id,
             executable,
             options,
+            schema,
             string_interner,
             globals,
             externals,
@@ -137,6 +144,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -161,7 +169,8 @@ impl Interpreter {
                 let handler = unsafe { handler.as_ref() };
                 let value = {
                     let memory = memory.reborrow();
-                    let mut context = ExternalCallContext::new(string_interner, memory);
+                    let mut context =
+                        ExternalCallContext::new(executable, schema, string_interner, memory);
                     handler(&mut context, arguments)
                 }
                 .map_err(|error| self.make_error(executable, error))?;
@@ -182,6 +191,7 @@ impl Interpreter {
             isolate_id,
             executable,
             options,
+            schema,
             string_interner,
             globals,
             externals,
@@ -200,6 +210,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -232,6 +243,7 @@ impl Interpreter {
             isolate_id,
             executable,
             options,
+            schema,
             string_interner,
             globals,
             externals,
@@ -248,6 +260,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -260,7 +273,7 @@ impl Interpreter {
             executable,
             yield_state.frame_index,
             yield_state.resume_point,
-            Some(resume_value),
+            Some(TransferredValue::Plain(resume_value)),
         )
         .map_err(|error| RuntimeError {
             error: Error::InvalidContinuation,
@@ -272,6 +285,7 @@ impl Interpreter {
             isolate_id,
             executable,
             options,
+            schema,
             string_interner,
             globals,
             externals,
@@ -303,6 +317,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -372,6 +387,7 @@ impl Interpreter {
             isolate_id,
             executable,
             options,
+            schema,
             string_interner,
             globals,
             externals,
@@ -386,6 +402,7 @@ impl Interpreter {
         isolate_id: u64,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
@@ -462,6 +479,7 @@ impl Interpreter {
                 isolate_id,
                 executable,
                 options,
+                schema,
                 string_interner,
                 externals,
                 externals_by_id,

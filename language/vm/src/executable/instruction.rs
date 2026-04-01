@@ -5,7 +5,7 @@ use std::ptr::NonNull;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::Error;
-use destack_heap::{LayoutId, ReferenceMap, ReferenceMeta, Value};
+use destack_heap::{LayoutId, ReferenceMeta, Value};
 
 use super::{ArgumentRange, CopyRange, Function, SwitchRange};
 
@@ -90,8 +90,8 @@ pub(crate) enum InstructionOperation {
     AddInt,
     /// Dispatch operation for `add_uint`.
     AddUint,
-    /// Dispatch operation for `aggregate`.
-    Aggregate,
+    /// Dispatch operation for `composite`.
+    Composite,
     /// Dispatch operation for `and_int`.
     AndInt,
     /// Dispatch operation for `and_uint`.
@@ -166,10 +166,16 @@ pub(crate) enum InstructionOperation {
     CompareAndBranchUint,
     /// Dispatch operation for `const`.
     Const,
+    /// Dispatch operation for `copy`.
+    Copy,
+    /// Dispatch operation for `index_select`.
+    IndexSelect,
+    /// Dispatch operation for `select_by_index`.
+    SelectByIndex,
     /// Dispatch operation for `element_addr`.
     ElementAddr,
-    /// Dispatch operation for `element_addr_aggregate`.
-    ElementAddrAggregate,
+    /// Dispatch operation for `element_addr_composite`.
+    ElementAddrComposite,
     /// Dispatch operation for `element_addr_global`.
     ElementAddrGlobal,
     /// Dispatch operation for `element_addr_managed`.
@@ -182,8 +188,8 @@ pub(crate) enum InstructionOperation {
     ElementGet,
     /// Dispatch operation for `element_load`.
     ElementLoad,
-    /// Dispatch operation for `element_load_aggregate`.
-    ElementLoadAggregate,
+    /// Dispatch operation for `element_load_composite`.
+    ElementLoadComposite,
     /// Dispatch operation for `element_load_global`.
     ElementLoadGlobal,
     /// Dispatch operation for `element_load_managed`.
@@ -196,8 +202,8 @@ pub(crate) enum InstructionOperation {
     ElementSet,
     /// Dispatch operation for `element_store`.
     ElementStore,
-    /// Dispatch operation for `element_store_aggregate`.
-    ElementStoreAggregate,
+    /// Dispatch operation for `element_store_composite`.
+    ElementStoreComposite,
     /// Dispatch operation for `element_store_global`.
     ElementStoreGlobal,
     /// Dispatch operation for `element_store_managed`.
@@ -212,8 +218,8 @@ pub(crate) enum InstructionOperation {
     EqInt,
     /// Dispatch operation for `field_addr`.
     FieldAddr,
-    /// Dispatch operation for `field_addr_aggregate`.
-    FieldAddrAggregate,
+    /// Dispatch operation for `field_addr_composite`.
+    FieldAddrComposite,
     /// Dispatch operation for `field_addr_global`.
     FieldAddrGlobal,
     /// Dispatch operation for `field_addr_managed`.
@@ -228,8 +234,8 @@ pub(crate) enum InstructionOperation {
     FieldGetInline,
     /// Dispatch operation for `field_load`.
     FieldLoad,
-    /// Dispatch operation for `field_load_aggregate`.
-    FieldLoadAggregate,
+    /// Dispatch operation for `field_load_composite`.
+    FieldLoadComposite,
     /// Dispatch operation for `field_load_global`.
     FieldLoadGlobal,
     /// Dispatch operation for `field_load_managed`.
@@ -242,8 +248,8 @@ pub(crate) enum InstructionOperation {
     FieldSet,
     /// Dispatch operation for `field_store`.
     FieldStore,
-    /// Dispatch operation for `field_store_aggregate`.
-    FieldStoreAggregate,
+    /// Dispatch operation for `field_store_composite`.
+    FieldStoreComposite,
     /// Dispatch operation for `field_store_global`.
     FieldStoreGlobal,
     /// Dispatch operation for `field_store_inline`.
@@ -510,11 +516,74 @@ pub(crate) enum ConstValue {
     Value(Value),
 }
 
+/// One precomputed field access descriptor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FieldAccess {
+    /// The field value type.
+    pub value_type: mir::LocalNodeId<mir::Type>,
+    /// The byte offset of the field payload.
+    pub byte_offset: usize,
+    /// The byte width of the field payload.
+    pub byte_len: usize,
+    /// Whether the field payload decodes as one scalar.
+    pub is_scalar: bool,
+}
+
+/// One precomputed element access descriptor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ElementAccess {
+    /// The element value type.
+    pub value_type: mir::LocalNodeId<mir::Type>,
+    /// The byte stride between adjacent elements.
+    pub byte_stride: usize,
+    /// The byte width of the element payload.
+    pub byte_len: usize,
+    /// Whether the element payload decodes as one scalar.
+    pub is_scalar: bool,
+}
+
+/// One precomputed typed pointee access descriptor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TypedAccess {
+    /// The pointee value type.
+    pub value_type: mir::LocalNodeId<mir::Type>,
+    /// The byte width of the pointee payload.
+    pub byte_len: usize,
+    /// Whether the pointee payload decodes as one scalar.
+    pub is_scalar: bool,
+}
+
+impl From<FieldAccess> for TypedAccess {
+    fn from(field: FieldAccess) -> Self {
+        Self {
+            value_type: field.value_type,
+            byte_len: field.byte_len,
+            is_scalar: field.is_scalar,
+        }
+    }
+}
+
+impl From<ElementAccess> for TypedAccess {
+    fn from(element: ElementAccess) -> Self {
+        Self {
+            value_type: element.value_type,
+            byte_len: element.byte_len,
+            is_scalar: element.is_scalar,
+        }
+    }
+}
+
 /// Decoded instruction data.
 #[derive(Clone, Debug)]
 pub(crate) enum InstructionData {
     /// Load constant.
     Const { dest: mir::Value, value: ConstValue },
+
+    /// Copy one value.
+    Copy {
+        dest: mir::Value,
+        source: mir::Value,
+    },
 
     /// Binary operation.
     Binary {
@@ -713,8 +782,7 @@ pub(crate) enum InstructionData {
     Load {
         dest: mir::Value,
         pointer: mir::Value,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        access: Option<TypedAccess>,
     },
 
     /// Store to pointer.
@@ -722,55 +790,51 @@ pub(crate) enum InstructionData {
         pointer: mir::Value,
         value: mir::Value,
         reference: ReferenceMeta,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        access: Option<TypedAccess>,
     },
 
     /// Get struct or tuple field.
     FieldGet {
         dest: mir::Value,
-        aggregate: mir::Value,
+        composite: mir::Value,
         index: u32,
     },
 
     /// Get struct or tuple field address.
     FieldAddr {
         dest: mir::Value,
-        aggregate: mir::Value,
+        composite: mir::Value,
         index: u32,
         reference: ReferenceMeta,
         field_count: u32,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        field: Option<FieldAccess>,
     },
 
     /// Load a field through field address plus load.
     FieldLoad {
         dest: mir::Value,
-        aggregate: mir::Value,
+        composite: mir::Value,
         index: u32,
         field_count: u32,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        field: Option<FieldAccess>,
     },
 
     /// Set struct or tuple field.
     FieldSet {
         dest: mir::Value,
-        aggregate: mir::Value,
+        composite: mir::Value,
         index: u32,
         value: mir::Value,
     },
 
     /// Store a field through field address plus store.
     FieldStore {
-        aggregate: mir::Value,
+        composite: mir::Value,
         index: u32,
         value: mir::Value,
         reference: ReferenceMeta,
         field_count: u32,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        field: Option<FieldAccess>,
     },
 
     /// Get array element.
@@ -780,6 +844,22 @@ pub(crate) enum InstructionData {
         index: mir::Value,
     },
 
+    /// Select one value from a fixed list by runtime index.
+    IndexSelect {
+        dest: mir::Value,
+        index: mir::Value,
+        elements: ArgumentRange,
+    },
+
+    /// Select between two values by comparing one runtime index to one constant case.
+    SelectByIndex {
+        dest: mir::Value,
+        index: mir::Value,
+        match_index: u64,
+        then_value: mir::Value,
+        else_value: mir::Value,
+    },
+
     /// Get array element address.
     ElementAddr {
         dest: mir::Value,
@@ -787,8 +867,7 @@ pub(crate) enum InstructionData {
         index: mir::Value,
         reference: ReferenceMeta,
         array_length: u64,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        element: Option<ElementAccess>,
     },
 
     /// Load an element through element address plus load.
@@ -797,8 +876,7 @@ pub(crate) enum InstructionData {
         array: mir::Value,
         index: mir::Value,
         array_length: u64,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        element: Option<ElementAccess>,
     },
 
     /// Set array element.
@@ -809,18 +887,14 @@ pub(crate) enum InstructionData {
         value: mir::Value,
     },
 
-    /// Construct an aggregate from element values.
-    Aggregate {
+    /// Construct a composite from element values.
+    Composite {
         dest: mir::Value,
         elements: ArgumentRange,
     },
 
     /// Broadcast a scalar to all vector lanes.
-    VectorSplat {
-        dest: mir::Value,
-        value: mir::Value,
-        lanes: u32,
-    },
+    VectorSplat { dest: mir::Value, value: mir::Value },
 
     /// Extract a lane from a vector.
     VectorExtract {
@@ -883,6 +957,7 @@ pub(crate) enum InstructionData {
         view: mir::Value,
         indices: ArgumentRange,
         view_type: mir::LocalNodeId<mir::Type>,
+        element: Option<ElementAccess>,
     },
 
     /// Store a tensor element into a view.
@@ -891,6 +966,7 @@ pub(crate) enum InstructionData {
         indices: ArgumentRange,
         value: mir::Value,
         view_type: mir::LocalNodeId<mir::Type>,
+        element: Option<ElementAccess>,
     },
 
     /// Fill a tensor reference with a scalar value.
@@ -898,6 +974,7 @@ pub(crate) enum InstructionData {
         view: mir::Value,
         value: mir::Value,
         view_type: mir::LocalNodeId<mir::Type>,
+        element: Option<ElementAccess>,
     },
 
     /// Copy elements between tensor references.
@@ -906,6 +983,8 @@ pub(crate) enum InstructionData {
         source: mir::Value,
         target_type: mir::LocalNodeId<mir::Type>,
         source_type: mir::LocalNodeId<mir::Type>,
+        target_element: Option<ElementAccess>,
+        source_element: Option<ElementAccess>,
     },
 
     /// Reshape a tensor into a new shape.
@@ -1075,6 +1154,7 @@ pub(crate) enum InstructionData {
         strides_count: u16,
         source_type: mir::LocalNodeId<mir::Type>,
         dest_type: mir::LocalNodeId<mir::Type>,
+        element: Option<ElementAccess>,
     },
 
     /// Store an element through element address plus store.
@@ -1084,17 +1164,16 @@ pub(crate) enum InstructionData {
         value: mir::Value,
         reference: ReferenceMeta,
         array_length: u64,
-        managed_pointee: Option<mir::LocalNodeId<mir::Type>>,
-        raw_pointee: Option<mir::LocalNodeId<mir::Type>>,
+        element: Option<ElementAccess>,
     },
 
     /// Allocate managed memory.
     ManagedAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
+        storage_type: mir::LocalNodeId<mir::Type>,
         layout_id: Option<LayoutId>,
-        byte_len: u32,
-        trace: ReferenceMap,
+        byte_len: usize,
     },
 
     /// Allocate managed array.
@@ -1109,7 +1188,7 @@ pub(crate) enum InstructionData {
     RawAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
-        byte_len: u32,
+        byte_len: usize,
     },
 
     /// Free raw memory.
@@ -1122,7 +1201,7 @@ pub(crate) enum InstructionData {
     StackAlloc {
         dest: mir::Value,
         reference: ReferenceMeta,
-        slot_count: u32,
+        storage_type: mir::LocalNodeId<mir::Type>,
     },
 
     /// Mark stack value lifetime ended.
@@ -1293,6 +1372,7 @@ impl InstructionData {
     pub(crate) fn opcode_name(&self) -> &'static str {
         match self {
             InstructionData::Const { .. } => "const",
+            InstructionData::Copy { .. } => "copy",
             InstructionData::Binary { .. } => "binary",
             InstructionData::BinaryElementwise { .. } => "binary_elementwise",
             InstructionData::BinarySpecialized { .. } => "binary_specialized",
@@ -1328,11 +1408,13 @@ impl InstructionData {
             InstructionData::FieldSet { .. } => "field_set",
             InstructionData::FieldStore { .. } => "field_store",
             InstructionData::ElementGet { .. } => "element_get",
+            InstructionData::IndexSelect { .. } => "index_select",
+            InstructionData::SelectByIndex { .. } => "select_by_index",
             InstructionData::ElementAddr { .. } => "element_addr",
             InstructionData::ElementLoad { .. } => "element_load",
             InstructionData::ElementSet { .. } => "element_set",
             InstructionData::ElementStore { .. } => "element_store",
-            InstructionData::Aggregate { .. } => "aggregate",
+            InstructionData::Composite { .. } => "composite",
             InstructionData::VectorSplat { .. } => "vector_splat",
             InstructionData::VectorExtract { .. } => "vector_extract",
             InstructionData::VectorInsert { .. } => "vector_insert",

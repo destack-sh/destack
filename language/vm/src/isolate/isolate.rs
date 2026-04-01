@@ -7,8 +7,8 @@ use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use destack_mir as mir;
 
 use super::{
-    ExternalCallContext, ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage, StringInterner,
-    StringRef,
+    ExternalCallContext, ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage, SchemaRegistry,
+    StringInterner, StringRef,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
@@ -39,6 +39,8 @@ pub struct Isolate {
     externals: HashMap<String, ExternalFn>,
     /// Cached external handlers by function id.
     externals_by_id: Vec<Option<ExternalFnPtr>>,
+    /// Runtime ABI storage schemas installed into this isolate.
+    schema: SchemaRegistry,
     /// Interpreter engine backing this isolate.
     interpreter: Interpreter,
 }
@@ -64,10 +66,11 @@ impl Isolate {
             isolate_id: image.isolate_id,
             executable,
             options: image.options.clone(),
-            string_interner: StringInterner::new(),
+            string_interner: StringInterner::new(&image.tree),
             globals: image.globals.clone(),
             externals: HashMap::new(),
             externals_by_id: Vec::new(),
+            schema: SchemaRegistry::new(),
             interpreter: Interpreter::new(),
         };
         isolate
@@ -90,16 +93,18 @@ impl Isolate {
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
         let executable = Arc::new(Executable::new(tree, strings));
+        let string_interner = StringInterner::new(&executable.tree);
         let isolate_id = ISOLATE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
 
         Ok(Self {
             isolate_id,
             executable,
             options,
-            string_interner: StringInterner::new(),
+            string_interner,
             globals: GlobalStorage::new(),
             externals: HashMap::new(),
             externals_by_id: Vec::new(),
+            schema: SchemaRegistry::new(),
             interpreter: Interpreter::new(),
         })
     }
@@ -123,6 +128,15 @@ impl Isolate {
     /// Get mutable isolate options.
     pub fn options_mut(&mut self) -> &mut IsolateOptions {
         &mut self.options
+    }
+
+    /// Return the managed-reference width required by this isolate heap.
+    pub fn heap_managed_reference_bytes(&self) -> u8 {
+        self.executable
+            .tree
+            .data_layout
+            .managed_reference_layout
+            .bytes
     }
 
     /// Set whether to collect execution statistics.
@@ -160,13 +174,23 @@ impl Isolate {
         self.rebuild_external_cache();
     }
 
+    /// Register one runtime named storage type for external ABI fallback.
+    pub fn register_named_storage_type(&mut self, name: &str, component_count: usize) {
+        self.schema
+            .register_named_storage_type(name, component_count);
+    }
+
     /// Run a callback with a runtime context for this isolate.
     pub fn with_runtime_context<F, R>(&mut self, memory: &mut MemoryContext<'_>, run: F) -> R
     where
         F: for<'ctx> FnOnce(&mut ExternalCallContext<'ctx>) -> R,
     {
+        // borrow the isolate state needed by the external context
+        let executable = self.executable.as_ref();
+        let schema = &self.schema;
+        let string_interner = &mut self.string_interner;
         let memory = memory.reborrow();
-        let mut context = ExternalCallContext::new(&mut self.string_interner, memory);
+        let mut context = ExternalCallContext::new(executable, schema, string_interner, memory);
         run(&mut context)
     }
 
@@ -211,6 +235,7 @@ impl Isolate {
             self.isolate_id,
             self.executable.as_ref(),
             &self.options,
+            &self.schema,
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
@@ -232,6 +257,7 @@ impl Isolate {
             self.isolate_id,
             self.executable.as_ref(),
             &self.options,
+            &self.schema,
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
@@ -253,6 +279,7 @@ impl Isolate {
             self.isolate_id,
             self.executable.as_ref(),
             &self.options,
+            &self.schema,
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
@@ -274,6 +301,7 @@ impl Isolate {
             self.isolate_id,
             self.executable.as_ref(),
             &self.options,
+            &self.schema,
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
@@ -295,6 +323,7 @@ impl Isolate {
             self.isolate_id,
             self.executable.as_ref(),
             &self.options,
+            &self.schema,
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
@@ -316,30 +345,6 @@ impl Isolate {
         image: &ContinuationImage,
     ) -> RuntimeResult<Continuation> {
         Continuation::from_image(image, &self.executable, self.functions())
-    }
-
-    /// Allocate an aggregate on the heap and return it as a Value.
-    pub fn allocate_aggregate(&mut self, heap: &mut Heap, values: Vec<Value>) -> Value {
-        let handle = heap
-            .allocate_packed_values(values)
-            .unwrap_or_else(|error| panic!("{error}"));
-        Value::aggregate(handle)
-    }
-
-    /// Allocate a 2-element aggregate on the heap.
-    pub fn allocate_pair(&mut self, heap: &mut Heap, first: Value, second: Value) -> Value {
-        let handle = heap
-            .allocate_packed_pair(first, second)
-            .unwrap_or_else(|error| panic!("{error}"));
-        Value::aggregate(handle)
-    }
-
-    /// Allocate a 1-element aggregate on the heap.
-    pub fn allocate_single(&mut self, heap: &mut Heap, value: Value) -> Value {
-        let handle = heap
-            .allocate_packed_single(value)
-            .unwrap_or_else(|error| panic!("{error}"));
-        Value::aggregate(handle)
     }
 
     /// Read a UTF-8 string value from the heap.
@@ -475,6 +480,12 @@ impl Isolate {
     /// Borrow the lowered function table.
     pub(crate) fn functions(&self) -> &FunctionTable {
         &self.executable.functions
+    }
+
+    /// Borrow the executable MIR tree.
+    #[cfg(test)]
+    pub(crate) fn tree(&self) -> &mir::NodeTree {
+        &self.executable.tree
     }
 
     /// Rebuild the executable keyed external handler cache.

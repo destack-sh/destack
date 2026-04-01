@@ -1,12 +1,48 @@
 use destack_engine as engine;
 
-use super::bind::copy_values_with_plan;
+use super::bind::{
+    bind_parameters_from_transferred_values, collect_transferred_values_from_copies,
+    collect_transferred_values_range, copy_values_with_plan_typed,
+};
 use super::prelude::*;
 
 const VTABLE_FIELD_INDEX: u32 = 0;
 const INTERFACE_ITAB_FIELD_INDEX: u32 = 1;
 
-/// Load a field value from a heap aggregate receiver.
+/// Resolve one receiver field access descriptor from one managed pointee type.
+fn receiver_field_access(
+    state: &StepState<'_, '_>,
+    managed_pointee: mir::LocalNodeId<mir::Type>,
+    field_index: u32,
+) -> Result<crate::executable::FieldAccess, Error> {
+    // load the compiled receiver storage layout
+    let layout = state.storage_layout(managed_pointee)?;
+    let field = layout.field(field_index);
+
+    // convert the selected field into one machine access descriptor
+    field.map_or_else(
+        || {
+            Err(Error::TypeMismatch {
+                expected: "receiver composite field".to_string(),
+                actual: format!("{managed_pointee:?}"),
+            })
+        },
+        |field| {
+            let is_scalar = state
+                .storage_layout(field.ty)
+                .is_ok_and(|layout| layout.is_scalar());
+
+            Ok(crate::executable::FieldAccess {
+                value_type: field.ty,
+                byte_offset: field.offset,
+                byte_len: field.byte_len,
+                is_scalar,
+            })
+        },
+    )
+}
+
+/// Load a field value from a heap composite receiver.
 fn load_receiver_field(
     state: &mut StepState<'_, '_>,
     receiver: Value,
@@ -17,21 +53,25 @@ fn load_receiver_field(
     match receiver.tag() {
         ValueTag::ManagedReference => {
             let Some(managed_pointee) = managed_pointee else {
-                return Err(Error::InvalidManagedReference);
+                return access::get_field(state, receiver, field_index);
             };
 
+            // resolve the receiver field descriptor and load directly
             let handle = receiver.as_managed_reference().unwrap();
-            access::load_field_managed(
-                state,
-                handle,
-                managed_pointee,
-                field_index,
-                UNKNOWN_FIELD_COUNT,
-            )
+            let field = receiver_field_access(state, managed_pointee, field_index)?;
+            access::load_field_managed(state, handle, field, field_index, UNKNOWN_FIELD_COUNT)
         }
-        ValueTag::Aggregate | ValueTag::String => access::get_field(state, receiver, field_index),
+        ValueTag::StackPointer => {
+            let Some(managed_pointee) = managed_pointee else {
+                return access::get_field(state, receiver, field_index);
+            };
+
+            let pointer = receiver.as_stack_pointer().unwrap();
+            let field = receiver_field_access(state, managed_pointee, field_index)?;
+            access::load_field_stack(state, pointer, field, field_index, UNKNOWN_FIELD_COUNT)
+        }
         _ => Err(Error::TypeMismatch {
-            expected: "aggregate".to_string(),
+            expected: "composite".to_string(),
             actual: format!("{receiver:?}"),
         }),
     }
@@ -119,11 +159,13 @@ fn resolve_interface_dispatch_target(
 
 /// Resolve one indirect callable into function code and environment.
 fn resolve_indirect_callable(
-    state: &StepState<'_, '_>,
+    state: &mut StepState<'_, '_>,
     callable: Value,
     signature: mir::LocalNodeId<mir::Type>,
 ) -> Result<(mir::LocalNodeId<mir::Function>, Option<Value>), Error> {
     // plain callable code
+    let signature = crate::executable::repr_type(state.tree(), signature);
+
     if matches!(
         state.tree().get(signature),
         mir::Type::FunctionPointer { .. }
@@ -143,15 +185,15 @@ fn resolve_indirect_callable(
         return Err(Error::InvalidInstruction);
     };
 
-    let components = access::aggregate_component_values(state, callable, 2)?;
-    let function = components[0]
+    let (function_value, environment_value) = access::decode_function_value(state, callable)?;
+    let function = function_value
         .as_function_pointer()
         .ok_or_else(|| Error::TypeMismatch {
             expected: "function_pointer".to_string(),
-            actual: format!("{:?}", components[0]),
+            actual: format!("{function_value:?}"),
         })?;
 
-    Ok((function, Some(components[1])))
+    Ok((function, Some(environment_value)))
 }
 
 /// Load a function pointer.
@@ -191,11 +233,21 @@ pub(crate) fn step_function_value(
         unreachable!()
     };
 
-    // build one callable aggregate in semantic component order
+    // build one callable composite in semantic component order
     let function_id = mir::LocalNodeId::new(*function);
     let function_value = Value::function_pointer(function_id);
     let environment_value = state.get(*environment);
-    let value = state.allocate_pair(function_value, environment_value);
+    let value =
+        match super::value::materialize_composite_by_index(state, *dest, |_state, index, _ty| {
+            match index {
+                0 => Ok(function_value),
+                1 => Ok(environment_value),
+                _ => Err(Error::InvalidInstruction),
+            }
+        }) {
+            Ok(value) => value,
+            Err(error) => return Transfer::Error(error),
+        };
 
     // store result
     state.set(*dest, value);
@@ -261,9 +313,7 @@ fn try_step_direct_lowered_call(
     resume_pc: usize,
 ) -> Option<Transfer> {
     // NOTE #Performance: keep this path specialized to avoid the transfer trampoline on hot direct calls
-    let Some(copy_plan) = copy_plan else {
-        return None;
-    };
+    let copy_plan = copy_plan?;
 
     // require one lowered target before entering the fast path
     let callee_ptr = resolve_direct_lowered_callee(state, function_id, callee_index)?;
@@ -295,7 +345,7 @@ fn try_step_direct_lowered_call(
     let entry_block = &callee.blocks[callee.entry as usize];
     let entry_block_id = entry_block.mir_block;
     let entry_block_ptr = NonNull::from(entry_block);
-    let new_frame = Frame::new(
+    let mut new_frame = Frame::new(
         callee.frame_layout,
         function_id,
         callee_ptr,
@@ -324,13 +374,23 @@ fn try_step_direct_lowered_call(
     };
     let caller = unsafe { &*caller_ptr };
 
-    copy_values_with_plan(
+    let new_frame_index = state.engine.call_stack.len();
+    let heap_ptr = state.heap_ref() as *const destack_heap::Heap;
+    let frames_ptr = state.engine.call_stack.as_ptr();
+    let frames_len = state.engine.call_stack.len();
+    if let Err(error) = copy_values_with_plan_typed(
+        state.executable,
+        unsafe { &*heap_ptr },
+        unsafe { std::slice::from_raw_parts(frames_ptr, frames_len) },
         &mut state.engine.value_stack,
         caller,
-        &new_frame,
+        &mut new_frame,
+        new_frame_index,
         copy_plan,
         current_function.copy_pool.as_slice(),
-    );
+    ) {
+        return Some(Transfer::Error(error));
+    }
 
     // push the callee frame and continue at its entry block
     state.engine.call_stack.push(new_frame);
@@ -355,17 +415,17 @@ fn call_with_target(
     allow_direct: bool,
 ) -> Transfer {
     // run the specialized lowered fast path when the caller allows it
-    if allow_direct {
-        if let Some(transfer) = try_step_direct_lowered_call(
+    if allow_direct
+        && let Some(transfer) = try_step_direct_lowered_call(
             state,
             function_id,
             callee_index,
             env,
             copy_plan,
             resume_pc,
-        ) {
-            return transfer;
-        }
+        )
+    {
+        return transfer;
     }
 
     // otherwise bounce through the general transfer path
@@ -762,9 +822,9 @@ fn enter_tail_call(
     state: &mut StepState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     callee: &Function,
-    argument_values: &[Value],
+    argument_values: &[super::bind::TransferredValue],
     env: Option<Value>,
-) {
+) -> Result<(), Error> {
     // resolve frame bounds
     let (value_base, local_base) = {
         let frame = state.current_frame_mut();
@@ -772,7 +832,7 @@ fn enter_tail_call(
     };
 
     // clear frame local stack allocations
-    state.current_frame_mut().stack_values.clear();
+    state.current_frame_mut().stack_allocations.clear();
 
     // resize stacks to callee requirements
     let value_end = value_base + callee.value_count;
@@ -784,6 +844,7 @@ fn enter_tail_call(
     let entry_block = &callee.blocks[callee.entry as usize];
     {
         let frame = state.current_frame_mut();
+        frame.frame_layout = callee.frame_layout;
         frame.function = function_id;
         frame.function_ptr = NonNull::from(callee);
         frame.block_ptr = NonNull::from(entry_block);
@@ -800,21 +861,19 @@ fn enter_tail_call(
     state.refresh_for_function(callee);
 
     // bind function parameters
-    let parameter_slice = callee.parameters.slice(callee.argument_pool.as_slice());
-    // use direct indexing when arguments cover parameters
-    if argument_values.len() >= parameter_slice.len() {
-        for (index, param) in parameter_slice.iter().enumerate() {
-            let value = argument_values[index];
-            state.set(*param, value);
-        }
-    }
-    // fall back to defaulted arguments
-    else {
-        for (index, param) in parameter_slice.iter().enumerate() {
-            let value = argument_values.get(index).copied().unwrap_or(Value::VOID);
-            state.set(*param, value);
-        }
-    }
+    let executable = state.executable;
+    let frame_index = state.frame_index;
+    let frame_ptr = state.current_frame_mut() as *mut Frame;
+    let frame = unsafe { &mut *frame_ptr };
+    bind_parameters_from_transferred_values(
+        executable,
+        &mut state.engine.value_stack,
+        frame,
+        frame_index,
+        callee.argument_pool.as_slice(),
+        callee.parameters,
+        argument_values,
+    )?;
 
     // update statistics
     if state.collect_stats {
@@ -822,6 +881,7 @@ fn enter_tail_call(
     }
 
     // keep frame ready for entry execution
+    Ok(())
 }
 
 /// Step tail call to function.
@@ -878,24 +938,29 @@ pub(crate) fn step_tail_call(
     let argument_values = {
         let function_ptr = state.current_frame_mut().function_ptr;
         let current_func = unsafe { function_ptr.as_ref() };
-        let copy_pairs = copies.slice(current_func.copy_pool.as_slice());
-        let mut args: SmallVec<[Value; 16]> = SmallVec::with_capacity(copy_pairs.len());
+        let caller = match state.frame_by_index(state.frame_index) {
+            Ok(frame) => frame,
+            Err(error) => return Transfer::Error(error),
+        };
 
-        for pair in copy_pairs {
-            let value = if pair.src == INVALID_VALUE_ID {
-                Value::VOID
-            } else {
-                let arg_value = mir::Value::new(pair.src);
-                state.get(arg_value)
-            };
-            args.push(value);
+        match collect_transferred_values_from_copies(
+            state.executable,
+            state.heap_ref(),
+            state.engine.call_stack.as_slice(),
+            &state.engine.value_stack,
+            caller,
+            current_func.copy_pool.as_slice(),
+            *copies,
+        ) {
+            Ok(arguments) => arguments,
+            Err(error) => return Transfer::Error(error),
         }
-
-        args
     };
 
     // enter tail call fast path
-    enter_tail_call(state, function_id, callee, &argument_values, None);
+    if let Err(error) = enter_tail_call(state, function_id, callee, &argument_values, None) {
+        return Transfer::Error(error);
+    }
 
     // continue at entry block
     let entry_block_ptr = state.current_frame_mut().block_ptr;
@@ -917,13 +982,6 @@ pub(crate) fn step_tail_call_self(
         unreachable!()
     };
 
-    // collect argument values
-    let args = collect_values(state, *arguments);
-
-    if state.collect_stats {
-        state.engine.statistics.calls_made += 1;
-    }
-
     // resolve current function entry block
     let (function_ptr, value_base, value_count, local_base, local_count) = {
         let frame = state.current_frame_mut();
@@ -938,8 +996,33 @@ pub(crate) fn step_tail_call_self(
     let function = unsafe { function_ptr.as_ref() };
     let entry_block = &function.blocks[*entry as usize];
 
+    // collect argument values before clearing the frame
+    let args = {
+        let caller = match state.frame_by_index(state.frame_index) {
+            Ok(frame) => frame,
+            Err(error) => return Transfer::Error(error),
+        };
+
+        match collect_transferred_values_range(
+            state.executable,
+            state.heap_ref(),
+            state.engine.call_stack.as_slice(),
+            &state.engine.value_stack,
+            caller,
+            function.argument_pool.as_slice(),
+            *arguments,
+        ) {
+            Ok(arguments) => arguments,
+            Err(error) => return Transfer::Error(error),
+        }
+    };
+
+    if state.collect_stats {
+        state.engine.statistics.calls_made += 1;
+    }
+
     // clear frame-local stack allocations
-    state.current_frame_mut().stack_values.clear();
+    state.current_frame_mut().stack_allocations.clear();
 
     // clear value and local slots
     let value_end = value_base + value_count;
@@ -958,20 +1041,20 @@ pub(crate) fn step_tail_call_self(
     }
 
     // bind function parameters
-    let parameter_slice = function.parameters.slice(function.argument_pool.as_slice());
-    // use direct indexing when arguments cover parameters
-    if args.len() >= parameter_slice.len() {
-        for (index, param) in parameter_slice.iter().enumerate() {
-            let value = args[index];
-            state.set(*param, value);
-        }
-    }
-    // fall back to defaulted arguments
-    else {
-        for (index, param) in parameter_slice.iter().enumerate() {
-            let value = args.get(index).copied().unwrap_or(Value::VOID);
-            state.set(*param, value);
-        }
+    let executable = state.executable;
+    let frame_index = state.frame_index;
+    let frame_ptr = state.current_frame_mut() as *mut Frame;
+    let frame = unsafe { &mut *frame_ptr };
+    if let Err(error) = bind_parameters_from_transferred_values(
+        executable,
+        &mut state.engine.value_stack,
+        frame,
+        frame_index,
+        function.argument_pool.as_slice(),
+        function.parameters,
+        &args,
+    ) {
+        return Transfer::Error(error);
     }
 
     // continue at entry block
@@ -1090,8 +1173,26 @@ pub(crate) fn step_tail_call_indirect(
     if cached_function.get() == Some(function) {
         if let Some(callee_ptr) = cached_ptr.get() {
             let callee = unsafe { callee_ptr.as_ref() };
-            let argument_values = collect_values(state, *arguments);
-            enter_tail_call(state, function_id, callee, &argument_values, env);
+            let caller = match state.frame_by_index(state.frame_index) {
+                Ok(frame) => frame,
+                Err(error) => return Transfer::Error(error),
+            };
+            let caller_function = unsafe { caller.function_ptr.as_ref() };
+            let argument_values = match collect_transferred_values_range(
+                state.executable,
+                state.heap_ref(),
+                state.engine.call_stack.as_slice(),
+                &state.engine.value_stack,
+                caller,
+                caller_function.argument_pool.as_slice(),
+                *arguments,
+            ) {
+                Ok(arguments) => arguments,
+                Err(error) => return Transfer::Error(error),
+            };
+            if let Err(error) = enter_tail_call(state, function_id, callee, &argument_values, env) {
+                return Transfer::Error(error);
+            }
             let entry_block_ptr = state.current_frame_mut().block_ptr;
             let entry_block = unsafe { entry_block_ptr.as_ref() };
             let entry_instructions = entry_block.instructions.as_slice();
@@ -1141,10 +1242,28 @@ pub(crate) fn step_tail_call_indirect(
     let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
-    let argument_values = collect_values(state, *arguments);
+    let caller = match state.frame_by_index(state.frame_index) {
+        Ok(frame) => frame,
+        Err(error) => return Transfer::Error(error),
+    };
+    let caller_function = unsafe { caller.function_ptr.as_ref() };
+    let argument_values = match collect_transferred_values_range(
+        state.executable,
+        state.heap_ref(),
+        state.engine.call_stack.as_slice(),
+        &state.engine.value_stack,
+        caller,
+        caller_function.argument_pool.as_slice(),
+        *arguments,
+    ) {
+        Ok(arguments) => arguments,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // enter tail call fast path
-    enter_tail_call(state, function_id, callee, &argument_values, env);
+    if let Err(error) = enter_tail_call(state, function_id, callee, &argument_values, env) {
+        return Transfer::Error(error);
+    }
 
     // continue at entry block
     let entry_block_ptr = state.current_frame_mut().block_ptr;

@@ -5,7 +5,9 @@ use {destack_engine as engine, destack_mir as mir};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Block, Executable, Function, FunctionTable};
 use crate::snapshot::InterpreterFrameImage;
-use destack_heap::{ManagedReference, Value, ValueBuffer};
+use destack_heap::{ManagedReference, Value};
+
+use super::StackAllocation;
 
 /// Call frame in the interpreter.
 #[derive(Debug)]
@@ -36,8 +38,8 @@ pub struct Frame {
     pub(crate) local_base: usize,
     /// Count of local variables in this frame.
     pub(crate) local_count: usize,
-    /// Stack-allocated value buffers, freed when the frame pops.
-    pub(crate) stack_values: Vec<Option<ValueBuffer>>,
+    /// Stack-allocated byte buffers, freed when the frame pops.
+    pub(crate) stack_allocations: Vec<Option<StackAllocation>>,
     /// Closure environment pointer for this frame.
     pub(crate) environment: Value,
 }
@@ -73,7 +75,7 @@ impl Frame {
             value_count,
             local_base,
             local_count,
-            stack_values: Vec::new(),
+            stack_allocations: Vec::new(),
             environment,
         }
     }
@@ -192,25 +194,16 @@ impl Frame {
         values[start..end].fill(Value::VOID);
     }
 
-    /// Allocate a new stack buffer, returning its slot index.
-    pub fn allocate_stack_buffer(&mut self) -> usize {
-        let slot = self.stack_values.len();
-        self.stack_values.push(Some(ValueBuffer::new()));
+    /// Allocate a new stack allocation, returning its slot index.
+    pub(crate) fn allocate_stack_allocation(&mut self, allocation: StackAllocation) -> usize {
+        let slot = self.stack_allocations.len();
+        self.stack_allocations.push(Some(allocation));
         slot
     }
 
-    /// Allocate a new stack buffer with the given value count.
-    pub fn allocate_stack_buffer_with_values(&mut self, slot_count: usize) -> usize {
-        // allocate stack buffer
-        let slot = self.stack_values.len();
-        self.stack_values
-            .push(Some(ValueBuffer::with_values_len(slot_count)));
-        slot
-    }
-
-    /// Retire one stack buffer by slot index.
-    pub fn retire_stack_buffer(&mut self, slot: usize) -> bool {
-        let Some(buffer) = self.stack_values.get_mut(slot) else {
+    /// Retire one stack allocation by slot index.
+    pub(crate) fn retire_stack_allocation(&mut self, slot: usize) -> bool {
+        let Some(buffer) = self.stack_allocations.get_mut(slot) else {
             return false;
         };
 
@@ -219,7 +212,7 @@ impl Frame {
 
     /// Return whether this frame still owns any live stack allocation.
     pub fn has_live_stack_allocations(&self) -> bool {
-        self.stack_values.iter().any(Option::is_some)
+        self.stack_allocations.iter().any(Option::is_some)
     }
 
     /// Return one logical frame slot value.
@@ -243,16 +236,18 @@ impl Frame {
         None
     }
 
-    /// Get a stack buffer by slot index.
+    /// Get a stack allocation by slot index.
     #[inline]
-    pub fn stack_buffer(&self, slot: usize) -> Option<&ValueBuffer> {
-        self.stack_values.get(slot).and_then(Option::as_ref)
+    pub(crate) fn stack_allocation(&self, slot: usize) -> Option<&StackAllocation> {
+        self.stack_allocations.get(slot).and_then(Option::as_ref)
     }
 
-    /// Get a mutable reference to a stack buffer by slot index.
+    /// Get a mutable reference to a stack allocation by slot index.
     #[inline]
-    pub fn stack_buffer_mut(&mut self, slot: usize) -> Option<&mut ValueBuffer> {
-        self.stack_values.get_mut(slot).and_then(Option::as_mut)
+    pub(crate) fn stack_allocation_mut(&mut self, slot: usize) -> Option<&mut StackAllocation> {
+        self.stack_allocations
+            .get_mut(slot)
+            .and_then(Option::as_mut)
     }
 
     /// Collect all managed references from this frame for GC roots.
@@ -305,10 +300,22 @@ impl Frame {
         }
 
         // dynamic stack allocations
-        for values in self.stack_values.iter().flatten() {
-            for value in values {
-                Self::collect_pointers_from_value(value, roots);
-            }
+        for allocation in self.stack_allocations.iter().flatten() {
+            let layout = executable
+                .storage_layout(allocation.storage_type())
+                .unwrap_or_else(|| {
+                    panic!(
+                        "missing storage layout for stack allocation: frame={:?}, storage_type={:?}",
+                        self.function,
+                        allocation.storage_type(),
+                    )
+                });
+
+            layout.reference_map.for_each_reference(
+                allocation.bytes(),
+                executable.tree.data_layout.native_pointer_bytes,
+                |reference| roots.push(reference),
+            );
         }
     }
 
@@ -322,11 +329,7 @@ impl Frame {
     /// Clone this frame for a forked continuation.
     pub(crate) fn clone_for_fork(&self) -> Self {
         // clone stack value buffers for the forked frame
-        let stack_values = self
-            .stack_values
-            .iter()
-            .map(|values| values.as_ref().map(ValueBuffer::clone_for_fork))
-            .collect();
+        let stack_allocations = self.stack_allocations.to_vec();
 
         // assemble cloned frame
         Self {
@@ -343,7 +346,7 @@ impl Frame {
             value_count: self.value_count,
             local_base: self.local_base,
             local_count: self.local_count,
-            stack_values,
+            stack_allocations,
             environment: self.environment,
         }
     }
@@ -362,7 +365,7 @@ impl Frame {
             value_count: self.value_count,
             local_base: self.local_base,
             local_count: self.local_count,
-            stack_values: self.stack_values.clone(),
+            stack_allocations: self.stack_allocations.clone(),
             environment: self.environment,
         }
     }
@@ -414,7 +417,7 @@ impl Frame {
             value_count: image.value_count,
             local_base: image.local_base,
             local_count: image.local_count,
-            stack_values: image.stack_values.clone(),
+            stack_allocations: image.stack_allocations.clone(),
             environment: image.environment,
         })
     }

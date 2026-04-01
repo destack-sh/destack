@@ -2,6 +2,54 @@ use super::prelude::*;
 
 // TODO #Performance: improve VM vector performance
 
+/// Return the lane count for one vector value id.
+fn vector_lane_count(state: &StepState<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
+    let vector_type = state.value_type(value_id)?;
+
+    match state.tree().get(vector_type) {
+        mir::Type::Vector { lanes, .. } => Ok(*lanes as usize),
+        _ => Err(Error::TypeMismatch {
+            expected: "vector type".to_string(),
+            actual: format!("{vector_type:?}"),
+        }),
+    }
+}
+
+/// Load one vector lane through the normal composite field path.
+fn vector_lane_value(
+    state: &mut StepState<'_, '_>,
+    vector: Value,
+    lane_index: usize,
+) -> Result<Value, Error> {
+    access::get_field(
+        state,
+        vector,
+        u32::try_from(lane_index).map_err(|_| Error::TypeMismatch {
+            expected: "vector lane index".to_string(),
+            actual: lane_index.to_string(),
+        })?,
+    )
+}
+
+/// Materialize one vector result lane by lane.
+fn materialize_vector_by_lane<F>(
+    state: &mut StepState<'_, '_>,
+    dest: mir::Value,
+    mut lane_value: F,
+) -> Result<Value, Error>
+where
+    F: FnMut(&mut StepState<'_, '_>, usize) -> Result<Value, Error>,
+{
+    materialize_composite_by_index(state, dest, |state, lane_index, _component_type| {
+        let lane_index = usize::try_from(lane_index).map_err(|_| Error::TypeMismatch {
+            expected: "vector lane index".to_string(),
+            actual: lane_index.to_string(),
+        })?;
+
+        lane_value(state, lane_index)
+    })
+}
+
 /// Step vector.splat.
 pub(crate) fn step_vector_splat(
     state: &mut StepState<'_, '_>,
@@ -9,19 +57,18 @@ pub(crate) fn step_vector_splat(
     pc: usize,
 ) -> Transfer {
     // decode instruction data
-    let InstructionData::VectorSplat { dest, value, lanes } = &block[pc].data else {
+    let InstructionData::VectorSplat { dest, value } = &block[pc].data else {
         unreachable!()
     };
 
-    // build lane values
     let lane_value = state.get(*value);
-    let mut lanes_vec = Vec::with_capacity(*lanes as usize);
-    for _ in 0..*lanes {
-        lanes_vec.push(lane_value);
-    }
 
-    // allocate the vector aggregate
-    let result = state.allocate_aggregate(lanes_vec);
+    // materialize the result one lane at a time
+    let result =
+        match materialize_vector_by_lane(state, *dest, |_state, _lane_index| Ok(lane_value)) {
+            Ok(result) => result,
+            Err(error) => return Transfer::Error(error),
+        };
     state.set(*dest, result);
 
     // continue to next instruction
@@ -50,25 +97,21 @@ pub(crate) fn step_vector_extract(
         Ok(index) => index,
         Err(error) => return Transfer::Error(error),
     };
+    let lane_count = match vector_lane_count(state, *vector) {
+        Ok(lanes) => lanes,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // extract lane
-    let result = {
-        let vec_slots = match aggregate_slots(state, vec_value) {
-            Ok(slots) => slots,
-            Err(error) => return Transfer::Error(error),
-        };
-
-        // reject out of bounds lane indices
-        if index_value >= vec_slots.len() {
-            return Transfer::Error(Error::IndexOutOfBounds {
-                index: index_value as u64,
-                length: vec_slots.len() as u64,
-            });
-        }
-        match vec_slots.get(index_value) {
-            Some(value) => value,
-            None => unreachable!("lane bounds were validated above"),
-        }
+    if index_value >= lane_count {
+        return Transfer::Error(Error::IndexOutOfBounds {
+            index: index_value as u64,
+            length: lane_count as u64,
+        });
+    }
+    let result = match vector_lane_value(state, vec_value, index_value) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
     };
     state.set(*dest, result);
 
@@ -95,26 +138,36 @@ pub(crate) fn step_vector_insert(
 
     // resolve inputs
     let vec_value = state.get(*vector);
-    let mut vec_slots = match aggregate_slots_vec(state, vec_value) {
-        Ok(slots) => slots,
-        Err(error) => return Transfer::Error(error),
-    };
     let index_value = match value_to_usize(state.get(*index)) {
         Ok(index) => index,
         Err(error) => return Transfer::Error(error),
     };
+    let lane_count = match vector_lane_count(state, *vector) {
+        Ok(lanes) => lanes,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // reject out of bounds lane indices
-    if index_value >= vec_slots.len() {
+    if index_value >= lane_count {
         return Transfer::Error(Error::IndexOutOfBounds {
             index: index_value as u64,
-            length: vec_slots.len() as u64,
+            length: lane_count as u64,
         });
     }
 
-    // update lane
-    vec_slots[index_value] = state.get(*value);
-    let result = state.allocate_aggregate(vec_slots);
+    let inserted_value = state.get(*value);
+
+    // materialize the updated vector one lane at a time
+    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+        if lane_index == index_value {
+            return Ok(inserted_value);
+        }
+
+        vector_lane_value(state, vec_value, lane_index)
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
@@ -141,35 +194,39 @@ pub(crate) fn step_vector_shuffle(
     // resolve lane sources
     let left_value = state.get(*left);
     let right_value = state.get(*right);
-    let left_slots = match aggregate_slots_vec(state, left_value) {
-        Ok(slots) => slots,
+    let left_lane_count = match vector_lane_count(state, *left) {
+        Ok(lanes) => lanes,
         Err(error) => return Transfer::Error(error),
     };
-    let right_slots = match aggregate_slots_vec(state, right_value) {
-        Ok(slots) => slots,
+    let right_lane_count = match vector_lane_count(state, *right) {
+        Ok(lanes) => lanes,
         Err(error) => return Transfer::Error(error),
     };
 
-    // apply mask
-    let mut result = Vec::with_capacity(mask.len());
-    for index in mask {
-        let idx = *index as usize;
-        if idx < left_slots.len() {
-            result.push(left_slots[idx]);
-        } else {
-            let rhs = idx - left_slots.len();
-            if rhs >= right_slots.len() {
-                return Transfer::Error(Error::IndexOutOfBounds {
-                    index: idx as u64,
-                    length: (left_slots.len() + right_slots.len()) as u64,
-                });
-            }
-            result.push(right_slots[rhs]);
+    // materialize the shuffled lanes directly
+    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+        let idx = *mask.get(lane_index).ok_or(Error::IndexOutOfBounds {
+            index: lane_index as u64,
+            length: mask.len() as u64,
+        })? as usize;
+
+        if idx < left_lane_count {
+            return vector_lane_value(state, left_value, idx);
         }
-    }
 
-    // allocate result aggregate
-    let result = state.allocate_aggregate(result);
+        let rhs = idx - left_lane_count;
+        if rhs >= right_lane_count {
+            return Err(Error::IndexOutOfBounds {
+                index: idx as u64,
+                length: (left_lane_count + right_lane_count) as u64,
+            });
+        }
+
+        vector_lane_value(state, right_value, rhs)
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
@@ -193,52 +250,54 @@ pub(crate) fn step_vector_select(
     };
 
     let mask_value = state.get(*mask);
-    let then_value = state.get(*then_value);
-    let else_value = state.get(*else_value);
-    let mask_slots = match aggregate_slots(state, mask_value) {
-        Ok(slots) => slots,
+    let then_vector = state.get(*then_value);
+    let else_vector = state.get(*else_value);
+    let mask_lane_count = match vector_lane_count(state, *mask) {
+        Ok(lanes) => lanes,
         Err(error) => return Transfer::Error(error),
     };
-    let then_slots = match aggregate_slots(state, then_value) {
-        Ok(slots) => slots,
+    let then_lane_count = match vector_lane_count(state, *then_value) {
+        Ok(lanes) => lanes,
         Err(error) => return Transfer::Error(error),
     };
-    let else_slots = match aggregate_slots(state, else_value) {
-        Ok(slots) => slots,
+    let else_lane_count = match vector_lane_count(state, *else_value) {
+        Ok(lanes) => lanes,
         Err(error) => return Transfer::Error(error),
     };
 
-    if mask_slots.len() != then_slots.len() || mask_slots.len() != else_slots.len() {
+    if mask_lane_count != then_lane_count || mask_lane_count != else_lane_count {
         return Transfer::Error(Error::TypeMismatch {
             expected: "matching vector lanes".to_string(),
-            actual: format!(
-                "{} vs {} vs {}",
-                mask_slots.len(),
-                then_slots.len(),
-                else_slots.len()
-            ),
+            actual: format!("{mask_lane_count} vs {then_lane_count} vs {else_lane_count}"),
         });
     }
 
-    // select one lane from the matching then or else vectors
-    let mut output = Vec::with_capacity(mask_slots.len());
-    for ((mask_value, then_lane), else_lane) in mask_slots
-        .iter()
-        .zip(then_slots.iter())
-        .zip(else_slots.iter())
-    {
-        if !matches!(mask_value.tag(), ValueTag::Bool) {
-            return Transfer::Error(Error::TypeMismatch {
+    // materialize the selected lanes directly
+    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+        let mask_lane = match vector_lane_value(state, mask_value, lane_index) {
+            Ok(value) => value,
+            Err(error) => return Err(error),
+        };
+        if !matches!(mask_lane.tag(), ValueTag::Bool) {
+            return Err(Error::TypeMismatch {
                 expected: "vector.select mask lane to be bool".to_string(),
-                actual: format!("{mask_value:?}"),
+                actual: format!("{mask_lane:?}"),
             });
         }
-        let select = mask_value.raw_data() != 0;
-        output.push(if select { then_lane } else { else_lane });
-    }
-
-    // allocate the result vector aggregate
-    let result = state.allocate_aggregate(output);
+        let then_lane = match vector_lane_value(state, then_vector, lane_index) {
+            Ok(value) => value,
+            Err(error) => return Err(error),
+        };
+        let else_lane = match vector_lane_value(state, else_vector, lane_index) {
+            Ok(value) => value,
+            Err(error) => return Err(error),
+        };
+        let select = mask_lane.raw_data() != 0;
+        Ok(if select { then_lane } else { else_lane })
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
     next!(state, block, pc)
 }
@@ -261,31 +320,29 @@ pub(crate) fn step_vector_reduce(
 
     // resolve vector lanes
     let vec_value = state.get(*vector);
-    let result = {
-        let vec_slots = match aggregate_slots(state, vec_value) {
-            Ok(slots) => slots,
+    let lane_count = match vector_lane_count(state, *vector) {
+        Ok(lanes) => lanes,
+        Err(error) => return Transfer::Error(error),
+    };
+    let result = if lane_count == 0 {
+        None
+    } else {
+        let mut result = match vector_lane_value(state, vec_value, 0) {
+            Ok(value) => value,
             Err(error) => return Transfer::Error(error),
         };
-
-        // return void for empty vectors and otherwise reduce left to right
-        if vec_slots.is_empty() {
-            None
-        } else {
-            let mut result = vec_slots
-                .get(0)
-                .expect("non-empty vectors should have a first lane");
-            let op = ReduceOperator::from(*operator);
-            for lane_index in 1..vec_slots.len() {
-                let lane = vec_slots
-                    .get(lane_index)
-                    .expect("lane index should stay within bounds");
-                match apply_reduce_operator(op, result, lane) {
-                    Ok(value) => result = value,
-                    Err(error) => return Transfer::Error(error),
-                }
+        let op = ReduceOperator::from(*operator);
+        for lane_index in 1..lane_count {
+            let lane = match vector_lane_value(state, vec_value, lane_index) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            };
+            match apply_reduce_operator(op, result, lane) {
+                Ok(value) => result = value,
+                Err(error) => return Transfer::Error(error),
             }
-            Some(result)
         }
+        Some(result)
     };
 
     // store result
@@ -315,36 +372,38 @@ pub(crate) fn step_vector_compare(
     // resolve vector slots
     let left_value = state.get(*left);
     let right_value = state.get(*right);
-    let left_slots = match aggregate_slots_vec(state, left_value) {
-        Ok(slots) => slots,
+    let left_lane_count = match vector_lane_count(state, *left) {
+        Ok(lanes) => lanes,
         Err(error) => return Transfer::Error(error),
     };
-    let right_slots = match aggregate_slots_vec(state, right_value) {
-        Ok(slots) => slots,
+    let right_lane_count = match vector_lane_count(state, *right) {
+        Ok(lanes) => lanes,
         Err(error) => return Transfer::Error(error),
     };
 
     // validate lane counts
-    if left_slots.len() != right_slots.len() {
+    if left_lane_count != right_lane_count {
         return Transfer::Error(Error::TypeMismatch {
             expected: "matching vector lanes".to_string(),
-            actual: format!("{} vs {}", left_slots.len(), right_slots.len()),
+            actual: format!("{left_lane_count} vs {right_lane_count}"),
         });
     }
 
-    // compare lane values
     // compare the vectors lane by lane
-    let mut output = Vec::with_capacity(left_slots.len());
-    for (lhs, rhs) in left_slots.iter().zip(right_slots.iter()) {
-        let value = match operator::execute_binary(*operator, *lhs, *rhs) {
+    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+        let lhs = match vector_lane_value(state, left_value, lane_index) {
             Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
+            Err(error) => return Err(error),
         };
-        output.push(value);
-    }
-
-    // allocate result aggregate
-    let result = state.allocate_aggregate(output);
+        let rhs = match vector_lane_value(state, right_value, lane_index) {
+            Ok(value) => value,
+            Err(error) => return Err(error),
+        };
+        operator::execute_binary(*operator, lhs, rhs)
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction
@@ -392,47 +451,36 @@ pub(crate) fn step_vector_convert(
 
     // resolve lane values
     let vector_value = state.get(*vector);
-    let output = {
-        let source_slots = match aggregate_slots(state, vector_value) {
-            Ok(slots) => slots,
-            Err(error) => return Transfer::Error(error),
-        };
-
-        // validate lane counts
-        if source_slots.len() != dest_lanes {
-            return Transfer::Error(Error::TypeMismatch {
-                expected: "matching vector lanes".to_string(),
-                actual: format!("{} vs {}", source_slots.len(), dest_lanes),
-            });
-        }
-
-        // resolve scalar conversion metadata once for the whole vector
-        let source_info = match scalar_type_info(state.tree(), source_element) {
-            Ok(info) => info,
-            Err(error) => return Transfer::Error(error),
-        };
-        let dest_info = match scalar_type_info(state.tree(), dest_element) {
-            Ok(info) => info,
-            Err(error) => return Transfer::Error(error),
-        };
-        let convert_mode = ScalarConvertMode::from(*mode);
-
-        // convert the lanes one by one
-        let mut output = Vec::with_capacity(source_slots.len());
-        for value in source_slots.iter() {
-            let converted = match convert_scalar_value(value, source_info, dest_info, convert_mode)
-            {
-                Ok(value) => value,
-                Err(error) => return Transfer::Error(error),
-            };
-            output.push(converted);
-        }
-
-        output
+    let source_lane_count = match vector_lane_count(state, *vector) {
+        Ok(lanes) => lanes,
+        Err(error) => return Transfer::Error(error),
     };
+    if source_lane_count != dest_lanes {
+        return Transfer::Error(Error::TypeMismatch {
+            expected: "matching vector lanes".to_string(),
+            actual: format!("{source_lane_count} vs {dest_lanes}"),
+        });
+    }
 
-    // allocate result aggregate
-    let result = state.allocate_aggregate(output);
+    let source_info = match scalar_type_info(state.tree(), source_element) {
+        Ok(info) => info,
+        Err(error) => return Transfer::Error(error),
+    };
+    let dest_info = match scalar_type_info(state.tree(), dest_element) {
+        Ok(info) => info,
+        Err(error) => return Transfer::Error(error),
+    };
+    let convert_mode = ScalarConvertMode::from(*mode);
+
+    // convert the lanes one by one
+    let result = match materialize_vector_by_lane(state, *dest, |state, lane_index| {
+        let value = vector_lane_value(state, vector_value, lane_index)?;
+
+        convert_scalar_value(value, source_info, dest_info, convert_mode)
+    }) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
+    };
     state.set(*dest, result);
 
     // continue to next instruction

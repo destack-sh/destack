@@ -204,15 +204,14 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a string argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_string(\n");
+            output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
             output.push_str(") -> RuntimeResult<vm::StringHandle> {\n");
-            output.push_str("    if value.tag() != vm::ValueTag::String {\n");
-            output.push_str("        return Err(RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed());\n");
-            output.push_str("    }\n");
-            output.push_str("\n");
-            output.push_str("    Ok(vm::StringHandle::new(value))\n");
+            output.push_str("    context\n");
+            output.push_str("        .string_handle_from_value(value)\n");
+            output.push_str("        .map_err(|_| RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed())\n");
             output.push_str("}\n\n");
         }
 
@@ -220,7 +219,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode a slice argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_slice<T>(\n");
-            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
+            output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
@@ -233,7 +232,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("/// Decode an array argument.\n");
             output.push_str("#[allow(dead_code)]\n");
             output.push_str("fn decode_array<T>(\n");
-            output.push_str("    context: &mut vm::ExternalCallContext<'_>,\n");
+            output.push_str("    context: &vm::ExternalReadContext<'_, '_>,\n");
             output.push_str("    value: vm::Value,\n");
             output.push_str("    name: &'static str,\n");
             output.push_str("    expected: &'static str,\n");
@@ -268,6 +267,9 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 "fn {decode_helper}(\n    {decode_context_name}: &mut vm::ExternalCallContext<'_>,\n    args: &[vm::Value],\n) -> RuntimeResult<{}> {{\n",
                 codegen.vm_args_tuple_type(&entry.parameters)
                 ));
+                if decode_uses_context {
+                    output.push_str("    let context = &context.read();\n");
+                }
                 for (index, param) in entry.parameters.iter().enumerate() {
                     let name = codegen.sanitize_param_name(&param.name, index);
                     let expected = param
@@ -314,6 +316,9 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             "fn {encode_helper}(\n    {encode_context_name}: &mut vm::ExternalCallContext<'_>,\n    result: RuntimeResult<{}>,\n) -> RuntimeResult<vm::Value> {{\n",
             codegen.vm_return_type(&entry.return_binding)
         ));
+            if encode_uses_context {
+                output.push_str("    let context = &mut context.write();\n");
+            }
             for line in codegen.render_return_encode_lines(&entry.return_binding) {
                 output.push_str(&format!("    {line}\n"));
             }
@@ -534,12 +539,22 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                                 "                        unsafe {{ {call} }}\n"
                             ));
                             output.push_str("                    },\n");
+                            output.push_str(&format!("                    || unsafe {{\n"));
+                            output.push_str(
+                                "                        let context = (&*context_ptr).read();\n",
+                            );
                             output.push_str(&format!(
-                                "                    || unsafe {{ {buffer_name}.read_bytes(&*context_ptr) }},\n"
+                                "                        {buffer_name}.read_bytes(&context)\n"
                             ));
+                            output.push_str("                    },\n");
+                            output.push_str(&format!("                    |bytes| unsafe {{\n"));
+                            output.push_str(
+                                "                        let mut context = (&mut *context_ptr).write();\n",
+                            );
                             output.push_str(&format!(
-                                "                    |bytes| unsafe {{ {buffer_name}.write_bytes(&mut *context_ptr, &bytes) }},\n"
+                                "                        {buffer_name}.write_bytes(&mut context, &bytes)\n"
                             ));
+                            output.push_str("                    },\n");
                             output.push_str("                );\n");
                             output.push_str(&format!(
                                 "                {encode_helper}(context, result)\n"
@@ -564,12 +579,16 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         let register_fn = codegen.register_fn_name();
         let set_name = codegen.vm_set_name();
         let install_fn = codegen.install_fn_name();
+        let register_storage_types_fn = codegen.register_storage_types_fn_name();
 
         output.push_str(&format!("/// Install VM bindings for {domain}.\n"));
         output.push_str(&format!("pub(crate) fn {install_fn}(\n"));
         output.push_str("    registry: &mut BindingRegistry,\n");
         output.push_str("    isolate: &mut Isolate,\n");
         output.push_str(") {\n");
+        output.push_str(&format!(
+            "    super::abi_generated::{register_storage_types_fn}(isolate);\n"
+        ));
         output.push_str(&format!("    {register_fn}(registry, isolate);\n"));
         output.push_str("}\n\n");
 

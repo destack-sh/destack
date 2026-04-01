@@ -6,14 +6,11 @@ pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
 /// Sentinel function index used for missing lowered entries.
 pub(crate) const INVALID_FUNCTION_INDEX: u32 = u32::MAX;
 
-/// Sentinel field count for unknown aggregate layouts.
+/// Sentinel field count for unknown composite layouts.
 pub(crate) const UNKNOWN_FIELD_COUNT: u32 = u32::MAX;
 
 /// Sentinel array length for unknown layouts.
 pub(crate) const UNKNOWN_ARRAY_LENGTH: u64 = u64::MAX;
-
-/// Sentinel slot count for unknown allocation layouts.
-pub(crate) const UNKNOWN_SLOT_COUNT: u32 = u32::MAX;
 
 /// Argument range within one function argument pool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -54,16 +51,6 @@ impl ArgumentRange {
 
         // return argument slice
         &pool[start..start + len]
-    }
-
-    /// Get the contiguous range for fast copying when available.
-    #[inline(always)]
-    pub(crate) fn contiguous_range(&self) -> Option<(u32, usize)> {
-        if self.is_contiguous && self.len > 0 {
-            return Some((self.contiguous_start, self.len as usize));
-        }
-
-        None
     }
 }
 

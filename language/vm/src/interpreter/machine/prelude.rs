@@ -7,9 +7,9 @@ pub(crate) use smallvec::SmallVec;
 
 pub(crate) use crate::diagnostic::Error;
 pub(crate) use crate::executable::{
-    ArgumentRange, ConstValue, CopyRange, Function, FunctionTarget, INVALID_FUNCTION_INDEX,
-    INVALID_VALUE_ID, Instruction, InstructionData, Transfer, UNKNOWN_FIELD_COUNT,
-    UNKNOWN_SLOT_COUNT, is_invalid_value,
+    ArgumentRange, ConstValue, CopyRange, ElementAccess, Function, FunctionTarget,
+    INVALID_FUNCTION_INDEX, Instruction, InstructionData, Transfer, TypedAccess,
+    UNKNOWN_FIELD_COUNT, is_invalid_value,
 };
 pub(crate) use crate::interpreter::StepState;
 pub(crate) use destack_heap::{

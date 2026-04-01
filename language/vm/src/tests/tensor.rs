@@ -1,16 +1,30 @@
-use crate::tests::{TestIsolate, create_aggregate, create_isolate, run_mir_expect};
+use crate::tests::{TestIsolate, create_isolate, run_mir_expect};
 use destack_heap::Value;
 
 /// Create a tensor aggregate value from the provided elements.
-fn tensor_from_values(isolate: &mut TestIsolate, values: &[i32]) -> Value {
+fn tensor_from_values(
+    isolate: &mut TestIsolate,
+    function: &str,
+    index: usize,
+    values: &[i32],
+) -> Value {
+    let ty = isolate.parameter_type(function, index);
     let elements = values.iter().copied().map(Value::int32).collect();
-    create_aggregate(isolate, elements)
+
+    isolate.materialize_value_for_type(ty, elements)
 }
 
 /// Create a tensor aggregate value from the provided float elements.
-fn tensor_from_f64_values(isolate: &mut TestIsolate, values: &[f64]) -> Value {
+fn tensor_from_f64_values(
+    isolate: &mut TestIsolate,
+    function: &str,
+    index: usize,
+    values: &[f64],
+) -> Value {
+    let ty = isolate.parameter_type(function, index);
     let elements = values.iter().copied().map(Value::float64).collect();
-    create_aggregate(isolate, elements)
+
+    isolate.materialize_value_for_type(ty, elements)
 }
 
 /// Run one tensor MIR function and return the aggregate slots of the result.
@@ -27,7 +41,7 @@ where
     isolate.with_memory(|vm, memory| {
         vm.with_runtime_context(memory, |context| {
             context
-                .aggregate_slots(output.value)
+                .decode_component_values(output.value)
                 .expect("expected aggregate result")
         })
     })
@@ -84,7 +98,12 @@ block0(v0: tensor<i32, [2, 2]>):
     return v3
 }"#;
     let slots = run_tensor_slots(mir, "tensor_reshape", |interp| {
-        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+        vec![tensor_from_values(
+            interp,
+            "tensor_reshape",
+            0,
+            &[1, 2, 3, 4],
+        )]
     });
     assert_eq!(
         slots,
@@ -105,7 +124,12 @@ block0(v0: tensor<i32, [2, 2]>):
     return v1
 }"#;
     let slots = run_tensor_slots(mir, "tensor_broadcast", |interp| {
-        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+        vec![tensor_from_values(
+            interp,
+            "tensor_broadcast",
+            0,
+            &[1, 2, 3, 4],
+        )]
     });
     assert_eq!(
         slots,
@@ -126,7 +150,12 @@ block0(v0: tensor<i32, [2, 2]>):
     return v1
 }"#;
     let slots = run_tensor_slots(mir, "tensor_transpose", |interp| {
-        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+        vec![tensor_from_values(
+            interp,
+            "tensor_transpose",
+            0,
+            &[1, 2, 3, 4],
+        )]
     });
     assert_eq!(
         slots,
@@ -150,7 +179,7 @@ block0(v0: tensor<i32, [2, 2]>):
     return v4
 }"#;
     let slots = run_tensor_slots(mir, "tensor_slice", |interp| {
-        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+        vec![tensor_from_values(interp, "tensor_slice", 0, &[1, 2, 3, 4])]
     });
     assert_eq!(
         slots,
@@ -170,7 +199,7 @@ block0(v0: tensor<i32, [1, 1]>):
     return v3
 }"#;
     let slots = run_tensor_slots(mir, "tensor_pad", |interp| {
-        vec![tensor_from_values(interp, &[9])]
+        vec![tensor_from_values(interp, "tensor_pad", 0, &[9])]
     });
     assert_eq!(
         slots,
@@ -192,8 +221,8 @@ block0(v0: tensor<i32, [1, 2]>, v1: tensor<i32, [1, 2]>):
 }"#;
     let slots = run_tensor_slots(mir, "tensor_concat", |interp| {
         vec![
-            tensor_from_values(interp, &[1, 2]),
-            tensor_from_values(interp, &[3, 4]),
+            tensor_from_values(interp, "tensor_concat", 0, &[1, 2]),
+            tensor_from_values(interp, "tensor_concat", 1, &[3, 4]),
         ]
     });
     assert_eq!(
@@ -216,7 +245,12 @@ block0(v0: tensor<i32, [2, 2]>):
     return v2
 }"#;
     let slots = run_tensor_slots(mir, "tensor_reduce", |interp| {
-        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+        vec![tensor_from_values(
+            interp,
+            "tensor_reduce",
+            0,
+            &[1, 2, 3, 4],
+        )]
     });
     assert_eq!(
         slots,
@@ -235,8 +269,8 @@ block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
 }"#;
     let slots = run_tensor_slots(mir, "tensor_dot", |interp| {
         vec![
-            tensor_from_values(interp, &[1, 2, 3, 4]),
-            tensor_from_values(interp, &[5, 6, 7, 8]),
+            tensor_from_values(interp, "tensor_dot", 0, &[1, 2, 3, 4]),
+            tensor_from_values(interp, "tensor_dot", 1, &[5, 6, 7, 8]),
         ]
     });
     assert_eq!(
@@ -259,8 +293,8 @@ block0(v0: tensor<i32, [1, 1, 1, 1]>, v1: tensor<i32, [1, 1, 1, 1]>):
 }"#;
     let slots = run_tensor_slots(mir, "tensor_convolution", |interp| {
         vec![
-            tensor_from_values(interp, &[2]),
-            tensor_from_values(interp, &[3]),
+            tensor_from_values(interp, "tensor_convolution", 0, &[2]),
+            tensor_from_values(interp, "tensor_convolution", 1, &[3]),
         ]
     });
     assert_eq!(slots, vec![Value::int32(6)]);
@@ -277,8 +311,8 @@ block0(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>):
 }"#;
     let slots = run_tensor_slots(mir, "tensor_gather", |interp| {
         vec![
-            tensor_from_values(interp, &[7]),
-            tensor_from_values(interp, &[0]),
+            tensor_from_values(interp, "tensor_gather", 0, &[7]),
+            tensor_from_values(interp, "tensor_gather", 1, &[0]),
         ]
     });
     assert_eq!(slots, vec![Value::int32(7)]);
@@ -295,9 +329,9 @@ block0(v0: tensor<i32, [1, 1]>, v1: tensor<i32, [1, 1]>, v2: tensor<i32, [1, 1]>
 }"#;
     let slots = run_tensor_slots(mir, "tensor_scatter", |interp| {
         vec![
-            tensor_from_values(interp, &[0]),
-            tensor_from_values(interp, &[0]),
-            tensor_from_values(interp, &[9]),
+            tensor_from_values(interp, "tensor_scatter", 0, &[0]),
+            tensor_from_values(interp, "tensor_scatter", 1, &[0]),
+            tensor_from_values(interp, "tensor_scatter", 2, &[9]),
         ]
     });
     assert_eq!(slots, vec![Value::int32(9)]);
@@ -313,7 +347,12 @@ block0(v0: tensor<i32, [2, 2]>):
     return v1
 }"#;
     let slots = run_tensor_slots(mir, "tensor_convert", |interp| {
-        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+        vec![tensor_from_values(
+            interp,
+            "tensor_convert",
+            0,
+            &[1, 2, 3, 4],
+        )]
     });
     assert_eq!(
         slots,
@@ -335,8 +374,8 @@ block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
 }"#;
     let slots = run_tensor_slots(mir, "tensor_compare", |interp| {
         vec![
-            tensor_from_values(interp, &[1, 2, 3, 4]),
-            tensor_from_values(interp, &[1, 9, 3, 4]),
+            tensor_from_values(interp, "tensor_compare", 0, &[1, 2, 3, 4]),
+            tensor_from_values(interp, "tensor_compare", 1, &[1, 9, 3, 4]),
         ]
     });
     assert_eq!(
@@ -358,7 +397,12 @@ block0(v0: tensor<f64, [2, 2]>):
     return v1
 }"#;
     let slots = run_tensor_slots(mir, "tensor_convert_rounding", |interp| {
-        vec![tensor_from_f64_values(interp, &[1.2, 2.9, 3.1, 4.0])]
+        vec![tensor_from_f64_values(
+            interp,
+            "tensor_convert_rounding",
+            0,
+            &[1.2, 2.9, 3.1, 4.0],
+        )]
     });
     assert_eq!(
         slots,
@@ -379,7 +423,7 @@ block0(v0: tensor<i32, [2, 2]>):
     return v1
 }"#;
     let slots = run_tensor_slots(mir, "tensor_cast", |interp| {
-        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+        vec![tensor_from_values(interp, "tensor_cast", 0, &[1, 2, 3, 4])]
     });
     assert_eq!(
         slots,

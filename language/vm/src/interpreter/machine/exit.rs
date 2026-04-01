@@ -1,6 +1,9 @@
 use destack_engine as engine;
 use destack_heap::Value;
 
+use super::bind::{
+    bind_transferred_value, capture_transferred_value, materialize_transferred_value_for_escape,
+};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::Executable;
 use crate::execute::ExecutionOutcome;
@@ -11,9 +14,24 @@ impl Interpreter {
     pub(crate) fn apply_return_transfer(
         &mut self,
         executable: &Executable,
-        memory: &destack_heap::MemoryContext<'_>,
+        memory: &mut destack_heap::MemoryContext<'_>,
         value: Value,
     ) -> RuntimeResult<Option<ExecutionOutcome>> {
+        // capture the returned value before the callee frame goes away
+        let callee = self
+            .call_stack
+            .last()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let return_type = executable.tree.get(callee.function).return_type;
+        let returned = capture_transferred_value(
+            executable,
+            memory.heap_ref(),
+            self.call_stack.as_slice(),
+            return_type,
+            value,
+        )
+        .map_err(RuntimeError::new)?;
+
         // pop the callee frame and release its live storage
         let frame = self
             .call_stack
@@ -24,15 +42,20 @@ impl Interpreter {
 
         // complete top level execution when there is no caller
         if self.call_stack.is_empty() {
+            let value =
+                materialize_transferred_value_for_escape(executable, memory.heap(), returned)
+                    .map_err(RuntimeError::new)?;
             return Ok(Some(self.complete_execution(memory.heap_ref(), value)));
         }
 
         // otherwise resume the caller through its pending transfer or return slot
-        let caller = self
+        let caller_index = self.call_stack.len() - 1;
+        let transfer = self
             .call_stack
-            .last_mut()
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let transfer = caller.transfer.take();
+            .get_mut(caller_index)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
+            .transfer
+            .take();
 
         // branch-call callers resume through their semantic normal continuation
         if let Some(engine::FrameTransfer::Call(engine::CallTransfer::Branch {
@@ -40,19 +63,29 @@ impl Interpreter {
             ..
         })) = transfer
         {
-            let _ = caller;
-
-            self.apply_resume_point_transfer(executable, normal_resume_point, value)?;
+            self.apply_resume_point_transfer_typed(executable, normal_resume_point, returned)?;
             return Ok(None);
         }
 
         // plain callers resume through their return destination slot
+        let caller = self
+            .call_stack
+            .last_mut()
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         if let Some(destination) = executable.return_destination_for_position(
             caller.function,
             caller.current_block,
             caller.resume_pc as u32,
         ) {
-            caller.set_value(&mut self.value_stack, destination, value);
+            bind_transferred_value(
+                executable,
+                &mut self.value_stack,
+                caller,
+                caller_index,
+                destination,
+                returned,
+            )
+            .map_err(RuntimeError::new)?;
         }
 
         Ok(None)

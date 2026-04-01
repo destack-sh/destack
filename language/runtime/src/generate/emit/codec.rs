@@ -133,6 +133,10 @@ impl<'a> ModuleCodegen<'a> {
             BindingType::Struct { fields, .. } => {
                 let mut lines = Vec::new();
                 let mut encoded_fields = Vec::new();
+                let BindingType::Struct { name, domain, .. } = binding_type else {
+                    unreachable!();
+                };
+                let metadata_name = self.named_type_metadata_name(domain, name);
 
                 // encode each field
                 for (index, field) in fields.iter().enumerate() {
@@ -147,9 +151,15 @@ impl<'a> ModuleCodegen<'a> {
                 }
 
                 lines.push(format!(
-                    "context.allocate_aggregate(vec![{}]).map_err(Box::<RuntimeError>::from)",
-                    encoded_fields.join(", ")
+                    "let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?;",
+                    self.escape_rust_string(&metadata_name)
                 ));
+                for (index, local_name) in encoded_fields.iter().enumerate() {
+                    lines.push(format!(
+                        "value_builder.write_component({index}, {local_name}).map_err(Box::<RuntimeError>::from)?;"
+                    ));
+                }
+                lines.push("value_builder.finish().map_err(Box::<RuntimeError>::from)".to_string());
                 format!("{{ {} }}", lines.join(" "))
             }
             BindingType::TaggedUnion {
@@ -158,13 +168,16 @@ impl<'a> ModuleCodegen<'a> {
                 variants,
             } => {
                 let union_type = self.tagged_union_vm_path(union_domain, name);
+                let metadata_name = self.named_type_metadata_name(union_domain, name);
                 let mut arms = Vec::new();
                 for variant in variants {
                     let tag = Self::tagged_union_variant_tag(name, variant.name.as_str());
                     let payload_expr = self.render_encode_expr(&variant.binding_type, "value");
                     arms.push(format!(
-                        "{union_type}::{}(value) => {{ let tag_value = vm::Value::uint({tag}u64, 32); let payload_value = {payload_expr}?; context.allocate_aggregate(vec![tag_value, payload_value]).map_err(Box::<RuntimeError>::from) }}",
+                        "{union_type}::{}(value) => {{ let tag_value = vm::Value::uint({tag}u64, 32); let payload_value = {payload_expr}?; let mut value_builder = context.begin_named_storage_value_builder(\"{}\").map_err(Box::<RuntimeError>::from)?; value_builder.write_component(0, tag_value).map_err(Box::<RuntimeError>::from)?; value_builder.write_component(1, payload_value).map_err(Box::<RuntimeError>::from)?; value_builder.finish().map_err(Box::<RuntimeError>::from) }}",
                         variant.name
+                        ,
+                        self.escape_rust_string(&metadata_name)
                     ));
                 }
                 format!("match {value_expr} {{ {} }}", arms.join(", "))
@@ -215,7 +228,7 @@ impl<'a> ModuleCodegen<'a> {
                 "let {name} = decode_float64({value_expr}, \"{name}\", \"{expected}\")?;"
             )],
             BindingType::String => vec![format!(
-                "let {name} = decode_string({value_expr}, \"{name}\", \"{expected}\")?;"
+                "let {name} = decode_string(context, {value_expr}, \"{name}\", \"{expected}\")?;"
             )],
             BindingType::StringSlice => vec![format!(
                 "let {name} = decode_slice::<vm::StringHandle>(context, {value_expr}, \"{name}\", \"{expected}\")?;"
@@ -364,50 +377,14 @@ impl<'a> ModuleCodegen<'a> {
         &self,
         name: &str,
         value_expr: &str,
-        expected: &str,
+        _expected: &str,
         struct_name: &str,
         struct_domain: &str,
-        fields: &[BindingField],
+        _fields: &[BindingField],
     ) -> Vec<String> {
         let struct_type = self.struct_vm_path(struct_domain, struct_name);
-        let mut lines = Vec::new();
-        lines.push(format!("let {name} = {{"));
-        lines.push(format!(
-            "    if {value_expr}.tag() != vm::ValueTag::Aggregate {{ return Err(RuntimeError::from(PlatformError::invalid_argument_type(\"{name}\", \"{expected}\")).boxed()); }}"
-        ));
-        lines.push(format!(
-            "    let slots = context.aggregate_slots({value_expr}).map_err(|error| RuntimeError::from(error).boxed())?;"
-        ));
-        lines.push(format!(
-            "    if slots.len() != {} {{ return Err(RuntimeError::from(PlatformError::invalid_argument_value(\"{name}\", \"expected {} fields\")).boxed()); }}",
-            fields.len(),
-            fields.len()
-        ));
-
-        let mut field_names = Vec::new();
-
-        // decode each field
-        for (index, field) in fields.iter().enumerate() {
-            let field_name = self.to_snake_case(&field.name);
-            let local_name = format!("{name}_{field_name}");
-            field_names.push((field_name, local_name.clone()));
-            let field_lines = self.render_decode_value_lines(
-                &local_name,
-                &field.binding_type,
-                &format!("slots[{index}]"),
-                field.name.as_str(),
-            );
-            for line in field_lines {
-                lines.push(format!("    {line}"));
-            }
-        }
-
-        lines.push(format!("    {struct_type} {{"));
-        for (field_name, local_name) in field_names {
-            lines.push(format!("        {field_name}: {local_name},"));
-        }
-        lines.push("    }".to_string());
-        lines.push("};".to_string());
-        lines
+        vec![format!(
+            "let {name} = <{struct_type} as VmAggregateCodec>::decode_with_context(context, {value_expr})?;"
+        )]
     }
 }

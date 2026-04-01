@@ -5,8 +5,10 @@ use {destack_engine as engine, destack_mir as mir};
 
 use super::super::state::{Frame, resize_and_clear_stack};
 use super::bind::{
-    bind_parameters_from_values, collect_argument_values_from_copies,
-    collect_argument_values_range, copy_values_between_frames, copy_values_with_plan,
+    TransferredValue, bind_parameters_from_transferred_values,
+    collect_transferred_values_from_copies, collect_transferred_values_range,
+    copy_values_between_frames_typed, copy_values_with_plan_typed,
+    materialize_transferred_value_for_escape,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{
@@ -14,7 +16,9 @@ use crate::executable::{
 };
 use crate::execute::ExecutionOutcome;
 use crate::interpreter::Interpreter;
-use crate::isolate::{ExternalCallContext, ExternalFn, ExternalFnPtr, StringInterner};
+use crate::isolate::{
+    ExternalCallContext, ExternalFn, ExternalFnPtr, SchemaRegistry, StringInterner,
+};
 use crate::options::IsolateOptions;
 
 /// The resolved lowered callee entry for one call.
@@ -81,21 +85,32 @@ impl Interpreter {
     fn call_imported_function(
         &mut self,
         executable: &Executable,
+        schema: &SchemaRegistry,
         function_id: mir::LocalNodeId<mir::Function>,
         string_interner: &mut StringInterner,
         externals: &std::collections::HashMap<String, ExternalFn>,
         externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
-        arguments: &[Value],
+        arguments: &[TransferredValue],
     ) -> RuntimeResult<Value> {
         // resolve the external handler first
         let handler = self.external_for_id(executable, externals, externals_by_id, function_id)?;
 
+        // externalize argument values before crossing the runtime boundary
+        let arguments = arguments
+            .iter()
+            .cloned()
+            .map(|argument| {
+                materialize_transferred_value_for_escape(executable, memory.heap(), argument)
+                    .map_err(RuntimeError::new)
+            })
+            .collect::<RuntimeResult<Vec<_>>>()?;
+
         // call through the external context
         let result = {
             let memory = memory.reborrow();
-            let mut context = ExternalCallContext::new(string_interner, memory);
-            (unsafe { handler.as_ref() })(&mut context, arguments)
+            let mut context = ExternalCallContext::new(executable, schema, string_interner, memory);
+            (unsafe { handler.as_ref() })(&mut context, &arguments)
         }
         .map_err(|error| self.make_error(executable, error))?;
 
@@ -107,6 +122,7 @@ impl Interpreter {
     fn push_lowered_call_frame(
         &mut self,
         executable: &Executable,
+        heap: &destack_heap::Heap,
         options: &IsolateOptions,
         current_func: &crate::executable::Function,
         callee: LoweredCallee,
@@ -154,7 +170,7 @@ impl Interpreter {
         self.local_stack
             .resize(local_base + local_count, Value::VOID);
 
-        let new_frame = Frame::new(
+        let mut new_frame = Frame::new(
             unsafe { callee.function_ptr.as_ref().frame_layout },
             callee.function_id,
             callee.function_ptr,
@@ -178,25 +194,38 @@ impl Interpreter {
             "caller frame moved while binding arguments"
         );
 
+        let new_frame_index = self.call_stack.len();
+        let frames_ptr = self.call_stack.as_ptr();
+        let frames_len = self.call_stack.len();
         if let Some(copies) = copies {
-            copy_values_with_plan(
+            copy_values_with_plan_typed(
+                executable,
+                heap,
+                unsafe { std::slice::from_raw_parts(frames_ptr, frames_len) },
                 &mut self.value_stack,
                 caller,
-                &new_frame,
+                &mut new_frame,
+                new_frame_index,
                 copies,
                 current_func.copy_pool.as_slice(),
-            );
+            )
+            .map_err(RuntimeError::new)?;
         } else {
             let callee_function = unsafe { callee.function_ptr.as_ref() };
-            copy_values_between_frames(
+            copy_values_between_frames_typed(
+                executable,
+                heap,
+                unsafe { std::slice::from_raw_parts(frames_ptr, frames_len) },
                 &mut self.value_stack,
                 caller,
-                &new_frame,
+                &mut new_frame,
+                new_frame_index,
                 callee_function.argument_pool.as_slice(),
                 callee_function.parameters,
                 current_func.argument_pool.as_slice(),
                 arguments,
-            );
+            )
+            .map_err(RuntimeError::new)?;
         }
 
         // push the new frame and update call stats
@@ -213,8 +242,9 @@ impl Interpreter {
     /// Reuse the current frame for one lowered tail call.
     fn reuse_tail_call_frame(
         &mut self,
+        executable: &Executable,
         callee: LoweredCallee,
-        arguments: &[Value],
+        arguments: &[super::bind::TransferredValue],
         env: Option<Value>,
         collect_stats: bool,
     ) -> RuntimeResult<()> {
@@ -234,6 +264,7 @@ impl Interpreter {
         };
 
         // clear the current frame storage and retarget it to the callee
+        let frame_index = self.call_stack.len() - 1;
         let frame = self
             .call_stack
             .last_mut()
@@ -243,10 +274,11 @@ impl Interpreter {
         let value_end = value_base + value_count;
         let local_end = local_base + local_count;
 
-        frame.stack_values.clear();
+        frame.stack_allocations.clear();
         resize_and_clear_stack(&mut self.value_stack, value_base, value_end);
         resize_and_clear_stack(&mut self.local_stack, local_base, local_end);
 
+        frame.frame_layout = unsafe { callee.function_ptr.as_ref().frame_layout };
         frame.function = callee.function_id;
         frame.function_ptr = callee.function_ptr;
         frame.block_ptr = entry_block_ptr;
@@ -261,13 +293,16 @@ impl Interpreter {
 
         // bind the new arguments into the reused frame
         let callee_function = unsafe { callee.function_ptr.as_ref() };
-        bind_parameters_from_values(
+        bind_parameters_from_transferred_values(
+            executable,
             &mut self.value_stack,
             frame,
+            frame_index,
             callee_function.argument_pool.as_slice(),
             callee_function.parameters,
             arguments,
-        );
+        )
+        .map_err(RuntimeError::new)?;
 
         // update call stats for the tail call entry
         if collect_stats {
@@ -283,6 +318,7 @@ impl Interpreter {
         &mut self,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         externals: &std::collections::HashMap<String, ExternalFn>,
         externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
@@ -310,24 +346,31 @@ impl Interpreter {
 
             // materialize the explicit call arguments in caller order
             let arguments = if let Some(copies) = copies {
-                collect_argument_values_from_copies(
+                collect_transferred_values_from_copies(
+                    executable,
+                    memory.heap_ref(),
+                    self.call_stack.as_slice(),
                     &self.value_stack,
                     caller,
                     current_func.copy_pool.as_slice(),
                     copies,
-                )
+                )?
             } else {
-                collect_argument_values_range(
+                collect_transferred_values_range(
+                    executable,
+                    memory.heap_ref(),
+                    self.call_stack.as_slice(),
                     &self.value_stack,
                     caller,
                     current_func.argument_pool.as_slice(),
                     arguments,
-                )
+                )?
             };
 
             // invoke the imported callee outside the lowered machine
             let result = self.call_imported_function(
                 executable,
+                schema,
                 function_id,
                 string_interner,
                 externals,
@@ -362,6 +405,7 @@ impl Interpreter {
         let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
         self.push_lowered_call_frame(
             executable,
+            memory.heap_ref(),
             options,
             current_func,
             callee,
@@ -380,6 +424,7 @@ impl Interpreter {
         &mut self,
         executable: &Executable,
         options: &IsolateOptions,
+        schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         externals: &std::collections::HashMap<String, ExternalFn>,
         externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
@@ -405,16 +450,20 @@ impl Interpreter {
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
             // materialize the explicit branch-call arguments first
-            let arguments = collect_argument_values_range(
+            let arguments = collect_transferred_values_range(
+                executable,
+                memory.heap_ref(),
+                self.call_stack.as_slice(),
                 &self.value_stack,
                 caller,
                 current_func.argument_pool.as_slice(),
                 arguments,
-            );
+            )?;
 
             // invoke the imported callee and continue through the normal branch
             let result = self.call_imported_function(
                 executable,
+                schema,
                 function_id,
                 string_interner,
                 externals,
@@ -443,6 +492,7 @@ impl Interpreter {
 
         self.push_lowered_call_frame(
             executable,
+            memory.heap_ref(),
             options,
             current_func,
             callee,
@@ -460,6 +510,7 @@ impl Interpreter {
     pub(crate) fn apply_tail_call_transfer(
         &mut self,
         executable: &Executable,
+        schema: &SchemaRegistry,
         externals: &std::collections::HashMap<String, ExternalFn>,
         externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         string_interner: &mut StringInterner,
@@ -478,19 +529,25 @@ impl Interpreter {
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         let argument_values = if let Some(copies) = copies {
-            collect_argument_values_from_copies(
+            collect_transferred_values_from_copies(
+                executable,
+                memory.heap_ref(),
+                self.call_stack.as_slice(),
                 &self.value_stack,
                 caller,
                 current_func.copy_pool.as_slice(),
                 copies,
-            )
+            )?
         } else {
-            collect_argument_values_range(
+            collect_transferred_values_range(
+                executable,
+                memory.heap_ref(),
+                self.call_stack.as_slice(),
                 &self.value_stack,
                 caller,
                 current_func.argument_pool.as_slice(),
                 arguments,
-            )
+            )?
         };
 
         // resolve the callee target after the arguments are materialized
@@ -501,6 +558,7 @@ impl Interpreter {
         if matches!(resolved_target, Some(FunctionTarget::Import)) {
             let result = self.call_imported_function(
                 executable,
+                schema,
                 function_id,
                 string_interner,
                 externals,
@@ -539,8 +597,37 @@ impl Interpreter {
         }
 
         // otherwise reuse the current frame for the lowered callee
+        let transferred_arguments = if let Some(copies) = copies {
+            collect_transferred_values_from_copies(
+                executable,
+                memory.heap_ref(),
+                self.call_stack.as_slice(),
+                &self.value_stack,
+                caller,
+                current_func.copy_pool.as_slice(),
+                copies,
+            )
+            .map_err(RuntimeError::new)?
+        } else {
+            collect_transferred_values_range(
+                executable,
+                memory.heap_ref(),
+                self.call_stack.as_slice(),
+                &self.value_stack,
+                caller,
+                current_func.argument_pool.as_slice(),
+                arguments,
+            )
+            .map_err(RuntimeError::new)?
+        };
         let callee = Self::resolve_lowered_callee(executable, function_id, resolved_target)?;
-        self.reuse_tail_call_frame(callee, &argument_values, env, collect_stats)?;
+        self.reuse_tail_call_frame(
+            executable,
+            callee,
+            &transferred_arguments,
+            env,
+            collect_stats,
+        )?;
 
         Ok(None)
     }

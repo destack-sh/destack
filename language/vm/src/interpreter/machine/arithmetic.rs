@@ -1,5 +1,50 @@
 use super::prelude::*;
 
+/// Return the lane count for one vector value id.
+fn vector_lane_count(state: &StepState<'_, '_>, value_id: mir::Value) -> Result<usize, Error> {
+    let vector_type = state.value_type(value_id)?;
+
+    match state.tree().get(vector_type) {
+        mir::Type::Vector { lanes, .. } => Ok(*lanes as usize),
+        _ => Err(Error::TypeMismatch {
+            expected: "vector type".to_string(),
+            actual: format!("{vector_type:?}"),
+        }),
+    }
+}
+
+/// Load one vector lane through the normal composite field path.
+fn vector_lane_value(
+    state: &mut StepState<'_, '_>,
+    vector: Value,
+    lane_index: usize,
+) -> Result<Value, Error> {
+    access::get_field(
+        state,
+        vector,
+        u32::try_from(lane_index).map_err(|_| Error::TypeMismatch {
+            expected: "vector lane index".to_string(),
+            actual: lane_index.to_string(),
+        })?,
+    )
+}
+
+/// Load one tensor storage slot through the normal composite field path.
+fn tensor_slot_value(
+    state: &mut StepState<'_, '_>,
+    tensor: Value,
+    slot_index: usize,
+) -> Result<Value, Error> {
+    access::get_field(
+        state,
+        tensor,
+        u32::try_from(slot_index).map_err(|_| Error::TypeMismatch {
+            expected: "tensor storage slot".to_string(),
+            actual: slot_index.to_string(),
+        })?,
+    )
+}
+
 /// Step constant load.
 pub(crate) fn step_const(
     state: &mut StepState<'_, '_>,
@@ -16,6 +61,25 @@ pub(crate) fn step_const(
     let value = *value;
 
     // write value
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Step value copy.
+pub(crate) fn step_copy(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction data
+    let InstructionData::Copy { dest, source } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // forward the source value
+    let value = state.get(*source);
     state.set(*dest, value);
 
     // continue to next instruction
@@ -1073,37 +1137,45 @@ pub(crate) fn step_binary_elementwise(
     };
 
     let result_type_id = *result_type;
-    let result_type = state.tree().get(result_type_id);
+    let result_type = state.tree().get(result_type_id).clone();
     match result_type {
         mir::Type::Vector { lanes, .. } => {
             let left_value = state.get(*left);
             let right_value = state.get(*right);
-            let left_slots = match aggregate_slots(state, left_value) {
-                Ok(slots) => slots,
+            let expected = lanes as usize;
+            let left_lane_count = match vector_lane_count(state, *left) {
+                Ok(lanes) => lanes,
                 Err(error) => return Transfer::Error(error),
             };
-            let right_slots = match aggregate_slots(state, right_value) {
-                Ok(slots) => slots,
+            let right_lane_count = match vector_lane_count(state, *right) {
+                Ok(lanes) => lanes,
                 Err(error) => return Transfer::Error(error),
             };
-            let expected = *lanes as usize;
-            if left_slots.len() != expected || right_slots.len() != expected {
+            if left_lane_count != expected || right_lane_count != expected {
                 return Transfer::Error(Error::TypeMismatch {
                     expected: "matching vector lanes".to_string(),
-                    actual: format!("{} vs {}", left_slots.len(), right_slots.len()),
+                    actual: format!("{left_lane_count} vs {right_lane_count}"),
                 });
             }
 
-            let mut output = Vec::with_capacity(expected);
-            for (lhs, rhs) in left_slots.iter().zip(right_slots.iter()) {
-                let value = match operator::execute_binary(*op, lhs, rhs) {
-                    Ok(value) => value,
-                    Err(error) => return Transfer::Error(error),
-                };
-                output.push(value);
-            }
+            let result = match materialize_composite_by_index(
+                state,
+                *dest,
+                |state, lane_index, _component_type| {
+                    let lane_index =
+                        usize::try_from(lane_index).map_err(|_| Error::TypeMismatch {
+                            expected: "vector lane index".to_string(),
+                            actual: lane_index.to_string(),
+                        })?;
+                    let lhs = vector_lane_value(state, left_value, lane_index)?;
+                    let rhs = vector_lane_value(state, right_value, lane_index)?;
 
-            let result = state.allocate_aggregate(output);
+                    operator::execute_binary(*op, lhs, rhs)
+                },
+            ) {
+                Ok(result) => result,
+                Err(error) => return Transfer::Error(error),
+            };
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1114,31 +1186,31 @@ pub(crate) fn step_binary_elementwise(
             };
             let left_value = state.get(*left);
             let right_value = state.get(*right);
-            let left_slots = match aggregate_slots(state, left_value) {
-                Ok(slots) => slots,
+            let result = match materialize_composite_by_index(
+                state,
+                *dest,
+                |state, slot_index, _component_type| {
+                    let slot_index =
+                        usize::try_from(slot_index).map_err(|_| Error::TypeMismatch {
+                            expected: "tensor storage slot".to_string(),
+                            actual: slot_index.to_string(),
+                        })?;
+                    if slot_index >= layout.storage_len {
+                        return Err(Error::IndexOutOfBounds {
+                            index: slot_index as u64,
+                            length: layout.storage_len as u64,
+                        });
+                    }
+
+                    let lhs = tensor_slot_value(state, left_value, slot_index)?;
+                    let rhs = tensor_slot_value(state, right_value, slot_index)?;
+
+                    operator::execute_binary(*op, lhs, rhs)
+                },
+            ) {
+                Ok(result) => result,
                 Err(error) => return Transfer::Error(error),
             };
-            let right_slots = match aggregate_slots(state, right_value) {
-                Ok(slots) => slots,
-                Err(error) => return Transfer::Error(error),
-            };
-            if left_slots.len() != layout.storage_len || right_slots.len() != layout.storage_len {
-                return Transfer::Error(Error::TypeMismatch {
-                    expected: "matching tensor elements".to_string(),
-                    actual: format!("{} vs {}", left_slots.len(), right_slots.len()),
-                });
-            }
-
-            let mut output = Vec::with_capacity(layout.storage_len);
-            for (lhs, rhs) in left_slots.iter().zip(right_slots.iter()) {
-                let value = match operator::execute_binary(*op, lhs, rhs) {
-                    Ok(value) => value,
-                    Err(error) => return Transfer::Error(error),
-                };
-                output.push(value);
-            }
-
-            let result = state.allocate_aggregate(output);
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1190,32 +1262,39 @@ pub(crate) fn step_unary_elementwise(
     };
 
     let result_type_id = *result_type;
-    let result_type = state.tree().get(result_type_id);
+    let result_type = state.tree().get(result_type_id).clone();
     match result_type {
         mir::Type::Vector { lanes, .. } => {
             let argument = state.get(*arg);
-            let slots = match aggregate_slots(state, argument) {
-                Ok(slots) => slots,
+            let expected = lanes as usize;
+            let lane_count = match vector_lane_count(state, *arg) {
+                Ok(lanes) => lanes,
                 Err(error) => return Transfer::Error(error),
             };
-            let expected = *lanes as usize;
-            if slots.len() != expected {
+            if lane_count != expected {
                 return Transfer::Error(Error::TypeMismatch {
                     expected: "matching vector lanes".to_string(),
-                    actual: slots.len().to_string(),
+                    actual: lane_count.to_string(),
                 });
             }
 
-            let mut output = Vec::with_capacity(expected);
-            for value in slots.iter() {
-                let result = match operator::execute_unary(*op, value) {
-                    Ok(value) => value,
-                    Err(error) => return Transfer::Error(error),
-                };
-                output.push(result);
-            }
+            let result = match materialize_composite_by_index(
+                state,
+                *dest,
+                |state, lane_index, _component_type| {
+                    let lane_index =
+                        usize::try_from(lane_index).map_err(|_| Error::TypeMismatch {
+                            expected: "vector lane index".to_string(),
+                            actual: lane_index.to_string(),
+                        })?;
+                    let value = vector_lane_value(state, argument, lane_index)?;
 
-            let result = state.allocate_aggregate(output);
+                    operator::execute_unary(*op, value)
+                },
+            ) {
+                Ok(result) => result,
+                Err(error) => return Transfer::Error(error),
+            };
             state.set(*dest, result);
             next!(state, block, pc)
         }
@@ -1225,27 +1304,30 @@ pub(crate) fn step_unary_elementwise(
                 Err(error) => return Transfer::Error(error),
             };
             let argument = state.get(*arg);
-            let slots = match aggregate_slots(state, argument) {
-                Ok(slots) => slots,
+            let result = match materialize_composite_by_index(
+                state,
+                *dest,
+                |state, slot_index, _component_type| {
+                    let slot_index =
+                        usize::try_from(slot_index).map_err(|_| Error::TypeMismatch {
+                            expected: "tensor storage slot".to_string(),
+                            actual: slot_index.to_string(),
+                        })?;
+                    if slot_index >= layout.storage_len {
+                        return Err(Error::IndexOutOfBounds {
+                            index: slot_index as u64,
+                            length: layout.storage_len as u64,
+                        });
+                    }
+
+                    let value = tensor_slot_value(state, argument, slot_index)?;
+
+                    operator::execute_unary(*op, value)
+                },
+            ) {
+                Ok(result) => result,
                 Err(error) => return Transfer::Error(error),
             };
-            if slots.len() != layout.storage_len {
-                return Transfer::Error(Error::TypeMismatch {
-                    expected: "matching tensor elements".to_string(),
-                    actual: slots.len().to_string(),
-                });
-            }
-
-            let mut output = Vec::with_capacity(layout.storage_len);
-            for value in slots.iter() {
-                let result = match operator::execute_unary(*op, value) {
-                    Ok(value) => value,
-                    Err(error) => return Transfer::Error(error),
-                };
-                output.push(result);
-            }
-
-            let result = state.allocate_aggregate(output);
             state.set(*dest, result);
             next!(state, block, pc)
         }

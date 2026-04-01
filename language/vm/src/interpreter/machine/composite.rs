@@ -1,5 +1,6 @@
 use super::prelude::*;
 use crate::diagnostic::Error;
+use crate::executable::TypedAccess;
 use crate::telemetry::stat_inc;
 
 /// Apply reference metadata and validate the resulting pointer value.
@@ -13,9 +14,7 @@ fn build_reference_result(
     let value = value.with_reference_meta(reference);
 
     // validate reference kind
-    if let Err(error) = check_reference_kind(state, reference, value) {
-        return Err(error);
-    }
+    check_reference_kind(state, reference, value)?;
 
     Ok(value)
 }
@@ -35,15 +34,15 @@ pub(crate) fn step_field_get(
     // decode instruction data
     let InstructionData::FieldGet {
         dest,
-        aggregate,
+        composite,
         index,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
 
     // load field value
     let value = match access::get_field(state, agg, *index) {
@@ -68,34 +67,20 @@ pub(crate) fn step_field_get_inline(
     // decode instruction data
     let InstructionData::FieldGet {
         dest,
-        aggregate,
+        composite,
         index,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate and extract managed reference
-    let agg = state.get(*aggregate);
-    let handle = match agg.as_managed_reference() {
-        Some(h) => h,
-        None => return Transfer::Error(Error::InvalidManagedReference),
-    };
+    // load composite
+    let agg = state.get(*composite);
 
-    // reject null handles when enabled
-    if state.null_checks && handle.is_null() {
-        return Transfer::Error(Error::NullPointerDereference);
-    }
-
-    // fast path: directly access the managed value
-    let heap = state.heap_ref();
-    let slot_index = match access::managed_packed_slot_index(handle, *index as usize) {
-        Ok(slot_index) => slot_index,
+    // resolve the field through the generic composite path
+    let value = match access::get_field(state, agg, *index) {
+        Ok(value) => value,
         Err(error) => return Transfer::Error(error),
-    };
-    let value = match heap.packed_value_at(handle, slot_index) {
-        Some(value) => value,
-        None => return Transfer::Error(Error::InvalidManagedReference),
     };
 
     // store result
@@ -105,7 +90,7 @@ pub(crate) fn step_field_get_inline(
     next!(state, block, pc)
 }
 
-/// Step field store on small managed aggregates (≤2 fields, inline storage).
+/// Step field store on small managed composites (≤2 fields, inline storage).
 #[inline(always)]
 pub(crate) fn step_field_store_inline(
     state: &mut StepState<'_, '_>,
@@ -114,13 +99,12 @@ pub(crate) fn step_field_store_inline(
 ) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
-        aggregate,
+        composite,
         index,
         value,
         reference: _,
         field_count: _,
-        raw_pointee: _,
-        ..
+        field: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -131,29 +115,15 @@ pub(crate) fn step_field_store_inline(
         stat_inc!(state.engine.statistics, stores);
     }
 
-    // load aggregate and extract managed reference
-    let agg = state.get(*aggregate);
-    let handle = match agg.as_managed_reference() {
-        Some(h) => h,
-        None => return Transfer::Error(Error::InvalidManagedReference),
-    };
-
-    // reject null handles when enabled
-    if state.null_checks && handle.is_null() {
-        return Transfer::Error(Error::NullPointerDereference);
-    }
+    // load composite
+    let agg = state.get(*composite);
 
     // load value to store
     let val = state.get(*value);
 
-    // fast path: directly access the managed value
-    let heap = state.heap();
-    let slot_index = match access::managed_packed_slot_index(handle, *index as usize) {
-        Ok(slot_index) => slot_index,
-        Err(error) => return Transfer::Error(error),
-    };
-    if !heap.set_packed_value(handle, slot_index, val) {
-        return Transfer::Error(Error::InvalidManagedReference);
+    // store through the generic composite path
+    if let Err(error) = access::set_field(state, agg, *index, val) {
+        return Transfer::Error(error);
     }
 
     // continue to next instruction
@@ -169,23 +139,36 @@ pub(crate) fn step_field_addr(
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
-        aggregate,
+        composite,
         index,
         reference,
         field_count,
-        managed_pointee: _,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
 
     // compute field address
-    let value = match access::field_addr(state, agg, *index, *field_count) {
+    let value = match (agg.tag(), *field) {
+        (ValueTag::ManagedReference, Some(field)) => {
+            let handle = agg.as_managed_reference().unwrap();
+            access::field_addr_managed(state, handle, field, *index, *field_count)
+        }
+        (ValueTag::RawPointer, Some(field)) => {
+            let pointer = agg.as_raw_pointer().unwrap();
+            access::field_addr_raw(state, pointer, field, *index, *field_count)
+        }
+        (ValueTag::StackPointer, Some(field)) => {
+            let pointer = agg.as_stack_pointer().unwrap();
+            access::field_addr_stack(state, pointer, field, *index, *field_count)
+        }
+        _ => access::field_addr(state, agg, *index, *field_count),
+    };
+    let value = match value {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -202,8 +185,8 @@ pub(crate) fn step_field_addr(
     next!(state, block, pc)
 }
 
-/// Step field addr on aggregate values.
-pub(crate) fn step_field_addr_aggregate(
+/// Step field addr on composite values.
+pub(crate) fn step_field_addr_composite(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
@@ -211,37 +194,40 @@ pub(crate) fn step_field_addr_aggregate(
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
-        aggregate,
+        composite,
         index,
         reference,
         field_count,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
-    if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "aggregate".to_string(),
-            actual: format!("{agg:?}"),
-        });
-    }
-
-    // compute field address
-    let handle = agg.as_managed_reference().unwrap();
-    let Some(managed_pointee) = *managed_pointee else {
-        return Transfer::Error(Error::InvalidManagedReference);
+    // load composite
+    let agg = state.get(*composite);
+    let value = match (agg.tag(), *field) {
+        (ValueTag::ManagedReference, Some(field)) => {
+            let handle = agg.as_managed_reference().unwrap();
+            match access::field_addr_managed(state, handle, field, *index, *field_count) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            }
+        }
+        (ValueTag::StackPointer, Some(field)) => {
+            let pointer = agg.as_stack_pointer().unwrap();
+            match access::field_addr_stack(state, pointer, field, *index, *field_count) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            }
+        }
+        _ => {
+            return Transfer::Error(Error::TypeMismatch {
+                expected: "composite".to_string(),
+                actual: format!("{agg:?}"),
+            });
+        }
     };
-    let value =
-        match access::field_addr_managed(state, handle, managed_pointee, *index, *field_count) {
-            Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
-        };
 
     let value = match build_reference_result(state, *reference, value) {
         Ok(value) => value,
@@ -264,20 +250,18 @@ pub(crate) fn step_field_addr_managed(
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
-        aggregate,
+        composite,
         index,
         reference,
         field_count,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::ManagedReference {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -286,14 +270,13 @@ pub(crate) fn step_field_addr_managed(
 
     // compute field address
     let handle = agg.as_managed_reference().unwrap();
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value =
-        match access::field_addr_managed(state, handle, managed_pointee, *index, *field_count) {
-            Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
-        };
+    let value = match access::field_addr_managed(state, handle, field, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     let value = match build_reference_result(state, *reference, value) {
         Ok(value) => value,
@@ -313,19 +296,18 @@ pub(crate) fn step_field_addr_raw(
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
-        aggregate,
+        composite,
         index,
         reference,
         field_count,
-        raw_pointee,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::RawPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -334,10 +316,10 @@ pub(crate) fn step_field_addr_raw(
 
     // compute field address
     let pointer = agg.as_raw_pointer().unwrap();
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::field_addr_raw(state, pointer, raw_pointee, *index, *field_count) {
+    let value = match access::field_addr_raw(state, pointer, field, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -360,19 +342,18 @@ pub(crate) fn step_field_addr_stack(
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
-        aggregate,
+        composite,
         index,
         reference,
         field_count,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::StackPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -381,7 +362,10 @@ pub(crate) fn step_field_addr_stack(
 
     // compute field address
     let pointer = agg.as_stack_pointer().unwrap();
-    let value = match access::field_addr_stack(state, pointer, *index, *field_count) {
+    let Some(field) = *field else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
+    let value = match access::field_addr_stack(state, pointer, field, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -404,19 +388,18 @@ pub(crate) fn step_field_addr_global(
     // decode instruction data
     let InstructionData::FieldAddr {
         dest,
-        aggregate,
+        composite,
         index,
         reference,
         field_count,
-        raw_pointee: _,
-        ..
+        field: _,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::GlobalPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -448,27 +431,43 @@ pub(crate) fn step_field_load(
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
-        aggregate,
+        composite,
         index,
         field_count,
-        raw_pointee,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
 
-    // compute field address
-    let pointer = match access::field_addr(state, agg, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
+    // load the selected field through the runtime storage class
+    let value = match (agg.tag(), *field) {
+        (ValueTag::ManagedReference, Some(field)) => {
+            let handle = agg.as_managed_reference().unwrap();
+            access::load_field_managed(state, handle, field, *index, *field_count)
+        }
+        (ValueTag::RawPointer, Some(field)) => {
+            let pointer = agg.as_raw_pointer().unwrap();
+            access::load_field_raw(state, pointer, field, *index, *field_count)
+        }
+        (ValueTag::StackPointer, Some(field)) => {
+            let pointer = agg.as_stack_pointer().unwrap();
+            access::load_field_stack(state, pointer, field, *index, *field_count)
+        }
+        _ => {
+            let pointer = match access::field_addr(state, agg, *index, *field_count) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
+            let access = field.map(TypedAccess::from);
+
+            access::load_from_pointer_with_access(state, pointer, access)
+        }
     };
-
-    // load value
-    let value = match access::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee) {
+    let value = match value {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -480,8 +479,8 @@ pub(crate) fn step_field_load(
     next!(state, block, pc)
 }
 
-/// Step field load on aggregate values.
-pub(crate) fn step_field_load_aggregate(
+/// Step field load on composite values.
+pub(crate) fn step_field_load_composite(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
@@ -489,30 +488,38 @@ pub(crate) fn step_field_load_aggregate(
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
-        aggregate,
+        composite,
         index,
-        field_count: _,
-        managed_pointee: _,
-        raw_pointee: _,
-        ..
+        field_count,
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
-    if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "aggregate".to_string(),
-            actual: format!("{agg:?}"),
-        });
-    }
-
-    // load field value
-    let value = match access::get_field(state, agg, *index) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
+    // load composite
+    let agg = state.get(*composite);
+    let value = match (agg.tag(), *field) {
+        (ValueTag::ManagedReference, Some(field)) => {
+            let handle = agg.as_managed_reference().unwrap();
+            match access::load_field_managed(state, handle, field, *index, *field_count) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            }
+        }
+        (ValueTag::StackPointer, Some(field)) => {
+            let pointer = agg.as_stack_pointer().unwrap();
+            match access::load_field_stack(state, pointer, field, *index, *field_count) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            }
+        }
+        _ => {
+            return Transfer::Error(Error::TypeMismatch {
+                expected: "composite".to_string(),
+                actual: format!("{agg:?}"),
+            });
+        }
     };
 
     // store result
@@ -531,19 +538,17 @@ pub(crate) fn step_field_load_managed(
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
-        aggregate,
+        composite,
         index,
         field_count,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::ManagedReference {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -552,14 +557,13 @@ pub(crate) fn step_field_load_managed(
 
     // load field value
     let handle = agg.as_managed_reference().unwrap();
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value =
-        match access::load_field_managed(state, handle, managed_pointee, *index, *field_count) {
-            Ok(value) => value,
-            Err(error) => return Transfer::Error(error),
-        };
+    let value = match access::load_field_managed(state, handle, field, *index, *field_count) {
+        Ok(value) => value,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // store result
     state.set(*dest, value);
@@ -577,18 +581,17 @@ pub(crate) fn step_field_load_raw(
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
-        aggregate,
+        composite,
         index,
         field_count,
-        raw_pointee,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::RawPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -597,10 +600,10 @@ pub(crate) fn step_field_load_raw(
 
     // load field value
     let pointer = agg.as_raw_pointer().unwrap();
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::load_field_raw(state, pointer, raw_pointee, *index, *field_count) {
+    let value = match access::load_field_raw(state, pointer, field, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -621,18 +624,17 @@ pub(crate) fn step_field_load_stack(
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
-        aggregate,
+        composite,
         index,
         field_count,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::StackPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -641,7 +643,10 @@ pub(crate) fn step_field_load_stack(
 
     // load field value
     let pointer = agg.as_stack_pointer().unwrap();
-    let value = match access::load_field_stack(state, pointer, *index, *field_count) {
+    let Some(field) = *field else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
+    let value = match access::load_field_stack(state, pointer, field, *index, *field_count) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -662,18 +667,17 @@ pub(crate) fn step_field_load_global(
     // decode instruction data
     let InstructionData::FieldLoad {
         dest,
-        aggregate,
+        composite,
         index,
         field_count,
-        raw_pointee: _,
-        ..
+        field: _,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // load aggregate
-    let agg = state.get(*aggregate);
+    // load composite
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::GlobalPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -703,7 +707,7 @@ pub(crate) fn step_field_set(
     // decode instruction data
     let InstructionData::FieldSet {
         dest,
-        aggregate,
+        composite,
         index,
         value,
     } = &block[pc].data
@@ -712,7 +716,7 @@ pub(crate) fn step_field_set(
     };
 
     // load operands
-    let agg = state.get(*aggregate);
+    let agg = state.get(*composite);
     let val = state.get(*value);
 
     // write field
@@ -736,38 +740,79 @@ pub(crate) fn step_field_store(
 ) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
-        aggregate,
+        composite,
         index,
         value,
         reference,
         field_count,
-        raw_pointee,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
     // load operands
-    let agg = state.get(*aggregate);
+    let agg = state.get(*composite);
     let val = state.get(*value);
 
-    // compute field address
-    let pointer = match access::field_addr(state, agg, *index, *field_count) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
+    // store the selected field through the runtime storage class
+    let result = match (agg.tag(), *field) {
+        (ValueTag::ManagedReference, Some(field)) => {
+            let handle = agg.as_managed_reference().unwrap();
+            let pointer = Value::managed_reference_with_meta(handle, *reference);
+
+            let validate = (|| -> Result<(), Error> {
+                check_reference_kind(state, *reference, pointer)?;
+                check_reference_mutability(state, *reference)?;
+                Ok(())
+            })();
+            if let Err(error) = validate {
+                return Transfer::Error(error);
+            }
+
+            access::store_field_managed(state, handle, field, *index, *field_count, val)
+        }
+        (ValueTag::RawPointer, Some(field)) => {
+            let pointer = Value::raw_pointer_with_meta(agg.as_raw_pointer().unwrap(), *reference);
+
+            let validate = (|| -> Result<(), Error> {
+                check_reference_kind(state, *reference, pointer)?;
+                check_reference_mutability(state, *reference)?;
+                Ok(())
+            })();
+            if let Err(error) = validate {
+                return Transfer::Error(error);
+            }
+
+            access::store_field_raw(
+                state,
+                agg.as_raw_pointer().unwrap(),
+                field,
+                *index,
+                *field_count,
+                val,
+            )
+        }
+        _ => {
+            let pointer = match access::field_addr(state, agg, *index, *field_count) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
+            let pointer = pointer.with_reference_meta(*reference);
+
+            let validate = (|| -> Result<(), Error> {
+                check_reference_kind(state, *reference, pointer)?;
+                check_reference_mutability(state, *reference)?;
+                Ok(())
+            })();
+            if let Err(error) = validate {
+                return Transfer::Error(error);
+            }
+
+            access::store_to_pointer_with_access(state, pointer, field.map(TypedAccess::from), val)
+        }
     };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
-    // validate reference kind
-    if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return Transfer::Error(error);
-    }
-
-    // store value
-    if let Err(error) = access::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
-    {
+    if let Err(error) = result {
         return Transfer::Error(error);
     }
 
@@ -775,46 +820,63 @@ pub(crate) fn step_field_store(
     next!(state, block, pc)
 }
 
-/// Step field store on aggregate values.
-pub(crate) fn step_field_store_aggregate(
+/// Step field store on composite values.
+pub(crate) fn step_field_store_composite(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
-        aggregate,
+        composite,
         index,
         value,
         reference,
-        field_count: _,
-        managed_pointee: _,
-        raw_pointee: _,
-        ..
+        field_count,
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
     // load operands
-    let agg = state.get(*aggregate);
-    if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
-        return Transfer::Error(Error::TypeMismatch {
-            expected: "aggregate".to_string(),
-            actual: format!("{agg:?}"),
-        });
-    }
+    let agg = state.get(*composite);
     let val = state.get(*value);
 
-    // validate reference kind
-    let pointer =
-        Value::managed_reference_with_meta(agg.as_managed_reference().unwrap(), *reference);
-    if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return Transfer::Error(error);
-    }
+    let result = match (agg.tag(), *field) {
+        (ValueTag::ManagedReference, Some(field)) => {
+            let handle = agg.as_managed_reference().unwrap();
+            let pointer = Value::managed_reference_with_meta(handle, *reference);
+            if let Err(error) = check_reference_kind(state, *reference, pointer) {
+                return Transfer::Error(error);
+            }
 
-    // store value
-    if let Err(error) = access::set_field(state, agg, *index, val) {
+            access::store_field_managed(state, handle, field, *index, *field_count, val)
+        }
+        (ValueTag::StackPointer, Some(field)) => {
+            let pointer =
+                Value::stack_pointer_with_meta(agg.as_stack_pointer().unwrap(), *reference);
+            if let Err(error) = check_reference_kind(state, *reference, pointer) {
+                return Transfer::Error(error);
+            }
+
+            access::store_field_stack(
+                state,
+                agg.as_stack_pointer().unwrap(),
+                field,
+                *index,
+                *field_count,
+                val,
+            )
+        }
+        _ => {
+            return Transfer::Error(Error::TypeMismatch {
+                expected: "composite".to_string(),
+                actual: format!("{agg:?}"),
+            });
+        }
+    };
+    if let Err(error) = result {
         return Transfer::Error(error);
     }
 
@@ -830,21 +892,19 @@ pub(crate) fn step_field_store_managed(
 ) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
-        aggregate,
+        composite,
         index,
         value,
         reference,
         field_count,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
     // load operands
-    let agg = state.get(*aggregate);
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::ManagedReference {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -860,11 +920,10 @@ pub(crate) fn step_field_store_managed(
     }
 
     // store value
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    if let Err(error) =
-        access::store_field_managed(state, handle, managed_pointee, *index, *field_count, val)
+    if let Err(error) = access::store_field_managed(state, handle, field, *index, *field_count, val)
     {
         return Transfer::Error(error);
     }
@@ -881,20 +940,19 @@ pub(crate) fn step_field_store_raw(
 ) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
-        aggregate,
+        composite,
         index,
         value,
         reference,
         field_count,
-        raw_pointee,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
     // load operands
-    let agg = state.get(*aggregate);
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::RawPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -910,11 +968,11 @@ pub(crate) fn step_field_store_raw(
     }
 
     // store value
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(field) = *field else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
     if let Err(error) =
-        access::store_field_raw(state, raw_pointer, raw_pointee, *index, *field_count, val)
+        access::store_field_raw(state, raw_pointer, field, *index, *field_count, val)
     {
         return Transfer::Error(error);
     }
@@ -931,20 +989,19 @@ pub(crate) fn step_field_store_stack(
 ) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
-        aggregate,
+        composite,
         index,
         value,
         reference,
         field_count,
-        raw_pointee: _,
-        ..
+        field,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
     // load operands
-    let agg = state.get(*aggregate);
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::StackPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -963,7 +1020,12 @@ pub(crate) fn step_field_store_stack(
     }
 
     // store value
-    if let Err(error) = access::store_field_stack(state, stack_pointer, *index, *field_count, val) {
+    let Some(field) = *field else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
+    if let Err(error) =
+        access::store_field_stack(state, stack_pointer, field, *index, *field_count, val)
+    {
         return Transfer::Error(error);
     }
 
@@ -979,20 +1041,19 @@ pub(crate) fn step_field_store_global(
 ) -> Transfer {
     // decode instruction data
     let InstructionData::FieldStore {
-        aggregate,
+        composite,
         index,
         value,
         reference,
         field_count,
-        raw_pointee: _,
-        ..
+        field: _,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
     // load operands
-    let agg = state.get(*aggregate);
+    let agg = state.get(*composite);
     if agg.tag() != ValueTag::GlobalPointer {
         return Transfer::Error(Error::InvalidPointerType {
             actual: format!("{agg:?}"),
@@ -1049,6 +1110,76 @@ pub(crate) fn step_element_get(
     next!(state, block, pc)
 }
 
+/// Step index select.
+pub(crate) fn step_index_select(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction data
+    let InstructionData::IndexSelect {
+        dest,
+        index,
+        elements,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load index and cases
+    let index_value = load_array_index(state, *index);
+    let element_slice = state.argument_slice(*elements);
+    let selected = match usize::try_from(index_value) {
+        Ok(index) => element_slice.get(index).copied(),
+        Err(_) => None,
+    };
+    let Some(selected) = selected else {
+        return Transfer::Error(Error::InvalidArrayAccess {
+            index: index_value,
+            length: element_slice.len() as u64,
+        });
+    };
+
+    // store result
+    state.set(*dest, state.get(selected));
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Step select by index.
+pub(crate) fn step_select_by_index(
+    state: &mut StepState<'_, '_>,
+    block: &[Instruction],
+    pc: usize,
+) -> Transfer {
+    // decode instruction data
+    let InstructionData::SelectByIndex {
+        dest,
+        index,
+        match_index,
+        then_value,
+        else_value,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // load index and choose the source value
+    let index_value = load_array_index(state, *index);
+    let selected = if index_value == *match_index {
+        *then_value
+    } else {
+        *else_value
+    };
+
+    // store result
+    state.set(*dest, state.get(selected));
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Step element addr.
 pub(crate) fn step_element_addr(
     state: &mut StepState<'_, '_>,
@@ -1062,9 +1193,7 @@ pub(crate) fn step_element_addr(
         index,
         reference,
         array_length,
-        managed_pointee: _,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1076,7 +1205,22 @@ pub(crate) fn step_element_addr(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // compute element address
-    let value = match access::element_addr(state, arr, idx_val, *array_length) {
+    let value = match (arr.tag(), *element) {
+        (ValueTag::ManagedReference, Some(element)) => {
+            let handle = arr.as_managed_reference().unwrap();
+            access::element_addr_managed(state, handle, element, idx_val, *array_length)
+        }
+        (ValueTag::RawPointer, Some(element)) => {
+            let pointer = arr.as_raw_pointer().unwrap();
+            access::element_addr_raw(state, pointer, element, idx_val, *array_length)
+        }
+        (ValueTag::StackPointer, Some(element)) => {
+            let pointer = arr.as_stack_pointer().unwrap();
+            access::element_addr_stack(state, pointer, element, idx_val, *array_length)
+        }
+        _ => access::element_addr(state, arr, idx_val, *array_length),
+    };
+    let value = match value {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1090,8 +1234,8 @@ pub(crate) fn step_element_addr(
     next!(state, block, pc)
 }
 
-/// Step element addr on aggregate values.
-pub(crate) fn step_element_addr_aggregate(
+/// Step element addr on composite values.
+pub(crate) fn step_element_addr_composite(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
@@ -1103,9 +1247,7 @@ pub(crate) fn step_element_addr_aggregate(
         index,
         reference,
         array_length,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1113,7 +1255,10 @@ pub(crate) fn step_element_addr_aggregate(
 
     // load array and index
     let arr = state.get(*array);
-    if arr.tag() != ValueTag::Aggregate {
+    if !matches!(
+        arr.tag(),
+        ValueTag::ManagedReference | ValueTag::StackPointer
+    ) {
         return Transfer::Error(Error::TypeMismatch {
             expected: "array".to_string(),
             actual: format!("{arr:?}"),
@@ -1122,19 +1267,25 @@ pub(crate) fn step_element_addr_aggregate(
     let idx_val = load_array_index(state, *index);
 
     // compute element address
-    let handle = arr.as_managed_reference().unwrap();
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::element_addr_managed(
-        state,
-        handle,
-        managed_pointee,
-        idx_val,
-        *array_length,
-    ) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
+    let value = match arr.tag() {
+        ValueTag::ManagedReference => {
+            let handle = arr.as_managed_reference().unwrap();
+            match access::element_addr_managed(state, handle, element, idx_val, *array_length) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            }
+        }
+        ValueTag::StackPointer => {
+            let pointer = arr.as_stack_pointer().unwrap();
+            match access::element_addr_stack(state, pointer, element, idx_val, *array_length) {
+                Ok(value) => value,
+                Err(error) => return Transfer::Error(error),
+            }
+        }
+        _ => unreachable!(),
     };
 
     let value = match build_reference_result(state, *reference, value) {
@@ -1159,9 +1310,7 @@ pub(crate) fn step_element_addr_managed(
         index,
         reference,
         array_length,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1178,16 +1327,10 @@ pub(crate) fn step_element_addr_managed(
 
     // compute element address
     let handle = arr.as_managed_reference().unwrap();
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::element_addr_managed(
-        state,
-        handle,
-        managed_pointee,
-        idx_val,
-        *array_length,
-    ) {
+    let value = match access::element_addr_managed(state, handle, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1214,8 +1357,7 @@ pub(crate) fn step_element_addr_raw(
         index,
         reference,
         array_length,
-        raw_pointee,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1232,11 +1374,10 @@ pub(crate) fn step_element_addr_raw(
 
     // compute element address
     let pointer = arr.as_raw_pointer().unwrap();
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::element_addr_raw(state, pointer, raw_pointee, idx_val, *array_length)
-    {
+    let value = match access::element_addr_raw(state, pointer, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1263,8 +1404,7 @@ pub(crate) fn step_element_addr_stack(
         index,
         reference,
         array_length,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1281,7 +1421,10 @@ pub(crate) fn step_element_addr_stack(
 
     // compute element address
     let pointer = arr.as_stack_pointer().unwrap();
-    let value = match access::element_addr_stack(state, pointer, idx_val, *array_length) {
+    let Some(element) = *element else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
+    let value = match access::element_addr_stack(state, pointer, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1308,8 +1451,7 @@ pub(crate) fn step_element_addr_global(
         index,
         reference,
         array_length,
-        raw_pointee: _,
-        ..
+        element: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1352,8 +1494,7 @@ pub(crate) fn step_element_load(
         array,
         index,
         array_length,
-        raw_pointee,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1364,14 +1505,31 @@ pub(crate) fn step_element_load(
     let idx = state.get(*index);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
-    let pointer = match access::element_addr(state, arr, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
-    };
+    // load the selected element through the runtime storage class
+    let value = match (arr.tag(), *element) {
+        (ValueTag::ManagedReference, Some(element)) => {
+            let handle = arr.as_managed_reference().unwrap();
+            access::load_element_managed(state, handle, element, idx_val, *array_length)
+        }
+        (ValueTag::RawPointer, Some(element)) => {
+            let pointer = arr.as_raw_pointer().unwrap();
+            access::load_element_raw(state, pointer, element, idx_val, *array_length)
+        }
+        (ValueTag::StackPointer, Some(element)) => {
+            let pointer = arr.as_stack_pointer().unwrap();
+            access::load_element_stack(state, pointer, element, idx_val, *array_length)
+        }
+        _ => {
+            let pointer = match access::element_addr(state, arr, idx_val, *array_length) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
+            let access = element.map(TypedAccess::from);
 
-    // load value
-    let value = match access::load_from_pointer_with_raw_pointee(state, pointer, *raw_pointee) {
+            access::load_from_pointer_with_access(state, pointer, access)
+        }
+    };
+    let value = match value {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1383,8 +1541,8 @@ pub(crate) fn step_element_load(
     next!(state, block, pc)
 }
 
-/// Step element load on aggregate values.
-pub(crate) fn step_element_load_aggregate(
+/// Step element load on composite values.
+pub(crate) fn step_element_load_composite(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
@@ -1395,9 +1553,7 @@ pub(crate) fn step_element_load_aggregate(
         array,
         index,
         array_length: _,
-        managed_pointee: _,
-        raw_pointee: _,
-        ..
+        element: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1405,7 +1561,10 @@ pub(crate) fn step_element_load_aggregate(
 
     // load array and index
     let arr = state.get(*array);
-    if arr.tag() != ValueTag::Aggregate {
+    if !matches!(
+        arr.tag(),
+        ValueTag::ManagedReference | ValueTag::StackPointer
+    ) {
         return Transfer::Error(Error::TypeMismatch {
             expected: "array".to_string(),
             actual: format!("{arr:?}"),
@@ -1439,9 +1598,7 @@ pub(crate) fn step_element_load_managed(
         array,
         index,
         array_length,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1459,16 +1616,10 @@ pub(crate) fn step_element_load_managed(
 
     // load element value
     let handle = arr.as_managed_reference().unwrap();
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::load_element_managed(
-        state,
-        handle,
-        managed_pointee,
-        idx_val,
-        *array_length,
-    ) {
+    let value = match access::load_element_managed(state, handle, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1492,8 +1643,7 @@ pub(crate) fn step_element_load_raw(
         array,
         index,
         array_length,
-        raw_pointee,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1511,11 +1661,10 @@ pub(crate) fn step_element_load_raw(
 
     // load element value
     let pointer = arr.as_raw_pointer().unwrap();
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
-    let value = match access::load_element_raw(state, pointer, raw_pointee, idx_val, *array_length)
-    {
+    let value = match access::load_element_raw(state, pointer, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1539,8 +1688,7 @@ pub(crate) fn step_element_load_stack(
         array,
         index,
         array_length,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1558,7 +1706,10 @@ pub(crate) fn step_element_load_stack(
 
     // load element value
     let pointer = arr.as_stack_pointer().unwrap();
-    let value = match access::load_element_stack(state, pointer, idx_val, *array_length) {
+    let Some(element) = *element else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
+    let value = match access::load_element_stack(state, pointer, element, idx_val, *array_length) {
         Ok(value) => value,
         Err(error) => return Transfer::Error(error),
     };
@@ -1582,8 +1733,7 @@ pub(crate) fn step_element_load_global(
         array,
         index,
         array_length,
-        raw_pointee: _,
-        ..
+        element: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1662,8 +1812,7 @@ pub(crate) fn step_element_store(
         value,
         reference,
         array_length,
-        raw_pointee,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1675,25 +1824,69 @@ pub(crate) fn step_element_store(
     let val = state.get(*value);
     let idx_val = idx.as_uint().unwrap_or(0);
 
-    // compute element address
-    let pointer = match access::element_addr(state, arr, idx_val, *array_length) {
-        Ok(value) => value,
-        Err(error) => return Transfer::Error(error),
+    // store the selected element through the runtime storage class
+    let result = match (arr.tag(), *element) {
+        (ValueTag::ManagedReference, Some(element)) => {
+            let handle = arr.as_managed_reference().unwrap();
+            let pointer = Value::managed_reference_with_meta(handle, *reference);
+
+            let validate = (|| -> Result<(), Error> {
+                check_reference_kind(state, *reference, pointer)?;
+                check_reference_mutability(state, *reference)?;
+                Ok(())
+            })();
+            if let Err(error) = validate {
+                return Transfer::Error(error);
+            }
+
+            access::store_element_managed(state, handle, element, idx_val, *array_length, val)
+        }
+        (ValueTag::RawPointer, Some(element)) => {
+            let pointer = Value::raw_pointer_with_meta(arr.as_raw_pointer().unwrap(), *reference);
+
+            let validate = (|| -> Result<(), Error> {
+                check_reference_kind(state, *reference, pointer)?;
+                check_reference_mutability(state, *reference)?;
+                Ok(())
+            })();
+            if let Err(error) = validate {
+                return Transfer::Error(error);
+            }
+
+            access::store_element_raw(
+                state,
+                arr.as_raw_pointer().unwrap(),
+                element,
+                idx_val,
+                *array_length,
+                val,
+            )
+        }
+        _ => {
+            let pointer = match access::element_addr(state, arr, idx_val, *array_length) {
+                Ok(pointer) => pointer,
+                Err(error) => return Transfer::Error(error),
+            };
+            let pointer = pointer.with_reference_meta(*reference);
+
+            let validate = (|| -> Result<(), Error> {
+                check_reference_kind(state, *reference, pointer)?;
+                check_reference_mutability(state, *reference)?;
+                Ok(())
+            })();
+            if let Err(error) = validate {
+                return Transfer::Error(error);
+            }
+
+            access::store_to_pointer_with_access(
+                state,
+                pointer,
+                element.map(TypedAccess::from),
+                val,
+            )
+        }
     };
-
-    let pointer = pointer.with_reference_meta(*reference);
-
-    // validate reference semantics
-    if let Err(error) = check_reference_kind(state, *reference, pointer) {
-        return Transfer::Error(error);
-    }
-    if let Err(error) = check_reference_mutability(state, *reference) {
-        return Transfer::Error(error);
-    }
-
-    // store value
-    if let Err(error) = access::store_to_pointer_with_raw_pointee(state, pointer, *raw_pointee, val)
-    {
+    if let Err(error) = result {
         return Transfer::Error(error);
     }
 
@@ -1701,8 +1894,8 @@ pub(crate) fn step_element_store(
     next!(state, block, pc)
 }
 
-/// Step element store on aggregate values.
-pub(crate) fn step_element_store_aggregate(
+/// Step element store on composite values.
+pub(crate) fn step_element_store_composite(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
@@ -1714,9 +1907,7 @@ pub(crate) fn step_element_store_aggregate(
         value,
         reference,
         array_length: _,
-        managed_pointee: _,
-        raw_pointee: _,
-        ..
+        element: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1724,7 +1915,10 @@ pub(crate) fn step_element_store_aggregate(
 
     // load operands
     let arr = state.get(*array);
-    if arr.tag() != ValueTag::Aggregate {
+    if !matches!(
+        arr.tag(),
+        ValueTag::ManagedReference | ValueTag::StackPointer
+    ) {
         return Transfer::Error(Error::TypeMismatch {
             expected: "array".to_string(),
             actual: format!("{arr:?}"),
@@ -1735,8 +1929,15 @@ pub(crate) fn step_element_store_aggregate(
     let idx_val = idx.as_uint().unwrap_or(0);
 
     // validate reference semantics
-    let pointer =
-        Value::managed_reference_with_meta(arr.as_managed_reference().unwrap(), *reference);
+    let pointer = match arr.tag() {
+        ValueTag::ManagedReference => {
+            Value::managed_reference_with_meta(arr.as_managed_reference().unwrap(), *reference)
+        }
+        ValueTag::StackPointer => {
+            Value::stack_pointer_with_meta(arr.as_stack_pointer().unwrap(), *reference)
+        }
+        _ => unreachable!(),
+    };
     if let Err(error) = check_reference_kind(state, *reference, pointer) {
         return Transfer::Error(error);
     }
@@ -1766,9 +1967,7 @@ pub(crate) fn step_element_store_managed(
         value,
         reference,
         array_length,
-        managed_pointee,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1796,11 +1995,11 @@ pub(crate) fn step_element_store_managed(
     }
 
     // store value
-    let Some(managed_pointee) = *managed_pointee else {
+    let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
     if let Err(error) =
-        access::store_element_managed(state, handle, managed_pointee, idx_val, *array_length, val)
+        access::store_element_managed(state, handle, element, idx_val, *array_length, val)
     {
         return Transfer::Error(error);
     }
@@ -1822,8 +2021,7 @@ pub(crate) fn step_element_store_raw(
         value,
         reference,
         array_length,
-        raw_pointee,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1851,11 +2049,11 @@ pub(crate) fn step_element_store_raw(
     }
 
     // store value
-    let Some(raw_pointee) = *raw_pointee else {
+    let Some(element) = *element else {
         return Transfer::Error(Error::InvalidManagedReference);
     };
     if let Err(error) =
-        access::store_element_raw(state, raw_pointer, raw_pointee, idx_val, *array_length, val)
+        access::store_element_raw(state, raw_pointer, element, idx_val, *array_length, val)
     {
         return Transfer::Error(error);
     }
@@ -1877,8 +2075,7 @@ pub(crate) fn step_element_store_stack(
         value,
         reference,
         array_length,
-        raw_pointee: _,
-        ..
+        element,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1906,8 +2103,11 @@ pub(crate) fn step_element_store_stack(
     }
 
     // store value
+    let Some(element) = *element else {
+        return Transfer::Error(Error::InvalidManagedReference);
+    };
     if let Err(error) =
-        access::store_element_stack(state, stack_pointer, idx_val, *array_length, val)
+        access::store_element_stack(state, stack_pointer, element, idx_val, *array_length, val)
     {
         return Transfer::Error(error);
     }
@@ -1929,8 +2129,7 @@ pub(crate) fn step_element_store_global(
         value,
         reference,
         array_length,
-        raw_pointee: _,
-        ..
+        element: _,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1969,37 +2168,33 @@ pub(crate) fn step_element_store_global(
     next!(state, block, pc)
 }
 
-/// Step aggregate construction.
-pub(crate) fn step_aggregate(
+/// Step composite construction.
+pub(crate) fn step_composite(
     state: &mut StepState<'_, '_>,
     block: &[Instruction],
     pc: usize,
 ) -> Transfer {
     // decode instruction data
-    let InstructionData::Aggregate { dest, elements } = &block[pc].data else {
+    let InstructionData::Composite { dest, elements } = &block[pc].data else {
         unreachable!()
     };
 
-    // resolve element values from the argument pool
-    let element_slice = state.argument_slice(*elements);
-    let result = match element_slice {
-        // empty aggregate
-        [] => state.allocate_aggregate(Vec::new()),
-        // single element aggregate
-        [first] => state.allocate_single(state.get(*first)),
-        // pair aggregate fast path
-        [first, second] => state.allocate_pair(state.get(*first), state.get(*second)),
-        // general aggregate
-        _ => {
-            // collect element values into a vec
-            let mut element_values = Vec::with_capacity(element_slice.len());
-            for value in element_slice {
-                element_values.push(state.get(*value));
-            }
+    // materialize the composite with the destination storage policy
+    let element_slice = state.argument_slice(*elements).to_vec();
+    let result = match super::value::materialize_composite_by_index(
+        state,
+        *dest,
+        |state, index, _component_type| {
+            let element = element_slice
+                .get(index as usize)
+                .copied()
+                .ok_or(Error::InvalidInstruction)?;
 
-            // allocate the aggregate on the heap
-            state.allocate_aggregate(element_values)
-        }
+            Ok(state.get(element))
+        },
+    ) {
+        Ok(result) => result,
+        Err(error) => return Transfer::Error(error),
     };
 
     // store result

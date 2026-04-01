@@ -78,6 +78,14 @@ impl<'a> ModuleCodegen<'a> {
         )
     }
 
+    /// Build the VM storage registration helper name for this module.
+    pub(super) fn register_storage_types_fn_name(&self) -> String {
+        format!(
+            "register_{}_vm_storage_types",
+            Self::sanitize_module_name(self.module)
+        )
+    }
+
     /// Build the native binding set constant name for this module.
     pub(super) fn native_set_name(&self) -> String {
         format!("{}_NATIVE_BINDINGS", self.const_name(self.module))
@@ -134,6 +142,11 @@ impl<'a> ModuleCodegen<'a> {
         } else {
             format!("{type_domain}::{name}")
         }
+    }
+
+    /// Build the canonical metadata name for one named binding type.
+    pub(super) fn named_type_metadata_name(&self, type_domain: &str, name: &str) -> String {
+        format!("{type_domain}::{name}")
     }
 
     /// Build one value type name for a named binding type.

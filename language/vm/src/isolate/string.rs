@@ -5,14 +5,20 @@ use std::ops::Deref;
 
 use crate::diagnostic::Error;
 use crate::snapshot::StringInternerImage;
+use destack_mir::LayoutId;
 
 use destack_heap::{
-    Heap, ManagedReference, RawPointer, STRING_FLAG_IS_ASCII, STRING_FLAG_IS_INTERNED,
-    STRING_FLAG_IS_STATIC, StringLayout, Value, ValueTag,
+    Heap, ManagedReference, RawPointer, StringLayout, Value, ValueTag, string_layout_id,
 };
 
 /// Managed string interner for literal storage.
 pub(crate) struct StringInterner {
+    /// Canonical runtime string layout for this isolate.
+    layout: StringLayout,
+    /// Canonical runtime string layout id for this isolate.
+    layout_id: Option<LayoutId>,
+    /// Canonical well known string type id for this isolate.
+    type_id: Option<u32>,
     /// Interned string literals mapped to managed references.
     literals: HashMap<String, ManagedReference>,
     /// Raw heap buffers for string payloads.
@@ -76,9 +82,16 @@ impl Deref for StringRef<'_> {
 
 impl StringInterner {
     /// Create an empty string interner.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(tree: &destack_mir::NodeTree) -> Self {
+        // load the canonical string metadata from the executable
+        let layout_id = string_layout_id(tree);
+        let type_id = tree.string_type().map(|type_id| type_id.id);
+
         // initialize empty caches
         Self {
+            layout: StringLayout::new(tree.data_layout.native_pointer_bytes),
+            layout_id,
+            type_id,
             literals: HashMap::new(),
             buffers: HashMap::new(),
         }
@@ -128,7 +141,7 @@ impl StringInterner {
     ) -> Result<Value, Error> {
         // reuse existing interned handle
         if let Some(handle) = self.literals.get(value).copied() {
-            return Ok(Value::string(handle));
+            return Ok(Value::managed_reference(handle));
         }
 
         // compute and validate metadata
@@ -139,30 +152,15 @@ impl StringInterner {
         }
         let length_bytes = length_bytes as u32;
         let length_utf16 = length_utf16 as u32;
-        let mut flags = STRING_FLAG_IS_INTERNED | STRING_FLAG_IS_STATIC;
-        if value.is_ascii() {
-            flags |= STRING_FLAG_IS_ASCII;
-        }
-
         // allocate
         let data = Self::allocate_string_bytes(heap, value.as_bytes())?;
-        let handle = Self::allocate_string_cell(
-            heap,
-            length_utf16,
-            length_bytes,
-            0,
-            length_bytes,
-            flags,
-            data,
-        )?;
+        let handle = self.allocate_string_cell(heap, length_utf16, length_bytes, data)?;
 
         // record
         self.literals.insert(value.to_string(), handle);
-        if !data.is_null() {
-            self.buffers.insert(handle, data);
-        }
+        self.buffers.insert(handle, data);
 
-        Ok(Value::string(handle))
+        Ok(Value::managed_reference(handle))
     }
 
     /// Read a UTF-8 string value from the heap.
@@ -189,18 +187,17 @@ impl StringInterner {
         heap: &'a Heap,
         value: Value,
     ) -> Result<StringRef<'a>, Error> {
-        // ensure the value is a string
-        let handle = match value.tag() {
-            ValueTag::String => value.as_managed_reference().unwrap(),
-            _ => {
-                return Err(Error::TypeMismatch {
-                    expected: "string".to_string(),
-                    actual: format!("{value:?}"),
-                });
-            }
-        };
+        let handle = self.validate_string_value(heap, value)?;
 
         self.string_value_ref_for_handle(heap, handle)
+    }
+
+    /// Validate one VM value as a runtime string and return its managed handle.
+    pub(crate) fn string_handle(&self, heap: &Heap, value: Value) -> Result<StringHandle, Error> {
+        let handle = self.validate_string_value(heap, value)?;
+        let value = Value::managed_reference(handle);
+
+        Ok(StringHandle::new(value))
     }
 
     /// Read a UTF-8 string view from a managed handle.
@@ -209,18 +206,16 @@ impl StringInterner {
         heap: &'a Heap,
         handle: ManagedReference,
     ) -> Result<StringRef<'a>, Error> {
-        // reject null handles
-        if handle.is_null() {
-            return Err(Error::NullPointerDereference);
-        }
+        self.validate_string_handle(heap, handle)?;
 
         // load the string header bytes from the heap
         let header = heap
             .managed_bytes(handle)
             .ok_or(Error::InvalidManagedReference)?;
-        let length_value =
-            StringLayout::read_field(header.as_ref(), StringLayout::LENGTH_BYTES_FIELD as u32)
-                .ok_or(Error::InvalidManagedReference)?;
+        let length_value = self
+            .layout
+            .read_field(header.as_ref(), StringLayout::LENGTH_BYTES_FIELD as u32)
+            .ok_or(Error::InvalidManagedReference)?;
         let length = length_value.as_uint().ok_or_else(|| Error::TypeMismatch {
             expected: "u32".to_string(),
             actual: format!("{length_value:?}"),
@@ -230,7 +225,9 @@ impl StringInterner {
         }
 
         // load the raw payload buffer
-        let data_value = StringLayout::read_field(header.as_ref(), StringLayout::DATA_FIELD as u32)
+        let data_value = self
+            .layout
+            .read_field(header.as_ref(), StringLayout::DATA_FIELD as u32)
             .ok_or(Error::InvalidManagedReference)?;
         let data_ptr = data_value
             .as_raw_pointer()
@@ -317,32 +314,111 @@ impl StringInterner {
 
     /// Allocate a managed string header allocation.
     fn allocate_string_cell(
+        &self,
         heap: &mut Heap,
         length_utf16: u32,
         length_bytes: u32,
-        hash: u64,
-        capacity: u32,
-        flags: u32,
         data: RawPointer,
     ) -> Result<ManagedReference, Error> {
-        // assemble fixed string header bytes
-        let mut bytes = [0u8; StringLayout::BYTE_LEN];
-        bytes[StringLayout::LENGTH_UTF16_OFFSET..StringLayout::LENGTH_UTF16_OFFSET + 4]
-            .copy_from_slice(&length_utf16.to_le_bytes());
-        bytes[StringLayout::LENGTH_BYTES_OFFSET..StringLayout::LENGTH_BYTES_OFFSET + 4]
-            .copy_from_slice(&length_bytes.to_le_bytes());
-        bytes[StringLayout::HASH_OFFSET..StringLayout::HASH_OFFSET + 8]
-            .copy_from_slice(&hash.to_le_bytes());
-        bytes[StringLayout::CAPACITY_OFFSET..StringLayout::CAPACITY_OFFSET + 4]
-            .copy_from_slice(&capacity.to_le_bytes());
-        bytes[StringLayout::FLAGS_OFFSET..StringLayout::FLAGS_OFFSET + 4]
-            .copy_from_slice(&flags.to_le_bytes());
-        bytes[StringLayout::DATA_OFFSET..StringLayout::DATA_OFFSET + 8]
-            .copy_from_slice(&data.bits().to_le_bytes());
+        let layout_id = self.layout_id.ok_or_else(|| Error::TypeMismatch {
+            expected: "canonical string layout".to_string(),
+            actual: "missing".to_string(),
+        })?;
+        let type_id = self.type_id.ok_or_else(|| Error::TypeMismatch {
+            expected: "canonical string type".to_string(),
+            actual: "missing".to_string(),
+        })?;
+
+        // assemble the canonical string header
+        let mut bytes = vec![0u8; self.layout.byte_len()];
+
+        let wrote_length_utf16 = self.layout.write_field(
+            &mut bytes,
+            StringLayout::LENGTH_UTF16_FIELD as u32,
+            Value::uint32(length_utf16),
+        );
+        let wrote_length_bytes = self.layout.write_field(
+            &mut bytes,
+            StringLayout::LENGTH_BYTES_FIELD as u32,
+            Value::uint32(length_bytes),
+        );
+        let wrote_data = self.layout.write_field(
+            &mut bytes,
+            StringLayout::DATA_FIELD as u32,
+            Value::raw_pointer(data),
+        );
+
+        if !wrote_length_utf16 || !wrote_length_bytes || !wrote_data {
+            return Err(Error::InvalidManagedReference);
+        }
 
         // allocate managed heap storage for the header
-        heap.allocate_managed_bytes(&bytes, destack_heap::ReferenceMap::empty(), None)
-            .map_err(Error::from)
+        let handle = heap
+            .allocate_managed_bytes_typed(
+                &bytes,
+                destack_heap::ReferenceMap::empty(),
+                Some(layout_id),
+                type_id,
+            )
+            .map_err(Error::from)?;
+
+        Ok(handle)
+    }
+
+    /// Validate one VM value as a runtime string and return its managed handle.
+    fn validate_string_value(&self, heap: &Heap, value: Value) -> Result<ManagedReference, Error> {
+        // ensure the value is one managed reference
+        if value.tag() != ValueTag::ManagedReference {
+            return Err(Error::TypeMismatch {
+                expected: "string".to_string(),
+                actual: format!("{value:?}"),
+            });
+        }
+
+        let handle = value.as_managed_reference().unwrap();
+        self.validate_string_handle(heap, handle)?;
+
+        Ok(handle)
+    }
+
+    /// Validate one managed handle against the canonical string layout.
+    fn validate_string_handle(&self, heap: &Heap, handle: ManagedReference) -> Result<(), Error> {
+        let layout_id = self.layout_id.ok_or_else(|| Error::TypeMismatch {
+            expected: "canonical string layout".to_string(),
+            actual: "missing".to_string(),
+        })?;
+        let type_id = self.type_id.ok_or_else(|| Error::TypeMismatch {
+            expected: "canonical string type".to_string(),
+            actual: "missing".to_string(),
+        })?;
+
+        // reject null handles
+        if handle.is_null() {
+            return Err(Error::NullPointerDereference);
+        }
+
+        // reject dangling references
+        if heap.managed_bytes(handle).is_none() {
+            return Err(Error::InvalidManagedReference);
+        }
+
+        // reject non-string managed allocations
+        if heap.managed_type_id(handle) != Some(type_id) {
+            return Err(Error::TypeMismatch {
+                expected: "string".to_string(),
+                actual: "managed reference".to_string(),
+            });
+        }
+
+        // reject managed allocations with a different physical string layout
+        if heap.managed_layout_id(handle) != Some(layout_id) {
+            return Err(Error::TypeMismatch {
+                expected: "canonical string layout".to_string(),
+                actual: "managed allocation".to_string(),
+            });
+        }
+
+        Ok(())
     }
 }
 
@@ -353,6 +429,9 @@ impl fmt::Debug for StringInterner {
         let buffer_count = self.buffer_count();
 
         f.debug_struct("StringInterner")
+            .field("layout", &self.layout)
+            .field("layout_id", &self.layout_id)
+            .field("type_id", &self.type_id)
             .field("literals", &format!("<{literal_count} literals>"))
             .field("buffers", &format!("<{buffer_count} buffers>"))
             .finish_non_exhaustive()

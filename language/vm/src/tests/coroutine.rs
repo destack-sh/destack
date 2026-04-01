@@ -1,7 +1,7 @@
 use crate::diagnostic::Error;
 use crate::tests::{
-    assert_execution_completed, assert_execution_yielded, assert_runtime_error,
-    assert_runtime_error_matches, create_isolate,
+    assert_execution_completed, assert_execution_yielded, assert_runtime_error_matches,
+    create_isolate,
 };
 use destack_heap::Value;
 
@@ -324,9 +324,9 @@ block2(v5: ref<managed readonly void>):
     assert_eq!(output.value, Value::int32(20));
 }
 
-/// Yield rejects live frame-local state in the yielded frame.
+/// Yield preserves live frame-local stack storage in the yielded frame.
 #[test]
-fn test_yield_rejects_stack_alloc_in_current_frame() {
+fn test_yield_preserves_stack_alloc_in_current_frame() {
     // define mir program
     let mir = r#"
 function @yield_stack_local() -> i32 {
@@ -341,9 +341,13 @@ block1(v2: i32):
     // create isolate
     let mut isolate = create_isolate(mir);
 
-    // reject suspension with live stack-local storage
-    let result = isolate.run_function_by_name_yielding("yield_stack_local", &[]);
-    assert_runtime_error(result, Error::SuspendWithFrameLocalState);
+    // suspend and resume with live stack-local storage
+    let yielded =
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_stack_local", &[]));
+    assert_eq!(yielded.value, Value::int32(1));
+
+    let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(7)));
+    assert_eq!(output.value, Value::int32(7));
 }
 
 /// Yield accepts stack allocation after the lifetime is explicitly ended.
@@ -371,9 +375,9 @@ block1(v2: i32):
     assert_eq!(yielded.value, Value::int32(1));
 }
 
-/// Yield rejects live frame-local state in suspended caller frames.
+/// Yield preserves live frame-local stack storage in suspended caller frames.
 #[test]
-fn test_yield_rejects_stack_alloc_in_caller_frame() {
+fn test_yield_preserves_stack_alloc_in_caller_frame() {
     // define mir program
     let mir = r#"
 function @yield_inner(v0: i32) -> i32 {
@@ -393,15 +397,19 @@ block0(v0: i32):
     // create isolate
     let mut isolate = create_isolate(mir);
 
-    // reject suspension when any captured frame still owns stack-local storage
-    let result =
-        isolate.run_function_by_name_yielding("outer_with_stack_local", &[Value::int32(5)]);
-    assert_runtime_error(result, Error::SuspendWithFrameLocalState);
+    // suspend and resume with caller-owned stack-local storage
+    let yielded = assert_execution_yielded(
+        isolate.run_function_by_name_yielding("outer_with_stack_local", &[Value::int32(5)]),
+    );
+    assert_eq!(yielded.value, Value::int32(5));
+
+    let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(9)));
+    assert_eq!(output.value, Value::int32(9));
 }
 
-/// Yield rejects live frame-local pointers in the yielded frame.
+/// Yield preserves live frame-local pointers in the yielded frame.
 #[test]
-fn test_yield_rejects_local_pointer_in_current_frame() {
+fn test_yield_preserves_local_pointer_in_current_frame() {
     // define mir program
     let mir = r#"
 function @yield_local_pointer() -> i32 {
@@ -421,9 +429,13 @@ block1(v3: i32):
     // create isolate
     let mut isolate = create_isolate(mir);
 
-    // reject suspension with live frame-local pointers
-    let result = isolate.run_function_by_name_yielding("yield_local_pointer", &[]);
-    assert_runtime_error(result, Error::SuspendWithFrameLocalState);
+    // suspend and resume with live frame-local pointers
+    let yielded =
+        assert_execution_yielded(isolate.run_function_by_name_yielding("yield_local_pointer", &[]));
+    assert_eq!(yielded.value, Value::int32(2));
+
+    let output = assert_execution_completed(isolate.resume(yielded.continuation, Value::int32(11)));
+    assert_eq!(output.value, Value::int32(1));
 }
 
 /// Running a coroutine with the non-yielding entry reports an error.
@@ -522,16 +534,19 @@ block1(v1: i32):
 fn test_continuation_roots_keep_allocations() {
     // define mir program
     let mir = r#"
-type @Pair = { i32, i32 }
+type @Pair = { ref<managed readonly i32> }
 
 function @yield_alloc() -> i32 {
 block0:
-    v0: i32 = iconst 1i32
-    v1: i32 = iconst 2i32
-    v2: @Pair = struct @Pair (v0, v1)
-    yield v0, block1(v2)
+    v0: ref<managed readonly i32> = managed.alloc i32
+    v1: i32 = iconst 1i32
+    store v0, v1
+    v2: @Pair = struct @Pair (v0)
+    yield v1, block1(v2)
 block1(v3: @Pair, v4: i32):
-    return v4
+    v5: ref<managed readonly i32> = field.get v3, 0
+    v6: i32 = load v5
+    return v6
 }"#;
 
     // create isolate
@@ -548,7 +563,7 @@ block1(v3: @Pair, v4: i32):
 
     // resume and complete the coroutine
     let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
-    assert_eq!(output.value, Value::int32(7));
+    assert_eq!(output.value, Value::int32(1));
 
     // collect garbage after completion
     let stats = isolate.collect_garbage();
