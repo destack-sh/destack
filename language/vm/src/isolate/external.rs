@@ -2,9 +2,10 @@ use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
+use std::rc::Rc;
 
 use crate::diagnostic::Error;
-use crate::executable::{Executable, StorageComponentLayout, StorageLayout, repr_type};
+use crate::executable::{ComponentLayout, Executable, Layout, repr_type};
 use crate::interpreter::machine::storage::{
     decode_raw_value, encode_raw_value, raw_type_alignment, raw_type_size,
 };
@@ -57,11 +58,27 @@ pub struct ExternalCallContext<'ctx> {
     memory: MemoryContext<'ctx>,
 }
 
+/// Read-only external VM call capability.
+#[derive(Debug, Clone, Copy)]
+pub struct ExternalReadContext<'call, 'ctx> {
+    /// The owning external call context.
+    context: &'call ExternalCallContext<'ctx>,
+}
+
+/// Mutable external VM call capability.
+#[derive(Debug)]
+pub struct ExternalWriteContext<'call, 'ctx> {
+    /// The owning external call context.
+    context: &'call mut ExternalCallContext<'ctx>,
+}
+
 /// One VM aggregate storage shape.
 #[derive(Clone, Debug)]
 enum VmValueStorage {
     /// One isolate registered runtime storage payload.
     Runtime {
+        /// The registered runtime type id.
+        type_id: u32,
         /// The synthetic runtime storage schema.
         schema: StorageSchema,
     },
@@ -72,63 +89,195 @@ enum VmValueStorage {
     },
     /// One typed executable storage payload.
     Typed {
-        /// The MIR storage type.
+        /// The MIR type.
         ty: mir::LocalNodeId<mir::Type>,
         /// The semantic component layouts.
-        components: Vec<StorageComponentLayout>,
+        components: Vec<ComponentLayout>,
     },
+}
+
+impl VmValueStorage {
+    /// Return the semantic component count for this storage shape.
+    fn component_count(&self) -> usize {
+        match self {
+            Self::Runtime { schema, .. } => schema.component_count(),
+            Self::Function { .. } => 2,
+            Self::Typed { components, .. } => components.len(),
+        }
+    }
 }
 
 /// One cached borrowed VM value view.
 #[derive(Debug)]
-pub struct VmValueRef<'ctx> {
+pub struct VmValueRef<'call, 'ctx> {
     /// The active external call context.
     context: *mut ExternalCallContext<'ctx>,
     /// The resolved storage shape.
     storage: VmValueStorage,
-    /// The cached payload bytes.
-    bytes: Vec<u8>,
+    /// The shared payload bytes.
+    bytes: VmValueBytes<'call>,
+    /// The first byte of this value inside the shared payload.
+    start: usize,
+    /// The byte length of this value inside the shared payload.
+    byte_len: usize,
     /// The lifetime marker for the call context.
-    _marker: PhantomData<&'ctx ExternalCallContext<'ctx>>,
+    _marker: PhantomData<&'call ExternalCallContext<'ctx>>,
 }
 
-impl VmValueRef<'_> {
+/// One VM value payload borrow or shared owned buffer.
+#[derive(Debug, Clone)]
+enum VmValueBytes<'call> {
+    /// Borrowed heap-managed bytes.
+    Borrowed(&'call [u8]),
+    /// Shared owned bytes when the heap cannot lend one stable contiguous slice.
+    Owned(Rc<[u8]>),
+}
+
+impl VmValueBytes<'_> {
+    /// Return the full backing bytes for this cached payload.
+    fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Borrowed(bytes) => bytes,
+            Self::Owned(bytes) => bytes,
+        }
+    }
+}
+
+impl<'call, 'ctx> VmValueRef<'call, 'ctx> {
+    /// Return the payload bytes for this value.
+    fn bytes(&self) -> &[u8] {
+        &self.bytes.as_slice()[self.start..self.start + self.byte_len]
+    }
+
+    /// Return the total payload byte length.
+    fn total_len(&self) -> usize {
+        self.bytes.as_slice().len()
+    }
+
+    /// Return the active external call context.
+    fn context_ref(&self) -> &'ctx ExternalCallContext<'ctx> {
+        // the owning call context outlives every borrowed VM value view
+        unsafe { &*self.context }
+    }
+
+    /// Return the active external call context mutably.
+    fn context_mut(&self) -> &'ctx mut ExternalCallContext<'ctx> {
+        // mutable decode paths must not outlive the owning call context
+        unsafe { &mut *self.context }
+    }
+
+    /// Return one checked byte window inside this cached payload.
+    fn byte_window(&self, offset: usize, byte_len: usize) -> Result<&[u8], Error> {
+        let end = offset
+            .checked_add(byte_len)
+            .ok_or(Error::InvalidManagedReference)?;
+
+        self.bytes()
+            .get(offset..end)
+            .ok_or(Error::InvalidManagedReference)
+    }
+
+    /// Return one checked runtime lane value.
+    fn runtime_lane_value(&self, index: usize) -> Result<Value, Error> {
+        let start = index
+            .checked_mul(Value::BYTE_LEN)
+            .ok_or(Error::InvalidManagedReference)?;
+        let bytes = self.byte_window(start, Value::BYTE_LEN)?;
+
+        Value::from_byte_slice(bytes).ok_or(Error::InvalidManagedReference)
+    }
+
     /// Return the semantic component count for this value.
     pub fn component_count(&self) -> usize {
+        self.storage.component_count()
+    }
+
+    /// Return one nested VM value view for one semantic component.
+    pub fn component_ref(&self, index: u32) -> Result<Self, Error> {
+        let context = self.context_ref();
+
         match &self.storage {
-            VmValueStorage::Runtime { schema } => schema.component_count(),
-            VmValueStorage::Function { .. } => 2,
-            VmValueStorage::Typed { components, .. } => components.len(),
+            VmValueStorage::Runtime { .. } | VmValueStorage::Function { .. } => {
+                Err(Error::InvalidManagedReference)
+            }
+            VmValueStorage::Typed { components, .. } => {
+                let component = components
+                    .get(index as usize)
+                    .copied()
+                    .ok_or(Error::InvalidManagedReference)?;
+                let layout = context.layout(component.ty)?;
+
+                // scalar components do not have nested storage views
+                if layout.is_scalar() {
+                    return Err(Error::InvalidManagedReference);
+                }
+
+                let storage = context.storage_for_type(component.ty)?;
+                let start = self
+                    .start
+                    .checked_add(component.offset)
+                    .ok_or(Error::InvalidManagedReference)?;
+                let byte_len = component.byte_len;
+
+                // reject out of bounds nested component windows before building the child view
+                if start
+                    .checked_add(byte_len)
+                    .ok_or(Error::InvalidManagedReference)?
+                    > self.total_len()
+                {
+                    return Err(Error::InvalidManagedReference);
+                }
+
+                Ok(Self {
+                    context: self.context,
+                    storage,
+                    bytes: self.bytes.clone(),
+                    start,
+                    byte_len,
+                    _marker: PhantomData,
+                })
+            }
+        }
+    }
+
+    /// Materialize this value view as one VM value.
+    pub fn materialize_value(&self) -> Result<Value, Error> {
+        let context = self.context_mut();
+
+        match &self.storage {
+            VmValueStorage::Runtime { type_id, schema } => {
+                let component_count = schema.component_count();
+                let mut values = Vec::with_capacity(component_count);
+
+                // decode each runtime lane directly from the cached payload
+                for index in 0..component_count {
+                    values.push(self.runtime_lane_value(index)?);
+                }
+
+                context.materialize_runtime_storage_value(*type_id, *schema, &values)
+            }
+            VmValueStorage::Function { ty } | VmValueStorage::Typed { ty, .. } => {
+                context.materialize_value_from_storage(*ty, self.bytes())
+            }
         }
     }
 
     /// Decode one semantic component value from this cached payload.
     pub fn component_value(&self, index: u32) -> Result<Value, Error> {
-        let context = unsafe { &mut *self.context };
+        let context = self.context_mut();
 
         match &self.storage {
-            VmValueStorage::Runtime { schema } => {
+            VmValueStorage::Runtime { schema, .. } => {
                 let component_count = schema.component_count();
                 if index as usize >= component_count {
                     return Err(Error::InvalidManagedReference);
                 }
 
-                let start = (index as usize)
-                    .checked_mul(Value::BYTE_LEN)
-                    .ok_or(Error::InvalidManagedReference)?;
-                let end = start
-                    .checked_add(Value::BYTE_LEN)
-                    .ok_or(Error::InvalidManagedReference)?;
-                let window = self
-                    .bytes
-                    .get(start..end)
-                    .ok_or(Error::InvalidManagedReference)?;
-
-                Value::from_byte_slice(window).ok_or(Error::InvalidManagedReference)
+                self.runtime_lane_value(index as usize)
             }
             VmValueStorage::Function { ty } => {
                 let values =
-                    context.decode_function_value_components_from_storage(*ty, &self.bytes)?;
+                    context.decode_function_value_components_from_storage(*ty, self.bytes())?;
                 values
                     .get(index as usize)
                     .copied()
@@ -139,14 +288,7 @@ impl VmValueRef<'_> {
                     .get(index as usize)
                     .copied()
                     .ok_or(Error::InvalidManagedReference)?;
-                let byte_end = component
-                    .offset
-                    .checked_add(component.byte_len)
-                    .ok_or(Error::InvalidManagedReference)?;
-                let component_bytes = self
-                    .bytes
-                    .get(component.offset..byte_end)
-                    .ok_or(Error::InvalidManagedReference)?;
+                let component_bytes = self.byte_window(component.offset, component.byte_len)?;
 
                 context.materialize_value_from_storage(component.ty, component_bytes)
             }
@@ -227,16 +369,17 @@ impl VmValueBuilder<'_> {
 }
 
 impl<'ctx> ExternalCallContext<'ctx> {
-    /// Return the semantic component count for one VM storage shape.
-    fn value_storage_component_count(storage: &VmValueStorage) -> usize {
-        match storage {
-            VmValueStorage::Runtime { schema } => schema.component_count(),
-            VmValueStorage::Function { .. } => 2,
-            VmValueStorage::Typed { components, .. } => components.len(),
-        }
+    /// Return the read-only external call capability.
+    pub fn read(&self) -> ExternalReadContext<'_, 'ctx> {
+        ExternalReadContext { context: self }
     }
 
-    /// Resolve one builtin collection storage type by short display name.
+    /// Return the mutable external call capability.
+    pub fn write(&mut self) -> ExternalWriteContext<'_, 'ctx> {
+        ExternalWriteContext { context: self }
+    }
+
+    /// Resolve one builtin collection type by short display name.
     fn builtin_collection_type(
         &self,
         short_name: &str,
@@ -255,9 +398,45 @@ impl<'ctx> ExternalCallContext<'ctx> {
         }
 
         Err(Error::TypeMismatch {
-            expected: format!("builtin {short_name} storage type"),
+            expected: format!("builtin {short_name} type"),
             actual: "missing isolate schema".to_string(),
         })
+    }
+
+    /// Resolve one registered runtime schema by type name.
+    fn named_storage_schema(&self, type_name: &str) -> Result<(u32, StorageSchema), Error> {
+        let type_id = self
+            .schema
+            .type_id(type_name)
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: format!("registered named type '{type_name}'"),
+                actual: "missing isolate schema".to_string(),
+            })?;
+        let schema = self
+            .schema
+            .schema(type_id)
+            .ok_or(Error::InvalidInstruction)?;
+
+        Ok((type_id, schema))
+    }
+
+    /// Build one deferred VM value builder for the given storage shape.
+    fn value_builder(
+        &mut self,
+        storage: VmValueStorage,
+        type_id: u32,
+        layout_id: Option<destack_heap::LayoutId>,
+    ) -> VmValueBuilder<'ctx> {
+        let component_count = storage.component_count();
+
+        VmValueBuilder {
+            context: self as *mut Self,
+            storage,
+            type_id,
+            layout_id,
+            components: vec![None; component_count],
+            _marker: PhantomData,
+        }
     }
 
     /// Return the callable box payload layout for one function value type.
@@ -335,11 +514,9 @@ impl<'ctx> ExternalCallContext<'ctx> {
         }
     }
 
-    /// Return one compiled storage layout by type.
-    fn storage_layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<&StorageLayout, Error> {
-        self.executable
-            .storage_layout(ty)
-            .ok_or(Error::InvalidInstruction)
+    /// Return one compiled layout by type.
+    fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<&Layout, Error> {
+        self.executable.layout(ty).ok_or(Error::InvalidInstruction)
     }
 
     /// Return one managed allocation type id.
@@ -352,6 +529,30 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .ok_or(Error::InvalidManagedReference)
     }
 
+    /// Resolve one VM storage shape from one MIR type.
+    fn storage_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<VmValueStorage, Error> {
+        if let Some(schema) = self.schema.schema(ty.id) {
+            return Ok(VmValueStorage::Runtime {
+                type_id: ty.id,
+                schema,
+            });
+        }
+
+        if matches!(
+            self.executable
+                .tree
+                .get(repr_type(&self.executable.tree, ty)),
+            mir::Type::FunctionValue { .. }
+        ) {
+            return Ok(VmValueStorage::Function { ty });
+        }
+
+        Ok(VmValueStorage::Typed {
+            ty,
+            components: self.composite_component_specs(ty)?,
+        })
+    }
+
     /// Materialize one VM value from one typed storage payload.
     fn materialize_value_from_storage(
         &mut self,
@@ -359,7 +560,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         bytes: &[u8],
     ) -> Result<Value, Error> {
         let component_specs = {
-            let layout = self.storage_layout(ty)?;
+            let layout = self.layout(ty)?;
 
             // decode scalar storage directly
             if layout.is_scalar() {
@@ -398,7 +599,10 @@ impl<'ctx> ExternalCallContext<'ctx> {
     }
 
     /// Build one cached VM value view for a managed composite.
-    fn build_value_ref(&self, value: Value) -> Result<VmValueRef<'ctx>, Error> {
+    fn build_value_ref_snapshot<'call>(
+        &'call self,
+        value: Value,
+    ) -> Result<VmValueRef<'call, 'ctx>, Error> {
         let handle = value
             .as_managed_reference()
             .ok_or_else(|| Error::TypeMismatch {
@@ -410,30 +614,51 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .heap_ref()
             .managed_bytes_to_vec(handle)
             .ok_or(Error::InvalidManagedReference)?;
-        let storage = if let Some(schema) = self.schema.schema(composite_type_id) {
-            VmValueStorage::Runtime { schema }
-        } else {
-            let composite_type = mir::LocalNodeId::new(composite_type_id);
-            if matches!(
-                self.executable
-                    .tree
-                    .get(repr_type(&self.executable.tree, composite_type)),
-                mir::Type::FunctionValue { .. }
-            ) {
-                VmValueStorage::Function { ty: composite_type }
-            } else {
-                let components = self.composite_component_specs(composite_type)?;
-                VmValueStorage::Typed {
-                    ty: composite_type,
-                    components,
-                }
-            }
-        };
+        let composite_type = mir::LocalNodeId::new(composite_type_id);
+        let storage = self.storage_for_type(composite_type)?;
+        let bytes = VmValueBytes::Owned(Rc::<[u8]>::from(bytes));
+        let byte_len = bytes.as_slice().len();
 
         Ok(VmValueRef {
             context: self as *const Self as *mut Self,
             storage,
             bytes,
+            start: 0,
+            byte_len,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Build one cached VM value view that borrows heap bytes when possible.
+    fn build_read_value_ref<'call>(
+        &'call self,
+        value: Value,
+    ) -> Result<VmValueRef<'call, 'ctx>, Error> {
+        let handle = value
+            .as_managed_reference()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "managed composite".to_string(),
+                actual: format!("{:?}", value.tag()),
+            })?;
+        let composite_type_id = self.managed_storage_type_id(handle)?;
+        let bytes = self
+            .heap_ref()
+            .managed_bytes(handle)
+            .ok_or(Error::InvalidManagedReference)?;
+        let composite_type = mir::LocalNodeId::new(composite_type_id);
+        let storage = self.storage_for_type(composite_type)?;
+        let bytes = match bytes {
+            Cow::Borrowed(bytes) => VmValueBytes::Borrowed(bytes),
+            Cow::Owned(bytes) => VmValueBytes::Owned(Rc::<[u8]>::from(bytes)),
+        };
+        let byte_len = bytes.as_slice().len();
+
+        Ok(VmValueRef {
+            context: self as *const Self as *mut Self,
+            storage,
+            bytes,
+            start: 0,
+            byte_len,
             _marker: PhantomData,
         })
     }
@@ -446,7 +671,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         layout_id: Option<destack_heap::LayoutId>,
     ) -> Result<destack_heap::ManagedReference, Error> {
         match storage {
-            VmValueStorage::Runtime { schema } => {
+            VmValueStorage::Runtime { schema, .. } => {
                 let byte_len = schema
                     .component_count()
                     .checked_mul(Value::BYTE_LEN)
@@ -479,7 +704,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
                     .map_err(Error::from)
             }
             VmValueStorage::Typed { ty, .. } => {
-                let layout = self.storage_layout(*ty)?;
+                let layout = self.layout(*ty)?;
                 let byte_len = layout.byte_len;
                 let reference_map = layout.reference_map.clone();
                 self.heap()
@@ -505,7 +730,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         let repr_ty = repr_type(&self.executable.tree, ty);
 
         // write scalars directly into the target storage
-        if self.storage_layout(ty)?.is_scalar() {
+        if self.layout(ty)?.is_scalar() {
             let bytes = encode_raw_value(&self.executable.tree, ty, value)?;
             if !self.heap().set_managed_bytes(handle, start, &bytes) {
                 return Err(Error::InvalidManagedReference);
@@ -589,7 +814,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         values: &[Value],
     ) -> Result<(), Error> {
         match storage {
-            VmValueStorage::Runtime { schema } => {
+            VmValueStorage::Runtime { schema, .. } => {
                 if values.len() != schema.component_count() {
                     return Err(Error::TypeMismatch {
                         expected: format!("{} composite components", schema.component_count()),
@@ -678,15 +903,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
                 components: self.composite_component_specs(ty)?,
             }
         };
-        let component_count = Self::value_storage_component_count(&storage);
-        let mut builder = VmValueBuilder {
-            context: self as *mut Self,
-            storage,
-            type_id: ty.id,
-            layout_id: self.executable.tree.type_layout_id(ty),
-            components: vec![None; component_count],
-            _marker: PhantomData,
-        };
+        let mut builder =
+            self.value_builder(storage, ty.id, self.executable.tree.type_layout_id(ty));
 
         // stage each semantic component before one final direct write
         for (index, value) in values.into_iter().enumerate() {
@@ -703,16 +921,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
         schema: StorageSchema,
         values: &[Value],
     ) -> Result<Value, Error> {
-        let storage = VmValueStorage::Runtime { schema };
-        let component_count = Self::value_storage_component_count(&storage);
-        let mut builder = VmValueBuilder {
-            context: self as *mut Self,
-            storage,
-            type_id,
-            layout_id: None,
-            components: vec![None; component_count],
-            _marker: PhantomData,
-        };
+        let storage = VmValueStorage::Runtime { type_id, schema };
+        let mut builder = self.value_builder(storage, type_id, None);
 
         // stage each runtime storage lane before one final direct write
         for (index, value) in values.iter().copied().enumerate() {
@@ -766,16 +976,15 @@ impl<'ctx> ExternalCallContext<'ctx> {
             return Err(Error::InvalidManagedReference);
         }
 
-        // encode the full runtime storage payload once
-        let mut bytes = Vec::with_capacity(expected_byte_len);
-
-        for value in values.iter().copied() {
-            bytes.extend_from_slice(&value.to_byte_array());
-        }
-
-        // commit the full payload in one heap write
-        if !self.heap().set_managed_bytes(handle, 0, &bytes) {
-            return Err(Error::InvalidManagedReference);
+        // write each runtime storage lane directly
+        for (index, value) in values.iter().copied().enumerate() {
+            let start = index
+                .checked_mul(Value::BYTE_LEN)
+                .ok_or(Error::InvalidManagedReference)?;
+            let bytes = value.to_byte_array();
+            if !self.heap().set_managed_bytes(handle, start, &bytes) {
+                return Err(Error::InvalidManagedReference);
+            }
         }
 
         Ok(())
@@ -790,38 +999,15 @@ impl<'ctx> ExternalCallContext<'ctx> {
         self.materialize_storage_value(ty, values)
     }
 
-    /// Build one cached VM value view for one managed composite value.
-    pub fn value_ref(&self, value: Value) -> Result<VmValueRef<'ctx>, Error> {
-        self.build_value_ref(value)
-    }
-
     /// Begin one named runtime storage value builder.
     pub fn begin_named_storage_value_builder(
         &mut self,
         type_name: &str,
     ) -> Result<VmValueBuilder<'ctx>, Error> {
-        let type_id = self
-            .schema
-            .type_id(type_name)
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: format!("registered named storage type '{type_name}'"),
-                actual: "missing isolate schema".to_string(),
-            })?;
-        let schema = self
-            .schema
-            .schema(type_id)
-            .ok_or(Error::InvalidInstruction)?;
-        let storage = VmValueStorage::Runtime { schema };
-        let component_count = Self::value_storage_component_count(&storage);
+        let (type_id, schema) = self.named_storage_schema(type_name)?;
+        let storage = VmValueStorage::Runtime { type_id, schema };
 
-        Ok(VmValueBuilder {
-            context: self as *mut Self,
-            storage,
-            type_id,
-            layout_id: None,
-            components: vec![None; component_count],
-            _marker: PhantomData,
-        })
+        Ok(self.value_builder(storage, type_id, None))
     }
 
     /// Materialize one builtin Slice value from raw pointer and length.
@@ -860,17 +1046,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         values: Vec<Value>,
     ) -> Result<Value, Error> {
         // resolve the registered runtime ABI schema directly
-        let type_id = self
-            .schema
-            .type_id(type_name)
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: format!("registered named storage type '{type_name}'"),
-                actual: "missing isolate schema".to_string(),
-            })?;
-        let schema = self
-            .schema
-            .schema(type_id)
-            .ok_or(Error::InvalidInstruction)?;
+        let (type_id, schema) = self.named_storage_schema(type_name)?;
 
         self.materialize_runtime_storage_value(type_id, schema, &values)
     }
@@ -882,17 +1058,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         values: [Value; N],
     ) -> Result<Value, Error> {
         // resolve the registered runtime ABI schema directly
-        let type_id = self
-            .schema
-            .type_id(type_name)
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: format!("registered named storage type '{type_name}'"),
-                actual: "missing isolate schema".to_string(),
-            })?;
-        let schema = self
-            .schema
-            .schema(type_id)
-            .ok_or(Error::InvalidInstruction)?;
+        let (type_id, schema) = self.named_storage_schema(type_name)?;
 
         self.materialize_runtime_storage_value(type_id, schema, &values)
     }
@@ -901,8 +1067,8 @@ impl<'ctx> ExternalCallContext<'ctx> {
     fn composite_component_specs(
         &self,
         aggregate_type: mir::LocalNodeId<mir::Type>,
-    ) -> Result<Vec<crate::executable::StorageComponentLayout>, Error> {
-        let layout = self.storage_layout(aggregate_type)?;
+    ) -> Result<Vec<crate::executable::ComponentLayout>, Error> {
+        let layout = self.layout(aggregate_type)?;
         let component_count = layout
             .component_count()
             .ok_or(Error::InvalidManagedReference)?;
@@ -979,6 +1145,13 @@ impl<'ctx> ExternalCallContext<'ctx> {
         self.heap().allocate_raw_values(values).map_err(Error::from)
     }
 
+    /// Allocate one zeroed raw packed-value buffer and return its pointer.
+    pub fn allocate_raw_value_slots(&mut self, slot_count: usize) -> Result<RawPointer, Error> {
+        self.heap()
+            .allocate_raw_slots(slot_count)
+            .map_err(Error::from)
+    }
+
     /// Allocate a shared heap byte region and return its pointer.
     pub fn allocate_shared_bytes(&mut self, bytes: &[u8]) -> Result<SharedPointer, Error> {
         self.memory
@@ -988,12 +1161,12 @@ impl<'ctx> ExternalCallContext<'ctx> {
 
     /// Read semantic component values from one typed composite value.
     pub fn decode_component_values(&mut self, value: Value) -> Result<Vec<Value>, Error> {
-        self.build_value_ref(value)?.component_values()
+        self.build_value_ref_snapshot(value)?.component_values()
     }
 
     /// Return the semantic component count for one typed composite value.
     pub fn storage_component_count(&self, value: Value) -> Result<usize, Error> {
-        Ok(self.build_value_ref(value)?.component_count())
+        Ok(self.build_value_ref_snapshot(value)?.component_count())
     }
 
     /// Read one semantic component value from one typed composite value.
@@ -1002,7 +1175,7 @@ impl<'ctx> ExternalCallContext<'ctx> {
         value: Value,
         index: u32,
     ) -> Result<Value, Error> {
-        self.build_value_ref(value)?.component_value(index)
+        self.build_value_ref_snapshot(value)?.component_value(index)
     }
 
     /// Write semantic component values back into one typed heap composite.
@@ -1063,6 +1236,24 @@ impl<'ctx> ExternalCallContext<'ctx> {
             .ok_or(Error::InvalidManagedReference)
     }
 
+    /// Read one raw packed value by slot index.
+    pub fn raw_value_at(&self, pointer: RawPointer, index: usize) -> Result<Value, Error> {
+        let start = index
+            .checked_mul(Value::BYTE_LEN)
+            .ok_or(Error::InvalidManagedReference)?;
+        let mut bytes = [0u8; Value::BYTE_LEN];
+
+        // read the packed value lane without materializing the whole raw payload
+        for (offset, byte) in bytes.iter_mut().enumerate() {
+            *byte = self
+                .heap_ref()
+                .raw_byte_at(pointer, start + offset)
+                .ok_or(Error::InvalidManagedReference)?;
+        }
+
+        Value::from_byte_slice(&bytes).ok_or(Error::InvalidManagedReference)
+    }
+
     /// Read shared bytes from a pointer to one shared region.
     pub fn shared_bytes(&self, pointer: SharedPointer) -> Result<Vec<u8>, Error> {
         self.shared_ref()
@@ -1096,6 +1287,20 @@ impl<'ctx> ExternalCallContext<'ctx> {
         Err(Error::InvalidManagedReference)
     }
 
+    /// Write one raw packed value into one pointer slot.
+    pub fn write_raw_value(
+        &mut self,
+        pointer: RawPointer,
+        index: usize,
+        value: Value,
+    ) -> Result<(), Error> {
+        if self.heap().set_raw_value(pointer, index, value) {
+            return Ok(());
+        }
+
+        Err(Error::InvalidManagedReference)
+    }
+
     /// Write shared bytes into a pointer to one shared region.
     pub fn write_shared_bytes(
         &mut self,
@@ -1111,6 +1316,179 @@ impl<'ctx> ExternalCallContext<'ctx> {
         }
 
         Err(Error::InvalidManagedReference)
+    }
+}
+
+impl<'call, 'ctx> ExternalReadContext<'call, 'ctx> {
+    /// Return the semantic component count for one composite value.
+    pub fn storage_component_count(&self, value: Value) -> Result<usize, Error> {
+        self.context.storage_component_count(value)
+    }
+
+    /// Return one cached VM value view.
+    pub fn value_ref(&self, value: Value) -> Result<VmValueRef<'call, 'ctx>, Error> {
+        self.context.build_read_value_ref(value)
+    }
+
+    /// Return one VM string handle from one value.
+    pub fn string_handle_from_value(&self, value: Value) -> Result<StringHandle, Error> {
+        self.context.string_handle_from_value(value)
+    }
+
+    /// Return one borrowed VM string value.
+    pub fn string_value_ref(&self, value: Value) -> Result<StringRef<'call>, Error> {
+        self.context.string_value_ref(value)
+    }
+
+    /// Return one borrowed VM string by handle.
+    pub fn string_ref(&self, value: StringHandle) -> Result<StringRef<'call>, Error> {
+        self.context.string_ref(value)
+    }
+
+    /// Return one raw byte payload borrow or copy.
+    pub fn raw_bytes_ref(&self, pointer: RawPointer) -> Result<Cow<'call, [u8]>, Error> {
+        self.context.raw_bytes_ref(pointer)
+    }
+
+    /// Return one owned raw byte payload.
+    pub fn raw_bytes(&self, pointer: RawPointer) -> Result<Vec<u8>, Error> {
+        self.context.raw_bytes(pointer)
+    }
+
+    /// Return the raw byte length for one pointer.
+    pub fn raw_byte_len(&self, pointer: RawPointer) -> Result<usize, Error> {
+        self.context.raw_byte_len(pointer)
+    }
+
+    /// Return one raw packed value by slot index.
+    pub fn raw_value_at(&self, pointer: RawPointer, index: usize) -> Result<Value, Error> {
+        self.context.raw_value_at(pointer, index)
+    }
+
+    /// Return one raw packed-value payload copy.
+    pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Value>, Error> {
+        self.context.raw_values(pointer)
+    }
+
+    /// Return one shared byte payload copy.
+    pub fn shared_bytes(&self, pointer: SharedPointer) -> Result<Vec<u8>, Error> {
+        self.context.shared_bytes(pointer)
+    }
+}
+
+impl<'call, 'ctx> ExternalWriteContext<'call, 'ctx> {
+    /// Return the raw byte length for one pointer.
+    pub fn raw_byte_len(&self, pointer: RawPointer) -> Result<usize, Error> {
+        self.context.raw_byte_len(pointer)
+    }
+
+    /// Return one managed value builder by runtime storage name.
+    pub fn begin_named_storage_value_builder(
+        &mut self,
+        storage_type: &str,
+    ) -> Result<VmValueBuilder<'ctx>, Error> {
+        let context = self.context as *mut ExternalCallContext<'ctx>;
+
+        unsafe { (&mut *context).begin_named_storage_value_builder(storage_type) }
+    }
+
+    /// Materialize one builtin slice value.
+    pub fn materialize_builtin_slice_value(
+        &mut self,
+        data: RawPointer,
+        len: u32,
+    ) -> Result<Value, Error> {
+        self.context.materialize_builtin_slice_value(data, len)
+    }
+
+    /// Materialize one builtin array value.
+    pub fn materialize_builtin_array_value(
+        &mut self,
+        len: u32,
+        capacity: u32,
+        data: RawPointer,
+    ) -> Result<Value, Error> {
+        self.context
+            .materialize_builtin_array_value(len, capacity, data)
+    }
+
+    /// Materialize one named runtime storage value.
+    pub fn materialize_named_storage_value(
+        &mut self,
+        storage_type: &str,
+        values: Vec<Value>,
+    ) -> Result<Value, Error> {
+        self.context
+            .materialize_named_storage_value(storage_type, values)
+    }
+
+    /// Materialize one named runtime storage value from one fixed-size array.
+    pub fn materialize_named_storage_value_array<const N: usize>(
+        &mut self,
+        storage_type: &str,
+        values: [Value; N],
+    ) -> Result<Value, Error> {
+        self.context
+            .materialize_named_storage_value_array(storage_type, values)
+    }
+
+    /// Intern one string into VM heap storage.
+    pub fn intern_string(&mut self, value: &str) -> Result<Value, Error> {
+        self.context.intern_string(value)
+    }
+
+    /// Return one VM string handle for one string.
+    pub fn string_handle(&mut self, value: &str) -> Result<StringHandle, Error> {
+        self.context.string_handle(value)
+    }
+
+    /// Allocate one raw byte buffer.
+    pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> Result<RawPointer, Error> {
+        self.context.allocate_raw_bytes(bytes)
+    }
+
+    /// Allocate one raw packed-value buffer.
+    pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> Result<RawPointer, Error> {
+        self.context.allocate_raw_values(values)
+    }
+
+    /// Allocate one zeroed raw packed-value buffer.
+    pub fn allocate_raw_value_slots(&mut self, slot_count: usize) -> Result<RawPointer, Error> {
+        self.context.allocate_raw_value_slots(slot_count)
+    }
+
+    /// Allocate one shared byte region.
+    pub fn allocate_shared_bytes(&mut self, bytes: &[u8]) -> Result<SharedPointer, Error> {
+        self.context.allocate_shared_bytes(bytes)
+    }
+
+    /// Write one raw byte payload.
+    pub fn write_raw_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> Result<(), Error> {
+        self.context.write_raw_bytes(pointer, bytes)
+    }
+
+    /// Write one raw packed-value payload.
+    pub fn write_raw_values(&mut self, pointer: RawPointer, values: &[Value]) -> Result<(), Error> {
+        self.context.write_raw_values(pointer, values)
+    }
+
+    /// Write one raw packed value.
+    pub fn write_raw_value(
+        &mut self,
+        pointer: RawPointer,
+        index: usize,
+        value: Value,
+    ) -> Result<(), Error> {
+        self.context.write_raw_value(pointer, index, value)
+    }
+
+    /// Write one shared byte payload.
+    pub fn write_shared_bytes(
+        &mut self,
+        pointer: SharedPointer,
+        bytes: &[u8],
+    ) -> Result<(), Error> {
+        self.context.write_shared_bytes(pointer, bytes)
     }
 }
 

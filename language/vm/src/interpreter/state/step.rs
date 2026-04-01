@@ -5,8 +5,8 @@ use destack_mir as mir;
 use super::{Frame, Interpreter};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{
-    ArgumentRange, Executable, Function, FunctionTable, Instruction, StorageComponentLayout,
-    StorageLayout, SwitchCase, SwitchRange,
+    ArgumentRange, ComponentLayout, Executable, Function, FunctionTable, Instruction, Layout,
+    SwitchCase, SwitchRange,
 };
 use crate::isolate::{GlobalStorage, StringInterner};
 use crate::options::IsolateOptions;
@@ -144,16 +144,13 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
         &self.executable.tree
     }
 
-    /// Return the compiled storage layout for one MIR type.
+    /// Return the compiled layout for one MIR type.
     #[inline]
-    pub(crate) fn storage_layout(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> Result<&StorageLayout, Error> {
+    pub(crate) fn layout(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<&Layout, Error> {
         self.executable
-            .storage_layout(ty)
+            .layout(ty)
             .ok_or_else(|| Error::TypeMismatch {
-                expected: "compiled storage layout".to_string(),
+                expected: "compiled layout".to_string(),
                 actual: format!("{ty:?}"),
             })
     }
@@ -161,25 +158,25 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
     /// Return the storage byte width for one MIR type.
     #[inline]
     pub(crate) fn storage_byte_len(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<usize, Error> {
-        Ok(self.storage_layout(ty)?.byte_len)
+        Ok(self.layout(ty)?.byte_len)
     }
 
     /// Return the storage stride for one MIR type.
     #[inline]
     pub(crate) fn storage_stride(&self, ty: mir::LocalNodeId<mir::Type>) -> Result<usize, Error> {
-        Ok(self.storage_layout(ty)?.stride())
+        Ok(self.layout(ty)?.stride())
     }
 
-    /// Return the semantic component count for one storage type.
+    /// Return the semantic component count for one type.
     #[inline]
     pub(crate) fn storage_component_count(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Result<usize, Error> {
-        self.storage_layout(ty)?
+        self.layout(ty)?
             .component_count()
             .ok_or_else(|| Error::TypeMismatch {
-                expected: "aggregate storage type".to_string(),
+                expected: "aggregate type".to_string(),
                 actual: format!("{ty:?}"),
             })
     }
@@ -190,15 +187,15 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
         &self,
         ty: mir::LocalNodeId<mir::Type>,
         index: u32,
-    ) -> Result<StorageComponentLayout, Error> {
-        self.storage_layout(ty)?
+    ) -> Result<ComponentLayout, Error> {
+        self.layout(ty)?
             .component(index)
             .ok_or_else(|| Error::InvalidFieldAccess {
                 index,
                 field_count: self
-                    .storage_layout(ty)
+                    .layout(ty)
                     .ok()
-                    .and_then(StorageLayout::component_count)
+                    .and_then(Layout::component_count)
                     .unwrap_or(0),
             })
     }

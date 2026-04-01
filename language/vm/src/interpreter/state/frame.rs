@@ -302,10 +302,10 @@ impl Frame {
         // dynamic stack allocations
         for allocation in self.stack_allocations.iter().flatten() {
             let layout = executable
-                .storage_layout(allocation.storage_type())
+                .layout(allocation.storage_type())
                 .unwrap_or_else(|| {
                     panic!(
-                        "missing storage layout for stack allocation: frame={:?}, storage_type={:?}",
+                        "missing layout for stack allocation: frame={:?}, storage_type={:?}",
                         self.function,
                         allocation.storage_type(),
                     )

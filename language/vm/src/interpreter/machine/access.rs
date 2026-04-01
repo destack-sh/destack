@@ -2048,7 +2048,7 @@ fn load_heap_slot(
             field_count: bytes.len(),
         })?;
 
-        if state.storage_layout(component.ty)?.is_scalar() {
+        if state.layout(component.ty)?.is_scalar() {
             return decode_raw_value(state.tree(), component.ty, window);
         }
 
@@ -2205,7 +2205,7 @@ fn get_heap_field(
             field_count: bytes.len(),
         })?;
 
-        if state.storage_layout(field.ty)?.is_scalar() {
+        if state.layout(field.ty)?.is_scalar() {
             return decode_raw_value(state.tree(), field.ty, window);
         }
 
@@ -2244,7 +2244,7 @@ fn get_stack_field(
         value_type: field.ty,
         byte_offset: field.offset,
         byte_len: field.byte_len,
-        is_scalar: state.storage_layout(field.ty)?.is_scalar(),
+        is_scalar: state.layout(field.ty)?.is_scalar(),
     };
 
     load_field_stack(state, pointer, access, index, field_count)
@@ -2280,7 +2280,7 @@ fn set_stack_field(
         value_type: field.ty,
         byte_offset: field.offset,
         byte_len: field.byte_len,
-        is_scalar: state.storage_layout(field.ty)?.is_scalar(),
+        is_scalar: state.layout(field.ty)?.is_scalar(),
     };
 
     store_field_stack(state, pointer, access, index, field_count, value)
@@ -2301,9 +2301,9 @@ fn get_heap_element(
     // decode the typed element payload
     let heap = state.heap_ref();
     let aggregate_type = managed_storage_type(state, handle)?;
-    let layout = state.storage_layout(aggregate_type)?;
+    let layout = state.layout(aggregate_type)?;
     let element = layout.element().ok_or(Error::TypeMismatch {
-        expected: "array storage type".to_string(),
+        expected: "array type".to_string(),
         actual: format!("{aggregate_type:?}"),
     })?;
     let element_count = layout.component_count().ok_or(Error::TypeMismatch {
@@ -2341,7 +2341,7 @@ fn get_heap_element(
             length: bytes.len() as u64,
         })?;
 
-        if state.storage_layout(element.ty)?.is_scalar() {
+        if state.layout(element.ty)?.is_scalar() {
             return decode_raw_value(state.tree(), element.ty, window);
         }
 
@@ -2364,9 +2364,9 @@ fn get_stack_element(
             .stack_allocation(pointer.slot)
             .ok_or(Error::InvalidManagedReference)?;
         let composite_type = allocation.storage_type();
-        let layout = state.storage_layout(composite_type)?;
+        let layout = state.layout(composite_type)?;
         let element = layout.element().ok_or(Error::TypeMismatch {
-            expected: "array storage type".to_string(),
+            expected: "array type".to_string(),
             actual: format!("{composite_type:?}"),
         })?;
         let element_count = layout.component_count().ok_or(Error::TypeMismatch {
@@ -2380,7 +2380,7 @@ fn get_stack_element(
         value_type: element.ty,
         byte_stride: element.stride,
         byte_len: element.byte_len,
-        is_scalar: state.storage_layout(element.ty)?.is_scalar(),
+        is_scalar: state.layout(element.ty)?.is_scalar(),
     };
 
     load_element_stack(state, pointer, access, index, element_count as u64)
@@ -2400,9 +2400,9 @@ fn set_stack_element(
             .stack_allocation(pointer.slot)
             .ok_or(Error::InvalidManagedReference)?;
         let composite_type = allocation.storage_type();
-        let layout = state.storage_layout(composite_type)?;
+        let layout = state.layout(composite_type)?;
         let element = layout.element().ok_or(Error::TypeMismatch {
-            expected: "array storage type".to_string(),
+            expected: "array type".to_string(),
             actual: format!("{composite_type:?}"),
         })?;
         let element_count = layout.component_count().ok_or(Error::TypeMismatch {
@@ -2416,7 +2416,7 @@ fn set_stack_element(
         value_type: element.ty,
         byte_stride: element.stride,
         byte_len: element.byte_len,
-        is_scalar: state.storage_layout(element.ty)?.is_scalar(),
+        is_scalar: state.layout(element.ty)?.is_scalar(),
     };
 
     store_element_stack(state, pointer, access, index, element_count as u64, value)

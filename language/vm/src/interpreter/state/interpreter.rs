@@ -7,7 +7,7 @@ use destack_mir as mir;
 
 use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
-use crate::execute::Continuation;
+use crate::interpreter::Continuation;
 use crate::isolate::{
     ExternalCallContext, ExternalFn, ExternalFnPtr, GlobalStorage, SchemaRegistry, StringInterner,
 };
@@ -320,7 +320,7 @@ impl Interpreter {
         executable: &Executable,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> RuntimeResult<Vec<mir::LocalNodeId<mir::Type>>> {
-        let layout = executable.storage_layout(ty).ok_or_else(|| {
+        let layout = executable.layout(ty).ok_or_else(|| {
             self.make_error(
                 executable,
                 Error::TypeMismatch {
@@ -333,7 +333,7 @@ impl Interpreter {
             self.make_error(
                 executable,
                 Error::TypeMismatch {
-                    expected: "composite storage layout".to_string(),
+                    expected: "composite layout".to_string(),
                     actual: format!("{ty:?}"),
                 },
             )
@@ -445,7 +445,7 @@ impl Interpreter {
     ) -> RuntimeResult<Value> {
         // materialize one zeroed composite through the typed storage path
         if executable
-            .storage_layout(ty)
+            .layout(ty)
             .is_some_and(|layout| !layout.is_scalar())
         {
             let component_types = self.storage_component_types(executable, ty)?;

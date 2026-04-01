@@ -236,6 +236,7 @@ objc2-foundation = { workspace = true }
 objc2-uniform-type-identifiers = { workspace = true }
 
 [dev-dependencies]
+destack_compiler = { workspace = true }
 rustls-native-certs = { workspace = true }
 
 [lints]

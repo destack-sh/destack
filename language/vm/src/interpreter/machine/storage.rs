@@ -369,7 +369,7 @@ pub(crate) fn materialize_value_from_storage(
     ty: mir::LocalNodeId<mir::Type>,
     bytes: &[u8],
 ) -> Result<Value, Error> {
-    let layout = state.storage_layout(ty)?;
+    let layout = state.layout(ty)?;
 
     // decode composite storage component by component
     if !layout.is_scalar() {
@@ -396,7 +396,7 @@ pub(crate) fn materialize_value_from_storage(
     decode_raw_value(state.tree(), ty, bytes)
 }
 
-/// Resolve the compiled storage type for one managed allocation.
+/// Resolve the compiled type for one managed allocation.
 pub(crate) fn managed_storage_type(
     state: &StepState<'_, '_>,
     handle: ManagedReference,
@@ -407,7 +407,7 @@ pub(crate) fn managed_storage_type(
         .ok_or(Error::InvalidManagedReference)?;
     let ty = mir::LocalNodeId::new(type_id);
 
-    let _ = state.storage_layout(ty)?;
+    let _ = state.layout(ty)?;
 
     Ok(ty)
 }
@@ -460,11 +460,11 @@ pub(crate) fn allocate_stack_storage_value_by_index<F>(
 where
     F: FnMut(&mut StepState<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Value, Error>,
 {
-    let layout = state.storage_layout(ty)?.clone();
+    let layout = state.layout(ty)?.clone();
     let component_count = layout
         .component_count()
         .ok_or_else(|| Error::TypeMismatch {
-            expected: "composite storage type".to_string(),
+            expected: "composite type".to_string(),
             actual: format!("{ty:?}"),
         })?;
 
@@ -525,7 +525,7 @@ pub(crate) fn allocate_zeroed_stack_storage(
     state: &mut StepState<'_, '_>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<Value, Error> {
-    let layout = state.storage_layout(ty)?.clone();
+    let layout = state.layout(ty)?.clone();
     let allocation = crate::interpreter::StackAllocation::new(layout.byte_len, ty);
     let frame_index = state.frame_index;
     let slot = state
@@ -673,10 +673,10 @@ pub(crate) fn encode_storage_value(
     ty: mir::LocalNodeId<mir::Type>,
     value: Value,
 ) -> Result<Vec<u8>, Error> {
-    let layout = state.storage_layout(ty)?;
+    let layout = state.layout(ty)?;
     if !layout.is_scalar() {
         return Err(Error::TypeMismatch {
-            expected: "scalar storage type".to_string(),
+            expected: "scalar type".to_string(),
             actual: format!("{ty:?}"),
         });
     }
@@ -691,7 +691,7 @@ pub(crate) fn write_storage_value_into(
     value: Value,
     destination: &mut [u8],
 ) -> Result<(), Error> {
-    if state.storage_layout(ty)?.is_scalar() {
+    if state.layout(ty)?.is_scalar() {
         let bytes = encode_storage_value(state, ty, value)?;
         if bytes.len() != destination.len() {
             return Err(Error::InvalidManagedReference);

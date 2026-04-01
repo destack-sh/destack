@@ -12,7 +12,6 @@ use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::{BindingCallContext, enter_binding_call_context};
 use destack_workspace::RuntimeOptions;
 
-#[cfg(test)]
 use crate::runtime::bindings::VmBindingSet;
 
 /// Registry for external bindings and shims.
@@ -66,7 +65,7 @@ impl BindingRegistry {
     }
 
     /// Install default VM bindings into a VM isolate.
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
         for set in platform::PLATFORM_VM_BINDINGS {
             self.install_vm_binding_set(isolate, set);
@@ -81,7 +80,7 @@ impl BindingRegistry {
     }
 
     /// Install a binding set into a VM isolate.
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn install_vm_binding_set(&mut self, isolate: &mut Isolate, set: &VmBindingSet) {
         // dispatch to the binding set install hook
         (set.install)(self, isolate);

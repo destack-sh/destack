@@ -251,7 +251,8 @@ impl StringInterner {
                 Ok(StringRef::borrowed(value))
             }
             Cow::Owned(bytes) => {
-                let bytes = bytes[..length].to_vec();
+                let mut bytes = bytes;
+                bytes.truncate(length);
                 let value = String::from_utf8(bytes).map_err(|_| Error::TypeMismatch {
                     expected: "string".to_string(),
                     actual: "bytes".to_string(),

@@ -146,6 +146,11 @@ pub(super) struct AllocatingEngine {
 }
 
 impl Engine for TestEngine {
+    /// Return the managed-reference width required by this test engine.
+    fn heap_managed_reference_bytes(&self) -> u8 {
+        8
+    }
+
     /// Run one entrypoint without yielding.
     fn run(
         &mut self,
@@ -276,6 +281,11 @@ impl Engine for TestEngine {
 }
 
 impl Engine for AllocatingEngine {
+    /// Return the managed-reference width required by this test engine.
+    fn heap_managed_reference_bytes(&self) -> u8 {
+        8
+    }
+
     /// Run one entrypoint after allocating into the heap.
     fn run(
         &mut self,
@@ -404,9 +414,8 @@ impl AllocatingEngine {
     fn allocate(&self, heap: &mut heap::Heap) -> RuntimeResult<()> {
         // managed payload
         if self.managed_values > 0 {
-            let mut values = Vec::with_capacity(self.managed_values);
-            values.resize(self.managed_values, heap::Value::int64(7));
-            let _ = heap.allocate_packed_values(values)?;
+            let bytes = vec![0; self.managed_values * heap::Value::BYTE_LEN];
+            let _ = heap.allocate_managed_bytes(&bytes, heap::ReferenceMap::empty(), None)?;
         }
 
         // raw payload
@@ -531,10 +540,14 @@ impl TestWorld {
                     .agent_mut(agent_id)
                     .expect("runtime should keep its primary agent");
                 let engine = &mut *agent.engine as &mut dyn std::any::Any;
-                let isolate = engine
+                let _isolate = engine
                     .downcast_mut::<vm::Isolate>()
                     .expect("agent should use a vm engine");
-                let _ = isolate.allocate_single(&mut agent.heap, value);
+                let bytes = value.to_byte_array();
+                let _ = agent
+                    .heap
+                    .allocate_managed_bytes(&bytes, heap::ReferenceMap::empty(), None)
+                    .expect("managed allocation should succeed");
 
                 Ok(())
             })
@@ -792,6 +805,11 @@ impl TestRuntime {
     /// Return the exact live heap usage for this test agent.
     pub(super) fn heap_usage(&self) -> heap::HeapUsage {
         self.agent.heap.usage()
+    }
+
+    /// Return the heap managed-reference width for this test agent.
+    pub(super) fn heap_managed_reference_bytes(&self) -> u8 {
+        self.agent.heap.layout().managed_reference_bytes
     }
 
     /// Replace the hard heap limits for this test agent.
@@ -1202,10 +1220,12 @@ pub(super) fn native_continuation_image(continuation: NativeContinuationHandle) 
         frames: vec![FrameImage {
             frame_layout: FrameLayoutId(0),
             resume_point: ResumePointId(0),
+            transfer: None,
             slots: vec![FrameValue::UInt {
                 value: continuation.get() as u64,
                 width: 64,
             }],
+            stack_allocations: Vec::new(),
         }],
         stats: Default::default(),
     }

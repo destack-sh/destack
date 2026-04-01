@@ -12,8 +12,7 @@ use super::{
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
-use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
-use crate::interpreter::Interpreter;
+use crate::interpreter::{Continuation, ExecutionOutcome, ExecutionOutput, Interpreter};
 use crate::options::IsolateOptions;
 use crate::snapshot::{ContinuationImage, IsolateImage, IsolateSnapshot};
 use destack_heap::{
@@ -174,7 +173,7 @@ impl Isolate {
         self.rebuild_external_cache();
     }
 
-    /// Register one runtime named storage type for external ABI fallback.
+    /// Register one runtime named type for external ABI fallback.
     pub fn register_named_storage_type(&mut self, name: &str, component_count: usize) {
         self.schema
             .register_named_storage_type(name, component_count);

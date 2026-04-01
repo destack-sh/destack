@@ -7,8 +7,9 @@ use super::bind::TransferredValue;
 use super::step_instruction;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTarget};
-use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput, YieldState};
-use crate::interpreter::Interpreter;
+use crate::interpreter::{
+    Continuation, ExecutionOutcome, ExecutionOutput, Interpreter, YieldState,
+};
 use crate::isolate::{
     ExternalCallContext, ExternalFn, ExternalFnPtr, GlobalStorage, SchemaRegistry, StringInterner,
 };

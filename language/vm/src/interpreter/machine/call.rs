@@ -15,8 +15,8 @@ fn receiver_field_access(
     managed_pointee: mir::LocalNodeId<mir::Type>,
     field_index: u32,
 ) -> Result<crate::executable::FieldAccess, Error> {
-    // load the compiled receiver storage layout
-    let layout = state.storage_layout(managed_pointee)?;
+    // load the compiled receiver layout
+    let layout = state.layout(managed_pointee)?;
     let field = layout.field(field_index);
 
     // convert the selected field into one machine access descriptor
@@ -29,7 +29,7 @@ fn receiver_field_access(
         },
         |field| {
             let is_scalar = state
-                .storage_layout(field.ty)
+                .layout(field.ty)
                 .is_ok_and(|layout| layout.is_scalar());
 
             Ok(crate::executable::FieldAccess {

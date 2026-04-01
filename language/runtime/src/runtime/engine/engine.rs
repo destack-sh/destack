@@ -9,6 +9,9 @@ use crate::diagnostic::RuntimeResult;
 
 /// Execution engine used by one agent event loop.
 pub trait Engine: Any {
+    /// Return the encoded managed-reference width required by this engine.
+    fn heap_managed_reference_bytes(&self) -> u8;
+
     /// Run the entrypoint function.
     fn run(
         &mut self,

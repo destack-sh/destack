@@ -6,8 +6,7 @@ use super::bind::{
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::Executable;
-use crate::execute::ExecutionOutcome;
-use crate::interpreter::Interpreter;
+use crate::interpreter::{ExecutionOutcome, Interpreter};
 
 impl Interpreter {
     /// Apply one return transfer.

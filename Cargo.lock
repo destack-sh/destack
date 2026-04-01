@@ -1545,6 +1545,7 @@ version = "0.55.4"
 dependencies = [
  "destack_core",
  "destack_mir",
+ "libc",
  "serde",
 ]
 

@@ -1,5 +1,7 @@
-use destack_core::LocalStringPool;
-use destack_mir::NodeTree;
+use destack_core::{ImmutableStringPool, LocalStringPool};
+use destack_mir::parse::{ParseOptions, Parser};
+use destack_mir::{NodeTree, TypeAlias};
+use destack_source::FileId;
 use destack_vm as vm;
 use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions};
 
@@ -115,7 +117,7 @@ impl TestRuntime {
         let agent_engine =
             vm::Isolate::build(agent_tree, agent_strings).expect("agent engine should build");
 
-        let agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(agent_engine))
+        let mut agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(agent_engine))
             .expect("runtime test agent should build");
         let host = if is_native_ingress_enabled {
             HostSession::from_runtime_options(&options, agent.runtime_id)
@@ -124,9 +126,10 @@ impl TestRuntime {
         };
 
         // vm binding isolate
-        let tree = NodeTree::new();
-        let strings = LocalStringPool::new().into_immutable();
-        let vm_isolate = vm::Isolate::build(tree, strings).expect("test vm isolate should build");
+        let (tree, strings) = test_vm_isolate_module();
+        let mut vm_isolate =
+            vm::Isolate::build(tree, strings).expect("test vm isolate should build");
+        agent.bindings.install_vm_defaults(&mut vm_isolate);
         let vm_heap = vm::Heap::default();
         let vm_shared = vm::SharedSpace::default();
 
@@ -419,4 +422,29 @@ impl TestRuntime {
 
         (flags & HANDLE_FLAG_INHERIT) == 0
     }
+}
+
+/// Build the minimal MIR module required for one VM binding test isolate.
+fn test_vm_isolate_module() -> (NodeTree, ImmutableStringPool) {
+    let (mut tree, strings) = Parser::parse(
+        FileId::new(0),
+        vm::STRING_TYPE_ALIAS,
+        ParseOptions::default(),
+    )
+    .expect("runtime vm test isolate should parse");
+
+    // keep runtime VM tests explicit about the well known String contract
+    let string_type = tree.iter_nodes::<TypeAlias>().find_map(|(_, type_alias)| {
+        if strings.get(type_alias.name) == "String" {
+            Some(type_alias.ty)
+        } else {
+            None
+        }
+    });
+
+    if let Some(string_type) = string_type {
+        tree.type_table.set_string_type(string_type);
+    }
+
+    (tree, strings)
 }
