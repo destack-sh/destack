@@ -1505,7 +1505,9 @@ impl ManagedSpace {
         let queue_capacity = self.small.available_spans[class_index].capacity();
         let page_arena_retained = self.page_arena.retained_bytes() as i64;
         let mut span = ManagedSpan::new(size_class, self.small.span_bytes, &mut self.page_arena);
-        let slot_index = span.first_free_slot().unwrap_or(0);
+        let slot_index = span
+            .first_free_slot()
+            .unwrap_or_else(|| panic!("fresh managed span must have one free slot"));
         let allocated =
             span.allocate_slot(&mut self.page_arena, slot_index, bytes, trace_id, layout_id);
         debug_assert!(allocated, "fresh managed span must accept its first slot");
@@ -1586,7 +1588,9 @@ impl ManagedSpace {
         let queue_capacity = self.small.available_spans[class_index].capacity();
         let page_arena_retained = self.page_arena.retained_bytes() as i64;
         let mut span = ManagedSpan::new(size_class, self.small.span_bytes, &mut self.page_arena);
-        let slot_index = span.first_free_slot().unwrap_or(0);
+        let slot_index = span
+            .first_free_slot()
+            .unwrap_or_else(|| panic!("fresh managed span must have one free slot"));
         let allocated = span.allocate_zeroed_slot(
             &mut self.page_arena,
             slot_index,

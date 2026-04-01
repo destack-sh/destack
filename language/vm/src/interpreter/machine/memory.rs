@@ -18,6 +18,18 @@ fn record_store(state: &mut StepState<'_, '_>) {
     }
 }
 
+/// Load one managed array length operand as a host usize.
+#[inline(always)]
+fn load_managed_array_length(state: &StepState<'_, '_>, value: mir::Value) -> Result<usize, Error> {
+    let value = state.get(value);
+    let length = value.as_uint().ok_or_else(|| Error::TypeMismatch {
+        expected: "unsigned integer".to_string(),
+        actual: format!("{value:?}"),
+    })?;
+
+    usize::try_from(length).map_err(|_| Error::AllocationFailed)
+}
+
 /// Load one global value directly from isolate storage.
 #[inline(always)]
 fn load_global_value(
@@ -978,8 +990,10 @@ pub(crate) fn step_managed_alloc_array(
     };
 
     // resolve array length
-    let len_val = state.get(*length);
-    let length = len_val.as_uint().unwrap_or(0) as usize;
+    let length = match load_managed_array_length(state, *length) {
+        Ok(length) => length,
+        Err(error) => return Transfer::Error(error),
+    };
 
     // resolve managed array layout facts before taking the heap borrow
     let handle = {
