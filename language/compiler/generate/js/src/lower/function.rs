@@ -1,15 +1,13 @@
-use crate::{
-    Asynchrony, CodegenJsError, CodegenJsResult, FunctionAbstraction, FunctionCardinality,
-    FunctionKind, FunctionMode, FunctionSignature, ModuleLowerer,
-};
-use destack_dir as dir;
+use {destack_dir as dir, destack_js as js};
+
+use crate::{CodegenJsError, CodegenJsResult, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower asynchrony from DIR into JS AST.
-    pub fn lower_asynchrony(&self, asynchrony: dir::Asynchrony) -> Asynchrony {
+    pub fn lower_asynchrony(&self, asynchrony: dir::Asynchrony) -> js::Asynchrony {
         match asynchrony {
-            dir::Asynchrony::Sync => Asynchrony::Sync,
-            dir::Asynchrony::Async => Asynchrony::Async,
+            dir::Asynchrony::Sync => js::Asynchrony::Sync,
+            dir::Asynchrony::Async => js::Asynchrony::Async,
         }
     }
 
@@ -17,12 +15,12 @@ impl ModuleLowerer<'_> {
     pub fn lower_function_abstraction(
         &self,
         abstraction: dir::FunctionAbstraction,
-    ) -> FunctionAbstraction {
+    ) -> js::FunctionAbstraction {
         match abstraction {
-            dir::FunctionAbstraction::Abstract => FunctionAbstraction::Abstract,
-            dir::FunctionAbstraction::AbstractOverride => FunctionAbstraction::AbstractOverride,
-            dir::FunctionAbstraction::ConcreteOverride => FunctionAbstraction::ConcreteOverride,
-            dir::FunctionAbstraction::Concrete => FunctionAbstraction::Concrete,
+            dir::FunctionAbstraction::Abstract => js::FunctionAbstraction::Abstract,
+            dir::FunctionAbstraction::AbstractOverride => js::FunctionAbstraction::AbstractOverride,
+            dir::FunctionAbstraction::ConcreteOverride => js::FunctionAbstraction::ConcreteOverride,
+            dir::FunctionAbstraction::Concrete => js::FunctionAbstraction::Concrete,
         }
     }
 
@@ -30,29 +28,29 @@ impl ModuleLowerer<'_> {
     pub fn lower_function_cardinality(
         &self,
         cardinality: dir::FunctionCardinality,
-    ) -> FunctionCardinality {
+    ) -> js::FunctionCardinality {
         match cardinality {
-            dir::FunctionCardinality::Scalar => FunctionCardinality::Scalar,
-            dir::FunctionCardinality::Generator => FunctionCardinality::Generator,
+            dir::FunctionCardinality::Scalar => js::FunctionCardinality::Scalar,
+            dir::FunctionCardinality::Generator => js::FunctionCardinality::Generator,
         }
     }
 
     /// Lower function mode from DIR into JS AST.
-    pub fn lower_function_mode(&self, mode: dir::FunctionMode) -> FunctionMode {
+    pub fn lower_function_mode(&self, mode: dir::FunctionMode) -> js::FunctionMode {
         match mode {
-            dir::FunctionMode::Getter => FunctionMode::Getter,
-            dir::FunctionMode::Setter => FunctionMode::Setter,
-            dir::FunctionMode::Constructor => FunctionMode::Constructor,
-            dir::FunctionMode::New => FunctionMode::New,
-            dir::FunctionMode::Call => FunctionMode::Call,
+            dir::FunctionMode::Getter => js::FunctionMode::Getter,
+            dir::FunctionMode::Setter => js::FunctionMode::Setter,
+            dir::FunctionMode::Constructor => js::FunctionMode::Constructor,
+            dir::FunctionMode::New => js::FunctionMode::New,
+            dir::FunctionMode::Call => js::FunctionMode::Call,
         }
     }
 
     /// Lower function kind from DIR into JS AST.
-    pub fn lower_function_kind(&self, kind: dir::FunctionKind) -> FunctionKind {
+    pub fn lower_function_kind(&self, kind: dir::FunctionKind) -> js::FunctionKind {
         match kind {
-            dir::FunctionKind::Function => FunctionKind::Function,
-            dir::FunctionKind::Lambda => FunctionKind::Lambda,
+            dir::FunctionKind::Function => js::FunctionKind::Function,
+            dir::FunctionKind::Lambda => js::FunctionKind::Lambda,
         }
     }
 
@@ -60,7 +58,7 @@ impl ModuleLowerer<'_> {
     pub fn lower_function_signature(
         &mut self,
         function_signature: &dir::FunctionSignature,
-    ) -> CodegenJsResult<FunctionSignature> {
+    ) -> CodegenJsResult<js::FunctionSignature> {
         let abstraction = self.lower_function_abstraction(function_signature.abstraction);
         let asynchrony = self.lower_asynchrony(function_signature.asynchrony);
         let cardinality = self.lower_function_cardinality(function_signature.cardinality);
@@ -73,6 +71,10 @@ impl ModuleLowerer<'_> {
             .as_ref()
             .map(|generics| self.lower_generics(generics))
             .transpose()?;
+        let this_parameter = function_signature
+            .this_parameter
+            .map(|parameter| self.lower_parameter(parameter))
+            .transpose()?;
         let dynamic_parameters = function_signature
             .dynamic_parameters
             .iter()
@@ -80,15 +82,16 @@ impl ModuleLowerer<'_> {
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
         let return_type = function_signature
             .return_type
-            .map(|return_type| self.lower_expression_as_type(return_type))
+            .map(|return_type| self.lower_type_annotation_expression(return_type))
             .transpose()?;
-        Ok(FunctionSignature {
+        Ok(js::FunctionSignature {
             abstraction,
             asynchrony,
             cardinality,
             mode,
             kind,
             generics,
+            this_parameter,
             dynamic_parameters,
             return_type,
         })

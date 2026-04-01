@@ -1,27 +1,28 @@
-use crate::{ModuleLowerer, ScalarLiteral};
-use destack_dir as dir;
+use {destack_dir as dir, destack_js as js};
+
+use crate::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
     /// Lower a scalar literal from DIR into JS AST.
-    pub fn lower_scalar_literal(&mut self, literal: &dir::ScalarLiteral) -> ScalarLiteral {
+    pub fn lower_scalar_literal(&mut self, literal: &dir::ScalarLiteral) -> js::ScalarLiteral {
         match literal {
-            dir::ScalarLiteral::Boolean(boolean) => ScalarLiteral::Boolean(*boolean),
-            dir::ScalarLiteral::Integer(integer) => ScalarLiteral::Number(*integer as f64),
-            dir::ScalarLiteral::Bigint(bigint) => ScalarLiteral::Number(*bigint as f64),
-            dir::ScalarLiteral::Float(float) => ScalarLiteral::Number(*float),
+            dir::ScalarLiteral::Boolean(boolean) => js::ScalarLiteral::Boolean(*boolean),
+            dir::ScalarLiteral::Integer(integer) => js::ScalarLiteral::Number(*integer as f64),
+            dir::ScalarLiteral::Bigint(bigint) => js::ScalarLiteral::Number(*bigint as f64),
+            dir::ScalarLiteral::Float(float) => js::ScalarLiteral::Number(*float),
             dir::ScalarLiteral::Character(character) => {
                 let character_text = character.to_string();
                 let string = self.strings.intern(&character_text);
-                ScalarLiteral::String(string)
+                js::ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::String(string) => {
                 let string = self.strings.intern_from(self.source_strings, *string);
-                ScalarLiteral::String(string)
+                js::ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::RegexString { content, flags } => {
                 let content = self.strings.intern_from(self.source_strings, *content);
                 let flags = flags.map(|flag| self.strings.intern_from(self.source_strings, flag));
-                ScalarLiteral::RegexString { content, flags }
+                js::ScalarLiteral::RegexString { content, flags }
             }
         }
     }

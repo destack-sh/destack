@@ -14,12 +14,7 @@ use destack_workspace::{Module, Target};
 use serde_json::Value as JsonValue;
 
 use super::{JsBackend, lower_module};
-use crate::{
-    Argument, ArrayElement, BindingAnchor, CodegenJsError, CodegenJsResult, DeclarationAbstraction,
-    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, Key, LocalNodeId, Mutability, Name, Path as ScriptPath, Pattern,
-    Property, ScalarLiteral, ScriptModule, ScriptSymbolId, Statement,
-};
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptModule, ScriptSymbolId};
 
 /// The exported default binding name for one generated non-code script module.
 const DEFAULT_EXPORT_NAME: &str = "default";
@@ -79,11 +74,7 @@ impl<'a> ScriptArtifactGenerator<'a> {
     /// Generate one script artifact.
     pub fn generate(
         self,
-    ) -> CodegenJsResult<(
-        ScriptArtifact,
-        Vec<crate::CodegenJsWarning>,
-        Vec<CodegenJsError>,
-    )> {
+    ) -> CodegenJsResult<(ScriptArtifact, Vec<CodegenJsWarning>, Vec<CodegenJsError>)> {
         // validate target
         if !self.target.uses_js_generate_pipeline() {
             return Err(CodegenJsError::UnsupportedTarget {
@@ -292,14 +283,14 @@ impl<'a> ScriptArtifactGenerator<'a> {
 #[derive(Debug, Clone)]
 struct NonCodeExportValue {
     /// The generated runtime expression.
-    expression_id: LocalNodeId<Expression>,
+    expression_id: js::LocalNodeId<js::Expression>,
     /// The generated script slot when one exists.
     slot: Option<ScriptSlot>,
 }
 
 impl NonCodeExportValue {
     /// Create one plain export value with no later linker rewrite.
-    fn plain(expression_id: LocalNodeId<Expression>) -> Self {
+    fn plain(expression_id: js::LocalNodeId<js::Expression>) -> Self {
         Self {
             expression_id,
             slot: None,
@@ -334,7 +325,7 @@ impl NonCodeScriptModuleBuilder {
     /// Finish one wrapper module that exports one default local binding.
     fn finish_default_export(
         mut self,
-        value: LocalNodeId<Expression>,
+        value: js::LocalNodeId<js::Expression>,
         binding_name: &str,
     ) -> ScriptModule {
         // binding ids
@@ -343,7 +334,7 @@ impl NonCodeScriptModuleBuilder {
 
         // local binding
         let pattern = self.tree.insert_from_source_any(
-            Pattern::Binding {
+            js::Pattern::Binding {
                 mutability: None,
                 name: binding_name_id,
             },
@@ -353,7 +344,7 @@ impl NonCodeScriptModuleBuilder {
         self.tree
             .set_symbol(pattern, ScriptSymbolId::ModuleDefault(self.module_id));
         let declarator = self.tree.insert_from_source_any(
-            Declarator {
+            js::Declarator {
                 pattern,
                 ty: None,
                 value: Some(value),
@@ -362,15 +353,15 @@ impl NonCodeScriptModuleBuilder {
             self.anchor,
         );
         let let_statement = self.tree.insert_from_source_any(
-            Statement::Let {
-                descriptor: DeclarationDescriptor {
-                    kind: DeclarationKind::Definition,
-                    abstraction: DeclarationAbstraction::Concrete,
-                    anchor: BindingAnchor::Instance,
+            js::Statement::Let {
+                descriptor: js::DeclarationDescriptor {
+                    kind: js::DeclarationKind::Definition,
+                    abstraction: js::DeclarationAbstraction::Concrete,
+                    anchor: js::BindingAnchor::Instance,
                     name: None,
                     export: None,
                 },
-                mutability: Mutability::Immutable,
+                mutability: js::Mutability::Immutable,
                 declarators: vec![declarator],
             },
             self.module_id,
@@ -379,10 +370,10 @@ impl NonCodeScriptModuleBuilder {
 
         // export default alias
         let export_item = self.tree.insert_from_source_any(
-            DependencyItem {
-                mode: DependencyMode::Item,
-                kind: Some(DependencyKind::Value),
-                name: Some(Name::Identifier(binding_name_id)),
+            js::DependencyItem {
+                mode: js::DependencyMode::Item,
+                kind: Some(js::DependencyKind::Value),
+                name: Some(js::Name::Identifier(binding_name_id)),
                 alias: Some(default_name_id),
                 value: None,
             },
@@ -392,8 +383,8 @@ impl NonCodeScriptModuleBuilder {
         self.tree
             .set_symbol(export_item, ScriptSymbolId::ModuleDefault(self.module_id));
         let export_statement = self.tree.insert_from_source_any(
-            Statement::Export {
-                kind: DependencyKind::Value,
+            js::Statement::Export {
+                kind: js::DependencyKind::Value,
                 target: None,
                 target_module: None,
                 items: vec![export_item],
@@ -413,7 +404,7 @@ impl NonCodeScriptModuleBuilder {
     /// Finish one stylesheet wrapper module with one injected runtime side effect.
     fn finish_stylesheet_default_export(
         mut self,
-        value: LocalNodeId<Expression>,
+        value: js::LocalNodeId<js::Expression>,
         binding_name: &str,
     ) -> ScriptModule {
         let link_binding_name =
@@ -444,13 +435,13 @@ impl NonCodeScriptModuleBuilder {
     fn insert_bound_value_statement(
         &mut self,
         binding_name: &str,
-        value: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Statement> {
+        value: js::LocalNodeId<js::Expression>,
+    ) -> js::LocalNodeId<js::Statement> {
         let binding_name_id = self.strings.intern(binding_name);
 
         // local binding
         let pattern = self.tree.insert_from_source_any(
-            Pattern::Binding {
+            js::Pattern::Binding {
                 mutability: None,
                 name: binding_name_id,
             },
@@ -460,7 +451,7 @@ impl NonCodeScriptModuleBuilder {
         self.tree
             .set_symbol(pattern, ScriptSymbolId::ModuleDefault(self.module_id));
         let declarator = self.tree.insert_from_source_any(
-            Declarator {
+            js::Declarator {
                 pattern,
                 ty: None,
                 value: Some(value),
@@ -470,15 +461,15 @@ impl NonCodeScriptModuleBuilder {
         );
 
         self.tree.insert_from_source_any(
-            Statement::Let {
-                descriptor: DeclarationDescriptor {
-                    kind: DeclarationKind::Definition,
-                    abstraction: DeclarationAbstraction::Concrete,
-                    anchor: BindingAnchor::Instance,
+            js::Statement::Let {
+                descriptor: js::DeclarationDescriptor {
+                    kind: js::DeclarationKind::Definition,
+                    abstraction: js::DeclarationAbstraction::Concrete,
+                    anchor: js::BindingAnchor::Instance,
                     name: None,
                     export: None,
                 },
-                mutability: Mutability::Immutable,
+                mutability: js::Mutability::Immutable,
                 declarators: vec![declarator],
             },
             self.module_id,
@@ -487,15 +478,18 @@ impl NonCodeScriptModuleBuilder {
     }
 
     /// Insert one default export alias for one local binding.
-    fn insert_default_export_statement(&mut self, binding_name: &str) -> LocalNodeId<Statement> {
+    fn insert_default_export_statement(
+        &mut self,
+        binding_name: &str,
+    ) -> js::LocalNodeId<js::Statement> {
         let binding_name_id = self.strings.intern(binding_name);
         let default_name_id = self.strings.intern(DEFAULT_EXPORT_NAME);
 
         let export_item = self.tree.insert_from_source_any(
-            DependencyItem {
-                mode: DependencyMode::Item,
-                kind: Some(DependencyKind::Value),
-                name: Some(Name::Identifier(binding_name_id)),
+            js::DependencyItem {
+                mode: js::DependencyMode::Item,
+                kind: Some(js::DependencyKind::Value),
+                name: Some(js::Name::Identifier(binding_name_id)),
                 alias: Some(default_name_id),
                 value: None,
             },
@@ -506,8 +500,8 @@ impl NonCodeScriptModuleBuilder {
             .set_symbol(export_item, ScriptSymbolId::ModuleDefault(self.module_id));
 
         self.tree.insert_from_source_any(
-            Statement::Export {
-                kind: DependencyKind::Value,
+            js::Statement::Export {
+                kind: js::DependencyKind::Value,
                 target: None,
                 target_module: None,
                 items: vec![export_item],
@@ -523,7 +517,7 @@ impl NonCodeScriptModuleBuilder {
         &mut self,
         stylesheet_binding_name: &str,
         link_binding_name: &str,
-    ) -> LocalNodeId<Statement> {
+    ) -> js::LocalNodeId<js::Statement> {
         let document_name = self.strings.intern(DOCUMENT_NAME);
         let undefined_name = self.strings.intern("undefined");
         let link_name = self.strings.intern("link");
@@ -539,24 +533,24 @@ impl NonCodeScriptModuleBuilder {
         // typeof document !== "undefined"
         let document_expression = self.insert_path_expression(&[document_name]);
         let document_type = self.tree.insert_from_source_any(
-            Expression::Unary {
-                operator: crate::UnaryOperator::Typeof,
+            js::Expression::Unary {
+                operator: js::UnaryOperator::Typeof,
                 right: document_expression,
             },
             self.module_id,
             self.anchor,
         );
         let undefined_expression = self.tree.insert_from_source_any(
-            Expression::ScalarLiteral {
-                value: ScalarLiteral::String(undefined_name),
+            js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::String(undefined_name),
             },
             self.module_id,
             self.anchor,
         );
         let condition = self.tree.insert_from_source_any(
-            Expression::Binary {
+            js::Expression::Binary {
                 left: document_type,
-                operator: crate::BinaryOperator::NotEqualStrict,
+                operator: js::BinaryOperator::NotEqualStrict,
                 right: undefined_expression,
             },
             self.module_id,
@@ -568,21 +562,21 @@ impl NonCodeScriptModuleBuilder {
         let create_element_target =
             self.insert_member_expression(document_expression, create_element_name);
         let link_literal = self.tree.insert_from_source_any(
-            Expression::ScalarLiteral {
-                value: ScalarLiteral::String(link_name),
+            js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::String(link_name),
             },
             self.module_id,
             self.anchor,
         );
         let link_argument = self.tree.insert_from_source_any(
-            Argument::Positional {
+            js::Argument::Positional {
                 value: link_literal,
             },
             self.module_id,
             self.anchor,
         );
         let create_element_call = self.tree.insert_from_source_any(
-            Expression::Call {
+            js::Expression::Call {
                 position: js::PostfixPosition::Direct,
                 left: create_element_target,
                 static_arguments: None,
@@ -598,14 +592,14 @@ impl NonCodeScriptModuleBuilder {
         let link_expression = self.insert_path_expression(&[link_binding_name]);
         let rel_target = self.insert_member_expression(link_expression, rel_name);
         let rel_value = self.tree.insert_from_source_any(
-            Expression::ScalarLiteral {
-                value: ScalarLiteral::String(stylesheet_name),
+            js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::String(stylesheet_name),
             },
             self.module_id,
             self.anchor,
         );
         let rel_assign = self.tree.insert_from_source_any(
-            Expression::Assign {
+            js::Expression::Assign {
                 left: rel_target,
                 right: rel_value,
             },
@@ -613,7 +607,7 @@ impl NonCodeScriptModuleBuilder {
             self.anchor,
         );
         let rel_statement = self.tree.insert_from_source_any(
-            Statement::Expression {
+            js::Statement::Expression {
                 expression: rel_assign,
             },
             self.module_id,
@@ -625,7 +619,7 @@ impl NonCodeScriptModuleBuilder {
         let href_target = self.insert_member_expression(link_expression, href_name);
         let href_value = self.insert_path_expression(&[stylesheet_binding_name]);
         let href_assign = self.tree.insert_from_source_any(
-            Expression::Assign {
+            js::Expression::Assign {
                 left: href_target,
                 right: href_value,
             },
@@ -633,7 +627,7 @@ impl NonCodeScriptModuleBuilder {
             self.anchor,
         );
         let href_statement = self.tree.insert_from_source_any(
-            Statement::Expression {
+            js::Statement::Expression {
                 expression: href_assign,
             },
             self.module_id,
@@ -646,14 +640,14 @@ impl NonCodeScriptModuleBuilder {
         let append_child_target = self.insert_member_expression(head_expression, append_child_name);
         let link_expression = self.insert_path_expression(&[link_binding_name]);
         let append_child_argument = self.tree.insert_from_source_any(
-            Argument::Positional {
+            js::Argument::Positional {
                 value: link_expression,
             },
             self.module_id,
             self.anchor,
         );
         let append_child_call = self.tree.insert_from_source_any(
-            Expression::Call {
+            js::Expression::Call {
                 position: js::PostfixPosition::Direct,
                 left: append_child_target,
                 static_arguments: None,
@@ -663,7 +657,7 @@ impl NonCodeScriptModuleBuilder {
             self.anchor,
         );
         let append_child_statement = self.tree.insert_from_source_any(
-            Statement::Expression {
+            js::Statement::Expression {
                 expression: append_child_call,
             },
             self.module_id,
@@ -684,7 +678,7 @@ impl NonCodeScriptModuleBuilder {
         );
 
         self.tree.insert_from_source_any(
-            Statement::If {
+            js::Statement::If {
                 condition,
                 then_block,
                 else_block: None,
@@ -697,11 +691,11 @@ impl NonCodeScriptModuleBuilder {
     /// Insert one local immutable binding for one runtime value by string id.
     fn insert_bound_value_statement_by_id(
         &mut self,
-        binding_name: destack_js::StringId,
-        value: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Statement> {
+        binding_name: js::StringId,
+        value: js::LocalNodeId<js::Expression>,
+    ) -> js::LocalNodeId<js::Statement> {
         let pattern = self.tree.insert_from_source_any(
-            Pattern::Binding {
+            js::Pattern::Binding {
                 mutability: None,
                 name: binding_name,
             },
@@ -709,7 +703,7 @@ impl NonCodeScriptModuleBuilder {
             self.anchor,
         );
         let declarator = self.tree.insert_from_source_any(
-            Declarator {
+            js::Declarator {
                 pattern,
                 ty: None,
                 value: Some(value),
@@ -719,15 +713,15 @@ impl NonCodeScriptModuleBuilder {
         );
 
         self.tree.insert_from_source_any(
-            Statement::Let {
-                descriptor: DeclarationDescriptor {
-                    kind: DeclarationKind::Definition,
-                    abstraction: DeclarationAbstraction::Concrete,
-                    anchor: BindingAnchor::Instance,
+            js::Statement::Let {
+                descriptor: js::DeclarationDescriptor {
+                    kind: js::DeclarationKind::Definition,
+                    abstraction: js::DeclarationAbstraction::Concrete,
+                    anchor: js::BindingAnchor::Instance,
                     name: None,
                     export: None,
                 },
-                mutability: Mutability::Immutable,
+                mutability: js::Mutability::Immutable,
                 declarators: vec![declarator],
             },
             self.module_id,
@@ -738,11 +732,11 @@ impl NonCodeScriptModuleBuilder {
     /// Insert one path expression from one segment list.
     fn insert_path_expression(
         &mut self,
-        segments: &[destack_js::StringId],
-    ) -> LocalNodeId<Expression> {
+        segments: &[js::StringId],
+    ) -> js::LocalNodeId<js::Expression> {
         self.tree.insert_from_source_any(
-            Expression::Path {
-                path: ScriptPath {
+            js::Expression::Path {
+                path: js::Path {
                     segments: segments.iter().copied().collect(),
                 },
                 static_arguments: None,
@@ -755,11 +749,11 @@ impl NonCodeScriptModuleBuilder {
     /// Insert one member expression.
     fn insert_member_expression(
         &mut self,
-        left: LocalNodeId<Expression>,
-        name: destack_js::StringId,
-    ) -> LocalNodeId<Expression> {
+        left: js::LocalNodeId<js::Expression>,
+        name: js::StringId,
+    ) -> js::LocalNodeId<js::Expression> {
         self.tree.insert_from_source_any(
-            Expression::Member {
+            js::Expression::Member {
                 left,
                 name,
                 static_arguments: None,
@@ -773,18 +767,18 @@ impl NonCodeScriptModuleBuilder {
     fn insert_json_expression(
         &mut self,
         value: &JsonValue,
-    ) -> CodegenJsResult<LocalNodeId<Expression>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::Expression>> {
         match value {
             JsonValue::Null => Ok(self.tree.insert_from_source_any(
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::Null,
+                js::Expression::ScalarLiteral {
+                    value: js::ScalarLiteral::Null,
                 },
                 self.module_id,
                 self.anchor,
             )),
             JsonValue::Bool(value) => Ok(self.tree.insert_from_source_any(
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::Boolean(*value),
+                js::Expression::ScalarLiteral {
+                    value: js::ScalarLiteral::Boolean(*value),
                 },
                 self.module_id,
                 self.anchor,
@@ -795,8 +789,8 @@ impl NonCodeScriptModuleBuilder {
                 })?;
 
                 Ok(self.tree.insert_from_source_any(
-                    Expression::ScalarLiteral {
-                        value: ScalarLiteral::Number(number),
+                    js::Expression::ScalarLiteral {
+                        value: js::ScalarLiteral::Number(number),
                     },
                     self.module_id,
                     self.anchor,
@@ -810,7 +804,7 @@ impl NonCodeScriptModuleBuilder {
                 for value in values {
                     let value = self.insert_json_expression(value)?;
                     let element = self.tree.insert_from_source_any(
-                        ArrayElement::Expression { value },
+                        js::ArrayElement::Expression { value },
                         self.module_id,
                         self.anchor,
                     );
@@ -818,7 +812,7 @@ impl NonCodeScriptModuleBuilder {
                 }
 
                 Ok(self.tree.insert_from_source_any(
-                    Expression::ArrayLiteral { elements },
+                    js::Expression::ArrayLiteral { elements },
                     self.module_id,
                     self.anchor,
                 ))
@@ -829,9 +823,9 @@ impl NonCodeScriptModuleBuilder {
                 // object fields
                 for (name, value) in values {
                     let value = self.insert_json_expression(value)?;
-                    let key = Key::Name(Name::String(self.strings.intern(name)));
+                    let key = js::Key::Name(js::Name::String(self.strings.intern(name)));
                     let property = self.tree.insert_from_source_any(
-                        Property::Field {
+                        js::Property::Field {
                             modifiers: None,
                             key: Some(key),
                             value: Some(value),
@@ -845,7 +839,7 @@ impl NonCodeScriptModuleBuilder {
                 }
 
                 Ok(self.tree.insert_from_source_any(
-                    Expression::ObjectLiteral { properties },
+                    js::Expression::ObjectLiteral { properties },
                     self.module_id,
                     self.anchor,
                 ))
@@ -854,10 +848,10 @@ impl NonCodeScriptModuleBuilder {
     }
 
     /// Insert one string expression into the generated module tree.
-    fn insert_string_expression(&mut self, value: &str) -> LocalNodeId<Expression> {
+    fn insert_string_expression(&mut self, value: &str) -> js::LocalNodeId<js::Expression> {
         self.tree.insert_from_source_any(
-            Expression::ScalarLiteral {
-                value: ScalarLiteral::String(self.strings.intern(value)),
+            js::Expression::ScalarLiteral {
+                value: js::ScalarLiteral::String(self.strings.intern(value)),
             },
             self.module_id,
             self.anchor,
@@ -865,21 +859,21 @@ impl NonCodeScriptModuleBuilder {
     }
 
     /// Insert one binary runtime value into the generated module tree.
-    fn insert_binary_expression(&mut self, bytes: &[u8]) -> LocalNodeId<Expression> {
+    fn insert_binary_expression(&mut self, bytes: &[u8]) -> js::LocalNodeId<js::Expression> {
         let mut elements = Vec::with_capacity(bytes.len());
 
         // byte literals
         for byte in bytes {
             let value = self.tree.insert_from_source_any(
-                Expression::ScalarLiteral {
-                    value: ScalarLiteral::Number(f64::from(*byte)),
+                js::Expression::ScalarLiteral {
+                    value: js::ScalarLiteral::Number(f64::from(*byte)),
                 },
                 self.module_id,
                 self.anchor,
             );
 
             let element = self.tree.insert_from_source_any(
-                ArrayElement::Expression { value },
+                js::ArrayElement::Expression { value },
                 self.module_id,
                 self.anchor,
             );
@@ -888,13 +882,13 @@ impl NonCodeScriptModuleBuilder {
 
         // Uint8Array constructor
         let array = self.tree.insert_from_source_any(
-            Expression::ArrayLiteral { elements },
+            js::Expression::ArrayLiteral { elements },
             self.module_id,
             self.anchor,
         );
         let constructor = self.tree.insert_from_source_any(
-            Expression::Path {
-                path: ScriptPath {
+            js::Expression::Path {
+                path: js::Path {
                     segments: smallvec::smallvec![self.strings.intern(UINT8_ARRAY_NAME)],
                 },
                 static_arguments: None,
@@ -903,13 +897,13 @@ impl NonCodeScriptModuleBuilder {
             self.anchor,
         );
         let argument = self.tree.insert_from_source_any(
-            Argument::Positional { value: array },
+            js::Argument::Positional { value: array },
             self.module_id,
             self.anchor,
         );
 
         self.tree.insert_from_source_any(
-            Expression::New {
+            js::Expression::New {
                 left: constructor,
                 static_arguments: None,
                 dynamic_arguments: vec![argument],

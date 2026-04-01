@@ -1,17 +1,14 @@
-use crate::{
-    BindingAnchor, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Declaration,
-    DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode, EnumField,
-    Expression, LocalNodeId, ModuleLowerer, Statement, Visibility,
-};
-use destack_dir as dir;
+use {destack_dir as dir, destack_js as js};
+
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower visibility from DIR into JS AST.
-    pub fn lower_visibility(&self, visibility: dir::Visibility) -> Visibility {
+    pub fn lower_visibility(&self, visibility: dir::Visibility) -> js::Visibility {
         match visibility {
-            dir::Visibility::Public => Visibility::Public,
-            dir::Visibility::Protected => Visibility::Protected,
-            dir::Visibility::Private => Visibility::Private,
+            dir::Visibility::Public => js::Visibility::Public,
+            dir::Visibility::Protected => js::Visibility::Protected,
+            dir::Visibility::Private => js::Visibility::Private,
         }
     }
 
@@ -19,10 +16,10 @@ impl ModuleLowerer<'_> {
     pub fn lower_declaration_kind(
         &self,
         declaration_kind: dir::DeclarationKind,
-    ) -> DeclarationKind {
+    ) -> js::DeclarationKind {
         match declaration_kind {
-            dir::DeclarationKind::Declaration => DeclarationKind::Declaration,
-            dir::DeclarationKind::Definition => DeclarationKind::Definition,
+            dir::DeclarationKind::Declaration => js::DeclarationKind::Declaration,
+            dir::DeclarationKind::Definition => js::DeclarationKind::Definition,
         }
     }
 
@@ -30,27 +27,27 @@ impl ModuleLowerer<'_> {
     pub fn lower_declaration_abstraction(
         &self,
         abstraction: dir::DeclarationAbstraction,
-    ) -> DeclarationAbstraction {
+    ) -> js::DeclarationAbstraction {
         match abstraction {
-            dir::DeclarationAbstraction::Abstract => DeclarationAbstraction::Abstract,
-            dir::DeclarationAbstraction::Concrete => DeclarationAbstraction::Concrete,
+            dir::DeclarationAbstraction::Abstract => js::DeclarationAbstraction::Abstract,
+            dir::DeclarationAbstraction::Concrete => js::DeclarationAbstraction::Concrete,
         }
     }
 
     /// Lower an export type from DIR into JS AST.
-    pub fn lower_export_type(&self, export_type: dir::DependencyMode) -> DependencyMode {
+    pub fn lower_export_type(&self, export_type: dir::DependencyMode) -> js::DependencyMode {
         match export_type {
-            dir::DependencyMode::Item => DependencyMode::Item,
-            dir::DependencyMode::Default => DependencyMode::Default,
-            dir::DependencyMode::Namespace => DependencyMode::Namespace,
+            dir::DependencyMode::Item => js::DependencyMode::Item,
+            dir::DependencyMode::Default => js::DependencyMode::Default,
+            dir::DependencyMode::Namespace => js::DependencyMode::Namespace,
         }
     }
 
     /// Lower a binding anchor from DIR into JS AST.
-    pub fn lower_binding_anchor(&self, anchor: dir::BindingAnchor) -> BindingAnchor {
+    pub fn lower_binding_anchor(&self, anchor: dir::BindingAnchor) -> js::BindingAnchor {
         match anchor {
-            dir::BindingAnchor::Static => BindingAnchor::Static,
-            dir::BindingAnchor::Instance => BindingAnchor::Instance,
+            dir::BindingAnchor::Static => js::BindingAnchor::Static,
+            dir::BindingAnchor::Instance => js::BindingAnchor::Instance,
         }
     }
 
@@ -58,7 +55,7 @@ impl ModuleLowerer<'_> {
     pub fn lower_declaration_descriptor(
         &mut self,
         descriptor: &dir::DeclarationDescriptor,
-    ) -> DeclarationDescriptor {
+    ) -> js::DeclarationDescriptor {
         let kind = self.lower_declaration_kind(descriptor.kind);
         let abstraction = self.lower_declaration_abstraction(descriptor.abstraction);
         let anchor = self.lower_binding_anchor(descriptor.anchor);
@@ -66,7 +63,7 @@ impl ModuleLowerer<'_> {
         let export = descriptor
             .export
             .map(|export| self.lower_export_type(export));
-        DeclarationDescriptor {
+        js::DeclarationDescriptor {
             kind,
             abstraction,
             anchor,
@@ -79,7 +76,7 @@ impl ModuleLowerer<'_> {
     pub fn lower_declaration(
         &mut self,
         declaration_id: dir::LocalNodeId<dir::Declaration>,
-    ) -> CodegenJsResult<LocalNodeId<Declaration>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::Declaration>> {
         let declaration = self.dir_tree.get(declaration_id);
         let declaration_symbol = match declaration {
             dir::Declaration::Global { descriptor, .. }
@@ -102,13 +99,14 @@ impl ModuleLowerer<'_> {
                 let statements = expressions
                     .iter()
                     .map(|expression| {
-                        self.lower_expression(*expression).expect_node::<Statement>(
-                            expression.into_global_any(self.module.id),
-                            self,
-                        )
+                        self.lower_expression(*expression)
+                            .expect_node::<js::Statement>(
+                                expression.into_global_any(self.module.id),
+                                self,
+                            )
                     })
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                Declaration::Global {
+                js::Declaration::Global {
                     descriptor,
                     statements,
                 }
@@ -124,13 +122,14 @@ impl ModuleLowerer<'_> {
                 let statements = expressions
                     .iter()
                     .map(|expression| {
-                        self.lower_expression(*expression).expect_node::<Statement>(
-                            expression.into_global_any(self.module.id),
-                            self,
-                        )
+                        self.lower_expression(*expression)
+                            .expect_node::<js::Statement>(
+                                expression.into_global_any(self.module.id),
+                                self,
+                            )
                     })
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                Declaration::Namespace {
+                js::Declaration::Namespace {
                     descriptor,
                     statements,
                 }
@@ -152,8 +151,14 @@ impl ModuleLowerer<'_> {
                             .collect::<Result<Vec<_>, CodegenJsError>>()
                     })
                     .transpose()?;
-                let value = self.lower_expression_as_type(*value)?;
-                Declaration::Type {
+                let declared_type_id = self
+                    .types
+                    .get_declared_type_id(declaration_id.into_global_any(self.module.id));
+                let value = declared_type_id
+                    .map(|type_id| self.lower_type(type_id))
+                    .transpose()?
+                    .unwrap_or(self.lower_type_annotation_expression(*value)?);
+                js::Declaration::Type {
                     descriptor,
                     static_parameters,
                     value,
@@ -174,7 +179,7 @@ impl ModuleLowerer<'_> {
                     .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
                 // NOTE #Incomplete: struct declarations should become just JS types + namespaces?
-                Declaration::Class {
+                js::Declaration::Class {
                     descriptor,
                     generics,
                     heritage,
@@ -195,7 +200,7 @@ impl ModuleLowerer<'_> {
                     .iter()
                     .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                Declaration::Class {
+                js::Declaration::Class {
                     descriptor,
                     generics,
                     heritage,
@@ -217,7 +222,7 @@ impl ModuleLowerer<'_> {
                     .iter()
                     .map(|member| self.lower_member(*member))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                Declaration::Interface {
+                js::Declaration::Interface {
                     descriptor,
                     generics,
                     heritage,
@@ -238,7 +243,7 @@ impl ModuleLowerer<'_> {
                     .iter()
                     .map(|field| self.lower_enum_field(*field))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                Declaration::Enum { descriptor, fields }
+                js::Declaration::Enum { descriptor, fields }
             }
             dir::Declaration::Function {
                 descriptor,
@@ -251,7 +256,7 @@ impl ModuleLowerer<'_> {
                 let body = body
                     .map(|body| self.lower_expression_as_block(body))
                     .transpose()?;
-                Declaration::Function {
+                js::Declaration::Function {
                     descriptor,
                     signature,
                     body,
@@ -279,7 +284,7 @@ impl ModuleLowerer<'_> {
     pub fn lower_enum_field(
         &mut self,
         field_id: dir::LocalNodeId<dir::EnumField>,
-    ) -> CodegenJsResult<LocalNodeId<EnumField>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::EnumField>> {
         let field = self.dir_tree.get(field_id);
         let name = self.strings.intern_from(self.source_strings, field.name);
         let value = field
@@ -287,10 +292,10 @@ impl ModuleLowerer<'_> {
             .as_ref()
             .map(|value_id| {
                 self.lower_expression(*value_id)
-                    .expect_node::<Expression>(value_id.into_global_any(self.module.id), self)
+                    .expect_node::<js::Expression>(value_id.into_global_any(self.module.id), self)
             })
             .transpose()?;
-        let field = EnumField { name, value };
+        let field = js::EnumField { name, value };
         let field_id = self
             .tree
             .insert_from_source(field, self.module.id, field_id);

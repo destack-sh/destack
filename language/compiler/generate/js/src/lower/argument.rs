@@ -1,15 +1,13 @@
-use crate::{
-    Argument, CodegenJsError, CodegenJsResult, CodegenJsResultExt, Expression, LocalNodeId,
-    ModuleLowerer, Parameter,
-};
-use destack_dir as dir;
+use {destack_dir as dir, destack_js as js};
+
+use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
     /// Lower a parameter from DIR into JS AST.
     pub fn lower_parameter(
         &mut self,
         parameter_id: dir::LocalNodeId<dir::Parameter>,
-    ) -> CodegenJsResult<LocalNodeId<Parameter>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::Parameter>> {
         let parameter = self.dir_tree.get(parameter_id);
         match parameter {
             dir::Parameter::Named {
@@ -29,13 +27,14 @@ impl ModuleLowerer<'_> {
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.lower_expression(default).expect_node::<Expression>(
-                            default.into_global_any(self.module.id),
-                            self,
-                        )
+                        self.lower_expression(default)
+                            .expect_node::<js::Expression>(
+                                default.into_global_any(self.module.id),
+                                self,
+                            )
                     })
                     .transpose()?;
-                let parameter = Parameter::Named {
+                let parameter = js::Parameter::Named {
                     modifiers,
                     name,
                     ty,
@@ -64,13 +63,14 @@ impl ModuleLowerer<'_> {
                     .transpose()?;
                 let default = default
                     .map(|default| {
-                        self.lower_expression(default).expect_node::<Expression>(
-                            default.into_global_any(self.module.id),
-                            self,
-                        )
+                        self.lower_expression(default)
+                            .expect_node::<js::Expression>(
+                                default.into_global_any(self.module.id),
+                                self,
+                            )
                     })
                     .transpose()?;
-                let parameter = Parameter::Pattern {
+                let parameter = js::Parameter::Pattern {
                     modifiers,
                     pattern,
                     ty,
@@ -96,7 +96,7 @@ impl ModuleLowerer<'_> {
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
                     .map(|ty| self.lower_type(ty))
                     .transpose()?;
-                let parameter = Parameter::VariadicNamed {
+                let parameter = js::Parameter::VariadicNamed {
                     modifiers,
                     name,
                     ty,
@@ -121,7 +121,7 @@ impl ModuleLowerer<'_> {
                     .get_declared_type_id(parameter_id.into_global_any(self.module.id))
                     .map(|ty| self.lower_type(ty))
                     .transpose()?;
-                let parameter = Parameter::VariadicPattern {
+                let parameter = js::Parameter::VariadicPattern {
                     modifiers,
                     pattern,
                     ty,
@@ -143,7 +143,7 @@ impl ModuleLowerer<'_> {
     pub fn lower_argument(
         &mut self,
         argument_id: dir::LocalNodeId<dir::Argument>,
-    ) -> CodegenJsResult<LocalNodeId<Argument>> {
+    ) -> CodegenJsResult<js::LocalNodeId<js::Argument>> {
         let argument = self.dir_tree.get(argument_id);
         let argument = match argument {
             dir::Argument::Named { name: _, value, .. }
@@ -153,16 +153,16 @@ impl ModuleLowerer<'_> {
             | dir::Argument::Positional { value, .. } => {
                 let value = self
                     .lower_expression(*value)
-                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
-                Argument::Positional { value }
+                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                js::Argument::Positional { value }
             }
             dir::Argument::Spread {
                 label: _, value, ..
             } => {
                 let value = self
                     .lower_expression(*value)
-                    .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
-                Argument::Spread { value }
+                    .expect_node::<js::Expression>(value.into_global_any(self.module.id), self)?;
+                js::Argument::Spread { value }
             }
             dir::Argument::Error { value } => {
                 return Err(CodegenJsError::UnsupportedConstruct {

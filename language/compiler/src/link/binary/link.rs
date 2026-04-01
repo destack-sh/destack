@@ -144,7 +144,7 @@ impl<'a> BinaryLinker<'a> {
 
         PackageOutput::new(
             self.target.emit,
-            Compiler::package_assembly(self.target.bundle.mode),
+            Compiler::package_assembly(self.target.bundle.assembly),
             outputs,
         )
     }

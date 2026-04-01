@@ -107,7 +107,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module_set: &ScriptModuleSet,
     ) -> LinkResult<ScriptOutputGraph> {
-        match self.target.bundle.mode {
+        match self.target.bundle.assembly {
             BundleMode::SingleFile => self.build_single_file_script_output_graph(module_set),
             BundleMode::Chunked => self.build_chunked_script_output_graph(module_set),
             BundleMode::PreserveModules => self.build_preserve_script_output_graph(module_set),
