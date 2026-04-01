@@ -54,3 +54,25 @@ fn test_format_type_cast_comment_node_fixture() {
         ],
     );
 }
+
+/// Type assertions in default exports should preserve angle-assertion syntax.
+#[test]
+fn test_format_typescript_type_assertion_parenthesis_fixture() {
+    assert_format_program_reference_widths(
+        r#"export default <Array>[];
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"export default <Array>[];
+"#,
+            ),
+            (
+                100,
+                r#"export default <Array>[];
+"#,
+            ),
+        ],
+    );
+}

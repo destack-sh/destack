@@ -758,28 +758,35 @@ fn test_comment_between_parameter_name_and_type_emits_unowned_seam_trivia() {
 }
 
 #[test]
-fn test_comments_around_decorator_chain_emit_unowned_seam_trivia() {
+fn test_comments_around_member_decorator_chain_attach_to_member_prefix() {
     let (parser, expressions) = parse_source(
-        "{\n    // comment before entity\n    @entity\n    // comment after entity\n    // comment before foo\n    @foo(1, 2, 3)\n    // comment after foo\n    struct Entity {}\n}",
-        LanguageType::Destack,
+        r#"class Box {
+    // comment before entity
+    @entity
+    // comment after entity
+    // comment before foo
+    @foo(1, 2, 3)
+    // comment after foo
+    method() {}
+}"#,
+        LanguageType::TypeScript,
     );
 
     assert_eq!(expressions.len(), 1);
     assert_eq!(parser.tree.comment_trivia().len(), 4);
 
-    let first = parser.tree.comment_trivia()[0];
-    let second = parser.tree.comment_trivia()[1];
-    let third = parser.tree.comment_trivia()[2];
-    let fourth = parser.tree.comment_trivia()[3];
+    let expression_id = parser.unwrap_statement_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
+            assert_eq!(members.len(), 1);
+            let member_id = members[0].id;
 
-    assert_eq!(first.position, AnnotationPosition::BlockInfix);
-    assert_eq!(second.position, AnnotationPosition::BlockInfix);
-    assert_eq!(third.position, AnnotationPosition::BlockInfix);
-    assert_eq!(fourth.position, AnnotationPosition::BlockInfix);
-    assert_eq!(first.target_node, None);
-    assert_eq!(second.target_node, None);
-    assert_eq!(third.target_node, None);
-    assert_eq!(fourth.target_node, None);
+            for trivia in parser.tree.comment_trivia() {
+                assert_eq!(trivia.target_node, Some(member_id));
+                assert_eq!(trivia.position, AnnotationPosition::BlockPrefix);
+            }
+        });
+    });
 }
 
 #[test]

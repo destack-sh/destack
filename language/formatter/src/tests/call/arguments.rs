@@ -91,3 +91,205 @@ const s = /* comment */ foo<A | B | C>();
         ],
     );
 }
+
+/// Block callbacks with short cast tails should keep the expected grouped-first layout.
+#[test]
+fn test_format_typescript_grouped_first_argument_layout() {
+    assert_format_program_reference_widths(
+        r#"const x = [].reduce(() => {
+  return "y";
+}, {} as SomeType<OtherType>);
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"const x = [].reduce(() => {
+  return "y";
+}, {} as SomeType<OtherType>);
+"#,
+            ),
+            (
+                100,
+                r#"const x = [].reduce(() => {
+  return "y";
+}, {} as SomeType<OtherType>);
+"#,
+            ),
+        ],
+    );
+}
+
+/// Mixed argument families should use the expected grouped-last layout.
+#[test]
+fn test_format_typescript_grouped_last_argument_layout() {
+    assert_format_program_reference_widths(
+        r#"// Don't group when both arguments are objects
+call({ a: 1 }, { b: 2 });
+
+// Don't group when both arguments are arrays
+call([1, 2, 3], [4, 5, 6]);
+
+// Don't group when both arguments are TSAsExpression
+call(x as string, y as number);
+
+// Don't group when both arguments are TSSatisfiesExpression
+call(x satisfies Foo, y satisfies Bar);
+
+// Don't group when both arguments are arrow functions
+call(() => foo, () => bar);
+
+// Don't group when both arguments are function expressions
+call(function() { return foo; }, function() { return bar; });
+
+// DO group when arguments are different types - object and array
+call({ a: 1, b: 2, c: 3 }, [1, 2, 3, 4, 5, 6]);
+
+// DO group when arguments are different types - array and object
+call([1, 2, 3, 4, 5, 6], { a: 1, b: 2, c: 3 });
+
+// DO group when first is arrow and second is object
+call(() => { return foo; }, { a: 1, b: 2, c: 3 });
+
+// DO group when first is object and second is arrow
+call({ a: 1, b: 2, c: 3 }, () => { return foo; });
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"// Don't group when both arguments are objects
+call({ a: 1 }, { b: 2 });
+
+// Don't group when both arguments are arrays
+call([1, 2, 3], [4, 5, 6]);
+
+// Don't group when both arguments are TSAsExpression
+call(x as string, y as number);
+
+// Don't group when both arguments are TSSatisfiesExpression
+call(x satisfies Foo, y satisfies Bar);
+
+// Don't group when both arguments are arrow functions
+call(
+  () => foo,
+  () => bar,
+);
+
+// Don't group when both arguments are function expressions
+call(
+  function () {
+    return foo;
+  },
+  function () {
+    return bar;
+  },
+);
+
+// DO group when arguments are different types - object and array
+call({ a: 1, b: 2, c: 3 }, [1, 2, 3, 4, 5, 6]);
+
+// DO group when arguments are different types - array and object
+call([1, 2, 3, 4, 5, 6], { a: 1, b: 2, c: 3 });
+
+// DO group when first is arrow and second is object
+call(
+  () => {
+    return foo;
+  },
+  { a: 1, b: 2, c: 3 },
+);
+
+// DO group when first is object and second is arrow
+call({ a: 1, b: 2, c: 3 }, () => {
+  return foo;
+});
+"#,
+            ),
+            (
+                100,
+                r#"// Don't group when both arguments are objects
+call({ a: 1 }, { b: 2 });
+
+// Don't group when both arguments are arrays
+call([1, 2, 3], [4, 5, 6]);
+
+// Don't group when both arguments are TSAsExpression
+call(x as string, y as number);
+
+// Don't group when both arguments are TSSatisfiesExpression
+call(x satisfies Foo, y satisfies Bar);
+
+// Don't group when both arguments are arrow functions
+call(
+  () => foo,
+  () => bar,
+);
+
+// Don't group when both arguments are function expressions
+call(
+  function () {
+    return foo;
+  },
+  function () {
+    return bar;
+  },
+);
+
+// DO group when arguments are different types - object and array
+call({ a: 1, b: 2, c: 3 }, [1, 2, 3, 4, 5, 6]);
+
+// DO group when arguments are different types - array and object
+call([1, 2, 3, 4, 5, 6], { a: 1, b: 2, c: 3 });
+
+// DO group when first is arrow and second is object
+call(
+  () => {
+    return foo;
+  },
+  { a: 1, b: 2, c: 3 },
+);
+
+// DO group when first is object and second is arrow
+call({ a: 1, b: 2, c: 3 }, () => {
+  return foo;
+});
+"#,
+            ),
+        ],
+    );
+}
+
+/// Named function callback arguments should keep the expected inline call shell.
+#[test]
+fn test_format_typescript_named_function_argument_layout() {
+    assert_format_program_reference_widths(
+        r#"useStableCallback(function useShowToast(
+    ...args: Parameters<typeof toastService.addToastItem>
+  ): void {
+    toastService.addToastItem(...args);
+  });
+"#,
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"useStableCallback(function useShowToast(
+  ...args: Parameters<typeof toastService.addToastItem>
+): void {
+  toastService.addToastItem(...args);
+});
+"#,
+            ),
+            (
+                100,
+                r#"useStableCallback(function useShowToast(
+  ...args: Parameters<typeof toastService.addToastItem>
+): void {
+  toastService.addToastItem(...args);
+});
+"#,
+            ),
+        ],
+    );
+}
