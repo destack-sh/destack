@@ -1,6 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
+use crate::rules::common::expression_path_segments;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -236,15 +237,13 @@ fn comparison_subject_and_pattern(
     }
 
     // keep a path expression on one side and use the other side as the pattern
-    let left_expr = ctx.tree.get(*left);
-    if let ast::Expression::Path { path, .. } = left_expr {
-        let key = path_key(ctx, path);
+    if let Some(path_segments) = expression_path_segments(ctx.tree, *left) {
+        let key = path_key(ctx, &path_segments);
         return Some((key, *left, *right));
     }
 
-    let right_expr = ctx.tree.get(*right);
-    if let ast::Expression::Path { path, .. } = right_expr {
-        let key = path_key(ctx, path);
+    if let Some(path_segments) = expression_path_segments(ctx.tree, *right) {
+        let key = path_key(ctx, &path_segments);
         return Some((key, *right, *left));
     }
 
@@ -252,8 +251,8 @@ fn comparison_subject_and_pattern(
 }
 
 /// Build a stable key for one path expression.
-fn path_key(ctx: &LintAstContext<'_>, path: &ast::Path) -> String {
-    path.segments
+fn path_key(ctx: &LintAstContext<'_>, path_segments: &[ast::StringId]) -> String {
+    path_segments
         .iter()
         .map(|segment| ctx.strings.get(*segment).as_ref().to_string())
         .collect::<Vec<_>>()

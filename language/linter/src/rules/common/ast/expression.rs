@@ -194,7 +194,8 @@ pub fn expression_is_direct_statement(
 pub fn expression_can_start_expression_statement(expression: &ast::Expression) -> bool {
     matches!(
         expression,
-        ast::Expression::Path { .. }
+        ast::Expression::Identifier { .. }
+            | ast::Expression::QualifiedReference { .. }
             | ast::Expression::Member { .. }
             | ast::Expression::Index { .. }
             | ast::Expression::Call { .. }
@@ -929,32 +930,65 @@ pub fn declaration_at_allowed_root(
     false
 }
 
-/// Return path segments when the expression is a non-generic path.
+/// Return path segments when the expression is a non-generic reference chain.
 pub fn expression_path_segments(
     tree: &ast::NodeTree,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<Vec<ast::StringId>> {
-    // normalize expression shape
+    let mut segments = Vec::new();
+
+    collect_expression_path_segments(tree, expression_id, &mut segments)?;
+
+    Some(segments)
+}
+
+/// Collect path segments for one non-generic reference chain.
+fn collect_expression_path_segments(
+    tree: &ast::NodeTree,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+    segments: &mut Vec<ast::StringId>,
+) -> Option<()> {
+    // normalize wrappers first
     let expression_id = expression_unwrap_parenthesized_syntax(tree, expression_id);
     let expression = tree.get(expression_id);
 
-    // require a non generic path expression
-    let ast::Expression::Path {
-        path,
-        static_arguments,
-    } = expression
-    else {
-        return None;
-    };
+    match expression {
+        ast::Expression::Identifier { name } => {
+            segments.push(*name);
+            Some(())
+        }
+        ast::Expression::QualifiedReference {
+            path,
+            static_arguments,
+        } => {
+            if static_arguments
+                .as_ref()
+                .is_some_and(|static_arguments| !static_arguments.is_empty())
+            {
+                return None;
+            }
 
-    if let Some(static_arguments) = static_arguments
-        && !static_arguments.is_empty()
-    {
-        return None;
+            segments.extend_from_slice(&path.segments);
+            Some(())
+        }
+        ast::Expression::Member {
+            left,
+            name: Some(name),
+            static_arguments,
+        } => {
+            if static_arguments
+                .as_ref()
+                .is_some_and(|static_arguments| !static_arguments.is_empty())
+            {
+                return None;
+            }
+
+            collect_expression_path_segments(tree, *left, segments)?;
+            segments.push(*name);
+            Some(())
+        }
+        _ => None,
     }
-
-    // return path segments in source order
-    Some(path.segments.to_vec())
 }
 
 /// Return one static string literal value from an expression.
@@ -1116,12 +1150,18 @@ pub fn expression_is_equal(
     let left = ctx.tree.get(left_id);
     let right = ctx.tree.get(right_id);
     match (left, right) {
-        // paths: compare segments
+        // identifiers: compare names
         (
-            ast::Expression::Path {
+            ast::Expression::Identifier { name: left_name },
+            ast::Expression::Identifier { name: right_name },
+        ) => string_ids_equal(ctx, *left_name, *right_name),
+
+        // qualified references: compare segments
+        (
+            ast::Expression::QualifiedReference {
                 path: left_path, ..
             },
-            ast::Expression::Path {
+            ast::Expression::QualifiedReference {
                 path: right_path, ..
             },
         ) => paths_equal(ctx, left_path, right_path),
@@ -1557,8 +1597,11 @@ pub fn expression_has_side_effects(
         | ast::Expression::TypeLiteral(_)
         | ast::Expression::PrivateIdentifier { .. } => false,
 
-        // pure: paths (variable references)
-        ast::Expression::Path { .. } | ast::Expression::This | ast::Expression::Super => false,
+        // pure: references
+        ast::Expression::Identifier { .. }
+        | ast::Expression::QualifiedReference { .. }
+        | ast::Expression::This
+        | ast::Expression::Super => false,
 
         // pure: containers (if elements are pure)
         ast::Expression::ArrayExpression { elements }
@@ -1924,7 +1967,10 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             ast::Expression::Yield { cardinality, .. } => {
                 self.push_debug("expression_yield_cardinality", *cardinality);
             }
-            ast::Expression::Path { path, .. } => {
+            ast::Expression::Identifier { name } => {
+                self.push_string_id("expression_identifier", *name);
+            }
+            ast::Expression::QualifiedReference { path, .. } => {
                 self.push_debug("expression_path_len", path.segments.len());
                 for segment in &path.segments {
                     self.push_string_id("expression_path_segment", *segment);

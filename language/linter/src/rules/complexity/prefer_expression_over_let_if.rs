@@ -58,12 +58,10 @@ fn is_assignment_to(
     match expr {
         ast::Expression::Assign { left, .. } => {
             // check if left is the same variable
-            let left_expr = ctx.tree.get(*left);
-            if let ast::Expression::Path { path, .. } = left_expr
-                && path.segments.len() == 1
-            {
-                return path.segments[0] == target_name;
+            if expression_is_unqualified_path_name(ctx.tree, *left, target_name) {
+                return true;
             }
+
             false
         }
         _ => false,

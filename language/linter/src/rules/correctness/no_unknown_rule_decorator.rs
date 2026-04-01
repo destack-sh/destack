@@ -89,7 +89,7 @@ impl LintRule for NoUnknownRuleDecorator {
             let Some(path) = ctx.decorator_path(*node) else {
                 continue;
             };
-            let Some(last_segment) = path.segments.last() else {
+            let Some(last_segment) = path.last() else {
                 continue;
             };
 

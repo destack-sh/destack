@@ -111,7 +111,7 @@ fn expression_is_property_assignment_target(
 
     matches!(
         expression,
-        ast::Expression::Path { path, .. } if path.segments.len() > 1
+        ast::Expression::QualifiedReference { path, .. } if path.segments.len() > 1
     ) || matches!(
         expression,
         ast::Expression::Member { .. }

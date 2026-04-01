@@ -519,7 +519,10 @@ fn ast_expression_main_span_without_parentheses(
     }
 
     let expression = ast.tree().get(expression_id);
-    if let ast::Expression::Path { .. } = expression {
+    if matches!(
+        expression,
+        ast::Expression::Identifier { .. } | ast::Expression::QualifiedReference { .. }
+    ) {
         let expression_span = ast.tree().source_map.get(expression_id.id);
         if let Some(identifier_span) = last_identifier_span_in_expression(ast, expression_span) {
             return Some(identifier_span);

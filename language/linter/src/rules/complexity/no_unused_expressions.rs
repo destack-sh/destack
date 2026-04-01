@@ -521,7 +521,8 @@ fn expression_is_known_effectful_statement(expression: &ast::Expression) -> bool
 fn expression_is_known_pure_statement(expression: &ast::Expression) -> bool {
     matches!(
         expression,
-        ast::Expression::Path { .. }
+        ast::Expression::Identifier { .. }
+            | ast::Expression::QualifiedReference { .. }
             | ast::Expression::Member { .. }
             | ast::Expression::PrivateMember { .. }
             | ast::Expression::Index { .. }

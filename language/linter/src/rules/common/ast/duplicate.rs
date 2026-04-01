@@ -4,7 +4,9 @@ use std::hash::{Hash, Hasher};
 use destack_ast as ast;
 
 use crate::LintAstContext;
-use crate::rules::common::{blocks_equal, expression_is_equal, stable_hash_debug};
+use crate::rules::common::{
+    blocks_equal, expression_is_equal, expression_path_segments, stable_hash_debug,
+};
 
 /// Shared duplicate tracker for expression nodes.
 #[derive(Debug, Default)]
@@ -99,10 +101,12 @@ fn expression_coarse_key(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
 
+    if let Some(segments) = expression_path_segments(ctx.tree, expression_id) {
+        segments.len().hash(&mut hasher);
+        return hasher.finish();
+    }
+
     match expression {
-        ast::Expression::Path { path, .. } => {
-            path.segments.len().hash(&mut hasher);
-        }
         ast::Expression::ScalarLiteral(literal) => {
             std::mem::discriminant(literal).hash(&mut hasher);
         }
@@ -174,13 +178,16 @@ fn expression_structural_key(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     std::mem::discriminant(expression).hash(&mut hasher);
 
-    match expression {
-        ast::Expression::Path { path, .. } => {
-            path.segments.len().hash(&mut hasher);
-            for segment in &path.segments {
-                segment.hash(&mut hasher);
-            }
+    if let Some(segments) = expression_path_segments(ctx.tree, expression_id) {
+        segments.len().hash(&mut hasher);
+        for segment in segments {
+            segment.hash(&mut hasher);
         }
+
+        return hasher.finish();
+    }
+
+    match expression {
         ast::Expression::ScalarLiteral(literal) => {
             hash_debug_into(&mut hasher, literal);
         }

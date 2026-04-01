@@ -1410,7 +1410,10 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::Expression::Yield { cardinality, .. } => {
                 self.push_debug("expr_yield_cardinality", *cardinality);
             }
-            ast::Expression::Path {
+            ast::Expression::Identifier { name } => {
+                self.push_identifier_id("expr_identifier", *name);
+            }
+            ast::Expression::QualifiedReference {
                 path,
                 static_arguments,
             } => {
