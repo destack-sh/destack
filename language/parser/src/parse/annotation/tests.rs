@@ -5,7 +5,7 @@ use destack_ast::{
 };
 use destack_source::LanguageType;
 
-use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_string};
 
 fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let mut test = TestParser::new_with_options(source, language);
@@ -787,6 +787,88 @@ fn test_comments_around_member_decorator_chain_attach_to_member_prefix() {
             }
         });
     });
+}
+
+#[test]
+fn test_empty_call_boundary_line_comments_attach_to_statement_boundary() {
+    let (parser, expressions) = parse_source(
+        r#"call // direct
+()
+
+call // optional
+?.()"#,
+        LanguageType::JavaScript,
+    );
+
+    assert_eq!(expressions.len(), 2);
+    assert_eq!(parser.tree.comment_trivia().len(), 2);
+
+    for (index, expression_id) in expressions.iter().copied().enumerate() {
+        assert_node!(parser.tree, expression_id, Expression::Statement(inner_expression_id) => {
+            let trivia = parser.tree.comment_trivia()[index];
+            assert_eq!(trivia.target_node, Some(inner_expression_id.id));
+            assert_eq!(trivia.position, AnnotationPosition::LinePostfixBoundary);
+            assert_node!(parser.tree, *inner_expression_id, Expression::Call { .. });
+        });
+    }
+}
+
+#[test]
+fn test_empty_call_boundary_block_comments_attach_to_callee_boundary() {
+    let (parser, expressions) = parse_source(
+        r#"call/* direct */()
+call/* optional */?.()"#,
+        LanguageType::JavaScript,
+    );
+
+    assert_eq!(expressions.len(), 2);
+    assert_eq!(parser.tree.comment_trivia().len(), 2);
+
+    for (index, expression_id) in expressions.iter().copied().enumerate() {
+        assert_node!(parser.tree, expression_id, Expression::Statement(inner_expression_id) => {
+            let expected_owner_id = match parser.tree.get(*inner_expression_id) {
+                Expression::Call { left, position, .. } => {
+                    if *position == destack_ast::PostfixPosition::Indirect {
+                        match parser.tree.get(*left) {
+                            Expression::Maybe {
+                                left,
+                                position: destack_ast::PostfixPosition::Direct,
+                            } => *left,
+                            _ => *left,
+                        }
+                    } else {
+                        *left
+                    }
+                }
+                other => panic!("expected call expression, found {other:?}"),
+            };
+
+            let trivia = parser.tree.comment_trivia()[index];
+            assert_eq!(trivia.target_node, Some(expected_owner_id.id));
+            assert_eq!(trivia.position, AnnotationPosition::LinePostfixBoundary);
+        });
+    }
+}
+
+#[test]
+fn test_statement_trailing_line_comments_attach_to_statement_boundary() {
+    let (parser, expressions) = parse_source(
+        r#"call(); // direct
+call?.(); // optional"#,
+        LanguageType::JavaScript,
+    );
+
+    assert_eq!(expressions.len(), 2);
+    assert_eq!(parser.tree.comment_trivia().len(), 2);
+
+    for (index, expression_id) in expressions.iter().copied().enumerate() {
+        assert_node!(parser.tree, expression_id, Expression::Statement(inner_expression_id) => {
+            let trivia = parser.tree.comment_trivia()[index];
+            assert_eq!(trivia.target_node, Some(inner_expression_id.id));
+            assert_eq!(trivia.position, AnnotationPosition::LinePostfixBoundary);
+            assert_node!(parser.tree, *inner_expression_id, Expression::Call { .. });
+        });
+    }
 }
 
 #[test]
