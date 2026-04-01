@@ -11,7 +11,7 @@ use destack_source::LanguageType;
 
 use crate::{
     TestParser, assert_comment_trivia, assert_expression_path, assert_name, assert_node,
-    assert_path, assert_string,
+    assert_path, assert_qualified_reference_path, assert_string, assert_value_expression_path,
 };
 
 fn assert_import_target_string(parser: &crate::Parser, target: &ImportTarget, expected: &str) {
@@ -26,7 +26,7 @@ fn test_parse_import_as_path() {
     let mut test = TestParser::new("import.meta.env");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_expression_path!(parser, parser.tree.get(expression_id), "import.meta.env");
+    assert_value_expression_path!(parser, parser.tree.get(expression_id), "import.meta.env");
 }
 
 /// Disambiguate import source phase access as a path.
@@ -35,7 +35,7 @@ fn test_parse_import_source_as_path() {
     let mut test = TestParser::new_with_options("import.source", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
-    assert_expression_path!(parser, parser.tree.get(expression_id), "import.source");
+    assert_value_expression_path!(parser, parser.tree.get(expression_id), "import.source");
 }
 
 /// Parse import source phase calls as member calls.
@@ -50,7 +50,7 @@ fn test_parse_import_source_call_expression_javascript() {
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
         assert_eq!(dynamic_arguments.len(), 1);
-        assert_expression_path!(parser, parser.tree.get(*left), "import.source");
+        assert_value_expression_path!(parser, parser.tree.get(*left), "import.source");
     });
 }
 
@@ -66,7 +66,7 @@ fn test_parse_import_source_call_expression_with_template_argument_javascript() 
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, dynamic_arguments, .. } => {
         assert_eq!(dynamic_arguments.len(), 1);
-        assert_expression_path!(parser, parser.tree.get(*left), "import.source");
+        assert_value_expression_path!(parser, parser.tree.get(*left), "import.source");
         assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::TaggedTemplateExpression { .. });
         });
@@ -80,6 +80,53 @@ fn test_parse_this_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.options).unwrap();
     assert_node!(parser.tree, expression_id, Expression::This);
+}
+
+/// Parse a bare identifier as an identifier expression.
+#[test]
+fn test_parse_identifier_expression_as_identifier() {
+    let mut test = TestParser::new("value");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Identifier { name } => {
+        assert_string!(parser, *name, "value");
+    });
+    assert_value_expression_path!(parser, parser.tree.get(expression_id), "value");
+}
+
+/// Parse a dotted value reference as a runtime member chain.
+#[test]
+fn test_parse_member_expression_as_member_chain() {
+    let mut test = TestParser::new_with_options("foo.bar", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, static_arguments } => {
+        assert!(static_arguments.is_none());
+        assert_string!(parser, *name, "bar");
+        assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "foo");
+        });
+    });
+    assert_value_expression_path!(parser, parser.tree.get(expression_id), "foo.bar");
+}
+
+/// Parse a type unary reference as a qualified reference.
+#[test]
+fn test_parse_type_unary_qualified_reference_as_qualified_reference() {
+    let mut test = TestParser::new("type Foo.Bar");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.options).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::TypeUnary { operator, right } => {
+        assert_eq!(*operator, TypeUnaryOperator::Type);
+        assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments } => {
+            assert!(static_arguments.is_none());
+            assert_path!(parser, *path, "Foo.Bar");
+        });
+        assert_qualified_reference_path!(parser, parser.tree.get(*right), "Foo.Bar");
+    });
 }
 
 /// Parse a bare super expression.
@@ -1690,8 +1737,8 @@ fn test_parse_if_ternary_with_parenthesis() {
             IfCondition::Expression { condition } => *condition,
             IfCondition::Let { .. } => panic!("expected expression condition"),
         };
-        assert_node!(parser.tree, condition_id, Expression::Path { path, .. } => {
-            assert_path!(parser, *path, "x");
+        assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "x");
         });
         assert_node!(parser.tree, *then_expression, Expression::TupleExpression { elements, .. } => {
             assert_eq!(elements.len(), 0);
@@ -1713,8 +1760,8 @@ fn test_parse_if_ternary_with_brackets() {
             IfCondition::Expression { condition } => *condition,
             IfCondition::Let { .. } => panic!("expected expression condition"),
         };
-        assert_node!(parser.tree, condition_id, Expression::Path { path, .. } => {
-            assert_path!(parser, *path, "x");
+        assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "x");
         });
         assert_node!(parser.tree, *then_expression, Expression::ArrayExpression { elements } => {
             assert_eq!(elements.len(), 0);
@@ -1736,8 +1783,8 @@ fn test_parse_if_ternary_with_braces() {
             IfCondition::Expression { condition } => *condition,
             IfCondition::Let { .. } => panic!("expected expression condition"),
         };
-        assert_node!(parser.tree, condition_id, Expression::Path { path, .. } => {
-            assert_path!(parser, *path, "x");
+        assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "x");
         });
         assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { ty: None, properties, .. } => {
             assert_eq!(properties.len(), 0);
@@ -1761,8 +1808,8 @@ fn test_parse_if_ternary_with_binary_condition() {
         };
         assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::Equal);
-            assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "x");
+            assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
             });
             assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
         });
@@ -1797,9 +1844,8 @@ fn test_parse_mixed_index_call_postfix() {
                         // .[f]
                         assert_node!(parser.tree, *left, Expression::Index { left, index, position: PostfixPosition::Indirect } => {
                             // f
-                            assert_node!(parser.tree, index.unwrap(), Expression::Path { path, static_arguments } => {
-                                assert!(static_arguments.is_none());
-                                assert_path!(parser, *path, "f");
+                            assert_node!(parser.tree, index.unwrap(), Expression::Identifier { name } => {
+                                assert_string!(parser, *name, "f");
                             });
                             // ?
                             assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
@@ -1944,9 +1990,8 @@ fn test_parse_instantiation_expression_with_index() {
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
         });
         assert_node!(parser.tree, *left, Expression::Index { left, index, position: PostfixPosition::Direct } => {
-            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
-                assert!(static_arguments.is_none());
-                assert_path!(parser, *path, "f");
+            assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "f");
             });
             let index = index.expect("expected index expression");
             assert_node!(parser.tree, index, Expression::ScalarLiteral(ScalarLiteral::String(name)) => {
@@ -1970,9 +2015,8 @@ fn test_parse_instantiation_expression_parenthesized() {
         assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
             assert_node!(parser.tree, *expression, Expression::Instantiation { left, static_arguments } => {
                 assert_eq!(static_arguments.len(), 1);
-                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "f");
-                    assert!(static_arguments.is_none());
+                assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "f");
                 });
             });
         });
@@ -2066,14 +2110,13 @@ fn test_parse_instantiation_expression_assignment() {
         assert_node!(parser.tree, *left, Expression::Instantiation { left, static_arguments } => {
             assert_eq!(static_arguments.len(), 1);
             assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                     assert!(static_arguments.is_none());
                     assert_path!(parser, *path, "T");
                 });
             });
-            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
-                assert!(static_arguments.is_none());
-                assert_path!(parser, *path, "f");
+            assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "f");
             });
         });
         assert_expression_path!(parser, parser.tree.get(*right), "g");
@@ -2091,14 +2134,17 @@ fn test_parse_instantiation_expression_member_assignment() {
         assert_node!(parser.tree, *left, Expression::Instantiation { left, static_arguments } => {
             assert_eq!(static_arguments.len(), 1);
             assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                     assert!(static_arguments.is_none());
                     assert_path!(parser, *path, "T");
                 });
             });
-            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *left, Expression::Member { left, name, static_arguments } => {
                 assert!(static_arguments.is_none());
-                assert_path!(parser, *path, "cls.myFunc");
+                assert_string!(parser, *name, "myFunc");
+                assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "cls");
+                });
             });
         });
         assert_expression_path!(parser, parser.tree.get(*right), "g");
@@ -2119,14 +2165,13 @@ fn test_parse_instantiation_expression_member_access_with_parentheses() {
             assert_node!(parser.tree, *expression, Expression::Instantiation { left, static_arguments } => {
                 assert_eq!(static_arguments.len(), 1);
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                         assert!(static_arguments.is_none());
                         assert_path!(parser, *path, "T");
                     });
                 });
-                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
-                    assert!(static_arguments.is_none());
-                    assert_path!(parser, *path, "f");
+                assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "f");
                 });
             });
         });
@@ -2647,15 +2692,15 @@ fn test_parse_generic_lambda_function_value() {
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
-            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
-            assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "x");
+            assert_node!(parser.tree, body.unwrap(), Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
             });
         });
     });
@@ -2684,12 +2729,12 @@ fn test_parse_generic_lambda_function_value_multiline_after_less_than() {
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
-            assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "x");
+            assert_node!(parser.tree, body.unwrap(), Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
             });
         });
     });
@@ -2717,16 +2762,14 @@ fn test_parse_tsx_generic_arrow_with_extends() {
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "P");
                 });
             });
             let body_id = body.expect("expected body");
             assert_node!(parser.tree, body_id, Expression::TreeExpression { left, arguments, elements } => {
                 let left_id = left.expect("expected tag");
-                assert_node!(parser.tree, left_id, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "Foo");
-                });
+                assert_expression_path!(parser, parser.tree.get(left_id), "Foo");
                 assert!(arguments.as_ref().is_none_or(|items| items.is_empty()));
                 assert!(elements.as_ref().is_none_or(|items| items.is_empty()));
             });
@@ -2808,15 +2851,15 @@ fn test_parse_tsx_generic_arrow_with_trailing_comma() {
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
-            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
-            assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "x");
+            assert_node!(parser.tree, body.unwrap(), Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
             });
         });
     });
@@ -3076,7 +3119,7 @@ fn test_parse_lambda_function_value_with_pattern_parameters() {
                     });
                 });
                 // T
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
@@ -3270,8 +3313,8 @@ fn test_parse_lambda_function_value_shorthand() {
                 assert_string!(parser, *name, "x");
             });
             // x
-            assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "x");
+            assert_node!(parser.tree, body.unwrap(), Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
             });
         });
     });
@@ -3291,8 +3334,12 @@ fn test_parse_struct_literal_path() {
             assert_node!(
                 parser.tree,
                 *ty,
-                Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "geom.Vector2");
+                Expression::Member { left, name, static_arguments } => {
+                    assert!(static_arguments.is_none());
+                    assert_string!(parser, *name, "Vector2");
+                    assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                        assert_string!(parser, *name, "geom");
+                    });
                 }
             );
             assert_eq!(properties.len(), 2);
@@ -3343,10 +3390,15 @@ geom.Mesh<2, 4> {
             assert_node!(
                 parser.tree,
                 *ty,
-                Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "geom.Mesh");
-                    assert!(static_arguments.is_some());
-                    let params = static_arguments.as_ref().unwrap();
+                Expression::Instantiation { left, static_arguments } => {
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, static_arguments } => {
+                        assert!(static_arguments.is_none());
+                        assert_string!(parser, *name, "Mesh");
+                        assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                            assert_string!(parser, *name, "geom");
+                        });
+                    });
+                    let params = static_arguments;
                     assert_eq!(params.len(), 2);
                 }
             );
@@ -3485,16 +3537,21 @@ fn test_parse_type_with_static_parameters() {
                 assert_string!(parser, *name, "Alias");
             });
             // A<B<C>>
-            assert_node!(parser.tree, value.unwrap(), Expression::Path { path, static_arguments } => {
-                assert_path!(parser, *path, "A");
-                assert!(static_arguments.is_some());
+            assert_node!(parser.tree, value.unwrap(), Expression::Instantiation { left, static_arguments } => {
+                assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "A");
+                });
+                assert_eq!(static_arguments.len(), 1);
+
                 // B<C>
-                assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
-                        assert_path!(parser, *path, "B");
-                        assert!(static_arguments.is_some());
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
+                        assert_path!(parser, path, "B");
+                        let static_arguments = static_arguments.as_ref().unwrap();
+                        assert_eq!(static_arguments.len(), 1);
+
                         // C
-                        assert_node!(parser.tree, static_arguments.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "C");
                         });
                     });
@@ -3567,8 +3624,11 @@ fn test_parse_reference_member_call() {
                     assert_node!(
                         parser.tree,
                         *left,
-                        Expression::Path { path, .. } => {
-                            assert_path!(parser, *path, "self.foo");
+                        Expression::Member { left, name, .. } => {
+                            assert_string!(parser, *name, "foo");
+                            assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                                assert_string!(parser, *name, "self");
+                            });
                         }
                     );
                 }
@@ -3681,8 +3741,11 @@ const x =
                                             assert_node!(
                                                 parser.tree,
                                                 *left,
-                                                Expression::Path { path, .. } => {
-                                                    assert_path!(parser, *path, "foo.parse");
+                                                Expression::Member { left, name, .. } => {
+                                                    assert_string!(parser, *name, "parse");
+                                                    assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+                                                        assert_string!(parser, *name, "foo");
+                                                    });
                                                 }
                                             );
                                         }
@@ -3699,8 +3762,8 @@ const x =
                             assert_node!(
                                 parser.tree,
                                 *right,
-                                Expression::Path { path, .. } => {
-                                    assert_path!(parser, *path, "x");
+                                Expression::Identifier { name } => {
+                                    assert_string!(parser, *name, "x");
                                 }
                             );
                         }
@@ -3768,9 +3831,11 @@ fn test_parse_path_null_identifier_name() {
     let expr_id = parser.eat_expression(parser.options).unwrap();
 
     // a.null
-    assert_node!(parser.tree, expr_id, Expression::Path { path, .. } => {
-        assert_eq!(path.segments.len(), 2);
-        assert_string!(parser, path.segments[1], "null");
+    assert_node!(parser.tree, expr_id, Expression::Member { left, name, .. } => {
+        assert_string!(parser, *name, "null");
+        assert_node!(parser.tree, *left, Expression::Identifier { name } => {
+            assert_string!(parser, *name, "a");
+        });
     });
 }
 
@@ -5157,7 +5222,7 @@ fn test_parse_typed_arrow_body_with_as_parameter_member_access() {
             // (as: Array<number>)
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
                 assert_string!(parser, *name, "as");
-                assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                     assert_path!(parser, *path, "Array");
                     assert_eq!(static_arguments.len(), 1);
                     assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
@@ -5614,7 +5679,7 @@ fn test_parse_cast_with_keyof_typeof_type_argument() {
                 assert_expression_path!(parser, parser.tree.get(*value), "touchedFields");
             });
         });
-        assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+        assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
             assert_path!(parser, *path, "Array");
             assert_eq!(static_arguments.len(), 1);
             assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {

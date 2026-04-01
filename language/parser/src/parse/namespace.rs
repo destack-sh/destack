@@ -540,7 +540,7 @@ namespace Foo where Guard: Limit {
             // where Requirement: Interface
             assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Requirement");
-                assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "Interface");
                 });
             });

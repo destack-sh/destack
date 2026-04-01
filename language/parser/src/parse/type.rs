@@ -418,7 +418,7 @@ impl Parser {
         let Some(intrinsic) = self.type_intrinsic_for_name(name) else {
             return;
         };
-        let Expression::Path {
+        let Expression::QualifiedReference {
             path,
             static_arguments,
         } = self.tree.get(value_id)
@@ -788,7 +788,7 @@ impl Parser {
             // this predicate
             Expression::This => Some(TypePredicateSubject::This),
             // identifier predicate
-            Expression::Path {
+            Expression::QualifiedReference {
                 path,
                 static_arguments,
             } if static_arguments.is_none() && path.segments.len() == 1 => {
@@ -1472,7 +1472,7 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, static_parameters, .. } => {
                 assert_string!(parser, descriptor.name.unwrap().string(), "T");
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: None } => {
                     assert_path!(parser, *path, "U");
                 });
                 assert!(static_parameters.is_some());
@@ -1652,7 +1652,7 @@ mod tests {
                     assert_node!(parser.tree, *right, Expression::TypeInfer { constraint, .. } => {
                         assert!(constraint.is_some());
                     });
-                    assert_node!(parser.tree, *then_type, Expression::Path { .. });
+                    assert_node!(parser.tree, *then_type, Expression::QualifiedReference { .. });
                     assert_node!(parser.tree, *else_type, Expression::TypeLiteral(TypeLiteral::Never));
                 });
             });
@@ -1728,7 +1728,7 @@ mod tests {
         // type T<A, B>
         assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::Type);
-            assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments } => {
                 assert_path!(parser, *path, "T");
                 assert_eq!(static_arguments.as_ref().unwrap().len(), 2);
             })
@@ -1770,7 +1770,7 @@ mod tests {
         // readonly T
         assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::Readonly);
-            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "T");
             });
         });
@@ -2527,7 +2527,7 @@ mod tests {
                     assert_eq!(spans.len(), 1);
                     assert_string!(parser, strings[0], "foo-");
                     assert_string!(parser, strings[1], "");
-                    assert_node!(parser.tree, spans[0], Expression::Path { path, static_arguments } => {
+                    assert_node!(parser.tree, spans[0], Expression::QualifiedReference { path, static_arguments } => {
                         assert_path!(parser, *path, "Capitalize");
                         let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                         assert_eq!(static_arguments.len(), 1);
@@ -2619,7 +2619,7 @@ mod tests {
         let expr_id = parser.eat_expression(parser.options).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                     assert_path!(parser, *path, "Promise");
                     let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                     assert_eq!(static_arguments.len(), 1);
@@ -3064,7 +3064,7 @@ mod tests {
         // type Descriptor<P, T> = TypedPropertyDescriptor<P extends keyof T ? T[P] : any>
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { static_arguments: Some(static_arguments), .. } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { static_arguments: Some(static_arguments), .. } => {
                     assert_eq!(static_arguments.len(), 1);
                     assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
                         assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
@@ -3145,7 +3145,7 @@ mod tests {
 
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                     assert_eq!(path.segments.len(), 1);
                     let args = static_arguments.as_ref().unwrap();
                     assert_eq!(args.len(), 1);
@@ -3197,7 +3197,7 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
                     assert!(index.is_none());
                     // inner Foo<T[number]> is Path with static arguments
-                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                    assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments } => {
                         assert_eq!(path.segments.len(), 1);
                         let args = static_arguments.as_ref().unwrap();
                         assert_eq!(args.len(), 1);
@@ -3257,7 +3257,7 @@ mod tests {
                         assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Boolean));
                     });
 
-                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                    assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments } => {
                         assert_path!(parser, *path, "Pair");
                         let pair_arguments = static_arguments.as_ref().expect("expected Pair arguments");
                         assert_eq!(pair_arguments.len(), 2);
@@ -3290,7 +3290,7 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
                     assert!(index.is_none());
                     // inner Foo<T[number]> is Path with static arguments
-                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                    assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments } => {
                         assert_eq!(path.segments.len(), 1);
                         let args = static_arguments.as_ref().unwrap();
                         assert_eq!(args.len(), 1);
@@ -3315,17 +3315,17 @@ mod tests {
 
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                     assert_eq!(path.segments.len(), 1);
                     let args = static_arguments.as_ref().unwrap();
                     assert_eq!(args.len(), 1);
                     assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
-                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                        assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                             assert_eq!(path.segments.len(), 1);
                             let args = static_arguments.as_ref().unwrap();
                             assert_eq!(args.len(), 1);
                             assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
-                                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                                     assert_eq!(path.segments.len(), 1);
                                     assert_expression_path!(parser, parser.tree.get(*value), "Baz");
                                     let args = static_arguments.as_ref().unwrap();
@@ -3354,7 +3354,7 @@ mod tests {
 
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path: _, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path: _, static_arguments } => {
                     assert_expression_path!(parser, parser.tree.get(*value), "And");
                     let args = static_arguments.as_ref().unwrap();
                     assert_eq!(args.len(), 1);
@@ -3386,7 +3386,7 @@ mod tests {
 
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { static_arguments, .. } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { static_arguments, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*value), "Wrap");
                     let args = static_arguments.as_ref().unwrap();
                     assert_eq!(args.len(), 1);
@@ -3418,7 +3418,7 @@ mod tests {
 
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path: _, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path: _, static_arguments } => {
                     let args = static_arguments.as_ref().unwrap();
                     assert_eq!(args.len(), 1);
                     assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
@@ -3444,7 +3444,7 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeConditional { left, .. } => {
-                    assert_node!(parser.tree, *left, Expression::Path { path: _, static_arguments } => {
+                    assert_node!(parser.tree, *left, Expression::QualifiedReference { path: _, static_arguments } => {
                         let args = static_arguments.as_ref().unwrap();
                         assert_eq!(args.len(), 1);
                         assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
@@ -3474,7 +3474,7 @@ mod tests {
                 // readonly Foo<T[number]>
                 assert_node!(parser.tree, *value, Expression::TypeUnary { right, .. } => {
                     // Foo<T[number]>
-                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments } => {
+                    assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments } => {
                         assert_eq!(path.segments.len(), 1);
                         let args = static_arguments.as_ref().unwrap();
                         assert_eq!(args.len(), 1);
@@ -3510,7 +3510,7 @@ mod tests {
                     assert_node!(parser.tree, *right, Expression::Index { left, index, .. } => {
                         assert!(index.is_none());
                         // Foo<T[number]>
-                        assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                        assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments } => {
                             assert_eq!(path.segments.len(), 1);
                             let args = static_arguments.as_ref().unwrap();
                             assert_eq!(args.len(), 1);
@@ -3962,7 +3962,7 @@ mod tests {
                         assert_eq!(signature.dynamic_parameters.len(), 1);
                         assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
                             assert_string!(parser, *name, "num");
-                            assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
+                            assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, .. } => {
                                 assert_path!(parser, *path, "N");
                             });
                         });
@@ -3986,7 +3986,7 @@ mod tests {
                         assert_eq!(signature.dynamic_parameters.len(), 1);
                         assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
                             assert_string!(parser, *name, "str");
-                            assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
+                            assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, .. } => {
                                 assert_path!(parser, *path, "S");
                             });
                         });
@@ -4022,7 +4022,7 @@ mod tests {
                         assert!(key.is_none());
                         assert!(body.is_none());
                         assert_eq!(signature.mode, Some(FunctionMode::Call));
-                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::QualifiedReference { path, .. } => {
                             assert_path!(parser, *path, "MyType");
                         });
                     });
@@ -4030,7 +4030,7 @@ mod tests {
                         assert!(key.is_none());
                         assert!(body.is_none());
                         assert_eq!(signature.mode, Some(FunctionMode::Call));
-                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::QualifiedReference { path, .. } => {
                             assert_path!(parser, *path, "MyType");
                         });
                     });
@@ -4536,7 +4536,7 @@ mod tests {
         // type T = Extends<arrow1, arrow2>
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { static_arguments: Some(args), .. } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { static_arguments: Some(args), .. } => {
                     assert_eq!(args.len(), 2);
                 });
             });
@@ -4555,7 +4555,7 @@ mod tests {
         // type T = Container<>
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                     assert_path!(parser, *path, "Container");
                     assert_eq!(static_arguments.len(), 1);
                     assert_node!(parser.tree, static_arguments[0], Argument::Error);
@@ -4823,23 +4823,23 @@ mod tests {
                 // RawServer extends RawServerBase
                 assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), default: None, .. } => {
                     assert_string!(parser, *name, "RawServer");
-                    assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "RawServerBase");
                     });
                 });
 
                 // RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
                 assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
-                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "RawServer");
                     });
-                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "http.Server");
                     });
-                    assert_node!(parser.tree, *then_type, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *then_type, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "HTTPVersion.V1");
                     });
-                    assert_node!(parser.tree, *else_type, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *else_type, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "HTTPVersion.V2");
                     });
                 });
@@ -4874,23 +4874,23 @@ mod tests {
                         // RawServer extends RawServerBase
                         assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), default: None, .. } => {
                             assert_string!(parser, *name, "RawServer");
-                            assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
+                            assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: None } => {
                                 assert_path!(parser, *path, "RawServerBase");
                             });
                         });
 
                         // RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
                         assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
-                            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: None } => {
+                            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments: None } => {
                                 assert_path!(parser, *path, "RawServer");
                             });
-                            assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                            assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: None } => {
                                 assert_path!(parser, *path, "http.Server");
                             });
-                            assert_node!(parser.tree, *then_type, Expression::Path { path, static_arguments: None } => {
+                            assert_node!(parser.tree, *then_type, Expression::QualifiedReference { path, static_arguments: None } => {
                                 assert_path!(parser, *path, "HTTPVersion.V1");
                             });
-                            assert_node!(parser.tree, *else_type, Expression::Path { path, static_arguments: None } => {
+                            assert_node!(parser.tree, *else_type, Expression::QualifiedReference { path, static_arguments: None } => {
                                 assert_path!(parser, *path, "HTTPVersion.V2");
                             });
                         });
@@ -4919,23 +4919,23 @@ mod tests {
                 // RawServer extends RawServerBase
                 assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), default: None, .. } => {
                     assert_string!(parser, *name, "RawServer");
-                    assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "RawServerBase");
                     });
                 });
 
                 // RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
                 assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
-                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "RawServer");
                     });
-                    assert_node!(parser.tree, *right, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *right, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "http.Server");
                     });
-                    assert_node!(parser.tree, *then_type, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *then_type, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "HTTPVersion.V1");
                     });
-                    assert_node!(parser.tree, *else_type, Expression::Path { path, static_arguments: None } => {
+                    assert_node!(parser.tree, *else_type, Expression::QualifiedReference { path, static_arguments: None } => {
                         assert_path!(parser, *path, "HTTPVersion.V2");
                     });
                 });

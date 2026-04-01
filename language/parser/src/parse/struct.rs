@@ -232,7 +232,7 @@ struct Foo extends Bar {}
 
             let supers = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(supers.len(), 1);
-            assert_node!(parser.tree, supers[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, supers[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Bar");
             });
         });
@@ -327,11 +327,11 @@ class Combined extends First, Second {}
             let extends_types = heritage.extends_types.as_ref().expect("expected extends types");
             assert_eq!(extends_types.len(), 2);
 
-            assert_node!(parser.tree, extends_types[0], Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "First");
+            assert_node!(parser.tree, extends_types[0], Expression::Identifier { name } => {
+                assert_string!(parser, *name, "First");
             });
-            assert_node!(parser.tree, extends_types[1], Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "Second");
+            assert_node!(parser.tree, extends_types[1], Expression::Identifier { name } => {
+                assert_string!(parser, *name, "Second");
             });
         });
     }
@@ -556,7 +556,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_string!(parser, *name, "T");
                 // Numeric
                 assert!(ty.is_some());
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "Numeric");
                 });
             });
@@ -565,7 +565,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
             // Boz
             let extends_types = heritage.extends_types.as_ref().unwrap();
             assert_eq!(extends_types.len(), 1);
-            assert_node!(parser.tree, extends_types[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, extends_types[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Boz");
             });
 
@@ -574,7 +574,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 .as_ref()
                 .expect("expected implements types");
             assert_eq!(implements_types.len(), 1);
-            assert_node!(parser.tree, implements_types[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, implements_types[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Quux");
             });
 
@@ -591,7 +591,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
             // a: T
             assert_node!(parser.tree, members[2], Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "a");
-                assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
@@ -604,7 +604,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
             // c: T
             assert_node!(parser.tree, members[4], Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "c");
-                assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
+                assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });

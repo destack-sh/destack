@@ -483,10 +483,7 @@ impl Parser {
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         match self.tree.get(expression_id) {
-            Expression::Path {
-                path,
-                static_arguments: None,
-            } => path.segments.len() == 1,
+            Expression::Identifier { .. } => true,
             _ => false,
         }
     }
@@ -681,7 +678,7 @@ using x = open()
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                     assert_string!(parser, *name, "foo");
                 });
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "Tmp");
                 });
                 let value_id = value.expect("expected value");
@@ -697,11 +694,11 @@ using x = open()
                         assert_eq!(signature.dynamic_parameters.len(), 1);
                         assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                             assert_string!(parser, *name, "str");
-                            assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                            assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                                 assert_path!(parser, *path, "T");
                             });
                         });
-                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::QualifiedReference { path, .. } => {
                             assert_path!(parser, *path, "T");
                         });
                     });
@@ -732,8 +729,8 @@ using x = open()
                 });
                 assert!(ty.is_some());
                 let value_id = value.expect("expected initializer");
-                assert_node!(parser.tree, value_id, Expression::Path { path, .. } => {
-                    assert_path!(parser, *path, "identity");
+                assert_node!(parser.tree, value_id, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "identity");
                 });
             });
         });
@@ -966,9 +963,7 @@ const x =
                 // foo.parse()
                 assert!(value.is_some());
                 assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, static_arguments: _, dynamic_arguments: _ } => {
-                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments: _ } => {
-                        assert_path!(parser, *path, "foo.parse");
-                    });
+                    assert_expression_path!(parser, parser.tree.get(*left), "foo.parse");
                 });
             });
         });
@@ -1004,7 +999,7 @@ const registry: Map<
                 });
 
                 // Map<string, Set<{count: number}>>
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, static_arguments } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, static_arguments } => {
                     // Map
                     assert_path!(parser, *path, "Map");
                     // <string, Set<{count: number}>>
@@ -1014,7 +1009,7 @@ const registry: Map<
                     });
                     // Set<{count: number}>
                     assert_node!(parser.tree, static_arguments.as_ref().unwrap()[1], Argument::Positional { modifiers: _, value } => {
-                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                        assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments } => {
                             // Set
                             assert_path!(parser, *path, "Set");
                             // <{count: number}>

@@ -190,7 +190,7 @@ impl Parser {
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseParenthesis)
                         .for_node_type(NodeType::Pattern)?;
                     let expression_id = self.insert_node(
-                        Expression::Path {
+                        Expression::QualifiedReference {
                             path,
                             static_arguments: None,
                         },
@@ -212,7 +212,7 @@ impl Parser {
                         .eat_pattern_field_list(TokenType::Comma, TokenType::CloseBrace)
                         .for_node_type(NodeType::Pattern)?;
                     let ty_id = self.insert_node(
-                        Expression::Path {
+                        Expression::QualifiedReference {
                             path,
                             static_arguments: None,
                         },
@@ -226,7 +226,7 @@ impl Parser {
                 // path
                 else if path.segments.len() > 1 {
                     let expression_id = self.insert_node(
-                        Expression::Path {
+                        Expression::QualifiedReference {
                             path,
                             static_arguments: None,
                         },
@@ -1016,8 +1016,8 @@ mod tests {
             assert_eq!(fields.len(), 1);
             assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern, default } => {
                 assert!(default.is_none());
-                assert_node!(parser.tree, *key, Expression::Path { path, static_arguments: None } => {
-                    assert_path!(parser, *path, "key");
+                assert_node!(parser.tree, *key, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "key");
                 });
                 assert_node!(parser.tree, pattern.unwrap(), Pattern::Binding { name, pattern: None, .. } => {
                     assert_string!(parser, *name, "value");
@@ -1033,7 +1033,7 @@ mod tests {
         let pattern_id = parser.eat_pattern().unwrap();
 
         assert_node!(parser.tree, pattern_id, Pattern::TaggedObject { ty, fields } => {
-            assert_node!(parser.tree, *ty, Expression::Path { path, static_arguments: None } => {
+            assert_node!(parser.tree, *ty, Expression::QualifiedReference { path, static_arguments: None } => {
                 assert_path!(parser, *path, "Vector2");
             });
             assert_eq!(fields.len(), 2);
@@ -1407,8 +1407,8 @@ mod tests {
             assert_eq!(fields.len(), 1);
 
             assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern: Some(pattern), default: None } => {
-                assert_node!(parser.tree, *key, Expression::Path { path, static_arguments: None } => {
-                    assert_path!(parser, *path, "key");
+                assert_node!(parser.tree, *key, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "key");
                 });
 
                 assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: None } => {

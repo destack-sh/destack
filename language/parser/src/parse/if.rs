@@ -218,7 +218,7 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_name, assert_node, assert_path};
+    use crate::{TestParser, assert_expression_path, assert_name, assert_node};
 
     #[test]
     fn test_parse_if_basic() {

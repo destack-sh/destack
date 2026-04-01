@@ -138,7 +138,7 @@ extension for Foo {
             assert!(heritage.is_empty());
 
             // Foo
-            assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Foo");
             });
         });
@@ -203,7 +203,7 @@ extension MyExt for Foo<int32> {
             assert!(heritage.is_empty());
 
             // Foo<int32>
-            assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
                 assert_path!(parser, *path, "Foo");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
@@ -240,7 +240,7 @@ extension for Bar<int32> implements Baz {
             assert!(!heritage.is_empty());
 
             // Bar<int32>
-            assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
                 assert_path!(parser, *path, "Bar");
 
                 let static_args = static_arguments.as_ref().expect("expected static arguments");
@@ -259,7 +259,7 @@ extension for Bar<int32> implements Baz {
                 .as_ref()
                 .expect("expected implements types");
             assert_eq!(implements.len(), 1);
-            assert_node!(parser.tree, implements[0], Expression::Path { path, .. } => {
+            assert_node!(parser.tree, implements[0], Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Baz");
             });
         });
@@ -298,14 +298,14 @@ extension<U> for Bar<T> implements Baz<T> {
             });
 
             // Bar<T>
-            assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
                 // Bar
                 assert_path!(parser, *path, "Bar");
                 // <T>
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });
                 });
@@ -318,14 +318,14 @@ extension<U> for Bar<T> implements Baz<T> {
                 .as_ref()
                 .expect("expected implements types");
             assert_eq!(implements.len(), 1);
-            assert_node!(parser.tree, implements[0], Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, implements[0], Expression::QualifiedReference { path, static_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });
                 });
@@ -366,14 +366,14 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
             });
 
             // Bar<T>
-            assert_node!(parser.tree, *target_type, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, static_arguments } => {
                 // Bar
                 assert_path!(parser, *path, "Bar");
                 // <T>
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });
                 });
@@ -386,14 +386,14 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
                 .as_ref()
                 .expect("expected implements types");
             assert_eq!(implements.len(), 1);
-            assert_node!(parser.tree, implements[0], Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, implements[0], Expression::QualifiedReference { path, static_arguments } => {
                 // Baz
                 assert_path!(parser, *path, "Baz");
                 // <T>
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
-                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: _ } => {
+                    assert_node!(parser.tree, *value, Expression::QualifiedReference { path, static_arguments: _ } => {
                         assert_path!(parser, *path, "T");
                     });
                 });
@@ -429,7 +429,7 @@ extension for Foo where Guard: Limit {
             });
 
             // Foo target_type
-            assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
+            assert_node!(parser.tree, *target_type, Expression::QualifiedReference { path, .. } => {
                 assert_path!(parser, *path, "Foo");
             });
         });

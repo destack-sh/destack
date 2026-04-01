@@ -1113,8 +1113,8 @@ mod tests {
             // number
             assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
             // x
-            assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "x");
+            assert_node!(parser.tree, *body, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
             });
         });
     }
@@ -1280,7 +1280,7 @@ function setns(
             // namespace: ProcessNamespaceKind
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "namespace");
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                     assert_path!(parser, *path, "ProcessNamespaceKind");
                 });
             });
@@ -1305,8 +1305,8 @@ function setns(
                 assert!(default.is_none());
             });
             assert!(signature.return_type.is_none());
-            assert_node!(parser.tree, body.expect("expected body"), Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "value");
+            assert_node!(parser.tree, body.expect("expected body"), Expression::Identifier { name } => {
+                assert_string!(parser, *name, "value");
             });
         });
     }
@@ -1328,8 +1328,8 @@ function setns(
                 assert!(default.is_none());
                 assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
             });
-            assert_node!(parser.tree, body.expect("expected body"), Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "value");
+            assert_node!(parser.tree, body.expect("expected body"), Expression::Identifier { name } => {
+                assert_string!(parser, *name, "value");
             });
         });
     }
@@ -1400,8 +1400,8 @@ function setns(
             // int32
             assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             // x
-            assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
-                assert_path!(parser, *path, "x");
+            assert_node!(parser.tree, *body, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "x");
             });
         });
     }
@@ -1647,13 +1647,13 @@ function h<T>
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                 assert_string!(parser, *name, "tag");
-                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, static_arguments: None } => {
+                assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, static_arguments: None } => {
                     assert_path!(parser, *path, "T");
                 });
             });
 
             // return type T
-            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, static_arguments: None } => {
+            assert_node!(parser.tree, signature.return_type.unwrap(), Expression::QualifiedReference { path, static_arguments: None } => {
                 assert_path!(parser, *path, "T");
             });
 
@@ -1804,7 +1804,7 @@ function invariant<in out T>(value: T): T {
 
         assert_node!(parser.tree, function_id, Declaration::Function { signature, .. } => {
             let return_type = signature.return_type.expect("expected return type");
-            assert_node!(parser.tree, return_type, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, return_type, Expression::QualifiedReference { path, static_arguments } => {
                 assert_path!(parser, *path, "AliasBranch");
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 2);

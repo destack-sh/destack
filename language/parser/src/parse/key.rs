@@ -760,7 +760,7 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::tests::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{assert_expression_path, assert_node, assert_string};
 
     #[test]
     fn test_parse_key_named_expression_with_multiline_type() {

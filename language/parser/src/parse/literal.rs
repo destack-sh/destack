@@ -1345,7 +1345,7 @@ impl Parser {
         // tree literal
         let left = path.as_ref().map(|path| {
             let expression_id = self.insert_node(
-                Expression::Path {
+                Expression::QualifiedReference {
                     path: path.clone(),
                     static_arguments: static_arguments.clone(),
                 },
@@ -2199,7 +2199,7 @@ mod tests {
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments } => {
                 assert_path!(parser, *path, "Component");
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
@@ -2239,7 +2239,7 @@ mod tests {
                     assert_eq!(signature.dynamic_parameters.len(), 1);
                     assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
                         assert_string!(parser, *name, "v");
-                        assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                        assert_node!(parser.tree, ty.unwrap(), Expression::QualifiedReference { path, .. } => {
                             assert_path!(parser, *path, "T");
                         });
                     });
@@ -2261,7 +2261,7 @@ mod tests {
         // parse the tree literal
         let expression = parser.eat_tree_literal().unwrap();
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments } => {
                 assert_path!(parser, *path, "Component");
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
@@ -2292,7 +2292,7 @@ mod tests {
         let expression_id = parser.eat_tree_literal().unwrap();
 
         assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), arguments, elements } => {
-            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+            assert_node!(parser.tree, *left, Expression::QualifiedReference { path, static_arguments } => {
                 assert_path!(parser, *path, "Tags");
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
@@ -2525,7 +2525,9 @@ mod tests {
                 IfCondition::Expression { condition } => *condition,
                 IfCondition::Let { .. } => panic!("expected expression condition"),
             };
-            assert_node!(parser.tree, condition_id, Expression::Path { .. });
+            assert_node!(parser.tree, condition_id, Expression::Identifier { name } => {
+                assert_string!(parser, *name, "a");
+            });
             // consequence: <>{y && <E />}</>
             assert_node!(parser.tree, *then_expression, Expression::TreeExpression { left: None, arguments, elements } => {
                 assert!(arguments.is_none());
@@ -2923,7 +2925,9 @@ mod tests {
             assert_eq!(elements.as_ref().unwrap().len(), 2);
             // {x}
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
-                assert_node!(parser.tree, *value, Expression::Path { .. });
+                assert_node!(parser.tree, *value, Expression::Identifier { name } => {
+                    assert_string!(parser, *name, "x");
+                });
             });
             // <form onClick={() => {}}></form>
             assert_node!(parser.tree, elements.as_ref().unwrap()[1], Argument::Positional { modifiers: _, value } => {
@@ -2951,7 +2955,9 @@ mod tests {
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::Binary { left: bin_left, right: bin_right, .. } => {
                     // x
-                    assert_node!(parser.tree, *bin_left, Expression::Path { .. });
+                    assert_node!(parser.tree, *bin_left, Expression::Identifier { name } => {
+                        assert_string!(parser, *name, "x");
+                    });
                     // <span/>
                     assert_node!(parser.tree, *bin_right, Expression::TreeExpression { .. });
                 });
@@ -2974,8 +2980,12 @@ mod tests {
             assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left: bin_left, right: bin_right, .. } => {
                     assert_eq!(*operator, BinaryOperator::LessThan);
-                    assert_node!(parser.tree, *bin_left, Expression::Path { .. });
-                    assert_node!(parser.tree, *bin_right, Expression::Path { .. });
+                    assert_node!(parser.tree, *bin_left, Expression::Identifier { name } => {
+                        assert_string!(parser, *name, "a");
+                    });
+                    assert_node!(parser.tree, *bin_right, Expression::Identifier { name } => {
+                        assert_string!(parser, *name, "b");
+                    });
                 });
             });
         });

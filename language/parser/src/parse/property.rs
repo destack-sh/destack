@@ -1680,7 +1680,7 @@ port2 = {
                 assert_string!(parser, *name, "name");
                 assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
             });
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::Path { path, static_arguments: Some(static_arguments) } => {
+            assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::QualifiedReference { path, static_arguments: Some(static_arguments) } => {
                 assert_path!(parser, *path, "Promise");
                 assert_eq!(static_arguments.len(), 1);
                 assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
