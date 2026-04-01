@@ -18,8 +18,6 @@ pub(crate) enum TrailingSeparator {
     Allowed,
     /// Require the trailing separator.
     Mandatory,
-    /// Disallow the trailing separator.
-    Disallowed,
 }
 
 /// One formatted entry in a separated list.
@@ -51,7 +49,7 @@ where
                 TrailingSeparator::Mandatory => {
                     write!(f, [token(self.separator)])?;
                 }
-                TrailingSeparator::Disallowed | TrailingSeparator::Omit => {}
+                TrailingSeparator::Omit => {}
             }
         } else {
             write!(f, [token(self.separator)])?;
@@ -177,7 +175,7 @@ where
                 TrailingSeparator::Mandatory => {
                     write!(f, [token(separator)])?;
                 }
-                TrailingSeparator::Disallowed | TrailingSeparator::Omit => {}
+                TrailingSeparator::Omit => {}
             }
         }
 

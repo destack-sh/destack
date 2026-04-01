@@ -80,6 +80,8 @@ pub struct DestackFormatContext<'a> {
     pub file_ignore_applied: Rc<Cell<bool>>,
     /// Parenthesized nodes whose leading-inner comments are hoisted by an outer owner.
     pub suppressed_parenthesized_leading_comment_nodes: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
+    /// Type-position expression roots whose leading raw comments are owned by an outer formatter.
+    pub suppressed_type_position_leading_comment_nodes: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
     /// Expression roots that should be treated as explicit type-position subtrees.
     pub forced_type_position_expression_roots: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
 }
@@ -175,6 +177,7 @@ impl<'a> DestackFormatContext<'a> {
             has_template_literal_markers,
             file_ignore_applied: Rc::new(Cell::new(false)),
             suppressed_parenthesized_leading_comment_nodes: Rc::new(RefCell::new(Vec::new())),
+            suppressed_type_position_leading_comment_nodes: Rc::new(RefCell::new(Vec::new())),
             forced_type_position_expression_roots: Rc::new(RefCell::new(Vec::new())),
         }
     }
@@ -203,6 +206,34 @@ impl<'a> DestackFormatContext<'a> {
         node_id: LocalNodeId<Expression>,
     ) -> bool {
         self.suppressed_parenthesized_leading_comment_nodes
+            .borrow()
+            .contains(&node_id)
+    }
+
+    /// Push one type-position root whose leading raw comments are owned by an outer formatter.
+    pub fn push_suppressed_type_position_leading_comment_node(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) {
+        self.suppressed_type_position_leading_comment_nodes
+            .borrow_mut()
+            .push(node_id);
+    }
+
+    /// Pop one type-position root whose leading raw comments were owned by an outer formatter.
+    pub fn pop_suppressed_type_position_leading_comment_node(&self) {
+        let _ = self
+            .suppressed_type_position_leading_comment_nodes
+            .borrow_mut()
+            .pop();
+    }
+
+    /// Return whether one type-position root has its leading raw comments suppressed.
+    pub fn is_type_position_leading_comment_node_suppressed(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> bool {
+        self.suppressed_type_position_leading_comment_nodes
             .borrow()
             .contains(&node_id)
     }

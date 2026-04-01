@@ -6,15 +6,26 @@ use super::{
 use crate::DestackFormatter;
 use crate::format::chain::{receiver_is_await_wrapped, transparent_inner_expression};
 use crate::format::declaration::expression_is_decorated_class_declaration;
-use crate::format::operator::{expression_is_type_position, write_postfix_base_expression};
+use crate::format::operator::{
+    expression_is_type_position, type_union_has_explicit_leading_separator,
+    write_postfix_base_expression,
+};
 use destack_ast::{Expression, LocalNodeId, NodeTree, PostfixPosition};
 use destack_core::StringId;
-use destack_fir::format::{Buffer, FormatResult};
+use destack_fir::format::{
+    Buffer, FormatNode, FormatResult, LineMode, RemoveSoftLinesBuffer, TextWidth,
+};
 use destack_fir::prelude::{
     format_with, group, indent, line_postfix_boundary, soft_block_indent, soft_line_break, token,
 };
 use destack_fir::{format_args, write};
 use destack_source::Span;
+
+#[derive(Clone, Copy)]
+enum TypeTemplateSpanLayout {
+    SingleLine,
+    Fit,
+}
 
 /// Return whether one member receiver ends with static instantiation arguments.
 fn expression_has_trailing_static_instantiation(
@@ -382,27 +393,126 @@ pub(crate) fn format_type_template_literal<'ast>(
             .context()
             .comments_in_range(span.start, span.end)
             .is_empty();
-        let span_has_source_newline = f.context().node_has_newline(*span_expression_id);
-        let span_is_type_conditional = matches!(
-            f.context().tree.get(*span_expression_id),
-            Expression::TypeConditional { .. }
-        );
-        let should_expand_span =
-            span_has_comments || span_has_source_newline || span_is_type_conditional;
+        let span_has_source_newline =
+            type_template_span_has_new_line_in_range(f, *span_expression_id);
+        let format_span = format_with(|f| write!(f, [*span_expression_id]));
+        let interned_span = f.intern(&format_span)?;
+        let span_will_break = interned_span
+            .as_ref()
+            .is_some_and(type_template_span_format_node_will_break);
+        let span_layout = if span_has_comments || span_has_source_newline || span_will_break {
+            TypeTemplateSpanLayout::Fit
+        } else {
+            TypeTemplateSpanLayout::SingleLine
+        };
+        let format_inner = format_with(move |f| {
+            match span_layout {
+                TypeTemplateSpanLayout::SingleLine => {
+                    if let Some(interned_span) = &interned_span {
+                        let mut buffer = RemoveSoftLinesBuffer::new(f);
+                        buffer.write_node(interned_span.clone());
+                    }
+                }
+                TypeTemplateSpanLayout::Fit => {
+                    if let Some(interned_span) = &interned_span {
+                        f.write_node(interned_span.clone());
+                    }
+                }
+            }
+
+            Ok(())
+        });
 
         write!(
             f,
-            [
+            [group(&format_args![
                 token("${"),
-                group(span_expression_id).should_expand(should_expand_span),
+                format_inner,
                 line_postfix_boundary(),
                 token("}"),
                 *segment,
-            ]
+            ])]
         )?;
     }
 
     write!(f, [token("`")])
+}
+
+/// Return whether one type-template interpolation format node must break.
+fn type_template_span_format_node_will_break(node: &FormatNode) -> bool {
+    match node {
+        FormatNode::Line(LineMode::Hard | LineMode::Empty) => true,
+        FormatNode::Token { text } => text.contains('\n'),
+        FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
+            matches!(width, TextWidth::Multiline)
+        }
+        FormatNode::Interned(interned) => interned
+            .iter()
+            .any(type_template_span_format_node_will_break),
+        FormatNode::BestFitting { variants, .. } => variants
+            .most_flat()
+            .iter()
+            .any(type_template_span_format_node_will_break),
+        _ => false,
+    }
+}
+
+/// Return whether one type-template interpolation has source newlines around or inside it.
+fn type_template_span_has_new_line_in_range(
+    f: &DestackFormatter<'_, '_>,
+    span_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let span = f.context().span(span_expression_id);
+
+    if source_has_new_line_before(f.context().file.text(), span.start as usize) {
+        return true;
+    }
+
+    if source_has_new_line_after(f.context().file.text(), span.end as usize) {
+        return true;
+    }
+
+    if type_union_has_explicit_leading_separator(f.context(), span_expression_id) {
+        return true;
+    }
+
+    f.context().node_has_newline(span_expression_id)
+}
+
+/// Return whether raw source has a newline immediately before one position.
+fn source_has_new_line_before(source: &str, position: usize) -> bool {
+    let bytes = source.as_bytes();
+    let mut current_index = position.min(bytes.len());
+
+    while current_index > 0 {
+        current_index -= 1;
+
+        match bytes[current_index] {
+            b'\n' | b'\r' => return true,
+            b' ' | b'\t' => {}
+            _ => return false,
+        }
+    }
+
+    false
+}
+
+/// Return whether raw source has a newline immediately after one position.
+fn source_has_new_line_after(source: &str, position: usize) -> bool {
+    let bytes = source.as_bytes();
+    let mut current_index = position.min(bytes.len());
+
+    while let Some(byte) = bytes.get(current_index).copied() {
+        match byte {
+            b'\n' | b'\r' => return true,
+            b' ' | b'\t' => {}
+            _ => return false,
+        }
+
+        current_index += 1;
+    }
+
+    false
 }
 
 /// Format an index expression without considering chaining.

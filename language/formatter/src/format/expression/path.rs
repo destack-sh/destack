@@ -1,5 +1,7 @@
 use crate::format::chain::{argument_value_id_if_present, transparent_inner_expression};
-use crate::format::operator::format_static_argument_list;
+use crate::format::operator::{
+    format_static_argument_list, leading_raw_type_position_comment_nodes,
+};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{AnnotationPosition, Argument, Expression, LocalNodeId, Path, TokenType};
 use destack_fir::format::{Buffer, FormatResult};
@@ -19,6 +21,10 @@ fn is_simple_static_argument(
     let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
         return false;
     };
+    if !leading_raw_type_position_comment_nodes(context, value_id).is_empty() {
+        return false;
+    }
+
     let value = context.tree.get(value_id);
 
     super::is_trivial_expression(context.tree, value)

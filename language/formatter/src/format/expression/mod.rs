@@ -50,7 +50,9 @@ pub(crate) use self::statement::{
     format_statement_expression, statement_drops_parenthesized_expression_wrapper,
     write_statement_expression_trailing_annotations,
 };
-pub(crate) use self::ternary::argument_value;
+pub(crate) use self::ternary::{
+    argument_value, format_expanded_ternary_expression, format_inline_ternary_expression,
+};
 pub(crate) use crate::format::operator::{
     expression_has_static_type_arguments, format_static_argument_list,
     format_static_argument_list_with_relational_spacing,

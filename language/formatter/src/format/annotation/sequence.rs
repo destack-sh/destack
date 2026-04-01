@@ -1,10 +1,20 @@
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    AnnotationPosition, Doc, DocStyle, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenType,
+    AnnotationPosition, Comment, Doc, DocStyle, LocalNodeId, Node, NodeTree, NodeTreeImpl,
+    TokenType,
 };
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, *};
 use destack_fir::write;
+
+/// One source-ordered prefix item.
+#[derive(Debug, Copy, Clone)]
+enum PrefixSequenceItem {
+    /// One targeted comment trivia node.
+    Comment(LocalNodeId<Comment>),
+    /// One semantic annotation node.
+    Annotation(LocalNodeId<Annotation>),
+}
 
 impl<'ast> FormatNode<'ast, Annotation> for Annotation {
     /// Format one annotation wrapper node.
@@ -98,6 +108,116 @@ fn annotation_uses_star_comment_style(
     )
 }
 
+/// Return the source span for one prefix item.
+fn prefix_sequence_item_span(
+    context: &DestackFormatContext<'_>,
+    item: PrefixSequenceItem,
+) -> destack_source::Span {
+    match item {
+        PrefixSequenceItem::Comment(comment_id) => context.span(comment_id),
+        PrefixSequenceItem::Annotation(annotation_id) => context.annotation_span(annotation_id),
+    }
+}
+
+/// Format one source-ordered prefix item.
+fn write_prefix_sequence_item<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    item: PrefixSequenceItem,
+) -> FormatResult<()> {
+    match item {
+        PrefixSequenceItem::Comment(comment_id) => f
+            .context()
+            .tree
+            .get::<Comment>(comment_id)
+            .format_node(comment_id, f),
+        PrefixSequenceItem::Annotation(annotation_id) => f
+            .context()
+            .annotation(annotation_id)
+            .format_node(annotation_id, f),
+    }
+}
+
+/// Return the first decorator start attached to one node.
+fn first_decorator_span_start<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> Option<u32>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    context
+        .annotation_ids(node_id)
+        .iter()
+        .copied()
+        .find_map(|annotation_id| {
+            matches!(
+                context.annotation(annotation_id),
+                Annotation::Decorator { .. }
+            )
+            .then(|| context.annotation_span(annotation_id).start)
+        })
+}
+
+/// Push targeted prefix comments for one node.
+fn push_targeted_prefix_comment_items<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+    items: &mut Vec<PrefixSequenceItem>,
+    include_comment: impl Fn(destack_source::Span) -> bool,
+) where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    for trivia in context.tree.comment_trivia().iter().copied() {
+        if trivia.target_node != Some(node_id.id) {
+            continue;
+        }
+
+        if !matches!(
+            trivia.position,
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        ) {
+            continue;
+        }
+
+        let comment_span = trivia.span;
+        if include_comment(comment_span) {
+            items.push(PrefixSequenceItem::Comment(trivia.comment));
+        }
+    }
+}
+
+/// Sort source-ordered prefix items in place.
+fn sort_prefix_sequence_items(
+    context: &DestackFormatContext<'_>,
+    items: &mut [PrefixSequenceItem],
+) {
+    items.sort_by(|left, right| {
+        let left_span = prefix_sequence_item_span(context, *left);
+        let right_span = prefix_sequence_item_span(context, *right);
+        left_span
+            .start
+            .cmp(&right_span.start)
+            .then(left_span.end.cmp(&right_span.end))
+            .then_with(|| match (*left, *right) {
+                (PrefixSequenceItem::Comment(left_id), PrefixSequenceItem::Comment(right_id)) => {
+                    left_id.id.cmp(&right_id.id)
+                }
+                (
+                    PrefixSequenceItem::Annotation(left_id),
+                    PrefixSequenceItem::Annotation(right_id),
+                ) => left_id.id.cmp(&right_id.id),
+                (PrefixSequenceItem::Comment(_), PrefixSequenceItem::Annotation(_)) => {
+                    std::cmp::Ordering::Less
+                }
+                (PrefixSequenceItem::Annotation(_), PrefixSequenceItem::Comment(_)) => {
+                    std::cmp::Ordering::Greater
+                }
+            })
+    });
+}
+
 /// Format one prepared annotation sequence.
 pub(crate) fn write_annotation_sequence<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -183,16 +303,141 @@ where
     NodeTree: NodeTreeImpl<T>,
 {
     let mut items = Vec::new();
+    push_targeted_prefix_comment_items(context, node_id, &mut items, |_| true);
+
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
         if matches!(
             context.annotation(annotation_id).position(),
             AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
         ) {
-            items.push(annotation_id);
+            items.push(PrefixSequenceItem::Annotation(annotation_id));
         }
     }
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
+    sort_prefix_sequence_items(context, &mut items);
+
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        for item in items.iter().copied() {
+            write_prefix_sequence_item(f, item)?;
+            let item_span = prefix_sequence_item_span(f.context(), item);
+
+            if f.context()
+                .span_has_newline_before_next_non_whitespace_token(item_span)
+            {
+                write!(f, [hard_line_break()])?;
+            } else {
+                write!(f, [space()])?;
+            }
+        }
+
+        Ok(())
+    })
+}
+
+/// Format prefix annotations for one node without decorator items.
+pub(crate) fn prefix_annotations_without_decorators<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let mut items = Vec::new();
+    let first_decorator_start = first_decorator_span_start(context, node_id);
+    push_targeted_prefix_comment_items(context, node_id, &mut items, |comment_span| {
+        first_decorator_start.is_some_and(|decorator_start| comment_span.end <= decorator_start)
+    });
+
+    for annotation_id in context.annotation_ids(node_id).iter().copied() {
+        if matches!(
+            context.annotation(annotation_id).position(),
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        ) && !matches!(
+            context.annotation(annotation_id),
+            Annotation::Decorator { .. }
+        ) {
+            items.push(PrefixSequenceItem::Annotation(annotation_id));
+        }
+    }
+
+    sort_prefix_sequence_items(context, &mut items);
+
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        for item in items.iter().copied() {
+            write_prefix_sequence_item(f, item)?;
+            let item_span = prefix_sequence_item_span(f.context(), item);
+
+            if f.context()
+                .span_has_newline_before_next_non_whitespace_token(item_span)
+            {
+                write!(f, [hard_line_break()])?;
+            } else {
+                write!(f, [space()])?;
+            }
+        }
+
+        Ok(())
+    })
+}
+
+/// Format decorator prefix annotations for one node with grouped class-style seams.
+pub(crate) fn decorator_prefix_annotations<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let mut items = Vec::new();
+    let first_decorator_start = first_decorator_span_start(context, node_id);
+    push_targeted_prefix_comment_items(context, node_id, &mut items, |comment_span| {
+        first_decorator_start.is_some_and(|decorator_start| comment_span.start >= decorator_start)
+    });
+
+    for annotation_id in context.annotation_ids(node_id).iter().copied() {
+        if matches!(
+            context.annotation(annotation_id).position(),
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        ) && matches!(
+            context.annotation(annotation_id),
+            Annotation::Decorator { .. }
+        ) {
+            items.push(PrefixSequenceItem::Annotation(annotation_id));
+        }
+    }
+
+    sort_prefix_sequence_items(context, &mut items);
+
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        if items.is_empty() {
+            return Ok(());
+        }
+
+        let should_expand = items.iter().copied().any(|item| {
+            let item_span = prefix_sequence_item_span(f.context(), item);
+            f.context()
+                .span_has_newline_before_next_non_whitespace_token(item_span)
+        });
+
+        write!(
+            f,
+            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let separator = soft_line_break_or_space();
+                let mut join = f.join_with(&separator);
+                for item in items.iter().copied() {
+                    join.entry(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                        write_prefix_sequence_item(f, item)
+                    }));
+                }
+                join.finish()?;
+
+                write!(f, [soft_line_break_or_space()])
+            }))
+            .should_expand(should_expand)]
+        )
+    })
 }
 
 /// Format postfix annotations for one node.

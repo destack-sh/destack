@@ -2,8 +2,27 @@ use crate::DestackFormatter;
 use crate::format::directive::{ignore_ranges_for_nodes, write_ignored_span};
 use destack_ast::{Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl};
 use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::hard_line_break;
+use destack_fir::prelude::{empty_line, hard_line_break};
 use destack_fir::write;
+
+/// Return whether source preserves an empty line between two block entries.
+fn block_entries_have_blank_line_between<T>(
+    f: &DestackFormatter<'_, '_>,
+    previous_node_id: LocalNodeId<T>,
+    next_node_id: LocalNodeId<T>,
+) -> bool
+where
+    T: Node + Clone,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let previous_span = f.context().span(previous_node_id);
+    let next_span = f.context().span(next_node_id);
+    let Some(between_span) = previous_span.gap_to(next_span) else {
+        return false;
+    };
+
+    f.context().has_blank_line(between_span)
+}
 
 /// Format one block of nodes while honoring ignored ranges and entry spacing.
 pub(crate) fn format_block_nodes_with_ignore_ranges<'ast, T, F>(
@@ -32,9 +51,14 @@ where
             skip_until = None;
         }
 
-        // blank line between entries
+        // entry spacing
         if index > 0 {
-            write!(f, [hard_line_break()])?;
+            let previous_node_id = node_ids[index - 1];
+            if block_entries_have_blank_line_between(f, previous_node_id, node_id) {
+                write!(f, [empty_line()])?;
+            } else {
+                write!(f, [hard_line_break()])?;
+            }
         }
 
         // ignored range passthrough

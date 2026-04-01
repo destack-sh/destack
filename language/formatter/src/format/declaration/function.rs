@@ -2,8 +2,9 @@ use crate::format::chain::{lambda_expression_should_break, transparent_inner_exp
 use crate::format::collection::TrailingSeparator;
 use crate::format::declaration::declaration::format_declaration_export_modifier;
 use crate::format::declaration::signature::{
-    expression_body_requires_head_space, format_where_clause_with_break, parameter_is_variadic,
-    signature_parameters_should_expand, signature_return_type_has_line_postfix_boundary_annotation,
+    default_static_parameter_trailing_separator, expression_body_requires_head_space,
+    format_where_clause_with_break, parameter_is_variadic, signature_parameters_should_expand,
+    signature_return_type_has_line_postfix_boundary_annotation,
     signature_should_elide_space_before_body, single_parameter_should_hug,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
     write_signature_dynamic_parameter_list, write_static_parameter_list,
@@ -292,9 +293,9 @@ pub(crate) fn format_function_declaration<'ast>(
             f,
             static_parameters,
             if needs_jsx_disambiguation || needs_module_typescript_trailing_comma {
-                TrailingSeparator::Allowed
+                TrailingSeparator::Mandatory
             } else {
-                TrailingSeparator::Disallowed
+                default_static_parameter_trailing_separator(f)
             },
         )?;
     }
