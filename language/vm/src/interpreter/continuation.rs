@@ -1,8 +1,8 @@
 use destack_engine as engine;
 
+use super::Frame;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
-use crate::interpreter::Frame;
 use crate::snapshot::ContinuationImage;
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;

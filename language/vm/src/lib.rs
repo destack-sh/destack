@@ -6,7 +6,6 @@
 
 pub mod diagnostic;
 pub mod executable;
-pub mod execute;
 pub mod interpreter;
 pub mod isolate;
 pub mod options;
