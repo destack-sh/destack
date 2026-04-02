@@ -6,7 +6,7 @@ use crate::{ScriptArtifact, SourceMapArtifact};
 
 /// One generated module artifact.
 #[derive(Debug, Clone)]
-pub enum ModuleArtifact {
+pub enum ModuleOutput {
     /// One generated script artifact.
     Script(Box<ScriptArtifact>),
     /// One generated binary artifact.

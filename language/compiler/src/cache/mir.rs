@@ -1,12 +1,12 @@
 use crate::compile::Compiler;
 
-use super::{CacheHasher, compiler_version};
+use super::{CacheHasher, repository_module, repository_package};
 use destack_artifact::{
-    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, MirBase,
-    MirOptimized, ProfileKey,
+    ArtifactDependency, ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey,
+    ArtifactKey, MirBase, MirOptimized, ProfileKey,
 };
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ProfileId, Target, TargetId};
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::{ProfileId, Target};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -15,10 +15,6 @@ use serde::de::DeserializeOwned;
 struct MirImageContext {
     /// The profile key for the image.
     profile_key: ProfileKey,
-    /// The profile version used when producing the image.
-    profile_version: ProfileVersion,
-    /// The module version used when producing the image.
-    module_version: ModuleVersion,
     /// Hash of the effective compiler configuration and target.
     config_hash: u64,
 }
@@ -26,14 +22,7 @@ struct MirImageContext {
 impl MirImageContext {
     /// Build one image header for the chosen MIR family.
     fn header(&self, image_key: ArtifactImageKey) -> ArtifactImageHeader {
-        ArtifactImageHeader::new(
-            image_key,
-            compiler_version(),
-            Some(self.profile_version),
-            self.config_hash,
-            None,
-            0,
-        )
+        ArtifactImageHeader::new(image_key, self.config_hash)
     }
 }
 
@@ -42,16 +31,16 @@ impl Compiler {
     pub(crate) fn mir_base_image_header(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
+        _artifact_dependency: ArtifactDependency,
         profile_id: ProfileId,
         target_id: &TargetId,
     ) -> Option<ArtifactImageHeader> {
-        let context = self.mir_image_context(module_id, module_version, profile_id, target_id)?;
+        let context = self.mir_image_context(module_id, profile_id, target_id)?;
 
         Some(context.header(ArtifactImageKey::MirBase {
             module: module_id,
             profile: context.profile_key.clone(),
-            target: target_id.clone(),
+            target: *target_id,
         }))
     }
 
@@ -59,16 +48,16 @@ impl Compiler {
     pub(crate) fn mir_optimized_image_header(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
+        _artifact_dependency: ArtifactDependency,
         profile_id: ProfileId,
         target_id: &TargetId,
     ) -> Option<ArtifactImageHeader> {
-        let context = self.mir_image_context(module_id, module_version, profile_id, target_id)?;
+        let context = self.mir_image_context(module_id, profile_id, target_id)?;
 
         Some(context.header(ArtifactImageKey::MirOptimized {
             module: module_id,
             profile: context.profile_key.clone(),
-            target: target_id.clone(),
+            target: *target_id,
         }))
     }
 
@@ -76,28 +65,21 @@ impl Compiler {
     fn load_mir_image_entry<T>(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
+        _artifact_dependency: ArtifactDependency,
         profile_id: ProfileId,
         target_id: &TargetId,
         image_key: ArtifactImageKey,
-        version: impl FnOnce(&T) -> ModuleVersion,
     ) -> Result<Option<ArtifactImage<T>>, ArtifactImageError>
     where
         T: DeserializeOwned + Serialize,
     {
-        let Some(context) =
-            self.mir_image_context(module_id, module_version, profile_id, target_id)
-        else {
+        let Some(context) = self.mir_image_context(module_id, profile_id, target_id) else {
             return Ok(None);
         };
         let expected = context.header(image_key);
         let Some(image) = self.load_image::<T>(expected)? else {
             return Ok(None);
         };
-
-        if version(&image.payload) != context.module_version {
-            return Ok(None);
-        }
 
         Ok(Some(image))
     }
@@ -108,9 +90,8 @@ impl Compiler {
         module_id: ModuleId,
         target_id: &TargetId,
     ) -> Option<Target> {
-        let module = self.program.modules.get(module_id);
-        let package = self.program.packages.get(module.package_id);
-        let package = package.read();
+        let module = repository_module(self, module_id).ok()?;
+        let package = repository_package(self, module.package_id).ok()?;
 
         package.targets.get(target_id).cloned()
     }
@@ -119,11 +100,10 @@ impl Compiler {
     fn mir_image_context(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
         profile_id: ProfileId,
         target_id: &TargetId,
     ) -> Option<MirImageContext> {
-        let profile = self.program.profile(profile_id);
+        let profile = self.profile(profile_id);
         let target = self.target_config_for_module_image(module_id, target_id)?;
 
         // mir images are scoped by compiler behavior, profile identity, and target config
@@ -134,8 +114,6 @@ impl Compiler {
 
         Some(MirImageContext {
             profile_key: profile.key.clone(),
-            profile_version: profile.version,
-            module_version,
             config_hash: hasher.finish(),
         })
     }
@@ -144,12 +122,12 @@ impl Compiler {
     pub(crate) fn load_mir_base_image(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
+        artifact_dependency: ArtifactDependency,
         profile_id: ProfileId,
         target_id: &TargetId,
     ) -> Result<Option<MirBase>, ArtifactImageError> {
         let Some(profile_key) = self
-            .mir_image_context(module_id, module_version, profile_id, target_id)
+            .mir_image_context(module_id, profile_id, target_id)
             .map(|context| context.profile_key)
         else {
             return Ok(None);
@@ -158,15 +136,14 @@ impl Compiler {
         Ok(self
             .load_mir_image_entry(
                 module_id,
-                module_version,
+                artifact_dependency,
                 profile_id,
                 target_id,
                 ArtifactImageKey::MirBase {
                     module: module_id,
                     profile: profile_key,
-                    target: target_id.clone(),
+                    target: *target_id,
                 },
-                |mir: &MirBase| mir.version,
             )?
             .map(|image| image.payload))
     }
@@ -177,17 +154,17 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         target_id: &TargetId,
+        _artifact_dependency: ArtifactDependency,
         mir: &MirBase,
     ) -> Result<(), ArtifactImageError> {
-        let Some(context) = self.mir_image_context(module_id, mir.version, profile_id, target_id)
-        else {
+        let Some(context) = self.mir_image_context(module_id, profile_id, target_id) else {
             return Ok(());
         };
-        let artifact_key = ArtifactKey::mir_base(module_id, profile_id, target_id.clone());
+        let artifact_key = ArtifactKey::mir_base(module_id, profile_id, *target_id);
         let header = context.header(ArtifactImageKey::MirBase {
             module: module_id,
             profile: context.profile_key.clone(),
-            target: target_id.clone(),
+            target: *target_id,
         });
 
         self.store_image(&artifact_key, header, mir.clone())
@@ -197,12 +174,12 @@ impl Compiler {
     pub(crate) fn load_mir_optimized_image(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
+        artifact_dependency: ArtifactDependency,
         profile_id: ProfileId,
         target_id: &TargetId,
     ) -> Result<Option<MirOptimized>, ArtifactImageError> {
         let Some(profile_key) = self
-            .mir_image_context(module_id, module_version, profile_id, target_id)
+            .mir_image_context(module_id, profile_id, target_id)
             .map(|context| context.profile_key)
         else {
             return Ok(None);
@@ -211,15 +188,14 @@ impl Compiler {
         Ok(self
             .load_mir_image_entry(
                 module_id,
-                module_version,
+                artifact_dependency,
                 profile_id,
                 target_id,
                 ArtifactImageKey::MirOptimized {
                     module: module_id,
                     profile: profile_key,
-                    target: target_id.clone(),
+                    target: *target_id,
                 },
-                |mir: &MirOptimized| mir.version,
             )?
             .map(|image| image.payload))
     }
@@ -230,17 +206,17 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
         target_id: &TargetId,
+        _artifact_dependency: ArtifactDependency,
         mir: &MirOptimized,
     ) -> Result<(), ArtifactImageError> {
-        let Some(context) = self.mir_image_context(module_id, mir.version, profile_id, target_id)
-        else {
+        let Some(context) = self.mir_image_context(module_id, profile_id, target_id) else {
             return Ok(());
         };
-        let artifact_key = ArtifactKey::mir_optimized(module_id, profile_id, target_id.clone());
+        let artifact_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
         let header = context.header(ArtifactImageKey::MirOptimized {
             module: module_id,
             profile: context.profile_key.clone(),
-            target: target_id.clone(),
+            target: *target_id,
         });
 
         self.store_image(&artifact_key, header, mir.clone())

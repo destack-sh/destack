@@ -8,7 +8,7 @@ use rustc_hash::FxHasher;
 
 use crate::compile::CompilerOptions;
 
-/// Hasher for cache context and workspace index data.
+/// Hasher for cache context and repository image data.
 pub(crate) struct CacheHasher {
     /// The underlying hash state.
     hasher: FxHasher,

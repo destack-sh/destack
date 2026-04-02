@@ -3,20 +3,18 @@ use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
     IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, ProfileKey,
 };
-use destack_source::{ModuleId, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use super::{CacheHasher, compiler_version};
+use super::CacheHasher;
 
 /// Persistent image context for one profile scoped environment artifact.
 #[derive(Debug, Clone)]
 pub(crate) struct EnvironmentImageContext {
     /// The profile key for the image.
     profile_key: ProfileKey,
-    /// The profile version used when producing the image.
-    profile_version: ProfileVersion,
     /// Hash of the effective compiler configuration.
     config_hash: u64,
 }
@@ -24,14 +22,7 @@ pub(crate) struct EnvironmentImageContext {
 impl EnvironmentImageContext {
     /// Build one image header for a stable environment image key.
     fn header(&self, image_key: ArtifactImageKey) -> ArtifactImageHeader {
-        ArtifactImageHeader::new(
-            image_key,
-            compiler_version(),
-            Some(self.profile_version),
-            self.config_hash,
-            None,
-            0,
-        )
+        ArtifactImageHeader::new(image_key, self.config_hash)
     }
 }
 
@@ -94,7 +85,7 @@ impl Compiler {
         profile_id: ProfileId,
         environment_input_hash: u64,
     ) -> EnvironmentImageContext {
-        let profile = self.program.profile(profile_id);
+        let profile = self.profile(profile_id);
 
         // image validity for environments is profile, compiler behavior, and source scoped
         let mut hasher = CacheHasher::new();
@@ -104,7 +95,6 @@ impl Compiler {
 
         EnvironmentImageContext {
             profile_key: profile.key.clone(),
-            profile_version: profile.version,
             config_hash: hasher.finish(),
         }
     }
@@ -132,7 +122,7 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
     ) -> Option<EnvironmentImageContext> {
-        let builtins = self.program.builtins.as_ref()?;
+        let builtins = self.repository.builtins.as_ref();
         let mut module_ids: Vec<_> = builtins
             .intrinsic_module_by_item
             .values()
@@ -151,7 +141,7 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
     ) -> Option<EnvironmentImageContext> {
-        let builtins = self.program.builtins.as_ref()?;
+        let builtins = self.repository.builtins.as_ref();
         let module_ids = builtins.intrinsic_module_ids();
         let environment_input_hash = self.environment_module_source_hash(&module_ids)?;
 

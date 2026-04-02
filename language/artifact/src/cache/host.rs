@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use filetime::{FileTime, set_file_mtime};
 use fs2::FileExt;
 
-use crate::cache::{CacheLock, CacheMetadata, CacheStore, CacheStoreError, CacheStoreKind};
+use crate::cache::{CacheMetadata, CacheStore, CacheStoreError};
 
 /// Cache store backed by disk.
 #[derive(Debug, Default, Clone)]
@@ -19,11 +19,11 @@ impl DiskCacheStore {
 }
 
 impl CacheStore for DiskCacheStore {
-    fn kind(&self) -> CacheStoreKind {
-        CacheStoreKind::Disk
-    }
-
-    fn lock_shared(&self, path: &Path) -> Result<CacheLock<'_>, CacheStoreError> {
+    fn with_shared_lock(
+        &self,
+        path: &Path,
+        operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
         // ensure the lock directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -37,11 +37,18 @@ impl CacheStore for DiskCacheStore {
             .truncate(false)
             .open(path)?;
         FileExt::lock_shared(&file)?;
+        let _lock = file;
 
-        Ok(CacheLock::File(file))
+        operation();
+
+        Ok(())
     }
 
-    fn lock_exclusive(&self, path: &Path) -> Result<CacheLock<'_>, CacheStoreError> {
+    fn with_exclusive_lock(
+        &self,
+        path: &Path,
+        operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
         // ensure the lock directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -55,8 +62,11 @@ impl CacheStore for DiskCacheStore {
             .truncate(false)
             .open(path)?;
         FileExt::lock_exclusive(&file)?;
+        let _lock = file;
 
-        Ok(CacheLock::File(file))
+        operation();
+
+        Ok(())
     }
 
     fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError> {
@@ -65,19 +75,6 @@ impl CacheStore for DiskCacheStore {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(CacheStoreError::Io(error)),
         }
-    }
-
-    fn read_prefix(&self, path: &Path, limit: usize) -> Result<Option<Vec<u8>>, CacheStoreError> {
-        let mut file = match fs::File::open(path) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(error) => return Err(CacheStoreError::Io(error)),
-        };
-        let mut bytes = vec![0; limit];
-        let read_bytes = std::io::Read::read(&mut file, &mut bytes)?;
-        bytes.truncate(read_bytes);
-
-        Ok(Some(bytes))
     }
 
     fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
@@ -133,6 +130,39 @@ impl CacheStore for DiskCacheStore {
         Ok(path.exists())
     }
 
+    fn list(&self, path: &Path) -> Result<Vec<PathBuf>, CacheStoreError> {
+        let mut paths = Vec::new();
+        let mut stack = vec![path.to_path_buf()];
+
+        // walk the subtree
+        while let Some(directory) = stack.pop() {
+            let entries = match fs::read_dir(&directory) {
+                Ok(entries) => entries,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(CacheStoreError::Io(error)),
+            };
+
+            for entry in entries {
+                let entry = entry?;
+                let entry_path = entry.path();
+                let entry_type = entry.file_type()?;
+
+                // recurse into subdirectories
+                if entry_type.is_dir() {
+                    stack.push(entry_path);
+                    continue;
+                }
+
+                // collect files
+                if entry_type.is_file() {
+                    paths.push(entry_path);
+                }
+            }
+        }
+
+        Ok(paths)
+    }
+
     fn remove(&self, path: &Path) -> Result<(), CacheStoreError> {
         if let Err(error) = fs::remove_file(path)
             && error.kind() != std::io::ErrorKind::NotFound
@@ -162,6 +192,7 @@ impl CacheStore for DiskCacheStore {
     }
 }
 
+/// Return one temp path for atomic replacement.
 fn temp_path_for(path: &Path) -> PathBuf {
     let file_name = match path.file_name() {
         Some(file_name) => file_name.to_string_lossy().to_string(),
@@ -177,6 +208,7 @@ fn temp_path_for(path: &Path) -> PathBuf {
     path.with_file_name(temp_name)
 }
 
+/// Remove one temp path after a failed write.
 fn cleanup_temp_path(path: &Path) {
     if let Err(error) = fs::remove_file(path)
         && error.kind() != std::io::ErrorKind::NotFound
@@ -185,6 +217,7 @@ fn cleanup_temp_path(path: &Path) {
     }
 }
 
+/// Sync the parent directory after one atomic replace.
 fn sync_parent_dir(path: &Path) {
     if let Some(parent) = path.parent()
         && let Ok(directory) = fs::File::open(parent)

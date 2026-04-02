@@ -1,22 +1,16 @@
 use crate::compile::Compiler;
 
 use destack_artifact::{
-    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, Ast,
-    AstImage, hash_bytes,
+    ArtifactDependency, ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey,
+    ArtifactKey, Ast, hash_bytes,
 };
-use destack_source::{
-    File, FileContent, FileKey, FileVersion, LanguageType, ModuleId, ModuleVersion,
-};
+use destack_source::{File, FileContent, LanguageType, ModuleId};
 
-use super::{CacheHasher, compiler_version};
+use super::{CacheHasher, repository_file, repository_module};
 
 /// Persistent image context for one module scoped AST artifact.
 #[derive(Debug, Clone)]
 pub(crate) struct AstImageContext {
-    /// The stable source file key.
-    file_key: FileKey,
-    /// The source file version used when producing the AST.
-    file_version: FileVersion,
     /// Hash of the source file content.
     source_hash: u64,
     /// Hash of the effective parse configuration.
@@ -30,14 +24,7 @@ impl AstImageContext {
         hasher.hash_value(&self.config_hash);
         hasher.hash_value(&self.source_hash);
 
-        ArtifactImageHeader::new(
-            ArtifactImageKey::Ast { module: module_id },
-            compiler_version(),
-            None,
-            hasher.finish(),
-            None,
-            0,
-        )
+        ArtifactImageHeader::new(ArtifactImageKey::Ast { module: module_id }, hasher.finish())
     }
 }
 
@@ -59,19 +46,19 @@ impl Compiler {
         &self,
         module_id: ModuleId,
     ) -> Option<ArtifactImageHeader> {
-        let module = self.program.modules.get(module_id);
+        let module = repository_module(self, module_id).ok()?;
         let language_type = match module.loader {
             destack_artifact::Loader::Destack
             | destack_artifact::Loader::TypeScript
             | destack_artifact::Loader::JavaScript => Some(module.language_type),
             _ => None,
         };
-        let file = self.program.files.get(module.file_id);
+        let file = repository_file(self, module.file_id).ok()?;
         let file = if file.is_loaded() {
             file.as_ref().clone()
         } else {
             let path = module.path.as_ref()?;
-            let content = self.program.fs.read_to_string(path).ok()?;
+            let content = self.repository.file_system().read_to_string(path).ok()?;
 
             File::from_text(
                 module.file_id,
@@ -90,16 +77,16 @@ impl Compiler {
     fn load_ast_image_entry(
         &self,
         module_id: ModuleId,
-        _module_version: ModuleVersion,
+        _artifact_dependency: ArtifactDependency,
         file: &File,
         language_type: Option<LanguageType>,
-    ) -> Result<Option<ArtifactImage<AstImage>>, ArtifactImageError> {
+    ) -> Result<Option<ArtifactImage<Ast>>, ArtifactImageError> {
         let Some(context) = self.ast_image_context(module_id, file, language_type) else {
             return Ok(None);
         };
 
         let expected = context.header(module_id);
-        let Some(image) = self.load_image::<AstImage>(expected)? else {
+        let Some(image) = self.load_image::<Ast>(expected)? else {
             return Ok(None);
         };
 
@@ -127,8 +114,6 @@ impl Compiler {
         hasher.hash_value(&language_type);
 
         Some(AstImageContext {
-            file_key: file.key,
-            file_version: file.version,
             source_hash,
             config_hash: hasher.finish(),
         })
@@ -138,17 +123,17 @@ impl Compiler {
     pub(crate) fn load_ast_image(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
+        artifact_dependency: ArtifactDependency,
         file: &File,
         language_type: Option<LanguageType>,
     ) -> Result<Option<Ast>, ArtifactImageError> {
         let Some(image) =
-            self.load_ast_image_entry(module_id, module_version, file, language_type)?
+            self.load_ast_image_entry(module_id, artifact_dependency, file, language_type)?
         else {
             return Ok(None);
         };
 
-        Ok(Some(image.payload.into_ast(file.id)))
+        Ok(Some(image.payload))
     }
 
     /// Persist one AST image when disk mode is enabled.
@@ -164,12 +149,7 @@ impl Compiler {
 
         let artifact_key = ArtifactKey::ast(ast.id);
         let header = context.header(ast.id);
-        let payload = AstImage::from_ast(
-            ast,
-            context.file_key,
-            context.file_version,
-            context.source_hash,
-        );
+        let payload = ast.clone();
 
         self.store_image(&artifact_key, header, payload)
     }

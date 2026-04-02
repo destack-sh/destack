@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use super::{CacheLock, CacheMetadata, CacheStore, CacheStoreError, CacheStoreKind};
+use super::{CacheMetadata, CacheStore, CacheStoreError};
 
 /// Cache store that disables persistence.
 #[derive(Debug, Default, Clone)]
@@ -14,23 +14,27 @@ impl NullCacheStore {
 }
 
 impl CacheStore for NullCacheStore {
-    fn kind(&self) -> CacheStoreKind {
-        CacheStoreKind::Null
+    fn with_shared_lock(
+        &self,
+        _path: &Path,
+        operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
+        operation();
+
+        Ok(())
     }
 
-    fn lock_shared(&self, _path: &Path) -> Result<CacheLock<'_>, CacheStoreError> {
-        Ok(CacheLock::Noop)
-    }
+    fn with_exclusive_lock(
+        &self,
+        _path: &Path,
+        operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
+        operation();
 
-    fn lock_exclusive(&self, _path: &Path) -> Result<CacheLock<'_>, CacheStoreError> {
-        Ok(CacheLock::Noop)
+        Ok(())
     }
 
     fn read(&self, _path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError> {
-        Ok(None)
-    }
-
-    fn read_prefix(&self, _path: &Path, _limit: usize) -> Result<Option<Vec<u8>>, CacheStoreError> {
         Ok(None)
     }
 
@@ -44,6 +48,10 @@ impl CacheStore for NullCacheStore {
 
     fn exists(&self, _path: &Path) -> Result<bool, CacheStoreError> {
         Ok(false)
+    }
+
+    fn list(&self, _path: &Path) -> Result<Vec<std::path::PathBuf>, CacheStoreError> {
+        Ok(Vec::new())
     }
 
     fn remove(&self, _path: &Path) -> Result<(), CacheStoreError> {
@@ -67,9 +75,14 @@ mod tests {
         let store = NullCacheStore::new();
         let path = PathBuf::from("/cache/null.bin");
 
-        let _lock = store.lock_shared(&path).unwrap();
-        store.write_atomic(&path, b"hello").unwrap();
+        // writing through the null store is a no-op
+        store
+            .with_shared_lock(&path, &mut || {
+                store.write_atomic(&path, b"hello").unwrap();
+            })
+            .unwrap();
 
+        // reads remain empty
         assert!(store.read(&path).unwrap().is_none());
         assert!(!store.exists(&path).unwrap());
         assert!(store.metadata(&path).unwrap().is_none());
