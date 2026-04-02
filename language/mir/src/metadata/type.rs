@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +8,9 @@ use destack_core::StringId;
 use crate::{
     Field, Function, Global, Layout, LayoutId, LayoutTable, LocalNodeId, Type, UnionLayout,
 };
+
+/// Approximate per-entry overhead for one hash-map entry.
+const HASH_MAP_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 3;
 
 /// Table of canonical well known MIR types.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -580,4 +584,38 @@ impl TypeTable {
         // copy builtin type identities
         self.well_known_types.remap_type(from, to);
     }
+
+    /// Return the owned bytes for this type table.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.layout_table.owned_bytes();
+        owned_bytes += hash_map_bytes(&self.layout_by_type);
+        owned_bytes += hash_map_bytes(&self.lineage_by_type);
+        owned_bytes += hash_map_bytes(&self.union_layout_by_type);
+        owned_bytes += hash_map_bytes(&self.vtable_by_type);
+        owned_bytes += hash_map_bytes(&self.itabs_by_type);
+        owned_bytes += hash_map_bytes(&self.field_map_by_type);
+        owned_bytes += hash_map_bytes(&self.descriptor_by_type);
+        owned_bytes += hash_map_bytes(&self.display_name_by_type);
+
+        for lineage in self.lineage_by_type.values() {
+            owned_bytes += lineage.interfaces.capacity() * size_of::<LocalNodeId<Type>>();
+        }
+
+        for itabs in self.itabs_by_type.values() {
+            owned_bytes += hash_map_bytes(itabs);
+        }
+
+        for field_map in self.field_map_by_type.values() {
+            owned_bytes += hash_map_bytes(field_map);
+        }
+
+        owned_bytes
+    }
+}
+
+/// Return the approximate owned bytes for one hash map table.
+fn hash_map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
+    size_of::<HashMap<K, V>>()
+        + map.capacity() * (size_of::<K>() + size_of::<V>() + HASH_MAP_ENTRY_OVERHEAD_BYTES)
 }

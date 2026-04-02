@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::mem::size_of;
 
 use destack_core::Arena;
 use destack_source::Span;
@@ -13,6 +14,9 @@ use crate::{
     ProvenanceKind, ProvenanceReason, ProvenanceTable, ReferenceKind, Type, TypeAlias, TypeCache,
     TypeLineage, TypeTable, Value, Vtable, VtableId,
 };
+
+/// Approximate per-entry overhead for one hash-map entry.
+const HASH_MAP_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 3;
 
 /// MIR node tree for a single module.
 ///
@@ -122,6 +126,36 @@ impl NodeTree {
             provenance_table: ProvenanceTable::new(),
             data_layout: DataLayout::default(),
         }
+    }
+
+    /// Return the owned bytes for this MIR node tree.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.local_id_by_node_id.capacity() * size_of::<u32>();
+        owned_bytes += self.node_type_by_node_id.capacity() * size_of::<NodeType>();
+        owned_bytes += hash_map_bytes(&self.attributes_by_node_id);
+        owned_bytes += self.functions.retained_bytes();
+        owned_bytes += self.blocks.retained_bytes();
+        owned_bytes += self.instructions.retained_bytes();
+        owned_bytes += self.locals.retained_bytes();
+        owned_bytes += self.types.retained_bytes();
+        owned_bytes += self.type_aliases.retained_bytes();
+        owned_bytes += self.fields.retained_bytes();
+        owned_bytes += self.globals.retained_bytes();
+        owned_bytes += self.provenance_by_node_id.capacity() * size_of::<Option<ProvenanceId>>();
+        owned_bytes += self.span_by_node_id.capacity() * size_of::<Option<Span>>();
+        owned_bytes += self.instruction_arguments.capacity() * size_of::<Value>();
+        owned_bytes += self.type_table.owned_bytes();
+        owned_bytes += self.memory_table.owned_bytes();
+        owned_bytes += self.dispatch_table.owned_bytes();
+        owned_bytes += self.debug_table.owned_bytes();
+        owned_bytes += self.provenance_table.owned_bytes();
+
+        for attributes in self.attributes_by_node_id.values() {
+            owned_bytes += attributes.capacity() * size_of::<Attribute>();
+        }
+
+        owned_bytes
     }
 
     /// Insert a node into the tree and return its id.
@@ -781,6 +815,12 @@ impl NodeTree {
 
         preserved_id
     }
+}
+
+/// Return the approximate owned bytes for one hash map table.
+fn hash_map_bytes<K, V>(map: &HashMap<K, V>) -> usize {
+    size_of::<HashMap<K, V>>()
+        + map.capacity() * (size_of::<K>() + size_of::<V>() + HASH_MAP_ENTRY_OVERHEAD_BYTES)
 }
 
 /// Trait for mapping node types to arenas.

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::mem::size_of;
 
 use destack_core::StringId;
 
@@ -87,5 +88,12 @@ impl AliasScopeTable {
     /// Return the alias scope for an id.
     pub fn scope(&self, id: AliasScopeId) -> &MemoryAliasScope {
         &self.scopes[id.index()]
+    }
+
+    /// Return the owned bytes for this alias-scope table.
+    pub fn owned_bytes(&self) -> usize {
+        size_of::<Self>()
+            + self.domains.capacity() * size_of::<MemoryAliasDomain>()
+            + self.scopes.capacity() * size_of::<MemoryAliasScope>()
     }
 }

@@ -3,6 +3,7 @@ use rustc_hash::{FxBuildHasher, FxHashMap, FxHasher};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
 use std::hash::{Hash, Hasher};
+use std::mem::size_of;
 use std::num::NonZeroU32;
 
 /// Unique identifier for interned strings in a StringPool.
@@ -219,6 +220,20 @@ impl LocalStringPool {
     #[inline]
     pub fn into_immutable(self) -> ImmutableStringPool {
         ImmutableStringPool { inner: self }
+    }
+
+    /// Return the owned bytes for this pool.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.buffer.capacity() * size_of::<u8>();
+        owned_bytes += self.spans.capacity() * size_of::<(u32, u32)>();
+        owned_bytes += self.index.capacity() * size_of::<(u64, Vec<StringId>)>();
+
+        for ids in self.index.values() {
+            owned_bytes += ids.capacity() * size_of::<StringId>();
+        }
+
+        owned_bytes
     }
 }
 
@@ -487,6 +502,11 @@ impl ImmutableStringPool {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// Return the owned bytes for this immutable pool.
+    pub fn owned_bytes(&self) -> usize {
+        size_of::<Self>() + self.inner.owned_bytes()
     }
 }
 

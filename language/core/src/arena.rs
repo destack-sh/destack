@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -98,6 +99,12 @@ impl<T> Arena<T> {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
+    }
+
+    /// Return the retained bytes for this arena buffer.
+    #[inline]
+    pub fn retained_bytes(&self) -> usize {
+        size_of::<Self>() + self.items.capacity() * size_of::<T>()
     }
 }
 
