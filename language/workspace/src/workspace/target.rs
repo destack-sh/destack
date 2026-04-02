@@ -47,6 +47,15 @@ impl<'a> Default for TargetDiscoveryOptions<'a> {
 /// Describe a failure while discovering target modules.
 #[derive(Debug, Clone)]
 pub enum TargetDiscoveryIssue {
+    /// Repository state lookup failed during discovery.
+    Repository {
+        /// Package id for the discovery.
+        package: PackageId,
+        /// Target id for the discovery.
+        target: TargetId,
+        /// The repository error message.
+        message: String,
+    },
     /// Missing package path for entry based discovery.
     MissingPackagePath {
         /// Package id for the discovery.

@@ -15,8 +15,7 @@ use indexmap::IndexMap;
 use parking_lot::Mutex;
 
 use crate::ModuleSource;
-use crate::repository::{Repository, RepositoryError};
-use crate::revision::{Ref, Revision, SourceMap};
+use crate::repository::{Ref, Repository, RepositoryError, Revision, SourceMap};
 
 /// Well-known package ID for builtins.
 pub const BUILTIN_PACKAGE_ID: PackageId = PackageId(1);

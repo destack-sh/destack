@@ -1,17 +1,283 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use crate::repository::normalize_logical_path_str;
+use destack_source::FileContent;
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::Loader;
-use destack_source::{FileContent, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
-use im::OrdMap;
+use destack_source::{FileId, FileType};
 use smallvec::smallvec;
 
-use crate::repository::{BUILTIN_PACKAGE_ID, FileOrigin, Repository, RepositoryError};
-use crate::revision::{Change, Edit, Ref, Revision, RevisionData, SourceMap};
-use crate::{Module, ModuleSource, Package, PackageKind};
+use crate::repository::{
+    FileContentId, Ref, Repository, RepositoryError, Revision, RevisionState, SourceMap,
+};
+
+/// One atomic source mutation inside one repository change.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Edit {
+    /// Add one file with one full content payload.
+    AddFile {
+        /// The workspace logical path.
+        logical_path: String,
+        content: FileContent,
+    },
+    /// Set one file with one full content payload.
+    SetFile {
+        /// The workspace logical path.
+        logical_path: String,
+        content: FileContent,
+    },
+    /// Remove one file from the revision source snapshot.
+    RemoveFile {
+        /// The workspace logical path.
+        logical_path: String,
+    },
+    /// Move one file within the revision source snapshot.
+    MoveFile {
+        /// The source workspace logical path.
+        from: String,
+        /// The destination workspace logical path.
+        to: String,
+    },
+}
+
+impl Edit {
+    /// Build one text add edit.
+    pub fn add_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
+        Self::AddFile {
+            logical_path: normalize_logical_path_str(path.as_ref()),
+            content: FileContent::Text {
+                content: content.into(),
+            },
+        }
+    }
+
+    /// Build one text set edit.
+    pub fn set_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
+        Self::SetFile {
+            logical_path: normalize_logical_path_str(path.as_ref()),
+            content: FileContent::Text {
+                content: content.into(),
+            },
+        }
+    }
+
+    /// Build one remove edit.
+    pub fn remove_file(path: impl AsRef<str>) -> Self {
+        Self::RemoveFile {
+            logical_path: normalize_logical_path_str(path.as_ref()),
+        }
+    }
+
+    /// Build one move edit.
+    pub fn move_file(from: impl AsRef<str>, to: impl AsRef<str>) -> Self {
+        Self::MoveFile {
+            from: normalize_logical_path_str(from.as_ref()),
+            to: normalize_logical_path_str(to.as_ref()),
+        }
+    }
+}
+
+/// One ordered batch of source edits published as one revision change.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Change {
+    /// The atomic edits in this change.
+    pub edits: Vec<Edit>,
+}
+
+impl Change {
+    /// Build one change from explicit edits.
+    pub fn new(edits: Vec<Edit>) -> Self {
+        Self { edits }
+    }
+
+    /// Build one empty change.
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// Build one single-edit change.
+    pub fn single(edit: Edit) -> Self {
+        Self { edits: vec![edit] }
+    }
+
+    /// Build one single-file add change.
+    pub fn add_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
+        Self::single(Edit::add_text(path, content))
+    }
+
+    /// Build one single-file set change.
+    pub fn set_text(path: impl AsRef<str>, content: impl Into<String>) -> Self {
+        Self::single(Edit::set_text(path, content))
+    }
+
+    /// Build one single-file remove change.
+    pub fn remove_file(path: impl AsRef<str>) -> Self {
+        Self::single(Edit::remove_file(path))
+    }
+
+    /// Build one single-file move change.
+    pub fn move_file(from: impl AsRef<str>, to: impl AsRef<str>) -> Self {
+        Self::single(Edit::move_file(from, to))
+    }
+
+    /// Return the edits in this change.
+    pub fn edits(&self) -> &[Edit] {
+        &self.edits
+    }
+}
+
+impl From<Edit> for Change {
+    fn from(edit: Edit) -> Self {
+        Self::single(edit)
+    }
+}
+
+impl From<Vec<Edit>> for Change {
+    fn from(edits: Vec<Edit>) -> Self {
+        Self::new(edits)
+    }
+}
+
+impl<const N: usize> From<[Edit; N]> for Change {
+    fn from(edits: [Edit; N]) -> Self {
+        Self::new(Vec::from(edits))
+    }
+}
 
 impl Repository {
+    /// Prune file revisions and file contents that are no longer reachable.
+    pub fn prune_unreachable_file_state(&self) {
+        let reachable_revisions = self.reachable_file_revisions();
+        let reachable_file_contents = self.reachable_file_content_ids(&reachable_revisions);
+
+        self.compact_retained_file_history(&reachable_revisions);
+        self.revisions
+            .retain(|revision, _| reachable_revisions.contains(revision));
+        self.file_contents
+            .retain_reachable(&reachable_file_contents);
+    }
+
+    /// Collect all file revisions reachable from refs and pinned snapshots.
+    fn reachable_file_revisions(&self) -> HashSet<Revision> {
+        let mut reachable = HashSet::new();
+        let mut visited_depths = HashMap::new();
+        let mut pending = self.retained_revisions();
+        let history_limit = self.history_depth_limit();
+
+        while let Some((revision, depth)) = pending.pop() {
+            if visited_depths
+                .get(&revision)
+                .is_some_and(|best_depth| *best_depth <= depth)
+            {
+                continue;
+            }
+
+            visited_depths.insert(revision, depth);
+            reachable.insert(revision);
+
+            let Some(revision_data) = self.revisions.get(&revision) else {
+                continue;
+            };
+
+            // keep only the recent retained ancestry
+            if depth >= history_limit.saturating_sub(1) {
+                continue;
+            }
+
+            for parent in &revision_data.parents {
+                pending.push((*parent, depth + 1));
+            }
+        }
+
+        reachable
+    }
+
+    /// Collect all file content ids reachable from one revision set.
+    fn reachable_file_content_ids(
+        &self,
+        reachable_revisions: &HashSet<Revision>,
+    ) -> HashSet<FileContentId> {
+        let mut reachable = HashSet::new();
+
+        for revision in reachable_revisions {
+            let Some(revision_data) = self.revisions.get(revision) else {
+                continue;
+            };
+
+            for content_id in revision_data.source.values() {
+                reachable.insert(*content_id);
+            }
+        }
+
+        reachable
+    }
+
+    /// Compact retained revision ancestry to the configured history depth.
+    fn compact_retained_file_history(&self, reachable_revisions: &HashSet<Revision>) {
+        let history_limit = self.history_depth_limit();
+        let mut visited_depths = HashMap::new();
+        let mut pending = self.retained_revisions();
+
+        while let Some((revision, depth)) = pending.pop() {
+            if visited_depths
+                .get(&revision)
+                .is_some_and(|best_depth| *best_depth <= depth)
+            {
+                continue;
+            }
+
+            visited_depths.insert(revision, depth);
+
+            let Some(revision_entry) = self.revisions.get(&revision) else {
+                continue;
+            };
+
+            let revision_data = Arc::clone(revision_entry.value());
+            drop(revision_entry);
+            let is_boundary = depth >= history_limit.saturating_sub(1);
+
+            // compact the retained boundary
+            if is_boundary && !revision_data.parents.is_empty() {
+                let compacted_revision = Arc::new(RevisionState::new(
+                    smallvec::SmallVec::new(),
+                    Arc::clone(&revision_data.source),
+                ));
+
+                self.revisions.insert(revision, compacted_revision);
+                continue;
+            }
+
+            for parent in &revision_data.parents {
+                if reachable_revisions.contains(parent) {
+                    pending.push((*parent, depth + 1));
+                }
+            }
+        }
+    }
+
+    /// Return the retained history depth for one pinned revision.
+    fn history_depth_limit(&self) -> usize {
+        self.options.file_history_limit.max(1)
+    }
+
+    /// Collect all retained revisions with zero ancestry depth.
+    fn retained_revisions(&self) -> Vec<(Revision, usize)> {
+        let mut retained_revisions = self
+            .refs
+            .iter()
+            .map(|entry| (*entry.value(), 0_usize))
+            .collect::<Vec<_>>();
+
+        // pinned snapshots
+        retained_revisions.extend(
+            self.pinned_revisions
+                .iter()
+                .map(|entry| (*entry.key(), 0_usize)),
+        );
+
+        retained_revisions
+    }
+
     /// Seed the synthetic root source into one ref.
     pub fn seed_root_source(&self, reference: &Ref) -> Result<Revision, RepositoryError> {
         let mut seeded_source = SourceMap::new();
@@ -27,7 +293,7 @@ impl Repository {
         self.apply_seeded_source(reference, seeded_source)
     }
 
-    /// Import one filesystem rooted source state into one ref.
+    /// Import one filesystem file state into one ref.
     pub fn import_from_fs(
         &self,
         reference: &Ref,
@@ -47,6 +313,7 @@ impl Repository {
 
         self.revisions.insert(revision_id, revision);
         self.refs.insert(reference.clone(), revision_id);
+        self.prune_unreachable_file_state();
 
         Ok(revision_id)
     }
@@ -55,6 +322,7 @@ impl Repository {
     pub fn fork(&self, from: &Ref, to: Ref) -> Result<Revision, RepositoryError> {
         let revision = self.current(from)?;
         self.refs.insert(to, revision);
+        self.prune_unreachable_file_state();
 
         Ok(revision)
     }
@@ -72,6 +340,7 @@ impl Repository {
         let base_revision_id = self.current(reference)?;
         let revision_id = self.apply_to_revision(base_revision_id, change)?;
         self.refs.insert(reference.clone(), revision_id);
+        self.prune_unreachable_file_state();
 
         Ok(revision_id)
     }
@@ -201,245 +470,18 @@ impl Repository {
             .entry(revision_id)
             .or_insert_with(|| Arc::clone(&revision));
         self.refs.insert(reference.clone(), revision_id);
+        self.prune_unreachable_file_state();
 
         Ok(revision_id)
     }
 
-    /// Build one full revision snapshot from one source map.
+    /// Build one full revision state from one source map.
     fn build_revision_data(
         &self,
         parents: smallvec::SmallVec<[Revision; 2]>,
         source: SourceMap,
-    ) -> RevisionData {
-        RevisionData::new(parents, Arc::new(source))
-    }
-
-    /// Derive package views from one source map.
-    pub(crate) fn derive_packages(&self, source: &SourceMap) -> OrdMap<PackageId, Package> {
-        let mut physical_roots: HashSet<PathBuf> = HashSet::new();
-
-        // package roots
-        for file_id in source.keys() {
-            let Some(FileOrigin::Workspace { path }) = self.file_origin_by_file_id(*file_id) else {
-                continue;
-            };
-            let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-                continue;
-            };
-
-            if matches!(file_name, "package.json" | "destack.json") {
-                let package_root = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
-                physical_roots.insert(package_root);
-            }
-        }
-
-        let mut packages = OrdMap::new();
-
-        // package views
-        for file_id in source.keys() {
-            let Some(origin) = self.file_origin_by_file_id(*file_id) else {
-                continue;
-            };
-            let Some(mut package) = self.package_for_file_origin(&physical_roots, &origin) else {
-                continue;
-            };
-            let package_id = package.id;
-
-            if let Some(package_path) = package.path.as_ref()
-                && let FileOrigin::Workspace { path } = &origin
-                && path.parent() == Some(package_path.as_path())
-                && let Some(file_name) = path.file_name().and_then(|name| name.to_str())
-                && file_name == "tsconfig.json"
-            {
-                package.tsconfig_file_id = Some(*file_id);
-            }
-
-            packages.insert(package_id, package);
-        }
-
-        packages
-    }
-
-    /// Derive module views from one source map.
-    pub(crate) fn derive_modules(
-        &self,
-        source: &SourceMap,
-        packages: &OrdMap<PackageId, Package>,
-    ) -> OrdMap<ModuleId, Module> {
-        let mut modules = OrdMap::new();
-
-        for file_id in source.keys() {
-            let Some(origin) = self.file_origin_by_file_id(*file_id) else {
-                continue;
-            };
-
-            if matches!(origin, FileOrigin::Root) {
-                let uri = Uri::from_string("<root>");
-                let module = Module::blank(
-                    self.root_module_id(),
-                    *file_id,
-                    uri,
-                    None,
-                    PackageId::EPHEMERAL,
-                    LanguageType::Destack,
-                    Loader::Destack,
-                    ModuleSource::User,
-                );
-
-                modules.insert(module.id, module);
-                continue;
-            }
-
-            if let Some(module) = self.builtin_module(*file_id, &origin) {
-                modules.insert(module.id, module);
-                continue;
-            }
-
-            let FileOrigin::Workspace { path } = origin else {
-                continue;
-            };
-            let path = path.to_path_buf();
-            let file_type = FileType::from_path_or_unknown(&path);
-            if !self.is_module_file(&path, file_type) {
-                continue;
-            }
-
-            let Some(package) = self.package_for_path(packages, &path) else {
-                continue;
-            };
-
-            let language_type = LanguageType::from(file_type);
-            let loader = Loader::from_file_type(file_type);
-            let module_id =
-                ModuleId::from_path_with_loader(package.id, &path, package.path.as_deref(), None);
-            let module = Module::blank(
-                module_id,
-                *file_id,
-                Uri::from_path(&path),
-                Some(path),
-                package.id,
-                language_type,
-                loader,
-                ModuleSource::User,
-            );
-
-            modules.insert(module_id, module);
-        }
-
-        modules
-    }
-
-    /// Return the package root and kind for one workspace file path.
-    fn package_root_for_path(
-        &self,
-        physical_roots: &HashSet<PathBuf>,
-        path: &Path,
-    ) -> (PackageKind, PathBuf) {
-        let directory = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
-
-        for ancestor in directory.ancestors() {
-            if !ancestor.starts_with(&self.root) {
-                break;
-            }
-
-            if physical_roots.contains(ancestor) {
-                return (PackageKind::Physical, ancestor.to_path_buf());
-            }
-        }
-
-        (PackageKind::Synthetic, directory)
-    }
-
-    /// Return the package id for one package root.
-    fn package_id_for_root(&self, kind: PackageKind, root: &Path) -> PackageId {
-        match kind {
-            PackageKind::Physical => PackageId::from_path(root),
-            PackageKind::Synthetic => PackageId::from_synthetic_path(root),
-            PackageKind::Ephemeral => PackageId::EPHEMERAL,
-            PackageKind::Builtin => BUILTIN_PACKAGE_ID,
-        }
-    }
-
-    /// Return one package entry for one file origin when applicable.
-    fn package_for_file_origin(
-        &self,
-        physical_roots: &HashSet<PathBuf>,
-        origin: &FileOrigin,
-    ) -> Option<Package> {
-        match origin {
-            FileOrigin::Root => Some(Package {
-                id: PackageId::EPHEMERAL,
-                kind: PackageKind::Ephemeral,
-                uri: Uri::from_string("<root>"),
-                path: None,
-                name: None,
-                version: None,
-                package_file_id: None,
-                destack_file_id: None,
-                tsconfig_file_id: None,
-                targets: Default::default(),
-            }),
-            FileOrigin::Builtin { .. } => Some(Package {
-                id: BUILTIN_PACKAGE_ID,
-                kind: PackageKind::Builtin,
-                uri: Uri::from_string("builtin://"),
-                path: None,
-                name: None,
-                version: None,
-                package_file_id: None,
-                destack_file_id: None,
-                tsconfig_file_id: None,
-                targets: Default::default(),
-            }),
-            FileOrigin::Workspace { path } => {
-                let (kind, package_root) = self.package_root_for_path(physical_roots, path);
-                Some(Package {
-                    id: self.package_id_for_root(kind, &package_root),
-                    kind,
-                    uri: Uri::from_path(&package_root),
-                    path: Some(package_root),
-                    name: None,
-                    version: None,
-                    package_file_id: None,
-                    destack_file_id: None,
-                    tsconfig_file_id: None,
-                    targets: Default::default(),
-                })
-            }
-        }
-    }
-
-    /// Return whether one workspace file should materialize as a module.
-    fn is_module_file(&self, path: &Path, file_type: FileType) -> bool {
-        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-            return false;
-        };
-
-        if matches!(file_name, "package.json" | "destack.json" | "tsconfig.json") {
-            return false;
-        }
-
-        file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
-    }
-
-    /// Return the nearest package entry for one path.
-    fn package_for_path<'a>(
-        &self,
-        packages: &'a OrdMap<PackageId, Package>,
-        path: &Path,
-    ) -> Option<&'a Package> {
-        packages
-            .values()
-            .filter_map(|package| {
-                let package_path = package.path.as_ref()?;
-                if !path.starts_with(package_path) {
-                    return None;
-                }
-
-                Some((package_path.as_os_str().len(), package))
-            })
-            .max_by_key(|(package_length, _)| *package_length)
-            .map(|(_, package)| package)
+    ) -> RevisionState {
+        RevisionState::new(parents, Arc::new(source))
     }
 
     /// Return true when the seed walk should descend into one directory.
@@ -466,7 +508,7 @@ impl Repository {
     ) -> Result<(), RepositoryError> {
         let file_content = self.load_workspace_file_content(path)?;
         let file_id = self.intern_workspace_file_id(path);
-        let content_id = self.contents.intern(file_content);
+        let content_id = self.file_contents.intern(file_content);
 
         source.insert(file_id, content_id);
 
@@ -489,7 +531,7 @@ impl Repository {
         } else {
             panic!("seeded source must have an explicit origin: {logical_path}")
         };
-        let content_id = self.contents.intern(content);
+        let content_id = self.file_contents.intern(content);
 
         source.insert(file_id, content_id);
     }
@@ -531,6 +573,7 @@ impl Repository {
         Ok(self.file_id_for_logical_path(logical_path))
     }
 
+    /// Apply one change set to one source map.
     fn apply_change(
         &self,
         mut source: SourceMap,
@@ -549,7 +592,7 @@ impl Repository {
                     }
 
                     let file_id = self.intern_workspace_logical_file_id(&logical_path);
-                    let content = self.contents.intern(content);
+                    let content = self.file_contents.intern(content);
                     source.insert(file_id, content);
                 }
 
@@ -559,7 +602,7 @@ impl Repository {
                     content,
                 } => {
                     let file_id = self.intern_workspace_logical_file_id(&logical_path);
-                    let content = self.contents.intern(content);
+                    let content = self.file_contents.intern(content);
                     source.insert(file_id, content);
                 }
 
@@ -600,36 +643,5 @@ impl Repository {
         }
 
         Ok(source)
-    }
-
-    /// Return one builtin module entry for one file origin when applicable.
-    fn builtin_module(&self, file_id: FileId, origin: &FileOrigin) -> Option<Module> {
-        let FileOrigin::Builtin {
-            module_path,
-            source,
-        } = origin
-        else {
-            return None;
-        };
-
-        let file_type = FileType::from_path_or_unknown(Path::new(module_path));
-        let language_type = LanguageType::from(file_type);
-        let loader = Loader::from_file_type(file_type);
-        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(module_path));
-
-        Some(Module::blank(
-            module_id,
-            file_id,
-            Uri::from_string(
-                self.logical_path_by_file_id(file_id)
-                    .unwrap_or_else(|| Arc::<str>::from(format!("builtin://{module_path}")))
-                    .as_ref(),
-            ),
-            None,
-            BUILTIN_PACKAGE_ID,
-            language_type,
-            loader,
-            *source,
-        ))
     }
 }

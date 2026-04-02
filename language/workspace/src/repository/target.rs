@@ -5,8 +5,7 @@ use std::sync::Arc;
 use destack_artifact::{EnvSnapshot, Platform, ProfileKey, Runtime};
 use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId, matches as glob_matches};
 
-use crate::repository::{ModuleTsConfigContext, Profile, Repository, RepositoryError};
-use crate::revision::Revision;
+use crate::repository::{ModuleTsConfigContext, Profile, Repository, RepositoryError, Revision};
 use crate::{
     CompilerOptions, DsPathAliases, EntryResolutionMode, EntrySource, Module, ModuleDetection,
     ModuleFormat, Package, PackageOptions, ProfileConfig, ProfileEnv, Target, TargetDiscoveryIssue,
@@ -345,20 +344,32 @@ impl Repository {
             return Ok(Vec::new());
         }
 
-        let candidates = self
+        let module_ids = self
             .package_module_ids(revision, package_id)
-            .unwrap_or_else(|error| {
-                panic!("failed to discover package modules for target entries: {error}")
-            })
-            .into_iter()
-            .filter_map(|module_id| {
-                self.module(revision, module_id)
-                    .unwrap_or_else(|error| {
-                        panic!("failed to read module snapshot during target discovery: {error}")
-                    })
-                    .and_then(|module| module.path.clone())
-            })
-            .collect::<Vec<_>>();
+            .map_err(|error| TargetDiscoveryIssue::Repository {
+                package: package_id,
+                target: *target_id,
+                message: error.to_string(),
+            })?;
+        let mut candidates = Vec::new();
+
+        for module_id in module_ids {
+            let module = self.module(revision, module_id).map_err(|error| {
+                TargetDiscoveryIssue::Repository {
+                    package: package_id,
+                    target: *target_id,
+                    message: error.to_string(),
+                }
+            })?;
+            let Some(module) = module else {
+                continue;
+            };
+            let Some(module_path) = module.path.clone() else {
+                continue;
+            };
+
+            candidates.push(module_path);
+        }
 
         Ok(Self::select_manifest_entry_paths(
             package_directory,
@@ -546,19 +557,27 @@ impl Repository {
         package_id: PackageId,
         package_path: &Option<PathBuf>,
         target: &Target,
+        target_id: &TargetId,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
         let mut discovered_modules = Vec::new();
 
         // package-local include scan
         let module_ids = self
             .package_module_ids(revision, package_id)
-            .unwrap_or_else(|error| {
-                panic!("failed to discover package modules for target include scan: {error}")
-            });
+            .map_err(|error| TargetDiscoveryIssue::Repository {
+                package: package_id,
+                target: *target_id,
+                message: error.to_string(),
+            })?;
         for module_id in module_ids {
-            let Some(module) = self.module(revision, module_id).unwrap_or_else(|error| {
-                panic!("failed to read module snapshot during target include scan: {error}")
-            }) else {
+            let Some(module) = self.module(revision, module_id).map_err(|error| {
+                TargetDiscoveryIssue::Repository {
+                    package: package_id,
+                    target: *target_id,
+                    message: error.to_string(),
+                }
+            })?
+            else {
                 continue;
             };
             let module = module.as_ref();

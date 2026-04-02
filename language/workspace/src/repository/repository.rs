@@ -2,7 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_artifact::{ArtifactStore, CacheStore, DiskCacheStore, ProfileKey};
+use destack_artifact::{
+    ArtifactCache, ArtifactCacheLayout, ArtifactStore, CacheStore, DiskCacheStore, ProfileKey,
+};
 use destack_core::StringPool;
 use destack_source::{
     DiagnosticCollection, DiagnosticCollector, File, FileId, FileStore, FileSystem, FileType,
@@ -11,13 +13,12 @@ use destack_source::{
 use parking_lot::RwLock;
 
 use crate::repository::{
-    Builtins, ContentId, ContentStore, FileOrigin, QueryIndex, RepositoryError, RepositoryImage,
-    RepositoryImageHeader, RepositoryImageKey, RepositoryImageStore, RepositoryOptions,
-    RepositorySnapshot, discover_workspace_root,
+    Builtins, FileContentId, FileContentStore, FileOrigin, QueryIndex, Ref, RepositoryError,
+    RepositoryOptions, Revision, RevisionState, SourceMap, discover_workspace_root,
 };
-use crate::revision::{Ref, Revision, RevisionData, SourceMap};
 use crate::{
     DestackDeclaration, FormatterOptions, LinterOptions, TsConfigOptions, Workspace, WorkspaceKind,
+    resolve_cache_root,
 };
 use destack_source::DiagnosticStore;
 
@@ -43,6 +44,11 @@ pub struct Repository {
     pub cwd: PathBuf,
     /// Repository defaults for downstream tools.
     pub(crate) options: RepositoryOptions,
+
+    /// Shared string pool.
+    pub strings: Arc<StringPool>,
+    /// Shared persistent cache backend.
+    pub(crate) cache_store: Arc<dyn CacheStore>,
     /// The file system backing repository discovery and loads.
     pub(crate) fs: Arc<dyn FileSystem>,
     /// The logical path for each file id.
@@ -53,30 +59,29 @@ pub struct Repository {
     pub(crate) package_id_by_target_id: DashMap<TargetId, PackageId>,
     /// The target name for each target id.
     pub(crate) target_name_by_target_id: DashMap<TargetId, Arc<str>>,
-    /// Shared string pool.
-    pub strings: Arc<StringPool>,
+
     /// The published source revision graph.
-    pub(crate) revisions: DashMap<Revision, Arc<RevisionData>>,
+    pub(crate) revisions: DashMap<Revision, Arc<RevisionState>>,
     /// The named movable refs.
     pub(crate) refs: DashMap<Ref, Revision>,
     /// Shared immutable source contents.
-    pub(crate) contents: ContentStore,
+    pub(crate) file_contents: FileContentStore,
+    /// The retained anonymous revision pins.
+    pub(crate) pinned_revisions: DashMap<Revision, usize>,
     /// Shared immutable derived artifacts.
     pub(crate) artifacts: Arc<ArtifactStore>,
+    /// Shared builtin selection metadata.
+    pub builtins: Arc<Builtins>,
     /// Shared transient diagnostics.
     pub diagnostics: DiagnosticCollector,
     /// Shared persisted diagnostics.
     pub(crate) diagnostic_store: DiagnosticStore,
-    /// Shared builtin selection metadata.
-    pub builtins: Arc<Builtins>,
     /// Shared query index storage.
     pub(crate) query_index: RwLock<QueryIndex>,
-    /// Shared persistent cache backend.
-    pub(crate) cache_store: Arc<dyn CacheStore>,
 }
 
 impl Repository {
-    /// Open one repository rooted at one directory with default options and disk cache.
+    /// Open one repository at one directory with default options and disk cache.
     pub fn open_root(root: PathBuf) -> Self {
         let repository = Self::new(
             root.clone(),
@@ -97,7 +102,7 @@ impl Repository {
         repository
     }
 
-    /// Open one repository rooted at one directory and import that root from one file system.
+    /// Open one repository at one directory and import that directory from one file system.
     pub fn open_root_from_fs(
         root: PathBuf,
         fs: Arc<dyn FileSystem>,
@@ -136,11 +141,12 @@ impl Repository {
         fs: Arc<dyn FileSystem>,
     ) -> Self {
         let strings = Arc::new(StringPool::new());
-        let contents = ContentStore::new();
+        let file_contents = FileContentStore::new();
         let mut builtins = Builtins::empty();
 
         let revisions = DashMap::new();
         let refs = DashMap::new();
+        let pinned_revisions = DashMap::new();
         let cwd = root.clone();
         let workspace_reference = Ref::for_workspace_root(&root);
 
@@ -161,7 +167,8 @@ impl Repository {
             strings,
             revisions,
             refs,
-            contents,
+            file_contents,
+            pinned_revisions,
             artifacts: Arc::new(ArtifactStore::default()),
             diagnostics: DiagnosticCollector::new(),
             diagnostic_store: DiagnosticStore::new(),
@@ -171,7 +178,7 @@ impl Repository {
         };
 
         // initial repository revision
-        let initial_revision = Arc::new(RevisionData::new(
+        let initial_revision = Arc::new(RevisionState::new(
             smallvec::SmallVec::new(),
             Arc::new(SourceMap::new()),
         ));
@@ -204,9 +211,15 @@ impl Repository {
         self
     }
 
+    /// Override the retained file history depth per pinned revision.
+    pub fn with_file_history_limit(mut self, file_history_limit: usize) -> Self {
+        self.options.file_history_limit = file_history_limit;
+        self
+    }
+
     /// Override the cache directory root.
-    pub fn with_cache_dir(mut self, cache_dir: PathBuf) -> Self {
-        self.options.cache_dir_override = Some(cache_dir);
+    pub fn with_cache_directory(mut self, cache_directory: PathBuf) -> Self {
+        self.options.cache_directory_override = Some(cache_directory);
         self
     }
 
@@ -327,23 +340,42 @@ impl Repository {
     }
 
     /// Resolve the repository cache directory.
-    pub fn cache_dir(&self) -> PathBuf {
-        if let Some(cache_dir) = self.options.cache_dir_override.as_ref() {
-            if cache_dir.is_absolute() {
-                return cache_dir.clone();
-            }
+    pub fn cache_directory(&self) -> PathBuf {
+        self.resolve_cache_root()
+    }
 
-            return self.root.join(cache_dir);
-        }
+    /// Build one persisted artifact cache layout.
+    pub fn artifact_cache_layout(&self, cache_abi: &str) -> ArtifactCacheLayout {
+        let cache_root = self.resolve_cache_root();
+        let is_shared_root = !cache_root.starts_with(self.workspace_root());
 
-        self.root.join(".destack")
+        ArtifactCacheLayout::new(
+            &cache_root,
+            self.workspace_root(),
+            cache_abi,
+            is_shared_root,
+        )
+    }
+
+    /// Build one persisted artifact cache.
+    pub fn artifact_cache(&self, cache_abi: &str) -> ArtifactCache<'_> {
+        let layout = self.artifact_cache_layout(cache_abi);
+
+        ArtifactCache::new(self.cache_store().as_ref(), &layout)
+    }
+
+    /// Resolve one cache root from repository runtime options.
+    fn resolve_cache_root(&self) -> PathBuf {
+        let cache_directory_override = self.options.cache_directory_override.as_deref();
+
+        resolve_cache_root(self.workspace_root(), cache_directory_override)
     }
 
     /// Load one `destack.json` declaration from disk when present.
     pub fn load_destack_declaration_for_path(&self, path: &Path) -> Option<DestackDeclaration> {
         let content = self.fs.read_to_string(path).ok()?;
         let file = File::from_text_as_jsonc(
-            FileId::new(0),
+            FileId::from_logical_path(path),
             path.file_name()?.to_string_lossy().to_string(),
             Uri::from_path(path),
             Some(path.to_path_buf()),
@@ -354,116 +386,6 @@ impl Repository {
         let file = Arc::new(file);
 
         DestackDeclaration::parse(&file).ok()
-    }
-
-    /// Serialize the current repository image.
-    pub fn serialize_repository_image(&self) -> Result<Vec<u8>, RepositoryError> {
-        let image = self.build_repository_image()?;
-
-        image
-            .serialize()
-            .map_err(|error| RepositoryError::RepositoryImage {
-                operation: "serialize",
-                message: error.to_string(),
-            })
-    }
-
-    /// Load one persisted repository image when present.
-    pub fn load_repository_image(&self) -> Result<bool, RepositoryError> {
-        let image_store = self.repository_image_store();
-        let Some(image) = image_store
-            .load::<RepositorySnapshot>(&RepositoryImageKey::Snapshot)
-            .map_err(|error| RepositoryError::RepositoryImage {
-                operation: "load",
-                message: error.to_string(),
-            })?
-        else {
-            return Ok(false);
-        };
-
-        image
-            .header
-            .validate(
-                &RepositoryImageKey::Snapshot,
-                Self::repository_image_compiler_version(),
-            )
-            .map_err(|error| RepositoryError::RepositoryImage {
-                operation: "validate",
-                message: error.to_string(),
-            })?;
-
-        self.apply_repository_snapshot(&image.payload);
-
-        Ok(true)
-    }
-
-    /// Load one repository image from serialized bytes.
-    pub fn load_repository_image_bytes(&self, bytes: &[u8]) -> Result<(), RepositoryError> {
-        let image = RepositoryImage::<RepositorySnapshot>::deserialize(bytes).map_err(|error| {
-            RepositoryError::RepositoryImage {
-                operation: "deserialize",
-                message: error.to_string(),
-            }
-        })?;
-
-        image
-            .header
-            .validate(
-                &RepositoryImageKey::Snapshot,
-                Self::repository_image_compiler_version(),
-            )
-            .map_err(|error| RepositoryError::RepositoryImage {
-                operation: "validate",
-                message: error.to_string(),
-            })?;
-
-        self.apply_repository_snapshot(&image.payload);
-
-        Ok(())
-    }
-
-    /// Persist the current repository image into the cache store.
-    pub fn store_repository_image(&self) -> Result<(), RepositoryError> {
-        let image_store = self.repository_image_store();
-        let image = self.build_repository_image()?;
-
-        image_store
-            .save(&image)
-            .map_err(|error| RepositoryError::RepositoryImage {
-                operation: "store",
-                message: error.to_string(),
-            })
-    }
-
-    /// Build one repository image store rooted at this repository cache directory.
-    fn repository_image_store(&self) -> RepositoryImageStore<'_> {
-        RepositoryImageStore::new(self.cache_store.as_ref(), &self.cache_dir())
-    }
-
-    /// Return the compiler version embedded in repository image headers.
-    fn repository_image_compiler_version() -> &'static str {
-        env!("CARGO_PKG_VERSION")
-    }
-
-    /// Build one repository image from the current repository state.
-    fn build_repository_image(
-        &self,
-    ) -> Result<RepositoryImage<RepositorySnapshot>, RepositoryError> {
-        let snapshot = RepositorySnapshot::from_strings(self.strings.as_ref());
-        let header = RepositoryImageHeader::new(
-            RepositoryImageKey::Snapshot,
-            Self::repository_image_compiler_version().to_string(),
-        );
-
-        RepositoryImage::new(header, snapshot).map_err(|error| RepositoryError::RepositoryImage {
-            operation: "build",
-            message: error.to_string(),
-        })
-    }
-
-    /// Apply one repository snapshot to the live repository state.
-    fn apply_repository_snapshot(&self, snapshot: &RepositorySnapshot) {
-        self.strings.replace_from(&snapshot.strings);
     }
 
     /// Return the stable profile id for one semantic profile key.
@@ -494,19 +416,19 @@ impl Repository {
     }
 
     /// Return one published revision.
-    pub fn revision(&self, revision: Revision) -> Result<Arc<RevisionData>, RepositoryError> {
+    pub fn revision(&self, revision: Revision) -> Result<Arc<RevisionState>, RepositoryError> {
         self.revisions
             .get(&revision)
             .map(|entry| Arc::clone(entry.value()))
             .ok_or(RepositoryError::MissingRevision { revision })
     }
 
-    /// Return one shared content payload.
-    pub fn content(
+    /// Return one shared file content payload by exact content id.
+    pub fn file_content_by_id(
         &self,
-        content: ContentId,
+        content: FileContentId,
     ) -> Result<Arc<destack_source::FileContent>, RepositoryError> {
-        self.contents
+        self.file_contents
             .get(content)
             .ok_or(RepositoryError::MissingContent { content })
     }
