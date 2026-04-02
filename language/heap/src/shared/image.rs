@@ -1,3 +1,4 @@
+use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -5,6 +6,13 @@ use serde::{Deserialize, Serialize};
 
 use super::super::SharedSpace;
 use super::region::SharedRegion;
+use crate::heap::ImageAccounting;
+
+/// Approximate control-block bytes for one rc allocation.
+const RC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
+
+/// Approximate control-block bytes for one arc allocation.
+const ARC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
 
 /// One serialized shared-memory region snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,6 +77,30 @@ impl SharedRegionImage {
 
         bytes.truncate(self.len);
         bytes
+    }
+
+    /// Return the exact owned bytes for this durable region image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+
+        for chunk in self.chunks.iter() {
+            image_bytes += RC_CONTROL_BLOCK_BYTES + chunk.len();
+        }
+
+        image_bytes
+    }
+
+    /// Account this region image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+
+        for chunk in self.chunks.iter() {
+            image_bytes += accounting.account_rc_bytes(chunk);
+        }
+
+        image_bytes
     }
 }
 
@@ -139,6 +171,32 @@ impl SharedImage {
             allocated_bytes: self.allocated_bytes,
             page_bytes: self.page_bytes,
         }
+    }
+
+    /// Return the exact owned bytes for this durable shared-memory image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.regions.capacity() * size_of::<SharedRegionImage>();
+        image_bytes += ARC_CONTROL_BLOCK_BYTES + self.free_ids.len() * size_of::<u64>();
+
+        for region in &self.regions {
+            image_bytes += region.image_bytes();
+        }
+
+        image_bytes
+    }
+
+    /// Account this shared image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.regions.capacity() * size_of::<SharedRegionImage>();
+        image_bytes += accounting.account_arc_u64_slice(&self.free_ids);
+
+        for region in &self.regions {
+            image_bytes += region.retained_image_bytes(accounting);
+        }
+
+        image_bytes
     }
 }
 

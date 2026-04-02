@@ -1,9 +1,11 @@
 use std::borrow::Cow;
+use std::mem::size_of;
 use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::alloc::{ChunkPayload, PageArena};
+use crate::heap::ImageAccounting;
 
 /// One immutable raw large-allocation image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,6 +32,30 @@ impl RawLargeAllocationImage {
                 .iter()
                 .zip(other.chunks.iter())
                 .all(|(left, right)| Rc::ptr_eq(left, right))
+    }
+
+    /// Return the exact owned bytes for this durable large-allocation image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+
+        for chunk in self.chunks.iter() {
+            image_bytes += chunk.len();
+        }
+
+        image_bytes
+    }
+
+    /// Account this large-allocation image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+
+        for chunk in self.chunks.iter() {
+            image_bytes += accounting.account_rc_bytes(chunk);
+        }
+
+        image_bytes
     }
 }
 
@@ -148,8 +174,23 @@ impl RawLargeAllocation {
         }
     }
 
-    /// Return the retained heap bytes for this large allocation.
-    pub(crate) fn retained_bytes(&self) -> usize {
-        self.payload.retained_bytes()
+    /// Return the active local bytes for this large allocation.
+    pub(crate) fn active_bytes(&self) -> usize {
+        self.payload.active_bytes()
+    }
+
+    /// Return the detached-page count and active-byte reservation for one write.
+    pub(crate) fn write_active_reservation(&self, start: usize, len: usize) -> (usize, i64) {
+        self.payload.write_page_reservation(start, len)
+    }
+
+    /// Return the freed and allocated page counts plus active-byte reservation for one replace.
+    pub(crate) fn replace_active_reservation(&self, new_len: usize) -> (usize, usize, i64) {
+        self.payload.replace_page_reservation(new_len)
+    }
+
+    /// Return the borrowed image bytes referenced by this large allocation.
+    pub(crate) fn borrowed_bytes(&self) -> usize {
+        self.payload.borrowed_bytes()
     }
 }

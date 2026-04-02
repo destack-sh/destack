@@ -270,8 +270,8 @@ impl ManagedSpace {
             freed_allocations,
             live_allocations: self.allocated_count,
             freed_bytes,
-            live_bytes: self.allocated_bytes,
-            heap_bytes: self.retained_bytes(),
+            allocated_bytes: self.allocated_bytes,
+            active_bytes: self.active_bytes(),
         }
     }
 
@@ -310,8 +310,8 @@ impl ManagedSpace {
             freed_allocations,
             live_allocations: self.allocated_count,
             freed_bytes,
-            live_bytes: self.allocated_bytes,
-            heap_bytes: self.retained_bytes(),
+            allocated_bytes: self.allocated_bytes,
+            active_bytes: self.active_bytes(),
         }
     }
 

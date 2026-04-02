@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::mem::{MaybeUninit, size_of};
 use std::rc::Rc;
 use std::slice;
 
@@ -118,8 +118,8 @@ impl PageBlock {
         Some(&mut self.bytes_slice_mut()[start..end])
     }
 
-    /// Return the retained bytes owned by this block.
-    fn retained_bytes(&self) -> usize {
+    /// Return the metadata bytes owned by this block.
+    fn metadata_bytes(&self) -> usize {
         self.free_page_indexes.capacity() * size_of::<u32>()
     }
 
@@ -328,9 +328,7 @@ impl PageArena {
 
     /// Allocate one local page slice initialized from the given bytes.
     pub fn allocate_pages(&mut self, bytes: &[u8], byte_len: usize) -> Vec<PageId> {
-        let page_count = byte_len
-            .div_ceil(self.page_bytes)
-            .max((byte_len > 0) as usize);
+        let page_count = self.page_count_for_len(byte_len);
         let mut pages = Vec::with_capacity(page_count);
 
         for page_index in 0..page_count {
@@ -483,16 +481,113 @@ impl PageArena {
     }
 
     /// Return the retained bytes owned by arena metadata.
-    pub fn retained_bytes(&self) -> usize {
-        let mut retained_bytes = self.blocks.capacity() * size_of::<PageBlock>();
-        retained_bytes += self.pages.capacity() * size_of::<Option<PageSlot>>();
-        retained_bytes += self.free_ids.capacity() * size_of::<u32>();
+    pub fn metadata_bytes(&self) -> usize {
+        let mut retained_bytes = vec_capacity_bytes::<PageBlock>(self.blocks.capacity());
+        retained_bytes += vec_capacity_bytes::<Option<PageSlot>>(self.pages.capacity());
+        retained_bytes += vec_capacity_bytes::<u32>(self.free_ids.capacity());
 
         for block in &self.blocks {
-            retained_bytes += block.retained_bytes();
+            retained_bytes += block.metadata_bytes();
         }
 
         retained_bytes
+    }
+
+    /// Return the mapped bytes reserved for arena blocks.
+    pub fn mapped_bytes(&self) -> usize {
+        self.blocks.iter().map(|block| block.byte_len).sum()
+    }
+
+    /// Return the exact active bytes owned by this page arena.
+    pub fn active_bytes(&self) -> usize {
+        self.metadata_bytes().saturating_add(self.mapped_bytes())
+    }
+
+    /// Return the exact active bytes owned by this page arena.
+    pub fn retained_bytes(&self) -> usize {
+        self.active_bytes()
+    }
+
+    /// Return the active-byte reservation for allocating the given number of pages.
+    pub(crate) fn allocate_pages_active_reservation(&self, page_count: usize) -> i64 {
+        if page_count == 0 {
+            return 0;
+        }
+
+        let reusable_ids = self.free_ids.len().min(page_count);
+        let new_page_ids = page_count.saturating_sub(reusable_ids);
+        let free_pages = self
+            .blocks
+            .iter()
+            .map(|block| block.free_page_indexes.len())
+            .sum::<usize>();
+        let new_blocks = page_count
+            .saturating_sub(free_pages)
+            .div_ceil(PAGES_PER_BLOCK);
+        let blocks_capacity = projected_vec_capacity::<PageBlock>(
+            self.blocks.len(),
+            self.blocks.capacity(),
+            new_blocks,
+        );
+        let pages_capacity = projected_vec_capacity::<Option<PageSlot>>(
+            self.pages.len(),
+            self.pages.capacity(),
+            new_page_ids,
+        );
+
+        vec_capacity_bytes_delta::<PageBlock>(self.blocks.capacity(), blocks_capacity)
+            + vec_capacity_bytes_delta::<Option<PageSlot>>(self.pages.capacity(), pages_capacity)
+            + (new_blocks
+                .saturating_mul(PAGES_PER_BLOCK)
+                .saturating_mul(size_of::<u32>())) as i64
+            + (new_blocks
+                .saturating_mul(self.page_bytes)
+                .saturating_mul(PAGES_PER_BLOCK)) as i64
+    }
+
+    /// Return the active-byte reservation for freeing then allocating pages.
+    pub(crate) fn replace_pages_active_reservation(
+        &self,
+        freed_page_count: usize,
+        allocated_page_count: usize,
+    ) -> i64 {
+        let free_ids_capacity = projected_vec_capacity::<u32>(
+            self.free_ids.len(),
+            self.free_ids.capacity(),
+            freed_page_count,
+        );
+        let free_ids_len = self.free_ids.len().saturating_add(freed_page_count);
+        let reusable_ids = free_ids_len.min(allocated_page_count);
+        let new_page_ids = allocated_page_count.saturating_sub(reusable_ids);
+        let free_pages = self
+            .blocks
+            .iter()
+            .map(|block| block.free_page_indexes.len())
+            .sum::<usize>()
+            .saturating_add(freed_page_count);
+        let new_blocks = allocated_page_count
+            .saturating_sub(free_pages)
+            .div_ceil(PAGES_PER_BLOCK);
+        let blocks_capacity = projected_vec_capacity::<PageBlock>(
+            self.blocks.len(),
+            self.blocks.capacity(),
+            new_blocks,
+        );
+        let pages_capacity = projected_vec_capacity::<Option<PageSlot>>(
+            self.pages.len(),
+            self.pages.capacity(),
+            new_page_ids,
+        );
+
+        vec_capacity_bytes_delta::<u32>(self.free_ids.capacity(), free_ids_capacity)
+            + vec_capacity_bytes_delta::<PageBlock>(self.blocks.capacity(), blocks_capacity)
+            + vec_capacity_bytes_delta::<Option<PageSlot>>(self.pages.capacity(), pages_capacity)
+            + (new_blocks
+                .saturating_mul(PAGES_PER_BLOCK)
+                .saturating_mul(size_of::<u32>())) as i64
+            + (new_blocks
+                .saturating_mul(self.page_bytes)
+                .saturating_mul(PAGES_PER_BLOCK)) as i64
     }
 
     /// Allocate one local page slot initialized from the given bytes.
@@ -521,4 +616,35 @@ impl PageArena {
             page_index,
         }
     }
+
+    /// Return the page count required for one logical byte length.
+    fn page_count_for_len(&self, byte_len: usize) -> usize {
+        byte_len
+            .div_ceil(self.page_bytes)
+            .max((byte_len > 0) as usize)
+    }
+}
+
+/// Return the owned bytes for one vector capacity.
+pub(crate) fn vec_capacity_bytes<T>(capacity: usize) -> usize {
+    capacity.saturating_mul(size_of::<T>())
+}
+
+/// Return the byte delta implied by one vector-capacity change.
+pub(crate) fn vec_capacity_bytes_delta<T>(old_capacity: usize, new_capacity: usize) -> i64 {
+    let old_bytes = vec_capacity_bytes::<T>(old_capacity) as i64;
+    let new_bytes = vec_capacity_bytes::<T>(new_capacity) as i64;
+
+    new_bytes - old_bytes
+}
+
+/// Project the exact vector capacity after reserving additional elements.
+pub(crate) fn projected_vec_capacity<T>(len: usize, capacity: usize, additional: usize) -> usize {
+    let mut values = Vec::<MaybeUninit<T>>::with_capacity(capacity);
+
+    // model the live length so reserve follows the real growth path
+    unsafe { values.set_len(len) };
+
+    values.reserve(additional);
+    values.capacity()
 }

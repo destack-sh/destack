@@ -1,3 +1,4 @@
+use std::mem::size_of;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,10 @@ use super::{
     ReferenceMap,
 };
 use crate::alloc::SizeClassTable;
-use crate::heap::validate_managed_reference_bytes;
+use crate::heap::{ImageAccounting, validate_managed_reference_bytes};
+
+/// Approximate control-block bytes for one arc allocation.
+const ARC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
 
 /// One immutable managed-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -128,6 +132,58 @@ impl ManagedImage {
             reference_maps: self.reference_maps.clone(),
             gc_state: self.gc_state.clone(),
         }
+    }
+
+    /// Return the exact owned bytes for this durable managed-space image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.spans.capacity() * size_of::<ManagedSpanImage>();
+        image_bytes += self.large_allocations.capacity() * size_of::<ManagedLargeAllocationImage>();
+        image_bytes +=
+            ARC_CONTROL_BLOCK_BYTES + self.handles.len() * size_of::<ManagedHandleEntry>();
+        image_bytes +=
+            ARC_CONTROL_BLOCK_BYTES + self.free_large_allocation_ids.len() * size_of::<u64>();
+        image_bytes += self.reference_maps.capacity() * size_of::<ReferenceMap>();
+        image_bytes += self.size_classes.retained_bytes();
+
+        for span in &self.spans {
+            image_bytes += span.image_bytes();
+        }
+
+        for large_allocation in &self.large_allocations {
+            image_bytes += large_allocation.image_bytes();
+        }
+
+        for reference_map in &self.reference_maps {
+            image_bytes += reference_map.retained_bytes();
+        }
+
+        image_bytes
+    }
+
+    /// Account this managed image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.spans.capacity() * size_of::<ManagedSpanImage>();
+        image_bytes += self.large_allocations.capacity() * size_of::<ManagedLargeAllocationImage>();
+        image_bytes += accounting.account_managed_handles(&self.handles);
+        image_bytes += accounting.account_arc_u64_slice(&self.free_large_allocation_ids);
+        image_bytes += self.reference_maps.capacity() * size_of::<ReferenceMap>();
+        image_bytes += self.size_classes.retained_bytes();
+
+        for span in &self.spans {
+            image_bytes += span.retained_image_bytes(accounting);
+        }
+
+        for large_allocation in &self.large_allocations {
+            image_bytes += large_allocation.retained_image_bytes(accounting);
+        }
+
+        for reference_map in &self.reference_maps {
+            image_bytes += reference_map.retained_bytes();
+        }
+
+        image_bytes
     }
 }
 

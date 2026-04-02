@@ -4,7 +4,7 @@ use destack_mir::LayoutId;
 use serde::{Deserialize, Serialize};
 
 use super::{ReferenceMapId, StoredLayoutId};
-use crate::alloc::{PageArena, PageId};
+use crate::alloc::{PageArena, PageId, projected_vec_capacity, vec_capacity_bytes_delta};
 
 /// One stable managed young-allocation identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,11 +113,6 @@ impl YoungSpace {
     /// Return the configured young-space byte capacity.
     pub(crate) fn capacity_bytes(&self) -> usize {
         self.capacity_bytes
-    }
-
-    /// Return the fixed page width for this young space.
-    pub(crate) fn page_bytes(&self) -> usize {
-        self.page_bytes
     }
 
     /// Return the current local-page vector capacity.
@@ -237,6 +232,7 @@ impl YoungSpace {
     }
 
     /// Set the layout id for one live young allocation.
+    #[cfg(test)]
     pub(crate) fn set_layout_id(&mut self, id: ManagedYoungId, layout_id: LayoutId) -> bool {
         let Some(allocation) = self.allocation_mut(id) else {
             return false;
@@ -319,9 +315,41 @@ impl YoungSpace {
     /// Return the retained heap bytes for this young space.
     pub(crate) fn retained_bytes(&self) -> usize {
         self.pages.capacity() * size_of::<PageId>()
-            + self.pages.len() * self.page_bytes
             + self.allocations.capacity() * size_of::<YoungAllocation>()
             + self.free_ids.capacity() * size_of::<u32>()
+    }
+
+    /// Return the retained-byte delta and required page count for one new allocation.
+    pub(crate) fn allocate_retained_delta(&self, byte_len: usize) -> Option<(usize, i64)> {
+        let start = self.allocation_start(byte_len)?;
+        let end = start.checked_add(byte_len)?;
+        if end > self.capacity_bytes {
+            return None;
+        }
+
+        let page_count = end.div_ceil(self.page_bytes);
+        let new_page_count = page_count.saturating_sub(self.pages.len());
+        let pages_capacity = projected_vec_capacity::<PageId>(
+            self.pages.len(),
+            self.pages.capacity(),
+            new_page_count,
+        );
+        let allocations_delta = if self.free_ids.is_empty() {
+            let allocations_capacity = projected_vec_capacity::<YoungAllocation>(
+                self.allocations.len(),
+                self.allocations.capacity(),
+                1,
+            );
+            vec_capacity_bytes_delta::<YoungAllocation>(
+                self.allocations.capacity(),
+                allocations_capacity,
+            )
+        } else {
+            0
+        };
+        let pages_delta = vec_capacity_bytes_delta::<PageId>(self.pages.capacity(), pages_capacity);
+
+        Some((new_page_count, pages_delta + allocations_delta))
     }
 
     // allocate one young metadata entry and byte window

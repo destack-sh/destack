@@ -68,9 +68,19 @@ impl SharedRegion {
         self.payload.set(page_arena, index, byte)
     }
 
+    /// Return the detached-page count and active-byte reservation for one write.
+    pub(crate) fn write_active_reservation(&self, index: usize, len: usize) -> (usize, i64) {
+        self.payload.write_page_reservation(index, len)
+    }
+
     /// Replace the entire byte payload.
     pub(crate) fn replace(&mut self, page_arena: &mut PageArena, bytes: &[u8], page_bytes: usize) {
         self.payload.replace(page_arena, bytes, page_bytes);
+    }
+
+    /// Return the active-byte reservation for replacing this payload.
+    pub(crate) fn replace_active_reservation(&self, new_len: usize) -> (usize, usize, i64) {
+        self.payload.replace_page_reservation(new_len)
     }
 
     /// Return one immutable image for this region.
@@ -90,13 +100,18 @@ impl SharedRegion {
         }
     }
 
-    /// Return the retained heap bytes owned by this region.
-    pub(crate) fn retained_bytes(&self) -> usize {
-        self.payload.retained_bytes()
+    /// Return the active local bytes owned by this region.
+    pub(crate) fn active_bytes(&self) -> usize {
+        self.payload.active_bytes()
     }
 
-    /// Return the retained heap bytes for one region payload length.
-    pub(crate) fn retained_bytes_for_len(len: usize, page_bytes: usize) -> usize {
-        ChunkPayload::retained_bytes_for_len(len, page_bytes)
+    /// Return the borrowed image bytes referenced by this region.
+    pub(crate) fn borrowed_bytes(&self) -> usize {
+        self.payload.borrowed_bytes()
+    }
+
+    /// Return the active local bytes for one region payload length.
+    pub(crate) fn active_bytes_for_len(len: usize, page_bytes: usize) -> usize {
+        ChunkPayload::active_bytes_for_len(len, page_bytes)
     }
 }

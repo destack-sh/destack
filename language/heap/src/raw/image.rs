@@ -1,9 +1,14 @@
+use std::mem::size_of;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use super::{RawHandleEntry, RawLargeAllocationImage, RawSpace, RawSpanImage};
 use crate::alloc::SizeClassTable;
+use crate::heap::ImageAccounting;
+
+/// Approximate control-block bytes for one arc allocation.
+const ARC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
 
 /// One immutable raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,6 +103,47 @@ impl RawImage {
             allocated_count: self.allocated_count,
             allocated_bytes: self.allocated_bytes,
         }
+    }
+
+    /// Return the exact owned bytes for this durable raw-space image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.spans.capacity() * size_of::<RawSpanImage>();
+        image_bytes += self.large_allocations.capacity() * size_of::<RawLargeAllocationImage>();
+        image_bytes += ARC_CONTROL_BLOCK_BYTES + self.handles.len() * size_of::<RawHandleEntry>();
+        image_bytes +=
+            ARC_CONTROL_BLOCK_BYTES + self.free_large_allocation_ids.len() * size_of::<u64>();
+        image_bytes += self.size_classes.retained_bytes();
+
+        for span in &self.spans {
+            image_bytes += span.image_bytes();
+        }
+
+        for large_allocation in &self.large_allocations {
+            image_bytes += large_allocation.image_bytes();
+        }
+
+        image_bytes
+    }
+
+    /// Account this raw image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.spans.capacity() * size_of::<RawSpanImage>();
+        image_bytes += self.large_allocations.capacity() * size_of::<RawLargeAllocationImage>();
+        image_bytes += accounting.account_raw_handles(&self.handles);
+        image_bytes += accounting.account_arc_u64_slice(&self.free_large_allocation_ids);
+        image_bytes += self.size_classes.retained_bytes();
+
+        for span in &self.spans {
+            image_bytes += span.retained_image_bytes(accounting);
+        }
+
+        for large_allocation in &self.large_allocations {
+            image_bytes += large_allocation.retained_image_bytes(accounting);
+        }
+
+        image_bytes
     }
 }
 

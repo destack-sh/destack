@@ -9,7 +9,10 @@ use super::{
     GcState, ManagedImage, ManagedLargeAllocation, ManagedLargeAllocationId, ManagedSpan,
     ManagedYoungId, ReferenceMap, ReferenceMapId, ReferenceMapTable, YoungSpace,
 };
-use crate::alloc::{PageArena, PageId, SizeClassTable};
+use crate::alloc::{
+    ChunkPayload, PageArena, PageId, SizeClassTable, projected_vec_capacity,
+    vec_capacity_bytes_delta,
+};
 use crate::heap::{
     HeapCaptureError, HeapLayoutOptions, ManagedSpaceUsage, validate_managed_reference_bytes,
 };
@@ -145,7 +148,6 @@ impl YoungRetainedSnapshot {
     /// Return the retained-byte delta relative to the current young space.
     fn retained_delta(self, space: &YoungSpace) -> i64 {
         capacity_bytes_delta::<PageId>(self.pages_capacity, space.pages_capacity())
-            + ((space.page_count() as i64 - self.page_count as i64) * space.page_bytes() as i64)
             + capacity_bytes_delta::<super::YoungAllocation>(
                 self.allocations_capacity,
                 space.allocations_capacity(),
@@ -329,15 +331,35 @@ impl ManagedSpace {
         self.allocated_count
     }
 
-    /// Return the logical live managed allocation bytes.
-    pub fn allocation_bytes(&self) -> u64 {
+    /// Return the logical live managed payload bytes.
+    pub fn allocated_bytes(&self) -> u64 {
         self.allocated_bytes
     }
 
-    /// Return the exact retained managed bytes.
-    pub fn retained_bytes(&self) -> u64 {
+    /// Return the exact active managed allocator bytes.
+    pub fn active_bytes(&self) -> u64 {
         self.refresh_retained_bytes();
         self.retained_bytes.get()
+    }
+
+    /// Return the exact mapped managed page-arena bytes.
+    pub fn mapped_bytes(&self) -> u64 {
+        self.page_arena.mapped_bytes() as u64
+    }
+
+    /// Return the exact borrowed managed image bytes.
+    pub fn borrowed_bytes(&self) -> u64 {
+        let mut borrowed_bytes = 0usize;
+
+        for span in &self.small.spans {
+            borrowed_bytes += span.borrowed_bytes(self.page_arena.page_bytes());
+        }
+
+        for large_allocation in &self.large.large_allocations {
+            borrowed_bytes += large_allocation.borrowed_bytes();
+        }
+
+        borrowed_bytes as u64
     }
 
     /// Return the current GC state.
@@ -349,8 +371,10 @@ impl ManagedSpace {
     pub fn usage(&self) -> ManagedSpaceUsage {
         ManagedSpaceUsage {
             allocation_count: self.allocated_count,
-            allocation_bytes: self.allocated_bytes,
-            retained_bytes: self.retained_bytes(),
+            allocated_bytes: self.allocated_bytes,
+            active_bytes: self.active_bytes(),
+            mapped_bytes: self.mapped_bytes(),
+            borrowed_bytes: self.borrowed_bytes(),
         }
     }
 
@@ -453,7 +477,7 @@ impl ManagedSpace {
     }
 
     /// Allocate one managed byte allocation.
-    pub fn allocate_bytes(
+    pub(crate) fn allocate_bytes(
         &mut self,
         bytes: &[u8],
         reference_map: ReferenceMap,
@@ -490,7 +514,7 @@ impl ManagedSpace {
     }
 
     /// Allocate one managed byte allocation using one borrowed reference map.
-    pub fn allocate_bytes_borrowed(
+    pub(crate) fn allocate_bytes_borrowed(
         &mut self,
         bytes: &[u8],
         reference_map: &ReferenceMap,
@@ -527,7 +551,7 @@ impl ManagedSpace {
     }
 
     /// Allocate one repeated-offset managed byte allocation using borrowed offsets.
-    pub fn allocate_bytes_repeated_reference_offsets(
+    pub(crate) fn allocate_bytes_repeated_reference_offsets(
         &mut self,
         bytes: &[u8],
         count: u32,
@@ -564,11 +588,13 @@ impl ManagedSpace {
         // use the young fast path for small managed allocations first
         let (location, storage_retained_delta) = if bytes.len() <= max_small_bytes {
             let young_snapshot = YoungRetainedSnapshot::capture(&self.young);
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
 
             if let Some(young_id) = self.allocate_young_bytes(bytes, reference_map_id, layout_id) {
                 (
                     ManagedLocation::Young(young_id),
-                    young_snapshot.retained_delta(&self.young),
+                    young_snapshot.retained_delta(&self.young)
+                        + (self.page_arena.retained_bytes() as i64 - page_arena_retained),
                 )
             } else {
                 let class_index = self
@@ -612,7 +638,7 @@ impl ManagedSpace {
     }
 
     /// Allocate one zeroed managed byte allocation.
-    pub fn allocate_zeroed(
+    pub(crate) fn allocate_zeroed(
         &mut self,
         byte_len: usize,
         reference_map: ReferenceMap,
@@ -630,7 +656,7 @@ impl ManagedSpace {
     }
 
     /// Allocate one zeroed managed byte allocation using one borrowed reference map.
-    pub fn allocate_zeroed_borrowed(
+    pub(crate) fn allocate_zeroed_borrowed(
         &mut self,
         byte_len: usize,
         reference_map: &ReferenceMap,
@@ -667,7 +693,7 @@ impl ManagedSpace {
     }
 
     /// Allocate one zeroed repeated-offset managed byte allocation using borrowed offsets.
-    pub fn allocate_zeroed_repeated_reference_offsets(
+    pub(crate) fn allocate_zeroed_repeated_reference_offsets(
         &mut self,
         byte_len: usize,
         count: u32,
@@ -704,13 +730,15 @@ impl ManagedSpace {
         // choose young, small, or large storage without staging one full temporary zero buffer
         let (location, storage_retained_delta) = if byte_len <= max_small_bytes {
             let young_snapshot = YoungRetainedSnapshot::capture(&self.young);
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
 
             if let Some(young_id) =
                 self.allocate_zeroed_young_bytes(byte_len, reference_map_id, layout_id)
             {
                 (
                     ManagedLocation::Young(young_id),
-                    young_snapshot.retained_delta(&self.young),
+                    young_snapshot.retained_delta(&self.young)
+                        + (self.page_arena.retained_bytes() as i64 - page_arena_retained),
                 )
             } else {
                 let class_index = self
@@ -908,7 +936,7 @@ impl ManagedSpace {
     }
 
     /// Set one byte inside one managed allocation.
-    pub fn set_byte(&mut self, handle: ManagedReference, index: usize, byte: u8) -> bool {
+    pub(crate) fn set_byte(&mut self, handle: ManagedReference, index: usize, byte: u8) -> bool {
         let base = ManagedReference::new(handle.id());
         let offset = handle.byte_offset().saturating_add(index);
         let Some(byte_len) = self.handle(base).map(|handle| handle.byte_len) else {
@@ -965,8 +993,54 @@ impl ManagedSpace {
         }
     }
 
+    /// Return the peak active-byte reservation for writing one managed byte window.
+    pub(crate) fn write_active_reservation(
+        &self,
+        handle: ManagedReference,
+        start: usize,
+        len: usize,
+    ) -> i64 {
+        let base = ManagedReference::new(handle.id());
+        let offset = handle.byte_offset().saturating_add(start);
+        let Some(location) = self.location(base) else {
+            return 0;
+        };
+
+        match location {
+            ManagedLocation::Vacant => 0,
+            ManagedLocation::Young(_) => 0,
+            ManagedLocation::Small(slot) => self
+                .small
+                .spans
+                .get(slot.span_index())
+                .map(|span| {
+                    let (page_count, active_reservation) =
+                        span.write_active_reservation(self.page_arena.page_bytes());
+                    self.page_arena
+                        .allocate_pages_active_reservation(page_count)
+                        + active_reservation
+                })
+                .unwrap_or(0),
+            ManagedLocation::Large(large_allocation_id) => self
+                .large_allocation(large_allocation_id)
+                .map(|large_allocation| {
+                    let (page_count, active_reservation) =
+                        large_allocation.write_active_reservation(offset, len);
+                    self.page_arena
+                        .allocate_pages_active_reservation(page_count)
+                        + active_reservation
+                })
+                .unwrap_or(0),
+        }
+    }
+
     /// Set one byte slice inside one managed allocation.
-    pub fn set_bytes(&mut self, handle: ManagedReference, start: usize, bytes: &[u8]) -> bool {
+    pub(crate) fn set_bytes(
+        &mut self,
+        handle: ManagedReference,
+        start: usize,
+        bytes: &[u8],
+    ) -> bool {
         let base = ManagedReference::new(handle.id());
         let offset = handle.byte_offset().saturating_add(start);
         let Some(byte_len) = self.handle(base).map(|handle| handle.byte_len) else {
@@ -1078,7 +1152,8 @@ impl ManagedSpace {
     }
 
     /// Set the layout id for one managed allocation.
-    pub fn set_layout_id(&mut self, handle: ManagedReference, layout_id: LayoutId) -> bool {
+    #[cfg(test)]
+    pub(crate) fn set_layout_id(&mut self, handle: ManagedReference, layout_id: LayoutId) -> bool {
         let base = ManagedReference::new(handle.id());
         let Some(location) = self.location(base) else {
             return false;
@@ -1110,7 +1185,7 @@ impl ManagedSpace {
     }
 
     /// Set the nominal type id for one managed allocation.
-    pub fn set_type_id(&mut self, handle: ManagedReference, type_id: u32) -> bool {
+    pub(crate) fn set_type_id(&mut self, handle: ManagedReference, type_id: u32) -> bool {
         let base = ManagedReference::new(handle.id());
         let Some(entry) = self.handle_mut(base) else {
             return false;
@@ -1121,7 +1196,8 @@ impl ManagedSpace {
     }
 
     /// Pin one managed allocation for raw exposure.
-    pub fn pin(&mut self, handle: ManagedReference) -> bool {
+    #[cfg(test)]
+    pub(crate) fn pin(&mut self, handle: ManagedReference) -> bool {
         let base = ManagedReference::new(handle.id());
         let Some(location) = self.location(base) else {
             return false;
@@ -1170,7 +1246,8 @@ impl ManagedSpace {
     }
 
     /// Release one managed allocation pin.
-    pub fn unpin(&mut self, handle: ManagedReference) -> bool {
+    #[cfg(test)]
+    pub(crate) fn unpin(&mut self, handle: ManagedReference) -> bool {
         let Some(location) = self.location(ManagedReference::new(handle.id())) else {
             return false;
         };
@@ -1316,6 +1393,7 @@ impl ManagedSpace {
             .or_else(|| self.young_from.as_ref()?.age(young_id))
     }
 
+    #[cfg(test)]
     pub(crate) fn set_young_layout_id(
         &mut self,
         young_id: ManagedYoungId,
@@ -1482,9 +1560,12 @@ impl ManagedSpace {
                 continue;
             };
 
-            let retained_before = span.retained_bytes(page_bytes) as i64;
+            let retained_before = span.active_bytes(page_bytes) as i64;
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
             if span.allocate_slot(&mut self.page_arena, slot_index, bytes, trace_id, layout_id) {
-                let mut retained_delta = span.retained_bytes(page_bytes) as i64 - retained_before;
+                let retained_after = span.active_bytes(page_bytes) as i64;
+                let mut retained_delta = retained_after - retained_before
+                    + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
 
                 if span.has_free_slot() {
                     let queue_capacity = self.small.available_spans[class_index].capacity();
@@ -1511,7 +1592,7 @@ impl ManagedSpace {
         let allocated =
             span.allocate_slot(&mut self.page_arena, slot_index, bytes, trace_id, layout_id);
         debug_assert!(allocated, "fresh managed span must accept its first slot");
-        let span_retained = span.retained_bytes(page_bytes) as i64;
+        let span_retained = span.active_bytes(page_bytes) as i64;
 
         let span_index = if let Some(index) = self.small.free_span_ids.pop() {
             self.small.spans[index] = span;
@@ -1559,7 +1640,8 @@ impl ManagedSpace {
                 continue;
             };
 
-            let retained_before = span.retained_bytes(page_bytes) as i64;
+            let retained_before = span.active_bytes(page_bytes) as i64;
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
             if span.allocate_zeroed_slot(
                 &mut self.page_arena,
                 slot_index,
@@ -1567,7 +1649,9 @@ impl ManagedSpace {
                 trace_id,
                 layout_id,
             ) {
-                let mut retained_delta = span.retained_bytes(page_bytes) as i64 - retained_before;
+                let retained_after = span.active_bytes(page_bytes) as i64;
+                let mut retained_delta = retained_after - retained_before
+                    + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
 
                 if span.has_free_slot() {
                     let queue_capacity = self.small.available_spans[class_index].capacity();
@@ -1599,7 +1683,7 @@ impl ManagedSpace {
             layout_id,
         );
         debug_assert!(allocated, "fresh managed span must accept its first slot");
-        let span_retained = span.retained_bytes(page_bytes) as i64;
+        let span_retained = span.active_bytes(page_bytes) as i64;
 
         let span_index = if let Some(index) = self.small.free_span_ids.pop() {
             self.small.spans[index] = span;
@@ -1638,7 +1722,7 @@ impl ManagedSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(ManagedLargeAllocation::retained_bytes)
+                .map(ManagedLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             if let Some(large_allocation) = self
                 .large
@@ -1658,7 +1742,7 @@ impl ManagedSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(ManagedLargeAllocation::retained_bytes)
+                .map(ManagedLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             let retained_delta = retained_after - retained_before
                 + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
@@ -1685,7 +1769,7 @@ impl ManagedSpace {
             .large
             .large_allocations
             .last()
-            .map(ManagedLargeAllocation::retained_bytes)
+            .map(ManagedLargeAllocation::active_bytes)
             .unwrap_or(0) as i64
             + capacity_bytes_delta::<ManagedLargeAllocation>(
                 large_capacity,
@@ -1710,7 +1794,7 @@ impl ManagedSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(ManagedLargeAllocation::retained_bytes)
+                .map(ManagedLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             if let Some(large_allocation) = self
                 .large
@@ -1730,7 +1814,7 @@ impl ManagedSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(ManagedLargeAllocation::retained_bytes)
+                .map(ManagedLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             let retained_delta = retained_after - retained_before
                 + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
@@ -1757,7 +1841,7 @@ impl ManagedSpace {
             .large
             .large_allocations
             .last()
-            .map(ManagedLargeAllocation::retained_bytes)
+            .map(ManagedLargeAllocation::active_bytes)
             .unwrap_or(0) as i64
             + capacity_bytes_delta::<ManagedLargeAllocation>(
                 large_capacity,
@@ -2000,6 +2084,198 @@ impl ManagedSpace {
         moved_handle.live_index = live_index as u32;
     }
 
+    /// Return the active-byte reservation for allocating one managed payload.
+    pub(crate) fn allocate_bytes_active_reservation(
+        &self,
+        byte_len: usize,
+        reference_map: &ReferenceMap,
+        layout_id: Option<LayoutId>,
+    ) -> i64 {
+        let reference_map_delta = self
+            .reference_map_table
+            .intern_borrowed_delta(reference_map);
+        let storage_delta =
+            self.allocate_storage_active_reservation(byte_len, reference_map, layout_id);
+
+        reference_map_delta + storage_delta + self.allocate_handle_active_reservation()
+    }
+
+    /// Return the active-byte reservation for allocating one repeated-offset managed payload.
+    pub(crate) fn allocate_repeated_offsets_active_reservation(
+        &self,
+        byte_len: usize,
+        count: u32,
+        element_size: u32,
+        offsets: &[u32],
+        layout_id: Option<LayoutId>,
+    ) -> i64 {
+        let reference_map_delta = self
+            .reference_map_table
+            .intern_repeated_reference_offsets_delta(count, element_size, offsets);
+        let reference_map = ReferenceMap::RepeatedReferenceOffsets {
+            count,
+            element_size,
+            offsets: offsets.to_vec(),
+        };
+        let storage_delta =
+            self.allocate_storage_active_reservation(byte_len, &reference_map, layout_id);
+
+        reference_map_delta + storage_delta + self.allocate_handle_active_reservation()
+    }
+
+    /// Return the active-byte reservation for one managed storage allocation.
+    fn allocate_storage_active_reservation(
+        &self,
+        byte_len: usize,
+        reference_map: &ReferenceMap,
+        layout_id: Option<LayoutId>,
+    ) -> i64 {
+        let max_small_bytes = self.small.size_classes.max_small_allocation_bytes();
+
+        if byte_len <= max_small_bytes {
+            if let Some((new_page_count, young_delta)) =
+                self.young.allocate_retained_delta(byte_len)
+            {
+                let page_arena_delta = self
+                    .page_arena
+                    .allocate_pages_active_reservation(new_page_count);
+
+                return young_delta + page_arena_delta;
+            }
+
+            let class_index = self
+                .small
+                .size_classes
+                .class_index_for(byte_len)
+                .expect("small managed payloads must fit one size class");
+
+            return self.allocate_span_slot_active_reservation(
+                class_index,
+                reference_map,
+                layout_id,
+            );
+        }
+
+        self.allocate_large_allocation_active_reservation(byte_len)
+    }
+
+    /// Return the active-byte reservation for one managed handle publication.
+    fn allocate_handle_active_reservation(&self) -> i64 {
+        let live_capacity =
+            projected_vec_capacity::<u64>(self.live_handles.len(), self.live_handles.capacity(), 1);
+        let live_delta =
+            vec_capacity_bytes_delta::<u64>(self.live_handles.capacity(), live_capacity);
+
+        if self.free_handle_head != 0 {
+            return live_delta;
+        }
+
+        let handle_capacity = projected_vec_capacity::<ManagedHandleEntry>(
+            self.handles.len(),
+            self.handles.capacity(),
+            1,
+        );
+
+        live_delta
+            + vec_capacity_bytes_delta::<ManagedHandleEntry>(
+                self.handles.capacity(),
+                handle_capacity,
+            )
+    }
+
+    /// Return the active-byte reservation for allocating one managed span slot.
+    fn allocate_span_slot_active_reservation(
+        &self,
+        class_index: usize,
+        reference_map: &ReferenceMap,
+        layout_id: Option<LayoutId>,
+    ) -> i64 {
+        let page_bytes = self.page_arena.page_bytes();
+        let trace_id = self.reference_map_table.projected_id(reference_map);
+
+        for &span_index in self.small.available_spans[class_index].iter().rev() {
+            let Some(span) = self.small.spans.get(span_index) else {
+                continue;
+            };
+
+            if !span.has_free_slot() {
+                continue;
+            }
+
+            let span_delta = span.allocate_active_reservation(page_bytes, trace_id, layout_id);
+            let page_count = self.small.span_bytes.div_ceil(page_bytes).max(1);
+            let page_arena_delta = if span_delta != 0 {
+                self.page_arena
+                    .allocate_pages_active_reservation(page_count)
+            } else {
+                0
+            };
+
+            return span_delta + page_arena_delta;
+        }
+
+        let size_class = self.small.size_classes.classes[class_index].bytes;
+        let span_delta =
+            ManagedSpan::active_bytes_for_new(size_class, self.small.span_bytes, page_bytes) as i64;
+        let spans_delta = if self.small.free_span_ids.is_empty() {
+            let capacity = projected_vec_capacity::<ManagedSpan>(
+                self.small.spans.len(),
+                self.small.spans.capacity(),
+                1,
+            );
+            vec_capacity_bytes_delta::<ManagedSpan>(self.small.spans.capacity(), capacity)
+        } else {
+            0
+        };
+        let slot_count = (self.small.span_bytes / size_class).max(1);
+        let queue_delta = if slot_count > 1 {
+            let queue = &self.small.available_spans[class_index];
+            let capacity = projected_vec_capacity::<usize>(queue.len(), queue.capacity(), 1);
+            vec_capacity_bytes_delta::<usize>(queue.capacity(), capacity)
+        } else {
+            0
+        };
+        let page_count = self.small.span_bytes.div_ceil(page_bytes).max(1);
+        let page_arena_delta = self
+            .page_arena
+            .allocate_pages_active_reservation(page_count);
+
+        span_delta + spans_delta + queue_delta + page_arena_delta
+    }
+
+    /// Return the active-byte reservation for allocating one managed large allocation.
+    fn allocate_large_allocation_active_reservation(&self, byte_len: usize) -> i64 {
+        let page_bytes = self.large.page_bytes;
+        let page_count = byte_len.div_ceil(page_bytes).max((byte_len > 0) as usize);
+        let page_arena_delta = self
+            .page_arena
+            .allocate_pages_active_reservation(page_count);
+        let payload_retained = ChunkPayload::active_bytes_for_len(byte_len, page_bytes);
+
+        if let Some(id) = self.large.free_large_allocation_ids.last().copied() {
+            let retained_before = self
+                .large
+                .large_allocations
+                .get((id - 1) as usize)
+                .map(ManagedLargeAllocation::active_bytes)
+                .unwrap_or(0);
+
+            return payload_retained as i64 - retained_before as i64 + page_arena_delta;
+        }
+
+        let large_capacity = projected_vec_capacity::<ManagedLargeAllocation>(
+            self.large.large_allocations.len(),
+            self.large.large_allocations.capacity(),
+            1,
+        );
+        let large_delta = vec_capacity_bytes_delta::<ManagedLargeAllocation>(
+            self.large.large_allocations.capacity(),
+            large_capacity,
+        );
+
+        payload_retained as i64 + large_delta + page_arena_delta
+    }
+
     pub(crate) fn enqueue_dirty_span(&mut self, span_index: usize) {
         let retained_was_clean = !self.retained_bytes_dirty.get();
         let Some(span) = self.small.spans.get_mut(span_index) else {
@@ -2089,6 +2365,8 @@ impl ManagedSpace {
 
         self.retained_bytes.set(retained_bytes);
         self.retained_bytes_dirty.set(false);
+
+        self.debug_assert_retained_bytes();
     }
 
     pub(crate) fn refresh_retained_bytes(&self) {
@@ -2096,9 +2374,21 @@ impl ManagedSpace {
             return;
         }
 
+        self.retained_bytes.set(self.exact_retained_bytes());
+        self.retained_bytes_dirty.set(false);
+    }
+
+    pub(crate) fn recompute_retained_bytes(&self) {
+        self.retained_bytes_dirty.set(true);
+        self.refresh_retained_bytes();
+    }
+
+    /// Return the exact retained bytes implied by the current live state.
+    fn exact_retained_bytes(&self) -> u64 {
         let mut retained_bytes = 0usize;
 
         // core directories
+        retained_bytes += self.small.spans.capacity() * size_of::<ManagedSpan>();
         retained_bytes += self.small.size_classes.retained_bytes();
         retained_bytes += self.small.available_spans.capacity() * size_of::<Vec<usize>>();
         retained_bytes += self.small.free_span_ids.capacity() * size_of::<usize>();
@@ -2128,22 +2418,34 @@ impl ManagedSpace {
 
         // leaf backing
         for span in &self.small.spans {
-            retained_bytes += span.retained_bytes(self.page_arena.page_bytes());
+            retained_bytes += span.active_bytes(self.page_arena.page_bytes());
         }
 
         for large_allocation in &self.large.large_allocations {
-            retained_bytes += large_allocation.retained_bytes();
+            retained_bytes += large_allocation.active_bytes();
         }
 
         retained_bytes += self.reference_map_table.retained_bytes();
 
-        self.retained_bytes.set(retained_bytes as u64);
-        self.retained_bytes_dirty.set(false);
+        retained_bytes as u64
     }
 
-    pub(crate) fn recompute_retained_bytes(&self) {
-        self.retained_bytes_dirty.set(true);
-        self.refresh_retained_bytes();
+    /// Assert that the incremental retained-byte cache matches exact state.
+    fn debug_assert_retained_bytes(&self) {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                !self.retained_bytes_dirty.get(),
+                "retained-byte audit requires one clean managed-space cache"
+            );
+
+            let retained_bytes = self.exact_retained_bytes();
+            debug_assert_eq!(
+                self.retained_bytes.get(),
+                retained_bytes,
+                "managed-space retained bytes must match exact recomputation"
+            );
+        }
     }
 }
 

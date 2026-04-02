@@ -6,7 +6,9 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use super::{RawImage, RawLargeAllocation, RawLargeAllocationId, RawSpan};
-use crate::alloc::{PageArena, SizeClassTable};
+use crate::alloc::{
+    ChunkPayload, PageArena, SizeClassTable, projected_vec_capacity, vec_capacity_bytes_delta,
+};
 use crate::heap::{HeapLayoutOptions, RawSpaceUsage};
 use crate::value::{RawPointer, Value};
 
@@ -221,17 +223,39 @@ impl RawSpace {
     }
 
     /// Return the exact retained raw bytes.
-    pub fn retained_bytes(&self) -> u64 {
+    pub fn active_bytes(&self) -> u64 {
         self.refresh_retained_bytes();
         self.retained_bytes.get()
+    }
+
+    /// Return the exact mapped raw page-arena bytes.
+    pub fn mapped_bytes(&self) -> u64 {
+        self.page_arena.mapped_bytes() as u64
+    }
+
+    /// Return the exact borrowed raw image bytes.
+    pub fn borrowed_bytes(&self) -> u64 {
+        let mut borrowed_bytes = 0usize;
+
+        for span in &self.small.spans {
+            borrowed_bytes += span.borrowed_bytes(self.page_arena.page_bytes());
+        }
+
+        for large_allocation in &self.large.large_allocations {
+            borrowed_bytes += large_allocation.borrowed_bytes();
+        }
+
+        borrowed_bytes as u64
     }
 
     /// Return the exact live usage for this raw space.
     pub fn usage(&self) -> RawSpaceUsage {
         RawSpaceUsage {
             allocation_count: self.allocated_count,
-            allocation_bytes: self.allocated_bytes,
-            retained_bytes: self.retained_bytes(),
+            allocated_bytes: self.allocated_bytes,
+            active_bytes: self.active_bytes(),
+            mapped_bytes: self.mapped_bytes(),
+            borrowed_bytes: self.borrowed_bytes(),
         }
     }
 
@@ -268,7 +292,7 @@ impl RawSpace {
     }
 
     /// Allocate one raw byte allocation.
-    pub fn allocate_bytes(&mut self, bytes: &[u8]) -> RawPointer {
+    pub(crate) fn allocate_bytes(&mut self, bytes: &[u8]) -> RawPointer {
         let max_small_bytes = self.small.size_classes.max_small_allocation_bytes();
         let retained_was_clean = !self.retained_bytes_dirty.get();
         let old_handle_capacity = self.handles.capacity();
@@ -305,7 +329,7 @@ impl RawSpace {
     }
 
     /// Allocate one zeroed raw allocation.
-    pub fn allocate_zeroed(&mut self, byte_len: usize) -> RawPointer {
+    pub(crate) fn allocate_zeroed(&mut self, byte_len: usize) -> RawPointer {
         let max_small_bytes = self.small.size_classes.max_small_allocation_bytes();
         let retained_was_clean = !self.retained_bytes_dirty.get();
         let old_handle_capacity = self.handles.capacity();
@@ -387,7 +411,7 @@ impl RawSpace {
     }
 
     /// Set one byte inside one raw allocation.
-    pub fn set_byte(&mut self, pointer: RawPointer, index: usize, byte: u8) -> bool {
+    pub(crate) fn set_byte(&mut self, pointer: RawPointer, index: usize, byte: u8) -> bool {
         let base = RawPointer::new(pointer.id());
         let offset = pointer.byte_offset().saturating_add(index);
         let Some(location) = self.location(base) else {
@@ -411,8 +435,48 @@ impl RawSpace {
         }
     }
 
+    /// Return the peak active-byte reservation for writing one raw byte window.
+    pub(crate) fn write_active_reservation(
+        &self,
+        pointer: RawPointer,
+        start: usize,
+        len: usize,
+    ) -> i64 {
+        let base = RawPointer::new(pointer.id());
+        let offset = pointer.byte_offset().saturating_add(start);
+        let Some(location) = self.location(base) else {
+            return 0;
+        };
+
+        match location {
+            RawLocation::Vacant => 0,
+            RawLocation::Small(slot) => self
+                .small
+                .spans
+                .get(slot.span_index())
+                .map(|span| {
+                    let (page_count, active_reservation) =
+                        span.write_active_reservation(self.page_arena.page_bytes());
+                    self.page_arena
+                        .allocate_pages_active_reservation(page_count)
+                        + active_reservation
+                })
+                .unwrap_or(0),
+            RawLocation::Large(large_allocation_id) => self
+                .large_allocation(large_allocation_id)
+                .map(|large_allocation| {
+                    let (page_count, active_reservation) =
+                        large_allocation.write_active_reservation(offset, len);
+                    self.page_arena
+                        .allocate_pages_active_reservation(page_count)
+                        + active_reservation
+                })
+                .unwrap_or(0),
+        }
+    }
+
     /// Set one byte slice inside one raw allocation.
-    pub fn set_bytes(&mut self, pointer: RawPointer, start: usize, bytes: &[u8]) -> bool {
+    pub(crate) fn set_bytes(&mut self, pointer: RawPointer, start: usize, bytes: &[u8]) -> bool {
         let base = RawPointer::new(pointer.id());
         let offset = pointer.byte_offset().saturating_add(start);
         let Some(location) = self.location(base) else {
@@ -439,7 +503,7 @@ impl RawSpace {
     }
 
     /// Free one raw allocation.
-    pub fn free(&mut self, pointer: RawPointer) -> bool {
+    pub(crate) fn free(&mut self, pointer: RawPointer) -> bool {
         let base = RawPointer::new(pointer.id());
         let Some(location) = self.location(base) else {
             return false;
@@ -509,7 +573,7 @@ impl RawSpace {
     }
 
     /// Replace one raw allocation payload.
-    pub fn replace_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> bool {
+    pub(crate) fn replace_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> bool {
         let old_len = self
             .byte_len(RawPointer::new(pointer.id()))
             .unwrap_or_default() as u64;
@@ -623,13 +687,68 @@ impl RawSpace {
         replaced
     }
 
+    /// Return the peak active-byte reservation for replacing one raw payload.
+    pub(crate) fn replace_bytes_active_reservation(
+        &self,
+        pointer: RawPointer,
+        new_len: usize,
+    ) -> i64 {
+        let base = RawPointer::new(pointer.id());
+        let Some(location) = self.location(base) else {
+            return 0;
+        };
+
+        match location {
+            RawLocation::Vacant => 0,
+            RawLocation::Small(slot) => {
+                let Some(span) = self.small.spans.get(slot.span_index()) else {
+                    return 0;
+                };
+                let Some(class_index) = self.small.size_classes.class_index_for(new_len) else {
+                    return self.allocate_large_allocation_active_reservation(new_len);
+                };
+                let span_size_class = span.size_class();
+                let Some(target_size_class) = self
+                    .small
+                    .size_classes
+                    .classes
+                    .get(class_index)
+                    .map(|class| class.bytes)
+                else {
+                    return 0;
+                };
+
+                if span_size_class == target_size_class {
+                    self.write_active_reservation(pointer, 0, new_len)
+                } else {
+                    self.allocate_span_slot_active_reservation(class_index)
+                }
+            }
+            RawLocation::Large(large_allocation_id) => {
+                if let Some(class_index) = self.small.size_classes.class_index_for(new_len) {
+                    self.allocate_span_slot_active_reservation(class_index)
+                } else {
+                    self.large_allocation(large_allocation_id)
+                        .map(|large_allocation| {
+                            let (freed_pages, allocated_pages, active_reservation) =
+                                large_allocation.replace_active_reservation(new_len);
+                            self.page_arena
+                                .replace_pages_active_reservation(freed_pages, allocated_pages)
+                                + active_reservation
+                        })
+                        .unwrap_or(0)
+                }
+            }
+        }
+    }
+
     /// Allocate one raw packed-value payload.
-    pub fn allocate_packed_values(&mut self, values: Vec<Value>) -> RawPointer {
+    pub(crate) fn allocate_packed_values(&mut self, values: Vec<Value>) -> RawPointer {
         self.allocate_bytes(&encode_values(&values))
     }
 
     /// Allocate one raw packed-value payload with the given count.
-    pub fn allocate_packed_value_slots(&mut self, slot_count: usize) -> RawPointer {
+    pub(crate) fn allocate_packed_value_slots(&mut self, slot_count: usize) -> RawPointer {
         self.allocate_zeroed(slot_count * Value::BYTE_LEN)
     }
 
@@ -640,7 +759,7 @@ impl RawSpace {
     }
 
     /// Set one packed raw value.
-    pub fn set_value(&mut self, pointer: RawPointer, index: usize, value: Value) -> bool {
+    pub(crate) fn set_value(&mut self, pointer: RawPointer, index: usize, value: Value) -> bool {
         let bytes = value.to_byte_array();
         let start = index * Value::BYTE_LEN;
 
@@ -654,7 +773,7 @@ impl RawSpace {
     }
 
     /// Resize one raw packed-value payload.
-    pub fn resize_values(&mut self, pointer: RawPointer, len: usize) -> bool {
+    pub(crate) fn resize_values(&mut self, pointer: RawPointer, len: usize) -> bool {
         let Some(mut values) = self.values_to_vec(RawPointer::new(pointer.id())) else {
             return false;
         };
@@ -752,9 +871,12 @@ impl RawSpace {
                 continue;
             };
 
-            let retained_before = span.retained_bytes(page_bytes) as i64;
+            let retained_before = span.active_bytes(page_bytes) as i64;
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
             if span.allocate_slot(&mut self.page_arena, slot_index, bytes) {
-                let mut retained_delta = span.retained_bytes(page_bytes) as i64 - retained_before;
+                let retained_after = span.active_bytes(page_bytes) as i64;
+                let mut retained_delta = retained_after - retained_before
+                    + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
 
                 if span.has_free_slot() {
                     let queue_capacity = self.small.available_spans[class_index].capacity();
@@ -779,7 +901,7 @@ impl RawSpace {
             .unwrap_or_else(|| panic!("fresh raw span must have one free slot"));
         let allocated = span.allocate_slot(&mut self.page_arena, slot_index, bytes);
         debug_assert!(allocated, "fresh raw span must accept its first slot");
-        let span_retained = span.retained_bytes(page_bytes) as i64;
+        let span_retained = span.active_bytes(page_bytes) as i64;
 
         let span_index = if let Some(index) = self.small.free_span_ids.pop() {
             self.small.spans[index] = span;
@@ -824,9 +946,12 @@ impl RawSpace {
                 continue;
             };
 
-            let retained_before = span.retained_bytes(page_bytes) as i64;
+            let retained_before = span.active_bytes(page_bytes) as i64;
+            let page_arena_retained = self.page_arena.retained_bytes() as i64;
             if span.allocate_zeroed_slot(&mut self.page_arena, slot_index, byte_len) {
-                let mut retained_delta = span.retained_bytes(page_bytes) as i64 - retained_before;
+                let retained_after = span.active_bytes(page_bytes) as i64;
+                let mut retained_delta = retained_after - retained_before
+                    + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
 
                 if span.has_free_slot() {
                     let queue_capacity = self.small.available_spans[class_index].capacity();
@@ -851,7 +976,7 @@ impl RawSpace {
             .unwrap_or_else(|| panic!("fresh raw span must have one free slot"));
         let allocated = span.allocate_zeroed_slot(&mut self.page_arena, slot_index, byte_len);
         debug_assert!(allocated, "fresh raw span must accept its first slot");
-        let span_retained = span.retained_bytes(page_bytes) as i64;
+        let span_retained = span.active_bytes(page_bytes) as i64;
 
         let span_index = if let Some(index) = self.small.free_span_ids.pop() {
             self.small.spans[index] = span;
@@ -885,7 +1010,7 @@ impl RawSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(RawLargeAllocation::retained_bytes)
+                .map(RawLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             if let Some(large_allocation) = self
                 .large
@@ -899,7 +1024,7 @@ impl RawSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(RawLargeAllocation::retained_bytes)
+                .map(RawLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             let retained_delta = retained_after - retained_before
                 + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
@@ -922,7 +1047,7 @@ impl RawSpace {
             .large
             .large_allocations
             .last()
-            .map(RawLargeAllocation::retained_bytes)
+            .map(RawLargeAllocation::active_bytes)
             .unwrap_or(0) as i64
             + capacity_bytes_delta::<RawLargeAllocation>(
                 large_capacity,
@@ -942,7 +1067,7 @@ impl RawSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(RawLargeAllocation::retained_bytes)
+                .map(RawLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             if let Some(large_allocation) = self
                 .large
@@ -956,7 +1081,7 @@ impl RawSpace {
                 .large
                 .large_allocations
                 .get((large_allocation_id.id() - 1) as usize)
-                .map(RawLargeAllocation::retained_bytes)
+                .map(RawLargeAllocation::active_bytes)
                 .unwrap_or(0) as i64;
             let retained_delta = retained_after - retained_before
                 + (self.page_arena.retained_bytes() as i64 - page_arena_retained);
@@ -981,7 +1106,7 @@ impl RawSpace {
             .large
             .large_allocations
             .last()
-            .map(RawLargeAllocation::retained_bytes)
+            .map(RawLargeAllocation::active_bytes)
             .unwrap_or(0) as i64
             + capacity_bytes_delta::<RawLargeAllocation>(
                 large_capacity,
@@ -1047,6 +1172,8 @@ impl RawSpace {
 
         self.retained_bytes.set(retained_bytes);
         self.retained_bytes_dirty.set(false);
+
+        self.debug_assert_retained_bytes();
     }
 
     fn refresh_retained_bytes(&self) {
@@ -1054,8 +1181,20 @@ impl RawSpace {
             return;
         }
 
+        self.retained_bytes.set(self.exact_retained_bytes());
+        self.retained_bytes_dirty.set(false);
+    }
+
+    fn recompute_retained_bytes(&self) {
+        self.retained_bytes_dirty.set(true);
+        self.refresh_retained_bytes();
+    }
+
+    /// Return the exact retained bytes implied by the current live state.
+    fn exact_retained_bytes(&self) -> u64 {
         let mut retained_bytes = 0usize;
 
+        retained_bytes += self.small.spans.capacity() * size_of::<RawSpan>();
         retained_bytes += self.small.size_classes.retained_bytes();
         retained_bytes += self.small.available_spans.capacity() * size_of::<Vec<usize>>();
         retained_bytes += self.small.free_span_ids.capacity() * size_of::<usize>();
@@ -1069,29 +1208,168 @@ impl RawSpace {
         }
 
         for span in &self.small.spans {
-            retained_bytes += span.retained_bytes(self.page_arena.page_bytes());
+            retained_bytes += span.active_bytes(self.page_arena.page_bytes());
         }
 
         for large_allocation in &self.large.large_allocations {
-            retained_bytes += large_allocation.retained_bytes();
+            retained_bytes += large_allocation.active_bytes();
         }
 
-        self.retained_bytes.set(retained_bytes as u64);
-        self.retained_bytes_dirty.set(false);
+        retained_bytes as u64
     }
 
-    fn recompute_retained_bytes(&self) {
-        self.retained_bytes_dirty.set(true);
-        self.refresh_retained_bytes();
+    /// Assert that the incremental retained-byte cache matches exact state.
+    fn debug_assert_retained_bytes(&self) {
+        #[cfg(debug_assertions)]
+        {
+            debug_assert!(
+                !self.retained_bytes_dirty.get(),
+                "retained-byte audit requires one clean raw-space cache"
+            );
+
+            let retained_bytes = self.exact_retained_bytes();
+            debug_assert_eq!(
+                self.retained_bytes.get(),
+                retained_bytes,
+                "raw-space retained bytes must match exact recomputation"
+            );
+        }
+    }
+
+    /// Return the active-byte reservation for allocating one raw byte allocation.
+    pub(crate) fn allocate_bytes_active_reservation(&self, byte_len: usize) -> i64 {
+        self.allocate_storage_active_reservation(byte_len)
+            + self.allocate_handle_active_reservation()
+    }
+
+    /// Return the active-byte reservation for allocating one zeroed raw allocation.
+    pub(crate) fn allocate_zeroed_active_reservation(&self, byte_len: usize) -> i64 {
+        self.allocate_bytes_active_reservation(byte_len)
+    }
+
+    /// Return the active-byte reservation for one new raw storage allocation.
+    fn allocate_storage_active_reservation(&self, byte_len: usize) -> i64 {
+        let max_small_bytes = self.small.size_classes.max_small_allocation_bytes();
+
+        if byte_len <= max_small_bytes {
+            let class_index = self
+                .small
+                .size_classes
+                .class_index_for(byte_len)
+                .expect("small raw payloads must fit one size class");
+
+            self.allocate_span_slot_active_reservation(class_index)
+        } else {
+            self.allocate_large_allocation_active_reservation(byte_len)
+        }
+    }
+
+    /// Return the active-byte reservation for one raw handle publication.
+    fn allocate_handle_active_reservation(&self) -> i64 {
+        if self.free_handle_head != 0 {
+            return 0;
+        }
+
+        let capacity = projected_vec_capacity::<RawHandleEntry>(
+            self.handles.len(),
+            self.handles.capacity(),
+            1,
+        );
+
+        vec_capacity_bytes_delta::<RawHandleEntry>(self.handles.capacity(), capacity)
+    }
+
+    /// Return the active-byte reservation for allocating one raw span slot.
+    fn allocate_span_slot_active_reservation(&self, class_index: usize) -> i64 {
+        let page_bytes = self.page_arena.page_bytes();
+
+        for &span_index in self.small.available_spans[class_index].iter().rev() {
+            let Some(span) = self.small.spans.get(span_index) else {
+                continue;
+            };
+
+            if !span.has_free_slot() {
+                continue;
+            }
+
+            let span_delta = span.allocate_active_reservation(page_bytes);
+            let page_count = self.small.span_bytes.div_ceil(page_bytes).max(1);
+            let page_arena_delta = if span_delta != 0 {
+                self.page_arena
+                    .allocate_pages_active_reservation(page_count)
+            } else {
+                0
+            };
+
+            return span_delta + page_arena_delta;
+        }
+
+        let size_class = self.small.size_classes.classes[class_index].bytes;
+        let span_delta =
+            RawSpan::active_bytes_for_new(size_class, self.small.span_bytes, page_bytes) as i64;
+        let spans_delta = if self.small.free_span_ids.is_empty() {
+            let capacity = projected_vec_capacity::<RawSpan>(
+                self.small.spans.len(),
+                self.small.spans.capacity(),
+                1,
+            );
+            vec_capacity_bytes_delta::<RawSpan>(self.small.spans.capacity(), capacity)
+        } else {
+            0
+        };
+        let slot_count = (self.small.span_bytes / size_class).max(1);
+        let queue_delta = if slot_count > 1 {
+            let queue = &self.small.available_spans[class_index];
+            let capacity = projected_vec_capacity::<usize>(queue.len(), queue.capacity(), 1);
+            vec_capacity_bytes_delta::<usize>(queue.capacity(), capacity)
+        } else {
+            0
+        };
+        let page_count = self.small.span_bytes.div_ceil(page_bytes).max(1);
+        let page_arena_delta = self
+            .page_arena
+            .allocate_pages_active_reservation(page_count);
+
+        span_delta + spans_delta + queue_delta + page_arena_delta
+    }
+
+    /// Return the active-byte reservation for allocating one raw large allocation.
+    fn allocate_large_allocation_active_reservation(&self, byte_len: usize) -> i64 {
+        let page_bytes = self.large.page_bytes;
+        let page_count = byte_len.div_ceil(page_bytes).max((byte_len > 0) as usize);
+        let page_arena_delta = self
+            .page_arena
+            .allocate_pages_active_reservation(page_count);
+        let payload_retained = ChunkPayload::active_bytes_for_len(byte_len, page_bytes);
+
+        if let Some(id) = self.large.free_large_allocation_ids.last().copied() {
+            let retained_before = self
+                .large
+                .large_allocations
+                .get((id - 1) as usize)
+                .map(RawLargeAllocation::active_bytes)
+                .unwrap_or(0);
+
+            return payload_retained as i64 - retained_before as i64 + page_arena_delta;
+        }
+
+        let large_capacity = projected_vec_capacity::<RawLargeAllocation>(
+            self.large.large_allocations.len(),
+            self.large.large_allocations.capacity(),
+            1,
+        );
+        let large_delta = vec_capacity_bytes_delta::<RawLargeAllocation>(
+            self.large.large_allocations.capacity(),
+            large_capacity,
+        );
+
+        payload_retained as i64 + large_delta + page_arena_delta
     }
 }
 
 /// Return the retained-byte delta implied by one vector-capacity change.
 fn capacity_bytes_delta<T>(old_capacity: usize, new_capacity: usize) -> i64 {
-    let old_bytes = old_capacity.saturating_mul(size_of::<T>()) as i64;
-    let new_bytes = new_capacity.saturating_mul(size_of::<T>()) as i64;
-
-    new_bytes - old_bytes
+    vec_capacity_bytes_delta::<T>(old_capacity, new_capacity)
 }
 
 // encode one packed value vector into bytes

@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use serde::{Deserialize, Serialize};
 
 use super::super::value::{ManagedReference, Value};
+use crate::alloc::{projected_vec_capacity, vec_capacity_bytes, vec_capacity_bytes_delta};
 
 /// Reference-scanning metadata for one managed allocation payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -576,6 +577,18 @@ impl ReferenceMapTable {
         self.maps.get(map_id.index())
     }
 
+    /// Return the stable identifier this map would have after interning.
+    pub(crate) fn projected_id(&self, map: &ReferenceMap) -> ReferenceMapId {
+        if self.map_slots.is_empty() {
+            return ReferenceMapId::new(self.maps.len());
+        }
+
+        match self.lookup(map) {
+            Ok(map_id) => map_id,
+            Err(_) => ReferenceMapId::new(self.maps.len()),
+        }
+    }
+
     /// Intern one reference map and return its stable identifier.
     pub(crate) fn intern(&mut self, map: ReferenceMap) -> (ReferenceMapId, i64) {
         if self.map_slots.is_empty() {
@@ -607,6 +620,21 @@ impl ReferenceMapTable {
         (map_id, self.retained_bytes as i64 - retained_before)
     }
 
+    /// Return the retained-byte delta for interning one reference map.
+    pub(crate) fn intern_delta(&self, map: &ReferenceMap) -> i64 {
+        if self.map_slots.is_empty() {
+            if self.maps.iter().any(|existing| existing == map) {
+                return self.rebuild_retained_delta();
+            }
+
+            return self
+                .rebuild_retained_delta()
+                .saturating_add(self.intern_delta_after_rebuild(map));
+        }
+
+        self.intern_delta_after_rebuild(map)
+    }
+
     /// Intern one borrowed reference map and return its stable identifier.
     pub(crate) fn intern_borrowed(&mut self, map: &ReferenceMap) -> (ReferenceMapId, i64) {
         if self.map_slots.is_empty() {
@@ -618,6 +646,11 @@ impl ReferenceMapTable {
         }
 
         self.intern(map.clone())
+    }
+
+    /// Return the retained-byte delta for interning one borrowed reference map.
+    pub(crate) fn intern_borrowed_delta(&self, map: &ReferenceMap) -> i64 {
+        self.intern_delta(map)
     }
 
     /// Intern one borrowed repeated-offset map and return its stable identifier.
@@ -640,6 +673,39 @@ impl ReferenceMapTable {
             element_size,
             offsets: offsets.to_vec(),
         })
+    }
+
+    /// Return the retained-byte delta for interning one borrowed repeated-offset map.
+    pub(crate) fn intern_repeated_reference_offsets_delta(
+        &self,
+        count: u32,
+        element_size: u32,
+        offsets: &[u32],
+    ) -> i64 {
+        if self.map_slots.is_empty() {
+            let already_interned = self.maps.iter().any(|map| {
+                matches!(
+                    map,
+                    ReferenceMap::RepeatedReferenceOffsets {
+                        count: existing_count,
+                        element_size: existing_element_size,
+                        offsets: existing_offsets,
+                    } if *existing_count == count
+                        && *existing_element_size == element_size
+                        && existing_offsets.as_slice() == offsets
+                )
+            });
+
+            if already_interned {
+                return self.rebuild_retained_delta();
+            }
+
+            return self.rebuild_retained_delta().saturating_add(
+                self.intern_repeated_delta_after_rebuild(count, element_size, offsets),
+            );
+        }
+
+        self.intern_repeated_delta_after_rebuild(count, element_size, offsets)
     }
 
     /// Return the flattened reference maps.
@@ -787,5 +853,62 @@ impl ReferenceMapTable {
 
         retained_bytes += self.map_slots.capacity() * std::mem::size_of::<u32>();
         self.retained_bytes = retained_bytes;
+    }
+
+    /// Return the retained-byte delta after one potential slot-table rebuild.
+    fn rebuild_retained_delta(&self) -> i64 {
+        let slot_count = self.maps.len().saturating_mul(2).max(8).next_power_of_two();
+
+        vec_capacity_bytes::<u32>(slot_count) as i64
+            - vec_capacity_bytes::<u32>(self.map_slots.capacity()) as i64
+    }
+
+    /// Return the retained-byte delta for one new reference map after the slots are ready.
+    fn intern_delta_after_rebuild(&self, map: &ReferenceMap) -> i64 {
+        if self.lookup(map).is_ok() {
+            return 0;
+        }
+
+        let needs_rehash = self.needs_rehash();
+        let new_map_capacity =
+            projected_vec_capacity::<ReferenceMap>(self.maps.len(), self.maps.capacity(), 1);
+        let map_capacity_delta =
+            vec_capacity_bytes_delta::<ReferenceMap>(self.maps.capacity(), new_map_capacity);
+        let slot_capacity_delta = if needs_rehash {
+            let slot_count = self
+                .maps
+                .len()
+                .saturating_add(1)
+                .saturating_mul(2)
+                .max(8)
+                .next_power_of_two();
+            vec_capacity_bytes::<u32>(slot_count) as i64
+                - vec_capacity_bytes::<u32>(self.map_slots.capacity()) as i64
+        } else {
+            0
+        };
+
+        map.retained_bytes() as i64 + map_capacity_delta + slot_capacity_delta
+    }
+
+    /// Return the retained-byte delta for one new repeated-offset map after the slots are ready.
+    fn intern_repeated_delta_after_rebuild(
+        &self,
+        count: u32,
+        element_size: u32,
+        offsets: &[u32],
+    ) -> i64 {
+        if self
+            .lookup_repeated_reference_offsets(count, element_size, offsets)
+            .is_ok()
+        {
+            return 0;
+        }
+
+        self.intern_delta_after_rebuild(&ReferenceMap::RepeatedReferenceOffsets {
+            count,
+            element_size,
+            offsets: offsets.to_vec(),
+        })
     }
 }

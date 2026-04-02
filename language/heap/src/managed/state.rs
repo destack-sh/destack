@@ -38,10 +38,10 @@ pub struct GcStats {
     pub live_allocations: usize,
     /// Number of bytes freed by the collection.
     pub freed_bytes: u64,
-    /// Number of live bytes after the collection.
-    pub live_bytes: u64,
-    /// Total heap bytes after the collection.
-    pub heap_bytes: u64,
+    /// Number of live allocated bytes after the collection.
+    pub allocated_bytes: u64,
+    /// Total active allocator bytes after the collection.
+    pub active_bytes: u64,
 }
 
 /// GC state tracked across collection cycles.

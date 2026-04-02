@@ -104,10 +104,10 @@ impl Chunk {
         true
     }
 
-    /// Return the retained bytes owned by this chunk.
-    pub(crate) fn retained_bytes(&self, chunk_bytes: usize) -> usize {
+    /// Return the borrowed image bytes referenced by this chunk.
+    pub(crate) fn borrowed_bytes(&self) -> usize {
         match self {
-            Self::Local(_) => chunk_bytes,
+            Self::Local(_) => 0,
             Self::Shared(bytes) => bytes.len(),
         }
     }
@@ -362,19 +362,18 @@ impl ChunkPayload {
             .collect()
     }
 
-    /// Return the retained bytes owned by this payload.
-    pub(crate) fn retained_bytes(&self) -> usize {
-        let mut retained_bytes = self.chunks.capacity() * size_of::<Chunk>();
-
-        for chunk in &self.chunks {
-            retained_bytes += chunk.retained_bytes(self.page_bytes);
-        }
-
-        retained_bytes
+    /// Return the active local bytes owned by this payload.
+    pub(crate) fn active_bytes(&self) -> usize {
+        self.chunks.capacity() * size_of::<Chunk>()
     }
 
-    /// Return the retained bytes for one logical payload length.
-    pub(crate) fn retained_bytes_for_len(len: usize, page_bytes: usize) -> usize {
+    /// Return the borrowed image bytes referenced by this payload.
+    pub(crate) fn borrowed_bytes(&self) -> usize {
+        self.chunks.iter().map(Chunk::borrowed_bytes).sum()
+    }
+
+    /// Return the active local bytes for one logical payload length.
+    pub(crate) fn active_bytes_for_len(len: usize, page_bytes: usize) -> usize {
         let page_bytes = page_bytes.max(1);
         let chunk_count = if len == 0 {
             0
@@ -382,6 +381,46 @@ impl ChunkPayload {
             len.div_ceil(page_bytes)
         };
 
-        chunk_count * size_of::<Chunk>() + chunk_count * page_bytes
+        chunk_count * size_of::<Chunk>()
+    }
+
+    /// Return the page count and active-byte reservation for writing the given window.
+    pub(crate) fn write_page_reservation(&self, start: usize, len: usize) -> (usize, i64) {
+        if len == 0 {
+            return (0, 0);
+        }
+
+        let Some(end) = start.checked_add(len) else {
+            return (0, 0);
+        };
+        if end > self.len {
+            return (0, 0);
+        }
+
+        let first_chunk = start / self.page_bytes;
+        let last_chunk = (end - 1) / self.page_bytes;
+        let detached_chunks = (first_chunk..=last_chunk)
+            .filter(|&index| matches!(self.chunks.get(index), Some(Chunk::Shared(_))))
+            .count();
+
+        (detached_chunks, 0)
+    }
+
+    /// Return the page counts and active-byte reservation for replacing this payload.
+    pub(crate) fn replace_page_reservation(&self, new_len: usize) -> (usize, usize, i64) {
+        let freed_local_pages = self
+            .chunks
+            .iter()
+            .filter(|chunk| matches!(chunk, Chunk::Local(_)))
+            .count();
+        let new_page_count = if new_len == 0 {
+            0
+        } else {
+            new_len.div_ceil(self.page_bytes.max(1))
+        };
+        let payload_reservation = Self::active_bytes_for_len(new_len, self.page_bytes) as i64
+            - self.active_bytes() as i64;
+
+        (freed_local_pages, new_page_count, payload_reservation)
     }
 }

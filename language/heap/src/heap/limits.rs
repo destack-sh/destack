@@ -16,19 +16,19 @@ pub struct HeapLimits {
 /// Hard limits for one live managed space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ManagedLimits {
-    /// Optional hard limit for retained managed heap bytes.
+    /// Optional hard limit for active managed heap bytes.
     pub max_bytes: Option<u64>,
 }
 
 /// Hard limits for one live raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct RawLimits {
-    /// Optional hard limit for retained raw heap bytes.
+    /// Optional hard limit for active raw heap bytes.
     pub max_bytes: Option<u64>,
 }
 
 impl HeapLimits {
-    /// Check exact managed and raw retained bytes against these limits.
+    /// Check exact managed and raw active bytes against these limits.
     pub fn check(&self, managed_bytes: u64, raw_bytes: u64) -> Result<(), HeapLimitError> {
         // check managed heap limit
         if let Some(max_bytes) = self.managed.max_bytes
@@ -67,30 +67,30 @@ impl HeapLimits {
         Ok(())
     }
 
-    /// Check exact managed and raw retained bytes after one signed retained-byte delta.
-    pub fn check_delta(
+    /// Check exact managed and raw active bytes after one requested reservation.
+    pub fn check_active_reservation(
         &self,
         managed_bytes: u64,
         raw_bytes: u64,
-        managed_delta: i64,
-        raw_delta: i64,
+        managed_reservation: i64,
+        raw_reservation: i64,
     ) -> Result<(), HeapLimitError> {
-        let managed_bytes = apply_delta(managed_bytes, managed_delta);
-        let raw_bytes = apply_delta(raw_bytes, raw_delta);
+        let managed_bytes = apply_reservation(managed_bytes, managed_reservation);
+        let raw_bytes = apply_reservation(raw_bytes, raw_reservation);
 
         self.check(managed_bytes, raw_bytes)
     }
 }
 
-/// Apply one signed retained-byte delta to one current byte count.
-fn apply_delta(current: u64, delta: i64) -> u64 {
-    // positive deltas grow the current retained bytes
-    if delta >= 0 {
-        current.saturating_add(delta as u64)
+/// Apply one active-byte reservation to one current byte count.
+fn apply_reservation(current: u64, reservation: i64) -> u64 {
+    // positive reservations grow the current active bytes
+    if reservation >= 0 {
+        current.saturating_add(reservation as u64)
     }
-    // negative deltas release retained bytes
+    // negative reservations release active bytes
     else {
-        current.saturating_sub(delta.unsigned_abs())
+        current.saturating_sub(reservation.unsigned_abs())
     }
 }
 
