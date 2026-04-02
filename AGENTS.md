@@ -109,6 +109,13 @@ let number = 10 * first_digit + second_digit;
 Always prefer explicit, loud errors through conventional channels.
 Outside of tests, errors should almost never be suppressed or somehow default to "default values".
 
+### Boundaries
+
+Prefer loud failures even and especially for invariants coming from other subsystems, and _especially_ for subsystems we control.
+For example, if the IR shape implies a certain symbol should be there at a certain stage, but it's not, we MUST treat that as an error instead of working around it.
+Attempting to work around issues in upstream dependencies is always dangerous, but doing it for dependencies _we control_ is just a recipe for maintenance disaster.
+Invariants should be clear and crisp, and if they're not, that is a design issue to be surfaced and discussed.
+
 ### Dependencies
 
 Fewer dependencies is better, but sometimes it's worth it.
