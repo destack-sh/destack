@@ -32,23 +32,7 @@ impl MemoryCacheStore {
 }
 
 impl CacheStore for MemoryCacheStore {
-    fn with_shared_lock(
-        &self,
-        _path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
-        let _lock = self.lock.read();
-
-        operation();
-
-        Ok(())
-    }
-
-    fn with_exclusive_lock(
-        &self,
-        _path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
+    fn with_lock(&self, _path: &Path, operation: &mut dyn FnMut()) -> Result<(), CacheStoreError> {
         let _lock = self.lock.write();
 
         operation();
@@ -61,7 +45,7 @@ impl CacheStore for MemoryCacheStore {
         Ok(entries.get(path).map(|entry| entry.bytes.clone()))
     }
 
-    fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
         let entry = MemoryCacheEntry {
             bytes: bytes.to_vec(),
             modified_ns: system_time_to_nanos(SystemTime::now()),
@@ -141,10 +125,10 @@ mod tests {
         let store = MemoryCacheStore::new();
         let path = PathBuf::from("/cache/path.bin");
 
-        // exclusive write
+        // locked write
         store
-            .with_exclusive_lock(&path, &mut || {
-                store.write_atomic(&path, b"hello").unwrap();
+            .with_lock(&path, &mut || {
+                store.write(&path, b"hello").unwrap();
             })
             .unwrap();
 

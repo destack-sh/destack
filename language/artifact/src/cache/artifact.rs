@@ -5,8 +5,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ARTIFACT_IMAGE_LIMIT_BYTES, ArtifactImage, ArtifactImageError, ArtifactImageHeader,
-    ArtifactImageKey, CacheStore, CacheStoreError, LanguageCacheLayout,
+    ARTIFACT_IMAGE_LIMIT_BYTES, ArtifactCacheLayout, ArtifactImage, ArtifactImageError,
+    ArtifactImageHeader, ArtifactImageKey, CacheStore, CacheStoreError,
 };
 
 const ARTIFACT_CONTENT_ID_LENGTH_BYTES: usize = 16;
@@ -20,9 +20,7 @@ impl ArtifactContentId {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let digest = blake3::hash(bytes);
         let mut content_id = [0_u8; ARTIFACT_CONTENT_ID_LENGTH_BYTES];
-
         content_id.copy_from_slice(&digest.as_bytes()[..ARTIFACT_CONTENT_ID_LENGTH_BYTES]);
-
         Self(content_id)
     }
 
@@ -57,13 +55,13 @@ impl fmt::Display for ArtifactContentId {
 pub struct ArtifactCache<'a> {
     /// The cache store backing this persisted cache.
     store: &'a dyn CacheStore,
-    /// The persisted language cache layout.
-    layout: LanguageCacheLayout,
+    /// The persisted artifact cache layout.
+    layout: ArtifactCacheLayout,
 }
 
 impl<'a> ArtifactCache<'a> {
     /// Create one persisted artifact cache.
-    pub fn new(store: &'a dyn CacheStore, layout: &LanguageCacheLayout) -> Self {
+    pub fn new(store: &'a dyn CacheStore, layout: &ArtifactCacheLayout) -> Self {
         Self {
             store,
             layout: layout.clone(),
@@ -80,7 +78,7 @@ impl<'a> ArtifactCache<'a> {
     {
         // current bytes
         let Some((content_id, bytes)) =
-            self.with_shared_lock(|| self.read_current_image(artifact_image_key))?
+            self.with_lock(|| self.read_current_image(artifact_image_key))?
         else {
             return Ok(None);
         };
@@ -101,7 +99,7 @@ impl<'a> ArtifactCache<'a> {
     ) -> Result<Option<ArtifactImageHeader>, ArtifactImageError> {
         // current bytes
         let Some((content_id, bytes)) =
-            self.with_shared_lock(|| self.read_current_image(artifact_image_key))?
+            self.with_lock(|| self.read_current_image(artifact_image_key))?
         else {
             return Ok(None);
         };
@@ -120,7 +118,7 @@ impl<'a> ArtifactCache<'a> {
         &self,
         artifact_image_key: &ArtifactImageKey,
     ) -> Result<Option<ArtifactContentId>, ArtifactImageError> {
-        self.with_shared_lock(|| self.read_current_content_id(artifact_image_key))
+        self.with_lock(|| self.read_current_content_id(artifact_image_key))
     }
 
     /// Persist one artifact image and set its current content id for the stable key.
@@ -133,7 +131,7 @@ impl<'a> ArtifactCache<'a> {
         let content_id = ArtifactContentId::from_bytes(&bytes);
 
         // publish content
-        self.with_exclusive_lock(|| {
+        self.with_lock(|| {
             self.write_content_bytes(content_id, &bytes)?;
             self.write_current_content_id(&image.header.artifact_image_key, content_id)?;
             self.prune_non_current_contents()?;
@@ -144,43 +142,23 @@ impl<'a> ArtifactCache<'a> {
         Ok(content_id)
     }
 
-    /// Run one cache read under the artifact cache lock.
-    fn with_shared_lock<T>(
+    /// Run one cache operation under the artifact cache lock.
+    fn with_lock<T>(
         &self,
-        read: impl FnOnce() -> Result<T, ArtifactImageError>,
+        operation: impl FnOnce() -> Result<T, ArtifactImageError>,
     ) -> Result<T, ArtifactImageError> {
         let lock_path = self.layout.artifact_lock_path();
-        let mut read = Some(read);
+        let mut operation = Some(operation);
         let mut output = None;
 
-        self.store.with_shared_lock(&lock_path, &mut || {
-            let result =
-                read.take()
-                    .expect("artifact cache read lock should run exactly once")();
-            output = Some(result);
-        })?;
-
-        output.expect("artifact cache read lock should produce one value")
-    }
-
-    /// Run one cache mutation under the artifact cache lock.
-    fn with_exclusive_lock<T>(
-        &self,
-        write: impl FnOnce() -> Result<T, ArtifactImageError>,
-    ) -> Result<T, ArtifactImageError> {
-        let lock_path = self.layout.artifact_lock_path();
-        let mut write = Some(write);
-        let mut output = None;
-
-        self.store.with_exclusive_lock(&lock_path, &mut || {
-            let result = write
+        self.store.with_lock(&lock_path, &mut || {
+            let result = operation
                 .take()
-                .expect("artifact cache write lock should run exactly once")(
-            );
+                .expect("artifact cache lock should run exactly once")();
             output = Some(result);
         })?;
 
-        output.expect("artifact cache write lock should produce one value")
+        output.expect("artifact cache lock should produce one value")
     }
 
     /// Read one current content id and its bytes.
@@ -237,7 +215,7 @@ impl<'a> ArtifactCache<'a> {
         let current_path = self.current_content_id_path(artifact_image_key)?;
         let bytes = postcard::to_allocvec(&content_id).map_err(ArtifactImageError::Serialize)?;
 
-        self.store.write_atomic(&current_path, &bytes)?;
+        self.store.write(&current_path, &bytes)?;
 
         Ok(())
     }
@@ -251,7 +229,7 @@ impl<'a> ArtifactCache<'a> {
         let content_path = self.content_path(content_id);
 
         if !self.store.exists(&content_path)? {
-            self.store.write_atomic(&content_path, bytes)?;
+            self.store.write(&content_path, bytes)?;
         }
 
         Ok(())

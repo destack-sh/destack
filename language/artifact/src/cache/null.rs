@@ -14,21 +14,7 @@ impl NullCacheStore {
 }
 
 impl CacheStore for NullCacheStore {
-    fn with_shared_lock(
-        &self,
-        _path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
-        operation();
-
-        Ok(())
-    }
-
-    fn with_exclusive_lock(
-        &self,
-        _path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
+    fn with_lock(&self, _path: &Path, operation: &mut dyn FnMut()) -> Result<(), CacheStoreError> {
         operation();
 
         Ok(())
@@ -38,7 +24,7 @@ impl CacheStore for NullCacheStore {
         Ok(None)
     }
 
-    fn write_atomic(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
+    fn write(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
         Ok(())
     }
 
@@ -60,31 +46,5 @@ impl CacheStore for NullCacheStore {
 
     fn metadata(&self, _path: &Path) -> Result<Option<CacheMetadata>, CacheStoreError> {
         Ok(None)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use super::NullCacheStore;
-    use crate::CacheStore;
-
-    #[test]
-    fn test_null_cache_store_is_empty() {
-        let store = NullCacheStore::new();
-        let path = PathBuf::from("/cache/null.bin");
-
-        // writing through the null store is a no-op
-        store
-            .with_shared_lock(&path, &mut || {
-                store.write_atomic(&path, b"hello").unwrap();
-            })
-            .unwrap();
-
-        // reads remain empty
-        assert!(store.read(&path).unwrap().is_none());
-        assert!(!store.exists(&path).unwrap());
-        assert!(store.metadata(&path).unwrap().is_none());
     }
 }

@@ -15,19 +15,7 @@ impl DiskCacheStore {
 }
 
 impl CacheStore for DiskCacheStore {
-    fn with_shared_lock(
-        &self,
-        _path: &Path,
-        _operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
-        Err(unsupported())
-    }
-
-    fn with_exclusive_lock(
-        &self,
-        _path: &Path,
-        _operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
+    fn with_lock(&self, _path: &Path, _operation: &mut dyn FnMut()) -> Result<(), CacheStoreError> {
         Err(unsupported())
     }
 
@@ -35,7 +23,7 @@ impl CacheStore for DiskCacheStore {
         Err(unsupported())
     }
 
-    fn write_atomic(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
+    fn write(&self, _path: &Path, _bytes: &[u8]) -> Result<(), CacheStoreError> {
         Err(unsupported())
     }
 

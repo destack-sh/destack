@@ -18,9 +18,9 @@ pub const ARTIFACT_CACHE_CURRENT_DIR_NAME: &str = "current";
 /// Lock file name for current artifact updates.
 pub const ARTIFACT_CACHE_LOCK_FILE_NAME: &str = "artifacts.lock";
 
-/// One persisted language cache layout.
+/// One persisted artifact cache layout.
 #[derive(Debug, Clone)]
-pub struct LanguageCacheLayout {
+pub struct ArtifactCacheLayout {
     /// The `.destack` cache root.
     cache_root: PathBuf,
     /// The stable workspace root.
@@ -31,8 +31,8 @@ pub struct LanguageCacheLayout {
     is_shared_root: bool,
 }
 
-impl LanguageCacheLayout {
-    /// Create a persisted language cache layout.
+impl ArtifactCacheLayout {
+    /// Create a persisted artifact cache layout.
     pub fn new(
         cache_root: &Path,
         workspace_root: &Path,
