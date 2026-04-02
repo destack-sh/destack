@@ -17,7 +17,8 @@ mod harness;
 #[cfg(any(windows, target_os = "macos"))]
 pub(crate) use harness::InputKeyboardStateRecord;
 pub(crate) use harness::{
-    HarnessValue, InputDeviceRecord, InputEventRecord, InputMonitorEventRecord,
+    HarnessValue, InputDeviceRecord, InputEventRecord, InputEventRecordKind,
+    InputMonitorEventRecord, InputMonitorEventRecordKind,
 };
 
 /// Test harness context used by tests.

@@ -134,34 +134,37 @@ pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCa
 #[cfg(test)]
 mod tests {
     use crate::host::HOST_STATUS_OK;
-    use crate::host::abi::background::{
+    use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
+    use crate::host::android::abi::background::types::{
         HostBackgroundCompleteRequest, HostBackgroundListResponse, HostBackgroundStatusResponse,
         HostBackgroundTaskOptions, HostBackgroundTriggerTestRequest,
         HostBackgroundTriggerTestResponse, HostBackgroundUnregisterRequest,
     };
-    use crate::host::abi::calendar::{
+    use crate::host::android::abi::bindings::AndroidHostBindings;
+    use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
+    use crate::host::android::abi::calendar::types::{
         HostCalendarEventCreateResponse, HostCalendarEventDraft, HostCalendarListResponse,
     };
-    use crate::host::abi::contact::{
+    use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
+    use crate::host::android::abi::contact::types::{
         HostContactCreateResponse, HostContactDraft, HostContactPageResponse, HostContactQuery,
     };
-    use crate::host::abi::document::HostDocumentRequest;
-    use crate::host::abi::media::{
+    use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
+    use crate::host::android::abi::document::types::HostDocumentRequest;
+    use crate::host::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
+    use crate::host::android::abi::location::callbacks::AndroidHostLocationCallbacks;
+    use crate::host::android::abi::location::types::{
+        LocationServicesResponse, LocationWatchOptions,
+    };
+    use crate::host::android::abi::media::callbacks::AndroidHostMediaCallbacks;
+    use crate::host::android::abi::media::types::{
         HostMediaImportPathRequest, HostMediaImportPathResponse, HostMediaListRequest,
         HostMediaListResponse,
     };
-    use crate::host::abi::notification::HostNotificationRequest;
-    use crate::host::abi::permission::HostPermissionRequest;
-    use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
-    use crate::host::android::abi::bindings::AndroidHostBindings;
-    use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
-    use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
-    use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
-    use crate::host::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
-    use crate::host::android::abi::location::callbacks::AndroidHostLocationCallbacks;
-    use crate::host::android::abi::media::callbacks::AndroidHostMediaCallbacks;
     use crate::host::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
+    use crate::host::android::abi::notification::types::HostNotificationRequest;
     use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
+    use crate::host::android::abi::permission::types::HostPermissionRequest;
     use crate::host::android::tests::{
         callback_test_lock, register_android_bindings, register_android_runtime,
     };
@@ -198,7 +201,7 @@ mod tests {
 
     unsafe extern "C" fn test_location_services_enabled_callback(
         _runtime_id: u64,
-        _is_enabled: *mut bool,
+        _response: *mut LocationServicesResponse,
     ) -> u32 {
         HOST_STATUS_OK
     }
@@ -206,7 +209,7 @@ mod tests {
     unsafe extern "C" fn test_location_watch_open_callback(
         _runtime_id: u64,
         _watch_id: NativeStringRef,
-        _options: crate::platform::os::LocationWatchOptions,
+        _options: LocationWatchOptions,
     ) -> u32 {
         HOST_STATUS_OK
     }
