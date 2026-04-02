@@ -1,34 +1,46 @@
 use crate::host::abi::describe::host_abi_module;
 
 host_abi_module! {
-    fn host_abi_module() -> "text" {
+    module text {
         platforms: [ios, android];
-        runtime_host: manual [ios, android];
+        host: generated [ios, android];
         types: super::types::host_abi_types();
         requests {
             /// Open one text session through one attached host.
             fn open(
-                session_handle: session_handle,
                 request: HostTextInputOpenRequest,
-            ) -> host_status;
+            ) -> host_status {
+                host: {
+                    android_main_thread: true,
+                }
+            }
 
             /// Close one text session through one attached host.
             fn close(
-                session_handle: session_handle,
                 request: HostTextInputCloseRequest,
-            ) -> host_status;
+            ) -> host_status {
+                host: {
+                    android_main_thread: true,
+                }
+            }
 
             /// Update one text geometry payload through one attached host.
             fn set_geometry(
-                session_handle: session_handle,
                 request: HostTextInputGeometryRequest,
-            ) -> host_status;
+            ) -> host_status {
+                host: {
+                    android_main_thread: true,
+                }
+            }
 
             /// Update one text state payload through one attached host.
             fn set_state(
-                session_handle: session_handle,
                 request: HostTextInputStateRequest,
-            ) -> host_status;
+            ) -> host_status {
+                host: {
+                    android_main_thread: true,
+                }
+            }
         }
         ingress {
             /// Deliver one text-session state event into one runtime session.

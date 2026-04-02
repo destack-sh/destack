@@ -4,19 +4,17 @@ use crate::host::abi::describe::{
 };
 
 host_abi_module! {
-    fn host_abi_module_base() -> "crypto" {
+    module crypto as host_abi_module_base {
         platforms: [android];
         types: vec![];
         requests {
             /// Probe one host lane for generic hardware-backed key support.
             fn supports_hardware_key(
-                session_handle: session_handle,
                 store_kind: u32,
             ) -> host_status;
 
             /// Generate one hardware-backed key pair.
             fn generate_hardware_key_pair(
-                session_handle: session_handle,
                 store_kind: u32,
                 key_algorithm: u32,
                 named_curve: u32,
@@ -27,7 +25,6 @@ host_abi_module! {
 
             /// Generate one hardware-backed secret key.
             fn generate_hardware_secret_key(
-                session_handle: session_handle,
                 store_kind: u32,
                 key_algorithm: u32,
                 digest_algorithm: u32,
@@ -38,7 +35,6 @@ host_abi_module! {
 
             /// Export one hardware-backed public key.
             fn export_hardware_public_key(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
                 output: slice(u8),
@@ -47,7 +43,6 @@ host_abi_module! {
 
             /// Sign one payload with one hardware-backed key.
             fn sign_hardware_key(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
                 signature_algorithm: u32,
@@ -60,7 +55,6 @@ host_abi_module! {
 
             /// Decrypt one payload with one hardware-backed key.
             fn decrypt_hardware_key(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
                 encryption_algorithm: u32,
@@ -73,7 +67,6 @@ host_abi_module! {
 
             /// Encrypt one payload with one hardware-backed secret key.
             fn encrypt_hardware_secret_key(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
                 cipher_algorithm: u32,
@@ -89,7 +82,6 @@ host_abi_module! {
 
             /// Decrypt one payload with one hardware-backed secret key.
             fn decrypt_hardware_secret_key(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
                 cipher_algorithm: u32,
@@ -103,7 +95,6 @@ host_abi_module! {
 
             /// Compute one MAC with one hardware-backed secret key.
             fn compute_hardware_mac(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
                 mac_algorithm: u32,
@@ -116,7 +107,6 @@ host_abi_module! {
 
             /// Derive one shared secret with one hardware-backed key.
             fn derive_hardware_shared_secret(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
                 named_curve: u32,
@@ -127,21 +117,18 @@ host_abi_module! {
 
             /// Delete one hardware-backed key.
             fn delete_hardware_key(
-                session_handle: session_handle,
                 key_algorithm: u32,
                 key_label: string_ref,
             ) -> host_status;
 
             /// Import one certificate into one host lane.
             fn import_certificate(
-                session_handle: session_handle,
                 store_kind: u32,
                 certificate_der: slice(u8),
             ) -> host_status;
 
             /// Delete one certificate from one host lane.
             fn delete_certificate(
-                session_handle: session_handle,
                 store_kind: u32,
                 certificate_der: slice(u8),
             ) -> host_status;

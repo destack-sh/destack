@@ -102,10 +102,8 @@ host_abi_types! {
         struct LocationLastKnownResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response includes one sample.
-            has_sample: bool,
             /// The returned sample when available.
-            sample: LocationSample,
+            sample: option(LocationSample),
         }
     }
 }

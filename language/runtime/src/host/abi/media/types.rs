@@ -3,6 +3,7 @@ use crate::host::abi::describe::host_abi_types;
 host_abi_types! {
     fn host_abi_types() {
         /// One host media asset-kind payload.
+        #[value(crate::platform::os::abi_generated::MediaAssetKindValue)]
         enum HostMediaAssetKind: u32 {
             /// One image asset.
             Image = 1,
@@ -15,15 +16,12 @@ host_abi_types! {
         }
 
         /// One host media-list request payload.
+        #[value(crate::platform::os::abi_generated::MediaQueryValue)]
         struct HostMediaListRequest {
-            /// Whether the request carries one cursor.
-            has_cursor: bool,
             /// The opaque cursor from one prior media-list call.
-            cursor: string_ref,
-            /// Whether the request carries one limit.
-            has_limit: bool,
+            cursor: option(string_ref),
             /// The maximum returned assets for this page.
-            limit: u32,
+            limit: option(u32),
             /// The requested asset kinds, empty means every kind.
             kinds: slice(HostMediaAssetKind),
             /// Whether hidden assets should be included.
@@ -31,9 +29,10 @@ host_abi_types! {
         }
 
         /// One host media asset-descriptor payload.
+        #[value(crate::platform::os::abi_generated::MediaAssetDescriptorValue)]
         struct HostMediaAssetDescriptor {
             /// The stable asset identifier.
-            identifier: string_ref,
+            id: string_ref,
             /// The host URI for this asset.
             uri: string_ref,
             /// The asset filename payload.
@@ -57,6 +56,7 @@ host_abi_types! {
         }
 
         /// One host media-list result payload.
+        #[value(crate::platform::os::abi_generated::MediaPageValue)]
         struct HostMediaListResult {
             /// The returned assets for this page.
             assets: slice(HostMediaAssetDescriptor),
@@ -70,20 +70,16 @@ host_abi_types! {
         struct HostMediaListResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response includes one page.
-            has_page: bool,
             /// The returned page when available.
-            page: HostMediaListResult,
+            page: option(HostMediaListResult),
         }
 
         /// One host media-read response payload.
         struct HostMediaReadResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response includes one descriptor.
-            has_descriptor: bool,
             /// The returned descriptor when available.
-            descriptor: HostMediaAssetDescriptor,
+            descriptor: option(HostMediaAssetDescriptor),
         }
 
         /// One host media-import request payload.
@@ -98,10 +94,8 @@ host_abi_types! {
         struct HostMediaImportPathResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response includes one imported asset identifier.
-            has_identifier: bool,
             /// The imported asset identifier when available.
-            identifier: string_ref,
+            identifier: option(string_ref),
         }
 
         /// One host media-delete request payload.

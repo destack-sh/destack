@@ -24,13 +24,9 @@ host_abi_types! {
             /// Whether pause and resume are supported.
             pause_supported: u32,
             /// Maximum supported video bit rate in bits per second.
-            maximum_video_bit_rate: u64,
-            /// Whether the maximum video bit rate is present.
-            has_maximum_video_bit_rate: u32,
+            maximum_video_bit_rate: option(u64),
             /// Maximum supported audio bit rate in bits per second.
-            maximum_audio_bit_rate: u64,
-            /// Whether the maximum audio bit rate is present.
-            has_maximum_audio_bit_rate: u32,
+            maximum_audio_bit_rate: option(u64),
         }
 
         /// Fixed-size host camera recording options header.
@@ -39,32 +35,20 @@ host_abi_types! {
             container: u32,
             /// Preferred video codec code.
             video_codec: u32,
-            /// Whether the audio-enabled flag is present.
-            has_audio_enabled: u32,
             /// Requested audio-enabled value when present.
-            audio_enabled: u32,
+            audio_enabled: option(u32),
             /// Preferred audio codec code.
             audio_codec: u32,
             /// Requested video bit rate in bits per second.
-            video_bit_rate: u64,
-            /// Whether the video bit rate is present.
-            has_video_bit_rate: u32,
+            video_bit_rate: option(u64),
             /// Requested audio bit rate in bits per second.
-            audio_bit_rate: u64,
-            /// Whether the audio bit rate is present.
-            has_audio_bit_rate: u32,
+            audio_bit_rate: option(u64),
             /// Requested key-frame interval in frames.
-            key_frame_interval_frames: u32,
-            /// Whether the key-frame interval is present.
-            has_key_frame_interval_frames: u32,
+            key_frame_interval_frames: option(u32),
             /// Requested maximum duration in nanoseconds.
-            maximum_duration_ns: u64,
-            /// Whether the maximum duration is present.
-            has_maximum_duration_ns: u32,
+            maximum_duration_ns: option(u64),
             /// Requested maximum output size in bytes.
-            maximum_bytes: u64,
-            /// Whether the maximum output size is present.
-            has_maximum_bytes: u32,
+            maximum_bytes: option(u64),
         }
 
         /// Fixed-size host camera device descriptor header.

@@ -3,15 +3,12 @@ use crate::host::abi::describe::host_abi_types;
 host_abi_types! {
     fn host_abi_types() {
         /// One host contact query payload.
+        #[value(crate::platform::os::abi_generated::ContactQueryValue)]
         struct HostContactQuery {
-            /// Whether the query carries one cursor.
-            has_cursor: bool,
             /// The opaque cursor from one prior list or search call.
-            cursor: string_ref,
-            /// Whether the query carries one limit.
-            has_limit: bool,
+            cursor: option(string_ref),
             /// The maximum returned contacts for this page.
-            limit: u32,
+            limit: option(u32),
             /// Whether phone values should be returned.
             include_phones: bool,
             /// Whether email values should be returned.
@@ -25,6 +22,7 @@ host_abi_types! {
         }
 
         /// One host contact-name payload.
+        #[value(crate::platform::os::abi_generated::ContactNameValue)]
         struct HostContactName {
             /// The given or first name.
             given_name: string_ref,
@@ -45,6 +43,7 @@ host_abi_types! {
         }
 
         /// One host contact-phone payload.
+        #[value(crate::platform::os::abi_generated::ContactPhoneValue)]
         struct HostContactPhone {
             /// The user-visible label for this phone value.
             label: string_ref,
@@ -57,6 +56,7 @@ host_abi_types! {
         }
 
         /// One host contact-email payload.
+        #[value(crate::platform::os::abi_generated::ContactEmailValue)]
         struct HostContactEmail {
             /// The user-visible label for this email value.
             label: string_ref,
@@ -67,6 +67,7 @@ host_abi_types! {
         }
 
         /// One host contact-address payload.
+        #[value(crate::platform::os::abi_generated::ContactAddressValue)]
         struct HostContactAddress {
             /// The user-visible label for this address value.
             label: string_ref,
@@ -85,6 +86,7 @@ host_abi_types! {
         }
 
         /// One host contact-organization payload.
+        #[value(crate::platform::os::abi_generated::ContactOrganizationValue)]
         struct HostContactOrganization {
             /// The company or organization name.
             company: string_ref,
@@ -95,6 +97,7 @@ host_abi_types! {
         }
 
         /// One host contact payload.
+        #[value(crate::platform::os::abi_generated::ContactValue)]
         struct HostContact {
             /// The stable host contact identifier.
             id: string_ref,
@@ -113,6 +116,7 @@ host_abi_types! {
         }
 
         /// One host contact draft payload.
+        #[value(crate::platform::os::abi_generated::ContactDraftValue)]
         struct HostContactDraft {
             /// The structured name payload.
             name: HostContactName,
@@ -129,6 +133,7 @@ host_abi_types! {
         }
 
         /// One host contact page payload.
+        #[value(crate::platform::os::abi_generated::ContactPageValue)]
         struct HostContactPage {
             /// The listed contacts for this page.
             contacts: slice(HostContact),
@@ -142,30 +147,24 @@ host_abi_types! {
         struct HostContactPageResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response includes one page.
-            has_page: bool,
             /// The returned contact page when available.
-            page: HostContactPage,
+            page: option(HostContactPage),
         }
 
         /// One host contact-read response payload.
         struct HostContactResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response includes one contact.
-            has_contact: bool,
             /// The returned contact when available.
-            contact: HostContact,
+            contact: option(HostContact),
         }
 
         /// One host contact-create response payload.
         struct HostContactCreateResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response includes one created contact identifier.
-            has_id: bool,
             /// The created contact identifier when available.
-            id: string_ref,
+            id: option(string_ref),
         }
     }
 }

@@ -3,6 +3,7 @@ use crate::host::abi::describe::host_abi_types;
 host_abi_types! {
     fn host_abi_types() {
         /// One host background scheduler status payload.
+        #[value(crate::platform::os::abi_generated::BackgroundStatusValue)]
         enum HostBackgroundStatus: u32 {
             /// Background scheduling is unavailable.
             Unavailable = 1,
@@ -13,6 +14,7 @@ host_abi_types! {
         }
 
         /// One host background trigger kind payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTriggerKindValue)]
         enum HostBackgroundTriggerKind: u32 {
             /// One app-refresh style task.
             AppRefresh = 1,
@@ -21,6 +23,7 @@ host_abi_types! {
         }
 
         /// One host background task-result payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTaskResultValue)]
         enum HostBackgroundTaskResult: u32 {
             /// The task completed successfully.
             Success = 1,
@@ -31,6 +34,7 @@ host_abi_types! {
         }
 
         /// One host background network-requirement payload.
+        #[value(crate::platform::os::abi_generated::BackgroundNetworkRequirementValue)]
         enum HostBackgroundNetworkRequirement: u32 {
             /// No network route is required.
             None = 1,
@@ -41,6 +45,7 @@ host_abi_types! {
         }
 
         /// One host background conflict-policy payload.
+        #[value(crate::platform::os::abi_generated::BackgroundConflictPolicyValue)]
         enum HostBackgroundConflictPolicy: u32 {
             /// Replace one existing registration.
             Replace = 1,
@@ -49,6 +54,7 @@ host_abi_types! {
         }
 
         /// One host background schedule-kind payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTaskScheduleKindValue)]
         enum HostBackgroundTaskScheduleKind: u32 {
             /// One single future execution.
             Once = 1,
@@ -57,20 +63,18 @@ host_abi_types! {
         }
 
         /// One host background task-schedule payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTaskScheduleValue)]
         struct HostBackgroundTaskSchedule {
             /// The declared schedule class.
             kind: HostBackgroundTaskScheduleKind,
-            /// Whether the earliest execution target is present.
-            has_earliest_begin_unix_ns: bool,
             /// The earliest execution target in UTC nanoseconds.
-            earliest_begin_unix_ns: u64,
-            /// Whether the repeat interval is present.
-            has_repeat_interval_ns: bool,
+            earliest_begin_unix_ns: option(u64),
             /// The repeat interval in nanoseconds for recurring schedules.
-            repeat_interval_ns: u64,
+            repeat_interval_ns: option(u64),
         }
 
         /// One host background task-options payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTaskOptionsValue)]
         struct HostBackgroundTaskOptions {
             /// The stable task identifier.
             identifier: string_ref,
@@ -92,13 +96,12 @@ host_abi_types! {
         struct HostBackgroundStatusResponse {
             /// The request status code.
             status: host_status,
-            /// Whether one scheduler status is present.
-            has_scheduler_status: bool,
             /// The scheduler status when present.
-            scheduler_status: HostBackgroundStatus,
+            scheduler_status: option(HostBackgroundStatus),
         }
 
         /// One host background task-descriptor payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTaskDescriptorValue)]
         struct HostBackgroundTaskDescriptor {
             /// The stable task identifier.
             identifier: string_ref,
@@ -153,6 +156,7 @@ host_abi_types! {
         }
 
         /// One host background event metadata payload.
+        #[value(crate::platform::os::abi_generated::BackgroundEventMetadataValue)]
         struct HostBackgroundEventMetadata {
             /// The monotonic event timestamp in nanoseconds.
             timestamp_ns: u64,
@@ -166,20 +170,31 @@ host_abi_types! {
             deadline_unix_ns: u64,
         }
 
-        /// One host background event kind payload.
-        enum HostBackgroundEventKind: u32 {
-            /// One task-ready event.
-            TaskReady = 1,
-            /// One task-expired event.
-            TaskExpired = 2,
+        /// One host background task-ready event payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTaskReadyEventValue)]
+        struct HostBackgroundTaskReadyEvent {
+            /// The event kind discriminator.
+            kind: string_ref,
+            /// The shared event metadata.
+            metadata: HostBackgroundEventMetadata,
+        }
+
+        /// One host background task-expired event payload.
+        #[value(crate::platform::os::abi_generated::BackgroundTaskExpiredEventValue)]
+        struct HostBackgroundTaskExpiredEvent {
+            /// The event kind discriminator.
+            kind: string_ref,
+            /// The shared event metadata.
+            metadata: HostBackgroundEventMetadata,
         }
 
         /// One host background event payload.
-        struct HostBackgroundEvent {
-            /// The event kind.
-            kind: HostBackgroundEventKind,
-            /// The shared event metadata.
-            metadata: HostBackgroundEventMetadata,
+        #[value(crate::platform::os::abi_generated::BackgroundEventValue)]
+        enum HostBackgroundEvent {
+            /// One task-ready event.
+            BackgroundTaskReadyEvent(HostBackgroundTaskReadyEvent),
+            /// One task-expired event.
+            BackgroundTaskExpiredEvent(HostBackgroundTaskExpiredEvent),
         }
     }
 }

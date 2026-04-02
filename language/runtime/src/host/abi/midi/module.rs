@@ -1,13 +1,12 @@
 use crate::host::abi::describe::host_abi_module;
 
 host_abi_module! {
-    fn host_abi_module() -> "midi" {
+    module midi {
         platforms: [android];
         types: super::types::host_abi_types();
         requests {
             /// Describe host MIDI backend support.
             fn describe_backend(
-                session_handle: session_handle,
                 capability_flags: output(u64),
                 supported_data_formats: output(u32),
                 supported_protocols: output(u32),
@@ -15,7 +14,6 @@ host_abi_module! {
 
             /// List host MIDI input ports.
             fn input_port_list(
-                session_handle: session_handle,
                 flags: u32,
                 headers: slice(AndroidHostMidiPortDescriptorHeader),
                 header_count_written: output(u32),
@@ -25,7 +23,6 @@ host_abi_module! {
 
             /// List host MIDI output ports.
             fn output_port_list(
-                session_handle: session_handle,
                 flags: u32,
                 headers: slice(AndroidHostMidiPortDescriptorHeader),
                 header_count_written: output(u32),
@@ -35,7 +32,6 @@ host_abi_module! {
 
             /// Open one host MIDI input port.
             fn input_port_open(
-                session_handle: session_handle,
                 id: string_ref,
                 data_format: u32,
                 protocol: u32,
@@ -47,7 +43,6 @@ host_abi_module! {
 
             /// Open one host MIDI output port.
             fn output_port_open(
-                session_handle: session_handle,
                 id: string_ref,
                 data_format: u32,
                 protocol: u32,
@@ -58,7 +53,6 @@ host_abi_module! {
 
             /// Create one host virtual MIDI input port.
             fn input_virtual_create(
-                session_handle: session_handle,
                 name: string_ref,
                 manufacturer: string_ref,
                 model: string_ref,
@@ -73,7 +67,6 @@ host_abi_module! {
 
             /// Create one host virtual MIDI output port.
             fn output_virtual_create(
-                session_handle: session_handle,
                 name: string_ref,
                 manufacturer: string_ref,
                 model: string_ref,
@@ -87,19 +80,16 @@ host_abi_module! {
 
             /// Close one host MIDI input session.
             fn input_port_close(
-                session_handle: session_handle,
                 session_id: u64,
             ) -> host_status;
 
             /// Close one host MIDI output session.
             fn output_port_close(
-                session_handle: session_handle,
                 session_id: u64,
             ) -> host_status;
 
             /// Read host MIDI input records.
             fn input_read(
-                session_handle: session_handle,
                 session_id: u64,
                 max_records: u32,
                 timeout_ns: u64,
@@ -111,7 +101,6 @@ host_abi_module! {
 
             /// Open one host MIDI event subscription.
             fn event_open(
-                session_handle: session_handle,
                 flags: u32,
                 direction_mask: u32,
                 session_id: output(u64),
@@ -119,7 +108,6 @@ host_abi_module! {
 
             /// Read host MIDI topology events.
             fn event_read(
-                session_handle: session_handle,
                 session_id: u64,
                 max_events: u32,
                 timeout_ns: u64,
@@ -131,13 +119,11 @@ host_abi_module! {
 
             /// Close one host MIDI event subscription.
             fn event_close(
-                session_handle: session_handle,
                 session_id: u64,
             ) -> host_status;
 
             /// Write host MIDI output records.
             fn output_write(
-                session_handle: session_handle,
                 session_id: u64,
                 headers: slice(AndroidHostMidiOutputRecordHeader),
                 record_count: u32,
