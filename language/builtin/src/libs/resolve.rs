@@ -4,6 +4,11 @@ use super::language::LANGUAGE_LIBS;
 use super::library::LIBRARY_LIBS;
 use super::source::BuiltinLibrary;
 
+/// Iterate every builtin language or library definition.
+pub fn builtin_libraries() -> impl Iterator<Item = &'static BuiltinLibrary> {
+    LANGUAGE_LIBS.iter().chain(LIBRARY_LIBS.iter())
+}
+
 /// Look up a builtin lib by name.
 pub fn builtin_library(name: &str) -> Option<&'static BuiltinLibrary> {
     builtin_libraries().find(|library| library.name == name)
@@ -41,11 +46,6 @@ pub fn resolve_profile_builtin_library_name(
         &name,
         &version_overrides,
     ))
-}
-
-/// Iterate every builtin language or library definition.
-fn builtin_libraries() -> impl Iterator<Item = &'static BuiltinLibrary> {
-    LANGUAGE_LIBS.iter().chain(LIBRARY_LIBS.iter())
 }
 
 /// Split a name like `node.v24` into base and version.
