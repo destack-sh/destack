@@ -32,13 +32,9 @@ host_abi_types! {
             /// Length of the port path bytes.
             port_path_len: u32,
             /// USB specification version in binary coded decimal form.
-            usb_version_bcd: u16,
-            /// Whether the USB version is present.
-            has_usb_version_bcd: u32,
+            usb_version_bcd: option(u16),
             /// Device release version in binary coded decimal form.
-            device_version_bcd: u16,
-            /// Whether the device version is present.
-            has_device_version_bcd: u32,
+            device_version_bcd: option(u16),
             /// USB vendor identifier.
             vendor_id: u16,
             /// USB product identifier.
@@ -50,13 +46,9 @@ host_abi_types! {
             /// Device protocol code.
             protocol_code: u8,
             /// Device speed code.
-            speed: u32,
-            /// Whether the speed is present.
-            has_speed: u32,
+            speed: option(u32),
             /// Bus number when available.
-            bus_number: u8,
-            /// Whether the bus number is present.
-            has_bus_number: u32,
+            bus_number: option(u8),
         }
 
         /// Fixed-size host USB hotplug event header.

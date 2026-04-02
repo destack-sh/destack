@@ -89,9 +89,7 @@ host_abi_types! {
         /// Fixed-size host MIDI output record header.
         struct AndroidHostMidiOutputRecordHeader {
             /// Scheduled send timestamp in runtime monotonic nanoseconds.
-            send_at_ns: u64,
-            /// Whether the record carries one scheduled send timestamp.
-            has_send_at: u32,
+            send_at_ns: option(u64),
             /// Offset of the record payload inside the shared blob.
             data_offset: u32,
             /// Length of the record payload inside the shared blob.

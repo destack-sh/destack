@@ -3,13 +3,12 @@ use crate::host::abi::describe::{
 };
 
 host_abi_module! {
-    fn host_abi_module_base() -> "camera" {
+    module camera as host_abi_module_base {
         platforms: [android];
         types: super::types::host_abi_types();
         requests {
             /// List one slice of host camera devices.
             fn device_list(
-                session_handle: session_handle,
                 devices: slice(AndroidHostCameraDeviceDescriptorHeader),
                 device_count_written: output(u32),
                 string_bytes: slice(u8),
@@ -18,20 +17,17 @@ host_abi_module! {
 
             /// Open one host camera device session.
             fn device_open(
-                session_handle: session_handle,
                 id: string_ref,
                 session_id: output(u64),
             ) -> host_status;
 
             /// Close one host camera device session.
             fn device_close(
-                session_handle: session_handle,
                 session_id: u64,
             ) -> host_status;
 
             /// List one host camera stream-config slice.
             fn stream_config_list(
-                session_handle: session_handle,
                 session_id: u64,
                 configs: slice(AndroidHostCameraStreamConfigHeader),
                 config_count_written: output(u32),
@@ -39,7 +35,6 @@ host_abi_module! {
 
             /// List one host camera stream-capability slice.
             fn stream_capability_list(
-                session_handle: session_handle,
                 session_id: u64,
                 capabilities: slice(AndroidHostCameraStreamCapabilityHeader),
                 capability_count_written: output(u32),
@@ -47,7 +42,6 @@ host_abi_module! {
 
             /// Open one host camera stream session.
             fn stream_open(
-                session_handle: session_handle,
                 session_id: u64,
                 config: AndroidHostCameraStreamConfigHeader,
                 stream_id: output(u64),
@@ -55,25 +49,21 @@ host_abi_module! {
 
             /// Close one host camera stream session.
             fn stream_close(
-                session_handle: session_handle,
                 stream_id: u64,
             ) -> host_status;
 
             /// Start one host camera stream session.
             fn stream_start(
-                session_handle: session_handle,
                 stream_id: u64,
             ) -> host_status;
 
             /// Stop one host camera stream session.
             fn stream_stop(
-                session_handle: session_handle,
                 stream_id: u64,
             ) -> host_status;
 
             /// Read one host camera frame.
             fn stream_read(
-                session_handle: session_handle,
                 stream_id: u64,
                 timeout_ns: u64,
                 header: output(AndroidHostCameraFrameHeader),
@@ -83,7 +73,6 @@ host_abi_module! {
 
             /// Try one nonblocking host camera frame read.
             fn stream_try_read(
-                session_handle: session_handle,
                 stream_id: u64,
                 header: output(AndroidHostCameraFrameHeader),
                 bytes: slice(u8),
@@ -92,7 +81,6 @@ host_abi_module! {
 
             /// Capture one host camera still photo.
             fn stream_take_photo(
-                session_handle: session_handle,
                 stream_id: u64,
                 timeout_ns: u64,
                 header: output(AndroidHostCameraFrameHeader),
@@ -102,21 +90,18 @@ host_abi_module! {
 
             /// Query one active host camera stream config.
             fn stream_config(
-                session_handle: session_handle,
                 stream_id: u64,
                 config: output(AndroidHostCameraStreamConfigHeader),
             ) -> host_status;
 
             /// Query one host camera recording capability descriptor.
             fn stream_recording_capabilities(
-                session_handle: session_handle,
                 stream_id: u64,
                 capabilities: output(AndroidHostCameraRecordingCapabilitiesHeader),
             ) -> host_status;
 
             /// Start one host camera recording session.
             fn stream_start_recording(
-                session_handle: session_handle,
                 stream_id: u64,
                 options: AndroidHostCameraRecordingOptionsHeader,
                 output_path: string_ref,
@@ -124,26 +109,22 @@ host_abi_module! {
 
             /// Pause one active host camera recording session.
             fn stream_pause_recording(
-                session_handle: session_handle,
                 stream_id: u64,
             ) -> host_status;
 
             /// Resume one paused host camera recording session.
             fn stream_resume_recording(
-                session_handle: session_handle,
                 stream_id: u64,
             ) -> host_status;
 
             /// Stop one active host camera recording session.
             fn stream_stop_recording(
-                session_handle: session_handle,
                 stream_id: u64,
                 timeout_ns: u64,
             ) -> host_status;
 
             /// Read one `u64` host camera control value.
             fn stream_get_u64(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 value: output(u64),
@@ -151,7 +132,6 @@ host_abi_module! {
 
             /// Write one `u64` host camera control value.
             fn stream_set_u64(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 value: u64,
@@ -159,7 +139,6 @@ host_abi_module! {
 
             /// Read one `u32` host camera control value.
             fn stream_get_u32(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 value: output(u32),
@@ -167,7 +146,6 @@ host_abi_module! {
 
             /// Write one `u32` host camera control value.
             fn stream_set_u32(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 value: u32,
@@ -175,7 +153,6 @@ host_abi_module! {
 
             /// Read one `f64` host camera control value.
             fn stream_get_f64(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 value: output(f64),
@@ -183,7 +160,6 @@ host_abi_module! {
 
             /// Write one `f64` host camera control value.
             fn stream_set_f64(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 value: f64,
@@ -191,7 +167,6 @@ host_abi_module! {
 
             /// Read one `f64` host camera control range.
             fn stream_get_range_f64(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 minimum: output(f64),
@@ -201,7 +176,6 @@ host_abi_module! {
 
             /// Read one `u64` host camera control range.
             fn stream_get_range_u64(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 minimum: output(u64),
@@ -211,7 +185,6 @@ host_abi_module! {
 
             /// Read one `u32` host camera control range.
             fn stream_get_range_u32(
-                session_handle: session_handle,
                 stream_id: u64,
                 selector: u32,
                 minimum: output(u32),

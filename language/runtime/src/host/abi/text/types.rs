@@ -3,6 +3,7 @@ use crate::host::abi::describe::host_abi_types;
 host_abi_types! {
     fn host_abi_types() {
         /// One host text-input type hint payload.
+        #[value(crate::platform::input::InputTextInputTypeValue)]
         enum HostTextInputType: i32 {
             /// Plain text entry.
             Text = 0,
@@ -21,6 +22,7 @@ host_abi_types! {
         }
 
         /// One host text range payload.
+        #[value(crate::platform::input::InputTextRangeValue)]
         #[derive(Default)]
         struct HostTextInputRange {
             /// The inclusive selection start offset.
@@ -30,6 +32,7 @@ host_abi_types! {
         }
 
         /// One host text rectangle payload.
+        #[value(crate::platform::input::InputTextRectangleValue)]
         #[derive(Default)]
         struct HostTextInputRectangle {
             /// The left edge in local logical units.
@@ -43,6 +46,7 @@ host_abi_types! {
         }
 
         /// One host text transform payload.
+        #[value(crate::platform::input::InputTextTransform2DValue)]
         #[derive(Default)]
         struct HostTextInputTransform2D {
             /// The first-row X coefficient.
@@ -60,19 +64,16 @@ host_abi_types! {
         }
 
         /// One host text geometry payload.
+        #[value(crate::platform::input::InputTextGeometryValue)]
         struct HostTextInputGeometry {
             /// The local-to-target transform.
             local_to_target_transform: HostTextInputTransform2D,
             /// The full editor rectangle.
             editor_rectangle: HostTextInputRectangle,
-            /// Whether one caret rectangle is present.
-            has_caret_rectangle: bool,
             /// The caret rectangle when present.
-            caret_rectangle: HostTextInputRectangle,
-            /// Whether one composing rectangle is present.
-            has_composing_rectangle: bool,
+            caret_rectangle: option(HostTextInputRectangle),
             /// The composing rectangle when present.
-            composing_rectangle: HostTextInputRectangle,
+            composing_rectangle: option(HostTextInputRectangle),
         }
 
         /// One host text session configuration payload.
@@ -88,15 +89,14 @@ host_abi_types! {
         }
 
         /// One host text state payload.
+        #[value(crate::platform::input::InputTextSessionStateValue)]
         struct HostTextInputState {
             /// The current text payload.
             text: string_ref,
             /// The current selection range.
             selection: HostTextInputRange,
-            /// Whether one composing range is present.
-            has_composing: bool,
             /// The composing range when present.
-            composing: HostTextInputRange,
+            composing: option(HostTextInputRange),
         }
 
         /// One host text open request payload.

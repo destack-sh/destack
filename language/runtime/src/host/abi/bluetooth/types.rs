@@ -100,10 +100,8 @@ host_abi_types! {
             name_prefix_offset: u32,
             /// Length of the name-prefix string.
             name_prefix_len: u32,
-            /// Whether the minimum RSSI is present.
-            has_minimum_rssi: u32,
             /// Minimum RSSI threshold in dBm.
-            minimum_rssi_dbm: i32,
+            minimum_rssi_dbm: option(i32),
             /// Requested scan-mode code.
             scan_mode: u32,
             /// Requested primary PHY code.

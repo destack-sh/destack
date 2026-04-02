@@ -3,6 +3,7 @@ use crate::host::abi::describe::host_abi_types;
 host_abi_types! {
     fn host_abi_types() {
         /// One host calendar access payload.
+        #[value(crate::platform::os::abi_generated::CalendarAccessValue)]
         enum HostCalendarAccess: u32 {
             /// One read-only calendar.
             Read = 1,
@@ -11,6 +12,7 @@ host_abi_types! {
         }
 
         /// One host calendar availability payload.
+        #[value(crate::platform::os::abi_generated::CalendarAvailabilityValue)]
         enum HostCalendarAvailability: u32 {
             /// One busy slot.
             Busy = 1,
@@ -27,6 +29,7 @@ host_abi_types! {
         }
 
         /// One host calendar participant-status payload.
+        #[value(crate::platform::os::abi_generated::CalendarParticipantStatusValue)]
         enum HostCalendarParticipantStatus: u32 {
             /// One unknown response.
             Unknown = 1,
@@ -47,6 +50,7 @@ host_abi_types! {
         }
 
         /// One host calendar recurrence-frequency payload.
+        #[value(crate::platform::os::abi_generated::CalendarRecurrenceFrequencyValue)]
         enum HostCalendarRecurrenceFrequency: u32 {
             /// One daily recurrence.
             Daily = 1,
@@ -58,38 +62,26 @@ host_abi_types! {
             Yearly = 4,
         }
 
-        /// One host calendar reminder-kind payload.
-        enum HostCalendarReminderKind: u32 {
-            /// One absolute reminder.
-            Absolute = 1,
-            /// One relative reminder.
-            Relative = 2,
-        }
-
         /// One host calendar recurrence-weekday payload.
+        #[value(crate::platform::os::abi_generated::CalendarRecurrenceWeekdayValue)]
         struct HostCalendarRecurrenceWeekday {
             /// The weekday number in ISO-8601 encoding, 1 through 7.
             day: u8,
-            /// Whether the weekday carries one ordinal week number.
-            has_week_number: bool,
             /// The ordinal week number when present.
-            week_number: i8,
+            week_number: option(i8),
         }
 
         /// One host calendar recurrence-rule payload.
+        #[value(crate::platform::os::abi_generated::CalendarRecurrenceRuleValue)]
         struct HostCalendarRecurrenceRule {
             /// The recurrence frequency.
             frequency: HostCalendarRecurrenceFrequency,
             /// The recurrence interval.
             interval: u32,
-            /// Whether the recurrence carries one occurrence count.
-            has_count: bool,
             /// The bounded occurrence count when present.
-            count: u32,
-            /// Whether the recurrence carries one end timestamp.
-            has_until_unix_ns: bool,
+            count: option(u32),
             /// The bounded end timestamp in UTC nanoseconds when present.
-            until_unix_ns: u64,
+            until_unix_ns: option(u64),
             /// The weekday numbers in ISO-8601 encoding.
             by_week_days: slice(u8),
             /// The weekday selectors with optional ordinals.
@@ -107,19 +99,14 @@ host_abi_types! {
         }
 
         /// One host calendar attendee payload.
+        #[value(crate::platform::os::abi_generated::CalendarAttendeeValue)]
         struct HostCalendarAttendee {
-            /// Whether the attendee carries one stable identifier.
-            has_id: bool,
             /// The stable attendee identifier when present.
-            id: string_ref,
-            /// Whether the attendee carries one display name.
-            has_name: bool,
+            id: option(string_ref),
             /// The display name when present.
-            name: string_ref,
-            /// Whether the attendee carries one email address.
-            has_email: bool,
+            name: option(string_ref),
             /// The email address when present.
-            email: string_ref,
+            email: option(string_ref),
             /// Whether the attendee is optional.
             optional: bool,
             /// Whether the attendee is the organizer.
@@ -129,16 +116,34 @@ host_abi_types! {
         }
 
         /// One host calendar reminder payload.
-        struct HostCalendarReminder {
-            /// The reminder variant kind.
-            kind: HostCalendarReminderKind,
+        #[value(crate::platform::os::abi_generated::CalendarAbsoluteReminderValue)]
+        struct HostCalendarAbsoluteReminder {
+            /// The reminder variant discriminator.
+            kind: string_ref,
             /// The absolute reminder timestamp in UTC nanoseconds.
             absolute_unix_ns: u64,
+        }
+
+        /// One host calendar relative reminder payload.
+        #[value(crate::platform::os::abi_generated::CalendarRelativeReminderValue)]
+        struct HostCalendarRelativeReminder {
+            /// The reminder variant discriminator.
+            kind: string_ref,
             /// The minutes before the event start for relative reminders.
             minutes_before_start: i32,
         }
 
+        /// One host calendar reminder payload.
+        #[value(crate::platform::os::abi_generated::CalendarReminderValue)]
+        enum HostCalendarReminder {
+            /// One absolute reminder.
+            CalendarAbsoluteReminder(HostCalendarAbsoluteReminder),
+            /// One relative reminder.
+            CalendarRelativeReminder(HostCalendarRelativeReminder),
+        }
+
         /// One host calendar descriptor payload.
+        #[value(crate::platform::os::abi_generated::CalendarDescriptorValue)]
         struct HostCalendarDescriptor {
             /// The stable calendar identifier.
             id: string_ref,
@@ -146,10 +151,8 @@ host_abi_types! {
             title: string_ref,
             /// The source or account label payload.
             source: string_ref,
-            /// Whether the descriptor carries one owner label.
-            has_owner: bool,
             /// The owner label when present.
-            owner: string_ref,
+            owner: option(string_ref),
             /// The ARGB color payload.
             color_argb: u32,
             /// Whether this is the primary write target.
@@ -159,6 +162,7 @@ host_abi_types! {
         }
 
         /// One host calendar event payload.
+        #[value(crate::platform::os::abi_generated::CalendarEventValue)]
         struct HostCalendarEvent {
             /// The stable event identifier.
             id: string_ref,
@@ -166,14 +170,10 @@ host_abi_types! {
             calendar_id: string_ref,
             /// The event title payload.
             title: string_ref,
-            /// Whether the event carries one notes payload.
-            has_notes: bool,
             /// The notes payload when present.
-            notes: string_ref,
-            /// Whether the event carries one location payload.
-            has_location: bool,
+            notes: option(string_ref),
             /// The location payload when present.
-            location: string_ref,
+            location: option(string_ref),
             /// The start timestamp in UTC nanoseconds.
             start_unix_ns: u64,
             /// The end timestamp in UTC nanoseconds.
@@ -182,93 +182,63 @@ host_abi_types! {
             all_day: bool,
             /// Whether the event is canceled.
             canceled: bool,
-            /// Whether the event carries one timezone identifier.
-            has_time_zone: bool,
             /// The timezone identifier when present.
-            time_zone: string_ref,
+            time_zone: option(string_ref),
             /// The event availability class.
             availability: HostCalendarAvailability,
-            /// Whether the event carries one URL.
-            has_url: bool,
             /// The event URL when present.
-            url: string_ref,
-            /// Whether the event carries one organizer name.
-            has_organizer_name: bool,
+            url: option(string_ref),
             /// The organizer name when present.
-            organizer_name: string_ref,
-            /// Whether the event carries one organizer email.
-            has_organizer_email: bool,
+            organizer_name: option(string_ref),
             /// The organizer email when present.
-            organizer_email: string_ref,
+            organizer_email: option(string_ref),
             /// Whether the event is one recurring item.
             recurring: bool,
-            /// Whether the event carries one recurrence-master identifier.
-            has_recurrence_master_id: bool,
             /// The recurrence-master identifier when present.
-            recurrence_master_id: string_ref,
-            /// Whether the event carries one recurrence-instance timestamp.
-            has_recurrence_id_unix_ns: bool,
+            recurrence_master_id: option(string_ref),
             /// The recurrence-instance timestamp when present.
-            recurrence_id_unix_ns: u64,
-            /// Whether the event carries one recurrence rule.
-            has_recurrence_rule: bool,
+            recurrence_id_unix_ns: option(u64),
             /// The recurrence rule when present.
-            recurrence_rule: HostCalendarRecurrenceRule,
-            /// Whether the event carries one attendee list.
-            has_attendees: bool,
+            recurrence_rule: option(HostCalendarRecurrenceRule),
             /// The attendee list when present.
-            attendees: slice(HostCalendarAttendee),
-            /// Whether the event carries one reminder list.
-            has_reminders: bool,
+            attendees: option(slice(HostCalendarAttendee)),
             /// The reminder list when present.
-            reminders: slice(HostCalendarReminder),
+            reminders: option(slice(HostCalendarReminder)),
         }
 
         /// One host calendar event-draft payload.
+        #[value(crate::platform::os::abi_generated::CalendarEventDraftValue)]
         struct HostCalendarEventDraft {
             /// The calendar identifier.
             calendar_id: string_ref,
             /// The event title payload.
             title: string_ref,
-            /// Whether the draft carries one notes payload.
-            has_notes: bool,
             /// The notes payload when present.
-            notes: string_ref,
-            /// Whether the draft carries one location payload.
-            has_location: bool,
+            notes: option(string_ref),
             /// The location payload when present.
-            location: string_ref,
+            location: option(string_ref),
             /// The start timestamp in UTC nanoseconds.
             start_unix_ns: u64,
             /// The end timestamp in UTC nanoseconds.
             end_unix_ns: u64,
             /// Whether the event is all-day.
             all_day: bool,
-            /// Whether the draft carries one timezone identifier.
-            has_time_zone: bool,
             /// The timezone identifier when present.
-            time_zone: string_ref,
+            time_zone: option(string_ref),
             /// The event availability class.
             availability: HostCalendarAvailability,
-            /// Whether the draft carries one URL.
-            has_url: bool,
             /// The event URL when present.
-            url: string_ref,
-            /// Whether the draft carries one recurrence rule.
-            has_recurrence_rule: bool,
+            url: option(string_ref),
             /// The recurrence rule when present.
-            recurrence_rule: HostCalendarRecurrenceRule,
-            /// Whether the draft carries one attendee list.
-            has_attendees: bool,
+            recurrence_rule: option(HostCalendarRecurrenceRule),
             /// The attendee list when present.
-            attendees: slice(HostCalendarAttendee),
-            /// Whether the draft carries one reminder list.
-            has_reminders: bool,
+            attendees: option(slice(HostCalendarAttendee)),
             /// The reminder list when present.
-            reminders: slice(HostCalendarReminder),
+            reminders: option(slice(HostCalendarReminder)),
         }
 
         /// One host calendar event-query payload.
+        #[value(crate::platform::os::abi_generated::CalendarEventQueryValue)]
         struct HostCalendarEventQuery {
             /// The selected calendar identifiers, empty means every readable calendar.
             calendar_ids: string_slice,
@@ -276,10 +246,8 @@ host_abi_types! {
             start_unix_ns: u64,
             /// The query end timestamp in UTC nanoseconds.
             end_unix_ns: u64,
-            /// Whether the query carries one page limit.
-            has_limit: bool,
             /// The maximum returned event count when present.
-            limit: u32,
+            limit: option(u32),
             /// Whether canceled events should be included.
             include_canceled: bool,
             /// Whether declined events should be included.
@@ -308,20 +276,16 @@ host_abi_types! {
         struct HostCalendarEventReadResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response carries one event.
-            has_event: bool,
             /// The returned event when present.
-            event: HostCalendarEvent,
+            event: option(HostCalendarEvent),
         }
 
         /// One host calendar event-create response payload.
         struct HostCalendarEventCreateResponse {
             /// The request status code.
             status: host_status,
-            /// Whether the response carries one created identifier.
-            has_id: bool,
             /// The created identifier when present.
-            id: string_ref,
+            id: option(string_ref),
         }
     }
 }

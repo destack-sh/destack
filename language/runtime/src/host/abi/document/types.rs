@@ -11,37 +11,38 @@ host_abi_types! {
             /// File-extension filters without the leading dot.
             extensions: string_slice,
             /// Whether multiple documents may be selected.
-            allows_multiple_selection: bool,
+            multiple: bool,
             /// Whether directory selection is allowed.
-            allows_directory_selection: bool,
+            allow_directories: bool,
             /// Whether the host should copy selected files into one runtime-visible sandbox path when possible.
-            copies_to_sandbox: bool,
+            copy_to_sandbox: bool,
         }
 
         /// One host document descriptor payload.
+        #[value(crate::platform::os::abi_generated::DocumentDescriptorValue)]
         struct HostDocumentDescriptor {
             /// The stable URI or content identifier returned by the host.
             uri: string_ref,
             /// The normalized document name.
             name: string_ref,
-            /// Whether the host provided one MIME type.
-            has_mime_type: bool,
             /// The normalized content type when available.
-            mime_type: string_ref,
-            /// Whether the host provided one size.
-            has_size_bytes: bool,
+            mime_type: option(string_ref),
             /// The document size in bytes when available.
-            size_bytes: u64,
-            /// Whether the host provided one modification timestamp.
-            has_modified_unix_ns: bool,
+            size_bytes: option(u64),
             /// The document modification timestamp in UTC nanoseconds when available.
-            modified_unix_ns: u64,
+            modified_unix_ns: option(u64),
             /// Whether this descriptor represents one directory.
             is_directory: bool,
-            /// Whether the host provided one local path.
-            has_local_path: bool,
             /// The optional host-local path when the host exposes one directly.
-            local_path: string_ref,
+            local_path: option(os_path),
+        }
+
+        /// One host document result payload.
+        struct HostDocumentResult {
+            /// The stable request identifier for this interactive host flow.
+            request_id: host_request_id,
+            /// The selected document descriptors.
+            documents: slice(HostDocumentDescriptor),
         }
     }
 }

@@ -1,9 +1,9 @@
+use std::mem::MaybeUninit;
+
 #[cfg(not(feature = "generator"))]
 use crate::diagnostic::RuntimeResult;
 #[cfg(not(feature = "generator"))]
 use crate::platform::NativeAbiCodec;
-#[cfg(not(feature = "generator"))]
-use crate::platform::abi::NativeStringRef;
 #[cfg(not(feature = "generator"))]
 use crate::runtime::BindingCallContext;
 
@@ -12,190 +12,52 @@ use crate::runtime::BindingCallContext;
 #[cfg_attr(not(any(target_os = "android", target_os = "ios")), allow(dead_code))]
 pub(crate) type HostSessionHandle = u64;
 
-/// One optional host string reference.
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-#[derive(Clone, Copy, Debug)]
+/// One optional host ABI payload.
+#[derive(Copy, Debug)]
 #[repr(C)]
-pub(crate) struct HostOptionalStringRef {
+pub struct HostAbiOptional<T: Copy> {
     /// Whether the optional field is present.
     pub has_value: bool,
-    /// The wrapped string reference.
-    pub value: NativeStringRef,
+    /// The wrapped value when present.
+    pub value: MaybeUninit<T>,
 }
 
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-impl HostOptionalStringRef {
-    /// Return one absent optional string reference.
+impl<T: Copy> Clone for HostAbiOptional<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Copy> HostAbiOptional<T> {
+    /// Return one absent optional payload.
     pub(crate) fn none() -> Self {
         Self {
             has_value: false,
-            value: NativeStringRef::from(""),
+            value: MaybeUninit::uninit(),
         }
     }
 }
 
 #[cfg(not(feature = "generator"))]
-impl NativeAbiCodec for HostOptionalStringRef {
-    type Value = Option<String>;
+impl<T> NativeAbiCodec for HostAbiOptional<T>
+where
+    T: NativeAbiCodec + Copy,
+{
+    type Value = Option<T::Value>;
 
     unsafe fn into_value(self) -> RuntimeResult<Self::Value> {
         if !self.has_value {
             return Ok(None);
         }
 
-        Ok(Some(unsafe {
-            <NativeStringRef as NativeAbiCodec>::into_value(self.value)?
-        }))
+        Ok(Some(unsafe { T::into_value(self.value.assume_init())? }))
     }
 
-    fn from_value(binding: &BindingCallContext, value: Self::Value) -> Self {
+    fn from_value(binding: &BindingCallContext, value: Option<T::Value>) -> Self {
         match value {
             Some(value) => Self {
                 has_value: true,
-                value: <NativeStringRef as NativeAbiCodec>::from_value(binding, value),
-            },
-            None => Self::none(),
-        }
-    }
-}
-
-/// One optional host `u32`.
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostOptionalU32 {
-    /// Whether the optional field is present.
-    pub has_value: bool,
-    /// The wrapped integer value.
-    pub value: u32,
-}
-
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-impl HostOptionalU32 {
-    /// Return one absent optional `u32`.
-    pub(crate) const fn none() -> Self {
-        Self {
-            has_value: false,
-            value: 0,
-        }
-    }
-}
-
-#[cfg(not(feature = "generator"))]
-impl NativeAbiCodec for HostOptionalU32 {
-    type Value = Option<u32>;
-
-    unsafe fn into_value(self) -> RuntimeResult<Self::Value> {
-        if self.has_value {
-            Ok(Some(self.value))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: Self::Value) -> Self {
-        match value {
-            Some(value) => Self {
-                has_value: true,
-                value,
-            },
-            None => Self::none(),
-        }
-    }
-}
-
-/// One optional host `u64`.
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostOptionalU64 {
-    /// Whether the optional field is present.
-    pub has_value: bool,
-    /// The wrapped integer value.
-    pub value: u64,
-}
-
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-impl HostOptionalU64 {
-    /// Return one absent optional `u64`.
-    pub(crate) const fn none() -> Self {
-        Self {
-            has_value: false,
-            value: 0,
-        }
-    }
-}
-
-#[cfg(not(feature = "generator"))]
-impl NativeAbiCodec for HostOptionalU64 {
-    type Value = Option<u64>;
-
-    unsafe fn into_value(self) -> RuntimeResult<Self::Value> {
-        if self.has_value {
-            Ok(Some(self.value))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: Self::Value) -> Self {
-        match value {
-            Some(value) => Self {
-                has_value: true,
-                value,
-            },
-            None => Self::none(),
-        }
-    }
-}
-
-/// One optional host `i8`.
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub(crate) struct HostOptionalI8 {
-    /// Whether the optional field is present.
-    pub has_value: bool,
-    /// The wrapped integer value.
-    pub value: i8,
-}
-
-#[cfg(not(feature = "generator"))]
-#[cfg_attr(not(test), allow(dead_code))]
-impl HostOptionalI8 {
-    /// Return one absent optional `i8`.
-    pub(crate) const fn none() -> Self {
-        Self {
-            has_value: false,
-            value: 0,
-        }
-    }
-}
-
-#[cfg(not(feature = "generator"))]
-impl NativeAbiCodec for HostOptionalI8 {
-    type Value = Option<i8>;
-
-    unsafe fn into_value(self) -> RuntimeResult<Self::Value> {
-        if self.has_value {
-            Ok(Some(self.value))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn from_value(_binding: &BindingCallContext, value: Self::Value) -> Self {
-        match value {
-            Some(value) => Self {
-                has_value: true,
-                value,
+                value: MaybeUninit::new(T::from_value(binding, value)),
             },
             None => Self::none(),
         }
@@ -268,6 +130,8 @@ pub enum HostAbiRuntimeBindingType {
     RuntimeStatus,
     /// One document-descriptor slice payload.
     DocumentDescriptorSlice,
+    /// One intent event payload.
+    IntentEvent,
     /// One notification event payload.
     NotificationEvent,
     /// One permission event payload.
@@ -391,139 +255,11 @@ const NOTIFICATION_EVENT_PARAMETERS: &[HostAbiRuntimeBindingParameter] = &[
 ];
 
 #[cfg(feature = "generator")]
-const INTENT_OPEN_URL_PARAMETERS: &[HostAbiRuntimeBindingParameter] = &[
+const INTENT_EVENT_PARAMETERS: &[HostAbiRuntimeBindingParameter] = &[
     SESSION_HANDLE_PARAMETER,
     HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "url",
-    },
-];
-
-#[cfg(feature = "generator")]
-const INTENT_OPEN_FILE_PARAMETERS: &[HostAbiRuntimeBindingParameter] = &[
-    SESSION_HANDLE_PARAMETER,
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "path",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_mime_type",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "mime_type",
-    },
-];
-
-#[cfg(feature = "generator")]
-const INTENT_SHARE_TEXT_PARAMETERS: &[HostAbiRuntimeBindingParameter] = &[
-    SESSION_HANDLE_PARAMETER,
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "text",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_mime_type",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "mime_type",
-    },
-];
-
-#[cfg(feature = "generator")]
-const INTENT_SHARE_FILES_PARAMETERS: &[HostAbiRuntimeBindingParameter] = &[
-    SESSION_HANDLE_PARAMETER,
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringSlice,
-        name: "paths",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_mime_type",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "mime_type",
-    },
-];
-
-#[cfg(feature = "generator")]
-const INTENT_CUSTOM_ACTION_PARAMETERS: &[HostAbiRuntimeBindingParameter] = &[
-    SESSION_HANDLE_PARAMETER,
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "source",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "action",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_url",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "url",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringSlice,
-        name: "paths",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_text",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "text",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::Bool,
-        name: "has_mime_type",
-    },
-    HostAbiRuntimeBindingParameter {
-        ty: HostAbiRuntimeBindingType::StringRef,
-        name: "mime_type",
+        ty: HostAbiRuntimeBindingType::IntentEvent,
+        name: "event",
     },
 ];
 
@@ -584,39 +320,11 @@ const HOST_RUNTIME_BINDING_SPECS: &[HostAbiRuntimeBindingSpec] = &[
         parameters: NOTIFICATION_EVENT_PARAMETERS,
     },
     HostAbiRuntimeBindingSpec {
-        field_name: "notify_intent_open_url",
-        type_name: "NotifyIntentOpenUrlFunction",
-        documentation: "The runtime function that receives one intent open-url event.",
+        field_name: "notify_intent_event",
+        type_name: "NotifyIntentEventFunction",
+        documentation: "The runtime function that receives one intent event.",
         result_type: HostAbiRuntimeBindingType::RuntimeStatus,
-        parameters: INTENT_OPEN_URL_PARAMETERS,
-    },
-    HostAbiRuntimeBindingSpec {
-        field_name: "notify_intent_open_file",
-        type_name: "NotifyIntentOpenFileFunction",
-        documentation: "The runtime function that receives one intent open-file event.",
-        result_type: HostAbiRuntimeBindingType::RuntimeStatus,
-        parameters: INTENT_OPEN_FILE_PARAMETERS,
-    },
-    HostAbiRuntimeBindingSpec {
-        field_name: "notify_intent_share_text",
-        type_name: "NotifyIntentShareTextFunction",
-        documentation: "The runtime function that receives one intent share-text event.",
-        result_type: HostAbiRuntimeBindingType::RuntimeStatus,
-        parameters: INTENT_SHARE_TEXT_PARAMETERS,
-    },
-    HostAbiRuntimeBindingSpec {
-        field_name: "notify_intent_share_files",
-        type_name: "NotifyIntentShareFilesFunction",
-        documentation: "The runtime function that receives one intent share-files event.",
-        result_type: HostAbiRuntimeBindingType::RuntimeStatus,
-        parameters: INTENT_SHARE_FILES_PARAMETERS,
-    },
-    HostAbiRuntimeBindingSpec {
-        field_name: "notify_intent_custom_action",
-        type_name: "NotifyIntentCustomActionFunction",
-        documentation: "The runtime function that receives one intent custom-action event.",
-        result_type: HostAbiRuntimeBindingType::RuntimeStatus,
-        parameters: INTENT_CUSTOM_ACTION_PARAMETERS,
+        parameters: INTENT_EVENT_PARAMETERS,
     },
     HostAbiRuntimeBindingSpec {
         field_name: "notify_permission_result",
