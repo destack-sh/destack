@@ -5386,13 +5386,6 @@
             "null"
           ]
         },
-        "targetTriple": {
-          "description": "Target triple for native codegen (e.g., \"x86_64-unknown-linux-gnu\").",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "arch": {
           "description": "Target architecture for native codegen (e.g., \"x86_64\", \"aarch64\").",
           "type": [
@@ -5442,15 +5435,199 @@
             }
           ]
         },
-        "native": {
-          "description": "Native code generation and link options.",
+        "nativeOutput": {
+          "description": "Native output kind for this target.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetNativeJson"
+              "$ref": "#/$defs/TargetNativeOutputKind"
             },
             {
               "type": "null"
             }
+          ]
+        },
+        "linkMode": {
+          "description": "Link mode for native targets.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LinkModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linker": {
+          "description": "Explicit linker executable for native targets.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "linkerFlavor": {
+          "description": "Linker driver family.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetLinkerFlavor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linkArgs": {
+          "description": "Extra linker arguments for native targets.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "sysroot": {
+          "description": "Sysroot path for native toolchains.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "librarySearchPaths": {
+          "description": "Additional library search paths.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "libraries": {
+          "description": "Additional libraries to link.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "frameworkSearchPaths": {
+          "description": "Additional framework search paths.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "frameworks": {
+          "description": "Additional frameworks to link.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "rpath": {
+          "description": "Runtime search paths embedded into the final output.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "runpath": {
+          "description": "Runtime search paths emitted as runpath entries.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "entrySymbol": {
+          "description": "Explicit entry symbol override.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "exportSymbols": {
+          "description": "Explicitly exported symbol names.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "symbolVisibility": {
+          "description": "Symbol visibility policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetSymbolVisibility"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "versionScript": {
+          "description": "Version script for exported symbols.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "linkerScript": {
+          "description": "Linker script for the final link.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "positionIndependent": {
+          "description": "Position independent code policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetPositionIndependentMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "crt": {
+          "description": "C runtime linkage policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetCrtLinkage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "soname": {
+          "description": "Shared object soname.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "installName": {
+          "description": "Darwin install name.",
+          "type": [
+            "string",
+            "null"
           ]
         },
         "declaration": {
@@ -5537,11 +5714,110 @@
             "null"
           ]
         },
-        "bundle": {
-          "description": "Bundling options for assembled JavaScript and HTML outputs.",
+        "assembly": {
+          "description": "Assembly topology for this script target.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetBundleJson"
+              "$ref": "#/$defs/BundleMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "preserveModules": {
+          "description": "Whether to preserve one emitted module file per reachable module.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "preserveModulesRoot": {
+          "description": "Root directory for preserved module paths.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "manualChunks": {
+          "description": "Manual chunk assignments keyed by chunk name.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "onlyExplicitManualChunks": {
+          "description": "Whether to only honor explicit manual chunk declarations.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dependencies": {
+          "description": "Dependency and resolution options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetDependencyOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "assets": {
+          "description": "Asset handling options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetAssetOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "treeshake": {
+          "description": "Tree shaking options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetTreeshakeOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output": {
+          "description": "Output options for assembled bundle files.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetOutputPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "define": {
+          "description": "Compile time define replacements.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "minify": {
+          "description": "Minification options.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetMinifyOptionsJson"
             },
             {
               "type": "null"
@@ -5921,208 +6197,7 @@
         }
       ]
     },
-    "TargetNativeJson": {
-      "description": "Native code generation and linking options in `destack.json`.",
-      "type": "object",
-      "properties": {
-        "output": {
-          "description": "Native output kind for this target.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/NativeOutputKind"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "linkMode": {
-          "description": "Link mode for native targets.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LinkModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "linker": {
-          "description": "Explicit linker executable for native targets.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "linkerFlavor": {
-          "description": "Linker driver family.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/NativeLinkerFlavor"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "linkArgs": {
-          "description": "Extra linker arguments for native targets.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "sysroot": {
-          "description": "Sysroot path for native toolchains.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "librarySearchPaths": {
-          "description": "Additional library search paths.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "libraries": {
-          "description": "Additional libraries to link.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "frameworkSearchPaths": {
-          "description": "Additional framework search paths.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "frameworks": {
-          "description": "Additional frameworks to link.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "rpath": {
-          "description": "Runtime search paths embedded into the final output.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "runpath": {
-          "description": "Runtime search paths emitted as runpath entries.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "entrySymbol": {
-          "description": "Explicit entry symbol override.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "exportSymbols": {
-          "description": "Explicitly exported symbol names.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "symbolVisibility": {
-          "description": "Symbol visibility policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/NativeSymbolVisibility"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "versionScript": {
-          "description": "Version script for exported symbols.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "linkerScript": {
-          "description": "Linker script for the final link.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "positionIndependent": {
-          "description": "Position independent code policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/NativePositionIndependentMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "crt": {
-          "description": "C runtime linkage policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/NativeCrtLinkage"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "soname": {
-          "description": "Shared object soname.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "installName": {
-          "description": "Darwin install name.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
-    "NativeOutputKind": {
+    "TargetNativeOutputKind": {
       "description": "Native output kind for one target.",
       "oneOf": [
         {
@@ -6157,7 +6232,7 @@
         }
       ]
     },
-    "NativeLinkerFlavor": {
+    "TargetLinkerFlavor": {
       "description": "Linker driver family for one native target.",
       "oneOf": [
         {
@@ -6202,7 +6277,7 @@
         }
       ]
     },
-    "NativeSymbolVisibility": {
+    "TargetSymbolVisibility": {
       "description": "Symbol visibility policy for one native target.",
       "oneOf": [
         {
@@ -6222,7 +6297,7 @@
         }
       ]
     },
-    "NativePositionIndependentMode": {
+    "TargetPositionIndependentMode": {
       "description": "Position independent code policy for one native target.",
       "oneOf": [
         {
@@ -6247,7 +6322,7 @@
         }
       ]
     },
-    "NativeCrtLinkage": {
+    "TargetCrtLinkage": {
       "description": "C runtime linkage policy for one native target.",
       "oneOf": [
         {
@@ -6297,123 +6372,6 @@
         }
       ]
     },
-    "TargetBundleJson": {
-      "description": "Target scoped bundling options in `destack.json`.",
-      "type": "object",
-      "properties": {
-        "assembly": {
-          "description": "Assembly topology for this script target.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundleMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "preserveModules": {
-          "description": "Whether to preserve one emitted module file per reachable module.",
-          "type": "boolean",
-          "default": false
-        },
-        "inlineDynamicImports": {
-          "description": "Whether to inline dynamic imports into the current output.",
-          "type": "boolean",
-          "default": false
-        },
-        "preserveModulesRoot": {
-          "description": "Root directory for preserved module paths.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "manualChunks": {
-          "description": "Manual chunk assignments keyed by chunk name.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "onlyExplicitManualChunks": {
-          "description": "Whether to only honor explicit manual chunk declarations.",
-          "type": "boolean",
-          "default": false
-        },
-        "dependencies": {
-          "description": "Dependency and resolution options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleDepsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "assets": {
-          "description": "Asset handling options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleAssetsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "treeshake": {
-          "description": "Tree shaking options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleTreeshakeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "output": {
-          "description": "Output options for assembled bundle files.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleOutputJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "define": {
-          "description": "Compile time define replacements.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "minify": {
-          "description": "Minification options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetBundleMinifyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
     "BundleMode": {
       "description": "Assembly mode for one script target.",
       "oneOf": [
@@ -6434,7 +6392,7 @@
         }
       ]
     },
-    "TargetBundleDepsJson": {
+    "TargetDependencyOptionsJson": {
       "description": "Bundler dependency and resolution options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -6546,7 +6504,7 @@
         }
       ]
     },
-    "TargetBundleAssetsJson": {
+    "TargetAssetOptionsJson": {
       "description": "Bundler asset handling options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -6592,7 +6550,7 @@
         }
       ]
     },
-    "TargetBundleTreeshakeJson": {
+    "TargetTreeshakeOptionsJson": {
       "description": "Bundler tree shaking options in `destack.json`.",
       "anyOf": [
         {
@@ -6601,11 +6559,11 @@
         },
         {
           "description": "Configure tree shaking with one explicit options object.",
-          "$ref": "#/$defs/TargetBundleTreeshakeOptionsJson"
+          "$ref": "#/$defs/TargetTreeshakeConfigJson"
         }
       ]
     },
-    "TargetBundleTreeshakeOptionsJson": {
+    "TargetTreeshakeConfigJson": {
       "description": "Bundler tree shaking options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -6658,7 +6616,7 @@
         }
       ]
     },
-    "TargetBundleOutputJson": {
+    "TargetOutputPolicyJson": {
       "description": "Bundler output options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -6764,7 +6722,7 @@
           "description": "Generated code controls for final output rendering.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetBundleGeneratedCodeJson"
+              "$ref": "#/$defs/TargetGeneratedCodeOptionsJson"
             },
             {
               "type": "null"
@@ -6782,18 +6740,11 @@
           "description": "Whether to emit `__esModule` markers for CommonJS output.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetBundleEsModuleJson"
+              "$ref": "#/$defs/TargetEsModulePolicyJson"
             },
             {
               "type": "null"
             }
-          ]
-        },
-        "dynamicImportInCjs": {
-          "description": "Whether to rewrite dynamic imports for CommonJS output.",
-          "type": [
-            "boolean",
-            "null"
           ]
         },
         "externalLiveBindings": {
@@ -6815,7 +6766,7 @@
           "description": "Source map emission policy.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetBundleSourceMapJson"
+              "$ref": "#/$defs/TargetSourceMapPolicyJson"
             },
             {
               "type": "null"
@@ -6944,20 +6895,20 @@
         }
       ]
     },
-    "TargetBundleGeneratedCodeJson": {
+    "TargetGeneratedCodeOptionsJson": {
       "description": "Generated code controls in `destack.json`.",
       "anyOf": [
         {
           "description": "Select one named generated code preset.",
-          "$ref": "#/$defs/BundleGeneratedCodePreset"
+          "$ref": "#/$defs/TargetGeneratedCodePreset"
         },
         {
           "description": "Configure generated code with one explicit options object.",
-          "$ref": "#/$defs/BundleGeneratedCodeOptionsJson"
+          "$ref": "#/$defs/TargetGeneratedCodeConfigJson"
         }
       ]
     },
-    "BundleGeneratedCodePreset": {
+    "TargetGeneratedCodePreset": {
       "description": "Generated code preset for one output.",
       "oneOf": [
         {
@@ -6972,7 +6923,7 @@
         }
       ]
     },
-    "BundleGeneratedCodeOptionsJson": {
+    "TargetGeneratedCodeConfigJson": {
       "description": "Generated code options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -6980,7 +6931,7 @@
           "description": "Base preset for generated code features.",
           "anyOf": [
             {
-              "$ref": "#/$defs/BundleGeneratedCodePreset"
+              "$ref": "#/$defs/TargetGeneratedCodePreset"
             },
             {
               "type": "null"
@@ -7024,7 +6975,7 @@
         }
       }
     },
-    "TargetBundleEsModuleJson": {
+    "TargetEsModulePolicyJson": {
       "description": "`esModule` output mode in `destack.json`.",
       "anyOf": [
         {
@@ -7057,7 +7008,7 @@
         }
       ]
     },
-    "TargetBundleSourceMapJson": {
+    "TargetSourceMapPolicyJson": {
       "description": "Bundler source map policy in `destack.json`.",
       "anyOf": [
         {
@@ -7090,7 +7041,7 @@
         }
       ]
     },
-    "TargetBundleMinifyJson": {
+    "TargetMinifyOptionsJson": {
       "description": "Bundler minification options in `destack.json`.",
       "anyOf": [
         {
@@ -7099,11 +7050,11 @@
         },
         {
           "description": "Configure minification with one explicit options object.",
-          "$ref": "#/$defs/TargetBundleMinifyOptionsJson"
+          "$ref": "#/$defs/TargetMinifyConfigJson"
         }
       ]
     },
-    "TargetBundleMinifyOptionsJson": {
+    "TargetMinifyConfigJson": {
       "description": "Bundler minification options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -12188,7 +12139,7 @@
           "description": "Bundled output tree shaking policy for this build mode.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetBundleTreeshakeJson"
+              "$ref": "#/$defs/TargetTreeshakeOptionsJson"
             },
             {
               "type": "null"
@@ -12199,7 +12150,7 @@
           "description": "Bundled output minification policy for this build mode.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetBundleMinifyJson"
+              "$ref": "#/$defs/TargetMinifyOptionsJson"
             },
             {
               "type": "null"

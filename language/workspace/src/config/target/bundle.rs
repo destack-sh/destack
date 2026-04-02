@@ -1,5 +1,4 @@
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
 
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -108,7 +107,7 @@ pub enum BundleEsModuleMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum BundleGeneratedCodePreset {
+pub enum TargetGeneratedCodePreset {
     /// Favor ES5 compatible output forms.
     Es5,
     /// Favor ES2015 compatible output forms.
@@ -160,7 +159,7 @@ pub enum BundlePackageMode {
 
 /// Bundler dependency and resolution options.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TargetBundleDeps {
+pub struct TargetDependencyOptions {
     /// Package policy for node_modules style imports.
     pub packages: BundlePackageMode,
     /// Whether to skip resolving and bundling node_modules entries entirely.
@@ -181,7 +180,7 @@ pub struct TargetBundleDeps {
     pub main_fields: Vec<String>,
 }
 
-impl Hash for TargetBundleDeps {
+impl Hash for TargetDependencyOptions {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.packages.hash(state);
         self.skip_node_modules_bundle.hash(state);
@@ -202,7 +201,7 @@ impl Hash for TargetBundleDeps {
 
 /// Bundler asset handling options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetBundleAssets {
+pub struct TargetAssetOptions {
     /// Asset handling mode for referenced assets.
     pub mode: BundleAssetMode,
     /// Inline asset payloads smaller than this many bytes.
@@ -211,7 +210,7 @@ pub struct TargetBundleAssets {
 
 /// Bundler tree shaking options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetBundleTreeshake {
+pub struct TargetTreeshakeOptions {
     /// Whether to tree shake unused modules and exports.
     pub enabled: bool,
     /// Side effect policy for individual modules.
@@ -220,7 +219,7 @@ pub struct TargetBundleTreeshake {
     pub package_side_effects: BundleSideEffectMode,
 }
 
-impl TargetBundleTreeshake {
+impl TargetTreeshakeOptions {
     /// Return whether tree shaking is active.
     pub fn is_enabled(&self) -> bool {
         self.enabled
@@ -229,7 +228,7 @@ impl TargetBundleTreeshake {
 
 /// Bundler minification options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetBundleMinify {
+pub struct TargetMinifyOptions {
     /// Whether to minify final bundled output.
     pub enabled: bool,
     /// Whether to minify syntax forms.
@@ -242,7 +241,7 @@ pub struct TargetBundleMinify {
     pub keep_names: bool,
 }
 
-impl TargetBundleMinify {
+impl TargetMinifyOptions {
     /// Return whether any minification pass is enabled.
     pub fn is_enabled(&self) -> bool {
         self.enabled || self.syntax || self.whitespace || self.identifiers
@@ -256,9 +255,9 @@ impl TargetBundleMinify {
 
 /// Generated code controls for one output.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct BundleGeneratedCode {
+pub struct TargetGeneratedCodeOptions {
     /// Base preset for generated code features.
-    pub preset: Option<BundleGeneratedCodePreset>,
+    pub preset: Option<TargetGeneratedCodePreset>,
     /// Whether to emit arrow functions where possible.
     pub arrow_functions: Option<bool>,
     /// Whether to emit `const` bindings where possible.
@@ -273,7 +272,7 @@ pub struct BundleGeneratedCode {
 
 /// Bundler output options.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TargetBundleOutput {
+pub struct TargetOutputPolicy {
     /// Bundle format for assembled JavaScript outputs.
     pub format: Option<BundleFormat>,
     /// Global name for IIFE and UMD bundles.
@@ -299,13 +298,11 @@ pub struct TargetBundleOutput {
     /// Interop mode for external modules.
     pub interop: Option<BundleInteropMode>,
     /// Generated code controls for final output rendering.
-    pub generated_code: Option<BundleGeneratedCode>,
+    pub generated_code: Option<TargetGeneratedCodeOptions>,
     /// Whether to freeze namespace imports and export objects.
     pub freeze: Option<bool>,
     /// Whether to emit `__esModule` markers for CommonJS output.
     pub es_module: Option<BundleEsModuleMode>,
-    /// Whether to rewrite dynamic imports for CommonJS output.
-    pub dynamic_import_in_cjs: Option<bool>,
     /// Whether to preserve external live bindings in output wrappers.
     pub external_live_bindings: bool,
     /// Whether to hoist transitive imports on entry facades.
@@ -322,7 +319,7 @@ pub struct TargetBundleOutput {
     pub globals: IndexMap<String, String>,
 }
 
-impl Hash for TargetBundleOutput {
+impl Hash for TargetOutputPolicy {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.format.hash(state);
         self.name.hash(state);
@@ -339,7 +336,6 @@ impl Hash for TargetBundleOutput {
         self.generated_code.hash(state);
         self.freeze.hash(state);
         self.es_module.hash(state);
-        self.dynamic_import_in_cjs.hash(state);
         self.external_live_bindings.hash(state);
         self.hoist_transitive_imports.hash(state);
         self.minify_internal_exports.hash(state);
@@ -355,113 +351,11 @@ impl Hash for TargetBundleOutput {
     }
 }
 
-/// Target scoped bundling options.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TargetBundle {
-    /// Assembly topology for this script target.
-    pub assembly: BundleMode,
-    /// Whether to preserve one emitted module per reachable source module.
-    pub preserve_modules: bool,
-    /// Whether to inline dynamic imports into the current output.
-    pub inline_dynamic_imports: bool,
-    /// Root directory for preserved module paths.
-    pub preserve_modules_root: Option<PathBuf>,
-    /// Manual chunk assignments keyed by chunk name.
-    pub manual_chunks: IndexMap<String, Vec<String>>,
-    /// Whether to only honor explicit manual chunk declarations.
-    pub only_explicit_manual_chunks: bool,
-    /// Dependency and resolution options.
-    pub dependencies: TargetBundleDeps,
-    /// Asset handling options.
-    pub assets: TargetBundleAssets,
-    /// Tree shaking options.
-    pub treeshake: TargetBundleTreeshake,
-    /// Output configuration for bundled products.
-    pub output: TargetBundleOutput,
-    /// Compile time define replacements.
-    pub define: IndexMap<String, String>,
-    /// Minification options.
-    pub minify: TargetBundleMinify,
-}
-
-impl TargetBundle {
-    /// Return whether this bundler policy emits entry or chunk collections.
-    pub fn uses_entry_output_layout(&self) -> bool {
-        self.assembly.uses_entry_output_layout()
-    }
-}
-
-impl Hash for TargetBundle {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.assembly.hash(state);
-        self.preserve_modules.hash(state);
-        self.inline_dynamic_imports.hash(state);
-        self.preserve_modules_root.hash(state);
-        self.only_explicit_manual_chunks.hash(state);
-        self.dependencies.hash(state);
-        self.assets.hash(state);
-        self.treeshake.hash(state);
-        self.output.hash(state);
-        self.minify.hash(state);
-
-        self.manual_chunks.len().hash(state);
-        for (name, modules) in &self.manual_chunks {
-            name.hash(state);
-            modules.hash(state);
-        }
-
-        self.define.len().hash(state);
-        for (name, value) in &self.define {
-            name.hash(state);
-            value.hash(state);
-        }
-    }
-}
-
-impl From<&TargetBundleJson> for TargetBundle {
-    fn from(json: &TargetBundleJson) -> Self {
-        Self {
-            assembly: json.assembly.unwrap_or_default(),
-            preserve_modules: json.preserve_modules,
-            inline_dynamic_imports: json.inline_dynamic_imports,
-            preserve_modules_root: json.preserve_modules_root.as_ref().map(PathBuf::from),
-            manual_chunks: json.manual_chunks.clone().unwrap_or_default(),
-            only_explicit_manual_chunks: json.only_explicit_manual_chunks,
-            dependencies: json
-                .dependencies
-                .as_ref()
-                .map(TargetBundleDeps::from)
-                .unwrap_or_default(),
-            assets: json
-                .assets
-                .as_ref()
-                .map(TargetBundleAssets::from)
-                .unwrap_or_default(),
-            treeshake: json
-                .treeshake
-                .as_ref()
-                .map(TargetBundleTreeshake::from)
-                .unwrap_or_default(),
-            output: json
-                .output
-                .as_ref()
-                .map(TargetBundleOutput::from)
-                .unwrap_or_default(),
-            define: json.define.clone().unwrap_or_default(),
-            minify: json
-                .minify
-                .as_ref()
-                .map(TargetBundleMinify::from)
-                .unwrap_or_default(),
-        }
-    }
-}
-
 /// Bundler dependency and resolution options in `destack.json`.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetBundleDepsJson {
+pub struct TargetDependencyOptionsJson {
     /// Package policy for node_modules style imports.
     pub packages: Option<BundlePackageMode>,
     /// Whether to skip resolving and bundling node_modules entries entirely.
@@ -483,8 +377,8 @@ pub struct TargetBundleDepsJson {
     pub main_fields: Option<Vec<String>>,
 }
 
-impl From<&TargetBundleDepsJson> for TargetBundleDeps {
-    fn from(json: &TargetBundleDepsJson) -> Self {
+impl From<&TargetDependencyOptionsJson> for TargetDependencyOptions {
+    fn from(json: &TargetDependencyOptionsJson) -> Self {
         Self {
             packages: json.packages.unwrap_or_default(),
             skip_node_modules_bundle: json.skip_node_modules_bundle,
@@ -503,15 +397,15 @@ impl From<&TargetBundleDepsJson> for TargetBundleDeps {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetBundleAssetsJson {
+pub struct TargetAssetOptionsJson {
     /// Asset handling mode for referenced assets.
     pub mode: Option<BundleAssetMode>,
     /// Inline asset payloads smaller than this many bytes.
     pub inline_limit: Option<u64>,
 }
 
-impl From<&TargetBundleAssetsJson> for TargetBundleAssets {
-    fn from(json: &TargetBundleAssetsJson) -> Self {
+impl From<&TargetAssetOptionsJson> for TargetAssetOptions {
+    fn from(json: &TargetAssetOptionsJson) -> Self {
         Self {
             mode: json.mode.unwrap_or_default(),
             inline_limit: json.inline_limit,
@@ -523,7 +417,7 @@ impl From<&TargetBundleAssetsJson> for TargetBundleAssets {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetBundleTreeshakeOptionsJson {
+pub struct TargetTreeshakeConfigJson {
     /// Whether to tree shake unused modules and exports.
     #[serde(default)]
     pub enabled: bool,
@@ -537,21 +431,21 @@ pub struct TargetBundleTreeshakeOptionsJson {
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
-pub enum TargetBundleTreeshakeJson {
+pub enum TargetTreeshakeOptionsJson {
     /// Enable or disable tree shaking with one boolean.
     Enabled(bool),
     /// Configure tree shaking with one explicit options object.
-    Options(TargetBundleTreeshakeOptionsJson),
+    Options(TargetTreeshakeConfigJson),
 }
 
-impl From<&TargetBundleTreeshakeJson> for TargetBundleTreeshake {
-    fn from(json: &TargetBundleTreeshakeJson) -> Self {
+impl From<&TargetTreeshakeOptionsJson> for TargetTreeshakeOptions {
+    fn from(json: &TargetTreeshakeOptionsJson) -> Self {
         match json {
-            TargetBundleTreeshakeJson::Enabled(enabled) => Self {
+            TargetTreeshakeOptionsJson::Enabled(enabled) => Self {
                 enabled: *enabled,
                 ..Self::default()
             },
-            TargetBundleTreeshakeJson::Options(options) => Self {
+            TargetTreeshakeOptionsJson::Options(options) => Self {
                 enabled: options.enabled,
                 module_side_effects: options.module_side_effects.unwrap_or_default(),
                 package_side_effects: options.package_side_effects.unwrap_or_default(),
@@ -564,14 +458,14 @@ impl From<&TargetBundleTreeshakeJson> for TargetBundleTreeshake {
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
-pub enum TargetBundleSourceMapJson {
+pub enum TargetSourceMapPolicyJson {
     /// Enable or disable external source maps with one boolean.
     Enabled(bool),
     /// Select one explicit source map mode.
     Mode(SourceMapMode),
 }
 
-impl TargetBundleSourceMapJson {
+impl TargetSourceMapPolicyJson {
     /// Convert this JSON surface into one normalized source map mode.
     pub fn mode(&self) -> Option<SourceMapMode> {
         match self {
@@ -586,14 +480,14 @@ impl TargetBundleSourceMapJson {
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
-pub enum TargetBundleEsModuleJson {
+pub enum TargetEsModulePolicyJson {
     /// Enable or disable `__esModule` emission with one boolean.
     Enabled(bool),
     /// Select one explicit `esModule` policy.
     Mode(BundleEsModuleMode),
 }
 
-impl TargetBundleEsModuleJson {
+impl TargetEsModulePolicyJson {
     /// Convert this JSON surface into one normalized `esModule` policy.
     pub fn mode(&self) -> BundleEsModuleMode {
         match self {
@@ -608,9 +502,9 @@ impl TargetBundleEsModuleJson {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct BundleGeneratedCodeOptionsJson {
+pub struct TargetGeneratedCodeConfigJson {
     /// Base preset for generated code features.
-    pub preset: Option<BundleGeneratedCodePreset>,
+    pub preset: Option<TargetGeneratedCodePreset>,
     /// Whether to emit arrow functions where possible.
     pub arrow_functions: Option<bool>,
     /// Whether to emit `const` bindings where possible.
@@ -627,21 +521,21 @@ pub struct BundleGeneratedCodeOptionsJson {
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
-pub enum TargetBundleGeneratedCodeJson {
+pub enum TargetGeneratedCodeOptionsJson {
     /// Select one named generated code preset.
-    Preset(BundleGeneratedCodePreset),
+    Preset(TargetGeneratedCodePreset),
     /// Configure generated code with one explicit options object.
-    Options(BundleGeneratedCodeOptionsJson),
+    Options(TargetGeneratedCodeConfigJson),
 }
 
-impl From<&TargetBundleGeneratedCodeJson> for BundleGeneratedCode {
-    fn from(json: &TargetBundleGeneratedCodeJson) -> Self {
+impl From<&TargetGeneratedCodeOptionsJson> for TargetGeneratedCodeOptions {
+    fn from(json: &TargetGeneratedCodeOptionsJson) -> Self {
         match json {
-            TargetBundleGeneratedCodeJson::Preset(preset) => Self {
+            TargetGeneratedCodeOptionsJson::Preset(preset) => Self {
                 preset: Some(*preset),
                 ..Self::default()
             },
-            TargetBundleGeneratedCodeJson::Options(options) => Self {
+            TargetGeneratedCodeOptionsJson::Options(options) => Self {
                 preset: options.preset,
                 arrow_functions: options.arrow_functions,
                 const_bindings: options.const_bindings,
@@ -657,7 +551,7 @@ impl From<&TargetBundleGeneratedCodeJson> for BundleGeneratedCode {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetBundleOutputJson {
+pub struct TargetOutputPolicyJson {
     /// Bundle format for assembled JavaScript outputs.
     pub format: Option<BundleFormat>,
     /// Global name for IIFE and UMD bundles.
@@ -684,13 +578,11 @@ pub struct TargetBundleOutputJson {
     /// Interop mode for external modules.
     pub interop: Option<BundleInteropMode>,
     /// Generated code controls for final output rendering.
-    pub generated_code: Option<TargetBundleGeneratedCodeJson>,
+    pub generated_code: Option<TargetGeneratedCodeOptionsJson>,
     /// Whether to freeze namespace imports and export objects.
     pub freeze: Option<bool>,
     /// Whether to emit `__esModule` markers for CommonJS output.
-    pub es_module: Option<TargetBundleEsModuleJson>,
-    /// Whether to rewrite dynamic imports for CommonJS output.
-    pub dynamic_import_in_cjs: Option<bool>,
+    pub es_module: Option<TargetEsModulePolicyJson>,
     /// Whether to preserve external live bindings in output wrappers.
     #[serde(default)]
     pub external_live_bindings: bool,
@@ -701,7 +593,7 @@ pub struct TargetBundleOutputJson {
     #[serde(default)]
     pub minify_internal_exports: bool,
     /// Source map emission policy.
-    pub sourcemap: Option<TargetBundleSourceMapJson>,
+    pub sourcemap: Option<TargetSourceMapPolicyJson>,
     /// Whether to omit source contents from source maps.
     #[serde(default)]
     pub sourcemap_exclude_sources: bool,
@@ -712,8 +604,8 @@ pub struct TargetBundleOutputJson {
     pub globals: Option<IndexMap<String, String>>,
 }
 
-impl From<&TargetBundleOutputJson> for TargetBundleOutput {
-    fn from(json: &TargetBundleOutputJson) -> Self {
+impl From<&TargetOutputPolicyJson> for TargetOutputPolicy {
+    fn from(json: &TargetOutputPolicyJson) -> Self {
         Self {
             format: json.format,
             name: json.name.clone(),
@@ -727,17 +619,19 @@ impl From<&TargetBundleOutputJson> for TargetBundleOutput {
             footer: json.footer.clone(),
             exports: json.exports,
             interop: json.interop,
-            generated_code: json.generated_code.as_ref().map(BundleGeneratedCode::from),
+            generated_code: json
+                .generated_code
+                .as_ref()
+                .map(TargetGeneratedCodeOptions::from),
             freeze: json.freeze,
-            es_module: json.es_module.as_ref().map(TargetBundleEsModuleJson::mode),
-            dynamic_import_in_cjs: json.dynamic_import_in_cjs,
+            es_module: json.es_module.as_ref().map(TargetEsModulePolicyJson::mode),
             external_live_bindings: json.external_live_bindings,
             hoist_transitive_imports: json.hoist_transitive_imports,
             minify_internal_exports: json.minify_internal_exports,
             sourcemap: json
                 .sourcemap
                 .as_ref()
-                .and_then(TargetBundleSourceMapJson::mode),
+                .and_then(TargetSourceMapPolicyJson::mode),
             sourcemap_exclude_sources: json.sourcemap_exclude_sources,
             sourcemap_debug_ids: json.sourcemap_debug_ids,
             globals: json.globals.clone().unwrap_or_default(),
@@ -749,7 +643,7 @@ impl From<&TargetBundleOutputJson> for TargetBundleOutput {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetBundleMinifyOptionsJson {
+pub struct TargetMinifyConfigJson {
     /// Whether to minify final bundled output.
     #[serde(default)]
     pub enabled: bool,
@@ -771,17 +665,17 @@ pub struct TargetBundleMinifyOptionsJson {
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
-pub enum TargetBundleMinifyJson {
+pub enum TargetMinifyOptionsJson {
     /// Enable or disable full minification with one boolean.
     Enabled(bool),
     /// Configure minification with one explicit options object.
-    Options(TargetBundleMinifyOptionsJson),
+    Options(TargetMinifyConfigJson),
 }
 
-impl From<&TargetBundleMinifyJson> for TargetBundleMinify {
-    fn from(json: &TargetBundleMinifyJson) -> Self {
+impl From<&TargetMinifyOptionsJson> for TargetMinifyOptions {
+    fn from(json: &TargetMinifyOptionsJson) -> Self {
         match json {
-            TargetBundleMinifyJson::Enabled(enabled) => {
+            TargetMinifyOptionsJson::Enabled(enabled) => {
                 if !enabled {
                     return Self::default();
                 }
@@ -794,7 +688,7 @@ impl From<&TargetBundleMinifyJson> for TargetBundleMinify {
                     keep_names: false,
                 }
             }
-            TargetBundleMinifyJson::Options(options) => Self {
+            TargetMinifyOptionsJson::Options(options) => Self {
                 enabled: options.enabled,
                 syntax: options.syntax,
                 whitespace: options.whitespace,
@@ -802,60 +696,5 @@ impl From<&TargetBundleMinifyJson> for TargetBundleMinify {
                 keep_names: options.keep_names,
             },
         }
-    }
-}
-
-/// Target scoped bundling options in `destack.json`.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct TargetBundleJson {
-    /// Assembly topology for this script target.
-    #[serde(alias = "mode")]
-    pub assembly: Option<BundleMode>,
-    /// Whether to preserve one emitted module file per reachable module.
-    #[serde(default)]
-    pub preserve_modules: bool,
-    /// Whether to inline dynamic imports into the current output.
-    #[serde(default)]
-    pub inline_dynamic_imports: bool,
-    /// Root directory for preserved module paths.
-    pub preserve_modules_root: Option<String>,
-    /// Manual chunk assignments keyed by chunk name.
-    pub manual_chunks: Option<IndexMap<String, Vec<String>>>,
-    /// Whether to only honor explicit manual chunk declarations.
-    #[serde(default)]
-    pub only_explicit_manual_chunks: bool,
-    /// Dependency and resolution options.
-    #[serde(alias = "deps")]
-    pub dependencies: Option<TargetBundleDepsJson>,
-    /// Asset handling options.
-    pub assets: Option<TargetBundleAssetsJson>,
-    /// Tree shaking options.
-    pub treeshake: Option<TargetBundleTreeshakeJson>,
-    /// Output options for assembled bundle files.
-    pub output: Option<TargetBundleOutputJson>,
-    /// Compile time define replacements.
-    pub define: Option<IndexMap<String, String>>,
-    /// Minification options.
-    pub minify: Option<TargetBundleMinifyJson>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Accept both the canonical assembly key and the legacy mode alias.
-    #[test]
-    fn test_deserializes_bundle_assembly_and_mode_alias() {
-        let assembly_json = r#"{ "assembly": "chunked" }"#;
-        let assembly = serde_json::from_str::<TargetBundleJson>(assembly_json)
-            .unwrap_or_else(|error| panic!("expected valid assembly json: {error}"));
-        assert_eq!(assembly.assembly, Some(BundleMode::Chunked));
-
-        let alias_json = r#"{ "mode": "preserveModules" }"#;
-        let alias = serde_json::from_str::<TargetBundleJson>(alias_json)
-            .unwrap_or_else(|error| panic!("expected valid mode alias json: {error}"));
-        assert_eq!(alias.assembly, Some(BundleMode::PreserveModules));
     }
 }
