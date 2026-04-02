@@ -1,5 +1,5 @@
 export function log(name, value) {
-    return console.log(`${name}:${value}`);
+    console.log(`${name}:${value}`);
 }
 
 export const dep = { x: 42 };

@@ -25,16 +25,16 @@
       "isDynamicEntry": false
     },
     {
-      "path": "index.js",
+      "path": "site.js",
       "type": "chunk",
       "loader": "js",
-      "name": "index",
+      "name": "site",
       "input": "src/index.ts",
       "isEntry": true,
       "isDynamicEntry": false
     },
     {
-      "path": "index.js.map",
+      "path": "site.js.map",
       "type": "asset",
       "loader": "map"
     }

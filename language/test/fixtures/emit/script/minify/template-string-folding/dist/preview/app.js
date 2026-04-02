@@ -1,21 +1,25 @@
-export const templateStringFolding = [
-    `${1}-${2}-${3}-${null}-${void 0}-${!0}-${!1}`,
-    `\uD83D\uDE0B \uD83D\uDCCB \uD83D\uDC4C`.length,
-    `\uD83D\uDE0B \uD83D\uDCCB \uD83D\uDC4C`.length === 8,
-    `\uD83D\uDE0B \uD83D\uDCCB \uD83D\uDC4C`.length == 8,
-    `\uD83D\uDE0B \uD83D\uDCCB \uD83D\uDC4C`.length === 1,
-    `\uD83D\uDE0B \uD83D\uDCCB \uD83D\uDC4C`.length == 1,
-    "\\uD83D\\uDE0B \\uD83D\\uDCCB \\uD83D\\uDC4C".length,
-    "\\uD83D\\uDE0B \\uD83D\\uDCCB \\uD83D\\uDC4C".length === 8,
-    "\\uD83D\\uDE0B \\uD83D\\uDCCB \\uD83D\\uDC4C".length == 8,
-    "\\uD83D\\uDE0B \\uD83D\\uDCCB \\uD83D\\uDC4C".length === 1,
-    "\\uD83D\\uDE0B \\uD83D\\uDCCB \\uD83D\\uDC4C".length == 1,
-    `😋📋👌`.length === 6,
-    `😋📋👌`.length == 6,
-    `😋📋👌`.length === 2,
-    `😋📋👌`.length == 2,
-    `\n`.length,
-    "\\uD800\\uDF34".length,
-    "\\u{10334}".length,
-    "𐌴".length,
+// src/app.ts
+var templateStringFolding = [
+  "1-2-3-null-undefined-true-false",
+  8,
+  !0,
+  !0,
+  !1,
+  !1,
+  8,
+  !0,
+  !0,
+  !1,
+  !1,
+  !0,
+  !0,
+  !1,
+  !1,
+  1,
+  2,
+  2,
+  2
 ];
+export {
+  templateStringFolding
+};

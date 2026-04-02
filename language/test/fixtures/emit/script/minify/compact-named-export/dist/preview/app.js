@@ -1,1 +1,1 @@
-let x=42;x=x+1;x=x+1;++x;+x;const y=x*2;const z=`${x}:${y}`;export{x,y,z};
+var x=42;x+=1;x=x+1;x++;+x;var y=x*2;var z=`${x}:${y}`;export{x,y,z};

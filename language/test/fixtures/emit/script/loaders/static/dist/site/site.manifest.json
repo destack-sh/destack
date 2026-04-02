@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "path": "site/index.ts",
+      "path": "site/index.js",
       "type": "chunk",
       "loader": "js",
       "name": "site",
@@ -10,7 +10,7 @@
       "isDynamicEntry": false
     },
     {
-      "path": "site/index.ts.map",
+      "path": "site/index.js.map",
       "type": "asset",
       "loader": "map"
     }

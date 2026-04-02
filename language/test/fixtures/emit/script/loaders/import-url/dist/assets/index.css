@@ -1,8 +1,32 @@
-@layer new{h2{color:rgb(0, 0, 255)}}
+/* src/import.css */
+@layer new {
+  h2 {
+    color: rgb(0, 0, 255);
+  }
+}
 
-@layer theme{@layer theme{h2{letter-spacing:0.02em}}}
+/* src/theme.css */
+@layer theme {
+  @layer theme {
+    h2 {
+      letter-spacing: 0.02em;
+    }
+  }
+}
 
-@layer layout{@layer layout{h2{display:grid}}}
+/* src/nested/grid.css */
+@layer layout {
+  @layer layout {
+    h2 {
+      display: grid;
+    }
+  }
+}
 
+/* src/index.css */
 @layer default, new, theme;
-@layer default{h2{color:rgb(255, 0, 0)}}
+@layer default {
+  h2 {
+    color: rgb(255, 0, 0);
+  }
+}

@@ -9,7 +9,7 @@
         "src/docs.ts"
       ],
       "outDir": "dist/site",
-      "mode": "chunked",
+      "assembly": "chunked",
       "output": {
         "entryFileNames": "entries/[name]-[hash].js",
         "chunkFileNames": "chunks/[name]-[hash].js",

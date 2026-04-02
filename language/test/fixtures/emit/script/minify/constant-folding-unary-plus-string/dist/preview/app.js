@@ -1,10 +1,11 @@
-+"1.0";
-+"-123.567";
-+"8.325";
-+"100000000";
-+"\\u0030\\u002e\\u0031";
-+"\\x30\\x2e\\x31";
-+"\\u0031\\u0032\\u0033";
-+"\\x31\\x32\\x33";
-+"NotANumber";
-+"æ";
+// src/app.ts
+capture(+"1.0");
+capture(+"-123.567");
+capture(+"8.325");
+capture(1e8);
+capture(+"0.1");
+capture(+"0.1");
+capture(123);
+capture(123);
+capture(+"NotANumber");
+capture(+"\xE6");

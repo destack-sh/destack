@@ -1,19 +1,18 @@
+// src/app.ts
 function captureValue(value) {
-    console.log(value);
-    return value;
+  return console.log(value), value;
 }
-const e1 = new Error("with new"), e2 = Error("without new");
+var e1 = new Error("with new"), e2 = Error("without new");
 captureValue(e1 instanceof Error);
 captureValue(e2 instanceof Error);
 captureValue(e1.message === "with new");
 captureValue(e2.message === "without new");
 captureValue(typeof e1.stack == "string");
 captureValue(typeof e2.stack == "string");
-const errors = [
-    [new TypeError("t1"), TypeError("t2")],
-    [new SyntaxError("s1"), SyntaxError("s2")],
-    [new RangeError("r1"), RangeError("r2")],
+var errors = [
+  [new TypeError("t1"), TypeError("t2")],
+  [new SyntaxError("s1"), SyntaxError("s2")],
+  [new RangeError("r1"), RangeError("r2")]
 ];
-for (const [withNew, withoutNew] of errors) {
-    captureValue(withNew.constructor === withoutNew.constructor);
-}
+for (let [withNew, withoutNew] of errors)
+  captureValue(withNew.constructor === withoutNew.constructor);

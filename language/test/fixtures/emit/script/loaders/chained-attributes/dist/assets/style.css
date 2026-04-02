@@ -1,9 +1,88 @@
-@layer layer{@supports not(display: inline-grid){@media print{@supports font-format(woff2){@layer foo{@media all and (orientation: landscape){.imported{color:red}}}
+/* src/c.css */
+@media print {
+  @supports (not(display: inline-grid)) {
+    @layer layer {
+      @supports (font-format(woff2)) {
+        @media (orientation: landscape) {
+          @layer foo {
+            .imported {
+              color: red;
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
-.imported{color:orange}}
+/* src/c.css */
+@media print {
+  @supports (not(display: inline-grid)) {
+    @layer layer {
+      @supports (font-format(woff2)) {
+        @media (orientation: portrait) {
+          @layer bar {
+            .imported {
+              color: red;
+            }
+          }
+        }
+      }
+    }
+  }
+}
 
-.imported{color:cyan}}}}
+/* src/b.css */
+@media print {
+  @supports (not(display: inline-grid)) {
+    @layer layer {
+      @supports (font-format(woff2)) {
+        .imported {
+          color: orange;
+        }
+      }
+    }
+  }
+}
 
-@layer theme{@supports (display: grid){@media screen{.theme{color:lime}}}}
+/* src/a.css */
+@media print {
+  @supports (not(display: inline-grid)) {
+    @layer layer {
+      .imported {
+        color: cyan;
+      }
+    }
+  }
+}
 
-.style{color:yellow}
+/* src/c.css */
+@media screen {
+  @supports (display: grid) {
+    @layer theme {
+      @supports (color: rgb(0 0 0 / 1)) {
+        @layer theme.base {
+          .imported {
+            color: red;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* src/d.css */
+@media screen {
+  @supports (display: grid) {
+    @layer theme {
+      .theme {
+        color: lime;
+      }
+    }
+  }
+}
+
+/* src/style.css */
+.style {
+  color: yellow;
+}
