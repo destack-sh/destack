@@ -1,120 +1,105 @@
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-/// Cache scope selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum CacheScope {
-    /// Cache entries are workspace-local.
-    #[default]
-    Workspace,
-    /// Cache entries are stored in a global shared cache.
-    Global,
+use rustc_hash::FxHasher;
+
+/// Directory name for persisted cache entries.
+pub const CACHE_DIR_NAME: &str = "cache";
+/// Directory name for language cache entries.
+pub const LANGUAGE_CACHE_DIR_NAME: &str = "language";
+/// Directory name for shared workspace partitions.
+pub const WORKSPACES_CACHE_DIR_NAME: &str = "workspaces";
+/// Directory name for persisted artifact image entries.
+pub const ARTIFACT_CACHE_DIR_NAME: &str = "artifacts";
+/// Directory name for persisted artifact content entries.
+pub const ARTIFACT_CONTENTS_DIR_NAME: &str = "contents";
+/// Directory name for current artifact content ids.
+pub const ARTIFACT_CACHE_CURRENT_DIR_NAME: &str = "current";
+/// Lock file name for current artifact updates.
+pub const ARTIFACT_CACHE_LOCK_FILE_NAME: &str = "artifacts.lock";
+
+/// One persisted language cache layout.
+#[derive(Debug, Clone)]
+pub struct LanguageCacheLayout {
+    /// The `.destack` cache root.
+    cache_root: PathBuf,
+    /// The stable workspace root.
+    workspace_root: PathBuf,
+    /// The persisted cache abi.
+    cache_abi: String,
+    /// Whether this root is shared across workspaces.
+    is_shared_root: bool,
 }
 
-/// Default cache directory name for workspace scoped caches.
-pub const DEFAULT_CACHE_DIR: &str = ".destack";
-/// Default cache directory name under home when xdg is missing.
-pub const DEFAULT_HOME_CACHE_DIR: &str = ".cache";
-/// Default cache directory name for global caches.
-pub const DEFAULT_GLOBAL_CACHE_DIR: &str = "destack";
-/// Namespace for language cache entries.
-pub const DEFAULT_LANGUAGE_CACHE_NAMESPACE: &str = "language";
-/// Directory name for persisted compiler cache entries.
-pub const DEFAULT_LANGUAGE_CACHE_DIR_NAME: &str = "cache";
-/// Workspace index file name.
-pub const WORKSPACE_INDEX_FILE_NAME: &str = "workspace-index.bin";
-/// Workspace index lock file name.
-pub const WORKSPACE_INDEX_LOCK_FILE_NAME: &str = "workspace-index.lock";
-/// Explicit destack cache env override.
-pub const DESTACK_CACHE_DIR: &str = "DESTACK_CACHE_DIR";
-/// XDG cache home env var.
-pub const XDG_CACHE_HOME: &str = "XDG_CACHE_HOME";
-/// Unix home env var.
-pub const HOME: &str = "HOME";
-/// Windows local app data env var.
-pub const LOCAL_APPDATA: &str = "LOCAL_APPDATA";
-/// Windows user profile env var.
-pub const USERPROFILE: &str = "USERPROFILE";
-
-/// Return an explicit cache directory from the environment.
-pub fn cache_dir_from_env() -> Option<PathBuf> {
-    let value = std::env::var_os(DESTACK_CACHE_DIR)?;
-    if value.is_empty() {
-        return None;
+impl LanguageCacheLayout {
+    /// Create a persisted language cache layout.
+    pub fn new(
+        cache_root: &Path,
+        workspace_root: &Path,
+        cache_abi: impl Into<String>,
+        is_shared_root: bool,
+    ) -> Self {
+        Self {
+            cache_root: cache_root.to_path_buf(),
+            workspace_root: workspace_root.to_path_buf(),
+            cache_abi: cache_abi.into(),
+            is_shared_root,
+        }
     }
 
-    Some(PathBuf::from(value))
-}
-
-/// Resolve a global cache root directory for the given name.
-pub fn resolve_global_cache_root(dir_name: &str) -> Option<PathBuf> {
-    if let Some(dir) = cache_dir_from_env() {
-        return Some(dir);
+    /// Return the language cache abi.
+    fn cache_abi(&self) -> &str {
+        &self.cache_abi
     }
 
-    if let Some(xdg) = std::env::var_os(XDG_CACHE_HOME) {
-        return Some(PathBuf::from(xdg).join(dir_name));
+    /// Return the stable workspace cache key.
+    fn workspace_key(&self) -> String {
+        let mut hasher = FxHasher::default();
+        self.workspace_root.hash(&mut hasher);
+        format!("{:016x}", hasher.finish())
     }
 
-    if let Some(home) = std::env::var_os(HOME) {
-        return Some(
-            PathBuf::from(home)
-                .join(DEFAULT_HOME_CACHE_DIR)
-                .join(dir_name),
-        );
+    /// Return the language cache root.
+    fn language_root(&self) -> PathBuf {
+        self.cache_root
+            .join(CACHE_DIR_NAME)
+            .join(LANGUAGE_CACHE_DIR_NAME)
     }
 
-    if let Some(local) = std::env::var_os(LOCAL_APPDATA) {
-        return Some(PathBuf::from(local).join(dir_name));
+    /// Return the cache abi root.
+    fn abi_root(&self) -> PathBuf {
+        self.language_root().join(self.cache_abi())
     }
 
-    if let Some(profile) = std::env::var_os(USERPROFILE) {
-        return Some(
-            PathBuf::from(profile)
-                .join(DEFAULT_HOME_CACHE_DIR)
-                .join(dir_name),
-        );
-    }
-
-    None
-}
-
-/// Resolve a cache root for the provided scope and cache dir.
-pub fn resolve_cache_root_for_scope(
-    base_dir: &Path,
-    cache_dir: Option<&Path>,
-    scope: CacheScope,
-) -> PathBuf {
-    // honor explicit cache directory paths first
-    if let Some(cache_dir) = cache_dir {
-        if cache_dir.is_absolute() {
-            return cache_dir.to_path_buf();
+    /// Return the workspace cache root.
+    fn workspace_root(&self) -> PathBuf {
+        if self.is_shared_root {
+            return self
+                .abi_root()
+                .join(WORKSPACES_CACHE_DIR_NAME)
+                .join(self.workspace_key());
         }
 
-        if scope == CacheScope::Global
-            && let Some(global_root) = resolve_global_cache_root(DEFAULT_GLOBAL_CACHE_DIR)
-        {
-            return global_root.join(cache_dir);
-        }
-
-        return base_dir.join(cache_dir);
+        self.abi_root()
     }
 
-    // resolve global cache roots when requested
-    if scope == CacheScope::Global
-        && let Some(global_root) = resolve_global_cache_root(DEFAULT_GLOBAL_CACHE_DIR)
-    {
-        return global_root;
+    /// Return the persisted artifact cache root.
+    fn artifact_root(&self) -> PathBuf {
+        self.workspace_root().join(ARTIFACT_CACHE_DIR_NAME)
     }
 
-    base_dir.join(DEFAULT_CACHE_DIR)
-}
+    /// Return the persisted artifact content root.
+    pub fn content_root(&self) -> PathBuf {
+        self.artifact_root().join(ARTIFACT_CONTENTS_DIR_NAME)
+    }
 
-/// Resolve a path relative to a base directory.
-pub fn resolve_cache_dir(path: &Path, base_dir: &Path) -> PathBuf {
-    // resolve relative paths against the base directory
-    if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        base_dir.join(path)
+    /// Return the current artifact root.
+    pub(crate) fn current_root(&self) -> PathBuf {
+        self.artifact_root().join(ARTIFACT_CACHE_CURRENT_DIR_NAME)
+    }
+
+    /// Return the artifact cache lock path.
+    pub(crate) fn artifact_lock_path(&self) -> PathBuf {
+        self.artifact_root().join(ARTIFACT_CACHE_LOCK_FILE_NAME)
     }
 }

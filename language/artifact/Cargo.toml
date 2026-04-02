@@ -25,6 +25,7 @@ destack_mir = { workspace = true }
 destack_source = { workspace = true }
 
 # general
+blake3 = { workspace = true }
 dashmap = { workspace = true }
 filetime = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }

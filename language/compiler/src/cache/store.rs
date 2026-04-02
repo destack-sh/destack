@@ -1,62 +1,61 @@
 use crate::ArtifactTaskKeyExt;
 use crate::compile::Compiler;
 use destack_artifact::{
-    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageRequirement,
-    ArtifactImageStore, ArtifactKey, ArtifactPayload,
+    ArtifactCache, ArtifactContentId, ArtifactDependency, ArtifactImage, ArtifactImageDependency,
+    ArtifactImageError, ArtifactImageHeader, ArtifactKey, ArtifactStore,
 };
-use destack_workspace::{CacheMode, CacheValidate};
+use destack_workspace::CacheMode;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+/// The persisted language cache abi.
+pub(crate) const LANGUAGE_CACHE_ABI: &str = "language-cache-v1";
+
 impl Compiler {
-    /// Build persisted requirement proofs for the current task attempt.
-    fn current_image_requirements(
+    /// Build persisted image dependencies for the current task attempt.
+    fn current_image_dependencies(
         &self,
         artifact_key: &ArtifactKey,
-    ) -> Result<Vec<ArtifactImageRequirement>, ArtifactImageError> {
+    ) -> Result<Vec<ArtifactImageDependency>, ArtifactImageError> {
         if artifact_key.family().persisted_image_validation()
             == destack_artifact::PersistedImageValidation::SelfContained
         {
             return Ok(Vec::new());
         }
 
-        let mut image_requirements = Vec::new();
+        let mut image_dependencies = Vec::new();
         for requirement in self.current_requirements() {
             let image_key = requirement
                 .key
-                .image_key_with(|profile_id| self.program.profile(profile_id).key.clone());
-            let Some(validation_hash) =
-                self.load_expected_artifact_image_validation_hash(&image_key)?
-            else {
+                .image_key_with(|profile_id| self.profile(profile_id).key.clone());
+            let Some(content_id) = self.load_expected_artifact_content_id(&image_key)? else {
                 let error = std::io::Error::other(format!(
-                    "missing persisted dependency proof for '{}'",
+                    "missing persisted dependency image for '{}'",
                     requirement.key.name()
                 ));
                 return Err(ArtifactImageError::Io(error));
             };
 
-            image_requirements.push(ArtifactImageRequirement {
+            image_dependencies.push(ArtifactImageDependency {
                 key: image_key,
-                validation_hash,
+                content_id,
             });
         }
 
-        Ok(image_requirements)
+        Ok(image_dependencies)
     }
 
-    /// Return whether one persisted requirement proof list is currently satisfied.
-    pub(crate) fn persisted_image_requirements_are_satisfied(
+    /// Return whether one persisted image dependency list is currently satisfied.
+    pub(crate) fn persisted_image_dependencies_are_satisfied(
         &self,
-        requirements: &[ArtifactImageRequirement],
+        dependencies: &[ArtifactImageDependency],
     ) -> Result<bool, ArtifactImageError> {
-        for requirement in requirements {
-            let Some(validation_hash) =
-                self.load_expected_artifact_image_validation_hash(&requirement.key)?
-            else {
+        for dependency in dependencies {
+            let Some(content_id) = self.load_expected_artifact_content_id(&dependency.key)? else {
                 return Ok(false);
             };
 
-            if validation_hash != requirement.validation_hash {
+            if content_id != dependency.content_id {
                 return Ok(false);
             }
         }
@@ -66,33 +65,25 @@ impl Compiler {
 
     /// Resolve the effective workspace cache mode.
     pub(crate) fn workspace_cache_mode(&self) -> CacheMode {
-        self.session
-            .workspace_config()
-            .as_ref()
-            .map(|config| config.options.cache.mode)
+        let Some(revision) = self.current_execution_revision() else {
+            return CacheMode::Off;
+        };
+
+        self.repository
+            .workspace_options(revision)
+            .ok()
+            .flatten()
+            .map(|options| options.cache.mode)
             .unwrap_or(CacheMode::Off)
     }
 
-    /// Resolve the effective workspace cache validation mode.
-    pub(crate) fn workspace_cache_validate(&self) -> CacheValidate {
-        self.session
-            .workspace_config()
-            .as_ref()
-            .map(|config| config.options.cache.validate)
-            .unwrap_or(CacheValidate::Strict)
-    }
-
-    /// Resolve the persisted artifact store when disk mode is enabled.
-    pub(crate) fn artifact_store(&self) -> Option<ArtifactImageStore<'_>> {
+    /// Resolve the persisted artifact cache when disk mode is enabled.
+    pub(crate) fn artifact_cache(&self) -> Option<ArtifactCache<'_>> {
         if self.workspace_cache_mode() != CacheMode::Disk {
             return None;
         }
 
-        let cache_root = self.session.workspace_cache_dir();
-        Some(ArtifactImageStore::new(
-            self.session.cache_store.as_ref(),
-            &cache_root,
-        ))
+        Some(self.repository.artifact_cache(LANGUAGE_CACHE_ABI))
     }
 
     /// Load one persisted artifact image when its header still matches.
@@ -103,10 +94,10 @@ impl Compiler {
     where
         T: DeserializeOwned,
     {
-        let Some(artifact_store) = self.artifact_store() else {
+        let Some(artifact_cache) = self.artifact_cache() else {
             return Ok(None);
         };
-        let Some(image) = artifact_store.load::<T>(&expected.artifact_image_key)? else {
+        let Some(image) = artifact_cache.load::<T>(&expected.artifact_image_key)? else {
             return Ok(None);
         };
 
@@ -114,7 +105,7 @@ impl Compiler {
             return Ok(None);
         }
 
-        if !self.persisted_image_requirements_are_satisfied(&image.header.requirements)? {
+        if !self.persisted_image_dependencies_are_satisfied(&image.header.dependencies)? {
             return Ok(None);
         }
 
@@ -126,10 +117,10 @@ impl Compiler {
         &self,
         expected: &ArtifactImageHeader,
     ) -> Result<Option<ArtifactImageHeader>, ArtifactImageError> {
-        let Some(artifact_store) = self.artifact_store() else {
+        let Some(artifact_cache) = self.artifact_cache() else {
             return Ok(None);
         };
-        let Some(header) = artifact_store.load_header(&expected.artifact_image_key)? else {
+        let Some(header) = artifact_cache.load_header(&expected.artifact_image_key)? else {
             return Ok(None);
         };
 
@@ -137,21 +128,26 @@ impl Compiler {
             return Ok(None);
         }
 
-        if !self.persisted_image_requirements_are_satisfied(&header.requirements)? {
+        if !self.persisted_image_dependencies_are_satisfied(&header.dependencies)? {
             return Ok(None);
         }
 
         Ok(Some(header))
     }
 
-    /// Load one persisted image validation hash when its header still matches.
-    pub(crate) fn load_image_validation_hash(
+    /// Load one current persisted content id when its header still matches.
+    pub(crate) fn load_current_content_id(
         &self,
         expected: &ArtifactImageHeader,
-    ) -> Result<Option<u64>, ArtifactImageError> {
-        Ok(self
-            .load_image_header(expected)?
-            .map(|header| header.validation_hash))
+    ) -> Result<Option<ArtifactContentId>, ArtifactImageError> {
+        let Some(artifact_cache) = self.artifact_cache() else {
+            return Ok(None);
+        };
+        let Some(header) = self.load_image_header(expected)? else {
+            return Ok(None);
+        };
+
+        artifact_cache.load_current_content_id(&header.artifact_image_key)
     }
 
     /// Load one cached artifact image.
@@ -179,18 +175,20 @@ impl Compiler {
         }
     }
 
-    /// Load one cached artifact image and publish it into the live registry.
-    pub(crate) fn load_published_artifact<T, F>(
+    /// Restore one cached artifact image through the compiler publication path.
+    pub(crate) fn restore_cached_artifact<T, F, P>(
         &self,
         artifact_key: ArtifactKey,
         load: F,
+        publish: P,
     ) -> Option<T>
     where
-        T: Clone + Into<ArtifactPayload>,
+        T: Clone,
         F: FnOnce(&Self) -> Result<Option<T>, ArtifactImageError>,
+        P: FnOnce(&ArtifactStore, destack_artifact::ArtifactVersion, T),
     {
         let payload = self.load_artifact(&artifact_key, load)?;
-        self.artifacts.publish(artifact_key, payload.clone());
+        self.publish_artifact(artifact_key, payload.clone(), publish);
 
         Some(payload)
     }
@@ -205,26 +203,28 @@ impl Compiler {
     where
         T: Serialize,
     {
-        let Some(artifact_store) = self.artifact_store() else {
+        let Some(artifact_cache) = self.artifact_cache() else {
             return Ok(());
         };
-        let requirements = self.current_image_requirements(artifact_key)?;
-        let image = ArtifactImage::new(header.with_requirements(requirements), payload)?;
+        let dependencies = self.current_image_dependencies(artifact_key)?;
+        let image = ArtifactImage::new(header.with_dependencies(dependencies), payload)?;
 
-        artifact_store.save(&image)
+        artifact_cache.save(&image).map(|_| ())
     }
 
     /// Store one live artifact image in the artifact store.
     pub(crate) fn store_artifact<T, F>(&self, artifact_key: &ArtifactKey, payload: &T, store: F)
     where
-        F: FnOnce(&Self, &T) -> Result<(), ArtifactImageError>,
+        F: FnOnce(&Self, ArtifactDependency, &T) -> Result<(), ArtifactImageError>,
     {
         // skip artifact image writes when persistent cache is disabled
         if self.workspace_cache_mode() != CacheMode::Disk {
             return;
         }
 
-        if let Err(error) = store(self, payload) {
+        let artifact_dependency = self.artifact_dependency_for_key(artifact_key);
+
+        if let Err(error) = store(self, artifact_dependency, payload) {
             let artifact = artifact_key.name();
             tracing::warn!(?error, %artifact, "compile.cache.store_failed");
         }

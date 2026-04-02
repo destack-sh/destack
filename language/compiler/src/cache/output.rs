@@ -4,10 +4,10 @@ use destack_artifact::{
     ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
     PackageOutput,
 };
-use destack_source::{ModuleId, PackageId};
-use destack_workspace::{Target, TargetDiscovery, TargetDiscoveryIssue, TargetId};
+use destack_source::{ModuleId, PackageId, TargetId};
+use destack_workspace::{Target, TargetDiscovery, TargetDiscoveryIssue};
 
-use super::{CacheHasher, compiler_version};
+use super::{CacheHasher, repository_package};
 
 /// Persistent image context for one package output artifact.
 #[derive(Debug, Clone)]
@@ -24,11 +24,7 @@ impl PackageOutputImageContext {
                 package: package_id,
                 target: target_id,
             },
-            compiler_version(),
-            None,
             self.config_hash,
-            None,
-            0,
         )
     }
 }
@@ -42,7 +38,7 @@ impl Compiler {
     ) -> Option<ArtifactImageHeader> {
         let context = self.package_output_image_context(package_id, target_id)?;
 
-        Some(context.header(package_id, target_id.clone()))
+        Some(context.header(package_id, *target_id))
     }
 
     /// Load one package output image entry.
@@ -54,7 +50,7 @@ impl Compiler {
         let Some(context) = self.package_output_image_context(package_id, target_id) else {
             return Ok(None);
         };
-        let expected = context.header(package_id, target_id.clone());
+        let expected = context.header(package_id, *target_id);
         self.load_image::<PackageOutput>(expected)
     }
 
@@ -64,8 +60,7 @@ impl Compiler {
         package_id: PackageId,
         target_id: &TargetId,
     ) -> Option<Target> {
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
+        let package = repository_package(self, package_id).ok()?;
 
         package.targets.get(target_id).cloned()
     }
@@ -77,8 +72,12 @@ impl Compiler {
         target_id: &TargetId,
         target: &Target,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
+        let package = repository_package(self, package_id).map_err(|_| {
+            TargetDiscoveryIssue::MissingPackagePath {
+                package: package_id,
+                target: *target_id,
+            }
+        })?;
         let package_path = package.path.clone();
 
         match target.discovery {
@@ -108,12 +107,14 @@ impl Compiler {
         hasher.hash_value(&target);
         for module_id in modules {
             hasher.hash_value(&module_id);
-            hasher.hash_value(&self.module_version(module_id));
+            hasher.hash_value(&self.artifact_dependency_for_key(&ArtifactKey::dir_patched(
+                module_id,
+                self.profile_id_for_target(module_id, target_id)?,
+            )));
 
-            if let Some(profile_id) = self.program.profile_id_for_target(module_id, target_id) {
-                let profile = self.program.profile(profile_id);
+            if let Some(profile_id) = self.profile_id_for_target(module_id, target_id) {
+                let profile = self.profile(profile_id);
                 hasher.hash_value(&profile.key);
-                hasher.hash_value(&profile.version);
             }
         }
 
@@ -143,8 +144,8 @@ impl Compiler {
         let Some(context) = self.package_output_image_context(package_id, target_id) else {
             return Ok(());
         };
-        let artifact_key = ArtifactKey::package_output(package_id, target_id.clone());
-        let header = context.header(package_id, target_id.clone());
+        let artifact_key = ArtifactKey::package_output(package_id, *target_id);
+        let header = context.header(package_id, *target_id);
 
         self.store_image(&artifact_key, header, output.clone())
     }

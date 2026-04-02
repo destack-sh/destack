@@ -1,11 +1,13 @@
 use crate::compile::Compiler;
-use destack_artifact::{ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ProfileKey};
-use destack_workspace::ProfileId;
+use destack_artifact::{
+    ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, ProfileKey,
+};
+use destack_source::ProfileId;
 
 impl Compiler {
     /// Return the live profile id for one stable image profile key.
     fn profile_id_for_artifact_image_key(&self, profile_key: &ProfileKey) -> Option<ProfileId> {
-        self.program.profiles.id_for_key(profile_key)
+        Some(self.remember_profile_key(profile_key.clone()))
     }
 
     /// Build the expected persisted image header for one stable image key.
@@ -43,57 +45,100 @@ impl Compiler {
                 self.library_environment_image_header(profile_id)
             }
             ArtifactImageKey::Ast { module } => self.current_ast_image_header(*module),
-            ArtifactImageKey::DirBase { module } => {
-                self.dir_base_image_header(*module, self.module_version(*module))
-            }
+            ArtifactImageKey::DirBase { module } => self.dir_base_image_header(
+                *module,
+                self.artifact_dependency_for_key(&ArtifactKey::dir_base(*module)),
+            ),
             ArtifactImageKey::DirPrepared { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.dir_prepared_image_header(*module, self.module_version(*module), profile_id)
+                self.dir_prepared_image_header(
+                    *module,
+                    self.artifact_dependency_for_key(&ArtifactKey::dir_prepared(
+                        *module, profile_id,
+                    )),
+                    profile_id,
+                )
             }
             ArtifactImageKey::DirResolved { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.dir_resolved_image_header(*module, self.module_version(*module), profile_id)
+                self.dir_resolved_image_header(
+                    *module,
+                    self.artifact_dependency_for_key(&ArtifactKey::dir_resolved(
+                        *module, profile_id,
+                    )),
+                    profile_id,
+                )
             }
             ArtifactImageKey::DirDeclared { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.dir_declared_image_header(*module, self.module_version(*module), profile_id)
+                self.dir_declared_image_header(
+                    *module,
+                    self.artifact_dependency_for_key(&ArtifactKey::dir_declared(
+                        *module, profile_id,
+                    )),
+                    profile_id,
+                )
             }
             ArtifactImageKey::DirInterface { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.dir_interface_image_header(*module, self.module_version(*module), profile_id)
+                self.dir_interface_image_header(
+                    *module,
+                    self.artifact_dependency_for_key(&ArtifactKey::dir_interface(
+                        *module, profile_id,
+                    )),
+                    profile_id,
+                )
             }
             ArtifactImageKey::DirAnalyzed { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.dir_analyzed_image_header(*module, self.module_version(*module), profile_id)
+                self.dir_analyzed_image_header(
+                    *module,
+                    self.artifact_dependency_for_key(&ArtifactKey::dir_analyzed(
+                        *module, profile_id,
+                    )),
+                    profile_id,
+                )
             }
             ArtifactImageKey::DirElaborated { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.dir_elaborated_image_header(*module, self.module_version(*module), profile_id)
+                self.dir_elaborated_image_header(
+                    *module,
+                    self.artifact_dependency_for_key(&ArtifactKey::dir_elaborated(
+                        *module, profile_id,
+                    )),
+                    profile_id,
+                )
             }
             ArtifactImageKey::DirPatched { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.dir_patched_image_header(*module, self.module_version(*module), profile_id)
+                self.dir_patched_image_header(
+                    *module,
+                    self.artifact_dependency_for_key(&ArtifactKey::dir_patched(
+                        *module, profile_id,
+                    )),
+                    profile_id,
+                )
             }
             ArtifactImageKey::MirBase {
                 module,
@@ -106,7 +151,9 @@ impl Compiler {
 
                 self.mir_base_image_header(
                     *module,
-                    self.module_version(*module),
+                    self.artifact_dependency_for_key(&ArtifactKey::mir_base(
+                        *module, profile_id, *target,
+                    )),
                     profile_id,
                     target,
                 )
@@ -122,12 +169,14 @@ impl Compiler {
 
                 self.mir_optimized_image_header(
                     *module,
-                    self.module_version(*module),
+                    self.artifact_dependency_for_key(&ArtifactKey::mir_optimized(
+                        *module, profile_id, *target,
+                    )),
                     profile_id,
                     target,
                 )
             }
-            ArtifactImageKey::ModuleArtifact { .. } => None,
+            ArtifactImageKey::ModuleOutput { .. } => None,
             ArtifactImageKey::PackageOutput { package, target } => {
                 self.package_output_image_header(*package, target)
             }
@@ -136,24 +185,15 @@ impl Compiler {
         Ok(header)
     }
 
-    /// Load the expected persisted validation hash for one stable image key.
-    pub(crate) fn load_expected_artifact_image_validation_hash(
+    /// Load the expected persisted content id for one stable image key.
+    pub(crate) fn load_expected_artifact_content_id(
         &self,
         artifact_key: &ArtifactImageKey,
-    ) -> Result<Option<u64>, ArtifactImageError> {
-        // module graph still validates freshness through its header context
-        if let ArtifactImageKey::ModuleGraph { profile } = artifact_key {
-            let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
-                return Ok(None);
-            };
-
-            return self.load_expected_module_graph_image_validation_hash(profile_id);
-        }
-
+    ) -> Result<Option<destack_artifact::ArtifactContentId>, ArtifactImageError> {
         let Some(expected) = self.expected_image_header_for_artifact_key(artifact_key)? else {
             return Ok(None);
         };
 
-        self.load_image_validation_hash(&expected)
+        self.load_current_content_id(&expected)
     }
 }

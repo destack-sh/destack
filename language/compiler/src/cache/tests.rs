@@ -1,44 +1,46 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactFamily, ArtifactImage, ArtifactImageError, ArtifactImageHeader,
-    ArtifactImageKey, ArtifactImageRequirement, ArtifactImageStore, ArtifactKey, Ast, AstImage,
-    CacheStore, DirPreparedImage, LanguageEnvironment, MemoryCacheStore, PersistedImageValidation,
+    ArtifactCache, ArtifactContentId, ArtifactFamily, ArtifactImage, ArtifactImageDependency,
+    ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, Ast, CacheStore,
+    DirPrepared, LanguageCacheLayout, LanguageEnvironment, MemoryCacheStore,
+    PersistedImageValidation,
 };
 use destack_builtin::LanguageSymbol;
-use destack_source::{File, FileVersion, TemporaryPhysicalFileSystem};
+use destack_source::TemporaryPhysicalFileSystem;
 
+use super::store::LANGUAGE_CACHE_ABI;
 use crate::tests::scenario::{
     append_file_text, build_disk_cache_compiler, build_memory_cache_compiler,
     dump_dir_prepared_nodes, dump_dir_prepared_symbols, dump_dir_resolved_nodes,
     dump_dir_resolved_symbols, normalize_ast, test_profile_key,
 };
 
-/// Persist and load one language environment image through the artifact store.
+/// Persist and load one language environment image through the artifact cache.
 #[test]
-fn test_artifact_store_roundtrips_language_environment_image() {
+fn test_artifact_cache_roundtrips_language_environment_image() {
     let cache_root = std::path::PathBuf::from("/artifact-store-test");
     let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
-    let artifact_store = ArtifactImageStore::new(cache_store.as_ref(), &cache_root);
-    let profile = test_profile_key();
-    let header = ArtifactImageHeader::new(
-        ArtifactImageKey::LanguageEnvironment { profile },
-        "test".to_string(),
-        None,
-        0,
-        None,
-        0,
+    let cache_layout = LanguageCacheLayout::new(
+        &cache_root,
+        Path::new("/workspace"),
+        LANGUAGE_CACHE_ABI,
+        false,
     );
+    let artifact_cache = ArtifactCache::new(cache_store.as_ref(), &cache_layout);
+    let profile = test_profile_key();
+    let header = ArtifactImageHeader::new(ArtifactImageKey::LanguageEnvironment { profile }, 0);
     let image = ArtifactImage::new(header, LanguageEnvironment::default())
         .unwrap_or_else(|error| panic!("failed to build artifact image: {error}"));
 
     // write the image first
-    artifact_store
+    artifact_cache
         .save(&image)
         .unwrap_or_else(|error| panic!("failed to save artifact image: {error}"));
 
     // load the same image back
-    let loaded = artifact_store
+    let loaded = artifact_cache
         .load::<LanguageEnvironment>(&image.header.artifact_image_key)
         .unwrap_or_else(|error| panic!("failed to load artifact image: {error}"))
         .unwrap_or_else(|| panic!("expected stored artifact image"));
@@ -49,40 +51,44 @@ fn test_artifact_store_roundtrips_language_environment_image() {
     assert_eq!(loaded.payload.symbols, image.payload.symbols);
 }
 
-/// Reject one persisted image header with a tampered validation hash.
+/// Reject one persisted image when its stored content id no longer matches.
 #[test]
-fn test_artifact_store_rejects_tampered_validation_hash() {
+fn test_artifact_cache_rejects_tampered_content_id() {
     let cache_root = std::path::PathBuf::from("/artifact-store-test");
     let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
-    let artifact_store = ArtifactImageStore::new(cache_store.as_ref(), &cache_root);
-    let profile = test_profile_key();
-    let header = ArtifactImageHeader::new(
-        ArtifactImageKey::LanguageEnvironment { profile },
-        "test".to_string(),
-        None,
-        0,
-        None,
-        0,
+    let cache_layout = LanguageCacheLayout::new(
+        &cache_root,
+        Path::new("/workspace"),
+        LANGUAGE_CACHE_ABI,
+        false,
     );
+    let artifact_cache = ArtifactCache::new(cache_store.as_ref(), &cache_layout);
+    let profile = test_profile_key();
+    let header = ArtifactImageHeader::new(ArtifactImageKey::LanguageEnvironment { profile }, 0);
     let image = ArtifactImage::new(header, LanguageEnvironment::default())
         .unwrap_or_else(|error| panic!("failed to build artifact image: {error}"));
 
-    // write a tampered image with the same stable key
-    let mut tampered = image.clone();
-    tampered.header.validation_hash = tampered.header.validation_hash.wrapping_add(1);
-    artifact_store
-        .save(&tampered)
-        .unwrap_or_else(|error| panic!("failed to save tampered artifact image: {error}"));
+    // write the image and then corrupt its persisted bytes in place
+    let content_id = artifact_cache
+        .save(&image)
+        .unwrap_or_else(|error| panic!("failed to save artifact image: {error}"));
+    let content_path = cache_layout
+        .content_root()
+        .join(&content_id.to_hex()[0..2])
+        .join(format!("{}.bin", content_id.to_hex()));
+    cache_store
+        .write_atomic(&content_path, b"tampered")
+        .unwrap_or_else(|error| panic!("failed to corrupt artifact content: {error}"));
 
-    // reject the tampered header before payload deserialization
-    let error = artifact_store
-        .load_header(&tampered.header.artifact_image_key)
+    // reject the tampered bytes before payload deserialization
+    let error = artifact_cache
+        .load_header(&image.header.artifact_image_key)
         .err()
-        .unwrap_or_else(|| panic!("expected tampered header to fail"));
+        .unwrap_or_else(|| panic!("expected tampered image to fail"));
 
     match error {
-        ArtifactImageError::InvalidValidationHash { .. } => {}
-        other => panic!("expected invalid validation hash, found {other}"),
+        ArtifactImageError::InvalidContentId { .. } => {}
+        other => panic!("expected invalid content id, found {other}"),
     }
 }
 
@@ -98,10 +104,11 @@ fn test_compiler_reuses_language_environment_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.process_language_environment(profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_language_environment(profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
     let expected = compiler
-        .artifacts
         .language_environment(profile_id)
         .unwrap_or_else(|| panic!("expected published language environment"))
         .as_ref()
@@ -151,7 +158,9 @@ fn test_language_environment_image_tracks_builtin_source_content() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.process_language_environment(profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_language_environment(profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to persist language environment: {error:?}"));
     assert!(
         compiler
@@ -163,12 +172,9 @@ fn test_language_environment_image_tracks_builtin_source_content() {
     );
 
     // perturb one builtin source file that contributes to the language environment
-    let builtins = program
-        .builtins
-        .as_ref()
-        .unwrap_or_else(|| panic!("expected builtin registry"));
+    let builtins = program.builtins();
     let builtin_module_id = builtins.module_for_item(LanguageSymbol::Add);
-    let builtin_file_id = program.modules.get(builtin_module_id).file_id;
+    let builtin_file_id = program.module_descriptor(builtin_module_id).file_id;
     append_file_text(
         program.as_ref(),
         builtin_file_id,
@@ -196,7 +202,9 @@ fn test_library_environment_image_tracks_library_source_content() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.process_library_environment(profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_library_environment(profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to persist library environment: {error:?}"));
     assert!(
         compiler
@@ -207,14 +215,13 @@ fn test_library_environment_image_tracks_library_source_content() {
 
     // perturb one selected library module source file
     let environment = compiler
-        .artifacts
         .library_environment(profile_id)
         .unwrap_or_else(|| panic!("expected published library environment"));
     let builtin_module_id = *environment
         .modules
         .first()
         .unwrap_or_else(|| panic!("expected selected library modules"));
-    let builtin_file_id = program.modules.get(builtin_module_id).file_id;
+    let builtin_file_id = program.module_descriptor(builtin_module_id).file_id;
     append_file_text(
         program.as_ref(),
         builtin_file_id,
@@ -242,7 +249,9 @@ fn test_intrinsic_environment_image_tracks_builtin_source_content() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.process_intrinsic_environment(profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_intrinsic_environment(profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to persist intrinsic environment: {error:?}"));
     assert!(
         compiler
@@ -254,15 +263,12 @@ fn test_intrinsic_environment_image_tracks_builtin_source_content() {
     );
 
     // perturb one builtin source file that contributes intrinsic bindings
-    let builtins = program
-        .builtins
-        .as_ref()
-        .unwrap_or_else(|| panic!("expected builtin registry"));
+    let builtins = program.builtins();
     let builtin_module_id = *builtins
         .intrinsic_module_ids()
         .first()
         .unwrap_or_else(|| panic!("expected intrinsic builtin modules"));
-    let builtin_file_id = program.modules.get(builtin_module_id).file_id;
+    let builtin_file_id = program.module_descriptor(builtin_module_id).file_id;
     append_file_text(
         program.as_ref(),
         builtin_file_id,
@@ -291,22 +297,18 @@ fn test_resolved_dir_tracks_library_environment_requirements() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.require_dir_resolved(module_id, profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.require_dir_resolved(module_id, profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to require resolved dir: {error:?}"));
 
     let resolved_key = ArtifactKey::dir_resolved(module_id, profile_id);
     assert!(compiler.artifact_key_is_available(&resolved_key));
 
-    // perturb the published library environment dependency
+    // invalidate the published library environment version
     let environment_key = ArtifactKey::library_environment(profile_id);
-    let dependency = compiler
-        .artifacts
-        .dependency(&environment_key)
-        .unwrap_or_else(|| panic!("expected published library environment dependency"));
-    let bumped_dependency = ArtifactDependency::new(dependency.0.wrapping_add(1));
-    compiler
-        .artifacts
-        .set_dependency(environment_key, bumped_dependency);
+    let environment_version = compiler.artifact_version_for_key(&environment_key);
+    compiler.artifacts.evict(&environment_version);
 
     // the resolved dir should now be considered stale
     assert!(!compiler.artifact_key_is_available(&resolved_key));
@@ -324,7 +326,9 @@ fn test_library_environment_tracks_exact_requirements() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.require_library_environment(profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.require_library_environment(profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to require library environment: {error:?}"));
 
     let environment_key = ArtifactKey::library_environment(profile_id);
@@ -342,57 +346,47 @@ fn test_library_environment_tracks_exact_requirements() {
         .cloned()
         .unwrap_or_else(|| panic!("expected library environment exact requirements"));
 
-    // perturb one recorded requirement dependency
-    let bumped_dependency = ArtifactDependency::new(requirement.dependency.0.wrapping_add(1));
-    compiler
-        .artifacts
-        .set_dependency(requirement.key, bumped_dependency);
+    // invalidate one recorded exact requirement version
+    let requirement_version =
+        destack_artifact::ArtifactVersion::new(requirement.key, requirement.dependency);
+    compiler.artifacts.evict(&requirement_version);
 
     // the environment should now be considered stale
     assert!(!compiler.artifact_key_is_available(&environment_key));
 }
 
-/// Persist and load one AST image through the artifact store.
+/// Persist and load one AST image through the artifact cache.
 #[test]
-fn test_artifact_store_roundtrips_ast_image() {
+fn test_artifact_cache_roundtrips_ast_image() {
     let cache_root = std::path::PathBuf::from("/artifact-store-test");
     let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
-    let artifact_store = ArtifactImageStore::new(cache_store.as_ref(), &cache_root);
+    let cache_layout = LanguageCacheLayout::new(
+        &cache_root,
+        Path::new("/workspace"),
+        LANGUAGE_CACHE_ABI,
+        false,
+    );
+    let artifact_cache = ArtifactCache::new(cache_store.as_ref(), &cache_layout);
     let module = destack_source::ModuleId::EPHEMERAL;
-    let header = ArtifactImageHeader::new(
-        ArtifactImageKey::Ast { module },
-        "test".to_string(),
-        None,
-        0,
-        None,
-        0,
-    );
-    let payload = AstImage::from_ast(
-        &Ast::new(module, destack_source::ModuleVersion::INITIAL),
-        destack_source::FileKey::EPHEMERAL,
-        FileVersion::INITIAL,
-        0,
-    );
+    let header = ArtifactImageHeader::new(ArtifactImageKey::Ast { module }, 0);
+    let payload = Ast::new(module);
     let image = ArtifactImage::new(header, payload)
         .unwrap_or_else(|error| panic!("failed to build ast image: {error}"));
 
     // write the image first
-    artifact_store
+    artifact_cache
         .save(&image)
         .unwrap_or_else(|error| panic!("failed to save ast image: {error}"));
 
     // load the same image back
-    let loaded = artifact_store
-        .load::<AstImage>(&image.header.artifact_image_key)
+    let loaded = artifact_cache
+        .load::<Ast>(&image.header.artifact_image_key)
         .unwrap_or_else(|error| panic!("failed to load ast image: {error}"))
         .unwrap_or_else(|| panic!("expected stored ast image"));
 
     // compare the full image contract
     assert_eq!(loaded.header, image.header);
-    assert_eq!(loaded.payload.file_key, image.payload.file_key);
-    assert_eq!(loaded.payload.file_version, image.payload.file_version);
-    assert_eq!(loaded.payload.source_hash, image.payload.source_hash);
-    assert_eq!(loaded.payload.module_version, image.payload.module_version);
+    assert_eq!(loaded.payload.id, image.payload.id);
 }
 
 /// Reuse one persisted AST image across a fresh compiler session.
@@ -406,11 +400,13 @@ fn test_compiler_reuses_ast_image_across_sessions() {
         .resolve_path_to_module(&module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     compiler
-        .run_to_completion(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_ast(module_id)
+        })
         .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
-        .artifacts
-        .ast(module_id)
+        .repository
+        .ast(program.current_revision(), module_id)
         .unwrap_or_else(|| panic!("expected published ast"))
         .as_ref()
         .clone();
@@ -427,33 +423,16 @@ fn test_compiler_reuses_ast_image_across_sessions() {
         .unwrap_or_else(|error| {
             panic!("failed to resolve main module in fresh session: {error:?}")
         });
-    let file_id = program.modules.get(module_id).file_id;
-    let file = program.files.get(file_id);
+    let file_id = program.module_descriptor(module_id).file_id;
 
-    // load the source file before the direct image read
-    if !file.is_loaded() {
-        let content = compiler
-            .program
-            .fs
-            .read_to_string(&module_path)
-            .unwrap_or_else(|error| panic!("failed to load main.ts: {error}"));
-        let loaded_file = File::from_text(
-            file_id,
-            file.name.clone(),
-            file.uri.clone(),
-            file.path.clone(),
-            file.ty,
-            content,
-        );
-        program.files.replace(loaded_file);
-    }
-    let file = program.files.get(file_id);
+    // refresh the source file through the repository revision path
+    let file = program.refresh_source_file_from_file_system(file_id);
 
     // verify the persisted image is available before any rebuild
     let loaded = compiler
         .load_ast_image(
             module_id,
-            compiler.module_version(module_id),
+            compiler.artifact_dependency_for_key(&ArtifactKey::ast(module_id)),
             file.as_ref(),
             Some(destack_source::LanguageType::TypeScript),
         )
@@ -469,11 +448,13 @@ fn test_compiler_reuses_ast_image_across_sessions() {
 
     // validate the public compiler path too
     compiler
-        .run_to_completion(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_ast(module_id)
+        })
         .unwrap_or_else(|error| panic!("failed to load ast: {error:?}"));
     let resolved = compiler
-        .artifacts
-        .ast(module_id)
+        .repository
+        .ast(program.current_revision(), module_id)
         .unwrap_or_else(|| panic!("expected published ast after load"))
         .as_ref()
         .clone();
@@ -493,11 +474,13 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
         .resolve_path_to_module(&module_path)
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     compiler
-        .run_to_completion(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_ast(module_id)
+        })
         .unwrap_or_else(|error| panic!("failed to build ast: {error:?}"));
     let expected = compiler
-        .artifacts
-        .ast(module_id)
+        .repository
+        .ast(program.current_revision(), module_id)
         .unwrap_or_else(|| panic!("expected published ast"))
         .as_ref()
         .clone();
@@ -518,33 +501,16 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
         .unwrap_or_else(|error| {
             panic!("failed to resolve main module in fresh session: {error:?}")
         });
-    let file_id = program.modules.get(module_id).file_id;
-    let file = program.files.get(file_id);
+    let file_id = program.module_descriptor(module_id).file_id;
 
-    // load the changed source file before the direct image read
-    if !file.is_loaded() {
-        let content = compiler
-            .program
-            .fs
-            .read_to_string(&module_path)
-            .unwrap_or_else(|error| panic!("failed to load changed main.ts: {error}"));
-        let loaded_file = File::from_text(
-            file_id,
-            file.name.clone(),
-            file.uri.clone(),
-            file.path.clone(),
-            file.ty,
-            content,
-        );
-        program.files.replace(loaded_file);
-    }
-    let file = program.files.get(file_id);
+    // refresh the changed source file before the direct image read
+    let file = program.refresh_source_file_from_file_system(file_id);
 
     // reject the persisted ast image for the changed file
     let loaded = compiler
         .load_ast_image(
             module_id,
-            compiler.module_version(module_id),
+            compiler.artifact_dependency_for_key(&ArtifactKey::ast(module_id)),
             file.as_ref(),
             Some(destack_source::LanguageType::TypeScript),
         )
@@ -556,11 +522,13 @@ fn test_compiler_invalidates_ast_image_when_source_changes() {
 
     // rebuild and confirm the ast really changed
     compiler
-        .run_to_completion(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_ast(module_id)
+        })
         .unwrap_or_else(|error| panic!("failed to rebuild ast: {error:?}"));
     let rebuilt = compiler
-        .artifacts
-        .ast(module_id)
+        .repository
+        .ast(program.current_revision(), module_id)
         .unwrap_or_else(|| panic!("expected rebuilt ast"))
         .as_ref()
         .clone();
@@ -636,7 +604,7 @@ fn test_artifact_families_classify_persisted_image_validation() {
         PersistedImageValidation::DependencyValidated
     );
     assert_eq!(
-        ArtifactFamily::ModuleArtifact.persisted_image_validation(),
+        ArtifactFamily::ModuleOutput.persisted_image_validation(),
         PersistedImageValidation::DependencyValidated
     );
     assert_eq!(
@@ -657,20 +625,18 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_prepared(module_id, profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
     let expected = compiler
-        .artifacts
-        .dir_prepared(module_id, profile_id)
+        .repository
+        .dir_prepared(program.current_revision(), module_id, profile_id)
         .unwrap_or_else(|| panic!("expected published prepared dir"))
         .as_ref()
         .clone();
     let expected_nodes = dump_dir_prepared_nodes(&program.strings, &expected);
     let expected_symbols = dump_dir_prepared_symbols(&program.strings, &expected);
-    compiler
-        .flush_workspace_index()
-        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
-
     drop(compiler);
     drop(program);
     drop(session);
@@ -683,22 +649,87 @@ fn test_compiler_reuses_dir_prepared_image_across_sessions() {
         });
     let profile_id = program.default_profile_id_for_module(module_id);
 
-    // load current source state before attempting direct dir image reuse
+    // load current file state before attempting direct dir image reuse
     compiler
-        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_base(module_id)
+        })
         .unwrap_or_else(|error| {
             panic!("failed to build dir base for prepared dir reuse: {error:?}")
         });
 
     // verify the persisted image is available before any rebuild
     let loaded = compiler
-        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
+        .load_dir_prepared_image(
+            module_id,
+            compiler.artifact_dependency_for_key(&ArtifactKey::dir_prepared(module_id, profile_id)),
+            profile_id,
+        )
         .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"));
     let loaded = loaded.unwrap_or_else(|| panic!("expected persisted prepared dir image"));
     let loaded_nodes = dump_dir_prepared_nodes(&program.strings, &loaded);
     let loaded_symbols = dump_dir_prepared_symbols(&program.strings, &loaded);
     assert_eq!(loaded_nodes, expected_nodes);
     assert_eq!(loaded_symbols, expected_symbols);
+}
+
+/// Match the persisted prepared DIR image header across fresh compiler sessions.
+#[test]
+fn test_compiler_matches_dir_prepared_image_header_across_sessions() {
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_prepared_image_header");
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // persist the prepared dir in the first session
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_prepared(module_id, profile_id)
+        })
+        .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
+    drop(compiler);
+    drop(program);
+    drop(session);
+
+    let (session, program, compiler, module_path) = build_disk_cache_compiler(&root);
+
+    // rebuild the current base state before matching the prepared image header
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| {
+            panic!("failed to resolve main module in fresh session: {error:?}")
+        });
+    let profile_id = program.default_profile_id_for_module(module_id);
+    compiler
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_base(module_id)
+        })
+        .unwrap_or_else(|error| {
+            panic!("failed to build dir base for prepared dir header: {error:?}")
+        });
+
+    let cache_layout = session.language_cache_layout(LANGUAGE_CACHE_ABI);
+    let artifact_cache = ArtifactCache::new(session.cache_store().as_ref(), &cache_layout);
+    let image_key = ArtifactImageKey::DirPrepared {
+        module: module_id,
+        profile: compiler.profile(profile_id).key.clone(),
+    };
+    let actual = artifact_cache
+        .load_header(&image_key)
+        .unwrap_or_else(|error| panic!("failed to load prepared dir image header: {error}"))
+        .unwrap_or_else(|| panic!("expected prepared dir image header"));
+    let expected = compiler
+        .dir_prepared_image_header(
+            module_id,
+            compiler.artifact_dependency_for_key(&ArtifactKey::dir_prepared(module_id, profile_id)),
+            profile_id,
+        )
+        .unwrap_or_else(|| panic!("expected prepared dir image header context"));
+
+    assert!(expected.matches(&actual));
+    assert!(!actual.dependencies.is_empty());
 }
 
 /// Reject one persisted DIR image without creating live profiles from its proof metadata.
@@ -713,12 +744,10 @@ fn test_compiler_does_not_create_profiles_from_persisted_requirements() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.process_dir_prepared(module_id, profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_prepared(module_id, profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to build prepared dir: {error:?}"));
-    compiler
-        .flush_workspace_index()
-        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
-
     drop(compiler);
     drop(program);
     drop(session);
@@ -730,14 +759,14 @@ fn test_compiler_does_not_create_profiles_from_persisted_requirements() {
             panic!("failed to resolve main module in fresh session: {error:?}")
         });
     let profile_id = program.default_profile_id_for_module(module_id);
-    let artifact_store =
-        ArtifactImageStore::new(session.cache_store.as_ref(), &session.workspace_cache_dir());
+    let cache_layout = session.language_cache_layout(LANGUAGE_CACHE_ABI);
+    let artifact_cache = ArtifactCache::new(session.cache_store().as_ref(), &cache_layout);
     let image_key = ArtifactImageKey::DirPrepared {
         module: module_id,
-        profile: program.profile(profile_id).key.clone(),
+        profile: compiler.profile(profile_id).key.clone(),
     };
-    let image = artifact_store
-        .load::<DirPreparedImage>(&image_key)
+    let image = artifact_cache
+        .load::<DirPrepared>(&image_key)
         .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"))
         .unwrap_or_else(|| panic!("expected prepared dir image"));
 
@@ -747,36 +776,42 @@ fn test_compiler_does_not_create_profiles_from_persisted_requirements() {
     let tampered = ArtifactImage::new(
         image
             .header
-            .with_requirements(vec![ArtifactImageRequirement {
+            .with_dependencies(vec![ArtifactImageDependency {
                 key: ArtifactImageKey::LanguageEnvironment {
                     profile: bogus_profile,
                 },
-                validation_hash: 0,
+                content_id: ArtifactContentId::from_bytes(b"bogus"),
             }]),
         image.payload.clone(),
     )
     .unwrap_or_else(|error| panic!("failed to build tampered dir image: {error}"));
-    artifact_store
+    artifact_cache
         .save(&tampered)
         .unwrap_or_else(|error| panic!("failed to save tampered dir image: {error}"));
 
-    // prepare the current source state and capture the live profile count
+    // prepare the current file state and capture the live profile count
     compiler
-        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_base(module_id)
+        })
         .unwrap_or_else(|error| {
             panic!("failed to build dir base for prepared dir load: {error:?}")
         });
-    let profile_count_before = program.profiles.len();
+    let profile_count_before = compiler.remembered_profile_count();
 
     // reject the tampered image without allocating a new live profile
     let loaded = compiler
-        .load_dir_prepared_image(module_id, compiler.module_version(module_id), profile_id)
+        .load_dir_prepared_image(
+            module_id,
+            compiler.artifact_dependency_for_key(&ArtifactKey::dir_prepared(module_id, profile_id)),
+            profile_id,
+        )
         .unwrap_or_else(|error| panic!("failed to load prepared dir image: {error}"));
     assert!(
         loaded.is_none(),
         "expected tampered prepared dir image to fail"
     );
-    assert_eq!(program.profiles.len(), profile_count_before);
+    assert_eq!(compiler.remembered_profile_count(), profile_count_before);
 }
 
 /// Reuse one persisted resolved DIR image across a fresh compiler session.
@@ -791,20 +826,18 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
         .unwrap_or_else(|error| panic!("failed to resolve main module: {error:?}"));
     let profile_id = program.default_profile_id_for_module(module_id);
     compiler
-        .run_to_completion(|compiler| compiler.process_dir_resolved(module_id, profile_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_resolved(module_id, profile_id)
+        })
         .unwrap_or_else(|error| panic!("failed to build resolved dir: {error:?}"));
     let expected = compiler
-        .artifacts
-        .dir_resolved(module_id, profile_id)
+        .repository
+        .dir_resolved(program.current_revision(), module_id, profile_id)
         .unwrap_or_else(|| panic!("expected published resolved dir"))
         .as_ref()
         .clone();
     let expected_nodes = dump_dir_resolved_nodes(&program.strings, &expected);
     let expected_symbols = dump_dir_resolved_symbols(&program.strings, &expected);
-    compiler
-        .flush_workspace_index()
-        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
-
     drop(compiler);
     drop(program);
     drop(session);
@@ -817,16 +850,22 @@ fn test_compiler_reuses_dir_resolved_image_across_sessions() {
         });
     let profile_id = program.default_profile_id_for_module(module_id);
 
-    // load current source state before attempting direct dir image reuse
+    // load current file state before attempting direct dir image reuse
     compiler
-        .run_to_completion(|compiler| compiler.process_dir_base(module_id))
+        .run_to_completion(program.current_revision(), |compiler| {
+            compiler.process_dir_base(module_id)
+        })
         .unwrap_or_else(|error| {
             panic!("failed to build dir base for resolved dir reuse: {error:?}")
         });
 
     // verify the persisted image is available before any rebuild
     let loaded = compiler
-        .load_dir_resolved_image(module_id, compiler.module_version(module_id), profile_id)
+        .load_dir_resolved_image(
+            module_id,
+            compiler.artifact_dependency_for_key(&ArtifactKey::dir_resolved(module_id, profile_id)),
+            profile_id,
+        )
         .unwrap_or_else(|error| panic!("failed to load resolved dir image: {error}"));
     let loaded = loaded.unwrap_or_else(|| panic!("expected persisted resolved dir image"));
     let loaded_nodes = dump_dir_resolved_nodes(&program.strings, &loaded);
@@ -867,7 +906,7 @@ fn test_compiler_skips_artifact_image_writes_when_disk_cache_is_disabled() {
     let artifact_key = destack_artifact::ArtifactKey::ast(module_id);
 
     // the image store closure should not run at all
-    compiler.store_artifact(&artifact_key, &(), |_, _| {
+    compiler.store_artifact(&artifact_key, &(), |_, _, _| {
         panic!("artifact image store should be skipped when disk cache is disabled")
     });
 }

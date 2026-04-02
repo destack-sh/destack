@@ -1,6 +1,7 @@
 use std::hash::{Hash, Hasher};
 
 use rustc_hash::FxHasher;
+#[cfg(test)]
 use serde_json::Value;
 
 /// Hash bytes with a stable hasher.
@@ -11,6 +12,7 @@ pub fn hash_bytes(bytes: &[u8]) -> u64 {
 }
 
 /// Hash a JSON object with a stable key ordering.
+#[cfg(test)]
 fn hash_json_object(map: &serde_json::Map<String, Value>, hasher: &mut FxHasher) {
     let mut keys: Vec<&String> = map.keys().collect();
     keys.sort();
@@ -24,6 +26,7 @@ fn hash_json_object(map: &serde_json::Map<String, Value>, hasher: &mut FxHasher)
 }
 
 /// Hash a JSON value with canonical ordering for object keys.
+#[cfg(test)]
 fn hash_json_value_inner(value: &Value, hasher: &mut FxHasher) {
     match value {
         Value::Null => {
@@ -56,7 +59,8 @@ fn hash_json_value_inner(value: &Value, hasher: &mut FxHasher) {
 }
 
 /// Hash a JSON value with stable ordering for cache purposes.
-pub fn hash_json_value(value: &Value) -> u64 {
+#[cfg(test)]
+pub(crate) fn hash_json_value(value: &Value) -> u64 {
     let mut hasher = FxHasher::default();
     hash_json_value_inner(value, &mut hasher);
     hasher.finish()
@@ -142,7 +146,7 @@ mod tests {
         });
         let second = json!({
             "compiler": { "strict": true },
-            "cache": { "mode": "memory" },
+            "cache": { "mode": "off" },
             "watch": { "debounceMs": 50 },
             "formatter": { "lineWidth": 80 },
             "linter": { "preset": "strict" },

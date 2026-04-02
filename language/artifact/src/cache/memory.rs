@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use parking_lot::RwLock;
 
-use super::{CacheLock, CacheMetadata, CacheStore, CacheStoreError, CacheStoreKind};
+use super::{CacheMetadata, CacheStore, CacheStoreError};
 
 /// Cache entry stored in memory.
 #[derive(Debug, Clone)]
@@ -32,30 +32,33 @@ impl MemoryCacheStore {
 }
 
 impl CacheStore for MemoryCacheStore {
-    fn kind(&self) -> CacheStoreKind {
-        CacheStoreKind::Memory
+    fn with_shared_lock(
+        &self,
+        _path: &Path,
+        operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
+        let _lock = self.lock.read();
+
+        operation();
+
+        Ok(())
     }
 
-    fn lock_shared(&self, _path: &Path) -> Result<CacheLock<'_>, CacheStoreError> {
-        Ok(CacheLock::InProcessRead(self.lock.read()))
-    }
+    fn with_exclusive_lock(
+        &self,
+        _path: &Path,
+        operation: &mut dyn FnMut(),
+    ) -> Result<(), CacheStoreError> {
+        let _lock = self.lock.write();
 
-    fn lock_exclusive(&self, _path: &Path) -> Result<CacheLock<'_>, CacheStoreError> {
-        Ok(CacheLock::InProcessWrite(self.lock.write()))
+        operation();
+
+        Ok(())
     }
 
     fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError> {
         let entries = self.entries.read();
         Ok(entries.get(path).map(|entry| entry.bytes.clone()))
-    }
-
-    fn read_prefix(&self, path: &Path, limit: usize) -> Result<Option<Vec<u8>>, CacheStoreError> {
-        let entries = self.entries.read();
-        let bytes = entries
-            .get(path)
-            .map(|entry| entry.bytes.iter().take(limit).copied().collect());
-
-        Ok(bytes)
     }
 
     fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
@@ -79,6 +82,20 @@ impl CacheStore for MemoryCacheStore {
     fn exists(&self, path: &Path) -> Result<bool, CacheStoreError> {
         let entries = self.entries.read();
         Ok(entries.contains_key(path))
+    }
+
+    fn list(&self, path: &Path) -> Result<Vec<PathBuf>, CacheStoreError> {
+        let entries = self.entries.read();
+        let mut paths = Vec::new();
+
+        // collect all descendant entries
+        for entry_path in entries.keys() {
+            if entry_path.starts_with(path) {
+                paths.push(entry_path.clone());
+            }
+        }
+
+        Ok(paths)
     }
 
     fn remove(&self, path: &Path) -> Result<(), CacheStoreError> {
@@ -124,9 +141,14 @@ mod tests {
         let store = MemoryCacheStore::new();
         let path = PathBuf::from("/cache/path.bin");
 
-        let _lock = store.lock_exclusive(&path).unwrap();
-        store.write_atomic(&path, b"hello").unwrap();
+        // exclusive write
+        store
+            .with_exclusive_lock(&path, &mut || {
+                store.write_atomic(&path, b"hello").unwrap();
+            })
+            .unwrap();
 
+        // roundtrip reads and metadata
         let bytes = store.read(&path).unwrap().unwrap();
         assert_eq!(bytes, b"hello");
 
@@ -134,6 +156,7 @@ mod tests {
         assert_eq!(metadata.size_bytes, 5);
         assert!(store.exists(&path).unwrap());
 
+        // removal
         store.remove(&path).unwrap();
         assert!(!store.exists(&path).unwrap());
         assert!(store.read(&path).unwrap().is_none());
