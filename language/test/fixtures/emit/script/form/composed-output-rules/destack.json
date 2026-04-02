@@ -1,24 +1,22 @@
 {
-    "name": "script-form-composed-output-rules",
-    "targets": {
-        "bundle": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/main.ts"
-            ],
-            "outFile": "dist/bundle/bundle.js",
-            "bundle": {
-                "dependencies": {
-                    "neverBundle": [
-                        "external"
-                    ]
-                },
-                "output": {
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-form-composed-output-rules",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/bundle/bundle.js",
+      "dependencies": {
+        "neverBundle": [
+          "external"
+        ]
+      },
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

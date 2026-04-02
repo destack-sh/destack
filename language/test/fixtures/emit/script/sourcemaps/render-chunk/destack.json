@@ -1,19 +1,17 @@
 {
-    "name": "script-sourcemaps-render-chunk",
-    "targets": {
-        "bundle": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/main.ts"
-            ],
-            "outFile": "dist/bundle/bundle.js",
-            "bundle": {
-                "output": {
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-sourcemaps-render-chunk",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/bundle/bundle.js",
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

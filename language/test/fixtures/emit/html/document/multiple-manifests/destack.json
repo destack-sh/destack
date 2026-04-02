@@ -1,23 +1,21 @@
 {
-    "name": "html-document-multiple-manifests",
-    "targets": {
-        "site": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/server.ts"
-            ],
-            "outFile": "dist/server.ts",
-            "bundle": {
-                "assets": {
-                    "mode": "emit"
-                },
-                "output": {
-                    "assetFileNames": "assets/[name].[ext]",
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "html-document-multiple-manifests",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/server.ts"
+      ],
+      "outFile": "dist/server.ts",
+      "assets": {
+        "mode": "emit"
+      },
+      "output": {
+        "assetFileNames": "assets/[name].[ext]",
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

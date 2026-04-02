@@ -1,23 +1,21 @@
 {
-    "name": "html-document-with-type-file-attribute",
-    "targets": {
-        "site": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/entry.ts"
-            ],
-            "outFile": "dist/entry.ts",
-            "bundle": {
-                "assets": {
-                    "mode": "emit"
-                },
-                "output": {
-                    "assetFileNames": "assets/[name].[ext]",
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "html-document-with-type-file-attribute",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/entry.ts"
+      ],
+      "outFile": "dist/entry.ts",
+      "assets": {
+        "mode": "emit"
+      },
+      "output": {
+        "assetFileNames": "assets/[name].[ext]",
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

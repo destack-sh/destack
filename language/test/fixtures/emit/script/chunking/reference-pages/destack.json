@@ -1,20 +1,18 @@
 {
-    "name": "script-chunked-reference-pages",
-    "targets": {
-        "site": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/app.ts",
-                "src/dashboard.ts"
-            ],
-            "outDir": "dist/site",
-            "bundle": {
-                "output": {
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-chunked-reference-pages",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts",
+        "src/dashboard.ts"
+      ],
+      "outDir": "dist/site",
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

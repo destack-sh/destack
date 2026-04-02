@@ -1,23 +1,21 @@
 {
-    "name": "script-minify-same-output-import-semicolon-insertion",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/app.ts"
-            ],
-            "outFile": "dist/preview/app.js",
-            "bundle": {
-                "minify": {
-                    "syntax": true,
-                    "whitespace": true,
-                    "identifiers": true
-                },
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-minify-same-output-import-semicolon-insertion",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "syntax": true,
+        "whitespace": true,
+        "identifiers": true
+      },
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

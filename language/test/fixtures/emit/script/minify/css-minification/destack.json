@@ -1,19 +1,17 @@
 {
-    "name": "script-minify-css-minification",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/index.ts"
-            ],
-            "outDir": "dist/preview",
-            "bundle": {
-                "minify": true,
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-minify-css-minification",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/index.ts"
+      ],
+      "outDir": "dist/preview",
+      "minify": true,
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

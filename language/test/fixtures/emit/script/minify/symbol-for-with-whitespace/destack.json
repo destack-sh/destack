@@ -1,22 +1,20 @@
 {
-    "name": "script-minify-symbol-for-with-whitespace",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/app.ts"
-            ],
-            "outFile": "dist/preview/app.js",
-            "bundle": {
-                "minify": {
-                    "syntax": true,
-                    "whitespace": true
-                },
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-minify-symbol-for-with-whitespace",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "syntax": true,
+        "whitespace": true
+      },
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

@@ -1,26 +1,24 @@
 {
-    "name": "script-chunked-course-dashboard",
-    "targets": {
-        "site": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/app.ts",
-                "src/dashboard.ts"
-            ],
-            "outDir": "dist/site",
-            "bundle": {
-                "mode": "chunked",
-                "dependencies": {
-                    "neverBundle": [
-                        "react"
-                    ]
-                },
-                "output": {
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-chunked-course-dashboard",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts",
+        "src/dashboard.ts"
+      ],
+      "outDir": "dist/site",
+      "mode": "chunked",
+      "dependencies": {
+        "neverBundle": [
+          "react"
+        ]
+      },
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

@@ -1,42 +1,38 @@
 {
-    "name": "html-minify-multi-entry-shared-graph-minify",
-    "defaultTarget": "landing",
-    "targets": {
-        "landing": {
-            "emit": "html",
-            "runtime": "browser",
-            "entry": [
-                "src/pages/landing.html"
-            ],
-            "outFile": "dist/landing.html",
-            "bundle": {
-                "assets": {
-                    "mode": "emit"
-                },
-                "minify": true,
-                "output": {
-                    "assetFileNames": "assets/[name]-[hash].[ext]",
-                    "manifest": true
-                }
-            }
-        },
-        "docs": {
-            "emit": "html",
-            "runtime": "browser",
-            "entry": [
-                "src/pages/docs.html"
-            ],
-            "outFile": "dist/docs.html",
-            "bundle": {
-                "assets": {
-                    "mode": "emit"
-                },
-                "minify": true,
-                "output": {
-                    "assetFileNames": "assets/[name]-[hash].[ext]",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "html-minify-multi-entry-shared-graph-minify",
+  "defaultTarget": "landing",
+  "targets": {
+    "landing": {
+      "emit": "html",
+      "runtime": "browser",
+      "entry": [
+        "src/pages/landing.html"
+      ],
+      "outFile": "dist/landing.html",
+      "assets": {
+        "mode": "emit"
+      },
+      "minify": true,
+      "output": {
+        "assetFileNames": "assets/[name]-[hash].[ext]",
+        "manifest": true
+      }
+    },
+    "docs": {
+      "emit": "html",
+      "runtime": "browser",
+      "entry": [
+        "src/pages/docs.html"
+      ],
+      "outFile": "dist/docs.html",
+      "assets": {
+        "mode": "emit"
+      },
+      "minify": true,
+      "output": {
+        "assetFileNames": "assets/[name]-[hash].[ext]",
+        "manifest": true
+      }
     }
+  }
 }

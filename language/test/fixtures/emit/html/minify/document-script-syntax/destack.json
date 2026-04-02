@@ -1,21 +1,19 @@
 {
-    "name": "html-minify-document-script-syntax",
-    "targets": {
-        "site": {
-            "emit": "html",
-            "runtime": "browser",
-            "entry": [
-                "src/index.html"
-            ],
-            "outFile": "dist/index.html",
-            "bundle": {
-                "minify": {
-                    "syntax": true
-                },
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "html-minify-document-script-syntax",
+  "targets": {
+    "site": {
+      "emit": "html",
+      "runtime": "browser",
+      "entry": [
+        "src/index.html"
+      ],
+      "outFile": "dist/index.html",
+      "minify": {
+        "syntax": true
+      },
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

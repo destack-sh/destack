@@ -1,19 +1,17 @@
 {
-    "name": "script-minify-ecmascript-minify",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/index.ts"
-            ],
-            "outFile": "dist/preview/app.js",
-            "bundle": {
-                "minify": true,
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-minify-ecmascript-minify",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/index.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": true,
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

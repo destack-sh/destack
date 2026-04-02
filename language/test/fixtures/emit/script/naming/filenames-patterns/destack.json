@@ -1,24 +1,22 @@
 {
-    "name": "script-naming-filenames-patterns",
-    "targets": {
-        "site": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/main1.ts",
-                "src/main2.ts",
-                "src/main3.ts"
-            ],
-            "outDir": "dist/site",
-            "bundle": {
-                "mode": "chunked",
-                "output": {
-                    "entryFileNames": "entries/entry-[name]-[hash]-[format].js",
-                    "chunkFileNames": "chunks/chunk-[name]-[hash]-[format].js",
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-naming-filenames-patterns",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main1.ts",
+        "src/main2.ts",
+        "src/main3.ts"
+      ],
+      "outDir": "dist/site",
+      "mode": "chunked",
+      "output": {
+        "entryFileNames": "entries/entry-[name]-[hash]-[format].js",
+        "chunkFileNames": "chunks/chunk-[name]-[hash]-[format].js",
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

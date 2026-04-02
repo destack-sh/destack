@@ -1,23 +1,21 @@
 {
-    "name": "script-hashes-hash-boundaries",
-    "targets": {
-        "site": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/marketing.ts",
-                "src/docs.ts",
-                "src/settings.ts"
-            ],
-            "outDir": "dist/site",
-            "bundle": {
-                "mode": "chunked",
-                "output": {
-                    "entryFileNames": "entries/[name]-[hash].js",
-                    "chunkFileNames": "chunks/[name]-[hash].js",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-hashes-hash-boundaries",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/marketing.ts",
+        "src/docs.ts",
+        "src/settings.ts"
+      ],
+      "outDir": "dist/site",
+      "mode": "chunked",
+      "output": {
+        "entryFileNames": "entries/[name]-[hash].js",
+        "chunkFileNames": "chunks/[name]-[hash].js",
+        "manifest": true
+      }
     }
+  }
 }
