@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::mem::size_of;
 use std::rc::Rc;
 
 use destack_mir::LayoutId;
@@ -6,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{ReferenceMapId, StoredLayoutId};
 use crate::alloc::{CardSet, ChunkPayload, PageArena};
+use crate::heap::ImageAccounting;
 
 /// One immutable managed large-allocation image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,6 +40,30 @@ impl ManagedLargeAllocationImage {
                 .iter()
                 .zip(other.chunks.iter())
                 .all(|(left, right)| Rc::ptr_eq(left, right))
+    }
+
+    /// Return the exact owned bytes for this durable large-allocation image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+
+        for chunk in self.chunks.iter() {
+            image_bytes += chunk.len();
+        }
+
+        image_bytes
+    }
+
+    /// Account this large-allocation image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+
+        for chunk in self.chunks.iter() {
+            image_bytes += accounting.account_rc_bytes(chunk);
+        }
+
+        image_bytes
     }
 }
 
@@ -168,6 +194,7 @@ impl ManagedLargeAllocation {
     }
 
     /// Set the layout id for this large allocation.
+    #[cfg(test)]
     pub(crate) fn set_layout_id(&mut self, layout_id: LayoutId) {
         self.layout_id = StoredLayoutId::from_option(Some(layout_id));
     }
@@ -193,6 +220,7 @@ impl ManagedLargeAllocation {
     }
 
     /// Increment the pin count for this large allocation.
+    #[cfg(test)]
     pub(crate) fn pin(&mut self) -> bool {
         if !self.is_allocated {
             return false;
@@ -203,6 +231,7 @@ impl ManagedLargeAllocation {
     }
 
     /// Decrement the pin count for this large allocation.
+    #[cfg(test)]
     pub(crate) fn unpin(&mut self) -> bool {
         if !self.is_allocated || self.pin_count == 0 {
             return false;
@@ -338,8 +367,18 @@ impl ManagedLargeAllocation {
         }
     }
 
-    /// Return the retained heap bytes for this large allocation.
-    pub(crate) fn retained_bytes(&self) -> usize {
-        self.payload.retained_bytes() + self.dirty_cards.retained_bytes()
+    /// Return the active local bytes for this large allocation.
+    pub(crate) fn active_bytes(&self) -> usize {
+        self.payload.active_bytes() + self.dirty_cards.retained_bytes()
+    }
+
+    /// Return the detached-page count and active-byte reservation for one write.
+    pub(crate) fn write_active_reservation(&self, start: usize, len: usize) -> (usize, i64) {
+        self.payload.write_page_reservation(start, len)
+    }
+
+    /// Return the borrowed image bytes referenced by this large allocation.
+    pub(crate) fn borrowed_bytes(&self) -> usize {
+        self.payload.borrowed_bytes()
     }
 }

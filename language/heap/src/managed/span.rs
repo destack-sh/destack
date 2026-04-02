@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -6,7 +7,8 @@ use destack_mir::LayoutId;
 use serde::{Deserialize, Serialize};
 
 use super::{ReferenceMapId, StoredLayoutId};
-use crate::alloc::{Bitmap, CardSet, PageArena, PageId};
+use crate::alloc::{Bitmap, CardSet, PageArena, PageId, projected_vec_capacity};
+use crate::heap::ImageAccounting;
 
 /// One immutable managed span trace layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,6 +93,54 @@ impl ManagedSpanImage {
             }
             _ => false,
         }
+    }
+
+    /// Return the exact owned bytes for this durable span image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.pages.len() * size_of::<Rc<[u8]>>();
+
+        for page in self.pages.iter() {
+            image_bytes += page.len();
+        }
+
+        image_bytes += self.occupied.retained_bytes();
+        image_bytes += match &self.trace_metadata {
+            SpanTraceImage::Monomorphic(_) => 0,
+            SpanTraceImage::Polymorphic(trace_ids) => trace_ids.len() * size_of::<u32>(),
+        };
+        image_bytes += match &self.layout_metadata {
+            SpanLayoutImage::Monomorphic(_) => 0,
+            SpanLayoutImage::Polymorphic(layout_ids) => {
+                layout_ids.len() * size_of::<StoredLayoutId>()
+            }
+        };
+
+        image_bytes
+    }
+
+    /// Account this span image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += accounting.account_arc_page_table(&self.pages);
+
+        for page in self.pages.iter() {
+            image_bytes += accounting.account_rc_bytes(page);
+        }
+
+        image_bytes += self.occupied.retained_bytes();
+        image_bytes += match &self.trace_metadata {
+            SpanTraceImage::Monomorphic(_) => 0,
+            SpanTraceImage::Polymorphic(trace_ids) => accounting.account_arc_u32_slice(trace_ids),
+        };
+        image_bytes += match &self.layout_metadata {
+            SpanLayoutImage::Monomorphic(_) => 0,
+            SpanLayoutImage::Polymorphic(layout_ids) => {
+                accounting.account_arc_layout_slice(layout_ids)
+            }
+        };
+
+        image_bytes
     }
 }
 
@@ -363,6 +413,7 @@ impl ManagedSpan {
     }
 
     /// Set the layout id for one occupied slot.
+    #[cfg(test)]
     pub(crate) fn set_layout_id(
         &mut self,
         page_arena: &mut PageArena,
@@ -637,6 +688,7 @@ impl ManagedSpan {
     }
 
     /// Increment the pin count for one occupied slot.
+    #[cfg(test)]
     pub(crate) fn pin(&mut self, slot: usize) -> bool {
         if !self.is_occupied(slot) {
             return false;
@@ -661,6 +713,7 @@ impl ManagedSpan {
     }
 
     /// Decrement the pin count for one occupied slot.
+    #[cfg(test)]
     pub(crate) fn unpin(&mut self, slot: usize) -> bool {
         if !self.is_occupied(slot) || !self.pinned.contains(slot) {
             return false;
@@ -732,8 +785,8 @@ impl ManagedSpan {
         }
     }
 
-    /// Return the retained bytes for this span.
-    pub(crate) fn retained_bytes(&self, page_bytes: usize) -> usize {
+    /// Return the active local bytes for this span.
+    pub(crate) fn active_bytes(&self, page_bytes: usize) -> usize {
         if self.is_vacant() {
             return self.marked.retained_bytes()
                 + self.pinned.retained_bytes()
@@ -747,20 +800,130 @@ impl ManagedSpan {
 
         match &self.state {
             SpanState::Local(storage) => {
-                storage.pages.len() * page_bytes
+                let _ = page_bytes;
+
+                storage.pages.capacity() * size_of::<PageId>()
                     + storage.occupied.retained_bytes()
                     + Self::trace_metadata_retained_bytes(&storage.trace_metadata)
                     + Self::layout_metadata_retained_bytes(&storage.layout_metadata)
                     + self.dirty_cards.retained_bytes()
                     + side_bytes
             }
+            SpanState::Shared(_) => self.dirty_cards.retained_bytes() + side_bytes,
+        }
+    }
+
+    /// Return the active local bytes for one fresh local span.
+    pub(crate) fn active_bytes_for_new(
+        size_class: usize,
+        span_bytes: usize,
+        page_bytes: usize,
+    ) -> usize {
+        let slot_count = (span_bytes / size_class).max(1);
+        let page_count = span_bytes.div_ceil(page_bytes).max(1);
+
+        page_count * size_of::<PageId>()
+            + Bitmap::with_capacity(slot_count).retained_bytes()
+            + CardSet::with_len(slot_count * size_class).retained_bytes()
+            + Bitmap::with_capacity(slot_count).retained_bytes()
+            + Bitmap::with_capacity(slot_count).retained_bytes()
+    }
+
+    /// Return the active-byte reservation for allocating one slot.
+    pub(crate) fn allocate_active_reservation(
+        &self,
+        page_bytes: usize,
+        trace_id: ReferenceMapId,
+        layout_id: Option<LayoutId>,
+    ) -> i64 {
+        match &self.state {
+            SpanState::Local(storage) => {
+                let trace_delta = Self::trace_metadata_insert_delta(
+                    &storage.trace_metadata,
+                    &storage.occupied,
+                    self.occupied_count,
+                    self.slot_count,
+                    trace_id.index() as u32,
+                );
+                let layout_delta = Self::layout_metadata_insert_delta(
+                    &storage.layout_metadata,
+                    &storage.occupied,
+                    self.occupied_count,
+                    self.slot_count,
+                    StoredLayoutId::from_option(layout_id),
+                );
+
+                trace_delta + layout_delta
+            }
             SpanState::Shared(image) => {
-                image.pages.iter().map(|page| page.len()).sum::<usize>()
+                let page_count = image.pages.len();
+                let local_pages_capacity = projected_vec_capacity::<PageId>(0, 0, page_count);
+                let local_active = local_pages_capacity * size_of::<PageId>()
+                    + image.occupied.retained_bytes()
+                    + Self::trace_image_retained_bytes_after_insert(
+                        &image.trace_metadata,
+                        &image.occupied,
+                        self.occupied_count,
+                        self.slot_count,
+                        trace_id.index() as u32,
+                    )
+                    + Self::layout_image_retained_bytes_after_insert(
+                        &image.layout_metadata,
+                        &image.occupied,
+                        self.occupied_count,
+                        self.slot_count,
+                        StoredLayoutId::from_option(layout_id),
+                    )
+                    + self.dirty_cards.retained_bytes()
+                    + self.marked.retained_bytes()
+                    + self.pinned.retained_bytes()
+                    + self.extra_pin_counts.capacity() * size_of::<(usize, u16)>();
+
+                let _ = page_bytes;
+
+                local_active as i64
+            }
+        }
+    }
+
+    /// Return the detached-page count and active-byte reservation for one write.
+    pub(crate) fn write_active_reservation(&self, page_bytes: usize) -> (usize, i64) {
+        match &self.state {
+            SpanState::Local(_) => (0, 0),
+            SpanState::Shared(image) => {
+                let page_count = image.pages.len();
+                let local_pages_capacity = projected_vec_capacity::<PageId>(0, 0, page_count);
+                let local_active = local_pages_capacity * size_of::<PageId>()
                     + image.occupied.retained_bytes()
                     + Self::trace_image_retained_bytes(&image.trace_metadata)
                     + Self::layout_image_retained_bytes(&image.layout_metadata)
                     + self.dirty_cards.retained_bytes()
-                    + side_bytes
+                    + self.marked.retained_bytes()
+                    + self.pinned.retained_bytes()
+                    + self.extra_pin_counts.capacity() * size_of::<(usize, u16)>();
+
+                let _ = page_bytes;
+
+                (page_count, local_active as i64)
+            }
+        }
+    }
+
+    /// Return the borrowed image bytes referenced by this span.
+    pub(crate) fn borrowed_bytes(&self, page_bytes: usize) -> usize {
+        if self.is_vacant() {
+            return 0;
+        }
+
+        match &self.state {
+            SpanState::Local(_) => 0,
+            SpanState::Shared(image) => {
+                let _ = page_bytes;
+
+                image.pages.iter().map(|page| page.len()).sum::<usize>()
+                    + image.occupied.retained_bytes()
+                    + Self::trace_image_retained_bytes(&image.trace_metadata)
+                    + Self::layout_image_retained_bytes(&image.layout_metadata)
             }
         }
     }
@@ -962,6 +1125,128 @@ impl ManagedSpan {
             SpanLayoutImage::Monomorphic(_) => 0,
             SpanLayoutImage::Polymorphic(layout_ids) => {
                 layout_ids.len() * std::mem::size_of::<StoredLayoutId>()
+            }
+        }
+    }
+
+    /// Return the retained-byte delta for inserting one trace id into owned metadata.
+    fn trace_metadata_insert_delta(
+        trace_metadata: &SpanTraceData,
+        occupied: &Bitmap,
+        occupied_count: usize,
+        slot_count: usize,
+        trace_id: u32,
+    ) -> i64 {
+        let before = Self::trace_metadata_retained_bytes(trace_metadata) as i64;
+        let after = Self::trace_metadata_retained_bytes_after_insert(
+            trace_metadata,
+            occupied,
+            occupied_count,
+            slot_count,
+            trace_id,
+        ) as i64;
+
+        after - before
+    }
+
+    /// Return the retained bytes for owned trace metadata after one insert.
+    fn trace_metadata_retained_bytes_after_insert(
+        trace_metadata: &SpanTraceData,
+        occupied: &Bitmap,
+        occupied_count: usize,
+        slot_count: usize,
+        trace_id: u32,
+    ) -> usize {
+        let _ = occupied;
+
+        match trace_metadata {
+            SpanTraceData::Monomorphic(current) if occupied_count == 0 || *current == trace_id => 0,
+            SpanTraceData::Monomorphic(_) => slot_count * size_of::<u32>(),
+            SpanTraceData::Polymorphic(trace_ids) => trace_ids.len() * size_of::<u32>(),
+        }
+    }
+
+    /// Return the retained-byte delta for inserting one layout id into owned metadata.
+    fn layout_metadata_insert_delta(
+        layout_metadata: &SpanLayoutData,
+        occupied: &Bitmap,
+        occupied_count: usize,
+        slot_count: usize,
+        layout_id: StoredLayoutId,
+    ) -> i64 {
+        let before = Self::layout_metadata_retained_bytes(layout_metadata) as i64;
+        let after = Self::layout_metadata_retained_bytes_after_insert(
+            layout_metadata,
+            occupied,
+            occupied_count,
+            slot_count,
+            layout_id,
+        ) as i64;
+
+        after - before
+    }
+
+    /// Return the retained bytes for owned layout metadata after one insert.
+    fn layout_metadata_retained_bytes_after_insert(
+        layout_metadata: &SpanLayoutData,
+        occupied: &Bitmap,
+        occupied_count: usize,
+        slot_count: usize,
+        layout_id: StoredLayoutId,
+    ) -> usize {
+        let _ = occupied;
+
+        match layout_metadata {
+            SpanLayoutData::Monomorphic(current)
+                if occupied_count == 0 || *current == layout_id =>
+            {
+                0
+            }
+            SpanLayoutData::Monomorphic(_) => slot_count * size_of::<StoredLayoutId>(),
+            SpanLayoutData::Polymorphic(layout_ids) => {
+                layout_ids.len() * size_of::<StoredLayoutId>()
+            }
+        }
+    }
+
+    /// Return the retained bytes for shared trace metadata after one insert.
+    fn trace_image_retained_bytes_after_insert(
+        trace_metadata: &SpanTraceImage,
+        occupied: &Bitmap,
+        occupied_count: usize,
+        slot_count: usize,
+        trace_id: u32,
+    ) -> usize {
+        let _ = occupied;
+
+        match trace_metadata {
+            SpanTraceImage::Monomorphic(current) if occupied_count == 0 || *current == trace_id => {
+                0
+            }
+            SpanTraceImage::Monomorphic(_) => slot_count * size_of::<u32>(),
+            SpanTraceImage::Polymorphic(trace_ids) => trace_ids.len() * size_of::<u32>(),
+        }
+    }
+
+    /// Return the retained bytes for shared layout metadata after one insert.
+    fn layout_image_retained_bytes_after_insert(
+        layout_metadata: &SpanLayoutImage,
+        occupied: &Bitmap,
+        occupied_count: usize,
+        slot_count: usize,
+        layout_id: StoredLayoutId,
+    ) -> usize {
+        let _ = occupied;
+
+        match layout_metadata {
+            SpanLayoutImage::Monomorphic(current)
+                if occupied_count == 0 || *current == layout_id =>
+            {
+                0
+            }
+            SpanLayoutImage::Monomorphic(_) => slot_count * size_of::<StoredLayoutId>(),
+            SpanLayoutImage::Polymorphic(layout_ids) => {
+                layout_ids.len() * size_of::<StoredLayoutId>()
             }
         }
     }

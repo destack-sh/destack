@@ -399,7 +399,9 @@ fn test_roundtrip_shared_space_image() {
             .shares_storage_with(restored_image.region(0).unwrap())
     );
 
-    assert!(restored.set_byte(pointer, 1, 9));
+    let mut restored_budget = SharedBudget::new(SharedLimits::default(), restored.active_bytes());
+
+    assert!(restored.set_byte(pointer, 1, 9, &mut restored_budget));
     let mutated_image = restored.image(None);
 
     assert!(
@@ -444,8 +446,8 @@ fn test_roundtrip_heap_image_and_snapshot() {
     let restored = Heap::from_snapshot(&snapshot);
 
     assert_eq!(
-        decoded.local_allocation_bytes(),
-        image.local_allocation_bytes()
+        decoded.local_allocated_bytes(),
+        image.local_allocated_bytes()
     );
     assert_eq!(decoded.leaf_count(), image.leaf_count());
     assert_eq!(
@@ -458,11 +460,11 @@ fn test_roundtrip_heap_image_and_snapshot() {
     );
 }
 
-/// Reject one managed allocation when the retained-byte limit would be exceeded.
+/// Reject one managed allocation when the active-byte limit would be exceeded.
 #[test]
 fn test_reject_managed_allocation_when_limit_exceeded() {
     let mut heap = Heap::new();
-    let baseline = heap.usage().managed.retained_bytes;
+    let baseline = heap.usage().managed.active_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
         managed: crate::ManagedLimits {
@@ -470,7 +472,7 @@ fn test_reject_managed_allocation_when_limit_exceeded() {
         },
         raw: crate::RawLimits { max_bytes: None },
     })
-    .expect("baseline managed heap should fit its current retained-byte limit");
+    .expect("baseline managed heap should fit its current active-byte limit");
 
     let error = heap
         .allocate_managed_bytes(&[1], ReferenceMap::empty(), None)
@@ -478,4 +480,82 @@ fn test_reject_managed_allocation_when_limit_exceeded() {
 
     assert_eq!(error.scope, crate::HeapLimitScope::Managed);
     assert_eq!(heap.managed_allocation_count(), 0);
+    assert_eq!(heap.usage().managed.active_bytes, baseline);
+}
+
+/// Reject one raw allocation when the active-byte limit would be exceeded.
+#[test]
+fn test_reject_raw_allocation_when_limit_exceeded() {
+    let mut heap = Heap::new();
+    let baseline = heap.usage().raw.active_bytes;
+    heap.set_limits(HeapLimits {
+        max_bytes: None,
+        managed: crate::ManagedLimits { max_bytes: None },
+        raw: crate::RawLimits {
+            max_bytes: Some(baseline),
+        },
+    })
+    .expect("baseline raw heap should fit its current active-byte limit");
+
+    let error = heap
+        .allocate_raw_bytes(&[1])
+        .expect_err("raw allocation should be rejected");
+
+    assert_eq!(error.scope, crate::HeapLimitScope::Raw);
+    assert_eq!(heap.raw().allocation_count(), 0);
+    assert_eq!(heap.usage().raw.active_bytes, baseline);
+}
+
+/// Reject one managed write when CoW detachment would exceed the active-byte limit.
+#[test]
+fn test_reject_managed_write_when_limit_exceeded() {
+    let mut heap = Heap::new();
+    let handle = heap
+        .allocate_managed_bytes(&[0xAA], ReferenceMap::empty(), None)
+        .expect("managed allocation should succeed");
+    let image = heap.image().expect("heap image should capture");
+    let mut heap = Heap::from_image(&image);
+    let baseline = heap.usage().managed.active_bytes;
+    heap.set_limits(HeapLimits {
+        max_bytes: None,
+        managed: crate::ManagedLimits {
+            max_bytes: Some(baseline),
+        },
+        raw: crate::RawLimits { max_bytes: None },
+    })
+    .expect("baseline managed heap should fit its current active-byte limit");
+
+    let updated = heap.set_managed_byte(handle, 0, 0xBB);
+
+    assert!(!updated);
+    assert_eq!(heap.managed_bytes(handle).as_deref(), Some(&[0xAA][..]));
+    assert_eq!(heap.usage().managed.active_bytes, baseline);
+}
+
+/// Reject one raw replace when CoW detachment would exceed the active-byte limit.
+#[test]
+fn test_reject_raw_replace_when_limit_exceeded() {
+    let mut heap = Heap::new();
+    let pointer = heap
+        .allocate_raw_bytes(&[0xAA])
+        .expect("raw allocation should succeed");
+    let image = heap.image().expect("heap image should capture");
+    let mut heap = Heap::from_image(&image);
+    let baseline = heap.usage().raw.active_bytes;
+    heap.set_limits(HeapLimits {
+        max_bytes: None,
+        managed: crate::ManagedLimits { max_bytes: None },
+        raw: crate::RawLimits {
+            max_bytes: Some(baseline),
+        },
+    })
+    .expect("baseline raw heap should fit its current active-byte limit");
+
+    let error = heap
+        .replace_raw_bytes(pointer, &[0xBB])
+        .expect_err("raw replace should be rejected");
+
+    assert_eq!(error.scope, crate::HeapLimitScope::Raw);
+    assert_eq!(heap.raw_bytes(pointer).as_deref(), Some(&[0xAA][..]));
+    assert_eq!(heap.usage().raw.active_bytes, baseline);
 }

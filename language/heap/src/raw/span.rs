@@ -1,10 +1,12 @@
 use std::borrow::Cow;
+use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::alloc::{Bitmap, PageArena, PageId};
+use crate::alloc::{Bitmap, PageArena, PageId, projected_vec_capacity};
+use crate::heap::ImageAccounting;
 
 /// One immutable raw span image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -42,6 +44,36 @@ impl RawSpanImage {
                 .all(|(left, right)| Rc::ptr_eq(left, right))
             && self.occupied == other.occupied
             && Arc::ptr_eq(&self.lengths, &other.lengths)
+    }
+
+    /// Return the exact owned bytes for this durable span image.
+    pub fn image_bytes(&self) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += self.pages.len() * size_of::<Rc<[u8]>>();
+
+        for page in self.pages.iter() {
+            image_bytes += page.len();
+        }
+
+        image_bytes += self.occupied.retained_bytes();
+        image_bytes += self.lengths.len() * size_of::<u16>();
+
+        image_bytes
+    }
+
+    /// Account this span image into deduplicated retained-image bytes.
+    pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
+        let mut image_bytes = size_of::<Self>();
+        image_bytes += accounting.account_arc_page_table(&self.pages);
+
+        for page in self.pages.iter() {
+            image_bytes += accounting.account_rc_bytes(page);
+        }
+
+        image_bytes += self.occupied.retained_bytes();
+        image_bytes += accounting.account_arc_u16_slice(&self.lengths);
+
+        image_bytes
     }
 }
 
@@ -401,17 +433,81 @@ impl RawSpan {
         }
     }
 
-    /// Return the retained bytes for this span.
-    pub(crate) fn retained_bytes(&self, page_bytes: usize) -> usize {
+    /// Return the active local bytes for this span.
+    pub(crate) fn active_bytes(&self, page_bytes: usize) -> usize {
         match &self.state {
             SpanState::Local(storage) => {
-                storage.pages.len() * page_bytes
+                let _ = page_bytes;
+
+                storage.pages.capacity() * size_of::<PageId>()
                     + storage.lengths.len() * std::mem::size_of::<u16>()
                     + storage.occupied.retained_bytes()
             }
+            SpanState::Shared(_) => 0,
+        }
+    }
+
+    /// Return the active local bytes for one fresh local span.
+    pub(crate) fn active_bytes_for_new(
+        size_class: usize,
+        span_bytes: usize,
+        page_bytes: usize,
+    ) -> usize {
+        let _ = page_bytes;
+
+        let slot_count = (span_bytes / size_class).max(1);
+        let page_count = span_bytes.div_ceil(page_bytes).max(1);
+
+        page_count * size_of::<PageId>()
+            + slot_count * size_of::<u16>()
+            + Bitmap::with_capacity(slot_count).retained_bytes()
+    }
+
+    /// Return the active-byte reservation for allocating one slot.
+    pub(crate) fn allocate_active_reservation(&self, page_bytes: usize) -> i64 {
+        match &self.state {
+            SpanState::Local(_) => 0,
             SpanState::Shared(image) => {
+                let page_count = image.pages.len();
+                let local_pages_capacity = projected_vec_capacity::<PageId>(0, 0, page_count);
+                let local_active = local_pages_capacity * size_of::<PageId>()
+                    + image.lengths.len() * size_of::<u16>()
+                    + image.occupied.retained_bytes();
+
+                let _ = page_bytes;
+
+                local_active as i64
+            }
+        }
+    }
+
+    /// Return the detached-page count and active-byte reservation for one write.
+    pub(crate) fn write_active_reservation(&self, page_bytes: usize) -> (usize, i64) {
+        match &self.state {
+            SpanState::Local(_) => (0, 0),
+            SpanState::Shared(image) => {
+                let page_count = image.pages.len();
+                let local_pages_capacity = projected_vec_capacity::<PageId>(0, 0, page_count);
+                let local_active = local_pages_capacity * size_of::<PageId>()
+                    + image.lengths.len() * size_of::<u16>()
+                    + image.occupied.retained_bytes();
+
+                let _ = page_bytes;
+
+                (page_count, local_active as i64)
+            }
+        }
+    }
+
+    /// Return the borrowed image bytes referenced by this span.
+    pub(crate) fn borrowed_bytes(&self, page_bytes: usize) -> usize {
+        match &self.state {
+            SpanState::Local(_) => 0,
+            SpanState::Shared(image) => {
+                let _ = page_bytes;
+
                 image.pages.iter().map(|page| page.len()).sum::<usize>()
-                    + image.lengths.len() * std::mem::size_of::<u16>()
+                    + image.lengths.len() * size_of::<u16>()
                     + image.occupied.retained_bytes()
             }
         }

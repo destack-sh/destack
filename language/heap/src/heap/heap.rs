@@ -48,8 +48,8 @@ pub struct Heap {
     raw: RawSpace,
     /// Exact hard limits for this heap.
     limits: HeapLimits,
-    /// The last captured image used to reuse unchanged image leaves.
-    cached_image: Option<Rc<HeapImage>>,
+    /// The previous immutable heap image reused as the next capture base.
+    base_image: Option<Rc<HeapImage>>,
 }
 
 /// One agent-local execution memory view across local and shared memory.
@@ -81,7 +81,7 @@ impl Heap {
             managed,
             raw,
             limits,
-            cached_image: None,
+            base_image: None,
         }
     }
 
@@ -105,7 +105,7 @@ impl Heap {
             raw: RawSpace::from_image(&image.raw),
             layout,
             limits: HeapLimits::default(),
-            cached_image: Some(Rc::new(image.clone())),
+            base_image: Some(Rc::new(image.clone())),
         }
     }
 
@@ -131,23 +131,30 @@ impl Heap {
 
     /// Replace the heap hard limits.
     pub fn set_limits(&mut self, limits: HeapLimits) -> Result<(), HeapLimitError> {
-        limits.check(self.managed.retained_bytes(), self.raw.retained_bytes())?;
+        limits.check(self.managed.active_bytes(), self.raw.active_bytes())?;
         self.limits = limits;
         Ok(())
     }
 
     /// Check the configured heap hard limits against current usage.
     pub fn check_limits(&self) -> Result<(), HeapLimitError> {
-        self.budget().check_delta(0, 0)
+        self.budget().check_active_reservation(0, 0)
     }
 
     /// Return the current live heap budget.
+    #[inline]
     pub fn budget(&self) -> HeapBudget {
         HeapBudget::new(
             self.limits,
-            self.managed.retained_bytes(),
-            self.raw.retained_bytes(),
+            self.managed.active_bytes(),
+            self.raw.active_bytes(),
         )
+    }
+
+    /// Clear the current capture base after one local heap mutation.
+    #[inline]
+    fn invalidate_base_image(&mut self) {
+        self.base_image = None;
     }
 
     /// Allocate one managed byte allocation.
@@ -157,16 +164,13 @@ impl Heap {
         reference_map: ReferenceMap,
         layout_id: Option<LayoutId>,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation =
+            self.managed
+                .allocate_bytes_active_reservation(bytes.len(), &reference_map, layout_id);
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle = self.managed.allocate_bytes(bytes, reference_map, layout_id);
-
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
 
         Ok(handle)
     }
@@ -178,18 +182,15 @@ impl Heap {
         reference_map: &ReferenceMap,
         layout_id: Option<LayoutId>,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation =
+            self.managed
+                .allocate_bytes_active_reservation(bytes.len(), reference_map, layout_id);
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle = self
             .managed
             .allocate_bytes_borrowed(bytes, reference_map, layout_id);
-
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
 
         Ok(handle)
     }
@@ -202,18 +203,15 @@ impl Heap {
         layout_id: Option<LayoutId>,
         type_id: u32,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation =
+            self.managed
+                .allocate_bytes_active_reservation(bytes.len(), &reference_map, layout_id);
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle = self
             .managed
             .allocate_bytes_typed(bytes, reference_map, layout_id, type_id);
-
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
 
         Ok(handle)
     }
@@ -226,18 +224,15 @@ impl Heap {
         layout_id: Option<LayoutId>,
         type_id: u32,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation =
+            self.managed
+                .allocate_bytes_active_reservation(bytes.len(), reference_map, layout_id);
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle =
             self.managed
                 .allocate_bytes_borrowed_typed(bytes, reference_map, layout_id, type_id);
-
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
 
         Ok(handle)
     }
@@ -249,18 +244,15 @@ impl Heap {
         reference_map: ReferenceMap,
         layout_id: Option<LayoutId>,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation =
+            self.managed
+                .allocate_bytes_active_reservation(byte_len, &reference_map, layout_id);
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle = self
             .managed
             .allocate_zeroed(byte_len, reference_map, layout_id);
-
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
 
         Ok(handle)
     }
@@ -272,18 +264,15 @@ impl Heap {
         reference_map: &ReferenceMap,
         layout_id: Option<LayoutId>,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation =
+            self.managed
+                .allocate_bytes_active_reservation(byte_len, reference_map, layout_id);
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle = self
             .managed
             .allocate_zeroed_borrowed(byte_len, reference_map, layout_id);
-
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
 
         Ok(handle)
     }
@@ -296,21 +285,18 @@ impl Heap {
         layout_id: Option<LayoutId>,
         type_id: u32,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation =
+            self.managed
+                .allocate_bytes_active_reservation(byte_len, reference_map, layout_id);
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle = self.managed.allocate_zeroed_borrowed_typed(
             byte_len,
             reference_map,
             layout_id,
             type_id,
         );
-
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
 
         Ok(handle)
     }
@@ -324,8 +310,16 @@ impl Heap {
         offsets: &[u32],
         layout_id: Option<LayoutId>,
     ) -> Result<ManagedReference, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let managed_reservation = self.managed.allocate_repeated_offsets_active_reservation(
+            byte_len,
+            count,
+            element_size,
+            offsets,
+            layout_id,
+        );
+        budget.check_active_reservation(managed_reservation, 0)?;
         let handle = self.managed.allocate_zeroed_repeated_reference_offsets(
             byte_len,
             count,
@@ -334,12 +328,35 @@ impl Heap {
             layout_id,
         );
 
-        let managed_delta =
-            retained_delta(budget.managed.retained_bytes, self.managed.retained_bytes());
-        if let Err(error) = budget.check_delta(managed_delta, 0) {
-            let _ = self.managed.free(handle);
-            return Err(error);
-        }
+        Ok(handle)
+    }
+
+    /// Allocate one managed byte allocation with repeated reference offsets.
+    pub fn allocate_managed_bytes_repeated_reference_offsets(
+        &mut self,
+        bytes: &[u8],
+        count: u32,
+        element_size: u32,
+        offsets: &[u32],
+        layout_id: Option<LayoutId>,
+    ) -> Result<ManagedReference, HeapLimitError> {
+        self.invalidate_base_image();
+        let budget = self.budget();
+        let managed_reservation = self.managed.allocate_repeated_offsets_active_reservation(
+            bytes.len(),
+            count,
+            element_size,
+            offsets,
+            layout_id,
+        );
+        budget.check_active_reservation(managed_reservation, 0)?;
+        let handle = self.managed.allocate_bytes_repeated_reference_offsets(
+            bytes,
+            count,
+            element_size,
+            offsets,
+            layout_id,
+        );
 
         Ok(handle)
     }
@@ -376,7 +393,16 @@ impl Heap {
 
     /// Set one managed byte.
     pub fn set_managed_byte(&mut self, handle: ManagedReference, index: usize, byte: u8) -> bool {
-        self.cached_image = None;
+        self.invalidate_base_image();
+        let budget = self.budget();
+        let managed_reservation = self.managed.write_active_reservation(handle, index, 1);
+        if budget
+            .check_active_reservation(managed_reservation, 0)
+            .is_err()
+        {
+            return false;
+        }
+
         self.managed.set_byte(handle, index, byte)
     }
 
@@ -387,13 +413,24 @@ impl Heap {
         start: usize,
         bytes: &[u8],
     ) -> bool {
-        self.cached_image = None;
+        self.invalidate_base_image();
+        let budget = self.budget();
+        let managed_reservation = self
+            .managed
+            .write_active_reservation(handle, start, bytes.len());
+        if budget
+            .check_active_reservation(managed_reservation, 0)
+            .is_err()
+        {
+            return false;
+        }
+
         self.managed.set_bytes(handle, start, bytes)
     }
 
     /// Set the nominal type id for one managed allocation.
     pub fn set_managed_type_id(&mut self, handle: ManagedReference, type_id: u32) -> bool {
-        self.cached_image = None;
+        self.invalidate_base_image();
         self.managed.set_type_id(handle, type_id)
     }
 
@@ -407,9 +444,14 @@ impl Heap {
         self.managed.gc_state()
     }
 
-    /// Return the exact retained managed bytes.
-    pub fn managed_retained_bytes(&self) -> u64 {
-        self.managed.retained_bytes()
+    /// Return the exact live allocated managed bytes.
+    pub fn managed_allocated_bytes(&self) -> u64 {
+        self.managed.allocated_bytes()
+    }
+
+    /// Return the exact active managed bytes.
+    pub fn managed_active_bytes(&self) -> u64 {
+        self.managed.active_bytes()
     }
 
     /// Return the number of live managed allocations.
@@ -422,7 +464,7 @@ impl Heap {
     where
         I: IntoIterator<Item = ManagedReference>,
     {
-        self.cached_image = None;
+        self.invalidate_base_image();
         self.managed.collect_handles(handles)
     }
 
@@ -431,7 +473,7 @@ impl Heap {
     where
         I: IntoIterator<Item = ManagedReference>,
     {
-        self.cached_image = None;
+        self.invalidate_base_image();
 
         // root set
         let handles = handles.into_iter().collect::<Vec<_>>();
@@ -442,7 +484,7 @@ impl Heap {
 
         // escalate only when minor collection still leaves hard pressure
         let should_collect_full = !self.managed.young.can_fit(min_small_bytes)
-            || self.budget().check_delta(0, 0).is_err();
+            || self.budget().check_active_reservation(0, 0).is_err();
 
         if !should_collect_full {
             return young_stats;
@@ -457,7 +499,7 @@ impl Heap {
     where
         I: IntoIterator<Item = ManagedReference>,
     {
-        self.cached_image = None;
+        self.invalidate_base_image();
         self.managed.collect_young_handles(handles)
     }
 
@@ -466,15 +508,13 @@ impl Heap {
         &mut self,
         values: Vec<Value>,
     ) -> Result<RawPointer, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let raw_reservation = self
+            .raw
+            .allocate_bytes_active_reservation(values.len() * Value::BYTE_LEN);
+        budget.check_active_reservation(0, raw_reservation)?;
         let pointer = self.raw.allocate_packed_values(values);
-
-        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
-        if let Err(error) = budget.check_delta(0, raw_delta) {
-            let _ = self.raw.free(pointer);
-            return Err(error);
-        }
 
         Ok(pointer)
     }
@@ -486,45 +526,35 @@ impl Heap {
 
     /// Allocate one zeroed raw packed-value buffer.
     pub fn allocate_raw_slots(&mut self, slot_count: usize) -> Result<RawPointer, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let raw_reservation = self
+            .raw
+            .allocate_zeroed_active_reservation(slot_count * Value::BYTE_LEN);
+        budget.check_active_reservation(0, raw_reservation)?;
         let pointer = self.raw.allocate_packed_value_slots(slot_count);
-
-        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
-        if let Err(error) = budget.check_delta(0, raw_delta) {
-            let _ = self.raw.free(pointer);
-            return Err(error);
-        }
 
         Ok(pointer)
     }
 
     /// Allocate one raw byte allocation.
     pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> Result<RawPointer, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let raw_reservation = self.raw.allocate_bytes_active_reservation(bytes.len());
+        budget.check_active_reservation(0, raw_reservation)?;
         let pointer = self.raw.allocate_bytes(bytes);
-
-        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
-        if let Err(error) = budget.check_delta(0, raw_delta) {
-            let _ = self.raw.free(pointer);
-            return Err(error);
-        }
 
         Ok(pointer)
     }
 
     /// Allocate one zeroed raw byte allocation.
     pub fn allocate_raw_zeroed(&mut self, byte_len: usize) -> Result<RawPointer, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
+        let raw_reservation = self.raw.allocate_zeroed_active_reservation(byte_len);
+        budget.check_active_reservation(0, raw_reservation)?;
         let pointer = self.raw.allocate_zeroed(byte_len);
-
-        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
-        if let Err(error) = budget.check_delta(0, raw_delta) {
-            let _ = self.raw.free(pointer);
-            return Err(error);
-        }
 
         Ok(pointer)
     }
@@ -556,19 +586,39 @@ impl Heap {
 
     /// Free one raw allocation.
     pub fn free_raw(&mut self, pointer: RawPointer) -> bool {
-        self.cached_image = None;
+        self.invalidate_base_image();
         self.raw.free(pointer)
+    }
+
+    /// Free one managed allocation.
+    pub fn free_managed(&mut self, handle: ManagedReference) -> bool {
+        self.invalidate_base_image();
+        self.managed.free(handle)
     }
 
     /// Set one raw byte.
     pub fn set_raw_byte(&mut self, pointer: RawPointer, index: usize, byte: u8) -> bool {
-        self.cached_image = None;
+        self.invalidate_base_image();
+        let budget = self.budget();
+        let raw_reservation = self.raw.write_active_reservation(pointer, index, 1);
+        if budget.check_active_reservation(0, raw_reservation).is_err() {
+            return false;
+        }
+
         self.raw.set_byte(pointer, index, byte)
     }
 
     /// Set one raw byte slice.
     pub fn set_raw_bytes(&mut self, pointer: RawPointer, start: usize, bytes: &[u8]) -> bool {
-        self.cached_image = None;
+        self.invalidate_base_image();
+        let budget = self.budget();
+        let raw_reservation = self
+            .raw
+            .write_active_reservation(pointer, start, bytes.len());
+        if budget.check_active_reservation(0, raw_reservation).is_err() {
+            return false;
+        }
+
         self.raw.set_bytes(pointer, start, bytes)
     }
 
@@ -578,21 +628,16 @@ impl Heap {
         pointer: RawPointer,
         len: usize,
     ) -> Result<bool, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
-        let old_values = self.raw.values_to_vec(pointer);
+        let raw_reservation = self
+            .raw
+            .replace_bytes_active_reservation(pointer, len * Value::BYTE_LEN);
+        budget.check_active_reservation(0, raw_reservation)?;
         let replaced = self.raw.resize_values(pointer, len);
 
         if !replaced {
             return Ok(false);
-        }
-
-        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
-        if let Err(error) = budget.check_delta(0, raw_delta) {
-            if let Some(old_values) = old_values {
-                let _ = self.raw.replace_bytes(pointer, &encode_values(&old_values));
-            }
-            return Err(error);
         }
 
         Ok(true)
@@ -600,7 +645,15 @@ impl Heap {
 
     /// Set one raw packed value.
     pub fn set_raw_value(&mut self, pointer: RawPointer, index: usize, value: Value) -> bool {
-        self.cached_image = None;
+        self.invalidate_base_image();
+        let budget = self.budget();
+        let raw_reservation =
+            self.raw
+                .write_active_reservation(pointer, index * Value::BYTE_LEN, Value::BYTE_LEN);
+        if budget.check_active_reservation(0, raw_reservation).is_err() {
+            return false;
+        }
+
         self.raw.set_value(pointer, index, value)
     }
 
@@ -625,21 +678,16 @@ impl Heap {
         pointer: RawPointer,
         bytes: &[u8],
     ) -> Result<bool, HeapLimitError> {
-        self.cached_image = None;
+        self.invalidate_base_image();
         let budget = self.budget();
-        let old_bytes = self.raw.bytes_to_vec(pointer);
+        let raw_reservation = self
+            .raw
+            .replace_bytes_active_reservation(pointer, bytes.len());
+        budget.check_active_reservation(0, raw_reservation)?;
         let replaced = self.raw.replace_bytes(pointer, bytes);
 
         if !replaced {
             return Ok(false);
-        }
-
-        let raw_delta = retained_delta(budget.raw.retained_bytes, self.raw.retained_bytes());
-        if let Err(error) = budget.check_delta(0, raw_delta) {
-            if let Some(old_bytes) = old_bytes {
-                let _ = self.raw.replace_bytes(pointer, &old_bytes);
-            }
-            return Err(error);
         }
 
         Ok(true)
@@ -664,25 +712,29 @@ impl Heap {
         HeapUsage {
             managed: ManagedSpaceUsage {
                 allocation_count: self.managed.allocation_count(),
-                allocation_bytes: self.managed.allocation_bytes(),
-                retained_bytes: self.managed.retained_bytes(),
+                allocated_bytes: self.managed.allocated_bytes(),
+                active_bytes: self.managed.active_bytes(),
+                mapped_bytes: self.managed.mapped_bytes(),
+                borrowed_bytes: self.managed.borrowed_bytes(),
             },
             raw: RawSpaceUsage {
                 allocation_count: self.raw.allocation_count(),
-                allocation_bytes: self.raw.usage().allocation_bytes,
-                retained_bytes: self.raw.retained_bytes(),
+                allocated_bytes: self.raw.usage().allocated_bytes,
+                active_bytes: self.raw.active_bytes(),
+                mapped_bytes: self.raw.mapped_bytes(),
+                borrowed_bytes: self.raw.borrowed_bytes(),
             },
         }
     }
 
     /// Capture one immutable heap image.
     pub fn image(&mut self) -> Result<HeapImage, HeapCaptureError> {
-        let base_managed = self.cached_image.as_deref().map(|image| &image.managed);
-        let base_raw = self.cached_image.as_deref().map(|image| &image.raw);
+        let base_managed = self.base_image.as_deref().map(|image| &image.managed);
+        let base_raw = self.base_image.as_deref().map(|image| &image.raw);
         let managed = self.managed.image(base_managed)?;
         let raw = self.raw.image(base_raw);
         let image = HeapImage { managed, raw };
-        self.cached_image = Some(Rc::new(image.clone()));
+        self.base_image = Some(Rc::new(image.clone()));
         Ok(image)
     }
 
@@ -726,7 +778,7 @@ impl MemoryContext<'_> {
         shared: &'a mut SharedSpace,
         shared_limits: SharedLimits,
     ) -> MemoryContext<'a> {
-        let shared_budget = SharedBudget::new(shared_limits, shared.retained_bytes());
+        let shared_budget = SharedBudget::new(shared_limits, shared.active_bytes());
 
         MemoryContext {
             heap,
@@ -842,13 +894,4 @@ fn encode_values(values: &[Value]) -> Vec<u8> {
     }
 
     bytes
-}
-
-// convert one retained-byte before and after pair into a signed delta
-fn retained_delta(before: u64, after: u64) -> i64 {
-    if after >= before {
-        (after - before) as i64
-    } else {
-        -((before - after) as i64)
-    }
 }

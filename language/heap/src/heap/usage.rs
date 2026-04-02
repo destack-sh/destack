@@ -5,10 +5,14 @@ use serde::{Deserialize, Serialize};
 pub struct ManagedSpaceUsage {
     /// The number of live managed allocations.
     pub allocation_count: usize,
-    /// The logical live managed allocation bytes.
-    pub allocation_bytes: u64,
-    /// The exact retained managed heap bytes.
-    pub retained_bytes: u64,
+    /// The logical live managed payload bytes.
+    pub allocated_bytes: u64,
+    /// The exact active managed allocator bytes.
+    pub active_bytes: u64,
+    /// The exact mapped managed page-arena bytes.
+    pub mapped_bytes: u64,
+    /// The exact borrowed managed image bytes.
+    pub borrowed_bytes: u64,
 }
 
 /// Exact raw-space usage for one live heap.
@@ -16,10 +20,14 @@ pub struct ManagedSpaceUsage {
 pub struct RawSpaceUsage {
     /// The number of live raw allocations.
     pub allocation_count: usize,
-    /// The logical live raw allocation bytes.
-    pub allocation_bytes: u64,
-    /// The exact retained raw heap bytes.
-    pub retained_bytes: u64,
+    /// The logical live raw payload bytes.
+    pub allocated_bytes: u64,
+    /// The exact active raw allocator bytes.
+    pub active_bytes: u64,
+    /// The exact mapped raw page-arena bytes.
+    pub mapped_bytes: u64,
+    /// The exact borrowed raw image bytes.
+    pub borrowed_bytes: u64,
 }
 
 /// Exact shared-memory usage for one live shared-memory space.
@@ -27,10 +35,14 @@ pub struct RawSpaceUsage {
 pub struct SharedSpaceUsage {
     /// The number of live shared-memory regions.
     pub allocation_count: usize,
-    /// The logical live shared-memory bytes.
-    pub allocation_bytes: u64,
-    /// The exact retained shared-memory bytes.
-    pub retained_bytes: u64,
+    /// The logical live shared-memory payload bytes.
+    pub allocated_bytes: u64,
+    /// The exact active shared allocator bytes.
+    pub active_bytes: u64,
+    /// The exact mapped shared page-arena bytes.
+    pub mapped_bytes: u64,
+    /// The exact borrowed shared image bytes.
+    pub borrowed_bytes: u64,
 }
 
 /// Exact heap usage for one live heap.
@@ -43,18 +55,32 @@ pub struct HeapUsage {
 }
 
 impl HeapUsage {
-    /// Return the exact total live allocation bytes.
-    pub fn allocation_bytes(&self) -> u64 {
+    /// Return the exact total live allocated bytes.
+    pub fn allocated_bytes(&self) -> u64 {
         self.managed
-            .allocation_bytes
-            .saturating_add(self.raw.allocation_bytes)
+            .allocated_bytes
+            .saturating_add(self.raw.allocated_bytes)
     }
 
-    /// Return the exact total retained heap bytes.
-    pub fn retained_bytes(&self) -> u64 {
+    /// Return the exact total active heap bytes.
+    pub fn active_bytes(&self) -> u64 {
         self.managed
-            .retained_bytes
-            .saturating_add(self.raw.retained_bytes)
+            .active_bytes
+            .saturating_add(self.raw.active_bytes)
+    }
+
+    /// Return the exact total mapped heap bytes.
+    pub fn mapped_bytes(&self) -> u64 {
+        self.managed
+            .mapped_bytes
+            .saturating_add(self.raw.mapped_bytes)
+    }
+
+    /// Return the exact total borrowed image bytes.
+    pub fn borrowed_bytes(&self) -> u64 {
+        self.managed
+            .borrowed_bytes
+            .saturating_add(self.raw.borrowed_bytes)
     }
 }
 
@@ -65,4 +91,34 @@ pub struct MemoryUsage {
     pub heap: HeapUsage,
     /// The world-shared memory usage.
     pub shared: SharedSpaceUsage,
+}
+
+impl MemoryUsage {
+    /// Return the exact total live allocated bytes.
+    pub fn allocated_bytes(&self) -> u64 {
+        self.heap
+            .allocated_bytes()
+            .saturating_add(self.shared.allocated_bytes)
+    }
+
+    /// Return the exact total active bytes.
+    pub fn active_bytes(&self) -> u64 {
+        self.heap
+            .active_bytes()
+            .saturating_add(self.shared.active_bytes)
+    }
+
+    /// Return the exact total mapped bytes.
+    pub fn mapped_bytes(&self) -> u64 {
+        self.heap
+            .mapped_bytes()
+            .saturating_add(self.shared.mapped_bytes)
+    }
+
+    /// Return the exact total borrowed image bytes.
+    pub fn borrowed_bytes(&self) -> u64 {
+        self.heap
+            .borrowed_bytes()
+            .saturating_add(self.shared.borrowed_bytes)
+    }
 }

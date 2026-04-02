@@ -9,18 +9,18 @@ use super::{
 /// Hard limits for world-shared memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SharedLimits {
-    /// Optional hard limit for retained shared-memory bytes.
+    /// Optional hard limit for active shared-memory bytes.
     pub max_bytes: Option<u64>,
 }
 
 impl SharedLimits {
-    /// Check exact retained shared-memory bytes against these limits.
-    pub fn check(&self, retained_bytes: u64) -> Result<(), SharedLimitError> {
+    /// Check exact active shared-memory bytes against these limits.
+    pub fn check(&self, active_bytes: u64) -> Result<(), SharedLimitError> {
         if let Some(max_bytes) = self.max_bytes
-            && retained_bytes > max_bytes
+            && active_bytes > max_bytes
         {
             return Err(SharedLimitError {
-                used_bytes: retained_bytes,
+                used_bytes: active_bytes,
                 max_bytes,
             });
         }
@@ -28,13 +28,13 @@ impl SharedLimits {
         Ok(())
     }
 
-    /// Check retained shared-memory bytes after one signed retained-byte delta.
-    pub fn check_delta(
+    /// Check active shared-memory bytes after one requested reservation.
+    pub fn check_active_reservation(
         &self,
-        retained_bytes: u64,
-        retained_delta: i64,
+        active_bytes: u64,
+        active_reservation: i64,
     ) -> Result<(), SharedLimitError> {
-        self.check(apply_delta(retained_bytes, retained_delta))
+        self.check(apply_reservation(active_bytes, active_reservation))
     }
 }
 
@@ -50,7 +50,7 @@ pub struct MemoryLimits {
 /// One shared-memory hard-limit violation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SharedLimitError {
-    /// The exact retained shared-memory bytes.
+    /// The exact active shared-memory bytes.
     pub used_bytes: u64,
     /// The configured hard limit in bytes.
     pub max_bytes: u64,
@@ -84,8 +84,8 @@ pub struct HeapBudget {
 pub struct ManagedBudget {
     /// The configured managed-space limits.
     pub limits: ManagedLimits,
-    /// The current retained managed bytes.
-    pub retained_bytes: u64,
+    /// The current active managed bytes.
+    pub active_bytes: u64,
 }
 
 /// One live admission budget for local raw-space operations.
@@ -93,33 +93,29 @@ pub struct ManagedBudget {
 pub struct RawBudget {
     /// The configured raw-space limits.
     pub limits: RawLimits,
-    /// The current retained raw bytes.
-    pub retained_bytes: u64,
+    /// The current active raw bytes.
+    pub active_bytes: u64,
 }
 
 impl HeapBudget {
-    /// Create one heap budget from explicit retained-byte counts.
-    pub fn new(limits: HeapLimits, managed_retained_bytes: u64, raw_retained_bytes: u64) -> Self {
+    /// Create one heap budget from explicit active-byte counts.
+    pub fn new(limits: HeapLimits, managed_active_bytes: u64, raw_active_bytes: u64) -> Self {
         Self {
             limits,
             managed: ManagedBudget {
                 limits: limits.managed,
-                retained_bytes: managed_retained_bytes,
+                active_bytes: managed_active_bytes,
             },
             raw: RawBudget {
                 limits: limits.raw,
-                retained_bytes: raw_retained_bytes,
+                active_bytes: raw_active_bytes,
             },
         }
     }
 
     /// Create one heap budget from one usage snapshot.
     pub fn from_usage(limits: HeapLimits, usage: HeapUsage) -> Self {
-        Self::new(
-            limits,
-            usage.managed.retained_bytes,
-            usage.raw.retained_bytes,
-        )
+        Self::new(limits, usage.managed.active_bytes, usage.raw.active_bytes)
     }
 
     /// Return the configured heap limits.
@@ -127,20 +123,24 @@ impl HeapBudget {
         self.limits
     }
 
-    /// Check one retained-byte delta without mutating this budget.
-    pub fn check_delta(&self, managed_delta: i64, raw_delta: i64) -> Result<(), HeapLimitError> {
-        self.limits.check_delta(
-            self.managed.retained_bytes,
-            self.raw.retained_bytes,
-            managed_delta,
-            raw_delta,
+    /// Check one active-byte reservation without mutating this budget.
+    pub fn check_active_reservation(
+        &self,
+        managed_reservation: i64,
+        raw_reservation: i64,
+    ) -> Result<(), HeapLimitError> {
+        self.limits.check_active_reservation(
+            self.managed.active_bytes,
+            self.raw.active_bytes,
+            managed_reservation,
+            raw_reservation,
         )
     }
 
-    /// Apply one retained-byte delta after one committed mutation.
-    pub fn apply_delta(&mut self, managed_delta: i64, raw_delta: i64) {
-        self.managed.retained_bytes = apply_delta(self.managed.retained_bytes, managed_delta);
-        self.raw.retained_bytes = apply_delta(self.raw.retained_bytes, raw_delta);
+    /// Refresh this budget after one committed mutation.
+    pub fn refresh(&mut self, managed_active_bytes: u64, raw_active_bytes: u64) {
+        self.managed.active_bytes = managed_active_bytes;
+        self.raw.active_bytes = raw_active_bytes;
     }
 }
 
@@ -149,22 +149,22 @@ impl HeapBudget {
 pub struct SharedBudget {
     /// The configured shared-memory limits.
     limits: SharedLimits,
-    /// The current retained shared-memory bytes.
-    retained_bytes: u64,
+    /// The current active shared-memory bytes.
+    active_bytes: u64,
 }
 
 impl SharedBudget {
-    /// Create one shared-memory budget from explicit retained bytes.
-    pub fn new(limits: SharedLimits, retained_bytes: u64) -> Self {
+    /// Create one shared-memory budget from explicit active bytes.
+    pub fn new(limits: SharedLimits, active_bytes: u64) -> Self {
         Self {
             limits,
-            retained_bytes,
+            active_bytes,
         }
     }
 
     /// Create one shared-memory budget from one usage snapshot.
     pub fn from_usage(limits: SharedLimits, usage: SharedSpaceUsage) -> Self {
-        Self::new(limits, usage.retained_bytes)
+        Self::new(limits, usage.active_bytes)
     }
 
     /// Return the configured shared-memory limits.
@@ -172,14 +172,18 @@ impl SharedBudget {
         self.limits
     }
 
-    /// Check one retained-byte delta without mutating this budget.
-    pub fn check_retained_delta(&self, retained_delta: i64) -> Result<(), SharedLimitError> {
-        self.limits.check_delta(self.retained_bytes, retained_delta)
+    /// Check one active-byte reservation without mutating this budget.
+    pub fn check_active_reservation(
+        &self,
+        active_reservation: i64,
+    ) -> Result<(), SharedLimitError> {
+        self.limits
+            .check_active_reservation(self.active_bytes, active_reservation)
     }
 
-    /// Apply one retained-byte delta after one committed mutation.
-    pub fn apply_retained_delta(&mut self, retained_delta: i64) {
-        self.retained_bytes = apply_delta(self.retained_bytes, retained_delta);
+    /// Refresh this budget after one committed mutation.
+    pub fn refresh(&mut self, active_bytes: u64) {
+        self.active_bytes = active_bytes;
     }
 }
 
@@ -207,11 +211,11 @@ impl MemoryBudget {
     }
 }
 
-/// Apply one signed retained-byte delta to one current byte count.
-fn apply_delta(current: u64, delta: i64) -> u64 {
-    if delta >= 0 {
-        current.saturating_add(delta as u64)
+/// Apply one signed reservation to one current byte count.
+fn apply_reservation(current: u64, reservation: i64) -> u64 {
+    if reservation >= 0 {
+        current.saturating_add(reservation as u64)
     } else {
-        current.saturating_sub(delta.unsigned_abs())
+        current.saturating_sub(reservation.unsigned_abs())
     }
 }

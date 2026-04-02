@@ -72,14 +72,14 @@ impl SharedSpace {
         bytes: &[u8],
         budget: &mut SharedBudget,
     ) -> Result<SharedPointer, SharedLimitError> {
-        // reserve retained bytes before mutation
-        let retained_delta = self.allocate_delta(bytes.len());
-        budget.check_retained_delta(retained_delta)?;
+        // reserve active bytes before mutation
+        let active_reservation = self.allocate_active_reservation(bytes.len());
+        budget.check_active_reservation(active_reservation)?;
 
         // commit allocation and accounting
         let region = self.commit_allocate_bytes(bytes);
-        self.apply_retained_delta(retained_delta);
-        budget.apply_retained_delta(retained_delta);
+        self.recompute_retained_bytes();
+        budget.refresh(self.active_bytes());
 
         Ok(region)
     }
@@ -108,7 +108,7 @@ impl SharedSpace {
             return false;
         };
         let region_bytes = region_metrics.len();
-        let region_retained_bytes = region_metrics.retained_bytes();
+        let _region_active_bytes = region_metrics.active_bytes();
 
         // free the live region payload while keeping the stable id slot
         let region_index = (region.id().saturating_sub(1)) as usize;
@@ -121,10 +121,10 @@ impl SharedSpace {
 
         region_slot.free(&mut self.page_arena);
 
-        // release usage and retained accounting
+        // release usage and active accounting
         self.allocated_count = self.allocated_count.saturating_sub(1);
         self.allocated_bytes = self.allocated_bytes.saturating_sub(region_bytes as u64);
-        self.apply_retained_delta(size_of::<u64>() as i64 - region_retained_bytes as i64);
+        self.recompute_retained_bytes();
 
         // publish the reusable stable region id
         self.free_ids.push(region_id);
@@ -133,7 +133,20 @@ impl SharedSpace {
     }
 
     /// Write one shared-memory byte by slot offset.
-    pub fn set_byte(&mut self, region: SharedPointer, index: usize, byte: u8) -> bool {
+    pub fn set_byte(
+        &mut self,
+        region: SharedPointer,
+        index: usize,
+        byte: u8,
+        budget: &mut SharedBudget,
+    ) -> bool {
+        let Some(active_reservation) = self.write_active_reservation(region, index, 1) else {
+            return false;
+        };
+        if budget.check_active_reservation(active_reservation).is_err() {
+            return false;
+        }
+
         if region.id() == 0 {
             return false;
         }
@@ -146,7 +159,14 @@ impl SharedSpace {
             return false;
         }
 
-        region.set(&mut self.page_arena, index, byte)
+        let updated = region.set(&mut self.page_arena, index, byte);
+
+        if updated {
+            self.recompute_retained_bytes();
+            budget.refresh(self.active_bytes());
+        }
+
+        updated
     }
 
     /// Replace the entire shared-memory payload with exact retained-byte admission.
@@ -156,19 +176,20 @@ impl SharedSpace {
         bytes: &[u8],
         budget: &mut SharedBudget,
     ) -> Result<bool, SharedLimitError> {
-        // reserve retained bytes before mutation
-        let Some(delta) = self.replace_bytes_delta(region, bytes.len()) else {
+        // reserve active bytes before mutation
+        let Some(active_reservation) = self.replace_bytes_active_reservation(region, bytes.len())
+        else {
             return Ok(false);
         };
 
-        budget.check_retained_delta(delta)?;
+        budget.check_active_reservation(active_reservation)?;
 
         // commit replacement and accounting
         let replaced = self.commit_replace_bytes(region, bytes);
 
         if replaced {
-            self.apply_retained_delta(delta);
-            budget.apply_retained_delta(delta);
+            self.recompute_retained_bytes();
+            budget.refresh(self.active_bytes());
         }
 
         Ok(replaced)
@@ -204,17 +225,32 @@ impl SharedSpace {
         self.allocated_count
     }
 
-    /// Return the exact retained shared-memory bytes.
-    pub fn retained_bytes(&self) -> u64 {
+    /// Return the exact active shared-memory bytes.
+    pub fn active_bytes(&self) -> u64 {
         self.retained_bytes
+    }
+
+    /// Return the exact mapped shared page-arena bytes.
+    pub fn mapped_bytes(&self) -> u64 {
+        self.page_arena.mapped_bytes() as u64
+    }
+
+    /// Return the exact borrowed shared image bytes.
+    pub fn borrowed_bytes(&self) -> u64 {
+        self.regions
+            .iter()
+            .map(SharedRegion::borrowed_bytes)
+            .sum::<usize>() as u64
     }
 
     /// Return the exact usage for this live shared-memory space.
     pub fn usage(&self) -> SharedSpaceUsage {
         SharedSpaceUsage {
             allocation_count: self.allocated_count,
-            allocation_bytes: self.allocated_bytes,
-            retained_bytes: self.retained_bytes,
+            allocated_bytes: self.allocated_bytes,
+            active_bytes: self.active_bytes(),
+            mapped_bytes: self.mapped_bytes(),
+            borrowed_bytes: self.borrowed_bytes(),
         }
     }
 
@@ -259,41 +295,67 @@ impl SharedSpace {
         SharedPointer::new(id)
     }
 
-    /// Return the exact retained-byte delta for allocating one shared-memory region.
-    fn allocate_delta(&self, len: usize) -> i64 {
-        let region_bytes = self.region_payload_retained_bytes(len) as i64;
+    /// Return the exact active-byte reservation for allocating one shared-memory region.
+    fn allocate_active_reservation(&self, len: usize) -> i64 {
+        let page_count = len.div_ceil(self.page_bytes.max(1)).max((len > 0) as usize);
+        let page_arena_reservation = self
+            .page_arena
+            .allocate_pages_active_reservation(page_count);
+        let region_bytes = self.region_payload_active_bytes(len) as i64;
         if self.free_ids.is_empty() {
-            region_bytes + size_of::<SharedRegion>() as i64
+            page_arena_reservation + region_bytes + size_of::<SharedRegion>() as i64
         } else {
-            region_bytes - size_of::<u64>() as i64
+            page_arena_reservation + region_bytes - size_of::<u64>() as i64
         }
     }
 
-    /// Return the exact retained-byte delta for replacing one shared-memory payload.
-    fn replace_bytes_delta(&self, region: SharedPointer, new_len: usize) -> Option<i64> {
+    /// Return the exact active-byte reservation for writing one shared-memory window.
+    fn write_active_reservation(
+        &self,
+        region: SharedPointer,
+        start: usize,
+        len: usize,
+    ) -> Option<i64> {
+        let region = self.region(region)?;
+        let (page_count, payload_reservation) = region.write_active_reservation(start, len);
+
+        Some(
+            self.page_arena
+                .allocate_pages_active_reservation(page_count)
+                + payload_reservation,
+        )
+    }
+
+    /// Return the exact active-byte reservation for replacing one shared-memory payload.
+    fn replace_bytes_active_reservation(
+        &self,
+        region: SharedPointer,
+        new_len: usize,
+    ) -> Option<i64> {
         let old_region = self.region(region)?;
-        let old_bytes = old_region.retained_bytes() as i64;
-        let new_bytes = self.region_payload_retained_bytes(new_len) as i64;
+        let (freed_pages, allocated_pages, payload_reservation) =
+            old_region.replace_active_reservation(new_len);
 
-        Some(new_bytes - old_bytes)
+        Some(
+            self.page_arena
+                .replace_pages_active_reservation(freed_pages, allocated_pages)
+                + payload_reservation,
+        )
     }
 
-    /// Return the retained payload bytes for one region length.
-    pub(crate) fn region_payload_retained_bytes(&self, len: usize) -> usize {
-        SharedRegion::retained_bytes_for_len(len, self.page_bytes)
-    }
-
-    /// Apply one exact retained-byte delta after a committed mutation.
-    pub(crate) fn apply_retained_delta(&mut self, delta: i64) {
-        if delta >= 0 {
-            self.retained_bytes = self.retained_bytes.saturating_add(delta as u64);
-        } else {
-            self.retained_bytes = self.retained_bytes.saturating_sub((-delta) as u64);
-        }
+    /// Return the active payload bytes for one region length.
+    pub(crate) fn region_payload_active_bytes(&self, len: usize) -> usize {
+        SharedRegion::active_bytes_for_len(len, self.page_bytes)
     }
 
     /// Recompute exact retained bytes from live state.
     pub(crate) fn recompute_retained_bytes(&mut self) {
+        self.retained_bytes = self.exact_retained_bytes();
+        self.debug_assert_retained_bytes();
+    }
+
+    /// Return the exact retained bytes implied by the current live state.
+    fn exact_retained_bytes(&self) -> u64 {
         let mut retained_bytes = 0usize;
 
         // live region descriptors
@@ -301,13 +363,25 @@ impl SharedSpace {
 
         // live region payload
         for region in &self.regions {
-            retained_bytes += region.retained_bytes();
+            retained_bytes += region.active_bytes();
         }
 
         // allocator state
         retained_bytes += self.free_ids.capacity() * size_of::<u64>();
         retained_bytes += self.page_arena.retained_bytes();
 
-        self.retained_bytes = retained_bytes as u64;
+        retained_bytes as u64
+    }
+
+    /// Assert that the retained-byte cache matches exact state.
+    fn debug_assert_retained_bytes(&self) {
+        #[cfg(debug_assertions)]
+        {
+            let retained_bytes = self.exact_retained_bytes();
+            debug_assert_eq!(
+                self.retained_bytes, retained_bytes,
+                "shared-space retained bytes must match exact recomputation"
+            );
+        }
     }
 }
