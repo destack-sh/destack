@@ -17,11 +17,10 @@ AndroidHostDocumentCallbacks make_document_callbacks();
 /// Register the document runtime ingress JNI methods.
 bool register_document_runtime_natives(JNIEnv *env);
 
-/// Send the `document_result` document ingress payload into the runtime ingress path.
-RuntimeStatus send_document_result(
+/// Send the `notify_document_result` document ingress payload into the runtime ingress path.
+RuntimeStatus send_notify_document_result(
     uint64_t session_handle,
-    uint64_t request_id,
-    HostDocumentDescriptorSlice documents
+    HostDocumentResult result
 );
 
 #endif

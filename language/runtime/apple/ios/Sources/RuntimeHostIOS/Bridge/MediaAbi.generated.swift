@@ -8,8 +8,8 @@ import RuntimeHostAppleCore
 typealias MediaListCallback =
   @convention(c) (
     UInt64,
-    DestackRustMediaListRequest,
-    UnsafeMutablePointer<DestackRustMediaListResponse>?
+    DestackRustHostMediaListRequest,
+    UnsafeMutablePointer<DestackRustHostMediaListResponse>?
   ) -> UInt32
 
 /// Read one media asset by stable identifier.
@@ -17,23 +17,23 @@ typealias MediaReadCallback =
   @convention(c) (
     UInt64,
     DestackRustStringRef,
-    UnsafeMutablePointer<DestackRustMediaReadResponse>?
+    UnsafeMutablePointer<DestackRustHostMediaReadResponse>?
   ) -> UInt32
 
 /// Import one local path into the host media library.
 typealias MediaImportPathCallback =
   @convention(c) (
     UInt64,
-    DestackRustMediaImportPathRequest,
-    UnsafeMutablePointer<DestackRustMediaImportPathResponse>?
+    DestackRustHostMediaImportPathRequest,
+    UnsafeMutablePointer<DestackRustHostMediaImportPathResponse>?
   ) -> UInt32
 
 /// Delete one batch of media assets by stable identifier.
 typealias MediaDeleteCallback =
   @convention(c) (
     UInt64,
-    DestackRustMediaDeleteRequest,
-    UnsafeMutablePointer<DestackRustMediaDeleteResponse>?
+    DestackRustHostMediaDeleteRequest,
+    UnsafeMutablePointer<DestackRustHostMediaDeleteResponse>?
   ) -> UInt32
 
 let mediaListCallback: MediaListCallback = {
@@ -97,8 +97,8 @@ func makeMediaCallbacks() -> IosHostMediaCallbacks {
 /// Handle one runtime callback asking to list one page of media for one query.
 func handleMediaList(
   sessionHandle: UInt64,
-  request: DestackRustMediaListRequest,
-  response: UnsafeMutablePointer<DestackRustMediaListResponse>?
+  request: DestackRustHostMediaListRequest,
+  response: UnsafeMutablePointer<DestackRustHostMediaListResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -134,7 +134,7 @@ func handleMediaList(
 func handleMediaRead(
   sessionHandle: UInt64,
   identifier: DestackRustStringRef,
-  response: UnsafeMutablePointer<DestackRustMediaReadResponse>?
+  response: UnsafeMutablePointer<DestackRustHostMediaReadResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -153,7 +153,7 @@ func handleMediaRead(
     ) { bridge, runtimeHost in
       bridge.mediaRead(
         runtimeHost: runtimeHost,
-        decodedIdentifier
+        identifier: decodedIdentifier
       )
     }
   }
@@ -169,8 +169,8 @@ func handleMediaRead(
 /// Handle one runtime callback asking to import one local path into the host media library.
 func handleMediaImportPath(
   sessionHandle: UInt64,
-  request: DestackRustMediaImportPathRequest,
-  response: UnsafeMutablePointer<DestackRustMediaImportPathResponse>?
+  request: DestackRustHostMediaImportPathRequest,
+  response: UnsafeMutablePointer<DestackRustHostMediaImportPathResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -205,8 +205,8 @@ func handleMediaImportPath(
 /// Handle one runtime callback asking to delete one batch of media assets by stable identifier.
 func handleMediaDelete(
   sessionHandle: UInt64,
-  request: DestackRustMediaDeleteRequest,
-  response: UnsafeMutablePointer<DestackRustMediaDeleteResponse>?
+  request: DestackRustHostMediaDeleteRequest,
+  response: UnsafeMutablePointer<DestackRustHostMediaDeleteResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -335,9 +335,9 @@ func currentMediaBridgeArena() -> MediaBridgeArena {
   return arena
 }
 
-/// Build one Swift MediaAssetKind from one bridge raw value.
+/// Build one Swift HostMediaAssetKind from one bridge raw value.
 func decodeBridgeHostMediaAssetKind(
-  _ value: DestackRustMediaAssetKind
+  _ value: DestackRustHostMediaAssetKind
 ) throws -> RuntimeHostMediaAssetKind {
   guard let value = RuntimeHostMediaAssetKind(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -346,19 +346,15 @@ func decodeBridgeHostMediaAssetKind(
   return value
 }
 
-/// Build one Swift MediaListRequest from one bridge payload.
+/// Build one Swift HostMediaListRequest from one bridge payload.
 func decodeBridgeHostMediaListRequest(
-  _ value: DestackRustMediaListRequest
+  _ value: DestackRustHostMediaListRequest
 ) throws -> RuntimeHostMediaListRequest {
   RuntimeHostMediaListRequest(
     cursor:
-      value.has_cursor
-      ? try tryDecodeNativeString(value.cursor)
-      : nil,
+      (value.cursor.has_value ? Optional(try tryDecodeNativeString(value.cursor.value)) : nil),
     limit:
-      value.has_limit
-      ? value.limit
-      : nil,
+      (value.limit.has_value ? Optional(value.limit.value) : nil),
     kinds:
       try decodeBridgeHostMediaAssetKindSlice(value.kinds),
     includeHidden:
@@ -366,9 +362,9 @@ func decodeBridgeHostMediaListRequest(
   )
 }
 
-/// Build one Swift MediaImportPathRequest from one bridge payload.
+/// Build one Swift HostMediaImportPathRequest from one bridge payload.
 func decodeBridgeHostMediaImportPathRequest(
-  _ value: DestackRustMediaImportPathRequest
+  _ value: DestackRustHostMediaImportPathRequest
 ) throws -> RuntimeHostMediaImportPathRequest {
   RuntimeHostMediaImportPathRequest(
     path:
@@ -378,9 +374,9 @@ func decodeBridgeHostMediaImportPathRequest(
   )
 }
 
-/// Build one Swift MediaDeleteRequest from one bridge payload.
+/// Build one Swift HostMediaDeleteRequest from one bridge payload.
 func decodeBridgeHostMediaDeleteRequest(
-  _ value: DestackRustMediaDeleteRequest
+  _ value: DestackRustHostMediaDeleteRequest
 ) throws -> RuntimeHostMediaDeleteRequest {
   RuntimeHostMediaDeleteRequest(
     identifiers:
@@ -388,9 +384,9 @@ func decodeBridgeHostMediaDeleteRequest(
   )
 }
 
-/// Build one Swift MediaAssetKind slice from one bridge payload.
+/// Build one Swift HostMediaAssetKind slice from one bridge payload.
 func decodeBridgeHostMediaAssetKindSlice(
-  _ value: DestackRustMediaAssetKindSlice
+  _ value: DestackRustHostMediaAssetKindSlice
 ) throws -> [RuntimeHostMediaAssetKind] {
   if value.len == 0 {
     return []
@@ -408,53 +404,50 @@ func decodeBridgeHostMediaAssetKindSlice(
   return try buffer.map { try decodeBridgeHostMediaAssetKind($0) }
 }
 
-/// Encode one Swift MediaAssetKind as one bridge raw value.
+/// Encode one Swift HostMediaAssetKind as one bridge raw value.
 func encodeBridgeHostMediaAssetKind(
   _ value: RuntimeHostMediaAssetKind
-) -> DestackRustMediaAssetKind {
+) -> DestackRustHostMediaAssetKind {
   value.rawValue
 }
 
-/// Encode one Swift MediaAssetKind slice as one bridge payload.
+/// Encode one Swift HostMediaAssetKind slice as one bridge payload.
 func encodeBridgeHostMediaAssetKindSlice(
   _ values: [RuntimeHostMediaAssetKind],
   arena: MediaBridgeArena
-) -> DestackRustMediaAssetKindSlice {
+) -> DestackRustHostMediaAssetKindSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostMediaAssetKind(value)
     }
   }
 
-  return DestackRustMediaAssetKindSlice(
+  return DestackRustHostMediaAssetKindSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift MediaAssetKind slice as one C bridge payload.
+/// Encode one Swift HostMediaAssetKind slice as one C bridge payload.
 func withNativeHostMediaAssetKindSlice<T>(
   _ values: [RuntimeHostMediaAssetKind],
-  body: (DestackRustMediaAssetKindSlice) -> T
+  body: (DestackRustHostMediaAssetKindSlice) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaAssetKindSlice(values, arena: arena))
 }
 
-/// Encode one Swift MediaListRequest as one bridge payload.
+/// Encode one Swift HostMediaListRequest as one bridge payload.
 func encodeBridgeHostMediaListRequest(
   _ value: RuntimeHostMediaListRequest,
   arena: MediaBridgeArena
-) -> DestackRustMediaListRequest {
-  DestackRustMediaListRequest(
-    has_cursor: value.cursor != nil,
+) -> DestackRustHostMediaListRequest {
+  DestackRustHostMediaListRequest(
     cursor:
-      value.cursor.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_limit: value.limit != nil,
+      ({ if let unwrappedValue = value.cursor { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     limit:
-      value.limit ?? 0,
+      ({ if let unwrappedValue = value.limit { return DestackRustOptionalU32(has_value: true, value: UInt32(unwrappedValue)) } return DestackRustOptionalU32(has_value: false, value: 0) }()),
     kinds:
       encodeBridgeHostMediaAssetKindSlice(value.kinds, arena: arena),
     include_hidden:
@@ -464,30 +457,30 @@ func encodeBridgeHostMediaListRequest(
 
 func encodeBridgeHostMediaListRequest(
   _ value: RuntimeHostMediaListRequest
-) -> DestackRustMediaListRequest {
+) -> DestackRustHostMediaListRequest {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaListRequest(value, arena: arena)
 }
 
-/// Encode one Swift MediaListRequest as one C bridge payload.
+/// Encode one Swift HostMediaListRequest as one C bridge payload.
 func withNativeHostMediaListRequest<T>(
   _ value: RuntimeHostMediaListRequest,
-  body: (DestackRustMediaListRequest) -> T
+  body: (DestackRustHostMediaListRequest) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaListRequest(value, arena: arena))
 }
 
-/// Encode one Swift MediaAssetDescriptor as one bridge payload.
+/// Encode one Swift HostMediaAssetDescriptor as one bridge payload.
 func encodeBridgeHostMediaAssetDescriptor(
   _ value: RuntimeHostMediaAssetDescriptor,
   arena: MediaBridgeArena
-) -> DestackRustMediaAssetDescriptor {
-  DestackRustMediaAssetDescriptor(
-    identifier:
-      arena.makeStringRef(value.identifier),
+) -> DestackRustHostMediaAssetDescriptor {
+  DestackRustHostMediaAssetDescriptor(
+    id:
+      arena.makeStringRef(value.id),
     uri:
       arena.makeStringRef(value.uri),
     filename:
@@ -513,55 +506,28 @@ func encodeBridgeHostMediaAssetDescriptor(
 
 func encodeBridgeHostMediaAssetDescriptor(
   _ value: RuntimeHostMediaAssetDescriptor
-) -> DestackRustMediaAssetDescriptor {
+) -> DestackRustHostMediaAssetDescriptor {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaAssetDescriptor(value, arena: arena)
 }
 
-/// Encode one Swift MediaAssetDescriptor as one C bridge payload.
+/// Encode one Swift HostMediaAssetDescriptor as one C bridge payload.
 func withNativeHostMediaAssetDescriptor<T>(
   _ value: RuntimeHostMediaAssetDescriptor,
-  body: (DestackRustMediaAssetDescriptor) -> T
+  body: (DestackRustHostMediaAssetDescriptor) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaAssetDescriptor(value, arena: arena))
 }
 
-/// Encode one Swift MediaAssetDescriptor slice as one bridge payload.
-func encodeBridgeHostMediaAssetDescriptorSlice(
-  _ values: [RuntimeHostMediaAssetDescriptor],
-  arena: MediaBridgeArena
-) -> DestackRustMediaAssetDescriptorSlice {
-  let data = arena.makeArray(count: values.count) { buffer in
-    for (index, value) in values.enumerated() {
-      buffer[index] = encodeBridgeHostMediaAssetDescriptor(value, arena: arena)
-    }
-  }
-
-  return DestackRustMediaAssetDescriptorSlice(
-    data: data,
-    len: UInt32(values.count)
-  )
-}
-
-/// Encode one Swift MediaAssetDescriptor slice as one C bridge payload.
-func withNativeHostMediaAssetDescriptorSlice<T>(
-  _ values: [RuntimeHostMediaAssetDescriptor],
-  body: (DestackRustMediaAssetDescriptorSlice) -> T
-) -> T {
-  let arena = currentMediaBridgeArena()
-
-  return body(encodeBridgeHostMediaAssetDescriptorSlice(values, arena: arena))
-}
-
-/// Encode one Swift MediaListResult as one bridge payload.
+/// Encode one Swift HostMediaListResult as one bridge payload.
 func encodeBridgeHostMediaListResult(
   _ value: RuntimeHostMediaListResult,
   arena: MediaBridgeArena
-) -> DestackRustMediaListResult {
-  DestackRustMediaListResult(
+) -> DestackRustHostMediaListResult {
+  DestackRustHostMediaListResult(
     assets:
       encodeBridgeHostMediaAssetDescriptorSlice(value.assets, arena: arena),
     next_cursor:
@@ -573,110 +539,90 @@ func encodeBridgeHostMediaListResult(
 
 func encodeBridgeHostMediaListResult(
   _ value: RuntimeHostMediaListResult
-) -> DestackRustMediaListResult {
+) -> DestackRustHostMediaListResult {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaListResult(value, arena: arena)
 }
 
-/// Encode one Swift MediaListResult as one C bridge payload.
+/// Encode one Swift HostMediaListResult as one C bridge payload.
 func withNativeHostMediaListResult<T>(
   _ value: RuntimeHostMediaListResult,
-  body: (DestackRustMediaListResult) -> T
+  body: (DestackRustHostMediaListResult) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaListResult(value, arena: arena))
 }
 
-/// Encode one Swift MediaListResponse as one bridge payload.
+/// Encode one Swift HostMediaListResponse as one bridge payload.
 func encodeBridgeHostMediaListResponse(
   _ value: RuntimeHostMediaListResponse,
   arena: MediaBridgeArena
-) -> DestackRustMediaListResponse {
-  DestackRustMediaListResponse(
+) -> DestackRustHostMediaListResponse {
+  DestackRustHostMediaListResponse(
     status:
       value.status,
-    has_page: value.page != nil,
     page:
-      value.page.map { encodeBridgeHostMediaListResult($0, arena: arena) }
-      ?? DestackRustMediaListResult(
-        assets: DestackRustMediaAssetDescriptorSlice(data: nil, len: 0),
-        next_cursor: DestackRustStringRef(data: nil, len: 0),
-        has_more: false
-      )
+      ({ if let unwrappedValue = value.page { return DestackRustOptionalHostMediaListResult(has_value: true, value: encodeBridgeHostMediaListResult(unwrappedValue, arena: arena)) } return DestackRustOptionalHostMediaListResult(has_value: false, value: DestackRustHostMediaListResult(assets: DestackRustHostMediaAssetDescriptorSlice(data: nil, len: 0), next_cursor: DestackRustStringRef(data: nil, len: 0), has_more: false)) }())
   )
 }
 
 func encodeBridgeHostMediaListResponse(
   _ value: RuntimeHostMediaListResponse
-) -> DestackRustMediaListResponse {
+) -> DestackRustHostMediaListResponse {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaListResponse(value, arena: arena)
 }
 
-/// Encode one Swift MediaListResponse as one C bridge payload.
+/// Encode one Swift HostMediaListResponse as one C bridge payload.
 func withNativeHostMediaListResponse<T>(
   _ value: RuntimeHostMediaListResponse,
-  body: (DestackRustMediaListResponse) -> T
+  body: (DestackRustHostMediaListResponse) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaListResponse(value, arena: arena))
 }
 
-/// Encode one Swift MediaReadResponse as one bridge payload.
+/// Encode one Swift HostMediaReadResponse as one bridge payload.
 func encodeBridgeHostMediaReadResponse(
   _ value: RuntimeHostMediaReadResponse,
   arena: MediaBridgeArena
-) -> DestackRustMediaReadResponse {
-  DestackRustMediaReadResponse(
+) -> DestackRustHostMediaReadResponse {
+  DestackRustHostMediaReadResponse(
     status:
       value.status,
-    has_descriptor: value.descriptor != nil,
     descriptor:
-      value.descriptor.map { encodeBridgeHostMediaAssetDescriptor($0, arena: arena) }
-      ?? DestackRustMediaAssetDescriptor(
-        identifier: DestackRustStringRef(data: nil, len: 0),
-        uri: DestackRustStringRef(data: nil, len: 0),
-        filename: DestackRustStringRef(data: nil, len: 0),
-        mime_type: DestackRustStringRef(data: nil, len: 0),
-        kind: 0,
-        width: 0,
-        height: 0,
-        duration_ms: 0,
-        size_bytes: 0,
-        created_unix_ns: 0,
-        modified_unix_ns: 0
-      )
+      ({ if let unwrappedValue = value.descriptor { return DestackRustOptionalHostMediaAssetDescriptor(has_value: true, value: encodeBridgeHostMediaAssetDescriptor(unwrappedValue, arena: arena)) } return DestackRustOptionalHostMediaAssetDescriptor(has_value: false, value: DestackRustHostMediaAssetDescriptor(id: DestackRustStringRef(data: nil, len: 0), uri: DestackRustStringRef(data: nil, len: 0), filename: DestackRustStringRef(data: nil, len: 0), mime_type: DestackRustStringRef(data: nil, len: 0), kind: 0, width: 0, height: 0, duration_ms: 0, size_bytes: 0, created_unix_ns: 0, modified_unix_ns: 0)) }())
   )
 }
 
 func encodeBridgeHostMediaReadResponse(
   _ value: RuntimeHostMediaReadResponse
-) -> DestackRustMediaReadResponse {
+) -> DestackRustHostMediaReadResponse {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaReadResponse(value, arena: arena)
 }
 
-/// Encode one Swift MediaReadResponse as one C bridge payload.
+/// Encode one Swift HostMediaReadResponse as one C bridge payload.
 func withNativeHostMediaReadResponse<T>(
   _ value: RuntimeHostMediaReadResponse,
-  body: (DestackRustMediaReadResponse) -> T
+  body: (DestackRustHostMediaReadResponse) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaReadResponse(value, arena: arena))
 }
 
-/// Encode one Swift MediaImportPathRequest as one bridge payload.
+/// Encode one Swift HostMediaImportPathRequest as one bridge payload.
 func encodeBridgeHostMediaImportPathRequest(
   _ value: RuntimeHostMediaImportPathRequest,
   arena: MediaBridgeArena
-) -> DestackRustMediaImportPathRequest {
-  DestackRustMediaImportPathRequest(
+) -> DestackRustHostMediaImportPathRequest {
+  DestackRustHostMediaImportPathRequest(
     path:
       arena.makeStringRef(value.path),
     kind:
@@ -686,61 +632,59 @@ func encodeBridgeHostMediaImportPathRequest(
 
 func encodeBridgeHostMediaImportPathRequest(
   _ value: RuntimeHostMediaImportPathRequest
-) -> DestackRustMediaImportPathRequest {
+) -> DestackRustHostMediaImportPathRequest {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaImportPathRequest(value, arena: arena)
 }
 
-/// Encode one Swift MediaImportPathRequest as one C bridge payload.
+/// Encode one Swift HostMediaImportPathRequest as one C bridge payload.
 func withNativeHostMediaImportPathRequest<T>(
   _ value: RuntimeHostMediaImportPathRequest,
-  body: (DestackRustMediaImportPathRequest) -> T
+  body: (DestackRustHostMediaImportPathRequest) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaImportPathRequest(value, arena: arena))
 }
 
-/// Encode one Swift MediaImportPathResponse as one bridge payload.
+/// Encode one Swift HostMediaImportPathResponse as one bridge payload.
 func encodeBridgeHostMediaImportPathResponse(
   _ value: RuntimeHostMediaImportPathResponse,
   arena: MediaBridgeArena
-) -> DestackRustMediaImportPathResponse {
-  DestackRustMediaImportPathResponse(
+) -> DestackRustHostMediaImportPathResponse {
+  DestackRustHostMediaImportPathResponse(
     status:
       value.status,
-    has_identifier: value.identifier != nil,
     identifier:
-      value.identifier.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0)
+      ({ if let unwrappedValue = value.identifier { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
   )
 }
 
 func encodeBridgeHostMediaImportPathResponse(
   _ value: RuntimeHostMediaImportPathResponse
-) -> DestackRustMediaImportPathResponse {
+) -> DestackRustHostMediaImportPathResponse {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaImportPathResponse(value, arena: arena)
 }
 
-/// Encode one Swift MediaImportPathResponse as one C bridge payload.
+/// Encode one Swift HostMediaImportPathResponse as one C bridge payload.
 func withNativeHostMediaImportPathResponse<T>(
   _ value: RuntimeHostMediaImportPathResponse,
-  body: (DestackRustMediaImportPathResponse) -> T
+  body: (DestackRustHostMediaImportPathResponse) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaImportPathResponse(value, arena: arena))
 }
 
-/// Encode one Swift MediaDeleteRequest as one bridge payload.
+/// Encode one Swift HostMediaDeleteRequest as one bridge payload.
 func encodeBridgeHostMediaDeleteRequest(
   _ value: RuntimeHostMediaDeleteRequest,
   arena: MediaBridgeArena
-) -> DestackRustMediaDeleteRequest {
-  DestackRustMediaDeleteRequest(
+) -> DestackRustHostMediaDeleteRequest {
+  DestackRustHostMediaDeleteRequest(
     identifiers:
       arena.makeStringSlice(value.identifiers)
   )
@@ -748,28 +692,28 @@ func encodeBridgeHostMediaDeleteRequest(
 
 func encodeBridgeHostMediaDeleteRequest(
   _ value: RuntimeHostMediaDeleteRequest
-) -> DestackRustMediaDeleteRequest {
+) -> DestackRustHostMediaDeleteRequest {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaDeleteRequest(value, arena: arena)
 }
 
-/// Encode one Swift MediaDeleteRequest as one C bridge payload.
+/// Encode one Swift HostMediaDeleteRequest as one C bridge payload.
 func withNativeHostMediaDeleteRequest<T>(
   _ value: RuntimeHostMediaDeleteRequest,
-  body: (DestackRustMediaDeleteRequest) -> T
+  body: (DestackRustHostMediaDeleteRequest) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 
   return body(encodeBridgeHostMediaDeleteRequest(value, arena: arena))
 }
 
-/// Encode one Swift MediaDeleteResponse as one bridge payload.
+/// Encode one Swift HostMediaDeleteResponse as one bridge payload.
 func encodeBridgeHostMediaDeleteResponse(
   _ value: RuntimeHostMediaDeleteResponse,
   arena: MediaBridgeArena
-) -> DestackRustMediaDeleteResponse {
-  DestackRustMediaDeleteResponse(
+) -> DestackRustHostMediaDeleteResponse {
+  DestackRustHostMediaDeleteResponse(
     status:
       value.status,
     deleted_count:
@@ -779,16 +723,16 @@ func encodeBridgeHostMediaDeleteResponse(
 
 func encodeBridgeHostMediaDeleteResponse(
   _ value: RuntimeHostMediaDeleteResponse
-) -> DestackRustMediaDeleteResponse {
+) -> DestackRustHostMediaDeleteResponse {
   let arena = currentMediaBridgeArena()
 
   return encodeBridgeHostMediaDeleteResponse(value, arena: arena)
 }
 
-/// Encode one Swift MediaDeleteResponse as one C bridge payload.
+/// Encode one Swift HostMediaDeleteResponse as one C bridge payload.
 func withNativeHostMediaDeleteResponse<T>(
   _ value: RuntimeHostMediaDeleteResponse,
-  body: (DestackRustMediaDeleteResponse) -> T
+  body: (DestackRustHostMediaDeleteResponse) -> T
 ) -> T {
   let arena = currentMediaBridgeArena()
 

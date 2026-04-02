@@ -6,8 +6,9 @@ use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
 use crate::host::{HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK};
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
-/// Forward the `supports_hardware_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_supports_hardware_key(
+/// Forward the `supports_hardware_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key(
     session_handle: u64,
     store_kind: u32,
 ) -> u32 {
@@ -18,8 +19,9 @@ pub unsafe fn destack_host_android_crypto_supports_hardware_key(
     )
 }
 
-/// Forward the `generate_hardware_key_pair` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_generate_hardware_key_pair(
+/// Forward the `generate_hardware_key_pair` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_generate_hardware_key_pair(
     session_handle: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -45,8 +47,9 @@ pub unsafe fn destack_host_android_crypto_generate_hardware_key_pair(
     )
 }
 
-/// Forward the `generate_hardware_secret_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_generate_hardware_secret_key(
+/// Forward the `generate_hardware_secret_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_generate_hardware_secret_key(
     session_handle: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -72,8 +75,9 @@ pub unsafe fn destack_host_android_crypto_generate_hardware_secret_key(
     )
 }
 
-/// Forward the `export_hardware_public_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_export_hardware_public_key(
+/// Forward the `export_hardware_public_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_export_hardware_public_key(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -99,8 +103,9 @@ pub unsafe fn destack_host_android_crypto_export_hardware_public_key(
     )
 }
 
-/// Forward the `sign_hardware_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_sign_hardware_key(
+/// Forward the `sign_hardware_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_sign_hardware_key(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -134,8 +139,9 @@ pub unsafe fn destack_host_android_crypto_sign_hardware_key(
     )
 }
 
-/// Forward the `decrypt_hardware_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_decrypt_hardware_key(
+/// Forward the `decrypt_hardware_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_key(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -169,8 +175,9 @@ pub unsafe fn destack_host_android_crypto_decrypt_hardware_key(
     )
 }
 
-/// Forward the `encrypt_hardware_secret_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_encrypt_hardware_secret_key(
+/// Forward the `encrypt_hardware_secret_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_encrypt_hardware_secret_key(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -214,8 +221,9 @@ pub unsafe fn destack_host_android_crypto_encrypt_hardware_secret_key(
     )
 }
 
-/// Forward the `decrypt_hardware_secret_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_decrypt_hardware_secret_key(
+/// Forward the `decrypt_hardware_secret_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_secret_key(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -251,8 +259,9 @@ pub unsafe fn destack_host_android_crypto_decrypt_hardware_secret_key(
     )
 }
 
-/// Forward the `compute_hardware_mac` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_compute_hardware_mac(
+/// Forward the `compute_hardware_mac` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_compute_hardware_mac(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -286,8 +295,9 @@ pub unsafe fn destack_host_android_crypto_compute_hardware_mac(
     )
 }
 
-/// Forward the `derive_hardware_shared_secret` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_derive_hardware_shared_secret(
+/// Forward the `derive_hardware_shared_secret` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_derive_hardware_shared_secret(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -317,8 +327,9 @@ pub unsafe fn destack_host_android_crypto_derive_hardware_shared_secret(
     )
 }
 
-/// Forward the `delete_hardware_key` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_delete_hardware_key(
+/// Forward the `delete_hardware_key` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_delete_hardware_key(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -330,8 +341,9 @@ pub unsafe fn destack_host_android_crypto_delete_hardware_key(
     )
 }
 
-/// Forward the `import_certificate` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_import_certificate(
+/// Forward the `import_certificate` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_import_certificate(
     session_handle: u64,
     store_kind: u32,
     certificate_der: NativeSlice<u8>,
@@ -343,8 +355,9 @@ pub unsafe fn destack_host_android_crypto_import_certificate(
     )
 }
 
-/// Forward the `delete_certificate` crypto request through the Android host seam.
-pub unsafe fn destack_host_android_crypto_delete_certificate(
+/// Forward the `delete_certificate` crypto request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_delete_certificate(
     session_handle: u64,
     store_kind: u32,
     certificate_der: NativeSlice<u8>,
@@ -357,7 +370,8 @@ pub unsafe fn destack_host_android_crypto_delete_certificate(
 }
 
 /// Probe one Android host lane for one hardware-backed key-pair algorithm.
-pub unsafe fn destack_host_android_crypto_supports_hardware_key_pair(
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key_pair(
     session_handle: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -388,7 +402,8 @@ pub unsafe fn destack_host_android_crypto_supports_hardware_key_pair(
 }
 
 /// Probe one Android host lane for one hardware-backed secret-key algorithm.
-pub unsafe fn destack_host_android_crypto_supports_hardware_secret_key(
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_hardware_secret_key(
     session_handle: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -419,7 +434,8 @@ pub unsafe fn destack_host_android_crypto_supports_hardware_secret_key(
 }
 
 /// Probe one Android host lane for certificate write support.
-pub unsafe fn destack_host_android_crypto_supports_certificate_write(
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_crypto_supports_certificate_write(
     session_handle: u64,
     store_kind: u32,
 ) -> u32 {

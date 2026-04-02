@@ -44,6 +44,7 @@ NativeStringRef string_ref_from_java(
     };
 }
 
+HostDocumentResult decode_HostDocumentResult(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 HostDocumentDescriptor decode_HostDocumentDescriptor(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 HostDocumentDescriptorSlice decode_HostDocumentDescriptorSlice(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 
@@ -113,6 +114,19 @@ jobject call_list_get(JNIEnv *env, jobject value, jint index) {
     return method == nullptr ? nullptr : env->CallObjectMethod(value, method, index);
 }
 
+HostDocumentResult decode_HostDocumentResult(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
+    HostDocumentResult decoded = {};
+
+    decoded.request_id = static_cast<uint64_t>(call_long_getter(env, value, "getRequestId"));
+
+    jobject documents_value = call_object_getter(env, value, "getDocuments", "()Ljava/util/List;");
+    decoded.documents = decode_HostDocumentDescriptorSlice(env, documents_value, string_storage);
+    if (documents_value != nullptr) { env->DeleteLocalRef(documents_value); }
+
+
+    return decoded;
+}
+
 HostDocumentDescriptor decode_HostDocumentDescriptor(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
     HostDocumentDescriptor decoded = {};
 
@@ -125,25 +139,21 @@ HostDocumentDescriptor decode_HostDocumentDescriptor(JNIEnv *env, jobject value,
     if (name_value != nullptr) { env->DeleteLocalRef(name_value); }
 
     jobject mime_type_value = call_object_getter(env, value, "getMimeType", "()Ljava/lang/String;");
-    decoded.has_mime_type = mime_type_value != nullptr;
-    decoded.mime_type = mime_type_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(mime_type_value), string_storage);
+    decoded.mime_type = ([&]() -> OptionalStringRef { if (mime_type_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(mime_type_value), string_storage) }; })();
     if (mime_type_value != nullptr) { env->DeleteLocalRef(mime_type_value); }
 
     jobject size_bytes_value = call_object_getter(env, value, "getSizeBytes", "()Ljava/lang/Long;");
-    decoded.has_size_bytes = size_bytes_value != nullptr;
-    decoded.size_bytes = size_bytes_value == nullptr ? 0 : decode_boxed_u64(env, size_bytes_value);
+    decoded.size_bytes = ([&]() -> OptionalU64 { if (size_bytes_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, size_bytes_value) }; })();
     if (size_bytes_value != nullptr) { env->DeleteLocalRef(size_bytes_value); }
 
     jobject modified_unix_ns_value = call_object_getter(env, value, "getModifiedUnixNs", "()Ljava/lang/Long;");
-    decoded.has_modified_unix_ns = modified_unix_ns_value != nullptr;
-    decoded.modified_unix_ns = modified_unix_ns_value == nullptr ? 0 : decode_boxed_u64(env, modified_unix_ns_value);
+    decoded.modified_unix_ns = ([&]() -> OptionalU64 { if (modified_unix_ns_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, modified_unix_ns_value) }; })();
     if (modified_unix_ns_value != nullptr) { env->DeleteLocalRef(modified_unix_ns_value); }
 
     decoded.is_directory = call_boolean_getter(env, value, "isDirectory") == JNI_TRUE;
 
     jobject local_path_value = call_object_getter(env, value, "getLocalPath", "()Ljava/lang/String;");
-    decoded.has_local_path = local_path_value != nullptr;
-    decoded.local_path = local_path_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(local_path_value), string_storage);
+    decoded.local_path = ([&]() -> OptionalOsPath { if (local_path_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(local_path_value), string_storage) }; })();
     if (local_path_value != nullptr) { env->DeleteLocalRef(local_path_value); }
 
 
@@ -185,18 +195,15 @@ static jlongArray nativeNotifyDocumentResult(
     JNIEnv *env,
     jobject /* abi */,
     jlong sessionHandle,
-    jlong requestId,
-    jobject documents
+    jobject result
 ) {
     runtime_string_storage.clear();
 
-    uint64_t decoded_request_id = static_cast<uint64_t>(requestId);
-    HostDocumentDescriptorSlice decoded_documents = decode_HostDocumentDescriptorSlice(env, documents, &runtime_string_storage);
+    HostDocumentResult decoded_result = decode_HostDocumentResult(env, result, &runtime_string_storage);
 
-    RuntimeStatus status = send_document_result(
+    RuntimeStatus status = send_notify_document_result(
         static_cast<uint64_t>(sessionHandle),
-        decoded_request_id,
-        decoded_documents
+        decoded_result
     );
 
     return runtime_status_array(env, status);
@@ -207,14 +214,14 @@ bool register_document_runtime_natives(JNIEnv *env) {
     JNINativeMethod methods[] = {
         {
             const_cast<char *>("nativeNotifyDocumentResult"),
-            const_cast<char *>("(JJLjava/util/List;)[J"),
+            const_cast<char *>("(JLdev/destack/runtime/android/module/document/RuntimeHostDocumentResult;)[J"),
             reinterpret_cast<void *>(nativeNotifyDocumentResult),
         },
     };
 
     return register_native_methods(
         env,
-        "dev/destack/runtime/android/bridge/ProcessRuntimeIngress",
+        "dev/destack/runtime/android/bridge/ProcessRuntimeAbi",
         methods,
         static_cast<jint>(sizeof(methods) / sizeof(methods[0]))
     );

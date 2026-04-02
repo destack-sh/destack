@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "runtime.generated.h"
 
 #include <deque>
 #include <string>
@@ -10,16 +10,13 @@
 
 namespace {
 
-RuntimeStatus runtime_status_from_code(uint32_t code) {
-    RuntimeStatus status = {
-        .code = code,
-        .error_id = 0,
-    };
+std::deque<std::string> runtime_string_storage;
 
-    return status;
-}
-
-NativeStringRef string_ref_from_java(JNIEnv *env, jstring value, std::deque<std::string> *storage) {
+NativeStringRef string_ref_from_java(
+    JNIEnv *env,
+    jstring value,
+    std::deque<std::string> *storage
+) {
     if (value == nullptr) {
         return NativeStringRef {
             .data = nullptr,
@@ -47,178 +44,119 @@ NativeStringRef string_ref_from_java(JNIEnv *env, jstring value, std::deque<std:
     };
 }
 
-std::vector<NativeStringRef> string_refs_from_array(JNIEnv *env, jobjectArray values, std::deque<std::string> *storage) {
-    std::vector<NativeStringRef> refs;
+HostIntentEvent decode_HostIntentEvent(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 
-    if (values == nullptr) {
-        return refs;
+jmethodID resolve_instance_method(
+    JNIEnv *env,
+    jobject value,
+    const char *name,
+    const char *signature
+) {
+    jclass value_class = env->GetObjectClass(value);
+    if (value_class == nullptr) {
+        return nullptr;
     }
 
-    jsize length = env->GetArrayLength(values);
-    refs.reserve(static_cast<size_t>(length));
+    jmethodID method = env->GetMethodID(value_class, name, signature);
+    env->DeleteLocalRef(value_class);
 
-    for (jsize index = 0; index < length; ++index) {
-        jstring value = static_cast<jstring>(env->GetObjectArrayElement(values, index));
-        refs.push_back(string_ref_from_java(env, value, storage));
-        env->DeleteLocalRef(value);
+    return method;
+}
+
+jobject call_object_getter(
+    JNIEnv *env,
+    jobject value,
+    const char *name,
+    const char *signature
+) {
+    jmethodID method = resolve_instance_method(env, value, name, signature);
+    if (method == nullptr) {
+        return nullptr;
     }
 
-    return refs;
+    return env->CallObjectMethod(value, method);
 }
+
+jint call_int_getter(JNIEnv *env, jobject value, const char *name) {
+    jmethodID method = resolve_instance_method(env, value, name, "()I");
+    return method == nullptr ? 0 : env->CallIntMethod(value, method);
+}
+
+jlong call_long_getter(JNIEnv *env, jobject value, const char *name) {
+    jmethodID method = resolve_instance_method(env, value, name, "()J");
+    return method == nullptr ? 0 : env->CallLongMethod(value, method);
+}
+
+jdouble call_double_getter(JNIEnv *env, jobject value, const char *name) {
+    jmethodID method = resolve_instance_method(env, value, name, "()D");
+    return method == nullptr ? 0.0 : env->CallDoubleMethod(value, method);
+}
+
+jboolean call_boolean_getter(JNIEnv *env, jobject value, const char *name) {
+    jmethodID method = resolve_instance_method(env, value, name, "()Z");
+    return method == nullptr ? JNI_FALSE : env->CallBooleanMethod(value, method);
+}
+
+uint64_t decode_boxed_u64(JNIEnv *env, jobject value) {
+    jmethodID method = resolve_instance_method(env, value, "longValue", "()J");
+    return method == nullptr ? 0 : static_cast<uint64_t>(env->CallLongMethod(value, method));
+}
+
+jint call_list_size(JNIEnv *env, jobject value) {
+    jmethodID method = resolve_instance_method(env, value, "size", "()I");
+    return method == nullptr ? 0 : env->CallIntMethod(value, method);
+}
+
+jobject call_list_get(JNIEnv *env, jobject value, jint index) {
+    jmethodID method = resolve_instance_method(env, value, "get", "(I)Ljava/lang/Object;");
+    return method == nullptr ? nullptr : env->CallObjectMethod(value, method, index);
+}
+
+HostIntentEvent decode_HostIntentEvent(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
+    HostIntentEvent decoded = {};
+
+    decoded.tag = static_cast<HostIntentEventTag>(call_int_getter(env, value, "tag"));
+
+    jobject intent_open_url_event_value = call_object_getter(env, value, "getIntentOpenUrlEvent", "()Ldev/destack/runtime/android/module/intent/RuntimeHostIntentOpenUrlEvent;");
+    decoded.intent_open_url_event = decode_HostIntentOpenUrlEvent(env, intent_open_url_event_value, string_storage);
+    if (intent_open_url_event_value != nullptr) { env->DeleteLocalRef(intent_open_url_event_value); }
+
+    jobject intent_open_file_event_value = call_object_getter(env, value, "getIntentOpenFileEvent", "()Ldev/destack/runtime/android/module/intent/RuntimeHostIntentOpenFileEvent;");
+    decoded.intent_open_file_event = decode_HostIntentOpenFileEvent(env, intent_open_file_event_value, string_storage);
+    if (intent_open_file_event_value != nullptr) { env->DeleteLocalRef(intent_open_file_event_value); }
+
+    jobject intent_share_text_event_value = call_object_getter(env, value, "getIntentShareTextEvent", "()Ldev/destack/runtime/android/module/intent/RuntimeHostIntentShareTextEvent;");
+    decoded.intent_share_text_event = decode_HostIntentShareTextEvent(env, intent_share_text_event_value, string_storage);
+    if (intent_share_text_event_value != nullptr) { env->DeleteLocalRef(intent_share_text_event_value); }
+
+    jobject intent_share_files_event_value = call_object_getter(env, value, "getIntentShareFilesEvent", "()Ldev/destack/runtime/android/module/intent/RuntimeHostIntentShareFilesEvent;");
+    decoded.intent_share_files_event = decode_HostIntentShareFilesEvent(env, intent_share_files_event_value, string_storage);
+    if (intent_share_files_event_value != nullptr) { env->DeleteLocalRef(intent_share_files_event_value); }
+
+    jobject intent_custom_action_event_value = call_object_getter(env, value, "getIntentCustomActionEvent", "()Ldev/destack/runtime/android/module/intent/RuntimeHostIntentCustomActionEvent;");
+    decoded.intent_custom_action_event = decode_HostIntentCustomActionEvent(env, intent_custom_action_event_value, string_storage);
+    if (intent_custom_action_event_value != nullptr) { env->DeleteLocalRef(intent_custom_action_event_value); }
+
+    return decoded;
+}
+
 
 }
 
-/// Deliver one intent open-url event into the runtime ingress path.
-static jlongArray nativeIntentOpenUrl(
+/// Deliver one  deliver one intent event into one runtime session into the runtime ingress path.
+static jlongArray nativeNotifyIntentEvent(
     JNIEnv *env,
     jobject /* abi */,
     jlong sessionHandle,
-    jboolean hasSource,
-    jstring source,
-    jstring url
+    jobject event
 ) {
-    std::deque<std::string> string_storage;
-    NativeStringRef source_ref = string_ref_from_java(env, source, &string_storage);
-    NativeStringRef url_ref = string_ref_from_java(env, url, &string_storage);
+    runtime_string_storage.clear();
 
-    RuntimeStatus status = destack_host_android_notify_intent_open_url(
+    HostIntentEvent decoded_event = decode_HostIntentEvent(env, event, &runtime_string_storage);
+
+    RuntimeStatus status = send_notify_intent_event(
         static_cast<uint64_t>(sessionHandle),
-        hasSource == JNI_TRUE,
-        source_ref,
-        url_ref
-    );
-
-    return runtime_status_array(env, status);
-}
-
-/// Deliver one intent open-file event into the runtime ingress path.
-static jlongArray nativeIntentOpenFile(
-    JNIEnv *env,
-    jobject /* abi */,
-    jlong sessionHandle,
-    jboolean hasSource,
-    jstring source,
-    jstring path,
-    jboolean hasMimeType,
-    jstring mimeType
-) {
-    std::deque<std::string> string_storage;
-    NativeStringRef source_ref = string_ref_from_java(env, source, &string_storage);
-    NativeStringRef path_ref = string_ref_from_java(env, path, &string_storage);
-    NativeStringRef mime_type_ref = string_ref_from_java(env, mimeType, &string_storage);
-
-    RuntimeStatus status = destack_host_android_notify_intent_open_file(
-        static_cast<uint64_t>(sessionHandle),
-        hasSource == JNI_TRUE,
-        source_ref,
-        path_ref,
-        hasMimeType == JNI_TRUE,
-        mime_type_ref
-    );
-
-    return runtime_status_array(env, status);
-}
-
-/// Deliver one intent share-text event into the runtime ingress path.
-static jlongArray nativeIntentShareText(
-    JNIEnv *env,
-    jobject /* abi */,
-    jlong sessionHandle,
-    jboolean hasSource,
-    jstring source,
-    jstring text,
-    jboolean hasMimeType,
-    jstring mimeType
-) {
-    std::deque<std::string> string_storage;
-    NativeStringRef source_ref = string_ref_from_java(env, source, &string_storage);
-    NativeStringRef text_ref = string_ref_from_java(env, text, &string_storage);
-    NativeStringRef mime_type_ref = string_ref_from_java(env, mimeType, &string_storage);
-
-    RuntimeStatus status = destack_host_android_notify_intent_share_text(
-        static_cast<uint64_t>(sessionHandle),
-        hasSource == JNI_TRUE,
-        source_ref,
-        text_ref,
-        hasMimeType == JNI_TRUE,
-        mime_type_ref
-    );
-
-    return runtime_status_array(env, status);
-}
-
-/// Deliver one intent share-files event into the runtime ingress path.
-static jlongArray nativeIntentShareFiles(
-    JNIEnv *env,
-    jobject /* abi */,
-    jlong sessionHandle,
-    jboolean hasSource,
-    jstring source,
-    jobjectArray paths,
-    jboolean hasMimeType,
-    jstring mimeType
-) {
-    std::deque<std::string> string_storage;
-    NativeStringRef source_ref = string_ref_from_java(env, source, &string_storage);
-    std::vector<NativeStringRef> path_refs = string_refs_from_array(env, paths, &string_storage);
-    NativeStringRef mime_type_ref = string_ref_from_java(env, mimeType, &string_storage);
-    NativeStringSlice path_slice = {
-        .data = path_refs.data(),
-        .len = static_cast<uint32_t>(path_refs.size()),
-    };
-
-    RuntimeStatus status = destack_host_android_notify_intent_share_files(
-        static_cast<uint64_t>(sessionHandle),
-        hasSource == JNI_TRUE,
-        source_ref,
-        path_slice,
-        hasMimeType == JNI_TRUE,
-        mime_type_ref
-    );
-
-    return runtime_status_array(env, status);
-}
-
-/// Deliver one intent custom-action event into the runtime ingress path.
-static jlongArray nativeIntentCustomAction(
-    JNIEnv *env,
-    jobject /* abi */,
-    jlong sessionHandle,
-    jboolean hasSource,
-    jstring source,
-    jstring action,
-    jboolean hasUrl,
-    jstring url,
-    jobjectArray paths,
-    jboolean hasText,
-    jstring text,
-    jboolean hasMimeType,
-    jstring mimeType
-) {
-    std::deque<std::string> string_storage;
-    NativeStringRef source_ref = string_ref_from_java(env, source, &string_storage);
-    NativeStringRef action_ref = string_ref_from_java(env, action, &string_storage);
-    NativeStringRef url_ref = string_ref_from_java(env, url, &string_storage);
-    std::vector<NativeStringRef> path_refs = string_refs_from_array(env, paths, &string_storage);
-    NativeStringRef text_ref = string_ref_from_java(env, text, &string_storage);
-    NativeStringRef mime_type_ref = string_ref_from_java(env, mimeType, &string_storage);
-    NativeStringSlice path_slice = {
-        .data = path_refs.data(),
-        .len = static_cast<uint32_t>(path_refs.size()),
-    };
-
-    RuntimeStatus status = destack_host_android_notify_intent_custom_action(
-        static_cast<uint64_t>(sessionHandle),
-        hasSource == JNI_TRUE,
-        source_ref,
-        action_ref,
-        hasUrl == JNI_TRUE,
-        url_ref,
-        path_slice,
-        hasText == JNI_TRUE,
-        text_ref,
-        hasMimeType == JNI_TRUE,
-        mime_type_ref
+        decoded_event
     );
 
     return runtime_status_array(env, status);
@@ -228,35 +166,15 @@ static jlongArray nativeIntentCustomAction(
 bool register_intent_runtime_natives(JNIEnv *env) {
     JNINativeMethod methods[] = {
         {
-            const_cast<char *>("nativeIntentOpenUrl"),
-            const_cast<char *>("(JZLjava/lang/String;Ljava/lang/String;)[J"),
-            reinterpret_cast<void *>(nativeIntentOpenUrl),
-        },
-        {
-            const_cast<char *>("nativeIntentOpenFile"),
-            const_cast<char *>("(JZLjava/lang/String;Ljava/lang/String;ZLjava/lang/String;)[J"),
-            reinterpret_cast<void *>(nativeIntentOpenFile),
-        },
-        {
-            const_cast<char *>("nativeIntentShareText"),
-            const_cast<char *>("(JZLjava/lang/String;Ljava/lang/String;ZLjava/lang/String;)[J"),
-            reinterpret_cast<void *>(nativeIntentShareText),
-        },
-        {
-            const_cast<char *>("nativeIntentShareFiles"),
-            const_cast<char *>("(JZLjava/lang/String;[Ljava/lang/String;ZLjava/lang/String;)[J"),
-            reinterpret_cast<void *>(nativeIntentShareFiles),
-        },
-        {
-            const_cast<char *>("nativeIntentCustomAction"),
-            const_cast<char *>("(JZLjava/lang/String;Ljava/lang/String;ZLjava/lang/String;[Ljava/lang/String;ZLjava/lang/String;ZLjava/lang/String;)[J"),
-            reinterpret_cast<void *>(nativeIntentCustomAction),
+            const_cast<char *>("nativeNotifyIntentEvent"),
+            const_cast<char *>("(JLdev/destack/runtime/android/module/intent/RuntimeHostIntentEvent;)[J"),
+            reinterpret_cast<void *>(nativeNotifyIntentEvent),
         },
     };
 
     return register_native_methods(
         env,
-        "dev/destack/runtime/android/bridge/ProcessRuntimeIngress",
+        "dev/destack/runtime/android/bridge/ProcessRuntimeAbi",
         methods,
         static_cast<jint>(sizeof(methods) / sizeof(methods[0]))
     );

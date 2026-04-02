@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "../loader.h"
 #include "callbacks.generated.h"
 #include "runtime.generated.h"
 
@@ -120,9 +120,15 @@ AndroidHostNotificationCallbacks make_notification_callbacks() {
 }
 
 /// Deliver one notification event into one runtime session.
-RuntimeStatus send_notification_event(
+RuntimeStatus send_notify_notification_event(
     uint64_t session_handle,
     HostNotificationEvent event
 ) {
-    return destack_host_android_notify_notification_event(session_handle, event);
+    RuntimeBindings bindings = {};
+    RuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));
+    if (status.code != HOST_STATUS_OK) {
+        return status;
+    }
+
+    return bindings.notify_notification_event(session_handle, event);
 }

@@ -10,7 +10,7 @@ use crate::host::android::abi::notification::{
 };
 use crate::platform::abi::NativeStringRef;
 
-/// Forward the `post` notification request through the ABI artifact.
+/// Forward the `post` notification request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notification_post(
     session_handle: u64,
@@ -19,7 +19,7 @@ pub unsafe extern "C" fn destack_host_android_notification_post(
     unsafe { runtime_notification_post(session_handle, request) }
 }
 
-/// Forward the `cancel` notification request through the ABI artifact.
+/// Forward the `cancel` notification request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notification_cancel(
     session_handle: u64,
@@ -28,13 +28,13 @@ pub unsafe extern "C" fn destack_host_android_notification_cancel(
     unsafe { runtime_notification_cancel(session_handle, identifier) }
 }
 
-/// Forward the `cancel_all` notification request through the ABI artifact.
+/// Forward the `cancel_all` notification request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notification_cancel_all(session_handle: u64) -> u32 {
     unsafe { runtime_notification_cancel_all(session_handle) }
 }
 
-/// Forward the `notify_notification_event` ingress through the ABI artifact.
+/// Forward the `notify_notification_event` ingress through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_notification_event(
     runtime_id: u64,

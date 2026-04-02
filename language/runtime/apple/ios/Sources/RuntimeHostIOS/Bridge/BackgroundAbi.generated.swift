@@ -8,43 +8,43 @@ import RuntimeHostAppleCore
 typealias BackgroundStatusCallback =
   @convention(c) (
     UInt64,
-    UnsafeMutablePointer<DestackRustBackgroundStatusResponse>?
+    UnsafeMutablePointer<DestackRustHostBackgroundStatusResponse>?
   ) -> UInt32
 
 /// List registered host background tasks.
 typealias BackgroundListCallback =
   @convention(c) (
     UInt64,
-    UnsafeMutablePointer<DestackRustBackgroundListResponse>?
+    UnsafeMutablePointer<DestackRustHostBackgroundListResponse>?
   ) -> UInt32
 
 /// Register one host background task.
 typealias BackgroundRegisterTaskCallback =
   @convention(c) (
     UInt64,
-    DestackRustBackgroundTaskOptions
+    DestackRustHostBackgroundTaskOptions
   ) -> UInt32
 
 /// Unregister one host background task.
 typealias BackgroundUnregisterCallback =
   @convention(c) (
     UInt64,
-    DestackRustBackgroundUnregisterRequest
+    DestackRustHostBackgroundUnregisterRequest
   ) -> UInt32
 
 /// Trigger one host background task in test mode.
 typealias BackgroundTriggerTestCallback =
   @convention(c) (
     UInt64,
-    DestackRustBackgroundTriggerTestRequest,
-    UnsafeMutablePointer<DestackRustBackgroundTriggerTestResponse>?
+    DestackRustHostBackgroundTriggerTestRequest,
+    UnsafeMutablePointer<DestackRustHostBackgroundTriggerTestResponse>?
   ) -> UInt32
 
 /// Complete one host background task execution.
 typealias BackgroundCompleteCallback =
   @convention(c) (
     UInt64,
-    DestackRustBackgroundCompleteRequest
+    DestackRustHostBackgroundCompleteRequest
   ) -> UInt32
 
 let backgroundStatusCallback: BackgroundStatusCallback = {
@@ -124,7 +124,7 @@ func makeBackgroundCallbacks() -> IosHostBackgroundCallbacks {
 /// Handle one runtime callback asking to read one host background scheduler status.
 func handleBackgroundStatus(
   sessionHandle: UInt64,
-  response: UnsafeMutablePointer<DestackRustBackgroundStatusResponse>?
+  response: UnsafeMutablePointer<DestackRustHostBackgroundStatusResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -151,7 +151,7 @@ func handleBackgroundStatus(
 /// Handle one runtime callback asking to list registered host background tasks.
 func handleBackgroundList(
   sessionHandle: UInt64,
-  response: UnsafeMutablePointer<DestackRustBackgroundListResponse>?
+  response: UnsafeMutablePointer<DestackRustHostBackgroundListResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -178,7 +178,7 @@ func handleBackgroundList(
 /// Handle one runtime callback asking to register one host background task.
 func handleBackgroundRegisterTask(
   sessionHandle: UInt64,
-  request: DestackRustBackgroundTaskOptions
+  request: DestackRustHostBackgroundTaskOptions
 ) -> UInt32 {
   let decodedRequest: RuntimeHostBackgroundTaskOptions
   do {
@@ -203,7 +203,7 @@ func handleBackgroundRegisterTask(
 /// Handle one runtime callback asking to unregister one host background task.
 func handleBackgroundUnregister(
   sessionHandle: UInt64,
-  request: DestackRustBackgroundUnregisterRequest
+  request: DestackRustHostBackgroundUnregisterRequest
 ) -> UInt32 {
   let decodedRequest: RuntimeHostBackgroundUnregisterRequest
   do {
@@ -228,8 +228,8 @@ func handleBackgroundUnregister(
 /// Handle one runtime callback asking to trigger one host background task in test mode.
 func handleBackgroundTriggerTest(
   sessionHandle: UInt64,
-  request: DestackRustBackgroundTriggerTestRequest,
-  response: UnsafeMutablePointer<DestackRustBackgroundTriggerTestResponse>?
+  request: DestackRustHostBackgroundTriggerTestRequest,
+  response: UnsafeMutablePointer<DestackRustHostBackgroundTriggerTestResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -264,7 +264,7 @@ func handleBackgroundTriggerTest(
 /// Handle one runtime callback asking to complete one host background task execution.
 func handleBackgroundComplete(
   sessionHandle: UInt64,
-  request: DestackRustBackgroundCompleteRequest
+  request: DestackRustHostBackgroundCompleteRequest
 ) -> UInt32 {
   let decodedRequest: RuntimeHostBackgroundCompleteRequest
   do {
@@ -383,9 +383,9 @@ func currentBackgroundBridgeArena() -> BackgroundBridgeArena {
   return arena
 }
 
-/// Build one Swift BackgroundTriggerKind from one bridge raw value.
+/// Build one Swift HostBackgroundTriggerKind from one bridge raw value.
 func decodeBridgeHostBackgroundTriggerKind(
-  _ value: DestackRustBackgroundTriggerKind
+  _ value: DestackRustHostBackgroundTriggerKind
 ) throws -> RuntimeHostBackgroundTriggerKind {
   guard let value = RuntimeHostBackgroundTriggerKind(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -394,9 +394,9 @@ func decodeBridgeHostBackgroundTriggerKind(
   return value
 }
 
-/// Build one Swift BackgroundTaskScheduleKind from one bridge raw value.
+/// Build one Swift HostBackgroundTaskScheduleKind from one bridge raw value.
 func decodeBridgeHostBackgroundTaskScheduleKind(
-  _ value: DestackRustBackgroundTaskScheduleKind
+  _ value: DestackRustHostBackgroundTaskScheduleKind
 ) throws -> RuntimeHostBackgroundTaskScheduleKind {
   guard let value = RuntimeHostBackgroundTaskScheduleKind(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -405,9 +405,9 @@ func decodeBridgeHostBackgroundTaskScheduleKind(
   return value
 }
 
-/// Build one Swift BackgroundNetworkRequirement from one bridge raw value.
+/// Build one Swift HostBackgroundNetworkRequirement from one bridge raw value.
 func decodeBridgeHostBackgroundNetworkRequirement(
-  _ value: DestackRustBackgroundNetworkRequirement
+  _ value: DestackRustHostBackgroundNetworkRequirement
 ) throws -> RuntimeHostBackgroundNetworkRequirement {
   guard let value = RuntimeHostBackgroundNetworkRequirement(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -416,9 +416,9 @@ func decodeBridgeHostBackgroundNetworkRequirement(
   return value
 }
 
-/// Build one Swift BackgroundConflictPolicy from one bridge raw value.
+/// Build one Swift HostBackgroundConflictPolicy from one bridge raw value.
 func decodeBridgeHostBackgroundConflictPolicy(
-  _ value: DestackRustBackgroundConflictPolicy
+  _ value: DestackRustHostBackgroundConflictPolicy
 ) throws -> RuntimeHostBackgroundConflictPolicy {
   guard let value = RuntimeHostBackgroundConflictPolicy(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -427,9 +427,9 @@ func decodeBridgeHostBackgroundConflictPolicy(
   return value
 }
 
-/// Build one Swift BackgroundTaskResult from one bridge raw value.
+/// Build one Swift HostBackgroundTaskResult from one bridge raw value.
 func decodeBridgeHostBackgroundTaskResult(
-  _ value: DestackRustBackgroundTaskResult
+  _ value: DestackRustHostBackgroundTaskResult
 ) throws -> RuntimeHostBackgroundTaskResult {
   guard let value = RuntimeHostBackgroundTaskResult(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -438,9 +438,9 @@ func decodeBridgeHostBackgroundTaskResult(
   return value
 }
 
-/// Build one Swift BackgroundTaskOptions from one bridge payload.
+/// Build one Swift HostBackgroundTaskOptions from one bridge payload.
 func decodeBridgeHostBackgroundTaskOptions(
-  _ value: DestackRustBackgroundTaskOptions
+  _ value: DestackRustHostBackgroundTaskOptions
 ) throws -> RuntimeHostBackgroundTaskOptions {
   RuntimeHostBackgroundTaskOptions(
     identifier:
@@ -460,27 +460,23 @@ func decodeBridgeHostBackgroundTaskOptions(
   )
 }
 
-/// Build one Swift BackgroundTaskSchedule from one bridge payload.
+/// Build one Swift HostBackgroundTaskSchedule from one bridge payload.
 func decodeBridgeHostBackgroundTaskSchedule(
-  _ value: DestackRustBackgroundTaskSchedule
+  _ value: DestackRustHostBackgroundTaskSchedule
 ) throws -> RuntimeHostBackgroundTaskSchedule {
   RuntimeHostBackgroundTaskSchedule(
     kind:
       try decodeBridgeHostBackgroundTaskScheduleKind(value.kind),
     earliestBeginUnixNs:
-      value.has_earliest_begin_unix_ns
-      ? value.earliest_begin_unix_ns
-      : nil,
+      (value.earliest_begin_unix_ns.has_value ? Optional(value.earliest_begin_unix_ns.value) : nil),
     repeatIntervalNs:
-      value.has_repeat_interval_ns
-      ? value.repeat_interval_ns
-      : nil
+      (value.repeat_interval_ns.has_value ? Optional(value.repeat_interval_ns.value) : nil)
   )
 }
 
-/// Build one Swift BackgroundUnregisterRequest from one bridge payload.
+/// Build one Swift HostBackgroundUnregisterRequest from one bridge payload.
 func decodeBridgeHostBackgroundUnregisterRequest(
-  _ value: DestackRustBackgroundUnregisterRequest
+  _ value: DestackRustHostBackgroundUnregisterRequest
 ) throws -> RuntimeHostBackgroundUnregisterRequest {
   RuntimeHostBackgroundUnregisterRequest(
     identifier:
@@ -488,9 +484,9 @@ func decodeBridgeHostBackgroundUnregisterRequest(
   )
 }
 
-/// Build one Swift BackgroundTriggerTestRequest from one bridge payload.
+/// Build one Swift HostBackgroundTriggerTestRequest from one bridge payload.
 func decodeBridgeHostBackgroundTriggerTestRequest(
-  _ value: DestackRustBackgroundTriggerTestRequest
+  _ value: DestackRustHostBackgroundTriggerTestRequest
 ) throws -> RuntimeHostBackgroundTriggerTestRequest {
   RuntimeHostBackgroundTriggerTestRequest(
     identifier:
@@ -498,9 +494,9 @@ func decodeBridgeHostBackgroundTriggerTestRequest(
   )
 }
 
-/// Build one Swift BackgroundCompleteRequest from one bridge payload.
+/// Build one Swift HostBackgroundCompleteRequest from one bridge payload.
 func decodeBridgeHostBackgroundCompleteRequest(
-  _ value: DestackRustBackgroundCompleteRequest
+  _ value: DestackRustHostBackgroundCompleteRequest
 ) throws -> RuntimeHostBackgroundCompleteRequest {
   RuntimeHostBackgroundCompleteRequest(
     executionID:
@@ -510,96 +506,87 @@ func decodeBridgeHostBackgroundCompleteRequest(
   )
 }
 
-/// Encode one Swift BackgroundStatus as one bridge raw value.
+/// Encode one Swift HostBackgroundStatus as one bridge raw value.
 func encodeBridgeHostBackgroundStatus(
   _ value: RuntimeHostBackgroundStatus
-) -> DestackRustBackgroundStatus {
+) -> DestackRustHostBackgroundStatus {
   value.rawValue
 }
 
-/// Encode one Swift BackgroundTriggerKind as one bridge raw value.
+/// Encode one Swift HostBackgroundTriggerKind as one bridge raw value.
 func encodeBridgeHostBackgroundTriggerKind(
   _ value: RuntimeHostBackgroundTriggerKind
-) -> DestackRustBackgroundTriggerKind {
+) -> DestackRustHostBackgroundTriggerKind {
   value.rawValue
 }
 
-/// Encode one Swift BackgroundTaskResult as one bridge raw value.
+/// Encode one Swift HostBackgroundTaskResult as one bridge raw value.
 func encodeBridgeHostBackgroundTaskResult(
   _ value: RuntimeHostBackgroundTaskResult
-) -> DestackRustBackgroundTaskResult {
+) -> DestackRustHostBackgroundTaskResult {
   value.rawValue
 }
 
-/// Encode one Swift BackgroundNetworkRequirement as one bridge raw value.
+/// Encode one Swift HostBackgroundNetworkRequirement as one bridge raw value.
 func encodeBridgeHostBackgroundNetworkRequirement(
   _ value: RuntimeHostBackgroundNetworkRequirement
-) -> DestackRustBackgroundNetworkRequirement {
+) -> DestackRustHostBackgroundNetworkRequirement {
   value.rawValue
 }
 
-/// Encode one Swift BackgroundConflictPolicy as one bridge raw value.
+/// Encode one Swift HostBackgroundConflictPolicy as one bridge raw value.
 func encodeBridgeHostBackgroundConflictPolicy(
   _ value: RuntimeHostBackgroundConflictPolicy
-) -> DestackRustBackgroundConflictPolicy {
+) -> DestackRustHostBackgroundConflictPolicy {
   value.rawValue
 }
 
-/// Encode one Swift BackgroundTaskScheduleKind as one bridge raw value.
+/// Encode one Swift HostBackgroundTaskScheduleKind as one bridge raw value.
 func encodeBridgeHostBackgroundTaskScheduleKind(
   _ value: RuntimeHostBackgroundTaskScheduleKind
-) -> DestackRustBackgroundTaskScheduleKind {
+) -> DestackRustHostBackgroundTaskScheduleKind {
   value.rawValue
 }
 
-/// Encode one Swift BackgroundEventKind as one bridge raw value.
-func encodeBridgeHostBackgroundEventKind(
-  _ value: RuntimeHostBackgroundEventKind
-) -> DestackRustBackgroundEventKind {
-  value.rawValue
-}
-
-/// Encode one Swift BackgroundTaskSchedule as one bridge payload.
+/// Encode one Swift HostBackgroundTaskSchedule as one bridge payload.
 func encodeBridgeHostBackgroundTaskSchedule(
   _ value: RuntimeHostBackgroundTaskSchedule,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundTaskSchedule {
-  DestackRustBackgroundTaskSchedule(
+) -> DestackRustHostBackgroundTaskSchedule {
+  DestackRustHostBackgroundTaskSchedule(
     kind:
       encodeBridgeHostBackgroundTaskScheduleKind(value.kind),
-    has_earliest_begin_unix_ns: value.earliestBeginUnixNs != nil,
     earliest_begin_unix_ns:
-      value.earliestBeginUnixNs ?? 0,
-    has_repeat_interval_ns: value.repeatIntervalNs != nil,
+      ({ if let unwrappedValue = value.earliestBeginUnixNs { return DestackRustOptionalU64(has_value: true, value: unwrappedValue) } return DestackRustOptionalU64(has_value: false, value: 0) }()),
     repeat_interval_ns:
-      value.repeatIntervalNs ?? 0
+      ({ if let unwrappedValue = value.repeatIntervalNs { return DestackRustOptionalU64(has_value: true, value: unwrappedValue) } return DestackRustOptionalU64(has_value: false, value: 0) }())
   )
 }
 
 func encodeBridgeHostBackgroundTaskSchedule(
   _ value: RuntimeHostBackgroundTaskSchedule
-) -> DestackRustBackgroundTaskSchedule {
+) -> DestackRustHostBackgroundTaskSchedule {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundTaskSchedule(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundTaskSchedule as one C bridge payload.
+/// Encode one Swift HostBackgroundTaskSchedule as one C bridge payload.
 func withNativeHostBackgroundTaskSchedule<T>(
   _ value: RuntimeHostBackgroundTaskSchedule,
-  body: (DestackRustBackgroundTaskSchedule) -> T
+  body: (DestackRustHostBackgroundTaskSchedule) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundTaskSchedule(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundTaskOptions as one bridge payload.
+/// Encode one Swift HostBackgroundTaskOptions as one bridge payload.
 func encodeBridgeHostBackgroundTaskOptions(
   _ value: RuntimeHostBackgroundTaskOptions,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundTaskOptions {
-  DestackRustBackgroundTaskOptions(
+) -> DestackRustHostBackgroundTaskOptions {
+  DestackRustHostBackgroundTaskOptions(
     identifier:
       arena.makeStringRef(value.identifier),
     trigger:
@@ -619,60 +606,59 @@ func encodeBridgeHostBackgroundTaskOptions(
 
 func encodeBridgeHostBackgroundTaskOptions(
   _ value: RuntimeHostBackgroundTaskOptions
-) -> DestackRustBackgroundTaskOptions {
+) -> DestackRustHostBackgroundTaskOptions {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundTaskOptions(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundTaskOptions as one C bridge payload.
+/// Encode one Swift HostBackgroundTaskOptions as one C bridge payload.
 func withNativeHostBackgroundTaskOptions<T>(
   _ value: RuntimeHostBackgroundTaskOptions,
-  body: (DestackRustBackgroundTaskOptions) -> T
+  body: (DestackRustHostBackgroundTaskOptions) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundTaskOptions(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundStatusResponse as one bridge payload.
+/// Encode one Swift HostBackgroundStatusResponse as one bridge payload.
 func encodeBridgeHostBackgroundStatusResponse(
   _ value: RuntimeHostBackgroundStatusResponse,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundStatusResponse {
-  DestackRustBackgroundStatusResponse(
+) -> DestackRustHostBackgroundStatusResponse {
+  DestackRustHostBackgroundStatusResponse(
     status:
       value.status,
-    has_scheduler_status: value.schedulerStatus != nil,
     scheduler_status:
-      value.schedulerStatus.map(encodeBridgeHostBackgroundStatus) ?? 0
+      ({ if let unwrappedValue = value.schedulerStatus { return DestackRustOptionalHostBackgroundStatus(has_value: true, value: encodeBridgeHostBackgroundStatus(unwrappedValue)) } return DestackRustOptionalHostBackgroundStatus(has_value: false, value: 0) }())
   )
 }
 
 func encodeBridgeHostBackgroundStatusResponse(
   _ value: RuntimeHostBackgroundStatusResponse
-) -> DestackRustBackgroundStatusResponse {
+) -> DestackRustHostBackgroundStatusResponse {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundStatusResponse(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundStatusResponse as one C bridge payload.
+/// Encode one Swift HostBackgroundStatusResponse as one C bridge payload.
 func withNativeHostBackgroundStatusResponse<T>(
   _ value: RuntimeHostBackgroundStatusResponse,
-  body: (DestackRustBackgroundStatusResponse) -> T
+  body: (DestackRustHostBackgroundStatusResponse) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundStatusResponse(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundTaskDescriptor as one bridge payload.
+/// Encode one Swift HostBackgroundTaskDescriptor as one bridge payload.
 func encodeBridgeHostBackgroundTaskDescriptor(
   _ value: RuntimeHostBackgroundTaskDescriptor,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundTaskDescriptor {
-  DestackRustBackgroundTaskDescriptor(
+) -> DestackRustHostBackgroundTaskDescriptor {
+  DestackRustHostBackgroundTaskDescriptor(
     identifier:
       arena.makeStringRef(value.identifier),
     trigger:
@@ -692,55 +678,55 @@ func encodeBridgeHostBackgroundTaskDescriptor(
 
 func encodeBridgeHostBackgroundTaskDescriptor(
   _ value: RuntimeHostBackgroundTaskDescriptor
-) -> DestackRustBackgroundTaskDescriptor {
+) -> DestackRustHostBackgroundTaskDescriptor {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundTaskDescriptor(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundTaskDescriptor as one C bridge payload.
+/// Encode one Swift HostBackgroundTaskDescriptor as one C bridge payload.
 func withNativeHostBackgroundTaskDescriptor<T>(
   _ value: RuntimeHostBackgroundTaskDescriptor,
-  body: (DestackRustBackgroundTaskDescriptor) -> T
+  body: (DestackRustHostBackgroundTaskDescriptor) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundTaskDescriptor(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundTaskDescriptor slice as one bridge payload.
+/// Encode one Swift HostBackgroundTaskDescriptor slice as one bridge payload.
 func encodeBridgeHostBackgroundTaskDescriptorSlice(
   _ values: [RuntimeHostBackgroundTaskDescriptor],
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundTaskDescriptorSlice {
+) -> DestackRustHostBackgroundTaskDescriptorSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostBackgroundTaskDescriptor(value, arena: arena)
     }
   }
 
-  return DestackRustBackgroundTaskDescriptorSlice(
+  return DestackRustHostBackgroundTaskDescriptorSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift BackgroundTaskDescriptor slice as one C bridge payload.
+/// Encode one Swift HostBackgroundTaskDescriptor slice as one C bridge payload.
 func withNativeHostBackgroundTaskDescriptorSlice<T>(
   _ values: [RuntimeHostBackgroundTaskDescriptor],
-  body: (DestackRustBackgroundTaskDescriptorSlice) -> T
+  body: (DestackRustHostBackgroundTaskDescriptorSlice) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundTaskDescriptorSlice(values, arena: arena))
 }
 
-/// Encode one Swift BackgroundListResponse as one bridge payload.
+/// Encode one Swift HostBackgroundListResponse as one bridge payload.
 func encodeBridgeHostBackgroundListResponse(
   _ value: RuntimeHostBackgroundListResponse,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundListResponse {
-  DestackRustBackgroundListResponse(
+) -> DestackRustHostBackgroundListResponse {
+  DestackRustHostBackgroundListResponse(
     status:
       value.status,
     descriptors:
@@ -750,28 +736,28 @@ func encodeBridgeHostBackgroundListResponse(
 
 func encodeBridgeHostBackgroundListResponse(
   _ value: RuntimeHostBackgroundListResponse
-) -> DestackRustBackgroundListResponse {
+) -> DestackRustHostBackgroundListResponse {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundListResponse(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundListResponse as one C bridge payload.
+/// Encode one Swift HostBackgroundListResponse as one C bridge payload.
 func withNativeHostBackgroundListResponse<T>(
   _ value: RuntimeHostBackgroundListResponse,
-  body: (DestackRustBackgroundListResponse) -> T
+  body: (DestackRustHostBackgroundListResponse) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundListResponse(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundUnregisterRequest as one bridge payload.
+/// Encode one Swift HostBackgroundUnregisterRequest as one bridge payload.
 func encodeBridgeHostBackgroundUnregisterRequest(
   _ value: RuntimeHostBackgroundUnregisterRequest,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundUnregisterRequest {
-  DestackRustBackgroundUnregisterRequest(
+) -> DestackRustHostBackgroundUnregisterRequest {
+  DestackRustHostBackgroundUnregisterRequest(
     identifier:
       arena.makeStringRef(value.identifier)
   )
@@ -779,28 +765,28 @@ func encodeBridgeHostBackgroundUnregisterRequest(
 
 func encodeBridgeHostBackgroundUnregisterRequest(
   _ value: RuntimeHostBackgroundUnregisterRequest
-) -> DestackRustBackgroundUnregisterRequest {
+) -> DestackRustHostBackgroundUnregisterRequest {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundUnregisterRequest(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundUnregisterRequest as one C bridge payload.
+/// Encode one Swift HostBackgroundUnregisterRequest as one C bridge payload.
 func withNativeHostBackgroundUnregisterRequest<T>(
   _ value: RuntimeHostBackgroundUnregisterRequest,
-  body: (DestackRustBackgroundUnregisterRequest) -> T
+  body: (DestackRustHostBackgroundUnregisterRequest) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundUnregisterRequest(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundTriggerTestRequest as one bridge payload.
+/// Encode one Swift HostBackgroundTriggerTestRequest as one bridge payload.
 func encodeBridgeHostBackgroundTriggerTestRequest(
   _ value: RuntimeHostBackgroundTriggerTestRequest,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundTriggerTestRequest {
-  DestackRustBackgroundTriggerTestRequest(
+) -> DestackRustHostBackgroundTriggerTestRequest {
+  DestackRustHostBackgroundTriggerTestRequest(
     identifier:
       arena.makeStringRef(value.identifier)
   )
@@ -808,28 +794,28 @@ func encodeBridgeHostBackgroundTriggerTestRequest(
 
 func encodeBridgeHostBackgroundTriggerTestRequest(
   _ value: RuntimeHostBackgroundTriggerTestRequest
-) -> DestackRustBackgroundTriggerTestRequest {
+) -> DestackRustHostBackgroundTriggerTestRequest {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundTriggerTestRequest(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundTriggerTestRequest as one C bridge payload.
+/// Encode one Swift HostBackgroundTriggerTestRequest as one C bridge payload.
 func withNativeHostBackgroundTriggerTestRequest<T>(
   _ value: RuntimeHostBackgroundTriggerTestRequest,
-  body: (DestackRustBackgroundTriggerTestRequest) -> T
+  body: (DestackRustHostBackgroundTriggerTestRequest) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundTriggerTestRequest(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundTriggerTestResponse as one bridge payload.
+/// Encode one Swift HostBackgroundTriggerTestResponse as one bridge payload.
 func encodeBridgeHostBackgroundTriggerTestResponse(
   _ value: RuntimeHostBackgroundTriggerTestResponse,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundTriggerTestResponse {
-  DestackRustBackgroundTriggerTestResponse(
+) -> DestackRustHostBackgroundTriggerTestResponse {
+  DestackRustHostBackgroundTriggerTestResponse(
     status:
       value.status,
     is_triggered:
@@ -839,28 +825,28 @@ func encodeBridgeHostBackgroundTriggerTestResponse(
 
 func encodeBridgeHostBackgroundTriggerTestResponse(
   _ value: RuntimeHostBackgroundTriggerTestResponse
-) -> DestackRustBackgroundTriggerTestResponse {
+) -> DestackRustHostBackgroundTriggerTestResponse {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundTriggerTestResponse(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundTriggerTestResponse as one C bridge payload.
+/// Encode one Swift HostBackgroundTriggerTestResponse as one C bridge payload.
 func withNativeHostBackgroundTriggerTestResponse<T>(
   _ value: RuntimeHostBackgroundTriggerTestResponse,
-  body: (DestackRustBackgroundTriggerTestResponse) -> T
+  body: (DestackRustHostBackgroundTriggerTestResponse) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundTriggerTestResponse(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundCompleteRequest as one bridge payload.
+/// Encode one Swift HostBackgroundCompleteRequest as one bridge payload.
 func encodeBridgeHostBackgroundCompleteRequest(
   _ value: RuntimeHostBackgroundCompleteRequest,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundCompleteRequest {
-  DestackRustBackgroundCompleteRequest(
+) -> DestackRustHostBackgroundCompleteRequest {
+  DestackRustHostBackgroundCompleteRequest(
     execution_id:
       arena.makeStringRef(value.executionID),
     result:
@@ -870,28 +856,28 @@ func encodeBridgeHostBackgroundCompleteRequest(
 
 func encodeBridgeHostBackgroundCompleteRequest(
   _ value: RuntimeHostBackgroundCompleteRequest
-) -> DestackRustBackgroundCompleteRequest {
+) -> DestackRustHostBackgroundCompleteRequest {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundCompleteRequest(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundCompleteRequest as one C bridge payload.
+/// Encode one Swift HostBackgroundCompleteRequest as one C bridge payload.
 func withNativeHostBackgroundCompleteRequest<T>(
   _ value: RuntimeHostBackgroundCompleteRequest,
-  body: (DestackRustBackgroundCompleteRequest) -> T
+  body: (DestackRustHostBackgroundCompleteRequest) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundCompleteRequest(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundEventMetadata as one bridge payload.
+/// Encode one Swift HostBackgroundEventMetadata as one bridge payload.
 func encodeBridgeHostBackgroundEventMetadata(
   _ value: RuntimeHostBackgroundEventMetadata,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundEventMetadata {
-  DestackRustBackgroundEventMetadata(
+) -> DestackRustHostBackgroundEventMetadata {
+  DestackRustHostBackgroundEventMetadata(
     timestamp_ns:
       value.timestampNs,
     sequence:
@@ -907,49 +893,80 @@ func encodeBridgeHostBackgroundEventMetadata(
 
 func encodeBridgeHostBackgroundEventMetadata(
   _ value: RuntimeHostBackgroundEventMetadata
-) -> DestackRustBackgroundEventMetadata {
+) -> DestackRustHostBackgroundEventMetadata {
   let arena = currentBackgroundBridgeArena()
 
   return encodeBridgeHostBackgroundEventMetadata(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundEventMetadata as one C bridge payload.
+/// Encode one Swift HostBackgroundEventMetadata as one C bridge payload.
 func withNativeHostBackgroundEventMetadata<T>(
   _ value: RuntimeHostBackgroundEventMetadata,
-  body: (DestackRustBackgroundEventMetadata) -> T
+  body: (DestackRustHostBackgroundEventMetadata) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
   return body(encodeBridgeHostBackgroundEventMetadata(value, arena: arena))
 }
 
-/// Encode one Swift BackgroundEvent as one bridge payload.
-func encodeBridgeHostBackgroundEvent(
-  _ value: RuntimeHostBackgroundEvent,
+/// Encode one Swift HostBackgroundTaskReadyEvent as one bridge payload.
+func encodeBridgeHostBackgroundTaskReadyEvent(
+  _ value: RuntimeHostBackgroundTaskReadyEvent,
   arena: BackgroundBridgeArena
-) -> DestackRustBackgroundEvent {
-  DestackRustBackgroundEvent(
+) -> DestackRustHostBackgroundTaskReadyEvent {
+  DestackRustHostBackgroundTaskReadyEvent(
     kind:
-      encodeBridgeHostBackgroundEventKind(value.kind),
+      arena.makeStringRef(value.kind),
     metadata:
       encodeBridgeHostBackgroundEventMetadata(value.metadata, arena: arena)
   )
 }
 
-func encodeBridgeHostBackgroundEvent(
-  _ value: RuntimeHostBackgroundEvent
-) -> DestackRustBackgroundEvent {
+func encodeBridgeHostBackgroundTaskReadyEvent(
+  _ value: RuntimeHostBackgroundTaskReadyEvent
+) -> DestackRustHostBackgroundTaskReadyEvent {
   let arena = currentBackgroundBridgeArena()
 
-  return encodeBridgeHostBackgroundEvent(value, arena: arena)
+  return encodeBridgeHostBackgroundTaskReadyEvent(value, arena: arena)
 }
 
-/// Encode one Swift BackgroundEvent as one C bridge payload.
-func withNativeHostBackgroundEvent<T>(
-  _ value: RuntimeHostBackgroundEvent,
-  body: (DestackRustBackgroundEvent) -> T
+/// Encode one Swift HostBackgroundTaskReadyEvent as one C bridge payload.
+func withNativeHostBackgroundTaskReadyEvent<T>(
+  _ value: RuntimeHostBackgroundTaskReadyEvent,
+  body: (DestackRustHostBackgroundTaskReadyEvent) -> T
 ) -> T {
   let arena = currentBackgroundBridgeArena()
 
-  return body(encodeBridgeHostBackgroundEvent(value, arena: arena))
+  return body(encodeBridgeHostBackgroundTaskReadyEvent(value, arena: arena))
+}
+
+/// Encode one Swift HostBackgroundTaskExpiredEvent as one bridge payload.
+func encodeBridgeHostBackgroundTaskExpiredEvent(
+  _ value: RuntimeHostBackgroundTaskExpiredEvent,
+  arena: BackgroundBridgeArena
+) -> DestackRustHostBackgroundTaskExpiredEvent {
+  DestackRustHostBackgroundTaskExpiredEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostBackgroundEventMetadata(value.metadata, arena: arena)
+  )
+}
+
+func encodeBridgeHostBackgroundTaskExpiredEvent(
+  _ value: RuntimeHostBackgroundTaskExpiredEvent
+) -> DestackRustHostBackgroundTaskExpiredEvent {
+  let arena = currentBackgroundBridgeArena()
+
+  return encodeBridgeHostBackgroundTaskExpiredEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostBackgroundTaskExpiredEvent as one C bridge payload.
+func withNativeHostBackgroundTaskExpiredEvent<T>(
+  _ value: RuntimeHostBackgroundTaskExpiredEvent,
+  body: (DestackRustHostBackgroundTaskExpiredEvent) -> T
+) -> T {
+  let arena = currentBackgroundBridgeArena()
+
+  return body(encodeBridgeHostBackgroundTaskExpiredEvent(value, arena: arena))
 }

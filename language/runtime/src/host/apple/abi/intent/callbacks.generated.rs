@@ -4,37 +4,35 @@ use crate::host::apple::abi::bindings::invoke_ios_binding_callback;
 use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 
 /// The host callback for `can_open_url`.
-pub type IosHostIntentCanOpenUrlCallback =
+pub(crate) type IosHostIntentCanOpenUrlCallback =
     unsafe extern "C" fn(session_handle: u64, url: NativeStringRef, is_supported: *mut bool) -> u32;
 
 /// The host callback for `open_url`.
-pub type IosHostIntentOpenUrlCallback =
+pub(crate) type IosHostIntentOpenUrlCallback =
     unsafe extern "C" fn(session_handle: u64, url: NativeStringRef) -> u32;
 
 /// The host callback for `open_path`.
-pub type IosHostIntentOpenPathCallback =
+pub(crate) type IosHostIntentOpenPathCallback =
     unsafe extern "C" fn(session_handle: u64, path: NativeStringRef) -> u32;
 
 /// The host callback for `share_text`.
-pub type IosHostIntentShareTextCallback = unsafe extern "C" fn(
+pub(crate) type IosHostIntentShareTextCallback = unsafe extern "C" fn(
     session_handle: u64,
     text: NativeStringRef,
-    has_mime_type: bool,
-    mime_type: NativeStringRef,
+    mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32;
 
 /// The host callback for `share_paths`.
-pub type IosHostIntentSharePathsCallback = unsafe extern "C" fn(
+pub(crate) type IosHostIntentSharePathsCallback = unsafe extern "C" fn(
     session_handle: u64,
     paths: NativeStringSlice,
-    has_mime_type: bool,
-    mime_type: NativeStringRef,
+    mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32;
 
 /// Callback table for iOS host intent request interop.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct IosHostIntentCallbacks {
+pub(crate) struct IosHostIntentCallbacks {
     /// The callback for `can_open_url`.
     pub can_open_url: Option<IosHostIntentCanOpenUrlCallback>,
     /// The callback for `open_url`.

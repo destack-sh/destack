@@ -12,39 +12,8 @@ namespace {
 
 std::deque<std::string> runtime_string_storage;
 
-NativeStringRef string_ref_from_java(
-    JNIEnv *env,
-    jstring value,
-    std::deque<std::string> *storage
-) {
-    if (value == nullptr) {
-        return NativeStringRef {
-            .data = nullptr,
-            .len = 0,
-        };
-    }
-
-    const char *chars = env->GetStringUTFChars(value, nullptr);
-    if (chars == nullptr) {
-        return NativeStringRef {
-            .data = nullptr,
-            .len = 0,
-        };
-    }
-
-    jsize length = env->GetStringUTFLength(value);
-    storage->emplace_back(chars, chars + length);
-    env->ReleaseStringUTFChars(value, chars);
-
-    const std::string &owned = storage->back();
-
-    return NativeStringRef {
-        .data = reinterpret_cast<const uint8_t *>(owned.data()),
-        .len = static_cast<uint32_t>(owned.size()),
-    };
-}
-
 HostPermissionEvent decode_HostPermissionEvent(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
+HostPermission decode_HostPermission(JNIEnv *env, jobject value);
 
 jmethodID resolve_instance_method(
     JNIEnv *env,
@@ -117,14 +86,20 @@ HostPermissionEvent decode_HostPermissionEvent(JNIEnv *env, jobject value, std::
 
     decoded.request_id = static_cast<uint64_t>(call_long_getter(env, value, "getRequestId"));
 
-    jobject permission_value = call_object_getter(env, value, "getPermission", "()Ljava/lang/String;");
-    decoded.permission = string_ref_from_java(env, static_cast<jstring>(permission_value), string_storage);
+    jobject permission_value = call_object_getter(env, value, "getPermission", "()Ldev/destack/runtime/android/module/permission/RuntimeHostPermission;");
+    decoded.permission = decode_HostPermission(env, permission_value);
     if (permission_value != nullptr) { env->DeleteLocalRef(permission_value); }
 
     decoded.is_granted = call_boolean_getter(env, value, "isGranted") == JNI_TRUE;
 
 
     return decoded;
+}
+
+HostPermission decode_HostPermission(JNIEnv *env, jobject value) {
+    jint ordinal = call_int_getter(env, value, "ordinal");
+
+    return static_cast<HostPermission>(ordinal + 1);
 }
 
 
@@ -141,7 +116,7 @@ static jlongArray nativeNotifyPermissionResult(
 
     HostPermissionEvent decoded_event = decode_HostPermissionEvent(env, event, &runtime_string_storage);
 
-    RuntimeStatus status = send_permission_result(
+    RuntimeStatus status = send_notify_permission_result(
         static_cast<uint64_t>(sessionHandle),
         decoded_event
     );
@@ -161,7 +136,7 @@ bool register_permission_runtime_natives(JNIEnv *env) {
 
     return register_native_methods(
         env,
-        "dev/destack/runtime/android/bridge/ProcessRuntimeIngress",
+        "dev/destack/runtime/android/bridge/ProcessRuntimeAbi",
         methods,
         static_cast<jint>(sizeof(methods) / sizeof(methods[0]))
     );

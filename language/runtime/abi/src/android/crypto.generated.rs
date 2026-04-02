@@ -17,7 +17,7 @@ use crate::host::android::abi::crypto::{
 };
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
-/// Forward the `supports_hardware_key` crypto request through the ABI artifact.
+/// Forward the `supports_hardware_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key(
     session_handle: u64,
@@ -26,7 +26,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_supports_hardware_key(
     unsafe { runtime_crypto_supports_hardware_key(session_handle, store_kind) }
 }
 
-/// Forward the `generate_hardware_key_pair` crypto request through the ABI artifact.
+/// Forward the `generate_hardware_key_pair` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_key_pair(
     session_handle: u64,
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_key_pair(
     }
 }
 
-/// Forward the `generate_hardware_secret_key` crypto request through the ABI artifact.
+/// Forward the `generate_hardware_secret_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_secret_key(
     session_handle: u64,
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_generate_hardware_secret_ke
     }
 }
 
-/// Forward the `export_hardware_public_key` crypto request through the ABI artifact.
+/// Forward the `export_hardware_public_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_export_hardware_public_key(
     session_handle: u64,
@@ -94,7 +94,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_export_hardware_public_key(
     }
 }
 
-/// Forward the `sign_hardware_key` crypto request through the ABI artifact.
+/// Forward the `sign_hardware_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_sign_hardware_key(
     session_handle: u64,
@@ -122,7 +122,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_sign_hardware_key(
     }
 }
 
-/// Forward the `decrypt_hardware_key` crypto request through the ABI artifact.
+/// Forward the `decrypt_hardware_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_key(
     session_handle: u64,
@@ -150,7 +150,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_key(
     }
 }
 
-/// Forward the `encrypt_hardware_secret_key` crypto request through the ABI artifact.
+/// Forward the `encrypt_hardware_secret_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_encrypt_hardware_secret_key(
     session_handle: u64,
@@ -184,7 +184,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_encrypt_hardware_secret_key
     }
 }
 
-/// Forward the `decrypt_hardware_secret_key` crypto request through the ABI artifact.
+/// Forward the `decrypt_hardware_secret_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_secret_key(
     session_handle: u64,
@@ -214,7 +214,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_decrypt_hardware_secret_key
     }
 }
 
-/// Forward the `compute_hardware_mac` crypto request through the ABI artifact.
+/// Forward the `compute_hardware_mac` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_compute_hardware_mac(
     session_handle: u64,
@@ -242,7 +242,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_compute_hardware_mac(
     }
 }
 
-/// Forward the `derive_hardware_shared_secret` crypto request through the ABI artifact.
+/// Forward the `derive_hardware_shared_secret` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_derive_hardware_shared_secret(
     session_handle: u64,
@@ -266,7 +266,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_derive_hardware_shared_secr
     }
 }
 
-/// Forward the `delete_hardware_key` crypto request through the ABI artifact.
+/// Forward the `delete_hardware_key` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_delete_hardware_key(
     session_handle: u64,
@@ -276,7 +276,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_delete_hardware_key(
     unsafe { runtime_crypto_delete_hardware_key(session_handle, key_algorithm, key_label) }
 }
 
-/// Forward the `import_certificate` crypto request through the ABI artifact.
+/// Forward the `import_certificate` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_import_certificate(
     session_handle: u64,
@@ -286,7 +286,7 @@ pub unsafe extern "C" fn destack_host_android_crypto_import_certificate(
     unsafe { runtime_crypto_import_certificate(session_handle, store_kind, certificate_der) }
 }
 
-/// Forward the `delete_certificate` crypto request through the ABI artifact.
+/// Forward the `delete_certificate` crypto request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_crypto_delete_certificate(
     session_handle: u64,

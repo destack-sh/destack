@@ -28,52 +28,9 @@ RuntimeStatus destack_host_android_notify_notification_event(
     HostNotificationEvent event
 );
 
-RuntimeStatus destack_host_android_notify_intent_open_url(
+RuntimeStatus destack_host_android_notify_intent_event(
     uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef url
-);
-
-RuntimeStatus destack_host_android_notify_intent_open_file(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef path,
-    bool has_mime_type,
-    NativeStringRef mime_type
-);
-
-RuntimeStatus destack_host_android_notify_intent_share_text(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
-);
-
-RuntimeStatus destack_host_android_notify_intent_share_files(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringSlice paths,
-    bool has_mime_type,
-    NativeStringRef mime_type
-);
-
-RuntimeStatus destack_host_android_notify_intent_custom_action(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef action,
-    bool has_url,
-    NativeStringRef url,
-    NativeStringSlice paths,
-    bool has_text,
-    NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    HostIntentEvent event
 );
 
 RuntimeStatus destack_host_android_notify_permission_result(

@@ -32,9 +32,43 @@ jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signa
 }
 
 thread_local std::deque<std::string> result_string_storage;
+thread_local std::deque<std::vector<NativeStringRef>> result_string_slice_storage;
 
 void clear_result_decode_storage() {
     result_string_storage.clear();
+    result_string_slice_storage.clear();
+}
+
+jint call_list_size(JNIEnv *env, jobject value);
+jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
+jobjectArray encode_string_slice(JNIEnv *env, NativeStringSlice values) {
+    return new_java_string_array(env, values);
+}
+
+NativeStringSlice decode_string_list(JNIEnv *env, jobject list, std::deque<std::string> *string_storage) {
+    if (list == nullptr) {
+        return NativeStringSlice {
+            .data = nullptr,
+            .len = 0,
+        };
+    }
+
+    jint size = call_list_size(env, list);
+    result_string_slice_storage.emplace_back();
+    auto &storage = result_string_slice_storage.back();
+    storage.reserve(static_cast<size_t>(size));
+
+    for (jint index = 0; index < size; index += 1) {
+        jobject value = call_list_get(env, list, index);
+        storage.push_back(string_ref_from_java(env, static_cast<jstring>(value), string_storage));
+        env->DeleteLocalRef(value);
+    }
+
+    return NativeStringSlice {
+        .data = storage.data(),
+        .len = static_cast<uint32_t>(storage.size()),
+    };
 }
 
 
@@ -124,7 +158,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         canOpenUrl_method = env->GetMethodID(
             bridge_class,
             "intentCanOpenUrl",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/intent/RuntimeHostIntentCanOpenUrlResponse;"
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostIntentCanOpenUrlResponse;"
         );
     }
 
@@ -148,7 +182,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         shareText_method = env->GetMethodID(
             bridge_class,
             "intentShareText",
-            "(Ljava/lang/String;ZLjava/lang/String;)I"
+            "(Ljava/lang/String;Ljava/lang/String;)I"
         );
     }
 
@@ -156,7 +190,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         sharePaths_method = env->GetMethodID(
             bridge_class,
             "intentSharePaths",
-            "([Ljava/lang/String;ZLjava/lang/String;)I"
+            "([Ljava/lang/String;Ljava/lang/String;)I"
         );
     }
 
@@ -281,8 +315,7 @@ uint32_t call_intent_share_text(
     JNIEnv *env,
     uint64_t session_handle,
     NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 ) {
     jobject bridge = resolve_bridge(env, session_handle);
     if (bridge == nullptr) {
@@ -290,13 +323,12 @@ uint32_t call_intent_share_text(
     }
 
     jstring text_value = java_string_or_null(env, text);
-    jstring mime_type_value = java_string_or_null(env, mime_type);
+    jstring mime_type_value = mime_type.has_value ? java_string_or_null(env, mime_type.value) : nullptr;
 
     jint status = env->CallIntMethod(
         bridge,
         shareText_method,
         text_value,
-        has_mime_type ? JNI_TRUE : JNI_FALSE,
         mime_type_value
     );
     if (text_value != nullptr) { env->DeleteLocalRef(text_value); }
@@ -316,8 +348,7 @@ uint32_t call_intent_share_paths(
     JNIEnv *env,
     uint64_t session_handle,
     NativeStringSlice paths,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 ) {
     jobject bridge = resolve_bridge(env, session_handle);
     if (bridge == nullptr) {
@@ -332,13 +363,12 @@ uint32_t call_intent_share_paths(
         env->DeleteLocalRef(bridge);
         return HOST_STATUS_FAILED;
     }
-    jstring mime_type_value = java_string_or_null(env, mime_type);
+    jstring mime_type_value = mime_type.has_value ? java_string_or_null(env, mime_type.value) : nullptr;
 
     jint status = env->CallIntMethod(
         bridge,
         sharePaths_method,
         paths_value,
-        has_mime_type ? JNI_TRUE : JNI_FALSE,
         mime_type_value
     );
     if (paths_value != nullptr) { env->DeleteLocalRef(paths_value); }

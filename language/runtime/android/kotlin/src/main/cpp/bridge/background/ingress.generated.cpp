@@ -45,8 +45,6 @@ NativeStringRef string_ref_from_java(
 }
 
 HostBackgroundEvent decode_HostBackgroundEvent(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
-HostBackgroundEventKind decode_HostBackgroundEventKind(JNIEnv *env, jobject value);
-HostBackgroundEventMetadata decode_HostBackgroundEventMetadata(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 
 jmethodID resolve_instance_method(
     JNIEnv *env,
@@ -117,41 +115,15 @@ jobject call_list_get(JNIEnv *env, jobject value, jint index) {
 HostBackgroundEvent decode_HostBackgroundEvent(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
     HostBackgroundEvent decoded = {};
 
-    jobject kind_value = call_object_getter(env, value, "getKind", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundEventKind;");
-    decoded.kind = decode_HostBackgroundEventKind(env, kind_value);
-    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
+    decoded.tag = static_cast<HostBackgroundEventTag>(call_int_getter(env, value, "tag"));
 
-    jobject metadata_value = call_object_getter(env, value, "getMetadata", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundEventMetadata;");
-    decoded.metadata = decode_HostBackgroundEventMetadata(env, metadata_value, string_storage);
-    if (metadata_value != nullptr) { env->DeleteLocalRef(metadata_value); }
+    jobject background_task_ready_event_value = call_object_getter(env, value, "getBackgroundTaskReadyEvent", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundTaskReadyEvent;");
+    decoded.background_task_ready_event = decode_HostBackgroundTaskReadyEvent(env, background_task_ready_event_value, string_storage);
+    if (background_task_ready_event_value != nullptr) { env->DeleteLocalRef(background_task_ready_event_value); }
 
-
-    return decoded;
-}
-
-HostBackgroundEventKind decode_HostBackgroundEventKind(JNIEnv *env, jobject value) {
-    jint ordinal = call_int_getter(env, value, "ordinal");
-
-    return static_cast<HostBackgroundEventKind>(ordinal + 1);
-}
-
-HostBackgroundEventMetadata decode_HostBackgroundEventMetadata(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
-    HostBackgroundEventMetadata decoded = {};
-
-    decoded.timestamp_ns = static_cast<uint64_t>(call_long_getter(env, value, "getTimestampNs"));
-
-    decoded.sequence = static_cast<uint64_t>(call_long_getter(env, value, "getSequence"));
-
-    jobject identifier_value = call_object_getter(env, value, "getIdentifier", "()Ljava/lang/String;");
-    decoded.identifier = string_ref_from_java(env, static_cast<jstring>(identifier_value), string_storage);
-    if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
-
-    jobject execution_id_value = call_object_getter(env, value, "getExecutionId", "()Ljava/lang/String;");
-    decoded.execution_id = string_ref_from_java(env, static_cast<jstring>(execution_id_value), string_storage);
-    if (execution_id_value != nullptr) { env->DeleteLocalRef(execution_id_value); }
-
-    decoded.deadline_unix_ns = static_cast<uint64_t>(call_long_getter(env, value, "getDeadlineUnixNs"));
-
+    jobject background_task_expired_event_value = call_object_getter(env, value, "getBackgroundTaskExpiredEvent", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundTaskExpiredEvent;");
+    decoded.background_task_expired_event = decode_HostBackgroundTaskExpiredEvent(env, background_task_expired_event_value, string_storage);
+    if (background_task_expired_event_value != nullptr) { env->DeleteLocalRef(background_task_expired_event_value); }
 
     return decoded;
 }
@@ -170,7 +142,7 @@ static jlongArray nativeNotifyBackgroundEvent(
 
     HostBackgroundEvent decoded_event = decode_HostBackgroundEvent(env, event, &runtime_string_storage);
 
-    RuntimeStatus status = send_background_event(
+    RuntimeStatus status = send_notify_background_event(
         static_cast<uint64_t>(sessionHandle),
         decoded_event
     );
@@ -190,7 +162,7 @@ bool register_background_runtime_natives(JNIEnv *env) {
 
     return register_native_methods(
         env,
-        "dev/destack/runtime/android/bridge/ProcessRuntimeIngress",
+        "dev/destack/runtime/android/bridge/ProcessRuntimeAbi",
         methods,
         static_cast<jint>(sizeof(methods) / sizeof(methods[0]))
     );

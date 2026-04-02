@@ -5,6 +5,7 @@ package dev.destack.runtime.android.bridge
 import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentRequest
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentDescriptor
+import dev.destack.runtime.android.module.document.RuntimeHostDocumentResult
 
 /**
  * Build one Kotlin HostDocumentRequest from one bridge payload.
@@ -13,16 +14,16 @@ internal fun decodeBridgeHostDocumentRequest(
     requestId: Long,
     mimeTypes: Array<String>,
     extensions: Array<String>,
-    allowsMultipleSelection: Boolean,
-    allowsDirectorySelection: Boolean,
-    copiesToSandbox: Boolean
+    multiple: Boolean,
+    allowDirectories: Boolean,
+    copyToSandbox: Boolean
 ): RuntimeHostDocumentRequest {
     return RuntimeHostDocumentRequest(
         requestId = HostRequestId(rawValue = requestId),
         mimeTypes = mimeTypes.asList(),
         extensions = extensions.asList(),
-        allowsMultipleSelection = allowsMultipleSelection,
-        allowsDirectorySelection = allowsDirectorySelection,
-        copiesToSandbox = copiesToSandbox,
+        multiple = multiple,
+        allowDirectories = allowDirectories,
+        copyToSandbox = copyToSandbox,
     )
 }

@@ -48,8 +48,8 @@ AndroidHostBackgroundCallbacks make_background_callbacks();
 /// Register the background runtime ingress JNI methods.
 bool register_background_runtime_natives(JNIEnv *env);
 
-/// Send the `background_event` background ingress payload into the runtime ingress path.
-RuntimeStatus send_background_event(
+/// Send the `notify_background_event` background ingress payload into the runtime ingress path.
+RuntimeStatus send_notify_background_event(
     uint64_t session_handle,
     HostBackgroundEvent event
 );

@@ -4,8 +4,9 @@ use super::callbacks::{AndroidHostCredentialsCallbacks, call_android_credentials
 use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
-/// Forward the `read` credentials request through the Android host seam.
-pub unsafe fn destack_host_android_credentials_read(
+/// Forward the `read` credentials request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_read(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -47,8 +48,9 @@ pub unsafe fn destack_host_android_credentials_read(
     )
 }
 
-/// Forward the `write` credentials request through the Android host seam.
-pub unsafe fn destack_host_android_credentials_write(
+/// Forward the `write` credentials request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_write(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -76,8 +78,9 @@ pub unsafe fn destack_host_android_credentials_write(
     )
 }
 
-/// Forward the `delete` credentials request through the Android host seam.
-pub unsafe fn destack_host_android_credentials_delete(
+/// Forward the `delete` credentials request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_delete(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -90,8 +93,9 @@ pub unsafe fn destack_host_android_credentials_delete(
     )
 }
 
-/// Forward the `contains` credentials request through the Android host seam.
-pub unsafe fn destack_host_android_credentials_contains(
+/// Forward the `contains` credentials request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_contains(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -109,8 +113,9 @@ pub unsafe fn destack_host_android_credentials_contains(
     )
 }
 
-/// Forward the `authenticate` credentials request through the Android host seam.
-pub unsafe fn destack_host_android_credentials_authenticate(
+/// Forward the `authenticate` credentials request through the Android host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_android_credentials_authenticate(
     session_handle: u64,
     title: NativeStringRef,
     subtitle: NativeStringRef,

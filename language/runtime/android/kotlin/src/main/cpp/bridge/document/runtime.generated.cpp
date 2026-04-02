@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "../loader.h"
 #include "callbacks.generated.h"
 #include "runtime.generated.h"
 
@@ -81,10 +81,15 @@ AndroidHostDocumentCallbacks make_document_callbacks() {
 }
 
 /// Deliver one document result into one runtime session.
-RuntimeStatus send_document_result(
+RuntimeStatus send_notify_document_result(
     uint64_t session_handle,
-    uint64_t request_id,
-    HostDocumentDescriptorSlice documents
+    HostDocumentResult result
 ) {
-    return destack_host_android_notify_document_result(session_handle, request_id, documents);
+    RuntimeBindings bindings = {};
+    RuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));
+    if (status.code != HOST_STATUS_OK) {
+        return status;
+    }
+
+    return bindings.notify_document_result(session_handle, result);
 }

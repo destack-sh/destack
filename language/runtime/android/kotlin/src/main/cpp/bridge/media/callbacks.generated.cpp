@@ -26,6 +26,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signature) {
     return env->GetMethodID(value_class, "<init>", signature);
 }
@@ -64,9 +132,43 @@ NativeStringRef string_ref_from_java(
 }
 
 thread_local std::deque<std::string> result_string_storage;
+thread_local std::deque<std::vector<NativeStringRef>> result_string_slice_storage;
 
 void clear_result_decode_storage() {
     result_string_storage.clear();
+    result_string_slice_storage.clear();
+}
+
+jint call_list_size(JNIEnv *env, jobject value);
+jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
+jobjectArray encode_string_slice(JNIEnv *env, NativeStringSlice values) {
+    return new_java_string_array(env, values);
+}
+
+NativeStringSlice decode_string_list(JNIEnv *env, jobject list, std::deque<std::string> *string_storage) {
+    if (list == nullptr) {
+        return NativeStringSlice {
+            .data = nullptr,
+            .len = 0,
+        };
+    }
+
+    jint size = call_list_size(env, list);
+    result_string_slice_storage.emplace_back();
+    auto &storage = result_string_slice_storage.back();
+    storage.reserve(static_cast<size_t>(size));
+
+    for (jint index = 0; index < size; index += 1) {
+        jobject value = call_list_get(env, list, index);
+        storage.push_back(string_ref_from_java(env, static_cast<jstring>(value), string_storage));
+        env->DeleteLocalRef(value);
+    }
+
+    return NativeStringSlice {
+        .data = storage.data(),
+        .len = static_cast<uint32_t>(storage.size()),
+    };
 }
 
 jobject encode_HostMediaAssetKind(JNIEnv *env, HostMediaAssetKind value);
@@ -218,8 +320,7 @@ HostMediaListResponse decode_HostMediaListResponse(JNIEnv *env, jobject value, s
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject page_value = call_object_getter(env, value, "getPage", "()Ldev/destack/runtime/android/module/media/RuntimeHostMediaListResult;");
-    decoded.has_page = page_value != nullptr;
-    decoded.page = page_value == nullptr ? HostMediaListResult {} : decode_HostMediaListResult(env, page_value, string_storage);
+    decoded.page = ([&]() -> OptionalHostMediaListResult { if (page_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostMediaListResult(env, page_value, string_storage) }; })();
     if (page_value != nullptr) { env->DeleteLocalRef(page_value); }
 
 
@@ -246,9 +347,9 @@ HostMediaListResult decode_HostMediaListResult(JNIEnv *env, jobject value, std::
 HostMediaAssetDescriptor decode_HostMediaAssetDescriptor(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
     HostMediaAssetDescriptor decoded = {};
 
-    jobject identifier_value = call_object_getter(env, value, "getIdentifier", "()Ljava/lang/String;");
-    decoded.identifier = string_ref_from_java(env, static_cast<jstring>(identifier_value), string_storage);
-    if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
+    jobject id_value = call_object_getter(env, value, "getId", "()Ljava/lang/String;");
+    decoded.id = string_ref_from_java(env, static_cast<jstring>(id_value), string_storage);
+    if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
 
     jobject uri_value = call_object_getter(env, value, "getUri", "()Ljava/lang/String;");
     decoded.uri = string_ref_from_java(env, static_cast<jstring>(uri_value), string_storage);
@@ -294,8 +395,7 @@ HostMediaReadResponse decode_HostMediaReadResponse(JNIEnv *env, jobject value, s
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject descriptor_value = call_object_getter(env, value, "getDescriptor", "()Ldev/destack/runtime/android/module/media/RuntimeHostMediaAssetDescriptor;");
-    decoded.has_descriptor = descriptor_value != nullptr;
-    decoded.descriptor = descriptor_value == nullptr ? HostMediaAssetDescriptor {} : decode_HostMediaAssetDescriptor(env, descriptor_value, string_storage);
+    decoded.descriptor = ([&]() -> OptionalHostMediaAssetDescriptor { if (descriptor_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostMediaAssetDescriptor(env, descriptor_value, string_storage) }; })();
     if (descriptor_value != nullptr) { env->DeleteLocalRef(descriptor_value); }
 
 
@@ -308,8 +408,7 @@ HostMediaImportPathResponse decode_HostMediaImportPathResponse(JNIEnv *env, jobj
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject identifier_value = call_object_getter(env, value, "getIdentifier", "()Ljava/lang/String;");
-    decoded.has_identifier = identifier_value != nullptr;
-    decoded.identifier = identifier_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(identifier_value), string_storage);
+    decoded.identifier = ([&]() -> OptionalStringRef { if (identifier_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(identifier_value), string_storage) }; })();
     if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
 
 
@@ -374,7 +473,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         list_method = env->GetMethodID(
             bridge_class,
             "mediaList",
-            "(ZLjava/lang/String;ZI[Ldev/destack/runtime/android/module/media/RuntimeHostMediaAssetKind;Z)Ldev/destack/runtime/android/module/media/RuntimeHostMediaListResponse;"
+            "(Ljava/lang/String;Ljava/lang/Integer;[Ldev/destack/runtime/android/module/media/RuntimeHostMediaAssetKind;Z)Ldev/destack/runtime/android/bridge/RuntimeHostMediaListResponse;"
         );
     }
 
@@ -382,7 +481,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         read_method = env->GetMethodID(
             bridge_class,
             "mediaRead",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/media/RuntimeHostMediaReadResponse;"
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostMediaReadResponse;"
         );
     }
 
@@ -390,7 +489,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         importPath_method = env->GetMethodID(
             bridge_class,
             "mediaImportPath",
-            "(Ljava/lang/String;I)Ldev/destack/runtime/android/module/media/RuntimeHostMediaImportPathResponse;"
+            "(Ljava/lang/String;I)Ldev/destack/runtime/android/bridge/RuntimeHostMediaImportPathResponse;"
         );
     }
 
@@ -398,7 +497,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         delete_method = env->GetMethodID(
             bridge_class,
             "mediaDelete",
-            "([Ljava/lang/String;)Ldev/destack/runtime/android/module/media/RuntimeHostMediaDeleteResponse;"
+            "([Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostMediaDeleteResponse;"
         );
     }
 
@@ -427,10 +526,12 @@ uint32_t call_media_list(
         return HOST_STATUS_NOT_FOUND;
     }
 
-    jstring cursor_value = java_string_or_null(env, request.cursor);
+    jstring cursor_value = request.cursor.has_value ? java_string_or_null(env, request.cursor.value) : nullptr;
+    jobject limit_value = request.limit.has_value ? box_int(env, static_cast<jint>(request.limit.value)) : nullptr;
     jobjectArray kinds_value = encode_HostMediaAssetKindSlice(env, request.kinds);
     if (kinds_value == nullptr) {
         if (cursor_value != nullptr) { env->DeleteLocalRef(cursor_value); }
+        if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
         }
@@ -441,15 +542,14 @@ uint32_t call_media_list(
     jobject response_object = env->CallObjectMethod(
         bridge,
         list_method,
-        request.has_cursor ? JNI_TRUE : JNI_FALSE,
         cursor_value,
-        request.has_limit ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(request.limit),
+        limit_value,
         kinds_value,
         request.include_hidden ? JNI_TRUE : JNI_FALSE
     );
     if (response_object == nullptr) {
         if (cursor_value != nullptr) { env->DeleteLocalRef(cursor_value); }
+        if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
         if (kinds_value != nullptr) { env->DeleteLocalRef(kinds_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
@@ -463,9 +563,16 @@ uint32_t call_media_list(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostMediaListResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/media/RuntimeHostMediaListResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostMediaListResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (cursor_value != nullptr) { env->DeleteLocalRef(cursor_value); }
+    if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
     if (kinds_value != nullptr) { env->DeleteLocalRef(kinds_value); }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
@@ -511,7 +618,13 @@ uint32_t call_media_read(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostMediaReadResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/media/RuntimeHostMediaReadResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostMediaReadResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
     env->DeleteLocalRef(response_object);
@@ -538,15 +651,17 @@ uint32_t call_media_import_path(
     }
 
     jstring path_value = java_string_or_null(env, request.path);
+    jobject kind_value = encode_HostMediaAssetKind(env, request.kind);
 
     jobject response_object = env->CallObjectMethod(
         bridge,
         importPath_method,
         path_value,
-        static_cast<jint>(request.kind)
+        kind_value
     );
     if (response_object == nullptr) {
         if (path_value != nullptr) { env->DeleteLocalRef(path_value); }
+        if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
         }
@@ -559,9 +674,16 @@ uint32_t call_media_import_path(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostMediaImportPathResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/media/RuntimeHostMediaImportPathResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostMediaImportPathResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (path_value != nullptr) { env->DeleteLocalRef(path_value); }
+    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
 
@@ -613,7 +735,13 @@ uint32_t call_media_delete(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostMediaDeleteResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/media/RuntimeHostMediaDeleteResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostMediaDeleteResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (identifiers_value != nullptr) { env->DeleteLocalRef(identifiers_value); }
     env->DeleteLocalRef(response_object);

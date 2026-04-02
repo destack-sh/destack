@@ -28,16 +28,14 @@ uint32_t call_intent_open_path_for_session(
 uint32_t call_intent_share_text_for_session(
     uint64_t session_handle,
     NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 );
 
 /// Forward the `share_paths` intent request through one attached bridge session.
 uint32_t call_intent_share_paths_for_session(
     uint64_t session_handle,
     NativeStringSlice paths,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 );
 
 /// Build one Android host intent callback bundle.
@@ -45,5 +43,11 @@ AndroidHostIntentCallbacks make_intent_callbacks();
 
 /// Register the intent runtime ingress JNI methods.
 bool register_intent_runtime_natives(JNIEnv *env);
+
+/// Send the `notify_intent_event` intent ingress payload into the runtime ingress path.
+RuntimeStatus send_notify_intent_event(
+    uint64_t session_handle,
+    HostIntentEvent event
+);
 
 #endif

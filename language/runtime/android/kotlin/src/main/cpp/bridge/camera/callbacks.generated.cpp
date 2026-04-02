@@ -49,6 +49,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signature) {
     return env->GetMethodID(value_class, "<init>", signature);
 }
@@ -63,6 +131,7 @@ void clear_result_decode_storage() {
 
 jint call_list_size(JNIEnv *env, jobject value);
 jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
 jint call_int_getter(JNIEnv *env, jobject value, const char *name);
 
 jintArray encode_u8_slice(JNIEnv *env, NativeU8Slice values) {
@@ -128,17 +197,7 @@ jobject encode_AndroidHostCameraDeviceDescriptorHeader(JNIEnv *env, AndroidHostC
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.group_id_offset),
-        static_cast<jint>(value.group_id_len),
-        static_cast<jint>(value.name_offset),
-        static_cast<jint>(value.name_len),
-        static_cast<jint>(value.manufacturer_offset),
-        static_cast<jint>(value.manufacturer_len),
-        static_cast<jint>(value.facing_mode),
-        static_cast<jint>(value.depth_capable)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.group_id_offset)static_cast<jint>(value.group_id_len)static_cast<jint>(value.name_offset)static_cast<jint>(value.name_len)static_cast<jint>(value.manufacturer_offset)static_cast<jint>(value.manufacturer_len)static_cast<jint>(value.facing_mode)static_cast<jint>(value.depth_capable)
     );
 
     env->DeleteLocalRef(value_class);
@@ -161,13 +220,7 @@ jobject encode_AndroidHostCameraStreamConfigHeader(JNIEnv *env, AndroidHostCamer
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.width),
-        static_cast<jint>(value.height),
-        static_cast<jint>(value.frame_rate_milli_hz),
-        static_cast<jint>(value.pixel_format),
-        static_cast<jint>(value.pixel_format_family),
-        static_cast<jint>(value.is_compressed)
+        constructorstatic_cast<jint>(value.width)static_cast<jint>(value.height)static_cast<jint>(value.frame_rate_milli_hz)static_cast<jint>(value.pixel_format)static_cast<jint>(value.pixel_format_family)static_cast<jint>(value.is_compressed)
     );
 
     env->DeleteLocalRef(value_class);
@@ -191,17 +244,7 @@ jobject encode_AndroidHostCameraStreamCapabilityHeader(JNIEnv *env, AndroidHostC
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        config_value,
-        static_cast<jint>(value.minimum_frame_rate_milli_hz),
-        static_cast<jint>(value.maximum_frame_rate_milli_hz),
-        static_cast<jint>(value.color_space_flags),
-        static_cast<jint>(value.dynamic_range_flags),
-        static_cast<jint>(value.exposure_mode_flags),
-        static_cast<jint>(value.white_balance_mode_flags),
-        static_cast<jint>(value.focus_mode_flags),
-        static_cast<jint>(value.stabilization_mode_flags),
-        static_cast<jint>(value.torch_mode_flags)
+        constructorconfig_valuestatic_cast<jint>(value.minimum_frame_rate_milli_hz)static_cast<jint>(value.maximum_frame_rate_milli_hz)static_cast<jint>(value.color_space_flags)static_cast<jint>(value.dynamic_range_flags)static_cast<jint>(value.exposure_mode_flags)static_cast<jint>(value.white_balance_mode_flags)static_cast<jint>(value.focus_mode_flags)static_cast<jint>(value.stabilization_mode_flags)static_cast<jint>(value.torch_mode_flags)
     );
 
     if (config_value != nullptr) { env->DeleteLocalRef(config_value); }
@@ -418,13 +461,13 @@ AndroidHostCameraRecordingCapabilitiesHeader decode_AndroidHostCameraRecordingCa
 
     decoded.pause_supported = static_cast<uint32_t>(call_int_getter(env, value, "getPauseSupported"));
 
-    decoded.maximum_video_bit_rate = static_cast<uint64_t>(call_long_getter(env, value, "getMaximumVideoBitRate"));
+    jobject maximum_video_bit_rate_value = call_object_getter(env, value, "getMaximumVideoBitRate", "()Ljava/lang/Long;");
+    decoded.maximum_video_bit_rate = ([&]() -> OptionalU64 { if (maximum_video_bit_rate_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, maximum_video_bit_rate_value) }; })();
+    if (maximum_video_bit_rate_value != nullptr) { env->DeleteLocalRef(maximum_video_bit_rate_value); }
 
-    decoded.has_maximum_video_bit_rate = static_cast<uint32_t>(call_int_getter(env, value, "getHasMaximumVideoBitRate"));
-
-    decoded.maximum_audio_bit_rate = static_cast<uint64_t>(call_long_getter(env, value, "getMaximumAudioBitRate"));
-
-    decoded.has_maximum_audio_bit_rate = static_cast<uint32_t>(call_int_getter(env, value, "getHasMaximumAudioBitRate"));
+    jobject maximum_audio_bit_rate_value = call_object_getter(env, value, "getMaximumAudioBitRate", "()Ljava/lang/Long;");
+    decoded.maximum_audio_bit_rate = ([&]() -> OptionalU64 { if (maximum_audio_bit_rate_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, maximum_audio_bit_rate_value) }; })();
+    if (maximum_audio_bit_rate_value != nullptr) { env->DeleteLocalRef(maximum_audio_bit_rate_value); }
 
 
     return decoded;
@@ -450,7 +493,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         deviceList_method = env->GetMethodID(
             bridge_class,
             "cameraDeviceList",
-            "([Ldev/destack/runtime/android/module/camera/RuntimeAndroidHostCameraDeviceDescriptorHeader;[I)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraDeviceListResponse;"
+            "([Ldev/destack/runtime/android/module/camera/RuntimeAndroidHostCameraDeviceDescriptorHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostCameraDeviceListResponse;"
         );
     }
 
@@ -458,7 +501,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         deviceOpen_method = env->GetMethodID(
             bridge_class,
             "cameraDeviceOpen",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraDeviceOpenResponse;"
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostCameraDeviceOpenResponse;"
         );
     }
 
@@ -474,7 +517,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamConfigList_method = env->GetMethodID(
             bridge_class,
             "cameraStreamConfigList",
-            "(J[Ldev/destack/runtime/android/module/camera/RuntimeAndroidHostCameraStreamConfigHeader;)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamConfigListResponse;"
+            "(J[Ldev/destack/runtime/android/module/camera/RuntimeAndroidHostCameraStreamConfigHeader;)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamConfigListResponse;"
         );
     }
 
@@ -482,7 +525,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamCapabilityList_method = env->GetMethodID(
             bridge_class,
             "cameraStreamCapabilityList",
-            "(J[Ldev/destack/runtime/android/module/camera/RuntimeAndroidHostCameraStreamCapabilityHeader;)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamCapabilityListResponse;"
+            "(J[Ldev/destack/runtime/android/module/camera/RuntimeAndroidHostCameraStreamCapabilityHeader;)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamCapabilityListResponse;"
         );
     }
 
@@ -490,7 +533,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamOpen_method = env->GetMethodID(
             bridge_class,
             "cameraStreamOpen",
-            "(JIIIIII)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamOpenResponse;"
+            "(JIIIIII)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamOpenResponse;"
         );
     }
 
@@ -522,7 +565,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamRead_method = env->GetMethodID(
             bridge_class,
             "cameraStreamRead",
-            "(JJ[I)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamReadResponse;"
+            "(JJ[I)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamReadResponse;"
         );
     }
 
@@ -530,7 +573,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamTryRead_method = env->GetMethodID(
             bridge_class,
             "cameraStreamTryRead",
-            "(J[I)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamTryReadResponse;"
+            "(J[I)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamTryReadResponse;"
         );
     }
 
@@ -538,7 +581,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamTakePhoto_method = env->GetMethodID(
             bridge_class,
             "cameraStreamTakePhoto",
-            "(JJ[I)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamTakePhotoResponse;"
+            "(JJ[I)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamTakePhotoResponse;"
         );
     }
 
@@ -546,7 +589,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamConfig_method = env->GetMethodID(
             bridge_class,
             "cameraStreamConfig",
-            "(J)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamConfigResponse;"
+            "(J)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamConfigResponse;"
         );
     }
 
@@ -554,7 +597,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamRecordingCapabilities_method = env->GetMethodID(
             bridge_class,
             "cameraStreamRecordingCapabilities",
-            "(J)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamRecordingCapabilitiesResponse;"
+            "(J)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamRecordingCapabilitiesResponse;"
         );
     }
 
@@ -562,7 +605,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamStartRecording_method = env->GetMethodID(
             bridge_class,
             "cameraStreamStartRecording",
-            "(JIIIIIJIJIIIJIJILjava/lang/String;)I"
+            "(JIILjava/lang/Integer;ILjava/lang/Long;Ljava/lang/Long;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/Long;Ljava/lang/String;)I"
         );
     }
 
@@ -594,7 +637,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamGetU64_method = env->GetMethodID(
             bridge_class,
             "cameraStreamGetU64",
-            "(JI)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamGetU64Response;"
+            "(JI)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamGetU64Response;"
         );
     }
 
@@ -610,7 +653,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamGetU32_method = env->GetMethodID(
             bridge_class,
             "cameraStreamGetU32",
-            "(JI)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamGetU32Response;"
+            "(JI)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamGetU32Response;"
         );
     }
 
@@ -626,7 +669,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamGetF64_method = env->GetMethodID(
             bridge_class,
             "cameraStreamGetF64",
-            "(JI)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamGetF64Response;"
+            "(JI)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamGetF64Response;"
         );
     }
 
@@ -642,7 +685,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamGetRangeF64_method = env->GetMethodID(
             bridge_class,
             "cameraStreamGetRangeF64",
-            "(JI)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamGetRangeF64Response;"
+            "(JI)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamGetRangeF64Response;"
         );
     }
 
@@ -650,7 +693,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamGetRangeU64_method = env->GetMethodID(
             bridge_class,
             "cameraStreamGetRangeU64",
-            "(JI)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamGetRangeU64Response;"
+            "(JI)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamGetRangeU64Response;"
         );
     }
 
@@ -658,7 +701,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         streamGetRangeU32_method = env->GetMethodID(
             bridge_class,
             "cameraStreamGetRangeU32",
-            "(JI)Ldev/destack/runtime/android/module/camera/RuntimeHostCameraStreamGetRangeU32Response;"
+            "(JI)Ldev/destack/runtime/android/bridge/RuntimeHostCameraStreamGetRangeU32Response;"
         );
     }
 
@@ -1379,6 +1422,12 @@ uint32_t call_camera_stream_start_recording(
         return HOST_STATUS_NOT_FOUND;
     }
 
+    jobject audio_enabled_value = options.audio_enabled.has_value ? box_int(env, static_cast<jint>(options.audio_enabled.value)) : nullptr;
+    jobject video_bit_rate_value = options.video_bit_rate.has_value ? box_long(env, static_cast<jlong>(options.video_bit_rate.value)) : nullptr;
+    jobject audio_bit_rate_value = options.audio_bit_rate.has_value ? box_long(env, static_cast<jlong>(options.audio_bit_rate.value)) : nullptr;
+    jobject key_frame_interval_frames_value = options.key_frame_interval_frames.has_value ? box_int(env, static_cast<jint>(options.key_frame_interval_frames.value)) : nullptr;
+    jobject maximum_duration_ns_value = options.maximum_duration_ns.has_value ? box_long(env, static_cast<jlong>(options.maximum_duration_ns.value)) : nullptr;
+    jobject maximum_bytes_value = options.maximum_bytes.has_value ? box_long(env, static_cast<jlong>(options.maximum_bytes.value)) : nullptr;
     jstring output_path_value = java_string_or_null(env, output_path);
 
     jint status = env->CallIntMethod(
@@ -1387,21 +1436,21 @@ uint32_t call_camera_stream_start_recording(
         static_cast<jlong>(stream_id),
         static_cast<jint>(options.container),
         static_cast<jint>(options.video_codec),
-        static_cast<jint>(options.has_audio_enabled),
-        static_cast<jint>(options.audio_enabled),
+        audio_enabled_value,
         static_cast<jint>(options.audio_codec),
-        static_cast<jlong>(options.video_bit_rate),
-        static_cast<jint>(options.has_video_bit_rate),
-        static_cast<jlong>(options.audio_bit_rate),
-        static_cast<jint>(options.has_audio_bit_rate),
-        static_cast<jint>(options.key_frame_interval_frames),
-        static_cast<jint>(options.has_key_frame_interval_frames),
-        static_cast<jlong>(options.maximum_duration_ns),
-        static_cast<jint>(options.has_maximum_duration_ns),
-        static_cast<jlong>(options.maximum_bytes),
-        static_cast<jint>(options.has_maximum_bytes),
+        video_bit_rate_value,
+        audio_bit_rate_value,
+        key_frame_interval_frames_value,
+        maximum_duration_ns_value,
+        maximum_bytes_value,
         output_path_value
     );
+    if (audio_enabled_value != nullptr) { env->DeleteLocalRef(audio_enabled_value); }
+    if (video_bit_rate_value != nullptr) { env->DeleteLocalRef(video_bit_rate_value); }
+    if (audio_bit_rate_value != nullptr) { env->DeleteLocalRef(audio_bit_rate_value); }
+    if (key_frame_interval_frames_value != nullptr) { env->DeleteLocalRef(key_frame_interval_frames_value); }
+    if (maximum_duration_ns_value != nullptr) { env->DeleteLocalRef(maximum_duration_ns_value); }
+    if (maximum_bytes_value != nullptr) { env->DeleteLocalRef(maximum_bytes_value); }
     if (output_path_value != nullptr) { env->DeleteLocalRef(output_path_value); }
     env->DeleteLocalRef(bridge);
 

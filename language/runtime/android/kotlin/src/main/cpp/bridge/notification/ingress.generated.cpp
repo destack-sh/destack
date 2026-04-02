@@ -45,8 +45,6 @@ NativeStringRef string_ref_from_java(
 }
 
 HostNotificationEvent decode_HostNotificationEvent(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
-HostNotificationEventKind decode_HostNotificationEventKind(JNIEnv *env, jobject value);
-HostNotificationRequest decode_HostNotificationRequest(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 
 jmethodID resolve_instance_method(
     JNIEnv *env,
@@ -117,48 +115,19 @@ jobject call_list_get(JNIEnv *env, jobject value, jint index) {
 HostNotificationEvent decode_HostNotificationEvent(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
     HostNotificationEvent decoded = {};
 
-    jobject kind_value = call_object_getter(env, value, "getKind", "()Ldev/destack/runtime/android/module/notification/RuntimeHostNotificationEventKind;");
-    decoded.kind = decode_HostNotificationEventKind(env, kind_value);
-    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
+    decoded.tag = static_cast<HostNotificationEventTag>(call_int_getter(env, value, "tag"));
 
-    decoded.sequence = static_cast<uint64_t>(call_long_getter(env, value, "getSequence"));
+    jobject notification_delivered_event_value = call_object_getter(env, value, "getNotificationDeliveredEvent", "()Ldev/destack/runtime/android/module/notification/RuntimeHostNotificationDeliveredEvent;");
+    decoded.notification_delivered_event = decode_HostNotificationDeliveredEvent(env, notification_delivered_event_value, string_storage);
+    if (notification_delivered_event_value != nullptr) { env->DeleteLocalRef(notification_delivered_event_value); }
 
-    decoded.timestamp_ns = static_cast<uint64_t>(call_long_getter(env, value, "getTimestampNs"));
+    jobject notification_dismissed_event_value = call_object_getter(env, value, "getNotificationDismissedEvent", "()Ldev/destack/runtime/android/module/notification/RuntimeHostNotificationDismissedEvent;");
+    decoded.notification_dismissed_event = decode_HostNotificationDismissedEvent(env, notification_dismissed_event_value, string_storage);
+    if (notification_dismissed_event_value != nullptr) { env->DeleteLocalRef(notification_dismissed_event_value); }
 
-    jobject request_value = call_object_getter(env, value, "getRequest", "()Ldev/destack/runtime/android/module/notification/RuntimeHostNotificationRequest;");
-    decoded.request = decode_HostNotificationRequest(env, request_value, string_storage);
-    if (request_value != nullptr) { env->DeleteLocalRef(request_value); }
-
-    jobject action_identifier_value = call_object_getter(env, value, "getActionIdentifier", "()Ljava/lang/String;");
-    decoded.has_action_identifier = action_identifier_value != nullptr;
-    decoded.action_identifier = action_identifier_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(action_identifier_value), string_storage);
-    if (action_identifier_value != nullptr) { env->DeleteLocalRef(action_identifier_value); }
-
-
-    return decoded;
-}
-
-HostNotificationEventKind decode_HostNotificationEventKind(JNIEnv *env, jobject value) {
-    jint ordinal = call_int_getter(env, value, "ordinal");
-
-    return static_cast<HostNotificationEventKind>(ordinal + 1);
-}
-
-HostNotificationRequest decode_HostNotificationRequest(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
-    HostNotificationRequest decoded = {};
-
-    jobject identifier_value = call_object_getter(env, value, "getIdentifier", "()Ljava/lang/String;");
-    decoded.identifier = string_ref_from_java(env, static_cast<jstring>(identifier_value), string_storage);
-    if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
-
-    jobject title_value = call_object_getter(env, value, "getTitle", "()Ljava/lang/String;");
-    decoded.title = string_ref_from_java(env, static_cast<jstring>(title_value), string_storage);
-    if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-
-    jobject body_value = call_object_getter(env, value, "getBody", "()Ljava/lang/String;");
-    decoded.body = string_ref_from_java(env, static_cast<jstring>(body_value), string_storage);
-    if (body_value != nullptr) { env->DeleteLocalRef(body_value); }
-
+    jobject notification_interacted_event_value = call_object_getter(env, value, "getNotificationInteractedEvent", "()Ldev/destack/runtime/android/module/notification/RuntimeHostNotificationInteractedEvent;");
+    decoded.notification_interacted_event = decode_HostNotificationInteractedEvent(env, notification_interacted_event_value, string_storage);
+    if (notification_interacted_event_value != nullptr) { env->DeleteLocalRef(notification_interacted_event_value); }
 
     return decoded;
 }
@@ -177,7 +146,7 @@ static jlongArray nativeNotifyNotificationEvent(
 
     HostNotificationEvent decoded_event = decode_HostNotificationEvent(env, event, &runtime_string_storage);
 
-    RuntimeStatus status = send_notification_event(
+    RuntimeStatus status = send_notify_notification_event(
         static_cast<uint64_t>(sessionHandle),
         decoded_event
     );
@@ -197,7 +166,7 @@ bool register_notification_runtime_natives(JNIEnv *env) {
 
     return register_native_methods(
         env,
-        "dev/destack/runtime/android/bridge/ProcessRuntimeIngress",
+        "dev/destack/runtime/android/bridge/ProcessRuntimeAbi",
         methods,
         static_cast<jint>(sizeof(methods) / sizeof(methods[0]))
     );

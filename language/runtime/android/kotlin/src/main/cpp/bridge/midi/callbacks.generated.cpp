@@ -50,6 +50,7 @@ void clear_result_decode_storage() {
 
 jint call_list_size(JNIEnv *env, jobject value);
 jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
 jint call_int_getter(JNIEnv *env, jobject value, const char *name);
 
 jintArray encode_u8_slice(JNIEnv *env, NativeU8Slice values) {
@@ -117,29 +118,7 @@ jobject encode_AndroidHostMidiPortDescriptorHeader(JNIEnv *env, AndroidHostMidiP
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.group_id_offset),
-        static_cast<jint>(value.group_id_len),
-        static_cast<jint>(value.backend_id_offset),
-        static_cast<jint>(value.backend_id_len),
-        static_cast<jint>(value.name_offset),
-        static_cast<jint>(value.name_len),
-        static_cast<jint>(value.group_name_offset),
-        static_cast<jint>(value.group_name_len),
-        static_cast<jint>(value.manufacturer_offset),
-        static_cast<jint>(value.manufacturer_len),
-        static_cast<jint>(value.model_offset),
-        static_cast<jint>(value.model_len),
-        static_cast<jint>(value.version_offset),
-        static_cast<jint>(value.version_len),
-        static_cast<jint>(value.supported_data_formats),
-        static_cast<jint>(value.default_data_format),
-        static_cast<jint>(value.supported_protocols),
-        static_cast<jint>(value.default_protocol),
-        static_cast<jint>(value.is_virtual),
-        static_cast<jint>(value.is_connected)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.group_id_offset)static_cast<jint>(value.group_id_len)static_cast<jint>(value.backend_id_offset)static_cast<jint>(value.backend_id_len)static_cast<jint>(value.name_offset)static_cast<jint>(value.name_len)static_cast<jint>(value.group_name_offset)static_cast<jint>(value.group_name_len)static_cast<jint>(value.manufacturer_offset)static_cast<jint>(value.manufacturer_len)static_cast<jint>(value.model_offset)static_cast<jint>(value.model_len)static_cast<jint>(value.version_offset)static_cast<jint>(value.version_len)static_cast<jint>(value.supported_data_formats)static_cast<jint>(value.default_data_format)static_cast<jint>(value.supported_protocols)static_cast<jint>(value.default_protocol)static_cast<jint>(value.is_virtual)static_cast<jint>(value.is_connected)
     );
 
     env->DeleteLocalRef(value_class);
@@ -162,15 +141,7 @@ jobject encode_AndroidHostMidiInputRecordHeader(JNIEnv *env, AndroidHostMidiInpu
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jlong>(value.received_at_ns),
-        static_cast<jint>(value.source_id_offset),
-        static_cast<jint>(value.source_id_len),
-        static_cast<jint>(value.data_offset),
-        static_cast<jint>(value.data_len),
-        static_cast<jint>(value.data_format),
-        static_cast<jint>(value.protocol),
-        static_cast<jint>(value.framing)
+        constructorstatic_cast<jlong>(value.received_at_ns)static_cast<jint>(value.source_id_offset)static_cast<jint>(value.source_id_len)static_cast<jint>(value.data_offset)static_cast<jint>(value.data_len)static_cast<jint>(value.data_format)static_cast<jint>(value.protocol)static_cast<jint>(value.framing)
     );
 
     env->DeleteLocalRef(value_class);
@@ -194,17 +165,7 @@ jobject encode_AndroidHostMidiEventHeader(JNIEnv *env, AndroidHostMidiEventHeade
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jlong>(value.timestamp_ns),
-        static_cast<jlong>(value.dropped_count),
-        static_cast<jint>(value.kind),
-        static_cast<jint>(value.direction),
-        static_cast<jint>(value.flags),
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.group_id_offset),
-        static_cast<jint>(value.group_id_len),
-        descriptor_value
+        constructorstatic_cast<jlong>(value.timestamp_ns)static_cast<jlong>(value.dropped_count)static_cast<jint>(value.kind)static_cast<jint>(value.direction)static_cast<jint>(value.flags)static_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.group_id_offset)static_cast<jint>(value.group_id_len)descriptor_value
     );
 
     if (descriptor_value != nullptr) { env->DeleteLocalRef(descriptor_value); }
@@ -219,25 +180,20 @@ jobject encode_AndroidHostMidiOutputRecordHeader(JNIEnv *env, AndroidHostMidiOut
         return nullptr;
     }
 
-    jmethodID constructor = resolve_constructor(env, value_class, "(JIIIIII)V");
+    jmethodID constructor = resolve_constructor(env, value_class, "(Ljava/lang/Long;IIIII)V");
     if (constructor == nullptr) {
         env->DeleteLocalRef(value_class);
         return nullptr;
     }
 
+    jobject send_at_ns_value = value.send_at_ns.has_value ? box_long(env, static_cast<jlong>(value.send_at_ns.value)) : nullptr;
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jlong>(value.send_at_ns),
-        static_cast<jint>(value.has_send_at),
-        static_cast<jint>(value.data_offset),
-        static_cast<jint>(value.data_len),
-        static_cast<jint>(value.data_format),
-        static_cast<jint>(value.protocol),
-        static_cast<jint>(value.framing)
+        constructorsend_at_ns_valuestatic_cast<jint>(value.data_offset)static_cast<jint>(value.data_len)static_cast<jint>(value.data_format)static_cast<jint>(value.protocol)static_cast<jint>(value.framing)
     );
 
+    if (send_at_ns_value != nullptr) { env->DeleteLocalRef(send_at_ns_value); }
     env->DeleteLocalRef(value_class);
 
     return result;
@@ -501,7 +457,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         describeBackend_method = env->GetMethodID(
             bridge_class,
             "midiDescribeBackend",
-            "()Ldev/destack/runtime/android/module/midi/RuntimeHostMidiDescribeBackendResponse;"
+            "()Ldev/destack/runtime/android/bridge/RuntimeHostMidiDescribeBackendResponse;"
         );
     }
 
@@ -509,7 +465,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         inputPortList_method = env->GetMethodID(
             bridge_class,
             "midiInputPortList",
-            "(I[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiPortDescriptorHeader;[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiInputPortListResponse;"
+            "(I[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiPortDescriptorHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiInputPortListResponse;"
         );
     }
 
@@ -517,7 +473,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         outputPortList_method = env->GetMethodID(
             bridge_class,
             "midiOutputPortList",
-            "(I[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiPortDescriptorHeader;[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiOutputPortListResponse;"
+            "(I[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiPortDescriptorHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiOutputPortListResponse;"
         );
     }
 
@@ -525,7 +481,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         inputPortOpen_method = env->GetMethodID(
             bridge_class,
             "midiInputPortOpen",
-            "(Ljava/lang/String;III[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiInputPortOpenResponse;"
+            "(Ljava/lang/String;III[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiInputPortOpenResponse;"
         );
     }
 
@@ -533,7 +489,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         outputPortOpen_method = env->GetMethodID(
             bridge_class,
             "midiOutputPortOpen",
-            "(Ljava/lang/String;II[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiOutputPortOpenResponse;"
+            "(Ljava/lang/String;II[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiOutputPortOpenResponse;"
         );
     }
 
@@ -541,7 +497,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         inputVirtualCreate_method = env->GetMethodID(
             bridge_class,
             "midiInputVirtualCreate",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;III[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiInputVirtualCreateResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;III[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiInputVirtualCreateResponse;"
         );
     }
 
@@ -549,7 +505,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         outputVirtualCreate_method = env->GetMethodID(
             bridge_class,
             "midiOutputVirtualCreate",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;II[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiOutputVirtualCreateResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;II[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiOutputVirtualCreateResponse;"
         );
     }
 
@@ -573,7 +529,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         inputRead_method = env->GetMethodID(
             bridge_class,
             "midiInputRead",
-            "(JIJ[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiInputRecordHeader;[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiInputReadResponse;"
+            "(JIJ[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiInputRecordHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiInputReadResponse;"
         );
     }
 
@@ -581,7 +537,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         eventOpen_method = env->GetMethodID(
             bridge_class,
             "midiEventOpen",
-            "(II)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiEventOpenResponse;"
+            "(II)Ldev/destack/runtime/android/bridge/RuntimeHostMidiEventOpenResponse;"
         );
     }
 
@@ -589,7 +545,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         eventRead_method = env->GetMethodID(
             bridge_class,
             "midiEventRead",
-            "(JIJ[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiEventHeader;[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiEventReadResponse;"
+            "(JIJ[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiEventHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiEventReadResponse;"
         );
     }
 
@@ -605,7 +561,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         outputWrite_method = env->GetMethodID(
             bridge_class,
             "midiOutputWrite",
-            "(J[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiOutputRecordHeader;I[I)Ldev/destack/runtime/android/module/midi/RuntimeHostMidiOutputWriteResponse;"
+            "(J[Ldev/destack/runtime/android/module/midi/RuntimeAndroidHostMidiOutputRecordHeader;I[I)Ldev/destack/runtime/android/bridge/RuntimeHostMidiOutputWriteResponse;"
         );
     }
 

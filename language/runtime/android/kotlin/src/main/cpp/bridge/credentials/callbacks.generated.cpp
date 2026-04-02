@@ -41,6 +41,7 @@ void clear_result_decode_storage() {
 
 jint call_list_size(JNIEnv *env, jobject value);
 jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
 jint call_int_getter(JNIEnv *env, jobject value, const char *name);
 
 jintArray encode_u8_slice(JNIEnv *env, NativeU8Slice values) {
@@ -171,7 +172,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         read_method = env->GetMethodID(
             bridge_class,
             "credentialsRead",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z[I)Ldev/destack/runtime/android/module/credentials/RuntimeHostCredentialsReadResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z[I)Ldev/destack/runtime/android/bridge/RuntimeHostCredentialsReadResponse;"
         );
     }
 
@@ -195,7 +196,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         contains_method = env->GetMethodID(
             bridge_class,
             "credentialsContains",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ldev/destack/runtime/android/module/credentials/RuntimeHostCredentialsContainsResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostCredentialsContainsResponse;"
         );
     }
 
@@ -203,7 +204,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         authenticate_method = env->GetMethodID(
             bridge_class,
             "credentialsAuthenticate",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)Ldev/destack/runtime/android/module/credentials/RuntimeHostCredentialsAuthenticateResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)Ldev/destack/runtime/android/bridge/RuntimeHostCredentialsAuthenticateResponse;"
         );
     }
 

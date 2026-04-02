@@ -4,53 +4,44 @@ import Foundation
 import RuntimeHostAppleBridgeC
 import RuntimeHostAppleCore
 
-/// One runtime status returned by one runtime session API ingress call.
-struct RuntimeIngressStatus {
-  /// The status code, where zero means success.
-  let code: UInt32
-  /// The recorded runtime error identifier when one failure occurred.
-  let errorID: UInt64
-}
-
 /// One generated low-level runtime ABI surface for one iOS host bridge.
-protocol RuntimeIngress {
+protocol RuntimeAbi {
   /// Deliver one background event into one runtime session.
   func notifyBackgroundEvent(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostBackgroundEvent
-  ) -> RuntimeIngressStatus
+  ) -> RuntimeAbiStatus
   /// Deliver one document result into one runtime session.
   func notifyDocumentResult(
     sessionHandle: HostSessionHandle,
-    requestID: HostRequestID,
-    documents: [RuntimeHostDocumentDescriptor]
-  ) -> RuntimeIngressStatus
+    result: RuntimeHostDocumentResult
+  ) -> RuntimeAbiStatus
   /// Deliver one intent event into one runtime session.
   func notifyIntentEvent(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostIntentEvent
-  ) -> RuntimeIngressStatus
+  ) -> RuntimeAbiStatus
   /// Deliver one location sample into one runtime session.
   func notifyLocationSample(
     sessionHandle: HostSessionHandle,
     watchID: String,
-    sample: RuntimeHostLocationSample
-  ) -> RuntimeIngressStatus
+    sample: RuntimeLocationSample
+  ) -> RuntimeAbiStatus
   /// Deliver one notification event into one runtime session.
   func notifyNotificationEvent(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostNotificationEvent
-  ) -> RuntimeIngressStatus
+  ) -> RuntimeAbiStatus
   /// Deliver one permission result into one runtime session.
   func notifyPermissionResult(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostPermissionEvent
-  ) -> RuntimeIngressStatus
+  ) -> RuntimeAbiStatus
   /// Deliver one text-session state event into one runtime session.
   func notifyTextInputState(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostTextInputEvent
-  ) -> RuntimeIngressStatus
+  ) -> RuntimeAbiStatus
   /// Attach one bridge instance to one runtime session.
   func attachBridge(
     sessionHandle: HostSessionHandle,
@@ -63,14 +54,14 @@ protocol RuntimeIngress {
   )
 }
 
-/// One generated default runtime ABI surface bound directly to the iOS runtime ABI.
-final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
+/// One generated default runtime ABI surface loaded through the iOS bridge C shim.
+final class ProcessRuntimeAbi: RuntimeAbi, @unchecked Sendable {
   /// Attach one bridge instance to one runtime session.
   func attachBridge(
     sessionHandle: HostSessionHandle,
     bridge: RuntimeBridge
   ) -> HostAbiStatus {
-    return destack_host_ios_register_runtime_bridge_bindings(
+    return destack_runtime_host_ios_register_runtime_bridge_bindings(
       sessionHandle.rawValue,
       makeGeneratedRuntimeBridgeBindings()
     )
@@ -80,21 +71,21 @@ final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
   func detachBridge(
     sessionHandle: HostSessionHandle
   ) {
-    destack_host_ios_unregister_runtime_bridge_bindings(sessionHandle.rawValue)
+    destack_runtime_host_ios_unregister_runtime_bridge_bindings(sessionHandle.rawValue)
   }
 
   /// Deliver one background event into one runtime session.
   func notifyBackgroundEvent(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostBackgroundEvent
-  ) -> RuntimeIngressStatus {
+  ) -> RuntimeAbiStatus {
     return withNativeHostBackgroundEvent(event) { nativeEvent in
-      let status = destack_host_ios_notify_background_event(
+      let status = destack_runtime_host_ios_notify_background_event(
         sessionHandle.rawValue,
         nativeEvent
       )
 
-      return RuntimeIngressStatus(
+      return RuntimeAbiStatus(
         code: status.code,
         errorID: status.error_id
       )
@@ -104,17 +95,15 @@ final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
   /// Deliver one document result into one runtime session.
   func notifyDocumentResult(
     sessionHandle: HostSessionHandle,
-    requestID: HostRequestID,
-    documents: [RuntimeHostDocumentDescriptor]
-  ) -> RuntimeIngressStatus {
-    return withNativeHostDocumentDescriptorSlice(documents) { nativeDocuments in
-      let status = destack_host_ios_notify_document_result(
+    result: RuntimeHostDocumentResult
+  ) -> RuntimeAbiStatus {
+    return withNativeHostDocumentResult(result) { nativeResult in
+      let status = destack_runtime_host_ios_notify_document_result(
         sessionHandle.rawValue,
-        requestID.rawValue,
-        nativeDocuments
+        nativeResult
       )
 
-      return RuntimeIngressStatus(
+      return RuntimeAbiStatus(
         code: status.code,
         errorID: status.error_id
       )
@@ -125,115 +114,17 @@ final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
   func notifyIntentEvent(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostIntentEvent
-  ) -> RuntimeIngressStatus {
-    switch event.payload {
-    case .openURL(let url):
-      return withNativeStringRef(event.source) { sourceRef in
-        return withNativeStringRef(url) { urlRef in
-          let status = destack_host_ios_notify_intent_open_url(
-            sessionHandle.rawValue,
-            event.source != nil,
-            sourceRef,
-            urlRef
-          )
+  ) -> RuntimeAbiStatus {
+    return withNativeHostIntentEvent(event) { nativeEvent in
+      let status = destack_runtime_host_ios_notify_intent_event(
+        sessionHandle.rawValue,
+        nativeEvent
+      )
 
-          return RuntimeIngressStatus(
-            code: status.code,
-            errorID: status.error_id
-          )
-        }
-      }
-    case .openFile(let path, let contentType):
-      return withNativeStringRef(event.source) { sourceRef in
-        return withNativeStringRef(path) { pathRef in
-          return withNativeStringRef(contentType) { mimeTypeRef in
-            let status = destack_host_ios_notify_intent_open_file(
-              sessionHandle.rawValue,
-              event.source != nil,
-              sourceRef,
-              pathRef,
-              contentType != nil,
-              mimeTypeRef
-            )
-
-            return RuntimeIngressStatus(
-              code: status.code,
-              errorID: status.error_id
-            )
-          }
-        }
-      }
-    case .shareText(let text, let contentType):
-      return withNativeStringRef(event.source) { sourceRef in
-        return withNativeStringRef(text) { textRef in
-          return withNativeStringRef(contentType) { mimeTypeRef in
-            let status = destack_host_ios_notify_intent_share_text(
-              sessionHandle.rawValue,
-              event.source != nil,
-              sourceRef,
-              textRef,
-              contentType != nil,
-              mimeTypeRef
-            )
-
-            return RuntimeIngressStatus(
-              code: status.code,
-              errorID: status.error_id
-            )
-          }
-        }
-      }
-    case .shareFiles(let paths, let contentType):
-      return withNativeStringRef(event.source) { sourceRef in
-        return withNativeStringSlice(paths) { pathsSlice in
-          return withNativeStringRef(contentType) { mimeTypeRef in
-            let status = destack_host_ios_notify_intent_share_files(
-              sessionHandle.rawValue,
-              event.source != nil,
-              sourceRef,
-              pathsSlice,
-              contentType != nil,
-              mimeTypeRef
-            )
-
-            return RuntimeIngressStatus(
-              code: status.code,
-              errorID: status.error_id
-            )
-          }
-        }
-      }
-    case .customAction(let action, let url, let paths, let text, let contentType):
-      return withNativeStringRef(event.source) { sourceRef in
-        return withNativeStringRef(action) { actionRef in
-          return withNativeStringRef(url) { urlRef in
-            return withNativeStringSlice(paths) { pathsSlice in
-              return withNativeStringRef(text) { textRef in
-                return withNativeStringRef(contentType) { mimeTypeRef in
-                  let status = destack_host_ios_notify_intent_custom_action(
-                    sessionHandle.rawValue,
-                    event.source != nil,
-                    sourceRef,
-                    actionRef,
-                    url != nil,
-                    urlRef,
-                    pathsSlice,
-                    text != nil,
-                    textRef,
-                    contentType != nil,
-                    mimeTypeRef
-                  )
-
-                  return RuntimeIngressStatus(
-                    code: status.code,
-                    errorID: status.error_id
-                  )
-                }
-              }
-            }
-          }
-        }
-      }
+      return RuntimeAbiStatus(
+        code: status.code,
+        errorID: status.error_id
+      )
     }
   }
 
@@ -241,17 +132,17 @@ final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
   func notifyLocationSample(
     sessionHandle: HostSessionHandle,
     watchID: String,
-    sample: RuntimeHostLocationSample
-  ) -> RuntimeIngressStatus {
+    sample: RuntimeLocationSample
+  ) -> RuntimeAbiStatus {
     return withNativeStringRef(watchID) { nativeWatchID in
       return withNativeLocationSample(sample) { nativeSample in
-        let status = destack_host_ios_notify_location_sample(
+        let status = destack_runtime_host_ios_notify_location_sample(
           sessionHandle.rawValue,
           nativeWatchID,
           nativeSample
         )
 
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
           code: status.code,
           errorID: status.error_id
         )
@@ -263,14 +154,14 @@ final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
   func notifyNotificationEvent(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostNotificationEvent
-  ) -> RuntimeIngressStatus {
+  ) -> RuntimeAbiStatus {
     return withNativeHostNotificationEvent(event) { nativeEvent in
-      let status = destack_host_ios_notify_notification_event(
+      let status = destack_runtime_host_ios_notify_notification_event(
         sessionHandle.rawValue,
         nativeEvent
       )
 
-      return RuntimeIngressStatus(
+      return RuntimeAbiStatus(
         code: status.code,
         errorID: status.error_id
       )
@@ -281,14 +172,14 @@ final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
   func notifyPermissionResult(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostPermissionEvent
-  ) -> RuntimeIngressStatus {
+  ) -> RuntimeAbiStatus {
     return withNativeHostPermissionEvent(event) { nativeEvent in
-      let status = destack_host_ios_notify_permission_result(
+      let status = destack_runtime_host_ios_notify_permission_result(
         sessionHandle.rawValue,
         nativeEvent
       )
 
-      return RuntimeIngressStatus(
+      return RuntimeAbiStatus(
         code: status.code,
         errorID: status.error_id
       )
@@ -299,14 +190,14 @@ final class ProcessRuntimeIngress: RuntimeIngress, @unchecked Sendable {
   func notifyTextInputState(
     sessionHandle: HostSessionHandle,
     event: RuntimeHostTextInputEvent
-  ) -> RuntimeIngressStatus {
+  ) -> RuntimeAbiStatus {
     return withNativeHostTextInputEvent(event) { nativeEvent in
-      let status = destack_host_ios_notify_text_input_state(
+      let status = destack_runtime_host_ios_notify_text_input_state(
         sessionHandle.rawValue,
         nativeEvent
       )
 
-      return RuntimeIngressStatus(
+      return RuntimeAbiStatus(
         code: status.code,
         errorID: status.error_id
       )

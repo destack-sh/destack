@@ -4,8 +4,9 @@ use super::callbacks::{IosHostIntentCallbacks, call_ios_intent_callback};
 use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 
-/// Forward the `can_open_url` intent request through the iOS host seam.
-pub unsafe fn destack_host_ios_intent_can_open_url(
+/// Forward the `can_open_url` intent request through the iOS host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_can_open_url(
     session_handle: u64,
     url: NativeStringRef,
     is_supported: *mut bool,
@@ -21,8 +22,12 @@ pub unsafe fn destack_host_ios_intent_can_open_url(
     )
 }
 
-/// Forward the `open_url` intent request through the iOS host seam.
-pub unsafe fn destack_host_ios_intent_open_url(session_handle: u64, url: NativeStringRef) -> u32 {
+/// Forward the `open_url` intent request through the iOS host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_open_url(
+    session_handle: u64,
+    url: NativeStringRef,
+) -> u32 {
     call_ios_intent_callback(
         session_handle,
         |callbacks| callbacks.open_url,
@@ -30,8 +35,12 @@ pub unsafe fn destack_host_ios_intent_open_url(session_handle: u64, url: NativeS
     )
 }
 
-/// Forward the `open_path` intent request through the iOS host seam.
-pub unsafe fn destack_host_ios_intent_open_path(session_handle: u64, path: NativeStringRef) -> u32 {
+/// Forward the `open_path` intent request through the iOS host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_open_path(
+    session_handle: u64,
+    path: NativeStringRef,
+) -> u32 {
     call_ios_intent_callback(
         session_handle,
         |callbacks| callbacks.open_path,
@@ -39,30 +48,30 @@ pub unsafe fn destack_host_ios_intent_open_path(session_handle: u64, path: Nativ
     )
 }
 
-/// Forward the `share_text` intent request through the iOS host seam.
-pub unsafe fn destack_host_ios_intent_share_text(
+/// Forward the `share_text` intent request through the iOS host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_share_text(
     session_handle: u64,
     text: NativeStringRef,
-    has_mime_type: bool,
-    mime_type: NativeStringRef,
+    mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32 {
     call_ios_intent_callback(
         session_handle,
         |callbacks| callbacks.share_text,
-        |callback| unsafe { callback(session_handle, text, has_mime_type, mime_type) },
+        |callback| unsafe { callback(session_handle, text, mime_type) },
     )
 }
 
-/// Forward the `share_paths` intent request through the iOS host seam.
-pub unsafe fn destack_host_ios_intent_share_paths(
+/// Forward the `share_paths` intent request through the iOS host ABI.
+#[unsafe(no_mangle)]
+pub(crate) unsafe extern "C" fn destack_host_ios_intent_share_paths(
     session_handle: u64,
     paths: NativeStringSlice,
-    has_mime_type: bool,
-    mime_type: NativeStringRef,
+    mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32 {
     call_ios_intent_callback(
         session_handle,
         |callbacks| callbacks.share_paths,
-        |callback| unsafe { callback(session_handle, paths, has_mime_type, mime_type) },
+        |callback| unsafe { callback(session_handle, paths, mime_type) },
     )
 }

@@ -13,7 +13,7 @@ use crate::host::android::abi::media::{
 };
 use crate::platform::abi::NativeStringRef;
 
-/// Forward the `list` media request through the ABI artifact.
+/// Forward the `list` media request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_media_list(
     session_handle: u64,
@@ -23,7 +23,7 @@ pub unsafe extern "C" fn destack_host_android_media_list(
     unsafe { runtime_media_list(session_handle, request, response) }
 }
 
-/// Forward the `read` media request through the ABI artifact.
+/// Forward the `read` media request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_media_read(
     session_handle: u64,
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn destack_host_android_media_read(
     unsafe { runtime_media_read(session_handle, identifier, response) }
 }
 
-/// Forward the `import_path` media request through the ABI artifact.
+/// Forward the `import_path` media request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_media_import_path(
     session_handle: u64,
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn destack_host_android_media_import_path(
     unsafe { runtime_media_import_path(session_handle, request, response) }
 }
 
-/// Forward the `delete` media request through the ABI artifact.
+/// Forward the `delete` media request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_media_delete(
     session_handle: u64,

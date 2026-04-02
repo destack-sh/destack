@@ -4,11 +4,11 @@ use crate::host::android::abi::bindings::invoke_android_binding_callback;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// The host callback for `supports_hardware_key`.
-pub type AndroidHostCryptoSupportsHardwareKeyCallback =
+pub(crate) type AndroidHostCryptoSupportsHardwareKeyCallback =
     unsafe extern "C" fn(session_handle: u64, store_kind: u32) -> u32;
 
 /// The host callback for `generate_hardware_key_pair`.
-pub type AndroidHostCryptoGenerateHardwareKeyPairCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoGenerateHardwareKeyPairCallback = unsafe extern "C" fn(
     session_handle: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -19,7 +19,7 @@ pub type AndroidHostCryptoGenerateHardwareKeyPairCallback = unsafe extern "C" fn
 ) -> u32;
 
 /// The host callback for `generate_hardware_secret_key`.
-pub type AndroidHostCryptoGenerateHardwareSecretKeyCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoGenerateHardwareSecretKeyCallback = unsafe extern "C" fn(
     session_handle: u64,
     store_kind: u32,
     key_algorithm: u32,
@@ -30,7 +30,7 @@ pub type AndroidHostCryptoGenerateHardwareSecretKeyCallback = unsafe extern "C" 
 ) -> u32;
 
 /// The host callback for `export_hardware_public_key`.
-pub type AndroidHostCryptoExportHardwarePublicKeyCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoExportHardwarePublicKeyCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -39,7 +39,7 @@ pub type AndroidHostCryptoExportHardwarePublicKeyCallback = unsafe extern "C" fn
 ) -> u32;
 
 /// The host callback for `sign_hardware_key`.
-pub type AndroidHostCryptoSignHardwareKeyCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoSignHardwareKeyCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -52,7 +52,7 @@ pub type AndroidHostCryptoSignHardwareKeyCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// The host callback for `decrypt_hardware_key`.
-pub type AndroidHostCryptoDecryptHardwareKeyCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoDecryptHardwareKeyCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -65,7 +65,7 @@ pub type AndroidHostCryptoDecryptHardwareKeyCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// The host callback for `encrypt_hardware_secret_key`.
-pub type AndroidHostCryptoEncryptHardwareSecretKeyCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoEncryptHardwareSecretKeyCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -81,7 +81,7 @@ pub type AndroidHostCryptoEncryptHardwareSecretKeyCallback = unsafe extern "C" f
 ) -> u32;
 
 /// The host callback for `decrypt_hardware_secret_key`.
-pub type AndroidHostCryptoDecryptHardwareSecretKeyCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoDecryptHardwareSecretKeyCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -95,7 +95,7 @@ pub type AndroidHostCryptoDecryptHardwareSecretKeyCallback = unsafe extern "C" f
 ) -> u32;
 
 /// The host callback for `compute_hardware_mac`.
-pub type AndroidHostCryptoComputeHardwareMacCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoComputeHardwareMacCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -108,7 +108,7 @@ pub type AndroidHostCryptoComputeHardwareMacCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// The host callback for `derive_hardware_shared_secret`.
-pub type AndroidHostCryptoDeriveHardwareSharedSecretCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoDeriveHardwareSharedSecretCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
@@ -119,21 +119,21 @@ pub type AndroidHostCryptoDeriveHardwareSharedSecretCallback = unsafe extern "C"
 ) -> u32;
 
 /// The host callback for `delete_hardware_key`.
-pub type AndroidHostCryptoDeleteHardwareKeyCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoDeleteHardwareKeyCallback = unsafe extern "C" fn(
     session_handle: u64,
     key_algorithm: u32,
     key_label: NativeStringRef,
 ) -> u32;
 
 /// The host callback for `import_certificate`.
-pub type AndroidHostCryptoImportCertificateCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoImportCertificateCallback = unsafe extern "C" fn(
     session_handle: u64,
     store_kind: u32,
     certificate_der: NativeSlice<u8>,
 ) -> u32;
 
 /// The host callback for `delete_certificate`.
-pub type AndroidHostCryptoDeleteCertificateCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCryptoDeleteCertificateCallback = unsafe extern "C" fn(
     session_handle: u64,
     store_kind: u32,
     certificate_der: NativeSlice<u8>,
@@ -142,7 +142,7 @@ pub type AndroidHostCryptoDeleteCertificateCallback = unsafe extern "C" fn(
 /// Callback table for Android host crypto request interop.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostCryptoCallbacks {
+pub(crate) struct AndroidHostCryptoCallbacks {
     /// The callback for `supports_hardware_key`.
     pub supports_hardware_key: Option<AndroidHostCryptoSupportsHardwareKeyCallback>,
     /// The callback for `generate_hardware_key_pair`.

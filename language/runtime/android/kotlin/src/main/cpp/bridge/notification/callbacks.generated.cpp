@@ -25,6 +25,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 /// Resolve the notification bridge methods from one runtime bridge instance.
 bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (bridge_class == nullptr) {
@@ -44,7 +112,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         post_method = env->GetMethodID(
             bridge_class,
             "notificationPost",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIIILjava/lang/String;ZLjava/lang/String;Ljava/lang/String;JLjava/lang/String;)I"
         );
     }
 
@@ -87,20 +155,64 @@ uint32_t call_notification_post(
         return HOST_STATUS_NOT_FOUND;
     }
 
-    jstring identifier_value = java_string_or_null(env, request.identifier);
     jstring title_value = java_string_or_null(env, request.title);
+    jstring subtitle_value = request.subtitle.has_value ? java_string_or_null(env, request.subtitle.value) : nullptr;
     jstring body_value = java_string_or_null(env, request.body);
+    jstring tag_value = java_string_or_null(env, request.tag);
+    jstring channel_id_value = request.channel_id.has_value ? java_string_or_null(env, request.channel_id.value) : nullptr;
+    jobject priority_value = encode_HostNotificationPriority(env, request.priority);
+    jobject badge_count_value = request.badge_count.has_value ? box_int(env, static_cast<jint>(request.badge_count.value)) : nullptr;
+    jstring sound_value = request.sound.has_value ? java_string_or_null(env, request.sound.value) : nullptr;
+    jstring category_id_value = request.category_id.has_value ? java_string_or_null(env, request.category_id.value) : nullptr;
+    jstring thread_id_value = request.thread_id.has_value ? java_string_or_null(env, request.thread_id.value) : nullptr;
+    jstring kind_value = java_string_or_null(env, request.trigger.notification_calendar_date_trigger.kind);
+    jstring time_zone_value = java_string_or_null(env, request.trigger.notification_calendar_date_trigger.calendar.time_zone);
+    jstring kind_value = java_string_or_null(env, request.trigger.notification_immediate_trigger.kind);
+    jstring kind_value = java_string_or_null(env, request.trigger.notification_time_interval_trigger.kind);
+    jstring action_id_value = request.action_id.has_value ? java_string_or_null(env, request.action_id.value) : nullptr;
 
     jint status = env->CallIntMethod(
         bridge,
         post_method,
-        identifier_value,
         title_value,
-        body_value
+        subtitle_value,
+        body_value,
+        tag_value,
+        channel_id_value,
+        priority_value,
+        badge_count_value,
+        sound_value,
+        category_id_value,
+        thread_id_value,
+        kind_value,
+        static_cast<jint>(request.trigger.notification_calendar_date_trigger.calendar.year),
+        static_cast<jint>(request.trigger.notification_calendar_date_trigger.calendar.month),
+        static_cast<jint>(request.trigger.notification_calendar_date_trigger.calendar.day),
+        static_cast<jint>(request.trigger.notification_calendar_date_trigger.calendar.hour),
+        static_cast<jint>(request.trigger.notification_calendar_date_trigger.calendar.minute),
+        static_cast<jint>(request.trigger.notification_calendar_date_trigger.calendar.second),
+        time_zone_value,
+        request.trigger.notification_calendar_date_trigger.calendar.repeats ? JNI_TRUE : JNI_FALSE,
+        kind_value,
+        kind_value,
+        static_cast<jlong>(request.trigger.notification_time_interval_trigger.interval_ns),
+        action_id_value
     );
-    if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
     if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
+    if (subtitle_value != nullptr) { env->DeleteLocalRef(subtitle_value); }
     if (body_value != nullptr) { env->DeleteLocalRef(body_value); }
+    if (tag_value != nullptr) { env->DeleteLocalRef(tag_value); }
+    if (channel_id_value != nullptr) { env->DeleteLocalRef(channel_id_value); }
+    if (priority_value != nullptr) { env->DeleteLocalRef(priority_value); }
+    if (badge_count_value != nullptr) { env->DeleteLocalRef(badge_count_value); }
+    if (sound_value != nullptr) { env->DeleteLocalRef(sound_value); }
+    if (category_id_value != nullptr) { env->DeleteLocalRef(category_id_value); }
+    if (thread_id_value != nullptr) { env->DeleteLocalRef(thread_id_value); }
+    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
+    if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
+    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
+    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
+    if (action_id_value != nullptr) { env->DeleteLocalRef(action_id_value); }
     env->DeleteLocalRef(bridge);
 
     if (env->ExceptionCheck()) {

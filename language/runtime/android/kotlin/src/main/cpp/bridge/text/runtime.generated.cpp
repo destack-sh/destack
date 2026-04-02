@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "../loader.h"
 #include "callbacks.generated.h"
 #include "runtime.generated.h"
 
@@ -141,9 +141,15 @@ AndroidHostTextCallbacks make_text_callbacks() {
 }
 
 /// Deliver one text-session state event into one runtime session.
-RuntimeStatus send_text_input_state(
+RuntimeStatus send_notify_text_input_state(
     uint64_t session_handle,
     HostTextInputEvent event
 ) {
-    return destack_host_android_notify_text_input_state(session_handle, event);
+    RuntimeBindings bindings = {};
+    RuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));
+    if (status.code != HOST_STATUS_OK) {
+        return status;
+    }
+
+    return bindings.notify_text_input_state(session_handle, event);
 }

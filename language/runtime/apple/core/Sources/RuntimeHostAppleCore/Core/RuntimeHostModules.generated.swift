@@ -2,13 +2,88 @@
 
 import Foundation
 
+/// The background host surface attached to one Apple runtime host.
+@MainActor
+public final class BackgroundHost: BackgroundRequests, BackgroundEvents {
+  private var requests: any BackgroundRequests
+  private let events: any BackgroundEvents
+
+  /// Create one host surface.
+  public init(
+    requests: any BackgroundRequests,
+    events: any BackgroundEvents
+  ) {
+    self.requests = requests
+    self.events = events
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any BackgroundRequests
+  ) {
+    self.requests = requests
+  }
+
+  /// Read one host background scheduler status.
+  public func status() -> RuntimeHostBackgroundStatusResponse {
+    return requests.status()
+  }
+
+  /// List registered host background tasks.
+  public func list() -> RuntimeHostBackgroundListResponse {
+    return requests.list()
+  }
+
+  /// Register one host background task.
+  public func registerTask(
+    _ request: RuntimeHostBackgroundTaskOptions
+  ) -> UInt32 {
+    return requests.registerTask(request)
+  }
+
+  /// Unregister one host background task.
+  public func unregister(
+    _ request: RuntimeHostBackgroundUnregisterRequest
+  ) -> UInt32 {
+    return requests.unregister(request)
+  }
+
+  /// Trigger one host background task in test mode.
+  public func triggerTest(
+    _ request: RuntimeHostBackgroundTriggerTestRequest
+  ) -> RuntimeHostBackgroundTriggerTestResponse {
+    return requests.triggerTest(request)
+  }
+
+  /// Complete one host background task execution.
+  public func complete(
+    _ request: RuntimeHostBackgroundCompleteRequest
+  ) -> UInt32 {
+    return requests.complete(request)
+  }
+
+  /// Deliver one background event into one runtime session.
+  public func notifyBackgroundEvent(
+    _ event: RuntimeHostBackgroundEvent
+  ) {
+    events.notifyBackgroundEvent(event)
+  }
+}
+
 /// The calendar host surface attached to one Apple runtime host.
 @MainActor
 public final class CalendarHost: CalendarRequests {
-  private let requests: any CalendarRequests
+  private var requests: any CalendarRequests
 
   /// Create one host surface.
   public init(requests: any CalendarRequests) {
+    self.requests = requests
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any CalendarRequests
+  ) {
     self.requests = requests
   }
 
@@ -57,10 +132,17 @@ public final class CalendarHost: CalendarRequests {
 /// The contact host surface attached to one Apple runtime host.
 @MainActor
 public final class ContactHost: ContactRequests {
-  private let requests: any ContactRequests
+  private var requests: any ContactRequests
 
   /// Create one host surface.
   public init(requests: any ContactRequests) {
+    self.requests = requests
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any ContactRequests
+  ) {
     self.requests = requests
   }
 
@@ -112,7 +194,7 @@ public final class ContactHost: ContactRequests {
 /// The document host surface attached to one Apple runtime host.
 @MainActor
 public final class DocumentHost: DocumentRequests, DocumentEvents {
-  private let requests: any DocumentRequests
+  private var requests: any DocumentRequests
   private let events: any DocumentEvents
 
   /// Create one host surface.
@@ -124,6 +206,13 @@ public final class DocumentHost: DocumentRequests, DocumentEvents {
     self.events = events
   }
 
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any DocumentRequests
+  ) {
+    self.requests = requests
+  }
+
   /// Submit one host document request.
   public func pick(
     _ request: RuntimeHostDocumentRequest
@@ -133,17 +222,16 @@ public final class DocumentHost: DocumentRequests, DocumentEvents {
 
   /// Deliver one document result into one runtime session.
   public func notifyDocumentResult(
-    _ requestID: HostRequestID,
-    documents: [RuntimeHostDocumentDescriptor]
+    _ result: RuntimeHostDocumentResult
   ) {
-    events.notifyDocumentResult(requestID, documents: documents)
+    events.notifyDocumentResult(result)
   }
 }
 
 /// The intent host surface attached to one Apple runtime host.
 @MainActor
 public final class IntentHost: IntentRequests, IntentEvents {
-  private let requests: any IntentRequests
+  private var requests: any IntentRequests
   private let events: any IntentEvents
 
   /// Create one host surface.
@@ -153,6 +241,13 @@ public final class IntentHost: IntentRequests, IntentEvents {
   ) {
     self.requests = requests
     self.events = events
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any IntentRequests
+  ) {
+    self.requests = requests
   }
 
   /// Query whether the host can open one URL route.
@@ -203,7 +298,7 @@ public final class IntentHost: IntentRequests, IntentEvents {
 /// The location host surface attached to one Apple runtime host.
 @MainActor
 public final class LocationHost: LocationRequests, LocationEvents {
-  private let requests: any LocationRequests
+  private var requests: any LocationRequests
   private let events: any LocationEvents
 
   /// Create one host surface.
@@ -215,20 +310,27 @@ public final class LocationHost: LocationRequests, LocationEvents {
     self.events = events
   }
 
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any LocationRequests
+  ) {
+    self.requests = requests
+  }
+
   /// Read whether location services are enabled.
-  public func servicesEnabled() -> RuntimeHostLocationServicesResponse {
+  public func servicesEnabled() -> RuntimeLocationServicesResponse {
     return requests.servicesEnabled()
   }
 
   /// Read one last-known location sample.
-  public func lastKnown() -> RuntimeHostLocationLastKnownResponse {
+  public func lastKnown() -> RuntimeLocationLastKnownResponse {
     return requests.lastKnown()
   }
 
   /// Open one location watch.
   public func watchOpen(
     _ watchID: String,
-    options: RuntimeHostLocationWatchOptions
+    options: RuntimeLocationWatchOptions
   ) -> UInt32 {
     return requests.watchOpen(watchID, options: options)
   }
@@ -243,7 +345,7 @@ public final class LocationHost: LocationRequests, LocationEvents {
   /// Deliver one location sample into one runtime session.
   public func notifyLocationSample(
     _ watchID: String,
-    sample: RuntimeHostLocationSample
+    sample: RuntimeLocationSample
   ) {
     events.notifyLocationSample(watchID, sample: sample)
   }
@@ -252,10 +354,17 @@ public final class LocationHost: LocationRequests, LocationEvents {
 /// The media host surface attached to one Apple runtime host.
 @MainActor
 public final class MediaHost: MediaRequests {
-  private let requests: any MediaRequests
+  private var requests: any MediaRequests
 
   /// Create one host surface.
   public init(requests: any MediaRequests) {
+    self.requests = requests
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any MediaRequests
+  ) {
     self.requests = requests
   }
 
@@ -291,7 +400,7 @@ public final class MediaHost: MediaRequests {
 /// The notification host surface attached to one Apple runtime host.
 @MainActor
 public final class NotificationHost: NotificationRequests, NotificationEvents {
-  private let requests: any NotificationRequests
+  private var requests: any NotificationRequests
   private let events: any NotificationEvents
 
   /// Create one host surface.
@@ -301,6 +410,13 @@ public final class NotificationHost: NotificationRequests, NotificationEvents {
   ) {
     self.requests = requests
     self.events = events
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any NotificationRequests
+  ) {
+    self.requests = requests
   }
 
   /// Post one host notification request.
@@ -333,7 +449,7 @@ public final class NotificationHost: NotificationRequests, NotificationEvents {
 /// The permission host surface attached to one Apple runtime host.
 @MainActor
 public final class PermissionHost: PermissionRequests, PermissionEvents {
-  private let requests: any PermissionRequests
+  private var requests: any PermissionRequests
   private let events: any PermissionEvents
 
   /// Create one host surface.
@@ -343,6 +459,13 @@ public final class PermissionHost: PermissionRequests, PermissionEvents {
   ) {
     self.requests = requests
     self.events = events
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any PermissionRequests
+  ) {
+    self.requests = requests
   }
 
   /// Submit one host permission request.
@@ -362,5 +485,63 @@ public final class PermissionHost: PermissionRequests, PermissionEvents {
     _ event: RuntimeHostPermissionEvent
   ) {
     events.notifyPermissionResult(event)
+  }
+}
+
+/// The text host surface attached to one Apple runtime host.
+@MainActor
+public final class TextHost: TextRequests, TextEvents {
+  private var requests: any TextRequests
+  private let events: any TextEvents
+
+  /// Create one host surface.
+  public init(
+    requests: any TextRequests,
+    events: any TextEvents
+  ) {
+    self.requests = requests
+    self.events = events
+  }
+
+  /// Replace the request surface for this host.
+  func updateRequests(
+    _ requests: any TextRequests
+  ) {
+    self.requests = requests
+  }
+
+  /// Open one text session through one attached host.
+  public func open(
+    _ request: RuntimeHostTextInputOpenRequest
+  ) -> UInt32 {
+    return requests.open(request)
+  }
+
+  /// Close one text session through one attached host.
+  public func close(
+    _ request: RuntimeHostTextInputCloseRequest
+  ) -> UInt32 {
+    return requests.close(request)
+  }
+
+  /// Update one text geometry payload through one attached host.
+  public func setGeometry(
+    _ request: RuntimeHostTextInputGeometryRequest
+  ) -> UInt32 {
+    return requests.setGeometry(request)
+  }
+
+  /// Update one text state payload through one attached host.
+  public func setState(
+    _ request: RuntimeHostTextInputStateRequest
+  ) -> UInt32 {
+    return requests.setState(request)
+  }
+
+  /// Deliver one text-session state event into one runtime session.
+  public func notifyTextInputState(
+    _ event: RuntimeHostTextInputEvent
+  ) {
+    events.notifyTextInputState(event)
   }
 }

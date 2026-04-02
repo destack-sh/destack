@@ -8,15 +8,15 @@ import RuntimeHostAppleCore
 typealias CalendarListCallback =
   @convention(c) (
     UInt64,
-    UnsafeMutablePointer<DestackRustCalendarListResponse>?
+    UnsafeMutablePointer<DestackRustHostCalendarListResponse>?
   ) -> UInt32
 
 /// List the host calendar events matching one query.
 typealias CalendarEventListCallback =
   @convention(c) (
     UInt64,
-    DestackRustCalendarEventQuery,
-    UnsafeMutablePointer<DestackRustCalendarEventListResponse>?
+    DestackRustHostCalendarEventQuery,
+    UnsafeMutablePointer<DestackRustHostCalendarEventListResponse>?
   ) -> UInt32
 
 /// Read one host calendar event by stable identifier.
@@ -24,15 +24,15 @@ typealias CalendarEventReadCallback =
   @convention(c) (
     UInt64,
     DestackRustStringRef,
-    UnsafeMutablePointer<DestackRustCalendarEventReadResponse>?
+    UnsafeMutablePointer<DestackRustHostCalendarEventReadResponse>?
   ) -> UInt32
 
 /// Create one host calendar event from one draft payload.
 typealias CalendarEventCreateCallback =
   @convention(c) (
     UInt64,
-    DestackRustCalendarEventDraft,
-    UnsafeMutablePointer<DestackRustCalendarEventCreateResponse>?
+    DestackRustHostCalendarEventDraft,
+    UnsafeMutablePointer<DestackRustHostCalendarEventCreateResponse>?
   ) -> UInt32
 
 /// Update one host calendar event by stable identifier.
@@ -40,7 +40,7 @@ typealias CalendarEventUpdateCallback =
   @convention(c) (
     UInt64,
     DestackRustStringRef,
-    DestackRustCalendarEventDraft
+    DestackRustHostCalendarEventDraft
   ) -> UInt32
 
 /// Delete one host calendar event by stable identifier.
@@ -133,7 +133,7 @@ func makeCalendarCallbacks() -> IosHostCalendarCallbacks {
 /// Handle one runtime callback asking to list the readable host calendars.
 func handleCalendarList(
   sessionHandle: UInt64,
-  response: UnsafeMutablePointer<DestackRustCalendarListResponse>?
+  response: UnsafeMutablePointer<DestackRustHostCalendarListResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -160,8 +160,8 @@ func handleCalendarList(
 /// Handle one runtime callback asking to list the host calendar events matching one query.
 func handleCalendarEventList(
   sessionHandle: UInt64,
-  query: DestackRustCalendarEventQuery,
-  response: UnsafeMutablePointer<DestackRustCalendarEventListResponse>?
+  query: DestackRustHostCalendarEventQuery,
+  response: UnsafeMutablePointer<DestackRustHostCalendarEventListResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -197,7 +197,7 @@ func handleCalendarEventList(
 func handleCalendarEventRead(
   sessionHandle: UInt64,
   id: DestackRustStringRef,
-  response: UnsafeMutablePointer<DestackRustCalendarEventReadResponse>?
+  response: UnsafeMutablePointer<DestackRustHostCalendarEventReadResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -216,7 +216,7 @@ func handleCalendarEventRead(
     ) { bridge, runtimeHost in
       bridge.calendarEventRead(
         runtimeHost: runtimeHost,
-        decodedId
+        id: decodedId
       )
     }
   }
@@ -232,8 +232,8 @@ func handleCalendarEventRead(
 /// Handle one runtime callback asking to create one host calendar event from one draft payload.
 func handleCalendarEventCreate(
   sessionHandle: UInt64,
-  draft: DestackRustCalendarEventDraft,
-  response: UnsafeMutablePointer<DestackRustCalendarEventCreateResponse>?
+  draft: DestackRustHostCalendarEventDraft,
+  response: UnsafeMutablePointer<DestackRustHostCalendarEventCreateResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -269,7 +269,7 @@ func handleCalendarEventCreate(
 func handleCalendarEventUpdate(
   sessionHandle: UInt64,
   id: DestackRustStringRef,
-  draft: DestackRustCalendarEventDraft
+  draft: DestackRustHostCalendarEventDraft
 ) -> UInt32 {
   let decodedId: String
   do {
@@ -292,7 +292,7 @@ func handleCalendarEventUpdate(
     ) { bridge, runtimeHost in
       bridge.calendarEventUpdate(
         runtimeHost: runtimeHost,
-        decodedId,
+        id: decodedId,
         draft: decodedDraft
       )
     }
@@ -318,7 +318,7 @@ func handleCalendarEventDelete(
     ) { bridge, runtimeHost in
       bridge.calendarEventDelete(
         runtimeHost: runtimeHost,
-        decodedId
+        id: decodedId
       )
     }
   }
@@ -421,9 +421,9 @@ func currentCalendarBridgeArena() -> CalendarBridgeArena {
   return arena
 }
 
-/// Build one Swift CalendarAvailability from one bridge raw value.
+/// Build one Swift HostCalendarAvailability from one bridge raw value.
 func decodeBridgeHostCalendarAvailability(
-  _ value: DestackRustCalendarAvailability
+  _ value: DestackRustHostCalendarAvailability
 ) throws -> RuntimeHostCalendarAvailability {
   guard let value = RuntimeHostCalendarAvailability(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -432,9 +432,9 @@ func decodeBridgeHostCalendarAvailability(
   return value
 }
 
-/// Build one Swift CalendarRecurrenceFrequency from one bridge raw value.
+/// Build one Swift HostCalendarRecurrenceFrequency from one bridge raw value.
 func decodeBridgeHostCalendarRecurrenceFrequency(
-  _ value: DestackRustCalendarRecurrenceFrequency
+  _ value: DestackRustHostCalendarRecurrenceFrequency
 ) throws -> RuntimeHostCalendarRecurrenceFrequency {
   guard let value = RuntimeHostCalendarRecurrenceFrequency(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -443,9 +443,9 @@ func decodeBridgeHostCalendarRecurrenceFrequency(
   return value
 }
 
-/// Build one Swift CalendarParticipantStatus from one bridge raw value.
+/// Build one Swift HostCalendarParticipantStatus from one bridge raw value.
 func decodeBridgeHostCalendarParticipantStatus(
-  _ value: DestackRustCalendarParticipantStatus
+  _ value: DestackRustHostCalendarParticipantStatus
 ) throws -> RuntimeHostCalendarParticipantStatus {
   guard let value = RuntimeHostCalendarParticipantStatus(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -454,20 +454,9 @@ func decodeBridgeHostCalendarParticipantStatus(
   return value
 }
 
-/// Build one Swift CalendarReminderKind from one bridge raw value.
-func decodeBridgeHostCalendarReminderKind(
-  _ value: DestackRustCalendarReminderKind
-) throws -> RuntimeHostCalendarReminderKind {
-  guard let value = RuntimeHostCalendarReminderKind(rawValue: .init(value)) else {
-    throw BridgeStringError.invalidStringSlice
-  }
-
-  return value
-}
-
-/// Build one Swift CalendarEventQuery from one bridge payload.
+/// Build one Swift HostCalendarEventQuery from one bridge payload.
 func decodeBridgeHostCalendarEventQuery(
-  _ value: DestackRustCalendarEventQuery
+  _ value: DestackRustHostCalendarEventQuery
 ) throws -> RuntimeHostCalendarEventQuery {
   RuntimeHostCalendarEventQuery(
     calendarIds:
@@ -477,9 +466,7 @@ func decodeBridgeHostCalendarEventQuery(
     endUnixNs:
       value.end_unix_ns,
     limit:
-      value.has_limit
-      ? value.limit
-      : nil,
+      (value.limit.has_value ? Optional(value.limit.value) : nil),
     includeCanceled:
       value.include_canceled,
     includeDeclined:
@@ -489,9 +476,9 @@ func decodeBridgeHostCalendarEventQuery(
   )
 }
 
-/// Build one Swift CalendarEventDraft from one bridge payload.
+/// Build one Swift HostCalendarEventDraft from one bridge payload.
 func decodeBridgeHostCalendarEventDraft(
-  _ value: DestackRustCalendarEventDraft
+  _ value: DestackRustHostCalendarEventDraft
 ) throws -> RuntimeHostCalendarEventDraft {
   RuntimeHostCalendarEventDraft(
     calendarID:
@@ -499,13 +486,9 @@ func decodeBridgeHostCalendarEventDraft(
     title:
       try tryDecodeNativeString(value.title),
     notes:
-      value.has_notes
-      ? try tryDecodeNativeString(value.notes)
-      : nil,
+      (value.notes.has_value ? Optional(try tryDecodeNativeString(value.notes.value)) : nil),
     location:
-      value.has_location
-      ? try tryDecodeNativeString(value.location)
-      : nil,
+      (value.location.has_value ? Optional(try tryDecodeNativeString(value.location.value)) : nil),
     startUnixNs:
       value.start_unix_ns,
     endUnixNs:
@@ -513,33 +496,23 @@ func decodeBridgeHostCalendarEventDraft(
     allDay:
       value.all_day,
     timeZone:
-      value.has_time_zone
-      ? try tryDecodeNativeString(value.time_zone)
-      : nil,
+      (value.time_zone.has_value ? Optional(try tryDecodeNativeString(value.time_zone.value)) : nil),
     availability:
       try decodeBridgeHostCalendarAvailability(value.availability),
     url:
-      value.has_url
-      ? try tryDecodeNativeString(value.url)
-      : nil,
+      (value.url.has_value ? Optional(try tryDecodeNativeString(value.url.value)) : nil),
     recurrenceRule:
-      value.has_recurrence_rule
-      ? try decodeBridgeHostCalendarRecurrenceRule(value.recurrence_rule)
-      : nil,
+      (value.recurrence_rule.has_value ? Optional(try decodeBridgeHostCalendarRecurrenceRule(value.recurrence_rule.value)) : nil),
     attendees:
-      value.has_attendees
-      ? try decodeBridgeHostCalendarAttendeeSlice(value.attendees)
-      : nil,
+      (value.attendees.has_value ? Optional(try decodeBridgeHostCalendarAttendeeSlice(value.attendees.value)) : nil),
     reminders:
-      value.has_reminders
-      ? try decodeBridgeHostCalendarReminderSlice(value.reminders)
-      : nil
+      (value.reminders.has_value ? Optional(try decodeBridgeHostCalendarReminderSlice(value.reminders.value)) : nil)
   )
 }
 
-/// Build one Swift CalendarRecurrenceRule from one bridge payload.
+/// Build one Swift HostCalendarRecurrenceRule from one bridge payload.
 func decodeBridgeHostCalendarRecurrenceRule(
-  _ value: DestackRustCalendarRecurrenceRule
+  _ value: DestackRustHostCalendarRecurrenceRule
 ) throws -> RuntimeHostCalendarRecurrenceRule {
   RuntimeHostCalendarRecurrenceRule(
     frequency:
@@ -547,13 +520,9 @@ func decodeBridgeHostCalendarRecurrenceRule(
     interval:
       value.interval,
     count:
-      value.has_count
-      ? value.count
-      : nil,
+      (value.count.has_value ? Optional(value.count.value) : nil),
     untilUnixNs:
-      value.has_until_unix_ns
-      ? value.until_unix_ns
-      : nil,
+      (value.until_unix_ns.has_value ? Optional(value.until_unix_ns.value) : nil),
     byWeekDays:
       decodeBridgeU8Slice(value.by_week_days),
     byWeekdayOrdinals:
@@ -571,37 +540,29 @@ func decodeBridgeHostCalendarRecurrenceRule(
   )
 }
 
-/// Build one Swift CalendarRecurrenceWeekday from one bridge payload.
+/// Build one Swift HostCalendarRecurrenceWeekday from one bridge payload.
 func decodeBridgeHostCalendarRecurrenceWeekday(
-  _ value: DestackRustCalendarRecurrenceWeekday
+  _ value: DestackRustHostCalendarRecurrenceWeekday
 ) -> RuntimeHostCalendarRecurrenceWeekday {
   RuntimeHostCalendarRecurrenceWeekday(
     day:
       value.day,
     weekNumber:
-      value.has_week_number
-      ? value.week_number
-      : nil
+      (value.week_number.has_value ? Optional(value.week_number.value) : nil)
   )
 }
 
-/// Build one Swift CalendarAttendee from one bridge payload.
+/// Build one Swift HostCalendarAttendee from one bridge payload.
 func decodeBridgeHostCalendarAttendee(
-  _ value: DestackRustCalendarAttendee
+  _ value: DestackRustHostCalendarAttendee
 ) throws -> RuntimeHostCalendarAttendee {
   RuntimeHostCalendarAttendee(
     id:
-      value.has_id
-      ? try tryDecodeNativeString(value.id)
-      : nil,
+      (value.id.has_value ? Optional(try tryDecodeNativeString(value.id.value)) : nil),
     name:
-      value.has_name
-      ? try tryDecodeNativeString(value.name)
-      : nil,
+      (value.name.has_value ? Optional(try tryDecodeNativeString(value.name.value)) : nil),
     email:
-      value.has_email
-      ? try tryDecodeNativeString(value.email)
-      : nil,
+      (value.email.has_value ? Optional(try tryDecodeNativeString(value.email.value)) : nil),
     optional:
       value.optional,
     organizer:
@@ -609,80 +570,6 @@ func decodeBridgeHostCalendarAttendee(
     responseStatus:
       try decodeBridgeHostCalendarParticipantStatus(value.response_status)
   )
-}
-
-/// Build one Swift CalendarReminder from one bridge payload.
-func decodeBridgeHostCalendarReminder(
-  _ value: DestackRustCalendarReminder
-) throws -> RuntimeHostCalendarReminder {
-  RuntimeHostCalendarReminder(
-    kind:
-      try decodeBridgeHostCalendarReminderKind(value.kind),
-    absoluteUnixNs:
-      value.absolute_unix_ns,
-    minutesBeforeStart:
-      Int(value.minutes_before_start)
-  )
-}
-
-/// Build one Swift CalendarAttendee slice from one bridge payload.
-func decodeBridgeHostCalendarAttendeeSlice(
-  _ value: DestackRustCalendarAttendeeSlice
-) throws -> [RuntimeHostCalendarAttendee] {
-  if value.len == 0 {
-    return []
-  }
-
-  guard let data = value.data else {
-    throw BridgeStringError.invalidStringSlice
-  }
-
-  let buffer = UnsafeBufferPointer(
-    start: data,
-    count: Int(value.len)
-  )
-
-  return try buffer.map { try decodeBridgeHostCalendarAttendee($0) }
-}
-
-/// Build one Swift CalendarRecurrenceWeekday slice from one bridge payload.
-func decodeBridgeHostCalendarRecurrenceWeekdaySlice(
-  _ value: DestackRustCalendarRecurrenceWeekdaySlice
-) throws -> [RuntimeHostCalendarRecurrenceWeekday] {
-  if value.len == 0 {
-    return []
-  }
-
-  guard let data = value.data else {
-    throw BridgeStringError.invalidStringSlice
-  }
-
-  let buffer = UnsafeBufferPointer(
-    start: data,
-    count: Int(value.len)
-  )
-
-  return buffer.map { decodeBridgeHostCalendarRecurrenceWeekday($0) }
-}
-
-/// Build one Swift CalendarReminder slice from one bridge payload.
-func decodeBridgeHostCalendarReminderSlice(
-  _ value: DestackRustCalendarReminderSlice
-) throws -> [RuntimeHostCalendarReminder] {
-  if value.len == 0 {
-    return []
-  }
-
-  guard let data = value.data else {
-    throw BridgeStringError.invalidStringSlice
-  }
-
-  let buffer = UnsafeBufferPointer(
-    start: data,
-    count: Int(value.len)
-  )
-
-  return try buffer.map { try decodeBridgeHostCalendarReminder($0) }
 }
 
 /// Decode one Swift UInt8 slice from one bridge payload.
@@ -718,116 +605,79 @@ func decodeBridgeI16Slice(_ value: DestackRustI16Slice) -> [Int16] {
   }
 }
 
-/// Encode one Swift CalendarAccess as one bridge raw value.
+/// Encode one Swift HostCalendarAccess as one bridge raw value.
 func encodeBridgeHostCalendarAccess(
   _ value: RuntimeHostCalendarAccess
-) -> DestackRustCalendarAccess {
+) -> DestackRustHostCalendarAccess {
   value.rawValue
 }
 
-/// Encode one Swift CalendarAvailability as one bridge raw value.
+/// Encode one Swift HostCalendarAvailability as one bridge raw value.
 func encodeBridgeHostCalendarAvailability(
   _ value: RuntimeHostCalendarAvailability
-) -> DestackRustCalendarAvailability {
+) -> DestackRustHostCalendarAvailability {
   value.rawValue
 }
 
-/// Encode one Swift CalendarParticipantStatus as one bridge raw value.
+/// Encode one Swift HostCalendarParticipantStatus as one bridge raw value.
 func encodeBridgeHostCalendarParticipantStatus(
   _ value: RuntimeHostCalendarParticipantStatus
-) -> DestackRustCalendarParticipantStatus {
+) -> DestackRustHostCalendarParticipantStatus {
   value.rawValue
 }
 
-/// Encode one Swift CalendarRecurrenceFrequency as one bridge raw value.
+/// Encode one Swift HostCalendarRecurrenceFrequency as one bridge raw value.
 func encodeBridgeHostCalendarRecurrenceFrequency(
   _ value: RuntimeHostCalendarRecurrenceFrequency
-) -> DestackRustCalendarRecurrenceFrequency {
+) -> DestackRustHostCalendarRecurrenceFrequency {
   value.rawValue
 }
 
-/// Encode one Swift CalendarReminderKind as one bridge raw value.
-func encodeBridgeHostCalendarReminderKind(
-  _ value: RuntimeHostCalendarReminderKind
-) -> DestackRustCalendarReminderKind {
-  value.rawValue
-}
-
-/// Encode one Swift CalendarRecurrenceWeekday as one bridge payload.
+/// Encode one Swift HostCalendarRecurrenceWeekday as one bridge payload.
 func encodeBridgeHostCalendarRecurrenceWeekday(
   _ value: RuntimeHostCalendarRecurrenceWeekday,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarRecurrenceWeekday {
-  DestackRustCalendarRecurrenceWeekday(
+) -> DestackRustHostCalendarRecurrenceWeekday {
+  DestackRustHostCalendarRecurrenceWeekday(
     day:
       value.day,
-    has_week_number: value.weekNumber != nil,
     week_number:
-      value.weekNumber ?? 0
+      ({ if let unwrappedValue = value.weekNumber { return DestackRustOptionalI8(has_value: true, value: unwrappedValue) } return DestackRustOptionalI8(has_value: false, value: 0) }())
   )
 }
 
 func encodeBridgeHostCalendarRecurrenceWeekday(
   _ value: RuntimeHostCalendarRecurrenceWeekday
-) -> DestackRustCalendarRecurrenceWeekday {
+) -> DestackRustHostCalendarRecurrenceWeekday {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarRecurrenceWeekday(value, arena: arena)
 }
 
-/// Encode one Swift CalendarRecurrenceWeekday as one C bridge payload.
+/// Encode one Swift HostCalendarRecurrenceWeekday as one C bridge payload.
 func withNativeHostCalendarRecurrenceWeekday<T>(
   _ value: RuntimeHostCalendarRecurrenceWeekday,
-  body: (DestackRustCalendarRecurrenceWeekday) -> T
+  body: (DestackRustHostCalendarRecurrenceWeekday) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarRecurrenceWeekday(value, arena: arena))
 }
 
-/// Encode one Swift CalendarRecurrenceWeekday slice as one bridge payload.
-func encodeBridgeHostCalendarRecurrenceWeekdaySlice(
-  _ values: [RuntimeHostCalendarRecurrenceWeekday],
-  arena: CalendarBridgeArena
-) -> DestackRustCalendarRecurrenceWeekdaySlice {
-  let data = arena.makeArray(count: values.count) { buffer in
-    for (index, value) in values.enumerated() {
-      buffer[index] = encodeBridgeHostCalendarRecurrenceWeekday(value, arena: arena)
-    }
-  }
-
-  return DestackRustCalendarRecurrenceWeekdaySlice(
-    data: data,
-    len: UInt32(values.count)
-  )
-}
-
-/// Encode one Swift CalendarRecurrenceWeekday slice as one C bridge payload.
-func withNativeHostCalendarRecurrenceWeekdaySlice<T>(
-  _ values: [RuntimeHostCalendarRecurrenceWeekday],
-  body: (DestackRustCalendarRecurrenceWeekdaySlice) -> T
-) -> T {
-  let arena = currentCalendarBridgeArena()
-
-  return body(encodeBridgeHostCalendarRecurrenceWeekdaySlice(values, arena: arena))
-}
-
-/// Encode one Swift CalendarRecurrenceRule as one bridge payload.
+/// Encode one Swift HostCalendarRecurrenceRule as one bridge payload.
 func encodeBridgeHostCalendarRecurrenceRule(
   _ value: RuntimeHostCalendarRecurrenceRule,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarRecurrenceRule {
-  DestackRustCalendarRecurrenceRule(
+) -> DestackRustHostCalendarRecurrenceRule {
+  DestackRustHostCalendarRecurrenceRule(
     frequency:
       encodeBridgeHostCalendarRecurrenceFrequency(value.frequency),
     interval:
       UInt32(value.interval),
-    has_count: value.count != nil,
     count:
-      value.count ?? 0,
-    has_until_unix_ns: value.untilUnixNs != nil,
+      ({ if let unwrappedValue = value.count { return DestackRustOptionalU32(has_value: true, value: UInt32(unwrappedValue)) } return DestackRustOptionalU32(has_value: false, value: 0) }()),
     until_unix_ns:
-      value.untilUnixNs ?? 0,
+      ({ if let unwrappedValue = value.untilUnixNs { return DestackRustOptionalU64(has_value: true, value: unwrappedValue) } return DestackRustOptionalU64(has_value: false, value: 0) }()),
     by_week_days:
       encodeBridgeU8Slice(value.byWeekDays, arena: arena),
     by_weekday_ordinals:
@@ -847,40 +697,34 @@ func encodeBridgeHostCalendarRecurrenceRule(
 
 func encodeBridgeHostCalendarRecurrenceRule(
   _ value: RuntimeHostCalendarRecurrenceRule
-) -> DestackRustCalendarRecurrenceRule {
+) -> DestackRustHostCalendarRecurrenceRule {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarRecurrenceRule(value, arena: arena)
 }
 
-/// Encode one Swift CalendarRecurrenceRule as one C bridge payload.
+/// Encode one Swift HostCalendarRecurrenceRule as one C bridge payload.
 func withNativeHostCalendarRecurrenceRule<T>(
   _ value: RuntimeHostCalendarRecurrenceRule,
-  body: (DestackRustCalendarRecurrenceRule) -> T
+  body: (DestackRustHostCalendarRecurrenceRule) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarRecurrenceRule(value, arena: arena))
 }
 
-/// Encode one Swift CalendarAttendee as one bridge payload.
+/// Encode one Swift HostCalendarAttendee as one bridge payload.
 func encodeBridgeHostCalendarAttendee(
   _ value: RuntimeHostCalendarAttendee,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarAttendee {
-  DestackRustCalendarAttendee(
-    has_id: value.id != nil,
+) -> DestackRustHostCalendarAttendee {
+  DestackRustHostCalendarAttendee(
     id:
-      value.id.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_name: value.name != nil,
+      ({ if let unwrappedValue = value.id { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     name:
-      value.name.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_email: value.email != nil,
+      ({ if let unwrappedValue = value.name { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     email:
-      value.email.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
+      ({ if let unwrappedValue = value.email { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     optional:
       value.optional,
     organizer:
@@ -892,125 +736,98 @@ func encodeBridgeHostCalendarAttendee(
 
 func encodeBridgeHostCalendarAttendee(
   _ value: RuntimeHostCalendarAttendee
-) -> DestackRustCalendarAttendee {
+) -> DestackRustHostCalendarAttendee {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarAttendee(value, arena: arena)
 }
 
-/// Encode one Swift CalendarAttendee as one C bridge payload.
+/// Encode one Swift HostCalendarAttendee as one C bridge payload.
 func withNativeHostCalendarAttendee<T>(
   _ value: RuntimeHostCalendarAttendee,
-  body: (DestackRustCalendarAttendee) -> T
+  body: (DestackRustHostCalendarAttendee) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarAttendee(value, arena: arena))
 }
 
-/// Encode one Swift CalendarAttendee slice as one bridge payload.
-func encodeBridgeHostCalendarAttendeeSlice(
-  _ values: [RuntimeHostCalendarAttendee],
+/// Encode one Swift HostCalendarAbsoluteReminder as one bridge payload.
+func encodeBridgeHostCalendarAbsoluteReminder(
+  _ value: RuntimeHostCalendarAbsoluteReminder,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarAttendeeSlice {
-  let data = arena.makeArray(count: values.count) { buffer in
-    for (index, value) in values.enumerated() {
-      buffer[index] = encodeBridgeHostCalendarAttendee(value, arena: arena)
-    }
-  }
-
-  return DestackRustCalendarAttendeeSlice(
-    data: data,
-    len: UInt32(values.count)
+) -> DestackRustHostCalendarAbsoluteReminder {
+  DestackRustHostCalendarAbsoluteReminder(
+    kind:
+      arena.makeStringRef(value.kind),
+    absolute_unix_ns:
+      value.absoluteUnixNs
   )
 }
 
-/// Encode one Swift CalendarAttendee slice as one C bridge payload.
-func withNativeHostCalendarAttendeeSlice<T>(
-  _ values: [RuntimeHostCalendarAttendee],
-  body: (DestackRustCalendarAttendeeSlice) -> T
+func encodeBridgeHostCalendarAbsoluteReminder(
+  _ value: RuntimeHostCalendarAbsoluteReminder
+) -> DestackRustHostCalendarAbsoluteReminder {
+  let arena = currentCalendarBridgeArena()
+
+  return encodeBridgeHostCalendarAbsoluteReminder(value, arena: arena)
+}
+
+/// Encode one Swift HostCalendarAbsoluteReminder as one C bridge payload.
+func withNativeHostCalendarAbsoluteReminder<T>(
+  _ value: RuntimeHostCalendarAbsoluteReminder,
+  body: (DestackRustHostCalendarAbsoluteReminder) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
-  return body(encodeBridgeHostCalendarAttendeeSlice(values, arena: arena))
+  return body(encodeBridgeHostCalendarAbsoluteReminder(value, arena: arena))
 }
 
-/// Encode one Swift CalendarReminder as one bridge payload.
-func encodeBridgeHostCalendarReminder(
-  _ value: RuntimeHostCalendarReminder,
+/// Encode one Swift HostCalendarRelativeReminder as one bridge payload.
+func encodeBridgeHostCalendarRelativeReminder(
+  _ value: RuntimeHostCalendarRelativeReminder,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarReminder {
-  DestackRustCalendarReminder(
+) -> DestackRustHostCalendarRelativeReminder {
+  DestackRustHostCalendarRelativeReminder(
     kind:
-      encodeBridgeHostCalendarReminderKind(value.kind),
-    absolute_unix_ns:
-      value.absoluteUnixNs,
+      arena.makeStringRef(value.kind),
     minutes_before_start:
       Int32(value.minutesBeforeStart)
   )
 }
 
-func encodeBridgeHostCalendarReminder(
-  _ value: RuntimeHostCalendarReminder
-) -> DestackRustCalendarReminder {
+func encodeBridgeHostCalendarRelativeReminder(
+  _ value: RuntimeHostCalendarRelativeReminder
+) -> DestackRustHostCalendarRelativeReminder {
   let arena = currentCalendarBridgeArena()
 
-  return encodeBridgeHostCalendarReminder(value, arena: arena)
+  return encodeBridgeHostCalendarRelativeReminder(value, arena: arena)
 }
 
-/// Encode one Swift CalendarReminder as one C bridge payload.
-func withNativeHostCalendarReminder<T>(
-  _ value: RuntimeHostCalendarReminder,
-  body: (DestackRustCalendarReminder) -> T
+/// Encode one Swift HostCalendarRelativeReminder as one C bridge payload.
+func withNativeHostCalendarRelativeReminder<T>(
+  _ value: RuntimeHostCalendarRelativeReminder,
+  body: (DestackRustHostCalendarRelativeReminder) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
-  return body(encodeBridgeHostCalendarReminder(value, arena: arena))
+  return body(encodeBridgeHostCalendarRelativeReminder(value, arena: arena))
 }
 
-/// Encode one Swift CalendarReminder slice as one bridge payload.
-func encodeBridgeHostCalendarReminderSlice(
-  _ values: [RuntimeHostCalendarReminder],
-  arena: CalendarBridgeArena
-) -> DestackRustCalendarReminderSlice {
-  let data = arena.makeArray(count: values.count) { buffer in
-    for (index, value) in values.enumerated() {
-      buffer[index] = encodeBridgeHostCalendarReminder(value, arena: arena)
-    }
-  }
-
-  return DestackRustCalendarReminderSlice(
-    data: data,
-    len: UInt32(values.count)
-  )
-}
-
-/// Encode one Swift CalendarReminder slice as one C bridge payload.
-func withNativeHostCalendarReminderSlice<T>(
-  _ values: [RuntimeHostCalendarReminder],
-  body: (DestackRustCalendarReminderSlice) -> T
-) -> T {
-  let arena = currentCalendarBridgeArena()
-
-  return body(encodeBridgeHostCalendarReminderSlice(values, arena: arena))
-}
-
-/// Encode one Swift CalendarDescriptor as one bridge payload.
+/// Encode one Swift HostCalendarDescriptor as one bridge payload.
 func encodeBridgeHostCalendarDescriptor(
   _ value: RuntimeHostCalendarDescriptor,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarDescriptor {
-  DestackRustCalendarDescriptor(
+) -> DestackRustHostCalendarDescriptor {
+  DestackRustHostCalendarDescriptor(
     id:
       arena.makeStringRef(value.id),
     title:
       arena.makeStringRef(value.title),
     source:
       arena.makeStringRef(value.source),
-    has_owner: value.owner != nil,
     owner:
-      value.owner.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
+      ({ if let unwrappedValue = value.owner { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     color_argb:
       UInt32(value.colorArgb),
     primary:
@@ -1022,69 +839,65 @@ func encodeBridgeHostCalendarDescriptor(
 
 func encodeBridgeHostCalendarDescriptor(
   _ value: RuntimeHostCalendarDescriptor
-) -> DestackRustCalendarDescriptor {
+) -> DestackRustHostCalendarDescriptor {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarDescriptor(value, arena: arena)
 }
 
-/// Encode one Swift CalendarDescriptor as one C bridge payload.
+/// Encode one Swift HostCalendarDescriptor as one C bridge payload.
 func withNativeHostCalendarDescriptor<T>(
   _ value: RuntimeHostCalendarDescriptor,
-  body: (DestackRustCalendarDescriptor) -> T
+  body: (DestackRustHostCalendarDescriptor) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarDescriptor(value, arena: arena))
 }
 
-/// Encode one Swift CalendarDescriptor slice as one bridge payload.
+/// Encode one Swift HostCalendarDescriptor slice as one bridge payload.
 func encodeBridgeHostCalendarDescriptorSlice(
   _ values: [RuntimeHostCalendarDescriptor],
   arena: CalendarBridgeArena
-) -> DestackRustCalendarDescriptorSlice {
+) -> DestackRustHostCalendarDescriptorSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostCalendarDescriptor(value, arena: arena)
     }
   }
 
-  return DestackRustCalendarDescriptorSlice(
+  return DestackRustHostCalendarDescriptorSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift CalendarDescriptor slice as one C bridge payload.
+/// Encode one Swift HostCalendarDescriptor slice as one C bridge payload.
 func withNativeHostCalendarDescriptorSlice<T>(
   _ values: [RuntimeHostCalendarDescriptor],
-  body: (DestackRustCalendarDescriptorSlice) -> T
+  body: (DestackRustHostCalendarDescriptorSlice) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarDescriptorSlice(values, arena: arena))
 }
 
-/// Encode one Swift CalendarEvent as one bridge payload.
+/// Encode one Swift HostCalendarEvent as one bridge payload.
 func encodeBridgeHostCalendarEvent(
   _ value: RuntimeHostCalendarEvent,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarEvent {
-  DestackRustCalendarEvent(
+) -> DestackRustHostCalendarEvent {
+  DestackRustHostCalendarEvent(
     id:
       arena.makeStringRef(value.id),
     calendar_id:
       arena.makeStringRef(value.calendarID),
     title:
       arena.makeStringRef(value.title),
-    has_notes: value.notes != nil,
     notes:
-      value.notes.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_location: value.location != nil,
+      ({ if let unwrappedValue = value.notes { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     location:
-      value.location.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
+      ({ if let unwrappedValue = value.location { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     start_unix_ns:
       value.startUnixNs,
     end_unix_ns:
@@ -1093,203 +906,143 @@ func encodeBridgeHostCalendarEvent(
       value.allDay,
     canceled:
       value.canceled,
-    has_time_zone: value.timeZone != nil,
     time_zone:
-      value.timeZone.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
+      ({ if let unwrappedValue = value.timeZone { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     availability:
       encodeBridgeHostCalendarAvailability(value.availability),
-    has_url: value.url != nil,
     url:
-      value.url.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_organizer_name: value.organizerName != nil,
+      ({ if let unwrappedValue = value.url { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     organizer_name:
-      value.organizerName.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_organizer_email: value.organizerEmail != nil,
+      ({ if let unwrappedValue = value.organizerName { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     organizer_email:
-      value.organizerEmail.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
+      ({ if let unwrappedValue = value.organizerEmail { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     recurring:
       value.recurring,
-    has_recurrence_master_id: value.recurrenceMasterID != nil,
     recurrence_master_id:
-      value.recurrenceMasterID.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_recurrence_id_unix_ns: value.recurrenceIDUnixNs != nil,
+      ({ if let unwrappedValue = value.recurrenceMasterID { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     recurrence_id_unix_ns:
-      value.recurrenceIDUnixNs ?? 0,
-    has_recurrence_rule: value.recurrenceRule != nil,
+      ({ if let unwrappedValue = value.recurrenceIDUnixNs { return DestackRustOptionalU64(has_value: true, value: unwrappedValue) } return DestackRustOptionalU64(has_value: false, value: 0) }()),
     recurrence_rule:
-      value.recurrenceRule.map { encodeBridgeHostCalendarRecurrenceRule($0, arena: arena) }
-      ?? DestackRustCalendarRecurrenceRule(
-        frequency: 0,
-        interval: 0,
-        has_count: false,
-        count: 0,
-        has_until_unix_ns: false,
-        until_unix_ns: 0,
-        by_week_days: DestackRustU8Slice(data: nil, len: 0),
-        by_weekday_ordinals: DestackRustCalendarRecurrenceWeekdaySlice(data: nil, len: 0),
-        by_month_days: DestackRustI8Slice(data: nil, len: 0),
-        by_months: DestackRustU8Slice(data: nil, len: 0),
-        by_year_days: DestackRustI16Slice(data: nil, len: 0),
-        by_week_numbers: DestackRustI8Slice(data: nil, len: 0),
-        by_set_positions: DestackRustI16Slice(data: nil, len: 0)
-      ),
-    has_attendees: value.attendees != nil,
+      ({ if let unwrappedValue = value.recurrenceRule { return DestackRustOptionalHostCalendarRecurrenceRule(has_value: true, value: encodeBridgeHostCalendarRecurrenceRule(unwrappedValue, arena: arena)) } return DestackRustOptionalHostCalendarRecurrenceRule(has_value: false, value: DestackRustHostCalendarRecurrenceRule(frequency: 0, interval: 0, count: DestackRustOptionalU32(has_value: false, value: 0), until_unix_ns: DestackRustOptionalU64(has_value: false, value: 0), by_week_days: DestackRustU8Slice(data: nil, len: 0), by_weekday_ordinals: DestackRustHostCalendarRecurrenceWeekdaySlice(data: nil, len: 0), by_month_days: DestackRustI8Slice(data: nil, len: 0), by_months: DestackRustU8Slice(data: nil, len: 0), by_year_days: DestackRustI16Slice(data: nil, len: 0), by_week_numbers: DestackRustI8Slice(data: nil, len: 0), by_set_positions: DestackRustI16Slice(data: nil, len: 0))) }()),
     attendees:
-      value.attendees.map { encodeBridgeHostCalendarAttendeeSlice($0, arena: arena) }
-      ?? DestackRustCalendarAttendeeSlice(data: nil, len: 0),
-    has_reminders: value.reminders != nil,
+      ({ if let unwrappedValue = value.attendees { return DestackRustOptionalHostCalendarAttendeeSlice(has_value: true, value: encodeBridgeHostCalendarAttendeeSlice(unwrappedValue, arena: arena)) } return DestackRustOptionalHostCalendarAttendeeSlice(has_value: false, value: DestackRustHostCalendarAttendeeSlice(data: nil, len: 0)) }()),
     reminders:
-      value.reminders.map { encodeBridgeHostCalendarReminderSlice($0, arena: arena) }
-      ?? DestackRustCalendarReminderSlice(data: nil, len: 0)
+      ({ if let unwrappedValue = value.reminders { return DestackRustOptionalHostCalendarReminderSlice(has_value: true, value: encodeBridgeHostCalendarReminderSlice(unwrappedValue, arena: arena)) } return DestackRustOptionalHostCalendarReminderSlice(has_value: false, value: DestackRustHostCalendarReminderSlice(data: nil, len: 0)) }())
   )
 }
 
 func encodeBridgeHostCalendarEvent(
   _ value: RuntimeHostCalendarEvent
-) -> DestackRustCalendarEvent {
+) -> DestackRustHostCalendarEvent {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarEvent(value, arena: arena)
 }
 
-/// Encode one Swift CalendarEvent as one C bridge payload.
+/// Encode one Swift HostCalendarEvent as one C bridge payload.
 func withNativeHostCalendarEvent<T>(
   _ value: RuntimeHostCalendarEvent,
-  body: (DestackRustCalendarEvent) -> T
+  body: (DestackRustHostCalendarEvent) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarEvent(value, arena: arena))
 }
 
-/// Encode one Swift CalendarEvent slice as one bridge payload.
+/// Encode one Swift HostCalendarEvent slice as one bridge payload.
 func encodeBridgeHostCalendarEventSlice(
   _ values: [RuntimeHostCalendarEvent],
   arena: CalendarBridgeArena
-) -> DestackRustCalendarEventSlice {
+) -> DestackRustHostCalendarEventSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostCalendarEvent(value, arena: arena)
     }
   }
 
-  return DestackRustCalendarEventSlice(
+  return DestackRustHostCalendarEventSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift CalendarEvent slice as one C bridge payload.
+/// Encode one Swift HostCalendarEvent slice as one C bridge payload.
 func withNativeHostCalendarEventSlice<T>(
   _ values: [RuntimeHostCalendarEvent],
-  body: (DestackRustCalendarEventSlice) -> T
+  body: (DestackRustHostCalendarEventSlice) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarEventSlice(values, arena: arena))
 }
 
-/// Encode one Swift CalendarEventDraft as one bridge payload.
+/// Encode one Swift HostCalendarEventDraft as one bridge payload.
 func encodeBridgeHostCalendarEventDraft(
   _ value: RuntimeHostCalendarEventDraft,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarEventDraft {
-  DestackRustCalendarEventDraft(
+) -> DestackRustHostCalendarEventDraft {
+  DestackRustHostCalendarEventDraft(
     calendar_id:
       arena.makeStringRef(value.calendarID),
     title:
       arena.makeStringRef(value.title),
-    has_notes: value.notes != nil,
     notes:
-      value.notes.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_location: value.location != nil,
+      ({ if let unwrappedValue = value.notes { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     location:
-      value.location.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
+      ({ if let unwrappedValue = value.location { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     start_unix_ns:
       value.startUnixNs,
     end_unix_ns:
       value.endUnixNs,
     all_day:
       value.allDay,
-    has_time_zone: value.timeZone != nil,
     time_zone:
-      value.timeZone.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
+      ({ if let unwrappedValue = value.timeZone { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     availability:
       encodeBridgeHostCalendarAvailability(value.availability),
-    has_url: value.url != nil,
     url:
-      value.url.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_recurrence_rule: value.recurrenceRule != nil,
+      ({ if let unwrappedValue = value.url { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     recurrence_rule:
-      value.recurrenceRule.map { encodeBridgeHostCalendarRecurrenceRule($0, arena: arena) }
-      ?? DestackRustCalendarRecurrenceRule(
-        frequency: 0,
-        interval: 0,
-        has_count: false,
-        count: 0,
-        has_until_unix_ns: false,
-        until_unix_ns: 0,
-        by_week_days: DestackRustU8Slice(data: nil, len: 0),
-        by_weekday_ordinals: DestackRustCalendarRecurrenceWeekdaySlice(data: nil, len: 0),
-        by_month_days: DestackRustI8Slice(data: nil, len: 0),
-        by_months: DestackRustU8Slice(data: nil, len: 0),
-        by_year_days: DestackRustI16Slice(data: nil, len: 0),
-        by_week_numbers: DestackRustI8Slice(data: nil, len: 0),
-        by_set_positions: DestackRustI16Slice(data: nil, len: 0)
-      ),
-    has_attendees: value.attendees != nil,
+      ({ if let unwrappedValue = value.recurrenceRule { return DestackRustOptionalHostCalendarRecurrenceRule(has_value: true, value: encodeBridgeHostCalendarRecurrenceRule(unwrappedValue, arena: arena)) } return DestackRustOptionalHostCalendarRecurrenceRule(has_value: false, value: DestackRustHostCalendarRecurrenceRule(frequency: 0, interval: 0, count: DestackRustOptionalU32(has_value: false, value: 0), until_unix_ns: DestackRustOptionalU64(has_value: false, value: 0), by_week_days: DestackRustU8Slice(data: nil, len: 0), by_weekday_ordinals: DestackRustHostCalendarRecurrenceWeekdaySlice(data: nil, len: 0), by_month_days: DestackRustI8Slice(data: nil, len: 0), by_months: DestackRustU8Slice(data: nil, len: 0), by_year_days: DestackRustI16Slice(data: nil, len: 0), by_week_numbers: DestackRustI8Slice(data: nil, len: 0), by_set_positions: DestackRustI16Slice(data: nil, len: 0))) }()),
     attendees:
-      value.attendees.map { encodeBridgeHostCalendarAttendeeSlice($0, arena: arena) }
-      ?? DestackRustCalendarAttendeeSlice(data: nil, len: 0),
-    has_reminders: value.reminders != nil,
+      ({ if let unwrappedValue = value.attendees { return DestackRustOptionalHostCalendarAttendeeSlice(has_value: true, value: encodeBridgeHostCalendarAttendeeSlice(unwrappedValue, arena: arena)) } return DestackRustOptionalHostCalendarAttendeeSlice(has_value: false, value: DestackRustHostCalendarAttendeeSlice(data: nil, len: 0)) }()),
     reminders:
-      value.reminders.map { encodeBridgeHostCalendarReminderSlice($0, arena: arena) }
-      ?? DestackRustCalendarReminderSlice(data: nil, len: 0)
+      ({ if let unwrappedValue = value.reminders { return DestackRustOptionalHostCalendarReminderSlice(has_value: true, value: encodeBridgeHostCalendarReminderSlice(unwrappedValue, arena: arena)) } return DestackRustOptionalHostCalendarReminderSlice(has_value: false, value: DestackRustHostCalendarReminderSlice(data: nil, len: 0)) }())
   )
 }
 
 func encodeBridgeHostCalendarEventDraft(
   _ value: RuntimeHostCalendarEventDraft
-) -> DestackRustCalendarEventDraft {
+) -> DestackRustHostCalendarEventDraft {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarEventDraft(value, arena: arena)
 }
 
-/// Encode one Swift CalendarEventDraft as one C bridge payload.
+/// Encode one Swift HostCalendarEventDraft as one C bridge payload.
 func withNativeHostCalendarEventDraft<T>(
   _ value: RuntimeHostCalendarEventDraft,
-  body: (DestackRustCalendarEventDraft) -> T
+  body: (DestackRustHostCalendarEventDraft) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarEventDraft(value, arena: arena))
 }
 
-/// Encode one Swift CalendarEventQuery as one bridge payload.
+/// Encode one Swift HostCalendarEventQuery as one bridge payload.
 func encodeBridgeHostCalendarEventQuery(
   _ value: RuntimeHostCalendarEventQuery,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarEventQuery {
-  DestackRustCalendarEventQuery(
+) -> DestackRustHostCalendarEventQuery {
+  DestackRustHostCalendarEventQuery(
     calendar_ids:
       arena.makeStringSlice(value.calendarIds),
     start_unix_ns:
       value.startUnixNs,
     end_unix_ns:
       value.endUnixNs,
-    has_limit: value.limit != nil,
     limit:
-      value.limit ?? 0,
+      ({ if let unwrappedValue = value.limit { return DestackRustOptionalU32(has_value: true, value: UInt32(unwrappedValue)) } return DestackRustOptionalU32(has_value: false, value: 0) }()),
     include_canceled:
       value.includeCanceled,
     include_declined:
@@ -1301,28 +1054,28 @@ func encodeBridgeHostCalendarEventQuery(
 
 func encodeBridgeHostCalendarEventQuery(
   _ value: RuntimeHostCalendarEventQuery
-) -> DestackRustCalendarEventQuery {
+) -> DestackRustHostCalendarEventQuery {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarEventQuery(value, arena: arena)
 }
 
-/// Encode one Swift CalendarEventQuery as one C bridge payload.
+/// Encode one Swift HostCalendarEventQuery as one C bridge payload.
 func withNativeHostCalendarEventQuery<T>(
   _ value: RuntimeHostCalendarEventQuery,
-  body: (DestackRustCalendarEventQuery) -> T
+  body: (DestackRustHostCalendarEventQuery) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarEventQuery(value, arena: arena))
 }
 
-/// Encode one Swift CalendarListResponse as one bridge payload.
+/// Encode one Swift HostCalendarListResponse as one bridge payload.
 func encodeBridgeHostCalendarListResponse(
   _ value: RuntimeHostCalendarListResponse,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarListResponse {
-  DestackRustCalendarListResponse(
+) -> DestackRustHostCalendarListResponse {
+  DestackRustHostCalendarListResponse(
     status:
       value.status,
     calendars:
@@ -1332,28 +1085,28 @@ func encodeBridgeHostCalendarListResponse(
 
 func encodeBridgeHostCalendarListResponse(
   _ value: RuntimeHostCalendarListResponse
-) -> DestackRustCalendarListResponse {
+) -> DestackRustHostCalendarListResponse {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarListResponse(value, arena: arena)
 }
 
-/// Encode one Swift CalendarListResponse as one C bridge payload.
+/// Encode one Swift HostCalendarListResponse as one C bridge payload.
 func withNativeHostCalendarListResponse<T>(
   _ value: RuntimeHostCalendarListResponse,
-  body: (DestackRustCalendarListResponse) -> T
+  body: (DestackRustHostCalendarListResponse) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarListResponse(value, arena: arena))
 }
 
-/// Encode one Swift CalendarEventListResponse as one bridge payload.
+/// Encode one Swift HostCalendarEventListResponse as one bridge payload.
 func encodeBridgeHostCalendarEventListResponse(
   _ value: RuntimeHostCalendarEventListResponse,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarEventListResponse {
-  DestackRustCalendarEventListResponse(
+) -> DestackRustHostCalendarEventListResponse {
+  DestackRustHostCalendarEventListResponse(
     status:
       value.status,
     events:
@@ -1363,128 +1116,78 @@ func encodeBridgeHostCalendarEventListResponse(
 
 func encodeBridgeHostCalendarEventListResponse(
   _ value: RuntimeHostCalendarEventListResponse
-) -> DestackRustCalendarEventListResponse {
+) -> DestackRustHostCalendarEventListResponse {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarEventListResponse(value, arena: arena)
 }
 
-/// Encode one Swift CalendarEventListResponse as one C bridge payload.
+/// Encode one Swift HostCalendarEventListResponse as one C bridge payload.
 func withNativeHostCalendarEventListResponse<T>(
   _ value: RuntimeHostCalendarEventListResponse,
-  body: (DestackRustCalendarEventListResponse) -> T
+  body: (DestackRustHostCalendarEventListResponse) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarEventListResponse(value, arena: arena))
 }
 
-/// Encode one Swift CalendarEventReadResponse as one bridge payload.
+/// Encode one Swift HostCalendarEventReadResponse as one bridge payload.
 func encodeBridgeHostCalendarEventReadResponse(
   _ value: RuntimeHostCalendarEventReadResponse,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarEventReadResponse {
-  DestackRustCalendarEventReadResponse(
+) -> DestackRustHostCalendarEventReadResponse {
+  DestackRustHostCalendarEventReadResponse(
     status:
       value.status,
-    has_event: value.event != nil,
     event:
-      value.event.map { encodeBridgeHostCalendarEvent($0, arena: arena) }
-      ?? DestackRustCalendarEvent(
-        id: DestackRustStringRef(data: nil, len: 0),
-        calendar_id: DestackRustStringRef(data: nil, len: 0),
-        title: DestackRustStringRef(data: nil, len: 0),
-        has_notes: false,
-        notes: DestackRustStringRef(data: nil, len: 0),
-        has_location: false,
-        location: DestackRustStringRef(data: nil, len: 0),
-        start_unix_ns: 0,
-        end_unix_ns: 0,
-        all_day: false,
-        canceled: false,
-        has_time_zone: false,
-        time_zone: DestackRustStringRef(data: nil, len: 0),
-        availability: 0,
-        has_url: false,
-        url: DestackRustStringRef(data: nil, len: 0),
-        has_organizer_name: false,
-        organizer_name: DestackRustStringRef(data: nil, len: 0),
-        has_organizer_email: false,
-        organizer_email: DestackRustStringRef(data: nil, len: 0),
-        recurring: false,
-        has_recurrence_master_id: false,
-        recurrence_master_id: DestackRustStringRef(data: nil, len: 0),
-        has_recurrence_id_unix_ns: false,
-        recurrence_id_unix_ns: 0,
-        has_recurrence_rule: false,
-        recurrence_rule: DestackRustCalendarRecurrenceRule(
-          frequency: 0,
-          interval: 0,
-          has_count: false,
-          count: 0,
-          has_until_unix_ns: false,
-          until_unix_ns: 0,
-          by_week_days: DestackRustU8Slice(data: nil, len: 0),
-          by_weekday_ordinals: DestackRustCalendarRecurrenceWeekdaySlice(data: nil, len: 0),
-          by_month_days: DestackRustI8Slice(data: nil, len: 0),
-          by_months: DestackRustU8Slice(data: nil, len: 0),
-          by_year_days: DestackRustI16Slice(data: nil, len: 0),
-          by_week_numbers: DestackRustI8Slice(data: nil, len: 0),
-          by_set_positions: DestackRustI16Slice(data: nil, len: 0)
-        ),
-        has_attendees: false,
-        attendees: DestackRustCalendarAttendeeSlice(data: nil, len: 0),
-        has_reminders: false,
-        reminders: DestackRustCalendarReminderSlice(data: nil, len: 0)
-      )
+      ({ if let unwrappedValue = value.event { return DestackRustOptionalHostCalendarEvent(has_value: true, value: encodeBridgeHostCalendarEvent(unwrappedValue, arena: arena)) } return DestackRustOptionalHostCalendarEvent(has_value: false, value: DestackRustHostCalendarEvent(id: DestackRustStringRef(data: nil, len: 0), calendar_id: DestackRustStringRef(data: nil, len: 0), title: DestackRustStringRef(data: nil, len: 0), notes: DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)), location: DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)), start_unix_ns: 0, end_unix_ns: 0, all_day: false, canceled: false, time_zone: DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)), availability: 0, url: DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)), organizer_name: DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)), organizer_email: DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)), recurring: false, recurrence_master_id: DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)), recurrence_id_unix_ns: DestackRustOptionalU64(has_value: false, value: 0), recurrence_rule: DestackRustOptionalHostCalendarRecurrenceRule(has_value: false, value: DestackRustHostCalendarRecurrenceRule(frequency: 0, interval: 0, count: DestackRustOptionalU32(has_value: false, value: 0), until_unix_ns: DestackRustOptionalU64(has_value: false, value: 0), by_week_days: DestackRustU8Slice(data: nil, len: 0), by_weekday_ordinals: DestackRustHostCalendarRecurrenceWeekdaySlice(data: nil, len: 0), by_month_days: DestackRustI8Slice(data: nil, len: 0), by_months: DestackRustU8Slice(data: nil, len: 0), by_year_days: DestackRustI16Slice(data: nil, len: 0), by_week_numbers: DestackRustI8Slice(data: nil, len: 0), by_set_positions: DestackRustI16Slice(data: nil, len: 0))), attendees: DestackRustOptionalHostCalendarAttendeeSlice(has_value: false, value: DestackRustHostCalendarAttendeeSlice(data: nil, len: 0)), reminders: DestackRustOptionalHostCalendarReminderSlice(has_value: false, value: DestackRustHostCalendarReminderSlice(data: nil, len: 0)))) }())
   )
 }
 
 func encodeBridgeHostCalendarEventReadResponse(
   _ value: RuntimeHostCalendarEventReadResponse
-) -> DestackRustCalendarEventReadResponse {
+) -> DestackRustHostCalendarEventReadResponse {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarEventReadResponse(value, arena: arena)
 }
 
-/// Encode one Swift CalendarEventReadResponse as one C bridge payload.
+/// Encode one Swift HostCalendarEventReadResponse as one C bridge payload.
 func withNativeHostCalendarEventReadResponse<T>(
   _ value: RuntimeHostCalendarEventReadResponse,
-  body: (DestackRustCalendarEventReadResponse) -> T
+  body: (DestackRustHostCalendarEventReadResponse) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 
   return body(encodeBridgeHostCalendarEventReadResponse(value, arena: arena))
 }
 
-/// Encode one Swift CalendarEventCreateResponse as one bridge payload.
+/// Encode one Swift HostCalendarEventCreateResponse as one bridge payload.
 func encodeBridgeHostCalendarEventCreateResponse(
   _ value: RuntimeHostCalendarEventCreateResponse,
   arena: CalendarBridgeArena
-) -> DestackRustCalendarEventCreateResponse {
-  DestackRustCalendarEventCreateResponse(
+) -> DestackRustHostCalendarEventCreateResponse {
+  DestackRustHostCalendarEventCreateResponse(
     status:
       value.status,
-    has_id: value.id != nil,
     id:
-      value.id.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0)
+      ({ if let unwrappedValue = value.id { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
   )
 }
 
 func encodeBridgeHostCalendarEventCreateResponse(
   _ value: RuntimeHostCalendarEventCreateResponse
-) -> DestackRustCalendarEventCreateResponse {
+) -> DestackRustHostCalendarEventCreateResponse {
   let arena = currentCalendarBridgeArena()
 
   return encodeBridgeHostCalendarEventCreateResponse(value, arena: arena)
 }
 
-/// Encode one Swift CalendarEventCreateResponse as one C bridge payload.
+/// Encode one Swift HostCalendarEventCreateResponse as one C bridge payload.
 func withNativeHostCalendarEventCreateResponse<T>(
   _ value: RuntimeHostCalendarEventCreateResponse,
-  body: (DestackRustCalendarEventCreateResponse) -> T
+  body: (DestackRustHostCalendarEventCreateResponse) -> T
 ) -> T {
   let arena = currentCalendarBridgeArena()
 

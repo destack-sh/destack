@@ -3,18 +3,30 @@
 package dev.destack.runtime.android.bridge
 
 import dev.destack.runtime.android.core.HostRequestId
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
+
+/**
+ * Build one Kotlin HostPermission from one bridge raw value.
+ */
+internal fun decodeBridgeHostPermission(
+    value: Int,
+): RuntimeHostPermission? {
+    return RuntimeHostPermission.entries.firstOrNull { entry ->
+        entry.rawValue.toInt() == value
+    }
+}
 
 /**
  * Build one Kotlin HostPermissionRequest from one bridge payload.
  */
 internal fun decodeBridgeHostPermissionRequest(
     requestId: Long,
-    permission: String
-): RuntimeHostPermissionRequest {
+    permission: Int
+): RuntimeHostPermissionRequest? {
     return RuntimeHostPermissionRequest(
         requestId = HostRequestId(rawValue = requestId),
-        permission = permission,
+        permission = decodeBridgeHostPermission(permission) ?: return null,
     )
 }

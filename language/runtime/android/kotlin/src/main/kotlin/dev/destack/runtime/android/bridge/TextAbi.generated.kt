@@ -37,9 +37,7 @@ internal fun decodeBridgeHostTextInputOpenRequest(
     stateText: String,
     stateSelectionStartOffset: Int,
     stateSelectionEndOffset: Int,
-    stateHasComposing: Boolean,
-    stateComposingStartOffset: Int,
-    stateComposingEndOffset: Int
+    stateComposing: RuntimeHostTextInputRange?
 ): RuntimeHostTextInputOpenRequest? {
     return RuntimeHostTextInputOpenRequest(
         configuration = decodeBridgeHostTextInputConfiguration(
@@ -52,9 +50,7 @@ internal fun decodeBridgeHostTextInputOpenRequest(
             stateText,
             stateSelectionStartOffset,
             stateSelectionEndOffset,
-            stateHasComposing,
-            stateComposingStartOffset,
-            stateComposingEndOffset
+            stateComposing
         ),
     )
 }
@@ -83,9 +79,7 @@ internal fun decodeBridgeHostTextInputState(
     text: String,
     selectionStartOffset: Int,
     selectionEndOffset: Int,
-    hasComposing: Boolean,
-    composingStartOffset: Int,
-    composingEndOffset: Int
+    composing: RuntimeHostTextInputRange?
 ): RuntimeHostTextInputState {
     return RuntimeHostTextInputState(
         text = text,
@@ -93,14 +87,7 @@ internal fun decodeBridgeHostTextInputState(
             selectionStartOffset,
             selectionEndOffset
         ),
-        composing = if (hasComposing) {
-            decodeBridgeHostTextInputRange(
-                composingStartOffset,
-                composingEndOffset
-            )
-        } else {
-            null
-        },
+        composing = composing,
     )
 }
 
@@ -143,16 +130,8 @@ internal fun decodeBridgeHostTextInputGeometryRequest(
     geometryEditorRectangleY: Double,
     geometryEditorRectangleWidth: Double,
     geometryEditorRectangleHeight: Double,
-    geometryHasCaretRectangle: Boolean,
-    geometryCaretRectangleX: Double,
-    geometryCaretRectangleY: Double,
-    geometryCaretRectangleWidth: Double,
-    geometryCaretRectangleHeight: Double,
-    geometryHasComposingRectangle: Boolean,
-    geometryComposingRectangleX: Double,
-    geometryComposingRectangleY: Double,
-    geometryComposingRectangleWidth: Double,
-    geometryComposingRectangleHeight: Double
+    geometryCaretRectangle: RuntimeHostTextInputRectangle?,
+    geometryComposingRectangle: RuntimeHostTextInputRectangle?
 ): RuntimeHostTextInputGeometryRequest {
     return RuntimeHostTextInputGeometryRequest(
         sessionId = sessionId,
@@ -167,16 +146,8 @@ internal fun decodeBridgeHostTextInputGeometryRequest(
             geometryEditorRectangleY,
             geometryEditorRectangleWidth,
             geometryEditorRectangleHeight,
-            geometryHasCaretRectangle,
-            geometryCaretRectangleX,
-            geometryCaretRectangleY,
-            geometryCaretRectangleWidth,
-            geometryCaretRectangleHeight,
-            geometryHasComposingRectangle,
-            geometryComposingRectangleX,
-            geometryComposingRectangleY,
-            geometryComposingRectangleWidth,
-            geometryComposingRectangleHeight
+            geometryCaretRectangle,
+            geometryComposingRectangle
         ),
     )
 }
@@ -195,16 +166,8 @@ internal fun decodeBridgeHostTextInputGeometry(
     editorRectangleY: Double,
     editorRectangleWidth: Double,
     editorRectangleHeight: Double,
-    hasCaretRectangle: Boolean,
-    caretRectangleX: Double,
-    caretRectangleY: Double,
-    caretRectangleWidth: Double,
-    caretRectangleHeight: Double,
-    hasComposingRectangle: Boolean,
-    composingRectangleX: Double,
-    composingRectangleY: Double,
-    composingRectangleWidth: Double,
-    composingRectangleHeight: Double
+    caretRectangle: RuntimeHostTextInputRectangle?,
+    composingRectangle: RuntimeHostTextInputRectangle?
 ): RuntimeHostTextInputGeometry {
     return RuntimeHostTextInputGeometry(
         localToTargetTransform = decodeBridgeHostTextInputTransform2D(
@@ -221,26 +184,8 @@ internal fun decodeBridgeHostTextInputGeometry(
             editorRectangleWidth,
             editorRectangleHeight
         ),
-        caretRectangle = if (hasCaretRectangle) {
-            decodeBridgeHostTextInputRectangle(
-                caretRectangleX,
-                caretRectangleY,
-                caretRectangleWidth,
-                caretRectangleHeight
-            )
-        } else {
-            null
-        },
-        composingRectangle = if (hasComposingRectangle) {
-            decodeBridgeHostTextInputRectangle(
-                composingRectangleX,
-                composingRectangleY,
-                composingRectangleWidth,
-                composingRectangleHeight
-            )
-        } else {
-            null
-        },
+        caretRectangle = caretRectangle,
+        composingRectangle = composingRectangle,
     )
 }
 
@@ -290,9 +235,7 @@ internal fun decodeBridgeHostTextInputStateRequest(
     stateText: String,
     stateSelectionStartOffset: Int,
     stateSelectionEndOffset: Int,
-    stateHasComposing: Boolean,
-    stateComposingStartOffset: Int,
-    stateComposingEndOffset: Int
+    stateComposing: RuntimeHostTextInputRange?
 ): RuntimeHostTextInputStateRequest {
     return RuntimeHostTextInputStateRequest(
         sessionId = sessionId,
@@ -300,9 +243,7 @@ internal fun decodeBridgeHostTextInputStateRequest(
             stateText,
             stateSelectionStartOffset,
             stateSelectionEndOffset,
-            stateHasComposing,
-            stateComposingStartOffset,
-            stateComposingEndOffset
+            stateComposing
         ),
     )
 }

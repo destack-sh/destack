@@ -49,6 +49,7 @@ void clear_result_decode_storage() {
 
 jint call_list_size(JNIEnv *env, jobject value);
 jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
 jint call_int_getter(JNIEnv *env, jobject value, const char *name);
 
 jintArray encode_u8_slice(JNIEnv *env, NativeU8Slice values) {
@@ -203,7 +204,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         exportHardwarePublicKey_method = env->GetMethodID(
             bridge_class,
             "cryptoExportHardwarePublicKey",
-            "(ILjava/lang/String;[I)Ldev/destack/runtime/android/module/crypto/RuntimeHostCryptoExportHardwarePublicKeyResponse;"
+            "(ILjava/lang/String;[I)Ldev/destack/runtime/android/bridge/RuntimeHostCryptoExportHardwarePublicKeyResponse;"
         );
     }
 
@@ -211,7 +212,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         signHardwareKey_method = env->GetMethodID(
             bridge_class,
             "cryptoSignHardwareKey",
-            "(ILjava/lang/String;III[I[I)Ldev/destack/runtime/android/module/crypto/RuntimeHostCryptoSignHardwareKeyResponse;"
+            "(ILjava/lang/String;III[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostCryptoSignHardwareKeyResponse;"
         );
     }
 
@@ -219,7 +220,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         decryptHardwareKey_method = env->GetMethodID(
             bridge_class,
             "cryptoDecryptHardwareKey",
-            "(ILjava/lang/String;II[I[I[I)Ldev/destack/runtime/android/module/crypto/RuntimeHostCryptoDecryptHardwareKeyResponse;"
+            "(ILjava/lang/String;II[I[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostCryptoDecryptHardwareKeyResponse;"
         );
     }
 
@@ -227,7 +228,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         encryptHardwareSecretKey_method = env->GetMethodID(
             bridge_class,
             "cryptoEncryptHardwareSecretKey",
-            "(ILjava/lang/String;I[I[II[I[I[I)Ldev/destack/runtime/android/module/crypto/RuntimeHostCryptoEncryptHardwareSecretKeyResponse;"
+            "(ILjava/lang/String;I[I[II[I[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostCryptoEncryptHardwareSecretKeyResponse;"
         );
     }
 
@@ -235,7 +236,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         decryptHardwareSecretKey_method = env->GetMethodID(
             bridge_class,
             "cryptoDecryptHardwareSecretKey",
-            "(ILjava/lang/String;I[I[I[I[I[I)Ldev/destack/runtime/android/module/crypto/RuntimeHostCryptoDecryptHardwareSecretKeyResponse;"
+            "(ILjava/lang/String;I[I[I[I[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostCryptoDecryptHardwareSecretKeyResponse;"
         );
     }
 
@@ -243,7 +244,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         computeHardwareMac_method = env->GetMethodID(
             bridge_class,
             "cryptoComputeHardwareMac",
-            "(ILjava/lang/String;III[I[I)Ldev/destack/runtime/android/module/crypto/RuntimeHostCryptoComputeHardwareMacResponse;"
+            "(ILjava/lang/String;III[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostCryptoComputeHardwareMacResponse;"
         );
     }
 
@@ -251,7 +252,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         deriveHardwareSharedSecret_method = env->GetMethodID(
             bridge_class,
             "cryptoDeriveHardwareSharedSecret",
-            "(ILjava/lang/String;I[I[I)Ldev/destack/runtime/android/module/crypto/RuntimeHostCryptoDeriveHardwareSharedSecretResponse;"
+            "(ILjava/lang/String;I[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostCryptoDeriveHardwareSharedSecretResponse;"
         );
     }
 

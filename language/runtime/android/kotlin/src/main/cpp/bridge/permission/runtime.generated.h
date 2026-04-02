@@ -22,8 +22,8 @@ AndroidHostPermissionCallbacks make_permission_callbacks();
 /// Register the permission runtime ingress JNI methods.
 bool register_permission_runtime_natives(JNIEnv *env);
 
-/// Send the `permission_result` permission ingress payload into the runtime ingress path.
-RuntimeStatus send_permission_result(
+/// Send the `notify_permission_result` permission ingress payload into the runtime ingress path.
+RuntimeStatus send_notify_permission_result(
     uint64_t session_handle,
     HostPermissionEvent event
 );

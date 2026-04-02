@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "../loader.h"
 #include "callbacks.generated.h"
 #include "runtime.generated.h"
 
@@ -20,36 +20,6 @@ RuntimeStatus runtime_status_from_code(uint32_t code) {
     };
 
     return status;
-}
-
-/// Borrow one runtime string reference from one JNI string.
-NativeStringRef native_string_ref_from_jstring(JNIEnv *env, jstring value) {
-    if (value == nullptr) {
-        return {
-            .data = nullptr,
-            .len = 0,
-        };
-    }
-
-    const char *chars = env->GetStringUTFChars(value, nullptr);
-    jsize length = env->GetStringUTFLength(value);
-
-    return {
-        .data = reinterpret_cast<const uint8_t *>(chars),
-        .len = static_cast<uint32_t>(length),
-    };
-}
-
-/// Release one runtime string reference borrowed from one JNI string.
-void release_native_string_ref(JNIEnv *env, jstring value, NativeStringRef ref) {
-    if (value == nullptr || ref.data == nullptr) {
-        return;
-    }
-
-    env->ReleaseStringUTFChars(
-        value,
-        reinterpret_cast<const char *>(ref.data)
-    );
 }
 
 }
@@ -100,9 +70,15 @@ AndroidHostPermissionCallbacks make_permission_callbacks() {
 }
 
 /// Deliver one permission result into one runtime session.
-RuntimeStatus send_permission_result(
+RuntimeStatus send_notify_permission_result(
     uint64_t session_handle,
     HostPermissionEvent event
 ) {
-    return destack_host_android_notify_permission_result(session_handle, event);
+    RuntimeBindings bindings = {};
+    RuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));
+    if (status.code != HOST_STATUS_OK) {
+        return status;
+    }
+
+    return bindings.notify_permission_result(session_handle, event);
 }

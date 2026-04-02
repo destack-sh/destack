@@ -8,28 +8,28 @@ import RuntimeHostAppleCore
 typealias TextOpenCallback =
   @convention(c) (
     UInt64,
-    DestackRustTextInputOpenRequest
+    DestackRustHostTextInputOpenRequest
   ) -> UInt32
 
 /// Close one text session through one attached host.
 typealias TextCloseCallback =
   @convention(c) (
     UInt64,
-    DestackRustTextInputCloseRequest
+    DestackRustHostTextInputCloseRequest
   ) -> UInt32
 
 /// Update one text geometry payload through one attached host.
 typealias TextSetGeometryCallback =
   @convention(c) (
     UInt64,
-    DestackRustTextInputGeometryRequest
+    DestackRustHostTextInputGeometryRequest
   ) -> UInt32
 
 /// Update one text state payload through one attached host.
 typealias TextSetStateCallback =
   @convention(c) (
     UInt64,
-    DestackRustTextInputStateRequest
+    DestackRustHostTextInputStateRequest
   ) -> UInt32
 
 let textOpenCallback: TextOpenCallback = {
@@ -85,7 +85,7 @@ func makeTextCallbacks() -> IosHostTextCallbacks {
 /// Handle one runtime callback asking to open one text session through one attached host.
 func handleTextOpen(
   sessionHandle: UInt64,
-  request: DestackRustTextInputOpenRequest
+  request: DestackRustHostTextInputOpenRequest
 ) -> UInt32 {
   let decodedRequest: RuntimeHostTextInputOpenRequest
   do {
@@ -110,7 +110,7 @@ func handleTextOpen(
 /// Handle one runtime callback asking to close one text session through one attached host.
 func handleTextClose(
   sessionHandle: UInt64,
-  request: DestackRustTextInputCloseRequest
+  request: DestackRustHostTextInputCloseRequest
 ) -> UInt32 {
   let decodedRequest = decodeBridgeHostTextInputCloseRequest(request)
 
@@ -130,7 +130,7 @@ func handleTextClose(
 /// Handle one runtime callback asking to update one text geometry payload through one attached host.
 func handleTextSetGeometry(
   sessionHandle: UInt64,
-  request: DestackRustTextInputGeometryRequest
+  request: DestackRustHostTextInputGeometryRequest
 ) -> UInt32 {
   let decodedRequest = decodeBridgeHostTextInputGeometryRequest(request)
 
@@ -150,7 +150,7 @@ func handleTextSetGeometry(
 /// Handle one runtime callback asking to update one text state payload through one attached host.
 func handleTextSetState(
   sessionHandle: UInt64,
-  request: DestackRustTextInputStateRequest
+  request: DestackRustHostTextInputStateRequest
 ) -> UInt32 {
   let decodedRequest: RuntimeHostTextInputStateRequest
   do {
@@ -269,9 +269,9 @@ func currentTextBridgeArena() -> TextBridgeArena {
   return arena
 }
 
-/// Build one Swift TextInputType from one bridge raw value.
+/// Build one Swift HostTextInputType from one bridge raw value.
 func decodeBridgeHostTextInputType(
-  _ value: DestackRustTextInputType
+  _ value: DestackRustHostTextInputType
 ) throws -> RuntimeHostTextInputType {
   guard let value = RuntimeHostTextInputType(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
@@ -280,9 +280,9 @@ func decodeBridgeHostTextInputType(
   return value
 }
 
-/// Build one Swift TextInputOpenRequest from one bridge payload.
+/// Build one Swift HostTextInputOpenRequest from one bridge payload.
 func decodeBridgeHostTextInputOpenRequest(
-  _ value: DestackRustTextInputOpenRequest
+  _ value: DestackRustHostTextInputOpenRequest
 ) throws -> RuntimeHostTextInputOpenRequest {
   RuntimeHostTextInputOpenRequest(
     configuration:
@@ -292,9 +292,9 @@ func decodeBridgeHostTextInputOpenRequest(
   )
 }
 
-/// Build one Swift TextInputConfiguration from one bridge payload.
+/// Build one Swift HostTextInputConfiguration from one bridge payload.
 func decodeBridgeHostTextInputConfiguration(
-  _ value: DestackRustTextInputConfiguration
+  _ value: DestackRustHostTextInputConfiguration
 ) throws -> RuntimeHostTextInputConfiguration {
   RuntimeHostTextInputConfiguration(
     sessionID:
@@ -308,9 +308,9 @@ func decodeBridgeHostTextInputConfiguration(
   )
 }
 
-/// Build one Swift TextInputState from one bridge payload.
+/// Build one Swift HostTextInputState from one bridge payload.
 func decodeBridgeHostTextInputState(
-  _ value: DestackRustTextInputState
+  _ value: DestackRustHostTextInputState
 ) throws -> RuntimeHostTextInputState {
   RuntimeHostTextInputState(
     text:
@@ -318,15 +318,13 @@ func decodeBridgeHostTextInputState(
     selection:
       decodeBridgeHostTextInputRange(value.selection),
     composing:
-      value.has_composing
-      ? decodeBridgeHostTextInputRange(value.composing)
-      : nil
+      (value.composing.has_value ? Optional(decodeBridgeHostTextInputRange(value.composing.value)) : nil)
   )
 }
 
-/// Build one Swift TextInputRange from one bridge payload.
+/// Build one Swift HostTextInputRange from one bridge payload.
 func decodeBridgeHostTextInputRange(
-  _ value: DestackRustTextInputRange
+  _ value: DestackRustHostTextInputRange
 ) -> RuntimeHostTextInputRange {
   RuntimeHostTextInputRange(
     startOffset:
@@ -336,9 +334,9 @@ func decodeBridgeHostTextInputRange(
   )
 }
 
-/// Build one Swift TextInputCloseRequest from one bridge payload.
+/// Build one Swift HostTextInputCloseRequest from one bridge payload.
 func decodeBridgeHostTextInputCloseRequest(
-  _ value: DestackRustTextInputCloseRequest
+  _ value: DestackRustHostTextInputCloseRequest
 ) -> RuntimeHostTextInputCloseRequest {
   RuntimeHostTextInputCloseRequest(
     sessionID:
@@ -346,9 +344,9 @@ func decodeBridgeHostTextInputCloseRequest(
   )
 }
 
-/// Build one Swift TextInputGeometryRequest from one bridge payload.
+/// Build one Swift HostTextInputGeometryRequest from one bridge payload.
 func decodeBridgeHostTextInputGeometryRequest(
-  _ value: DestackRustTextInputGeometryRequest
+  _ value: DestackRustHostTextInputGeometryRequest
 ) -> RuntimeHostTextInputGeometryRequest {
   RuntimeHostTextInputGeometryRequest(
     sessionID:
@@ -358,9 +356,9 @@ func decodeBridgeHostTextInputGeometryRequest(
   )
 }
 
-/// Build one Swift TextInputGeometry from one bridge payload.
+/// Build one Swift HostTextInputGeometry from one bridge payload.
 func decodeBridgeHostTextInputGeometry(
-  _ value: DestackRustTextInputGeometry
+  _ value: DestackRustHostTextInputGeometry
 ) -> RuntimeHostTextInputGeometry {
   RuntimeHostTextInputGeometry(
     localToTargetTransform:
@@ -368,19 +366,15 @@ func decodeBridgeHostTextInputGeometry(
     editorRectangle:
       decodeBridgeHostTextInputRectangle(value.editor_rectangle),
     caretRectangle:
-      value.has_caret_rectangle
-      ? decodeBridgeHostTextInputRectangle(value.caret_rectangle)
-      : nil,
+      (value.caret_rectangle.has_value ? Optional(decodeBridgeHostTextInputRectangle(value.caret_rectangle.value)) : nil),
     composingRectangle:
-      value.has_composing_rectangle
-      ? decodeBridgeHostTextInputRectangle(value.composing_rectangle)
-      : nil
+      (value.composing_rectangle.has_value ? Optional(decodeBridgeHostTextInputRectangle(value.composing_rectangle.value)) : nil)
   )
 }
 
-/// Build one Swift TextInputTransform2D from one bridge payload.
+/// Build one Swift HostTextInputTransform2D from one bridge payload.
 func decodeBridgeHostTextInputTransform2D(
-  _ value: DestackRustTextInputTransform2D
+  _ value: DestackRustHostTextInputTransform2D
 ) -> RuntimeHostTextInputTransform2D {
   RuntimeHostTextInputTransform2D(
     xx:
@@ -398,9 +392,9 @@ func decodeBridgeHostTextInputTransform2D(
   )
 }
 
-/// Build one Swift TextInputRectangle from one bridge payload.
+/// Build one Swift HostTextInputRectangle from one bridge payload.
 func decodeBridgeHostTextInputRectangle(
-  _ value: DestackRustTextInputRectangle
+  _ value: DestackRustHostTextInputRectangle
 ) -> RuntimeHostTextInputRectangle {
   RuntimeHostTextInputRectangle(
     x:
@@ -414,9 +408,9 @@ func decodeBridgeHostTextInputRectangle(
   )
 }
 
-/// Build one Swift TextInputStateRequest from one bridge payload.
+/// Build one Swift HostTextInputStateRequest from one bridge payload.
 func decodeBridgeHostTextInputStateRequest(
-  _ value: DestackRustTextInputStateRequest
+  _ value: DestackRustHostTextInputStateRequest
 ) throws -> RuntimeHostTextInputStateRequest {
   RuntimeHostTextInputStateRequest(
     sessionID:
@@ -426,19 +420,19 @@ func decodeBridgeHostTextInputStateRequest(
   )
 }
 
-/// Encode one Swift TextInputType as one bridge raw value.
+/// Encode one Swift HostTextInputType as one bridge raw value.
 func encodeBridgeHostTextInputType(
   _ value: RuntimeHostTextInputType
-) -> DestackRustTextInputType {
+) -> DestackRustHostTextInputType {
   Int32(value.rawValue)
 }
 
-/// Encode one Swift TextInputRange as one bridge payload.
+/// Encode one Swift HostTextInputRange as one bridge payload.
 func encodeBridgeHostTextInputRange(
   _ value: RuntimeHostTextInputRange,
   arena: TextBridgeArena
-) -> DestackRustTextInputRange {
-  DestackRustTextInputRange(
+) -> DestackRustHostTextInputRange {
+  DestackRustHostTextInputRange(
     start_offset:
       UInt32(value.startOffset),
     end_offset:
@@ -448,28 +442,28 @@ func encodeBridgeHostTextInputRange(
 
 func encodeBridgeHostTextInputRange(
   _ value: RuntimeHostTextInputRange
-) -> DestackRustTextInputRange {
+) -> DestackRustHostTextInputRange {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputRange(value, arena: arena)
 }
 
-/// Encode one Swift TextInputRange as one C bridge payload.
+/// Encode one Swift HostTextInputRange as one C bridge payload.
 func withNativeHostTextInputRange<T>(
   _ value: RuntimeHostTextInputRange,
-  body: (DestackRustTextInputRange) -> T
+  body: (DestackRustHostTextInputRange) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputRange(value, arena: arena))
 }
 
-/// Encode one Swift TextInputRectangle as one bridge payload.
+/// Encode one Swift HostTextInputRectangle as one bridge payload.
 func encodeBridgeHostTextInputRectangle(
   _ value: RuntimeHostTextInputRectangle,
   arena: TextBridgeArena
-) -> DestackRustTextInputRectangle {
-  DestackRustTextInputRectangle(
+) -> DestackRustHostTextInputRectangle {
+  DestackRustHostTextInputRectangle(
     x:
       value.x,
     y:
@@ -483,28 +477,28 @@ func encodeBridgeHostTextInputRectangle(
 
 func encodeBridgeHostTextInputRectangle(
   _ value: RuntimeHostTextInputRectangle
-) -> DestackRustTextInputRectangle {
+) -> DestackRustHostTextInputRectangle {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputRectangle(value, arena: arena)
 }
 
-/// Encode one Swift TextInputRectangle as one C bridge payload.
+/// Encode one Swift HostTextInputRectangle as one C bridge payload.
 func withNativeHostTextInputRectangle<T>(
   _ value: RuntimeHostTextInputRectangle,
-  body: (DestackRustTextInputRectangle) -> T
+  body: (DestackRustHostTextInputRectangle) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputRectangle(value, arena: arena))
 }
 
-/// Encode one Swift TextInputTransform2D as one bridge payload.
+/// Encode one Swift HostTextInputTransform2D as one bridge payload.
 func encodeBridgeHostTextInputTransform2D(
   _ value: RuntimeHostTextInputTransform2D,
   arena: TextBridgeArena
-) -> DestackRustTextInputTransform2D {
-  DestackRustTextInputTransform2D(
+) -> DestackRustHostTextInputTransform2D {
+  DestackRustHostTextInputTransform2D(
     xx:
       value.xx,
     xy:
@@ -522,77 +516,63 @@ func encodeBridgeHostTextInputTransform2D(
 
 func encodeBridgeHostTextInputTransform2D(
   _ value: RuntimeHostTextInputTransform2D
-) -> DestackRustTextInputTransform2D {
+) -> DestackRustHostTextInputTransform2D {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputTransform2D(value, arena: arena)
 }
 
-/// Encode one Swift TextInputTransform2D as one C bridge payload.
+/// Encode one Swift HostTextInputTransform2D as one C bridge payload.
 func withNativeHostTextInputTransform2D<T>(
   _ value: RuntimeHostTextInputTransform2D,
-  body: (DestackRustTextInputTransform2D) -> T
+  body: (DestackRustHostTextInputTransform2D) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputTransform2D(value, arena: arena))
 }
 
-/// Encode one Swift TextInputGeometry as one bridge payload.
+/// Encode one Swift HostTextInputGeometry as one bridge payload.
 func encodeBridgeHostTextInputGeometry(
   _ value: RuntimeHostTextInputGeometry,
   arena: TextBridgeArena
-) -> DestackRustTextInputGeometry {
-  DestackRustTextInputGeometry(
+) -> DestackRustHostTextInputGeometry {
+  DestackRustHostTextInputGeometry(
     local_to_target_transform:
       encodeBridgeHostTextInputTransform2D(value.localToTargetTransform, arena: arena),
     editor_rectangle:
       encodeBridgeHostTextInputRectangle(value.editorRectangle, arena: arena),
-    has_caret_rectangle: value.caretRectangle != nil,
     caret_rectangle:
-      value.caretRectangle.map { encodeBridgeHostTextInputRectangle($0, arena: arena) }
-      ?? DestackRustTextInputRectangle(
-        x: 0.0,
-        y: 0.0,
-        width: 0.0,
-        height: 0.0
-      ),
-    has_composing_rectangle: value.composingRectangle != nil,
+      ({ if let unwrappedValue = value.caretRectangle { return DestackRustOptionalHostTextInputRectangle(has_value: true, value: encodeBridgeHostTextInputRectangle(unwrappedValue, arena: arena)) } return DestackRustOptionalHostTextInputRectangle(has_value: false, value: DestackRustHostTextInputRectangle(x: 0, y: 0, width: 0, height: 0)) }()),
     composing_rectangle:
-      value.composingRectangle.map { encodeBridgeHostTextInputRectangle($0, arena: arena) }
-      ?? DestackRustTextInputRectangle(
-        x: 0.0,
-        y: 0.0,
-        width: 0.0,
-        height: 0.0
-      )
+      ({ if let unwrappedValue = value.composingRectangle { return DestackRustOptionalHostTextInputRectangle(has_value: true, value: encodeBridgeHostTextInputRectangle(unwrappedValue, arena: arena)) } return DestackRustOptionalHostTextInputRectangle(has_value: false, value: DestackRustHostTextInputRectangle(x: 0, y: 0, width: 0, height: 0)) }())
   )
 }
 
 func encodeBridgeHostTextInputGeometry(
   _ value: RuntimeHostTextInputGeometry
-) -> DestackRustTextInputGeometry {
+) -> DestackRustHostTextInputGeometry {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputGeometry(value, arena: arena)
 }
 
-/// Encode one Swift TextInputGeometry as one C bridge payload.
+/// Encode one Swift HostTextInputGeometry as one C bridge payload.
 func withNativeHostTextInputGeometry<T>(
   _ value: RuntimeHostTextInputGeometry,
-  body: (DestackRustTextInputGeometry) -> T
+  body: (DestackRustHostTextInputGeometry) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputGeometry(value, arena: arena))
 }
 
-/// Encode one Swift TextInputConfiguration as one bridge payload.
+/// Encode one Swift HostTextInputConfiguration as one bridge payload.
 func encodeBridgeHostTextInputConfiguration(
   _ value: RuntimeHostTextInputConfiguration,
   arena: TextBridgeArena
-) -> DestackRustTextInputConfiguration {
-  DestackRustTextInputConfiguration(
+) -> DestackRustHostTextInputConfiguration {
+  DestackRustHostTextInputConfiguration(
     session_id:
       value.sessionID,
     input_type:
@@ -606,66 +586,61 @@ func encodeBridgeHostTextInputConfiguration(
 
 func encodeBridgeHostTextInputConfiguration(
   _ value: RuntimeHostTextInputConfiguration
-) -> DestackRustTextInputConfiguration {
+) -> DestackRustHostTextInputConfiguration {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputConfiguration(value, arena: arena)
 }
 
-/// Encode one Swift TextInputConfiguration as one C bridge payload.
+/// Encode one Swift HostTextInputConfiguration as one C bridge payload.
 func withNativeHostTextInputConfiguration<T>(
   _ value: RuntimeHostTextInputConfiguration,
-  body: (DestackRustTextInputConfiguration) -> T
+  body: (DestackRustHostTextInputConfiguration) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputConfiguration(value, arena: arena))
 }
 
-/// Encode one Swift TextInputState as one bridge payload.
+/// Encode one Swift HostTextInputState as one bridge payload.
 func encodeBridgeHostTextInputState(
   _ value: RuntimeHostTextInputState,
   arena: TextBridgeArena
-) -> DestackRustTextInputState {
-  DestackRustTextInputState(
+) -> DestackRustHostTextInputState {
+  DestackRustHostTextInputState(
     text:
       arena.makeStringRef(value.text),
     selection:
       encodeBridgeHostTextInputRange(value.selection, arena: arena),
-    has_composing: value.composing != nil,
     composing:
-      value.composing.map { encodeBridgeHostTextInputRange($0, arena: arena) }
-      ?? DestackRustTextInputRange(
-        start_offset: 0,
-        end_offset: 0
-      )
+      ({ if let unwrappedValue = value.composing { return DestackRustOptionalHostTextInputRange(has_value: true, value: encodeBridgeHostTextInputRange(unwrappedValue, arena: arena)) } return DestackRustOptionalHostTextInputRange(has_value: false, value: DestackRustHostTextInputRange(start_offset: 0, end_offset: 0)) }())
   )
 }
 
 func encodeBridgeHostTextInputState(
   _ value: RuntimeHostTextInputState
-) -> DestackRustTextInputState {
+) -> DestackRustHostTextInputState {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputState(value, arena: arena)
 }
 
-/// Encode one Swift TextInputState as one C bridge payload.
+/// Encode one Swift HostTextInputState as one C bridge payload.
 func withNativeHostTextInputState<T>(
   _ value: RuntimeHostTextInputState,
-  body: (DestackRustTextInputState) -> T
+  body: (DestackRustHostTextInputState) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputState(value, arena: arena))
 }
 
-/// Encode one Swift TextInputOpenRequest as one bridge payload.
+/// Encode one Swift HostTextInputOpenRequest as one bridge payload.
 func encodeBridgeHostTextInputOpenRequest(
   _ value: RuntimeHostTextInputOpenRequest,
   arena: TextBridgeArena
-) -> DestackRustTextInputOpenRequest {
-  DestackRustTextInputOpenRequest(
+) -> DestackRustHostTextInputOpenRequest {
+  DestackRustHostTextInputOpenRequest(
     configuration:
       encodeBridgeHostTextInputConfiguration(value.configuration, arena: arena),
     state:
@@ -675,28 +650,28 @@ func encodeBridgeHostTextInputOpenRequest(
 
 func encodeBridgeHostTextInputOpenRequest(
   _ value: RuntimeHostTextInputOpenRequest
-) -> DestackRustTextInputOpenRequest {
+) -> DestackRustHostTextInputOpenRequest {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputOpenRequest(value, arena: arena)
 }
 
-/// Encode one Swift TextInputOpenRequest as one C bridge payload.
+/// Encode one Swift HostTextInputOpenRequest as one C bridge payload.
 func withNativeHostTextInputOpenRequest<T>(
   _ value: RuntimeHostTextInputOpenRequest,
-  body: (DestackRustTextInputOpenRequest) -> T
+  body: (DestackRustHostTextInputOpenRequest) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputOpenRequest(value, arena: arena))
 }
 
-/// Encode one Swift TextInputCloseRequest as one bridge payload.
+/// Encode one Swift HostTextInputCloseRequest as one bridge payload.
 func encodeBridgeHostTextInputCloseRequest(
   _ value: RuntimeHostTextInputCloseRequest,
   arena: TextBridgeArena
-) -> DestackRustTextInputCloseRequest {
-  DestackRustTextInputCloseRequest(
+) -> DestackRustHostTextInputCloseRequest {
+  DestackRustHostTextInputCloseRequest(
     session_id:
       value.sessionID
   )
@@ -704,28 +679,28 @@ func encodeBridgeHostTextInputCloseRequest(
 
 func encodeBridgeHostTextInputCloseRequest(
   _ value: RuntimeHostTextInputCloseRequest
-) -> DestackRustTextInputCloseRequest {
+) -> DestackRustHostTextInputCloseRequest {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputCloseRequest(value, arena: arena)
 }
 
-/// Encode one Swift TextInputCloseRequest as one C bridge payload.
+/// Encode one Swift HostTextInputCloseRequest as one C bridge payload.
 func withNativeHostTextInputCloseRequest<T>(
   _ value: RuntimeHostTextInputCloseRequest,
-  body: (DestackRustTextInputCloseRequest) -> T
+  body: (DestackRustHostTextInputCloseRequest) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputCloseRequest(value, arena: arena))
 }
 
-/// Encode one Swift TextInputGeometryRequest as one bridge payload.
+/// Encode one Swift HostTextInputGeometryRequest as one bridge payload.
 func encodeBridgeHostTextInputGeometryRequest(
   _ value: RuntimeHostTextInputGeometryRequest,
   arena: TextBridgeArena
-) -> DestackRustTextInputGeometryRequest {
-  DestackRustTextInputGeometryRequest(
+) -> DestackRustHostTextInputGeometryRequest {
+  DestackRustHostTextInputGeometryRequest(
     session_id:
       value.sessionID,
     geometry:
@@ -735,28 +710,28 @@ func encodeBridgeHostTextInputGeometryRequest(
 
 func encodeBridgeHostTextInputGeometryRequest(
   _ value: RuntimeHostTextInputGeometryRequest
-) -> DestackRustTextInputGeometryRequest {
+) -> DestackRustHostTextInputGeometryRequest {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputGeometryRequest(value, arena: arena)
 }
 
-/// Encode one Swift TextInputGeometryRequest as one C bridge payload.
+/// Encode one Swift HostTextInputGeometryRequest as one C bridge payload.
 func withNativeHostTextInputGeometryRequest<T>(
   _ value: RuntimeHostTextInputGeometryRequest,
-  body: (DestackRustTextInputGeometryRequest) -> T
+  body: (DestackRustHostTextInputGeometryRequest) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputGeometryRequest(value, arena: arena))
 }
 
-/// Encode one Swift TextInputStateRequest as one bridge payload.
+/// Encode one Swift HostTextInputStateRequest as one bridge payload.
 func encodeBridgeHostTextInputStateRequest(
   _ value: RuntimeHostTextInputStateRequest,
   arena: TextBridgeArena
-) -> DestackRustTextInputStateRequest {
-  DestackRustTextInputStateRequest(
+) -> DestackRustHostTextInputStateRequest {
+  DestackRustHostTextInputStateRequest(
     session_id:
       value.sessionID,
     state:
@@ -766,28 +741,28 @@ func encodeBridgeHostTextInputStateRequest(
 
 func encodeBridgeHostTextInputStateRequest(
   _ value: RuntimeHostTextInputStateRequest
-) -> DestackRustTextInputStateRequest {
+) -> DestackRustHostTextInputStateRequest {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputStateRequest(value, arena: arena)
 }
 
-/// Encode one Swift TextInputStateRequest as one C bridge payload.
+/// Encode one Swift HostTextInputStateRequest as one C bridge payload.
 func withNativeHostTextInputStateRequest<T>(
   _ value: RuntimeHostTextInputStateRequest,
-  body: (DestackRustTextInputStateRequest) -> T
+  body: (DestackRustHostTextInputStateRequest) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 
   return body(encodeBridgeHostTextInputStateRequest(value, arena: arena))
 }
 
-/// Encode one Swift TextInputEvent as one bridge payload.
+/// Encode one Swift HostTextInputEvent as one bridge payload.
 func encodeBridgeHostTextInputEvent(
   _ value: RuntimeHostTextInputEvent,
   arena: TextBridgeArena
-) -> DestackRustTextInputEvent {
-  DestackRustTextInputEvent(
+) -> DestackRustHostTextInputEvent {
+  DestackRustHostTextInputEvent(
     session_id:
       value.sessionID,
     state:
@@ -797,16 +772,16 @@ func encodeBridgeHostTextInputEvent(
 
 func encodeBridgeHostTextInputEvent(
   _ value: RuntimeHostTextInputEvent
-) -> DestackRustTextInputEvent {
+) -> DestackRustHostTextInputEvent {
   let arena = currentTextBridgeArena()
 
   return encodeBridgeHostTextInputEvent(value, arena: arena)
 }
 
-/// Encode one Swift TextInputEvent as one C bridge payload.
+/// Encode one Swift HostTextInputEvent as one C bridge payload.
 func withNativeHostTextInputEvent<T>(
   _ value: RuntimeHostTextInputEvent,
-  body: (DestackRustTextInputEvent) -> T
+  body: (DestackRustHostTextInputEvent) -> T
 ) -> T {
   let arena = currentTextBridgeArena()
 

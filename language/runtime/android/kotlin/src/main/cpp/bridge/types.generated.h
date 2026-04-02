@@ -19,7 +19,8 @@ struct HostBackgroundTriggerTestRequest;
 struct HostBackgroundTriggerTestResponse;
 struct HostBackgroundCompleteRequest;
 struct HostBackgroundEventMetadata;
-enum class HostBackgroundEventKind : uint32_t;
+struct HostBackgroundTaskReadyEvent;
+struct HostBackgroundTaskExpiredEvent;
 struct HostBackgroundEvent;
 struct AndroidHostBluetoothAdapterDescriptorHeader;
 struct AndroidHostBluetoothDeviceDescriptorHeader;
@@ -33,10 +34,11 @@ enum class HostCalendarAccess : uint32_t;
 enum class HostCalendarAvailability : uint32_t;
 enum class HostCalendarParticipantStatus : uint32_t;
 enum class HostCalendarRecurrenceFrequency : uint32_t;
-enum class HostCalendarReminderKind : uint32_t;
 struct HostCalendarRecurrenceWeekday;
 struct HostCalendarRecurrenceRule;
 struct HostCalendarAttendee;
+struct HostCalendarAbsoluteReminder;
+struct HostCalendarRelativeReminder;
 struct HostCalendarReminder;
 struct HostCalendarDescriptor;
 struct HostCalendarEvent;
@@ -66,6 +68,19 @@ struct HostContactResponse;
 struct HostContactCreateResponse;
 struct HostDocumentRequest;
 struct HostDocumentDescriptor;
+struct HostDocumentResult;
+struct HostIntentEventMetadata;
+struct HostIntentOpenUrlPayload;
+struct HostIntentOpenUrlEvent;
+struct HostIntentOpenFilePayload;
+struct HostIntentOpenFileEvent;
+struct HostIntentShareTextPayload;
+struct HostIntentShareTextEvent;
+struct HostIntentShareFilesPayload;
+struct HostIntentShareFilesEvent;
+struct HostIntentCustomActionPayload;
+struct HostIntentCustomActionEvent;
+struct HostIntentEvent;
 enum class LocationAccuracy : int32_t;
 struct LocationSample;
 struct LocationWatchOptions;
@@ -86,9 +101,20 @@ struct AndroidHostMidiOpenedPortHeader;
 struct AndroidHostMidiInputRecordHeader;
 struct AndroidHostMidiOutputRecordHeader;
 struct AndroidHostMidiEventHeader;
+enum class HostNotificationPriority : uint32_t;
+struct HostNotificationCalendarTrigger;
+struct HostNotificationCalendarDateTrigger;
+struct HostNotificationImmediateTrigger;
+struct HostNotificationTimeIntervalTrigger;
+struct HostNotificationTrigger;
 struct HostNotificationRequest;
-enum class HostNotificationEventKind : uint32_t;
+struct HostNotificationEventMetadata;
+struct HostNotificationInteractedPayload;
+struct HostNotificationDeliveredEvent;
+struct HostNotificationDismissedEvent;
+struct HostNotificationInteractedEvent;
 struct HostNotificationEvent;
+enum class HostPermission : int32_t;
 struct HostPermissionRequest;
 struct HostPermissionEvent;
 enum class HostTextInputType : int32_t;
@@ -316,18 +342,162 @@ enum class HostBackgroundTaskScheduleKind : uint32_t {
     Recurring = 2,
 };
 
+/// One host calendar access payload.
+enum class HostCalendarAccess : uint32_t {
+    /// One read-only calendar.
+    Read = 1,
+    /// One read-write calendar.
+    Write = 2,
+};
+
+/// One host calendar availability payload.
+enum class HostCalendarAvailability : uint32_t {
+    /// One busy slot.
+    Busy = 1,
+    /// One free slot.
+    Free = 2,
+    /// One tentative slot.
+    Tentative = 3,
+    /// One out-of-office slot.
+    OutOfOffice = 4,
+    /// One unavailable slot.
+    Unavailable = 5,
+    /// One unknown slot.
+    Unknown = 6,
+};
+
+/// One host calendar participant-status payload.
+enum class HostCalendarParticipantStatus : uint32_t {
+    /// One unknown response.
+    Unknown = 1,
+    /// One pending response.
+    Pending = 2,
+    /// One accepted response.
+    Accepted = 3,
+    /// One tentative response.
+    Tentative = 4,
+    /// One declined response.
+    Declined = 5,
+    /// One delegated response.
+    Delegated = 6,
+    /// One completed response.
+    Completed = 7,
+    /// One in-process response.
+    InProcess = 8,
+};
+
+/// One host calendar recurrence-frequency payload.
+enum class HostCalendarRecurrenceFrequency : uint32_t {
+    /// One daily recurrence.
+    Daily = 1,
+    /// One weekly recurrence.
+    Weekly = 2,
+    /// One monthly recurrence.
+    Monthly = 3,
+    /// One yearly recurrence.
+    Yearly = 4,
+};
+
+/// One location accuracy preference.
+enum class LocationAccuracy : int32_t {
+    /// Passive.
+    Passive = 1,
+    /// Low.
+    Low = 2,
+    /// Balanced.
+    Balanced = 3,
+    /// High.
+    High = 4,
+    /// Best.
+    Best = 5,
+};
+
+/// One host media asset-kind payload.
+enum class HostMediaAssetKind : uint32_t {
+    /// One image asset.
+    Image = 1,
+    /// One video asset.
+    Video = 2,
+    /// One audio asset.
+    Audio = 3,
+    /// One non-standard asset.
+    Other = 4,
+};
+
+/// One host notification priority payload.
+enum class HostNotificationPriority : uint32_t {
+    /// One low-priority notification.
+    Low = 1,
+    /// One normal-priority notification.
+    Normal = 2,
+    /// One high-priority notification.
+    High = 3,
+};
+
+/// One host permission selector payload.
+enum class HostPermission : int32_t {
+    /// Location.
+    Location = 1,
+    /// LocationBackground.
+    LocationBackground = 2,
+    /// Camera.
+    Camera = 3,
+    /// Microphone.
+    Microphone = 4,
+    /// Bluetooth.
+    Bluetooth = 5,
+    /// Notifications.
+    Notifications = 6,
+    /// ContactsRead.
+    ContactsRead = 7,
+    /// ContactsWrite.
+    ContactsWrite = 8,
+    /// MediaRead.
+    MediaRead = 9,
+    /// MediaWrite.
+    MediaWrite = 10,
+    /// Motion.
+    Motion = 11,
+    /// ClipboardRead.
+    ClipboardRead = 12,
+    /// CalendarRead.
+    CalendarRead = 13,
+    /// CalendarWrite.
+    CalendarWrite = 14,
+};
+
+/// One host text-input type hint payload.
+enum class HostTextInputType : int32_t {
+    /// Plain text entry.
+    Text = 0,
+    /// Numeric entry.
+    Number = 1,
+    /// Email entry.
+    Email = 2,
+    /// URL entry.
+    Url = 3,
+    /// Password entry.
+    Password = 4,
+    /// Phone entry.
+    Phone = 5,
+    /// Search entry.
+    Search = 6,
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalU64 {
+    bool has_value;
+    uint64_t value;
+};
+
 /// One host background task-schedule payload.
 struct HostBackgroundTaskSchedule {
     /// The declared schedule class.
     HostBackgroundTaskScheduleKind kind;
-    /// Whether the earliest execution target is present.
-    bool has_earliest_begin_unix_ns;
     /// The earliest execution target in UTC nanoseconds.
-    uint64_t earliest_begin_unix_ns;
-    /// Whether the repeat interval is present.
-    bool has_repeat_interval_ns;
+    OptionalU64 earliest_begin_unix_ns;
     /// The repeat interval in nanoseconds for recurring schedules.
-    uint64_t repeat_interval_ns;
+    OptionalU64 repeat_interval_ns;
 };
 
 /// One host background task-options payload.
@@ -348,14 +518,18 @@ struct HostBackgroundTaskOptions {
     HostBackgroundConflictPolicy conflict_policy;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalHostBackgroundStatus {
+    bool has_value;
+    HostBackgroundStatus value;
+};
+
 /// One host background status response payload.
 struct HostBackgroundStatusResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether one scheduler status is present.
-    bool has_scheduler_status;
     /// The scheduler status when present.
-    HostBackgroundStatus scheduler_status;
+    OptionalHostBackgroundStatus scheduler_status;
 };
 
 /// One host background task-descriptor payload.
@@ -426,18 +600,18 @@ struct HostBackgroundEventMetadata {
     uint64_t deadline_unix_ns;
 };
 
-/// One host background event kind payload.
-enum class HostBackgroundEventKind : uint32_t {
-    /// One task-ready event.
-    TaskReady = 1,
-    /// One task-expired event.
-    TaskExpired = 2,
+/// One host background task-ready event payload.
+struct HostBackgroundTaskReadyEvent {
+    /// The event kind discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostBackgroundEventMetadata metadata;
 };
 
-/// One host background event payload.
-struct HostBackgroundEvent {
-    /// The event kind.
-    HostBackgroundEventKind kind;
+/// One host background task-expired event payload.
+struct HostBackgroundTaskExpiredEvent {
+    /// The event kind discriminator.
+    NativeStringRef kind;
     /// The shared event metadata.
     HostBackgroundEventMetadata metadata;
 };
@@ -518,6 +692,12 @@ struct AndroidHostBluetoothDeviceDescriptorHeader {
     uint32_t is_connected;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalI32 {
+    bool has_value;
+    int32_t value;
+};
+
 /// Fixed-size host bluetooth scan-filter header.
 struct AndroidHostBluetoothScanFilterHeader {
     /// Whether the filter is present.
@@ -530,10 +710,8 @@ struct AndroidHostBluetoothScanFilterHeader {
     uint32_t name_prefix_offset;
     /// Length of the name-prefix string.
     uint32_t name_prefix_len;
-    /// Whether the minimum RSSI is present.
-    uint32_t has_minimum_rssi;
     /// Minimum RSSI threshold in dBm.
-    int32_t minimum_rssi_dbm;
+    OptionalI32 minimum_rssi_dbm;
     /// Requested scan-mode code.
     uint32_t scan_mode;
     /// Requested primary PHY code.
@@ -626,78 +804,24 @@ struct AndroidHostBluetoothSessionEventHeader {
     uint32_t flags;
 };
 
-/// One host calendar access payload.
-enum class HostCalendarAccess : uint32_t {
-    /// One read-only calendar.
-    Read = 1,
-    /// One read-write calendar.
-    Write = 2,
-};
-
-/// One host calendar availability payload.
-enum class HostCalendarAvailability : uint32_t {
-    /// One busy slot.
-    Busy = 1,
-    /// One free slot.
-    Free = 2,
-    /// One tentative slot.
-    Tentative = 3,
-    /// One out-of-office slot.
-    OutOfOffice = 4,
-    /// One unavailable slot.
-    Unavailable = 5,
-    /// One unknown slot.
-    Unknown = 6,
-};
-
-/// One host calendar participant-status payload.
-enum class HostCalendarParticipantStatus : uint32_t {
-    /// One unknown response.
-    Unknown = 1,
-    /// One pending response.
-    Pending = 2,
-    /// One accepted response.
-    Accepted = 3,
-    /// One tentative response.
-    Tentative = 4,
-    /// One declined response.
-    Declined = 5,
-    /// One delegated response.
-    Delegated = 6,
-    /// One completed response.
-    Completed = 7,
-    /// One in-process response.
-    InProcess = 8,
-};
-
-/// One host calendar recurrence-frequency payload.
-enum class HostCalendarRecurrenceFrequency : uint32_t {
-    /// One daily recurrence.
-    Daily = 1,
-    /// One weekly recurrence.
-    Weekly = 2,
-    /// One monthly recurrence.
-    Monthly = 3,
-    /// One yearly recurrence.
-    Yearly = 4,
-};
-
-/// One host calendar reminder-kind payload.
-enum class HostCalendarReminderKind : uint32_t {
-    /// One absolute reminder.
-    Absolute = 1,
-    /// One relative reminder.
-    Relative = 2,
+/// One optional value passed through the Android bridge.
+struct OptionalI8 {
+    bool has_value;
+    int8_t value;
 };
 
 /// One host calendar recurrence-weekday payload.
 struct HostCalendarRecurrenceWeekday {
     /// The weekday number in ISO-8601 encoding, 1 through 7.
     uint8_t day;
-    /// Whether the weekday carries one ordinal week number.
-    bool has_week_number;
     /// The ordinal week number when present.
-    int8_t week_number;
+    OptionalI8 week_number;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalU32 {
+    bool has_value;
+    uint32_t value;
 };
 
 /// One host calendar recurrence-rule payload.
@@ -706,14 +830,10 @@ struct HostCalendarRecurrenceRule {
     HostCalendarRecurrenceFrequency frequency;
     /// The recurrence interval.
     uint32_t interval;
-    /// Whether the recurrence carries one occurrence count.
-    bool has_count;
     /// The bounded occurrence count when present.
-    uint32_t count;
-    /// Whether the recurrence carries one end timestamp.
-    bool has_until_unix_ns;
+    OptionalU32 count;
     /// The bounded end timestamp in UTC nanoseconds when present.
-    uint64_t until_unix_ns;
+    OptionalU64 until_unix_ns;
     /// The weekday numbers in ISO-8601 encoding.
     NativeU8Slice by_week_days;
     /// The weekday selectors with optional ordinals.
@@ -730,20 +850,20 @@ struct HostCalendarRecurrenceRule {
     NativeI16Slice by_set_positions;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalStringRef {
+    bool has_value;
+    NativeStringRef value;
+};
+
 /// One host calendar attendee payload.
 struct HostCalendarAttendee {
-    /// Whether the attendee carries one stable identifier.
-    bool has_id;
     /// The stable attendee identifier when present.
-    NativeStringRef id;
-    /// Whether the attendee carries one display name.
-    bool has_name;
+    OptionalStringRef id;
     /// The display name when present.
-    NativeStringRef name;
-    /// Whether the attendee carries one email address.
-    bool has_email;
+    OptionalStringRef name;
     /// The email address when present.
-    NativeStringRef email;
+    OptionalStringRef email;
     /// Whether the attendee is optional.
     bool optional;
     /// Whether the attendee is the organizer.
@@ -753,11 +873,17 @@ struct HostCalendarAttendee {
 };
 
 /// One host calendar reminder payload.
-struct HostCalendarReminder {
-    /// The reminder variant kind.
-    HostCalendarReminderKind kind;
+struct HostCalendarAbsoluteReminder {
+    /// The reminder variant discriminator.
+    NativeStringRef kind;
     /// The absolute reminder timestamp in UTC nanoseconds.
     uint64_t absolute_unix_ns;
+};
+
+/// One host calendar relative reminder payload.
+struct HostCalendarRelativeReminder {
+    /// The reminder variant discriminator.
+    NativeStringRef kind;
     /// The minutes before the event start for relative reminders.
     int32_t minutes_before_start;
 };
@@ -770,16 +896,32 @@ struct HostCalendarDescriptor {
     NativeStringRef title;
     /// The source or account label payload.
     NativeStringRef source;
-    /// Whether the descriptor carries one owner label.
-    bool has_owner;
     /// The owner label when present.
-    NativeStringRef owner;
+    OptionalStringRef owner;
     /// The ARGB color payload.
     uint32_t color_argb;
     /// Whether this is the primary write target.
     bool primary;
     /// The calendar access mode.
     HostCalendarAccess access;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalHostCalendarRecurrenceRule {
+    bool has_value;
+    HostCalendarRecurrenceRule value;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalHostCalendarAttendeeSlice {
+    bool has_value;
+    HostCalendarAttendeeSlice value;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalHostCalendarReminderSlice {
+    bool has_value;
+    HostCalendarReminderSlice value;
 };
 
 /// One host calendar event payload.
@@ -790,14 +932,10 @@ struct HostCalendarEvent {
     NativeStringRef calendar_id;
     /// The event title payload.
     NativeStringRef title;
-    /// Whether the event carries one notes payload.
-    bool has_notes;
     /// The notes payload when present.
-    NativeStringRef notes;
-    /// Whether the event carries one location payload.
-    bool has_location;
+    OptionalStringRef notes;
     /// The location payload when present.
-    NativeStringRef location;
+    OptionalStringRef location;
     /// The start timestamp in UTC nanoseconds.
     uint64_t start_unix_ns;
     /// The end timestamp in UTC nanoseconds.
@@ -806,46 +944,28 @@ struct HostCalendarEvent {
     bool all_day;
     /// Whether the event is canceled.
     bool canceled;
-    /// Whether the event carries one timezone identifier.
-    bool has_time_zone;
     /// The timezone identifier when present.
-    NativeStringRef time_zone;
+    OptionalStringRef time_zone;
     /// The event availability class.
     HostCalendarAvailability availability;
-    /// Whether the event carries one URL.
-    bool has_url;
     /// The event URL when present.
-    NativeStringRef url;
-    /// Whether the event carries one organizer name.
-    bool has_organizer_name;
+    OptionalStringRef url;
     /// The organizer name when present.
-    NativeStringRef organizer_name;
-    /// Whether the event carries one organizer email.
-    bool has_organizer_email;
+    OptionalStringRef organizer_name;
     /// The organizer email when present.
-    NativeStringRef organizer_email;
+    OptionalStringRef organizer_email;
     /// Whether the event is one recurring item.
     bool recurring;
-    /// Whether the event carries one recurrence-master identifier.
-    bool has_recurrence_master_id;
     /// The recurrence-master identifier when present.
-    NativeStringRef recurrence_master_id;
-    /// Whether the event carries one recurrence-instance timestamp.
-    bool has_recurrence_id_unix_ns;
+    OptionalStringRef recurrence_master_id;
     /// The recurrence-instance timestamp when present.
-    uint64_t recurrence_id_unix_ns;
-    /// Whether the event carries one recurrence rule.
-    bool has_recurrence_rule;
+    OptionalU64 recurrence_id_unix_ns;
     /// The recurrence rule when present.
-    HostCalendarRecurrenceRule recurrence_rule;
-    /// Whether the event carries one attendee list.
-    bool has_attendees;
+    OptionalHostCalendarRecurrenceRule recurrence_rule;
     /// The attendee list when present.
-    HostCalendarAttendeeSlice attendees;
-    /// Whether the event carries one reminder list.
-    bool has_reminders;
+    OptionalHostCalendarAttendeeSlice attendees;
     /// The reminder list when present.
-    HostCalendarReminderSlice reminders;
+    OptionalHostCalendarReminderSlice reminders;
 };
 
 /// One host calendar event-draft payload.
@@ -854,42 +974,28 @@ struct HostCalendarEventDraft {
     NativeStringRef calendar_id;
     /// The event title payload.
     NativeStringRef title;
-    /// Whether the draft carries one notes payload.
-    bool has_notes;
     /// The notes payload when present.
-    NativeStringRef notes;
-    /// Whether the draft carries one location payload.
-    bool has_location;
+    OptionalStringRef notes;
     /// The location payload when present.
-    NativeStringRef location;
+    OptionalStringRef location;
     /// The start timestamp in UTC nanoseconds.
     uint64_t start_unix_ns;
     /// The end timestamp in UTC nanoseconds.
     uint64_t end_unix_ns;
     /// Whether the event is all-day.
     bool all_day;
-    /// Whether the draft carries one timezone identifier.
-    bool has_time_zone;
     /// The timezone identifier when present.
-    NativeStringRef time_zone;
+    OptionalStringRef time_zone;
     /// The event availability class.
     HostCalendarAvailability availability;
-    /// Whether the draft carries one URL.
-    bool has_url;
     /// The event URL when present.
-    NativeStringRef url;
-    /// Whether the draft carries one recurrence rule.
-    bool has_recurrence_rule;
+    OptionalStringRef url;
     /// The recurrence rule when present.
-    HostCalendarRecurrenceRule recurrence_rule;
-    /// Whether the draft carries one attendee list.
-    bool has_attendees;
+    OptionalHostCalendarRecurrenceRule recurrence_rule;
     /// The attendee list when present.
-    HostCalendarAttendeeSlice attendees;
-    /// Whether the draft carries one reminder list.
-    bool has_reminders;
+    OptionalHostCalendarAttendeeSlice attendees;
     /// The reminder list when present.
-    HostCalendarReminderSlice reminders;
+    OptionalHostCalendarReminderSlice reminders;
 };
 
 /// One host calendar event-query payload.
@@ -900,10 +1006,8 @@ struct HostCalendarEventQuery {
     uint64_t start_unix_ns;
     /// The query end timestamp in UTC nanoseconds.
     uint64_t end_unix_ns;
-    /// Whether the query carries one page limit.
-    bool has_limit;
     /// The maximum returned event count when present.
-    uint32_t limit;
+    OptionalU32 limit;
     /// Whether canceled events should be included.
     bool include_canceled;
     /// Whether declined events should be included.
@@ -928,24 +1032,26 @@ struct HostCalendarEventListResponse {
     HostCalendarEventSlice events;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalHostCalendarEvent {
+    bool has_value;
+    HostCalendarEvent value;
+};
+
 /// One host calendar event-read response payload.
 struct HostCalendarEventReadResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response carries one event.
-    bool has_event;
     /// The returned event when present.
-    HostCalendarEvent event;
+    OptionalHostCalendarEvent event;
 };
 
 /// One host calendar event-create response payload.
 struct HostCalendarEventCreateResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response carries one created identifier.
-    bool has_id;
     /// The created identifier when present.
-    NativeStringRef id;
+    OptionalStringRef id;
 };
 
 /// Fixed-size host camera recording capability header.
@@ -961,13 +1067,9 @@ struct AndroidHostCameraRecordingCapabilitiesHeader {
     /// Whether pause and resume are supported.
     uint32_t pause_supported;
     /// Maximum supported video bit rate in bits per second.
-    uint64_t maximum_video_bit_rate;
-    /// Whether the maximum video bit rate is present.
-    uint32_t has_maximum_video_bit_rate;
+    OptionalU64 maximum_video_bit_rate;
     /// Maximum supported audio bit rate in bits per second.
-    uint64_t maximum_audio_bit_rate;
-    /// Whether the maximum audio bit rate is present.
-    uint32_t has_maximum_audio_bit_rate;
+    OptionalU64 maximum_audio_bit_rate;
 };
 
 /// Fixed-size host camera recording options header.
@@ -976,32 +1078,20 @@ struct AndroidHostCameraRecordingOptionsHeader {
     uint32_t container;
     /// Preferred video codec code.
     uint32_t video_codec;
-    /// Whether the audio-enabled flag is present.
-    uint32_t has_audio_enabled;
     /// Requested audio-enabled value when present.
-    uint32_t audio_enabled;
+    OptionalU32 audio_enabled;
     /// Preferred audio codec code.
     uint32_t audio_codec;
     /// Requested video bit rate in bits per second.
-    uint64_t video_bit_rate;
-    /// Whether the video bit rate is present.
-    uint32_t has_video_bit_rate;
+    OptionalU64 video_bit_rate;
     /// Requested audio bit rate in bits per second.
-    uint64_t audio_bit_rate;
-    /// Whether the audio bit rate is present.
-    uint32_t has_audio_bit_rate;
+    OptionalU64 audio_bit_rate;
     /// Requested key-frame interval in frames.
-    uint32_t key_frame_interval_frames;
-    /// Whether the key-frame interval is present.
-    uint32_t has_key_frame_interval_frames;
+    OptionalU32 key_frame_interval_frames;
     /// Requested maximum duration in nanoseconds.
-    uint64_t maximum_duration_ns;
-    /// Whether the maximum duration is present.
-    uint32_t has_maximum_duration_ns;
+    OptionalU64 maximum_duration_ns;
     /// Requested maximum output size in bytes.
-    uint64_t maximum_bytes;
-    /// Whether the maximum output size is present.
-    uint32_t has_maximum_bytes;
+    OptionalU64 maximum_bytes;
 };
 
 /// Fixed-size host camera device descriptor header.
@@ -1094,14 +1184,10 @@ struct AndroidHostCameraFrameHeader {
 
 /// One host contact query payload.
 struct HostContactQuery {
-    /// Whether the query carries one cursor.
-    bool has_cursor;
     /// The opaque cursor from one prior list or search call.
-    NativeStringRef cursor;
-    /// Whether the query carries one limit.
-    bool has_limit;
+    OptionalStringRef cursor;
     /// The maximum returned contacts for this page.
-    uint32_t limit;
+    OptionalU32 limit;
     /// Whether phone values should be returned.
     bool include_phones;
     /// Whether email values should be returned.
@@ -1228,34 +1314,40 @@ struct HostContactPage {
     bool has_more;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalHostContactPage {
+    bool has_value;
+    HostContactPage value;
+};
+
 /// One host contact-page response payload.
 struct HostContactPageResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one page.
-    bool has_page;
     /// The returned contact page when available.
-    HostContactPage page;
+    OptionalHostContactPage page;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalHostContact {
+    bool has_value;
+    HostContact value;
 };
 
 /// One host contact-read response payload.
 struct HostContactResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one contact.
-    bool has_contact;
     /// The returned contact when available.
-    HostContact contact;
+    OptionalHostContact contact;
 };
 
 /// One host contact-create response payload.
 struct HostContactCreateResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one created contact identifier.
-    bool has_id;
     /// The created contact identifier when available.
-    NativeStringRef id;
+    OptionalStringRef id;
 };
 
 /// One host document request payload.
@@ -1267,11 +1359,17 @@ struct HostDocumentRequest {
     /// File-extension filters without the leading dot.
     NativeStringSlice extensions;
     /// Whether multiple documents may be selected.
-    bool allows_multiple_selection;
+    bool multiple;
     /// Whether directory selection is allowed.
-    bool allows_directory_selection;
+    bool allow_directories;
     /// Whether the host should copy selected files into one runtime-visible sandbox path when possible.
-    bool copies_to_sandbox;
+    bool copy_to_sandbox;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalOsPath {
+    bool has_value;
+    NativeStringRef value;
 };
 
 /// One host document descriptor payload.
@@ -1280,38 +1378,128 @@ struct HostDocumentDescriptor {
     NativeStringRef uri;
     /// The normalized document name.
     NativeStringRef name;
-    /// Whether the host provided one MIME type.
-    bool has_mime_type;
     /// The normalized content type when available.
-    NativeStringRef mime_type;
-    /// Whether the host provided one size.
-    bool has_size_bytes;
+    OptionalStringRef mime_type;
     /// The document size in bytes when available.
-    uint64_t size_bytes;
-    /// Whether the host provided one modification timestamp.
-    bool has_modified_unix_ns;
+    OptionalU64 size_bytes;
     /// The document modification timestamp in UTC nanoseconds when available.
-    uint64_t modified_unix_ns;
+    OptionalU64 modified_unix_ns;
     /// Whether this descriptor represents one directory.
     bool is_directory;
-    /// Whether the host provided one local path.
-    bool has_local_path;
     /// The optional host-local path when the host exposes one directly.
-    NativeStringRef local_path;
+    OptionalOsPath local_path;
 };
 
-/// One location accuracy preference.
-enum class LocationAccuracy : int32_t {
-    /// Passive.
-    Passive = 1,
-    /// Low.
-    Low = 2,
-    /// Balanced.
-    Balanced = 3,
-    /// High.
-    High = 4,
-    /// Best.
-    Best = 5,
+/// One host document result payload.
+struct HostDocumentResult {
+    /// The stable request identifier for this interactive host flow.
+    uint64_t request_id;
+    /// The selected document descriptors.
+    HostDocumentDescriptorSlice documents;
+};
+
+/// One host intent event metadata payload.
+struct HostIntentEventMetadata {
+    /// The monotonic event timestamp in nanoseconds.
+    uint64_t timestamp_ns;
+    /// The monotonic sequence number for this event stream.
+    uint64_t sequence;
+    /// The source package, bundle, or process identifier when available.
+    OptionalStringRef source;
+};
+
+/// One host open-url intent payload.
+struct HostIntentOpenUrlPayload {
+    /// The URL payload from the host.
+    NativeStringRef url;
+};
+
+/// One host open-url intent event payload.
+struct HostIntentOpenUrlEvent {
+    /// The intent event discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostIntentEventMetadata metadata;
+    /// The open-url payload.
+    HostIntentOpenUrlPayload payload;
+};
+
+/// One host open-file intent payload.
+struct HostIntentOpenFilePayload {
+    /// The path payload from the host.
+    NativeStringRef path;
+    /// The normalized content type when available.
+    OptionalStringRef mime_type;
+};
+
+/// One host open-file intent event payload.
+struct HostIntentOpenFileEvent {
+    /// The intent event discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostIntentEventMetadata metadata;
+    /// The open-file payload.
+    HostIntentOpenFilePayload payload;
+};
+
+/// One host share-text intent payload.
+struct HostIntentShareTextPayload {
+    /// The shared text payload from the host.
+    NativeStringRef text;
+    /// The normalized content type when available.
+    OptionalStringRef mime_type;
+};
+
+/// One host share-text intent event payload.
+struct HostIntentShareTextEvent {
+    /// The intent event discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostIntentEventMetadata metadata;
+    /// The share-text payload.
+    HostIntentShareTextPayload payload;
+};
+
+/// One host share-files intent payload.
+struct HostIntentShareFilesPayload {
+    /// The shared path payloads from the host.
+    NativeStringSlice paths;
+    /// The normalized content type when available.
+    OptionalStringRef mime_type;
+};
+
+/// One host share-files intent event payload.
+struct HostIntentShareFilesEvent {
+    /// The intent event discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostIntentEventMetadata metadata;
+    /// The share-files payload.
+    HostIntentShareFilesPayload payload;
+};
+
+/// One host custom-action intent payload.
+struct HostIntentCustomActionPayload {
+    /// The custom action identifier from the host.
+    NativeStringRef action;
+    /// The URL payload when available.
+    OptionalStringRef url;
+    /// The file-path payloads when available.
+    NativeStringSlice paths;
+    /// The shared text payload when available.
+    OptionalStringRef text;
+    /// The normalized content type when available.
+    OptionalStringRef mime_type;
+};
+
+/// One host custom-action intent event payload.
+struct HostIntentCustomActionEvent {
+    /// The intent event discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostIntentEventMetadata metadata;
+    /// The custom-action payload.
+    HostIntentCustomActionPayload payload;
 };
 
 /// One location sample payload.
@@ -1354,38 +1542,26 @@ struct LocationServicesResponse {
     bool is_enabled;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalLocationSample {
+    bool has_value;
+    LocationSample value;
+};
+
 /// One last-known location response payload.
 struct LocationLastKnownResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one sample.
-    bool has_sample;
     /// The returned sample when available.
-    LocationSample sample;
-};
-
-/// One host media asset-kind payload.
-enum class HostMediaAssetKind : uint32_t {
-    /// One image asset.
-    Image = 1,
-    /// One video asset.
-    Video = 2,
-    /// One audio asset.
-    Audio = 3,
-    /// One non-standard asset.
-    Other = 4,
+    OptionalLocationSample sample;
 };
 
 /// One host media-list request payload.
 struct HostMediaListRequest {
-    /// Whether the request carries one cursor.
-    bool has_cursor;
     /// The opaque cursor from one prior media-list call.
-    NativeStringRef cursor;
-    /// Whether the request carries one limit.
-    bool has_limit;
+    OptionalStringRef cursor;
     /// The maximum returned assets for this page.
-    uint32_t limit;
+    OptionalU32 limit;
     /// The requested asset kinds, empty means every kind.
     HostMediaAssetKindSlice kinds;
     /// Whether hidden assets should be included.
@@ -1395,7 +1571,7 @@ struct HostMediaListRequest {
 /// One host media asset-descriptor payload.
 struct HostMediaAssetDescriptor {
     /// The stable asset identifier.
-    NativeStringRef identifier;
+    NativeStringRef id;
     /// The host URI for this asset.
     NativeStringRef uri;
     /// The asset filename payload.
@@ -1428,24 +1604,32 @@ struct HostMediaListResult {
     bool has_more;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalHostMediaListResult {
+    bool has_value;
+    HostMediaListResult value;
+};
+
 /// One host media-list response payload.
 struct HostMediaListResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one page.
-    bool has_page;
     /// The returned page when available.
-    HostMediaListResult page;
+    OptionalHostMediaListResult page;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalHostMediaAssetDescriptor {
+    bool has_value;
+    HostMediaAssetDescriptor value;
 };
 
 /// One host media-read response payload.
 struct HostMediaReadResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one descriptor.
-    bool has_descriptor;
     /// The returned descriptor when available.
-    HostMediaAssetDescriptor descriptor;
+    OptionalHostMediaAssetDescriptor descriptor;
 };
 
 /// One host media-import request payload.
@@ -1460,10 +1644,8 @@ struct HostMediaImportPathRequest {
 struct HostMediaImportPathResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one imported asset identifier.
-    bool has_identifier;
     /// The imported asset identifier when available.
-    NativeStringRef identifier;
+    OptionalStringRef identifier;
 };
 
 /// One host media-delete request payload.
@@ -1559,9 +1741,7 @@ struct AndroidHostMidiInputRecordHeader {
 /// Fixed-size host MIDI output record header.
 struct AndroidHostMidiOutputRecordHeader {
     /// Scheduled send timestamp in runtime monotonic nanoseconds.
-    uint64_t send_at_ns;
-    /// Whether the record carries one scheduled send timestamp.
-    uint32_t has_send_at;
+    OptionalU64 send_at_ns;
     /// Offset of the record payload inside the shared blob.
     uint32_t data_offset;
     /// Length of the record payload inside the shared blob.
@@ -1598,76 +1778,138 @@ struct AndroidHostMidiEventHeader {
     AndroidHostMidiPortDescriptorHeader descriptor;
 };
 
+/// One host notification calendar trigger payload.
+struct HostNotificationCalendarTrigger {
+    /// The trigger year.
+    uint16_t year;
+    /// The trigger month, 1 to 12.
+    uint8_t month;
+    /// The trigger day of month, 1 to 31.
+    uint8_t day;
+    /// The trigger hour, 0 to 23.
+    uint8_t hour;
+    /// The trigger minute, 0 to 59.
+    uint8_t minute;
+    /// The trigger second, 0 to 59.
+    uint8_t second;
+    /// The trigger timezone identifier.
+    NativeStringRef time_zone;
+    /// Whether this trigger repeats.
+    bool repeats;
+};
+
+/// One host notification calendar-date trigger payload.
+struct HostNotificationCalendarDateTrigger {
+    /// The trigger variant discriminator.
+    NativeStringRef kind;
+    /// The calendar trigger payload.
+    HostNotificationCalendarTrigger calendar;
+};
+
+/// One host notification immediate trigger payload.
+struct HostNotificationImmediateTrigger {
+    /// The trigger variant discriminator.
+    NativeStringRef kind;
+};
+
+/// One host notification time-interval trigger payload.
+struct HostNotificationTimeIntervalTrigger {
+    /// The trigger variant discriminator.
+    NativeStringRef kind;
+    /// The time-interval trigger delay in nanoseconds.
+    uint64_t interval_ns;
+};
+
 /// One host notification request payload.
 struct HostNotificationRequest {
-    /// The stable runtime notification identifier.
-    NativeStringRef identifier;
     /// The primary notification title.
     NativeStringRef title;
+    /// The subtitle when present.
+    OptionalStringRef subtitle;
     /// The primary notification body text.
     NativeStringRef body;
+    /// The host notification tag.
+    NativeStringRef tag;
+    /// The channel identifier when present.
+    OptionalStringRef channel_id;
+    /// The priority class.
+    HostNotificationPriority priority;
+    /// The badge count when present.
+    OptionalU32 badge_count;
+    /// The sound identifier when present.
+    OptionalStringRef sound;
+    /// The category identifier when present.
+    OptionalStringRef category_id;
+    /// The thread identifier when present.
+    OptionalStringRef thread_id;
+    /// The delivery trigger selector.
+    HostNotificationTrigger trigger;
+    /// The action identifier when present.
+    OptionalStringRef action_id;
 };
 
-/// One host notification event-kind payload.
-enum class HostNotificationEventKind : uint32_t {
-    /// The notification was delivered.
-    Delivered = 1,
-    /// The notification was activated by the user.
-    Activated = 2,
-    /// The notification was dismissed.
-    Dismissed = 3,
-};
-
-/// One host notification event payload.
-struct HostNotificationEvent {
-    /// The notification interaction kind.
-    HostNotificationEventKind kind;
-    /// The event sequence number for this stream.
-    uint64_t sequence;
+/// One host notification event metadata payload.
+struct HostNotificationEventMetadata {
     /// The monotonic event timestamp in nanoseconds.
     uint64_t timestamp_ns;
-    /// The simplified request associated with this event.
+    /// The monotonic sequence number for this event stream.
+    uint64_t sequence;
+    /// The host notification identifier.
+    NativeStringRef id;
+    /// The notification request payload.
     HostNotificationRequest request;
-    /// Whether the host provided one action identifier.
-    bool has_action_identifier;
-    /// The action identifier for interactive notifications when available.
-    NativeStringRef action_identifier;
+};
+
+/// One host notification interacted payload.
+struct HostNotificationInteractedPayload {
+    /// The action identifier when present.
+    OptionalStringRef action_id;
+    /// The text-input response when present.
+    OptionalStringRef action_response_text;
+};
+
+/// One host notification delivered event payload.
+struct HostNotificationDeliveredEvent {
+    /// The notification interaction discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostNotificationEventMetadata metadata;
+};
+
+/// One host notification dismissed event payload.
+struct HostNotificationDismissedEvent {
+    /// The notification interaction discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostNotificationEventMetadata metadata;
+};
+
+/// One host notification interacted event payload.
+struct HostNotificationInteractedEvent {
+    /// The notification interaction discriminator.
+    NativeStringRef kind;
+    /// The shared event metadata.
+    HostNotificationEventMetadata metadata;
+    /// The interaction payload.
+    HostNotificationInteractedPayload payload;
 };
 
 /// One host permission request payload.
 struct HostPermissionRequest {
     /// The stable request identifier for this interactive host flow.
     uint64_t request_id;
-    /// The normalized permission name requested by the runtime.
-    NativeStringRef permission;
+    /// The permission requested by the runtime.
+    HostPermission permission;
 };
 
 /// One host permission event payload.
 struct HostPermissionEvent {
     /// The stable request identifier for this interactive host flow.
     uint64_t request_id;
-    /// The normalized permission name.
-    NativeStringRef permission;
+    /// The permission associated with this result.
+    HostPermission permission;
     /// Whether the permission was granted.
     bool is_granted;
-};
-
-/// One host text-input type hint payload.
-enum class HostTextInputType : int32_t {
-    /// Plain text entry.
-    Text = 0,
-    /// Numeric entry.
-    Number = 1,
-    /// Email entry.
-    Email = 2,
-    /// URL entry.
-    Url = 3,
-    /// Password entry.
-    Password = 4,
-    /// Phone entry.
-    Phone = 5,
-    /// Search entry.
-    Search = 6,
 };
 
 /// One host text range payload.
@@ -1706,20 +1948,22 @@ struct HostTextInputTransform2D {
     double ty;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalHostTextInputRectangle {
+    bool has_value;
+    HostTextInputRectangle value;
+};
+
 /// One host text geometry payload.
 struct HostTextInputGeometry {
     /// The local-to-target transform.
     HostTextInputTransform2D local_to_target_transform;
     /// The full editor rectangle.
     HostTextInputRectangle editor_rectangle;
-    /// Whether one caret rectangle is present.
-    bool has_caret_rectangle;
     /// The caret rectangle when present.
-    HostTextInputRectangle caret_rectangle;
-    /// Whether one composing rectangle is present.
-    bool has_composing_rectangle;
+    OptionalHostTextInputRectangle caret_rectangle;
     /// The composing rectangle when present.
-    HostTextInputRectangle composing_rectangle;
+    OptionalHostTextInputRectangle composing_rectangle;
 };
 
 /// One host text session configuration payload.
@@ -1734,16 +1978,20 @@ struct HostTextInputConfiguration {
     bool is_secure;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalHostTextInputRange {
+    bool has_value;
+    HostTextInputRange value;
+};
+
 /// One host text state payload.
 struct HostTextInputState {
     /// The current text payload.
     NativeStringRef text;
     /// The current selection range.
     HostTextInputRange selection;
-    /// Whether one composing range is present.
-    bool has_composing;
     /// The composing range when present.
-    HostTextInputRange composing;
+    OptionalHostTextInputRange composing;
 };
 
 /// One host text open request payload.
@@ -1784,6 +2032,18 @@ struct HostTextInputEvent {
     HostTextInputState state;
 };
 
+/// One optional value passed through the Android bridge.
+struct OptionalU16 {
+    bool has_value;
+    uint16_t value;
+};
+
+/// One optional value passed through the Android bridge.
+struct OptionalU8 {
+    bool has_value;
+    uint8_t value;
+};
+
 /// Fixed-size host USB device descriptor header.
 struct AndroidHostUsbDeviceDescriptorHeader {
     /// Offset of the stable id string.
@@ -1807,13 +2067,9 @@ struct AndroidHostUsbDeviceDescriptorHeader {
     /// Length of the port path bytes.
     uint32_t port_path_len;
     /// USB specification version in binary coded decimal form.
-    uint16_t usb_version_bcd;
-    /// Whether the USB version is present.
-    uint32_t has_usb_version_bcd;
+    OptionalU16 usb_version_bcd;
     /// Device release version in binary coded decimal form.
-    uint16_t device_version_bcd;
-    /// Whether the device version is present.
-    uint32_t has_device_version_bcd;
+    OptionalU16 device_version_bcd;
     /// USB vendor identifier.
     uint16_t vendor_id;
     /// USB product identifier.
@@ -1825,13 +2081,9 @@ struct AndroidHostUsbDeviceDescriptorHeader {
     /// Device protocol code.
     uint8_t protocol_code;
     /// Device speed code.
-    uint32_t speed;
-    /// Whether the speed is present.
-    uint32_t has_speed;
+    OptionalU32 speed;
     /// Bus number when available.
-    uint8_t bus_number;
-    /// Whether the bus number is present.
-    uint32_t has_bus_number;
+    OptionalU8 bus_number;
 };
 
 /// Fixed-size host USB hotplug event header.
@@ -2066,9 +2318,9 @@ struct AndroidHostIntentCallbacks {
     /// The open-path callback.
     uint32_t (*open_path)(uint64_t session_handle, NativeStringRef path);
     /// The share-text callback.
-    uint32_t (*share_text)(uint64_t session_handle, NativeStringRef text, bool has_mime_type, NativeStringRef mime_type);
+    uint32_t (*share_text)(uint64_t session_handle, NativeStringRef text, OptionalStringRef mime_type);
     /// The share-paths callback.
-    uint32_t (*share_paths)(uint64_t session_handle, NativeStringSlice paths, bool has_mime_type, NativeStringRef mime_type);
+    uint32_t (*share_paths)(uint64_t session_handle, NativeStringSlice paths, OptionalStringRef mime_type);
 };
 
 /// The location callbacks registered for one runtime session.
@@ -2219,62 +2471,11 @@ using NotifyNotificationEventFunction =
         HostNotificationEvent event
     );
 
-/// The runtime function that receives one intent open-url event.
-using NotifyIntentOpenUrlFunction =
+/// The runtime function that receives one intent event.
+using NotifyIntentEventFunction =
     RuntimeStatus (*)(
         uint64_t session_handle,
-        bool has_source,
-        NativeStringRef source,
-        NativeStringRef url
-    );
-
-/// The runtime function that receives one intent open-file event.
-using NotifyIntentOpenFileFunction =
-    RuntimeStatus (*)(
-        uint64_t session_handle,
-        bool has_source,
-        NativeStringRef source,
-        NativeStringRef path,
-        bool has_mime_type,
-        NativeStringRef mime_type
-    );
-
-/// The runtime function that receives one intent share-text event.
-using NotifyIntentShareTextFunction =
-    RuntimeStatus (*)(
-        uint64_t session_handle,
-        bool has_source,
-        NativeStringRef source,
-        NativeStringRef text,
-        bool has_mime_type,
-        NativeStringRef mime_type
-    );
-
-/// The runtime function that receives one intent share-files event.
-using NotifyIntentShareFilesFunction =
-    RuntimeStatus (*)(
-        uint64_t session_handle,
-        bool has_source,
-        NativeStringRef source,
-        NativeStringSlice paths,
-        bool has_mime_type,
-        NativeStringRef mime_type
-    );
-
-/// The runtime function that receives one intent custom-action event.
-using NotifyIntentCustomActionFunction =
-    RuntimeStatus (*)(
-        uint64_t session_handle,
-        bool has_source,
-        NativeStringRef source,
-        NativeStringRef action,
-        bool has_url,
-        NativeStringRef url,
-        NativeStringSlice paths,
-        bool has_text,
-        NativeStringRef text,
-        bool has_mime_type,
-        NativeStringRef mime_type
+        HostIntentEvent event
     );
 
 /// The runtime function that receives one permission result.

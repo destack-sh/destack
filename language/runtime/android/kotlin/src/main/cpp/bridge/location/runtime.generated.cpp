@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "../loader.h"
 #include "callbacks.generated.h"
 #include "runtime.generated.h"
 
@@ -142,10 +142,16 @@ AndroidHostLocationCallbacks make_location_callbacks() {
 }
 
 /// Deliver one location sample into one runtime session.
-RuntimeStatus send_location_sample(
+RuntimeStatus send_notify_location_sample(
     uint64_t session_handle,
     NativeStringRef watch_id,
     LocationSample sample
 ) {
-    return destack_host_android_notify_location_sample(session_handle, watch_id, sample);
+    RuntimeBindings bindings = {};
+    RuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));
+    if (status.code != HOST_STATUS_OK) {
+        return status;
+    }
+
+    return bindings.notify_location_sample(session_handle, watch_id, sample);
 }

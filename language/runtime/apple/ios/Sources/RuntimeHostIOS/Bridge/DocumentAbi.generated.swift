@@ -8,7 +8,7 @@ import RuntimeHostAppleCore
 typealias DocumentPickCallback =
   @convention(c) (
     UInt64,
-    DestackRustDocumentRequest
+    DestackRustHostDocumentRequest
   ) -> UInt32
 
 let documentPickCallback: DocumentPickCallback = {
@@ -31,7 +31,7 @@ func makeDocumentCallbacks() -> IosHostDocumentCallbacks {
 /// Handle one runtime callback asking to submit one host document request.
 func handleDocumentPick(
   sessionHandle: UInt64,
-  request: DestackRustDocumentRequest
+  request: DestackRustHostDocumentRequest
 ) -> UInt32 {
   let decodedRequest: RuntimeHostDocumentRequest
   do {
@@ -150,9 +150,9 @@ func currentDocumentBridgeArena() -> DocumentBridgeArena {
   return arena
 }
 
-/// Build one Swift DocumentRequest from one bridge payload.
+/// Build one Swift HostDocumentRequest from one bridge payload.
 func decodeBridgeHostDocumentRequest(
-  _ value: DestackRustDocumentRequest
+  _ value: DestackRustHostDocumentRequest
 ) throws -> RuntimeHostDocumentRequest {
   RuntimeHostDocumentRequest(
     requestID:
@@ -161,124 +161,149 @@ func decodeBridgeHostDocumentRequest(
       try tryDecodeNativeStringSlice(value.mime_types),
     extensions:
       try tryDecodeNativeStringSlice(value.extensions),
-    allowsMultipleSelection:
-      value.allows_multiple_selection,
-    allowsDirectorySelection:
-      value.allows_directory_selection,
-    copiesToSandbox:
-      value.copies_to_sandbox
+    multiple:
+      value.multiple,
+    allowDirectories:
+      value.allow_directories,
+    copyToSandbox:
+      value.copy_to_sandbox
   )
 }
 
-/// Encode one Swift DocumentRequest as one bridge payload.
+/// Encode one Swift HostDocumentRequest as one bridge payload.
 func encodeBridgeHostDocumentRequest(
   _ value: RuntimeHostDocumentRequest,
   arena: DocumentBridgeArena
-) -> DestackRustDocumentRequest {
-  DestackRustDocumentRequest(
+) -> DestackRustHostDocumentRequest {
+  DestackRustHostDocumentRequest(
     request_id:
       value.requestID.rawValue,
     mime_types:
       arena.makeStringSlice(value.mimeTypes),
     extensions:
       arena.makeStringSlice(value.extensions),
-    allows_multiple_selection:
-      value.allowsMultipleSelection,
-    allows_directory_selection:
-      value.allowsDirectorySelection,
-    copies_to_sandbox:
-      value.copiesToSandbox
+    multiple:
+      value.multiple,
+    allow_directories:
+      value.allowDirectories,
+    copy_to_sandbox:
+      value.copyToSandbox
   )
 }
 
 func encodeBridgeHostDocumentRequest(
   _ value: RuntimeHostDocumentRequest
-) -> DestackRustDocumentRequest {
+) -> DestackRustHostDocumentRequest {
   let arena = currentDocumentBridgeArena()
 
   return encodeBridgeHostDocumentRequest(value, arena: arena)
 }
 
-/// Encode one Swift DocumentRequest as one C bridge payload.
+/// Encode one Swift HostDocumentRequest as one C bridge payload.
 func withNativeHostDocumentRequest<T>(
   _ value: RuntimeHostDocumentRequest,
-  body: (DestackRustDocumentRequest) -> T
+  body: (DestackRustHostDocumentRequest) -> T
 ) -> T {
   let arena = currentDocumentBridgeArena()
 
   return body(encodeBridgeHostDocumentRequest(value, arena: arena))
 }
 
-/// Encode one Swift DocumentDescriptor as one bridge payload.
+/// Encode one Swift HostDocumentDescriptor as one bridge payload.
 func encodeBridgeHostDocumentDescriptor(
   _ value: RuntimeHostDocumentDescriptor,
   arena: DocumentBridgeArena
-) -> DestackRustDocumentDescriptor {
-  DestackRustDocumentDescriptor(
+) -> DestackRustHostDocumentDescriptor {
+  DestackRustHostDocumentDescriptor(
     uri:
       arena.makeStringRef(value.uri),
     name:
       arena.makeStringRef(value.name),
-    has_mime_type: value.mimeType != nil,
     mime_type:
-      value.mimeType.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_size_bytes: value.sizeBytes != nil,
+      ({ if let unwrappedValue = value.mimeType { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     size_bytes:
-      value.sizeBytes ?? 0,
-    has_modified_unix_ns: value.modifiedUnixNs != nil,
+      ({ if let unwrappedValue = value.sizeBytes { return DestackRustOptionalU64(has_value: true, value: unwrappedValue) } return DestackRustOptionalU64(has_value: false, value: 0) }()),
     modified_unix_ns:
-      value.modifiedUnixNs ?? 0,
+      ({ if let unwrappedValue = value.modifiedUnixNs { return DestackRustOptionalU64(has_value: true, value: unwrappedValue) } return DestackRustOptionalU64(has_value: false, value: 0) }()),
     is_directory:
       value.isDirectory,
-    has_local_path: value.localPath != nil,
     local_path:
-      value.localPath.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0)
+      ({ if let unwrappedValue = value.localPath { return DestackRustOptionalOsPath(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalOsPath(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
   )
 }
 
 func encodeBridgeHostDocumentDescriptor(
   _ value: RuntimeHostDocumentDescriptor
-) -> DestackRustDocumentDescriptor {
+) -> DestackRustHostDocumentDescriptor {
   let arena = currentDocumentBridgeArena()
 
   return encodeBridgeHostDocumentDescriptor(value, arena: arena)
 }
 
-/// Encode one Swift DocumentDescriptor as one C bridge payload.
+/// Encode one Swift HostDocumentDescriptor as one C bridge payload.
 func withNativeHostDocumentDescriptor<T>(
   _ value: RuntimeHostDocumentDescriptor,
-  body: (DestackRustDocumentDescriptor) -> T
+  body: (DestackRustHostDocumentDescriptor) -> T
 ) -> T {
   let arena = currentDocumentBridgeArena()
 
   return body(encodeBridgeHostDocumentDescriptor(value, arena: arena))
 }
 
-/// Encode one Swift DocumentDescriptor slice as one bridge payload.
+/// Encode one Swift HostDocumentDescriptor slice as one bridge payload.
 func encodeBridgeHostDocumentDescriptorSlice(
   _ values: [RuntimeHostDocumentDescriptor],
   arena: DocumentBridgeArena
-) -> DestackRustDocumentDescriptorSlice {
+) -> DestackRustHostDocumentDescriptorSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostDocumentDescriptor(value, arena: arena)
     }
   }
 
-  return DestackRustDocumentDescriptorSlice(
+  return DestackRustHostDocumentDescriptorSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift DocumentDescriptor slice as one C bridge payload.
+/// Encode one Swift HostDocumentDescriptor slice as one C bridge payload.
 func withNativeHostDocumentDescriptorSlice<T>(
   _ values: [RuntimeHostDocumentDescriptor],
-  body: (DestackRustDocumentDescriptorSlice) -> T
+  body: (DestackRustHostDocumentDescriptorSlice) -> T
 ) -> T {
   let arena = currentDocumentBridgeArena()
 
   return body(encodeBridgeHostDocumentDescriptorSlice(values, arena: arena))
+}
+
+/// Encode one Swift HostDocumentResult as one bridge payload.
+func encodeBridgeHostDocumentResult(
+  _ value: RuntimeHostDocumentResult,
+  arena: DocumentBridgeArena
+) -> DestackRustHostDocumentResult {
+  DestackRustHostDocumentResult(
+    request_id:
+      value.requestID.rawValue,
+    documents:
+      encodeBridgeHostDocumentDescriptorSlice(value.documents, arena: arena)
+  )
+}
+
+func encodeBridgeHostDocumentResult(
+  _ value: RuntimeHostDocumentResult
+) -> DestackRustHostDocumentResult {
+  let arena = currentDocumentBridgeArena()
+
+  return encodeBridgeHostDocumentResult(value, arena: arena)
+}
+
+/// Encode one Swift HostDocumentResult as one C bridge payload.
+func withNativeHostDocumentResult<T>(
+  _ value: RuntimeHostDocumentResult,
+  body: (DestackRustHostDocumentResult) -> T
+) -> T {
+  let arena = currentDocumentBridgeArena()
+
+  return body(encodeBridgeHostDocumentResult(value, arena: arena))
 }

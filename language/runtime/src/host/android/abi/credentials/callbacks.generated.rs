@@ -4,7 +4,7 @@ use crate::host::android::abi::bindings::invoke_android_binding_callback;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// The host callback for `read`.
-pub type AndroidHostCredentialsReadCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsReadCallback = unsafe extern "C" fn(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -17,7 +17,7 @@ pub type AndroidHostCredentialsReadCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// The host callback for `write`.
-pub type AndroidHostCredentialsWriteCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsWriteCallback = unsafe extern "C" fn(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -29,7 +29,7 @@ pub type AndroidHostCredentialsWriteCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// The host callback for `delete`.
-pub type AndroidHostCredentialsDeleteCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsDeleteCallback = unsafe extern "C" fn(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -37,7 +37,7 @@ pub type AndroidHostCredentialsDeleteCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// The host callback for `contains`.
-pub type AndroidHostCredentialsContainsCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsContainsCallback = unsafe extern "C" fn(
     session_handle: u64,
     service: NativeStringRef,
     account: NativeStringRef,
@@ -46,7 +46,7 @@ pub type AndroidHostCredentialsContainsCallback = unsafe extern "C" fn(
 ) -> u32;
 
 /// The host callback for `authenticate`.
-pub type AndroidHostCredentialsAuthenticateCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostCredentialsAuthenticateCallback = unsafe extern "C" fn(
     session_handle: u64,
     title: NativeStringRef,
     subtitle: NativeStringRef,
@@ -59,7 +59,7 @@ pub type AndroidHostCredentialsAuthenticateCallback = unsafe extern "C" fn(
 /// Callback table for Android host credentials request interop.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostCredentialsCallbacks {
+pub(crate) struct AndroidHostCredentialsCallbacks {
     /// The callback for `read`.
     pub read: Option<AndroidHostCredentialsReadCallback>,
     /// The callback for `write`.
