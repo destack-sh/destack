@@ -9,7 +9,7 @@
         "src/dashboard.ts"
       ],
       "outDir": "dist/site",
-      "mode": "chunked",
+      "assembly": "chunked",
       "dependencies": {
         "neverBundle": [
           "react"

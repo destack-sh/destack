@@ -1,19 +1,18 @@
-export const currentSlug = "Emit Fixtures";
-
-export function formatDocsSlug(slug) {
+function formatDocsSlug(slug) {
     return slug.replace(/\s+/g, "-").toLowerCase();
 }
 
-export function renderDocsPageRoute(slug) {
+function renderDocsPageRoute(slug) {
     const docsSlug = formatDocsSlug(slug);
     return `/docs/${docsSlug}`;
 }
 
-export function renderDocsCard(section, route) {
+function renderDocsCard(section, route) {
     return `${section}:${route}`;
 }
 
+const currentSlug = "Emit Fixtures";
 const docsPageRoute = renderDocsPageRoute(currentSlug);
 const docsCard = renderDocsCard("emit", docsPageRoute);
-export = docsCard;
+export default docsCard;
 //# sourceMappingURL=./bundle.js.map

@@ -1,25 +1,28 @@
-class b{
-    private #foo
-    foo = class{
-        private #foo
-        private #foo2
-        private #bar
-    }
-    private get #bar() {
-    }
-    private set #bar(c) {
-    }
-}
-class a{
-    private #foo
-    foo = class{
-        private #foo2
-        private #foo
-        private #bar
-    }
-    private get #bar() {
-    }
-    private set #bar(d) {
-    }
-}
-export const privateIdentifierShapes = [b, a];
+var o = class {
+  #a;
+  foo = class {
+    #s;
+    #e;
+    #f;
+  };
+  get #o() {
+  }
+  set #o(e) {
+  }
+};
+var a = class {
+  #a;
+  foo = class {
+    #s;
+    #e;
+    #f;
+  };
+  get #o() {
+  }
+  set #o(e) {
+  }
+};
+var f = [o, a];
+export {
+  f as privateIdentifierShapes
+};

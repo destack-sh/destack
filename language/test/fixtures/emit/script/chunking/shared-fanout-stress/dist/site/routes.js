@@ -4,9 +4,11 @@ export function getRoutePrefix() {
 
 export function getPrimaryNavigation(activeSlug) {
     const slugs = ["overview", "admin", "docs", "reports"];
-    return slugs.map(
-        (slug) => { slug, href: `${getRoutePrefix()}/${slug}`, isActive: slug === activeSlug }
-    );
+    return slugs.map((slug) => ({
+        slug,
+        href: `${getRoutePrefix()}/${slug}`,
+        isActive: slug === activeSlug,
+    }));
 }
 
 export function getCommonCards(prefix) {

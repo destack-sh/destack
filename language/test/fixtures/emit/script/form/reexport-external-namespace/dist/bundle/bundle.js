@@ -1,19 +1,27 @@
-export const localWidgetGroups = ["overview", "activity", "settings"];
-export function resolveLocalWidgetRoute(tab = "overview") {
+export * from "external";
+
+var localWidgetGroups = [
+    "overview",
+    "activity",
+    "settings"
+];
+function resolveLocalWidgetRoute(tab = "overview") {
     return `/widgets/${tab}`;
 }
 
-export const localWidgetRegistry = {
+var localWidgetRegistry = {
     groups: localWidgetGroups,
-    route: resolveLocalWidgetRoute("overview"),
+    route: resolveLocalWidgetRoute("overview")
 };
-export function localWidgetSummary(tab = "overview") {
+function localWidgetSummary(tab = "overview") {
     const widgetGroupCount = localWidgetGroups.length;
     const widgetRoute = resolveLocalWidgetRoute(tab);
+
     return `${widgetRoute}:${widgetGroupCount}`;
 }
-
-export * from "external";
-export { localWidgetRegistry, localWidgetSummary };
-export { resolveLocalWidgetRoute };
+export {
+    localWidgetRegistry,
+    localWidgetSummary,
+    resolveLocalWidgetRoute
+};
 //# sourceMappingURL=./bundle.js.map

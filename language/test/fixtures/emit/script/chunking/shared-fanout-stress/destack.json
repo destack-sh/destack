@@ -11,7 +11,7 @@
         "src/reports.ts"
       ],
       "outDir": "dist/site",
-      "mode": "chunked",
+      "assembly": "chunked",
       "output": {
         "sourcemap": "external",
         "manifest": true

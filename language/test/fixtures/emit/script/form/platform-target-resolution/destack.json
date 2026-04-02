@@ -1,0 +1,17 @@
+{
+  "name": "script-single-file-platform-target-resolution",
+  "targets": {
+    "cli": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts"
+      ],
+      "outFile": "dist/cli/app.js",
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
+    }
+  }
+}

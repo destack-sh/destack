@@ -1,16 +1,20 @@
-export const infinitySamples = [
-    1 / 0,
-    -inf,
-    inf,
-    -inf,
-    inf,
-    -inf,
-    NaN,
-    NaN,
-    NaN,
-    NaN,
-    inf,
-    -inf,
-    -1,
-    -1,
+// src/app.ts
+var infinitySamples = [
+  1 / 0,
+  -1 / 0,
+  1 / 0,
+  -1 / 0,
+  1 / 0,
+  -1 / 0,
+  NaN,
+  NaN,
+  NaN,
+  NaN,
+  1 / 0,
+  -1 / 0,
+  -1,
+  -1
 ];
+export {
+  infinitySamples
+};

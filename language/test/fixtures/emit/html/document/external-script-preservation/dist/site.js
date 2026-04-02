@@ -25,7 +25,6 @@ export function getPageSummary(slug = "overview") {
     return "Review workspace configuration and owner settings";
 }
 
-export { pageTitle, pageHeading };
 export function pageSummary(slug = "overview") {
     return getPageSummary(slug);
 }

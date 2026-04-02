@@ -1,2 +1,2 @@
-export function getBannerText(){return"hello minified public path";};console.log(getBannerText());
+function e(){return"hello minified public path"}console.log(e());
 //# sourceMappingURL=./site.js.map

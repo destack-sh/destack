@@ -1,1 +1,1 @@
-console.log("side-effect import");const inlined=3,message=getMessage(),sideEffectLabel=getSideEffectLabel();console.log("Hello,"+" world!",inlined,message,sideEffectLabel);console.log(message,sideEffectLabel);function getMessage(){return"Hello";};function getSideEffectLabel(){return"side-effect";}
+console.log("side-effect import");var t=3,e=l(),o=n();console.log("Hello, world!",t,e,o);console.log(e,o);function l(){return"Hello"}function n(){return"side-effect"}

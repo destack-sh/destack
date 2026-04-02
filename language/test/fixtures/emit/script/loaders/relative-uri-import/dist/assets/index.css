@@ -1,7 +1,19 @@
-.bar{background-color:green}
+/* src/other.css */
+.foo {
+  background-color: red;
+}
 
-.foo{background-color:red}
+/* src/another.css */
+.bar {
+  background-color: green;
+}
 
-.baz{color:purple}
+/* src/theme.css */
+.baz {
+  color: purple;
+}
 
-body{background-color:blue}
+/* src/index.css */
+body {
+  background-color: blue;
+}

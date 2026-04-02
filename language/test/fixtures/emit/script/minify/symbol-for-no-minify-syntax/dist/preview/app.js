@@ -1,4 +1,4 @@
 Symbol.for("test1");
 Symbol.for("test2");
-const symbol = Symbol.for("test3");
-symbol;
+var symbol = Symbol.for("test3");
+capture(symbol);

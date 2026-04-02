@@ -1,1 +1,1 @@
-export const infinityWhitespaceSamples=[1/0,-1/0,1/0,-1/0,1/0,-1/0,NaN,NaN,NaN,NaN,1/0,1/0,-1,-1];
+var infinityWhitespaceSamples=[Infinity,-Infinity,Infinity+1,-Infinity-1,Infinity/0,-Infinity/0,Infinity*0,-Infinity*0,Infinity%1,-Infinity%1,Infinity**1,(-Infinity)**2,~Infinity,~-Infinity];export{infinityWhitespaceSamples};
