@@ -44,10 +44,7 @@ func testApplicationEmbedderSmokePath() {
   _ = runtimeHost.permission.request(permissionRequest)
   runtimeHost.permission.notifyPermissionResult(permissionEvent)
   _ = runtimeHost.document.pick(documentRequest)
-  runtimeHost.document.notifyDocumentResult(
-    documentResult.requestID,
-    documents: documentResult.documents
-  )
+  runtimeHost.document.notifyDocumentResult(documentResult)
   _ = runtimeHost.contact.list(
     RuntimeHostContactQuery(includeEmails: true)
   )

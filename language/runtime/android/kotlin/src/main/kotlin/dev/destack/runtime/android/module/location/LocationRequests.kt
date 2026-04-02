@@ -12,20 +12,20 @@ public interface LocationRequests {
      * Read whether location services are enabled.
      */
     public fun servicesEnabled(
-    ): RuntimeHostLocationServicesResponse
+    ): RuntimeLocationServicesResponse
 
     /**
      * Read one last-known location sample.
      */
     public fun lastKnown(
-    ): RuntimeHostLocationLastKnownResponse
+    ): RuntimeLocationLastKnownResponse
 
     /**
      * Open one location watch.
      */
     public fun watchOpen(
         watchId: String,
-        options: RuntimeHostLocationWatchOptions,
+        options: RuntimeLocationWatchOptions,
     ): Int
 
     /**
@@ -45,16 +45,16 @@ public object UnsupportedLocationRequests : LocationRequests {
      * Read whether location services are enabled.
      */
     override fun servicesEnabled(
-    ): RuntimeHostLocationServicesResponse {
-        return RuntimeHostLocationServicesResponse(status = hostStatusNotSupported)
+    ): RuntimeLocationServicesResponse {
+        return RuntimeLocationServicesResponse(status = hostStatusNotSupported)
     }
 
     /**
      * Read one last-known location sample.
      */
     override fun lastKnown(
-    ): RuntimeHostLocationLastKnownResponse {
-        return RuntimeHostLocationLastKnownResponse(status = hostStatusNotSupported)
+    ): RuntimeLocationLastKnownResponse {
+        return RuntimeLocationLastKnownResponse(status = hostStatusNotSupported)
     }
 
     /**
@@ -62,7 +62,7 @@ public object UnsupportedLocationRequests : LocationRequests {
      */
     override fun watchOpen(
         watchId: String,
-        options: RuntimeHostLocationWatchOptions,
+        options: RuntimeLocationWatchOptions,
     ): Int {
         return hostStatusNotSupported
     }

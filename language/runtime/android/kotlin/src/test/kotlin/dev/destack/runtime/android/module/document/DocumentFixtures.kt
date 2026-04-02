@@ -31,13 +31,9 @@ internal class RecordingDocumentEventSink : DocumentEvents {
     val callback: DocumentEvents = this
 
     override fun notifyDocumentResult(
-        requestId: HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>,
+        result: RuntimeHostDocumentResult,
     ) {
-        results += RuntimeHostDocumentResult(
-            requestId = requestId,
-            documents = documents,
-        )
+        results += result
     }
 }
 

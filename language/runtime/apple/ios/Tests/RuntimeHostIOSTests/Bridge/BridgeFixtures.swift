@@ -9,7 +9,7 @@ final class RuntimeIngressSpy: RuntimeIngress {
   var attachedSessionHandles: [HostSessionHandle] = []
   var detachedSessionHandles: [HostSessionHandle] = []
   var backgroundEvents: [(HostSessionHandle, RuntimeHostBackgroundEvent)] = []
-  var documentResults: [(HostSessionHandle, HostRequestID, [RuntimeHostDocumentDescriptor])] = []
+  var documentResults: [(HostSessionHandle, RuntimeHostDocumentResult)] = []
   var intentEvents: [(HostSessionHandle, RuntimeHostIntentEvent)] = []
   var locationSamples: [(HostSessionHandle, String, RuntimeHostLocationSample)] = []
   var notificationEvents: [(HostSessionHandle, RuntimeHostNotificationEvent)] = []
@@ -67,10 +67,9 @@ final class RuntimeIngressSpy: RuntimeIngress {
   /// Deliver one document result into one runtime session.
   func notifyDocumentResult(
     sessionHandle: HostSessionHandle,
-    requestID: HostRequestID,
-    documents: [RuntimeHostDocumentDescriptor]
+    result: RuntimeHostDocumentResult
   ) -> RuntimeIngressStatus {
-    documentResults.append((sessionHandle, requestID, documents))
+    documentResults.append((sessionHandle, result))
 
     return RuntimeIngressStatus(code: hostStatusOk, errorID: 0)
   }
@@ -111,7 +110,14 @@ final class RuntimeIngressSpy: RuntimeIngress {
     sessionHandle: HostSessionHandle,
     event: RuntimeHostPermissionEvent
   ) -> RuntimeIngressStatus {
-    permissionEvents.append((sessionHandle, event.requestID, event.permission, event.isGranted))
+    permissionEvents.append(
+      (
+        sessionHandle,
+        event.requestID,
+        event.permission.hostName,
+        event.isGranted
+      )
+    )
 
     return RuntimeIngressStatus(code: hostStatusOk, errorID: 0)
   }
@@ -195,9 +201,9 @@ func withBridgeDocumentRequest<T>(
           request_id: request.requestID.rawValue,
           mime_types: mimeTypes,
           extensions: extensions,
-          allows_multiple_selection: request.allowsMultipleSelection,
-          allows_directory_selection: false,
-          copies_to_sandbox: false
+          multiple: request.allowsMultipleSelection,
+          allow_directories: false,
+          copy_to_sandbox: false
         )
       )
     }
@@ -208,12 +214,10 @@ func withBridgePermissionRequest<T>(
   _ request: RuntimeHostPermissionRequest,
   body: (DestackRustPermissionRequest) -> T
 ) -> T {
-  withNativeStringRef(request.permission) { permission in
-    body(
-      DestackRustPermissionRequest(
-        request_id: request.requestID.rawValue,
-        permission: permission
-      )
+  body(
+    DestackRustPermissionRequest(
+      request_id: request.requestID.rawValue,
+      permission: request.permission.rawValue
     )
-  }
+  )
 }

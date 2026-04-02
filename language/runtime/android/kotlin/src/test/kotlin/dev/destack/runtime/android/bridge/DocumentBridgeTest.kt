@@ -33,9 +33,9 @@ class DocumentBridgeTest {
             requestId = 3,
             mimeTypes = arrayOf("image/png"),
             extensions = emptyArray(),
-            allowsMultipleSelection = true,
-            allowsDirectorySelection = false,
-            copiesToSandbox = false,
+            multiple = true,
+            allowDirectories = false,
+            copyToSandbox = false,
         )
 
         assertEquals(0, status)
@@ -44,7 +44,7 @@ class DocumentBridgeTest {
                 RuntimeHostDocumentRequest(
                     requestId = HostRequestId(rawValue = 3),
                     mimeTypes = listOf("image/png"),
-                    allowsMultipleSelection = true,
+                    multiple = true,
                 ),
             ),
             documentRequests.requests,
@@ -102,9 +102,9 @@ class DocumentBridgeTest {
             requestId = 3,
             mimeTypes = arrayOf("image/png"),
             extensions = emptyArray(),
-            allowsMultipleSelection = false,
-            allowsDirectorySelection = false,
-            copiesToSandbox = false,
+            multiple = false,
+            allowDirectories = false,
+            copyToSandbox = false,
         )
 
         assertEquals(3, status)

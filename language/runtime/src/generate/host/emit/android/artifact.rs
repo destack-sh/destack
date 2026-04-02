@@ -45,7 +45,7 @@ pub(crate) fn render_module_files(
         );
     }
 
-    if module.has_ingress() || matches!(module.name(), "intent") {
+    if module.has_ingress() {
         if let Some(contents) = render_cpp_ingress_bridge_source(module.abi()) {
             files.push(HostArtifact::new(
                 generated_layout.android_cpp_ingress_source(module_segment),

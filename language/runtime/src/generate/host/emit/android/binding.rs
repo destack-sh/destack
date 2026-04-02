@@ -1,14 +1,17 @@
 use super::abi::android_named_type;
 use super::cpp::{
-    android_cpp_callback_field_name, render_cpp_parameter_declaration, render_cpp_type,
+    android_cpp_callback_field_name, android_cpp_optional_type_name,
+    render_cpp_parameter_declaration, render_cpp_type,
 };
 use super::docs::push_cpp_doc_comment;
+use super::host::{HostRole, render_kotlin_host_interface, render_kotlin_host_modules};
 use super::kotlin::{render_kotlin_runtime_abi, render_kotlin_runtime_bridge};
+use super::name::android_pascal_case;
 use crate::host::model::{HostArtifact, HostCatalog, HostPlatform};
 use crate::platform::model::WorkspaceLayout;
 use destack_runtime::host::abi::describe::{
     HostAbiEnumRepresentation, HostAbiField, HostAbiModule, HostAbiNamedType,
-    HostAbiNamedTypeDefinition, HostAbiType,
+    HostAbiNamedTypeDefinition, HostAbiRuntimeHostWrapperKind, HostAbiType,
 };
 
 /// Render the generated Android bridge binding files.
@@ -16,37 +19,53 @@ pub(crate) fn render_binding_files(
     layout: &WorkspaceLayout,
     generated_catalog: &HostCatalog,
 ) -> Vec<HostArtifact> {
+    let generated_layout = crate::host::model::HostLayout::new(layout);
     let generated_modules: Vec<_> = generated_catalog
         .modules_for_platform(HostPlatform::Android)
         .into_iter()
         .map(|module| module.abi().clone())
         .collect();
-    vec![
+    let bridge_modules = generated_catalog.modules_for_platform(HostPlatform::Android);
+    let host_modules = generated_modules
+        .iter()
+        .filter(|module| !module.runtime_host_platforms.is_empty())
+        .cloned()
+        .collect::<Vec<_>>();
+    let generated_host_wrappers = host_modules
+        .iter()
+        .filter(|module| {
+            module.runtime_host_wrapper_kind == HostAbiRuntimeHostWrapperKind::Generated
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let ingress_modules = generated_catalog
+        .modules_for_platform(HostPlatform::Android)
+        .into_iter()
+        .filter(|module| module.has_ingress())
+        .collect::<Vec<_>>();
+
+    let mut files = vec![
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/android/kotlin/src/main/kotlin/dev/destack/runtime/android/bridge/RuntimeAbi.generated.kt"),
-            contents: render_kotlin_runtime_abi(
-                generated_catalog.runtime_ingresses(HostPlatform::Android),
-            ),
+                .join("runtime/android/kotlin/src/main/kotlin/dev/destack/runtime/android/bridge/RuntimeIngress.generated.kt"),
+            contents: render_kotlin_runtime_abi(&ingress_modules),
         },
         HostArtifact {
             path: layout
                 .language_root
                 .join("runtime/android/kotlin/src/main/kotlin/dev/destack/runtime/android/bridge/RuntimeBridge.generated.kt"),
-            contents: render_kotlin_runtime_bridge(&generated_modules),
+            contents: render_kotlin_runtime_bridge(&bridge_modules),
+        },
+        HostArtifact {
+            path: generated_layout.android_kotlin_host_modules(),
+            contents: render_kotlin_host_modules(&generated_host_wrappers),
         },
         HostArtifact {
             path: layout
                 .language_root
-                .join("runtime/android/kotlin/src/main/cpp/bridge/loader.h"),
-            contents: render_loader_header(generated_catalog),
-        },
-        HostArtifact {
-            path: layout
-                .language_root
-                .join("runtime/android/kotlin/src/main/cpp/bridge/loader.cpp"),
-            contents: render_loader_source(generated_catalog),
+                .join("runtime/android/kotlin/src/main/cpp/bridge/runtime_abi.generated.h"),
+            contents: render_runtime_abi_header(generated_catalog),
         },
         HostArtifact {
             path: layout
@@ -60,7 +79,27 @@ pub(crate) fn render_binding_files(
                 .join("runtime/android/kotlin/src/main/cpp/bridge/registry.generated.h"),
             contents: render_registry_generated_header(generated_catalog, &generated_modules),
         },
-    ]
+    ];
+
+    for module in &host_modules {
+        if !module.requests.is_empty() {
+            let interface_name = format!("{}Requests", android_pascal_case(module.name));
+            files.push(HostArtifact::new(
+                generated_layout.android_kotlin_host_interface(module.name, &interface_name),
+                render_kotlin_host_interface(module, HostRole::Requests),
+            ));
+        }
+
+        if !module.ingress.is_empty() {
+            let interface_name = format!("{}Events", android_pascal_case(module.name));
+            files.push(HostArtifact::new(
+                generated_layout.android_kotlin_host_interface(module.name, &interface_name),
+                render_kotlin_host_interface(module, HostRole::Events),
+            ));
+        }
+    }
+
+    files
 }
 
 /// Render one generated Android types header.
@@ -97,59 +136,63 @@ fn render_android_abi_types(output: &mut String, generated_modules: &[HostAbiMod
         output.push('\n');
     }
 
+    let mut emitted_optional_types = Vec::new();
+
     for module in generated_modules {
         for named_type in &module.types {
-            render_android_named_type(output, named_type);
-            output.push('\n');
+            if let HostAbiNamedTypeDefinition::Enum { .. } = &named_type.definition {
+                render_android_named_type(output, named_type);
+                output.push('\n');
+            }
         }
     }
-}
 
-/// Render the generated Android bridge files for one module.
-fn render_loader_header(generated_catalog: &HostCatalog) -> String {
-    let mut output = String::new();
-    output.push_str("// generated by generate-bindings: do not edit\n\n");
-    output.push_str("#ifndef DESTACK_RUNTIME_ANDROID_BRIDGE_LOADER_H\n");
-    output.push_str("#define DESTACK_RUNTIME_ANDROID_BRIDGE_LOADER_H\n\n");
-    output.push_str("#include \"types.h\"\n\n");
-    output.push_str("/// The resolved runtime bridge bindings for this process.\n");
-    output.push_str("struct RuntimeBindings {\n");
-    output.push_str("    /// The runtime function that registers one mobile bridge callback table for one session.\n");
-    output
-        .push_str("    RegisterRuntimeBridgeBindingsFunction register_runtime_bridge_bindings;\n");
-    output.push_str("    /// The runtime function that unregisters one mobile bridge callback table for one session.\n");
-    output.push_str(
-        "    UnregisterRuntimeBridgeBindingsFunction unregister_runtime_bridge_bindings;\n",
-    );
-
-    for spec in generated_catalog.runtime_bindings() {
-        output.push_str(&format!("    /// {}\n", spec.documentation));
-        output.push_str(&format!("    {} {};\n", spec.type_name, spec.field_name));
+    for module in generated_modules {
+        for named_type in &module.types {
+            if let HostAbiNamedTypeDefinition::Struct { .. } = &named_type.definition {
+                render_android_struct_optional_types(
+                    output,
+                    module,
+                    named_type,
+                    &mut emitted_optional_types,
+                );
+                render_android_named_type(output, named_type);
+                output.push('\n');
+            }
+        }
     }
 
-    output.push_str("};\n\n");
-    output.push_str("/// Resolve the runtime bridge bindings from the current process.\n");
-    output.push_str("uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings);\n\n");
-    output.push_str("#endif\n");
-    output
+    for generated_type in collect_android_generated_optional_types(generated_modules) {
+        if emitted_optional_types
+            .iter()
+            .any(|existing: &String| existing == &generated_type.name)
+        {
+            continue;
+        }
+
+        emitted_optional_types.push(generated_type.name.clone());
+        render_android_generated_optional_type(output, &generated_type);
+        output.push('\n');
+    }
 }
 
-/// Render one generated Android loader source.
-fn render_loader_source(generated_catalog: &HostCatalog) -> String {
+/// Render the generated Android runtime ABI declarations header.
+fn render_runtime_abi_header(generated_catalog: &HostCatalog) -> String {
     let mut output = String::new();
     output.push_str("// generated by generate-bindings: do not edit\n\n");
-    output.push_str("#include \"types.h\"\n");
-    output.push_str("#include \"loader.h\"\n\n");
-    output.push_str("#include <dlfcn.h>\n");
-    output.push_str("#include <stdlib.h>\n\n");
+    output.push_str("#ifndef DESTACK_RUNTIME_ANDROID_BRIDGE_RUNTIME_ABI_GENERATED_H\n");
+    output.push_str("#define DESTACK_RUNTIME_ANDROID_BRIDGE_RUNTIME_ABI_GENERATED_H\n\n");
+    output.push_str("#include \"types.h\"\n\n");
+    output.push_str("#ifdef __cplusplus\n");
     output.push_str("extern \"C\" {\n");
+    output.push_str("#endif\n\n");
     output.push_str("uint32_t destack_host_android_register_runtime_bridge_bindings(\n");
     output.push_str("    uint64_t session_handle,\n");
     output.push_str("    AndroidRuntimeBridgeBindings callbacks\n");
-    output.push_str(") __attribute__((weak));\n");
+    output.push_str(");\n");
     output.push_str("void destack_host_android_unregister_runtime_bridge_bindings(\n");
     output.push_str("    uint64_t session_handle\n");
-    output.push_str(") __attribute__((weak));\n");
+    output.push_str(");\n");
 
     for spec in generated_catalog.runtime_bindings() {
         output.push('\n');
@@ -168,126 +211,19 @@ fn render_loader_source(generated_catalog: &HostCatalog) -> String {
                 } else {
                     ","
                 };
-                let declaration = render_cpp_parameter_declaration(
-                    parameter.ty.android_name(),
-                    parameter.name,
-                );
+                let declaration =
+                    render_cpp_parameter_declaration(parameter.ty.android_name(), parameter.name);
                 output.push_str(&format!("    {declaration}{trailing}\n"));
             }
         }
 
-        output.push_str(") __attribute__((weak));\n");
+        output.push_str(");\n");
     }
 
-    output.push_str("}\n\n");
-    output.push_str("namespace {\n\n");
-    output.push_str("void *symbol_handle = nullptr;\n");
-    output.push_str("RuntimeBindings runtime_bindings = {\n");
-    output.push_str("    .register_runtime_bridge_bindings = nullptr,\n");
-    output.push_str("    .unregister_runtime_bridge_bindings = nullptr,\n");
-
-    for spec in generated_catalog.runtime_bindings() {
-        output.push_str(&format!("    .{} = nullptr,\n", spec.field_name));
-    }
-
-    output.push_str("};\n\n");
-    output.push_str("template <typename SymbolFunction>\n");
-    output.push_str(
-        "void resolve_symbol_once(SymbolFunction *slot, void *handle, const char *name) {\n",
-    );
-    output.push_str("    if (*slot != nullptr) {\n");
-    output.push_str("        return;\n");
-    output.push_str("    }\n\n");
-    output.push_str("    *slot = reinterpret_cast<SymbolFunction>(dlsym(handle, name));\n");
-    output.push_str("}\n\n");
-    output.push_str("/// Resolve one directly linked runtime binding table.\n");
-    output.push_str("bool resolve_linked_runtime_bindings(RuntimeBindings *out_bindings) {\n");
-    output.push_str("    RuntimeBindings bindings = {\n");
-    output.push_str(
-        "        .register_runtime_bridge_bindings = destack_host_android_register_runtime_bridge_bindings,\n",
-    );
-    output.push_str(
-        "        .unregister_runtime_bridge_bindings = destack_host_android_unregister_runtime_bridge_bindings,\n",
-    );
-
-    for spec in generated_catalog.runtime_bindings() {
-        output.push_str(&format!(
-            "        .{} = destack_host_android_{},\n",
-            spec.field_name, spec.field_name
-        ));
-    }
-
-    output.push_str("    };\n\n");
-    output.push_str("    if (\n");
-    output.push_str("        bindings.register_runtime_bridge_bindings == nullptr ||\n");
-    output.push_str("        bindings.unregister_runtime_bridge_bindings == nullptr");
-
-    for spec in generated_catalog.runtime_bindings() {
-        output.push_str(&format!(
-            " ||\n        bindings.{} == nullptr",
-            spec.field_name
-        ));
-    }
-
-    output.push_str("\n    ) {\n");
-    output.push_str("        return false;\n");
-    output.push_str("    }\n\n");
-    output.push_str("    *out_bindings = bindings;\n\n");
-    output.push_str("    return true;\n");
-    output.push_str("}\n\n");
-    output.push_str("/// Resolve the runtime symbol handle for this process.\n");
-    output.push_str("void *resolve_symbol_handle() {\n");
-    output.push_str("    if (symbol_handle != nullptr) {\n");
-    output.push_str("        return symbol_handle;\n");
-    output.push_str("    }\n\n");
-    output.push_str(
-        "    const char *library_path = getenv(\"DESTACK_RUNTIME_HOST_BRIDGE_LIBRARY\");\n",
-    );
-    output.push_str("    if (library_path != nullptr && library_path[0] != '\\0') {\n");
-    output.push_str("        symbol_handle = dlopen(library_path, RTLD_NOW | RTLD_GLOBAL);\n");
-    output.push_str("        if (symbol_handle != nullptr) {\n");
-    output.push_str("            return symbol_handle;\n");
-    output.push_str("        }\n");
-    output.push_str("    }\n\n");
-    output.push_str("    return nullptr;\n");
-    output.push_str("}\n\n");
-    output.push_str("}\n\n");
-    output.push_str("/// Resolve the runtime bridge bindings from the current process.\n");
-    output.push_str("uint32_t resolve_runtime_bindings(RuntimeBindings *out_bindings) {\n");
-    output.push_str("    if (resolve_linked_runtime_bindings(out_bindings)) {\n");
-    output.push_str("        return HOST_STATUS_OK;\n");
-    output.push_str("    }\n\n");
-    output.push_str("    void *handle = resolve_symbol_handle();\n");
-    output.push_str("    if (handle == nullptr) {\n");
-    output.push_str("        return HOST_STATUS_NOT_FOUND;\n");
-    output.push_str("    }\n\n");
-    output.push_str("    resolve_symbol_once(&runtime_bindings.register_runtime_bridge_bindings, handle, \"destack_host_android_register_runtime_bridge_bindings\");\n");
-    output.push_str("    resolve_symbol_once(&runtime_bindings.unregister_runtime_bridge_bindings, handle, \"destack_host_android_unregister_runtime_bridge_bindings\");\n");
-
-    for spec in generated_catalog.runtime_bindings() {
-        output.push_str(&format!(
-            "    resolve_symbol_once(&runtime_bindings.{}, handle, \"destack_host_android_{}\");\n",
-            spec.field_name, spec.field_name
-        ));
-    }
-
-    output.push_str("\n    if (\n");
-    output.push_str("        runtime_bindings.register_runtime_bridge_bindings == nullptr ||\n");
-    output.push_str("        runtime_bindings.unregister_runtime_bridge_bindings == nullptr");
-
-    for spec in generated_catalog.runtime_bindings() {
-        output.push_str(&format!(
-            " ||\n        runtime_bindings.{} == nullptr",
-            spec.field_name
-        ));
-    }
-
-    output.push_str("\n    ) {\n");
-    output.push_str("        return HOST_STATUS_NOT_FOUND;\n");
-    output.push_str("    }\n\n");
-    output.push_str("    *out_bindings = runtime_bindings;\n\n");
-    output.push_str("    return 0;\n");
+    output.push_str("\n#ifdef __cplusplus\n");
     output.push_str("}\n");
+    output.push_str("#endif\n\n");
+    output.push_str("#endif\n");
     output
 }
 
@@ -415,7 +351,7 @@ fn render_registry_generated_header(
 
     let native_modules: Vec<_> = generated_modules
         .iter()
-        .filter(|module| module.name == "intent" || !module.ingress.is_empty())
+        .filter(|module| !module.ingress.is_empty())
         .collect();
 
     if native_modules.is_empty() {
@@ -515,6 +451,16 @@ pub(super) struct AndroidGeneratedSliceType {
     pub(super) element_name: String,
 }
 
+/// One generated Android optional wrapper type.
+struct AndroidGeneratedOptionalType {
+    /// The canonical wrapper name.
+    name: String,
+    /// The wrapped value type.
+    value_type: String,
+    /// The wrapper documentation.
+    documentation: String,
+}
+
 /// Render one generated Android named type.
 fn render_android_named_type(output: &mut String, named_type: &HostAbiNamedType) {
     push_cpp_doc_comment(output, named_type.documentation, 0);
@@ -546,6 +492,27 @@ fn render_android_named_type(output: &mut String, named_type: &HostAbiNamedType)
 
             output.push_str("};\n");
         }
+        HostAbiNamedTypeDefinition::TaggedEnum { variants } => {
+            let tag_name = format!("{}Tag", named_type.name);
+
+            output.push_str(&format!("enum class {tag_name} : uint32_t {{\n"));
+
+            for (index, variant) in variants.iter().enumerate() {
+                push_cpp_doc_comment(output, variant.documentation, 4);
+                output.push_str(&format!("    {} = {},\n", variant.name, index + 1));
+            }
+
+            output.push_str("};\n\n");
+            output.push_str(&format!("struct {} {{\n", named_type.name));
+            output.push_str(&format!("    {tag_name} tag;\n"));
+
+            for variant in variants {
+                let field_name = android_tagged_variant_field_name(variant.name);
+                output.push_str(&format!("    {} {};\n", variant.payload_type, field_name));
+            }
+
+            output.push_str("};\n");
+        }
     }
 }
 
@@ -565,7 +532,66 @@ fn render_android_named_type_forward_declaration(
                 render_android_enum_repr(*repr)
             ));
         }
+        HostAbiNamedTypeDefinition::TaggedEnum { .. } => {
+            output.push_str(&format!("struct {};\n", named_type.name));
+        }
     }
+}
+
+/// Render the generated Android optional wrappers needed by one named struct.
+fn render_android_struct_optional_types(
+    output: &mut String,
+    module: &HostAbiModule,
+    named_type: &HostAbiNamedType,
+    emitted_optional_types: &mut Vec<String>,
+) {
+    let HostAbiNamedTypeDefinition::Struct { fields } = &named_type.definition else {
+        return;
+    };
+
+    let mut generated_types = Vec::new();
+    let mut visited_named_types = Vec::new();
+
+    for field in fields {
+        collect_android_generated_optional_types_from_type(
+            module,
+            &field.ty,
+            &mut generated_types,
+            &mut visited_named_types,
+        );
+    }
+
+    for generated_type in generated_types {
+        if emitted_optional_types
+            .iter()
+            .any(|existing| existing == &generated_type.name)
+        {
+            continue;
+        }
+
+        emitted_optional_types.push(generated_type.name.clone());
+        render_android_generated_optional_type(output, &generated_type);
+        output.push('\n');
+    }
+}
+
+/// Return the lowered field name for one tagged Android payload variant.
+fn android_tagged_variant_field_name(name: &str) -> String {
+    let mut output = String::new();
+
+    for (index, character) in name.chars().enumerate() {
+        if character.is_ascii_uppercase() {
+            if index > 0 {
+                output.push('_');
+            }
+
+            output.push(character.to_ascii_lowercase());
+        } else {
+            output.push(character);
+        }
+    }
+
+    output
 }
 
 /// Render one generated Android named field.
@@ -600,6 +626,18 @@ fn render_android_generated_slice_type(
     output.push_str("};\n");
 }
 
+/// Render one generated Android optional wrapper type.
+fn render_android_generated_optional_type(
+    output: &mut String,
+    generated_type: &AndroidGeneratedOptionalType,
+) {
+    push_cpp_doc_comment(output, &generated_type.documentation, 0);
+    output.push_str(&format!("struct {} {{\n", generated_type.name));
+    output.push_str("    bool has_value;\n");
+    output.push_str(&format!("    {} value;\n", generated_type.value_type));
+    output.push_str("};\n");
+}
+
 /// Collect the generated Android slice types required by this module slice.
 fn collect_android_generated_slice_types(
     generated_modules: &[HostAbiModule],
@@ -619,6 +657,37 @@ fn collect_android_generated_slice_types(
 
             for parameter in &function.parameters {
                 collect_android_generated_slice_types_from_type(
+                    module,
+                    &parameter.ty,
+                    &mut generated_types,
+                    &mut visited_named_types,
+                );
+            }
+        }
+    }
+
+    generated_types
+}
+
+/// Collect the generated Android optional wrapper types required by this module slice.
+fn collect_android_generated_optional_types(
+    generated_modules: &[HostAbiModule],
+) -> Vec<AndroidGeneratedOptionalType> {
+    let mut generated_types = Vec::new();
+
+    for module in generated_modules {
+        let mut visited_named_types = Vec::new();
+
+        for function in module.requests.iter().chain(&module.ingress) {
+            collect_android_generated_optional_types_from_type(
+                module,
+                &function.result,
+                &mut generated_types,
+                &mut visited_named_types,
+            );
+
+            for parameter in &function.parameters {
+                collect_android_generated_optional_types_from_type(
                     module,
                     &parameter.ty,
                     &mut generated_types,
@@ -681,6 +750,74 @@ pub(super) fn collect_android_generated_slice_types_from_type(
                 visited_named_types,
             );
         }
+        HostAbiType::Optional(inner) => {
+            collect_android_generated_slice_types_from_type(
+                module,
+                inner,
+                generated_types,
+                visited_named_types,
+            );
+        }
+        _ => {}
+    }
+}
+
+/// Collect the generated Android optional wrapper types reachable from one ABI type.
+fn collect_android_generated_optional_types_from_type(
+    module: &HostAbiModule,
+    ty: &HostAbiType,
+    generated_types: &mut Vec<AndroidGeneratedOptionalType>,
+    visited_named_types: &mut Vec<String>,
+) {
+    match ty {
+        HostAbiType::Named(name) => {
+            if visited_named_types.iter().any(|existing| existing == name) {
+                return;
+            }
+
+            visited_named_types.push((*name).to_string());
+
+            if let HostAbiNamedTypeDefinition::Struct { fields } =
+                &android_named_type(module, name).definition
+            {
+                for field in fields {
+                    collect_android_generated_optional_types_from_type(
+                        module,
+                        &field.ty,
+                        generated_types,
+                        visited_named_types,
+                    );
+                }
+            }
+        }
+        HostAbiType::Optional(inner) => {
+            collect_android_generated_optional_types_from_type(
+                module,
+                inner,
+                generated_types,
+                visited_named_types,
+            );
+
+            push_android_generated_optional_type(
+                generated_types,
+                AndroidGeneratedOptionalType {
+                    name: android_cpp_optional_type_name(inner),
+                    value_type: render_cpp_type(inner),
+                    documentation: "One optional value passed through the Android bridge"
+                        .to_string(),
+                },
+            );
+        }
+        HostAbiType::NativeArray(inner)
+        | HostAbiType::NativeSlice(inner)
+        | HostAbiType::OutputPointer(inner) => {
+            collect_android_generated_optional_types_from_type(
+                module,
+                inner,
+                generated_types,
+                visited_named_types,
+            );
+        }
         _ => {}
     }
 }
@@ -689,6 +826,21 @@ pub(super) fn collect_android_generated_slice_types_from_type(
 fn push_android_generated_slice_type(
     generated_types: &mut Vec<AndroidGeneratedSliceType>,
     generated_type: AndroidGeneratedSliceType,
+) {
+    if generated_types
+        .iter()
+        .any(|existing| existing.name == generated_type.name)
+    {
+        return;
+    }
+
+    generated_types.push(generated_type);
+}
+
+/// Push one generated Android optional wrapper type once.
+fn push_android_generated_optional_type(
+    generated_types: &mut Vec<AndroidGeneratedOptionalType>,
+    generated_type: AndroidGeneratedOptionalType,
 ) {
     if generated_types
         .iter()

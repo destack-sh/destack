@@ -8,8 +8,9 @@ use super::core as input_core;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::host::abi::text::{
-    HostTextGeometryRequestPayload, HostTextInputCloseRequest, HostTextInputOpenRequest,
-    HostTextInputStateRequest, HostTextOpenRequestPayload, HostTextStateRequestPayload,
+    HostTextInputCloseRequest, HostTextInputConfiguration, HostTextInputGeometry,
+    HostTextInputGeometryRequest, HostTextInputOpenRequest, HostTextInputState,
+    HostTextInputStateRequest, HostTextInputType,
 };
 #[cfg(target_os = "android")]
 use crate::host::android::abi::text::ffi::{
@@ -1992,8 +1993,19 @@ pub(crate) unsafe fn destack_input_text_open(
         });
 
     // host open
-    let request = HostTextOpenRequestPayload::new(session_id, config, &state);
-    let status = unsafe { host_text_open(host_session_id, request.abi()) };
+    let request = HostTextInputOpenRequest {
+        configuration: HostTextInputConfiguration {
+            session_id,
+            input_type: <HostTextInputType as NativeAbiCodec>::from_value(
+                binding,
+                config.input_type,
+            ),
+            is_multiline: config.is_multiline,
+            is_secure: config.is_secure,
+        },
+        state: <HostTextInputState as NativeAbiCodec>::from_value(binding, state.clone()),
+    };
+    let status = unsafe { host_text_open(host_session_id, request) };
     if let Err(error) = host_status_result(status, "destack.input.text.open", "open") {
         state_store.remove_host_text_session(session_id);
         let _ =
@@ -2135,14 +2147,11 @@ pub(crate) unsafe fn destack_input_text_set_geometry(
     let state_store = input_state(binding)?;
     let host_session_id = binding.host().host_session_id().0;
 
-    let request = HostTextGeometryRequestPayload::new(
-        session.0.0,
-        area.local_to_target_transform,
-        area.editor_rectangle,
-        area.caret_rectangle,
-        area.composing_rectangle,
-    );
-    let status = unsafe { host_text_set_geometry(host_session_id, request.abi()) };
+    let request = HostTextInputGeometryRequest {
+        session_id: session.0.0,
+        geometry: <HostTextInputGeometry as NativeAbiCodec>::from_value(binding, area),
+    };
+    let status = unsafe { host_text_set_geometry(host_session_id, request) };
     host_status_result(status, "destack.input.text.setGeometry", "set geometry")?;
 
     state_store.set_host_text_session_geometry(session.0.0, area)?;
@@ -2162,8 +2171,11 @@ pub(crate) unsafe fn destack_input_text_set_state(
     let state = unsafe { state.into_value()? };
     validate_text_session_state(&state)?;
 
-    let request = HostTextStateRequestPayload::new(session.0.0, &state);
-    let status = unsafe { host_text_set_state(host_session_id, request.abi()) };
+    let request = HostTextInputStateRequest {
+        session_id: session.0.0,
+        state: <HostTextInputState as NativeAbiCodec>::from_value(binding, state.clone()),
+    };
+    let status = unsafe { host_text_set_state(host_session_id, request) };
     host_status_result(status, "destack.input.text.setState", "set state")?;
 
     state_store.set_host_text_session_state(session.0.0, state)?;

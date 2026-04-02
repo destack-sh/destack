@@ -1,3 +1,5 @@
+#![cfg_attr(not(target_os = "ios"), allow(dead_code))]
+
 use std::sync::OnceLock;
 
 use parking_lot::RwLock;

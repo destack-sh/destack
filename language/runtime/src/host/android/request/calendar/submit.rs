@@ -2,10 +2,8 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::calendar::{
-    HostCalendarEventCreateResponse, HostCalendarEventListResponse, HostCalendarEventReadResponse,
-    HostCalendarListResponse, decode_calendar_event_create_response,
-    decode_calendar_event_list_response, decode_calendar_event_read_response,
-    decode_calendar_list_response, encode_calendar_event_draft, encode_calendar_event_query,
+    HostCalendarEventCreateResponse, HostCalendarEventDraft, HostCalendarEventListResponse,
+    HostCalendarEventQuery, HostCalendarEventReadResponse, HostCalendarListResponse,
 };
 use crate::host::android::abi::calendar::{
     destack_host_android_calendar_event_create, destack_host_android_calendar_event_delete,
@@ -13,7 +11,9 @@ use crate::host::android::abi::calendar::{
     destack_host_android_calendar_event_update, destack_host_android_calendar_list,
 };
 use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::invalid_argument_value;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
@@ -33,8 +33,9 @@ pub(crate) fn submit_calendar_request(
             decode_callback_host_status(status, request.operation_name())?;
 
             let calendars = unsafe { calendars.assume_init() };
-            let calendars =
-                unsafe { decode_calendar_list_response(calendars, request.operation_name()) }?;
+            decode_callback_host_status(calendars.status, request.operation_name())?;
+
+            let calendars = unsafe { calendars.calendars.into_value()? };
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::CalendarDescriptors(calendars),
@@ -85,7 +86,7 @@ fn submit_calendar_event_list(
     query: &CalendarEventQueryValue,
 ) -> RuntimeResult<Vec<CalendarEventValue>> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let query = encode_calendar_event_query(&binding, query);
+    let query = HostCalendarEventQuery::from_value(&binding, query.clone());
     let mut output_events = MaybeUninit::<HostCalendarEventListResponse>::uninit();
     let status = unsafe {
         destack_host_android_calendar_event_list(runtime_id, query, output_events.as_mut_ptr())
@@ -93,7 +94,9 @@ fn submit_calendar_event_list(
     decode_callback_host_status(status, operation)?;
 
     let output_events = unsafe { output_events.assume_init() };
-    unsafe { decode_calendar_event_list_response(output_events, operation) }
+    decode_callback_host_status(output_events.status, operation)?;
+
+    unsafe { output_events.events.into_value() }
 }
 
 /// Submit one Android calendar event-read request.
@@ -113,7 +116,19 @@ fn submit_calendar_event_read(
     decode_callback_host_status(status, operation)?;
 
     let output_event = unsafe { output_event.assume_init() };
-    unsafe { decode_calendar_event_read_response(output_event, operation) }
+    decode_callback_host_status(output_event.status, operation)?;
+
+    let event = unsafe { output_event.event.into_value()? };
+
+    let Some(event) = event else {
+        return Err(invalid_argument_value(
+            "response.event",
+            format!("{operation} returned success without one calendar event"),
+        )
+        .into());
+    };
+
+    Ok(event)
 }
 
 /// Submit one Android calendar event-create request.
@@ -123,7 +138,7 @@ fn submit_calendar_event_create(
     event: &CalendarEventDraftValue,
 ) -> RuntimeResult<String> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let event = encode_calendar_event_draft(&binding, event);
+    let event = HostCalendarEventDraft::from_value(&binding, event.clone());
     let mut output_id = MaybeUninit::<HostCalendarEventCreateResponse>::uninit();
     let status = unsafe {
         destack_host_android_calendar_event_create(runtime_id, event, output_id.as_mut_ptr())
@@ -131,7 +146,19 @@ fn submit_calendar_event_create(
     decode_callback_host_status(status, operation)?;
 
     let output_id = unsafe { output_id.assume_init() };
-    unsafe { decode_calendar_event_create_response(output_id, operation) }
+    decode_callback_host_status(output_id.status, operation)?;
+
+    let id = unsafe { output_id.id.into_value()? };
+
+    let Some(id) = id else {
+        return Err(invalid_argument_value(
+            "response.id",
+            format!("{operation} returned success without one calendar event id"),
+        )
+        .into());
+    };
+
+    Ok(id)
 }
 
 /// Submit one Android calendar event-update request.
@@ -142,7 +169,7 @@ fn submit_calendar_event_update(
     event: &CalendarEventDraftValue,
 ) -> RuntimeResult<()> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let event = encode_calendar_event_draft(&binding, event);
+    let event = HostCalendarEventDraft::from_value(&binding, event.clone());
     let call_status = unsafe {
         destack_host_android_calendar_event_update(runtime_id, NativeStringRef::from(id), event)
     };

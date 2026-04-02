@@ -3,9 +3,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_workspace::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
 use parking_lot::Mutex;
+#[cfg(not(feature = "generator"))]
 use serde::{Deserialize, Serialize};
 
-use super::{RuntimeError, RuntimeResult};
+use super::RuntimeError;
+#[cfg(not(feature = "generator"))]
+use super::RuntimeResult;
 
 /// Default diagnostics ring-buffer capacity when runtime options do not provide one.
 const DEFAULT_DIAGNOSTIC_CAPACITY: usize = 1024;
@@ -71,6 +74,7 @@ pub struct DiagnosticEntry {
 }
 
 /// Durable diagnostics store state captured at one checkpoint.
+#[cfg(not(feature = "generator"))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DiagnosticSnapshot {
     /// The number of allocated error slots.
@@ -257,6 +261,7 @@ impl DiagnosticStore {
     }
 
     /// Capture one durable diagnostics snapshot.
+    #[cfg(not(feature = "generator"))]
     pub(crate) fn snapshot(&self) -> RuntimeResult<DiagnosticSnapshot> {
         let state = self.state.lock();
 
@@ -286,6 +291,7 @@ impl DiagnosticStore {
     }
 
     /// Restore one durable diagnostics snapshot.
+    #[cfg(not(feature = "generator"))]
     pub(crate) fn restore_snapshot(&self, snapshot: &DiagnosticSnapshot) -> RuntimeResult<()> {
         let mut state = self.state.lock();
 

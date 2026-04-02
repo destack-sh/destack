@@ -11,6 +11,7 @@ use crate::host::{
     HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 use crate::platform::os::abi_generated::LocationSampleValue;
+use crate::platform::os::{invalid_data, parse_host_permission_name};
 /// Windows application lifecycle transitions from native ingress hooks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum WindowsApplicationLifecycle {
@@ -55,9 +56,16 @@ pub(crate) fn windows_notify_permission_result(
     granted: bool,
 ) -> RuntimeResult<()> {
     let bridge = windows_host_bridge(runtime_id)?;
+    let permission = parse_host_permission_name(permission).ok_or_else(|| {
+        invalid_data(
+            "destack.host.windows.notify_permission_result",
+            format!("unknown host permission {permission}"),
+        )
+    })?;
+
     bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
         request_id: None,
-        permission: permission.to_string(),
+        permission,
         granted,
     }));
 

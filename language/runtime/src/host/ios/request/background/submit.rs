@@ -2,8 +2,8 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::background::{
-    HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptionsPayload,
-    decode_descriptors, decode_status, encode_result,
+    HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptions,
+    HostBackgroundTaskResult,
 };
 use crate::host::apple::abi::background::{
     destack_host_ios_background_complete, destack_host_ios_background_list,
@@ -12,8 +12,9 @@ use crate::host::apple::abi::background::{
 };
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::platform::NativeArray;
 use crate::platform::abi::NativeStringRef;
+use crate::platform::{NativeAbiCodec, NativeArray};
+use crate::runtime::BindingCallContext;
 
 /// Return one iOS background request outcome when supported.
 pub(crate) fn submit_background_request(
@@ -27,7 +28,7 @@ pub(crate) fn submit_background_request(
                 unsafe { destack_host_ios_background_status(runtime_id, status.as_mut_ptr()) };
             decode_callback_host_status(call_status, request.operation_name())?;
             let status = unsafe { status.assume_init() };
-            let status = decode_status(status);
+            let status = unsafe { <HostBackgroundStatus as NativeAbiCodec>::into_value(status) }?;
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::BackgroundStatus(status),
@@ -41,16 +42,21 @@ pub(crate) fn submit_background_request(
             decode_callback_host_status(call_status, request.operation_name())?;
 
             let descriptors = unsafe { descriptors.assume_init() };
-            let descriptors = unsafe { decode_descriptors(descriptors) }?;
+            let descriptors = unsafe {
+                <NativeArray<HostBackgroundTaskDescriptor> as NativeAbiCodec>::into_value(
+                    descriptors,
+                )
+            }?;
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::BackgroundTaskDescriptors(descriptors),
             )))
         }
         HostRequest::OsBackgroundRegister { options } => {
-            let options = HostBackgroundTaskOptionsPayload::new(options);
+            let binding = BindingCallContext::from_current_agent_for_native()?;
+            let options = HostBackgroundTaskOptions::from_value(&binding, options.clone());
             let call_status =
-                unsafe { destack_host_ios_background_register_task(runtime_id, options.abi()) };
+                unsafe { destack_host_ios_background_register_task(runtime_id, options) };
             decode_callback_host_status(call_status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
@@ -85,11 +91,12 @@ pub(crate) fn submit_background_request(
             execution_id,
             result,
         } => {
+            let binding = BindingCallContext::from_current_agent_for_native()?;
             let call_status = unsafe {
                 destack_host_ios_background_complete(
                     runtime_id,
                     NativeStringRef::from(execution_id),
-                    encode_result(*result),
+                    <HostBackgroundTaskResult as NativeAbiCodec>::from_value(&binding, *result),
                 )
             };
             decode_callback_host_status(call_status, request.operation_name())?;

@@ -37,8 +37,10 @@ import dev.destack.runtime.android.module.location.RuntimeHostLocationSample
 import dev.destack.runtime.android.module.location.UnsupportedLocationRequests
 import dev.destack.runtime.android.module.media.UnsupportedMediaRequests
 import dev.destack.runtime.android.module.permission.PermissionActivityResults
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
+import dev.destack.runtime.android.module.permission.androidPermissionName
 import dev.destack.runtime.android.module.lifecycle.LifecycleEvents
 import dev.destack.runtime.android.module.notification.NotificationEvents
 import dev.destack.runtime.android.module.notification.NotificationRequests
@@ -94,13 +96,9 @@ private class RecordingActivityResultDocumentEventSink : DocumentEvents {
     val results: MutableList<RuntimeHostDocumentResult> = mutableListOf()
 
     override fun notifyDocumentResult(
-        requestId: HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>,
+        result: RuntimeHostDocumentResult,
     ) {
-        results += RuntimeHostDocumentResult(
-            requestId = requestId,
-            documents = documents,
-        )
+        results += result
     }
 }
 
@@ -234,7 +232,7 @@ class ActivityResultsTest {
         )
         val request = RuntimeHostDocumentRequest(
             requestId = HostRequestId(rawValue = 1),
-            allowsMultipleSelection = true,
+            multiple = true,
             contentTypes = listOf("image/png"),
         )
 
@@ -293,7 +291,7 @@ class ActivityResultsTest {
         )
         val request = RuntimeHostPermissionRequest(
             requestId = HostRequestId(rawValue = 2),
-            permission = "android.permission.CAMERA",
+            permission = RuntimeHostPermission.Camera,
         )
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)
@@ -308,7 +306,7 @@ class ActivityResultsTest {
             registry.launchedContracts,
         )
         assertEquals(
-            request.permission,
+            androidPermissionName(request.permission),
             registry.launchedInputs.getValue(requestCode),
         )
 
@@ -320,7 +318,7 @@ class ActivityResultsTest {
             listOf(
                 RuntimeHostPermissionEvent(
                     requestId = HostRequestId(rawValue = 2),
-                    permission = "android.permission.CAMERA",
+                    permission = RuntimeHostPermission.Camera,
                     isGranted = true,
                 ),
             ),

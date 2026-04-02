@@ -3,7 +3,7 @@ use crate::host::collect::{
     collect_host_runtime_binding_specs,
 };
 
-use super::{CallbackLane, HostModule, HostPlatform, RuntimeBindingSpec, RuntimeIngress};
+use super::{CallbackLane, HostModule, HostPlatform, RuntimeBindingSpec};
 
 /// The authored host generator catalog.
 pub(crate) struct HostCatalog {
@@ -19,10 +19,6 @@ pub(crate) struct HostCatalog {
     android_bridge_lanes: Vec<CallbackLane>,
     /// The runtime binding functions.
     runtime_bindings: Vec<RuntimeBindingSpec>,
-    /// The iOS aggregate runtime-ingress methods.
-    ios_runtime_ingresses: Vec<RuntimeIngress>,
-    /// The Android aggregate runtime-ingress methods.
-    android_runtime_ingresses: Vec<RuntimeIngress>,
 }
 
 impl HostCatalog {
@@ -34,16 +30,6 @@ impl HostCatalog {
         let ios_bridge_lanes = collect_host_bridge_lanes(HostPlatform::Ios, &modules);
         let android_bridge_lanes = collect_host_bridge_lanes(HostPlatform::Android, &modules);
         let runtime_bindings = collect_host_runtime_binding_specs();
-        let ios_runtime_ingresses = modules
-            .iter()
-            .filter(|module| module.supports_platform(HostPlatform::Ios))
-            .filter_map(|module| RuntimeIngress::from_module(module, &runtime_bindings))
-            .collect();
-        let android_runtime_ingresses = modules
-            .iter()
-            .filter(|module| module.supports_platform(HostPlatform::Android))
-            .filter_map(|module| RuntimeIngress::from_module(module, &runtime_bindings))
-            .collect();
 
         let catalog = Self {
             modules,
@@ -52,8 +38,6 @@ impl HostCatalog {
             ios_bridge_lanes,
             android_bridge_lanes,
             runtime_bindings,
-            ios_runtime_ingresses,
-            android_runtime_ingresses,
         };
 
         catalog.validate();
@@ -92,14 +76,6 @@ impl HostCatalog {
     /// Return the runtime binding functions.
     pub(crate) fn runtime_bindings(&self) -> &[RuntimeBindingSpec] {
         &self.runtime_bindings
-    }
-
-    /// Return the aggregate runtime-ingress methods for one platform.
-    pub(crate) fn runtime_ingresses(&self, platform: HostPlatform) -> &[RuntimeIngress] {
-        match platform {
-            HostPlatform::Ios => &self.ios_runtime_ingresses,
-            HostPlatform::Android => &self.android_runtime_ingresses,
-        }
     }
 
     /// Resolve one generated host module by canonical name.
@@ -153,10 +129,6 @@ impl HostCatalog {
                 binding.type_name
             );
         }
-
-        // aggregate runtime ingresses
-        self.validate_runtime_ingresses(self.runtime_ingresses(HostPlatform::Ios), "ios");
-        self.validate_runtime_ingresses(self.runtime_ingresses(HostPlatform::Android), "android");
     }
 
     /// Validate one ordered callback lane list.
@@ -180,20 +152,6 @@ impl HostCatalog {
                 !lane.subject.is_empty(),
                 "missing {subject} lane subject for {}",
                 lane.field_name
-            );
-        }
-    }
-
-    /// Validate one ordered aggregate runtime-ingress list.
-    fn validate_runtime_ingresses(&self, ingresses: &[RuntimeIngress], subject: &str) {
-        use std::collections::BTreeSet;
-
-        let mut module_names = BTreeSet::new();
-        for ingress in ingresses {
-            assert!(
-                module_names.insert(ingress.module_name()),
-                "duplicate {subject} runtime ingress for {}",
-                ingress.module_name()
             );
         }
     }

@@ -103,7 +103,11 @@ fn test_permission_state_ignores_unknown_host_permission_tokens() {
     with_harness_context(|mut context| {
         prime_permission_state(&mut context)?;
 
-        context.enqueue_permission_event("totally-unknown-permission", true)?;
+        let error = match context.enqueue_permission_event("totally-unknown-permission", true) {
+            Ok(()) => panic!("unknown host permission tokens should fail at ingress"),
+            Err(error) => error,
+        };
+        assert_runtime_error_code(&error, PlatformErrorCode::IoInvalidData);
 
         let error = match context.destack_os_permission_state(Permission::Camera) {
             Ok(_) => panic!("unknown host permission tokens should not fabricate camera state"),

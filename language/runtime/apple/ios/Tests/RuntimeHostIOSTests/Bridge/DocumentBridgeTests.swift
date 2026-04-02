@@ -68,8 +68,7 @@ func testRuntimeBridgeSendsDocumentResultsIntoRuntimeIngress() throws {
 
   #expect(bindings.documentResults.count == 1)
   #expect(bindings.documentResults[0].0 == sessionHandle)
-  #expect(bindings.documentResults[0].1 == result.requestID)
-  #expect(bindings.documentResults[0].2 == result.documents)
+  #expect(bindings.documentResults[0].1 == result)
 }
 
 @MainActor
@@ -94,9 +93,9 @@ func testRuntimeBridgeRejectsInvalidDocumentRequest() throws {
     request_id: 5,
     mime_types: DestackRustStringSlice(data: nil, len: 1),
     extensions: DestackRustStringSlice(data: nil, len: 0),
-    allows_multiple_selection: false,
-    allows_directory_selection: false,
-    copies_to_sandbox: false
+    multiple: false,
+    allow_directories: false,
+    copy_to_sandbox: false
   )
   let status = bindings.documentCallback!(sessionHandle.rawValue, invalidRequest)
 

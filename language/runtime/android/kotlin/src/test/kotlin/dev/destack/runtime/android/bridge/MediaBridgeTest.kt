@@ -73,31 +73,38 @@ class MediaBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val listResponse = bridge.mediaList(
+        val listRequest = RuntimeHostMediaListRequest(
             cursor = "1",
-            hasLimit = true,
             limit = 10,
-            kinds = arrayOf(
+            kinds = listOf(
                 RuntimeHostMediaAssetKind.Image,
                 RuntimeHostMediaAssetKind.Video,
             ),
             includeHidden = true,
         )
-        val readResponse = bridge.mediaRead("asset-1")
-        val importResponse = bridge.mediaImportPath("/tmp/example.png", 1)
-        val deleteResponse = bridge.mediaDelete(arrayOf("asset-1", "asset-2"))
+
+        val listResponse = bridge.mediaList(
+            runtimeHost = runtimeHost,
+            request = listRequest,
+        )
+        val readResponse = bridge.mediaRead(runtimeHost, "asset-1")
+        val importResponse = bridge.mediaImportPath(
+            runtimeHost = runtimeHost,
+            request = RuntimeHostMediaImportPathRequest(
+                path = "/tmp/example.png",
+                kind = RuntimeHostMediaAssetKind.Image,
+            ),
+        )
+        val deleteResponse = bridge.mediaDelete(
+            runtimeHost = runtimeHost,
+            request = RuntimeHostMediaDeleteRequest(
+                identifiers = listOf("asset-1", "asset-2"),
+            ),
+        )
 
         assertEquals(
             listOf(
-                RuntimeHostMediaListRequest(
-                    cursor = "1",
-                    limit = 10,
-                    kinds = listOf(
-                        RuntimeHostMediaAssetKind.Image,
-                        RuntimeHostMediaAssetKind.Video,
-                    ),
-                    includeHidden = true,
-                ),
+                listRequest,
             ),
             mediaRequests.listRequests,
         )
@@ -145,10 +152,11 @@ class MediaBridgeTest {
         bridge.attach(runtimeHost)
 
         val listResponse = bridge.mediaList(
-            cursor = null,
+            hasCursor = false,
+            cursor = "",
             hasLimit = false,
             limit = 0,
-            kinds = arrayOf(),
+            kinds = emptyArray<RuntimeHostMediaAssetKind>(),
             includeHidden = false,
         )
         val importResponse = bridge.mediaImportPath("/tmp/example.png", 9)

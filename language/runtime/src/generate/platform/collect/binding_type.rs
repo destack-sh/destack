@@ -5,7 +5,9 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 
 use super::domain::module_platform_domain;
-use crate::platform::model::{BindingType, BindingTypeContext, binding_type_symbols};
+use crate::platform::model::{
+    BindingType, BindingTypeContext, binding_type_symbols, patched_dir_artifact,
+};
 
 /// Collect exported platform type declarations from builtin modules.
 pub(crate) fn collect_platform_types(
@@ -16,7 +18,7 @@ pub(crate) fn collect_platform_types(
     platform_modules: &[ModuleId],
 ) -> Vec<BindingType> {
     // collect binding type symbols for declaration lowering
-    let binding_symbols = binding_type_symbols(compiler.artifacts.as_ref(), profile_id);
+    let binding_symbols = binding_type_symbols(compiler, compiler.artifacts.as_ref(), profile_id);
 
     // accumulate exported platform types
     let mut binding_types = Vec::new();
@@ -26,10 +28,8 @@ pub(crate) fn collect_platform_types(
         let module = program.modules.get(*module_id);
         let module = module.as_ref();
 
-        let dir = compiler
-            .artifacts
-            .dir_patched(module.id, profile_id)
-            .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
+        let dir =
+            patched_dir_artifact(compiler, compiler.artifacts.as_ref(), module.id, profile_id);
         let tree = &dir.tree;
         let types = &dir.types;
         let symbols = &dir.symbols;

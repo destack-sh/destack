@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use crate::host::abi::document::HostDocumentResult;
+use crate::host::abi::intent::HostIntentEvent as HostAbiIntentEvent;
 use crate::host::apple::ingress::lifecycle::host_lifecycle_state_for_application_lifecycle;
 use crate::host::apple::ingress::{
     IosApplicationLifecycle, ios_notify_background_event, ios_notify_document_result,
-    ios_notify_intent_open_url, ios_notify_location_sample, ios_notify_notification_event,
+    ios_notify_intent_event, ios_notify_location_sample, ios_notify_notification_event,
     ios_notify_permission_result,
 };
 use crate::host::core::{HostQueue, HostRequestId, HostSessionRegistry};
@@ -11,12 +13,15 @@ use crate::host::{
     HostBackgroundEvent, HostDocumentEvent, HostEvent, HostIntentEvent, HostIntentPayload,
     HostLifecycleState, HostLocationEvent, HostNotificationEvent, HostPermissionEvent, Platform,
 };
+use crate::platform::NativeAbiCodec;
 use crate::platform::os::{
     BackgroundEventMetadataValue, BackgroundEventValue, BackgroundTaskReadyEventValue,
-    DocumentDescriptorValue, LocationSampleValue, NotificationDeliveredEventValue,
+    DocumentDescriptorValue, IntentEventMetadataValue, IntentEventValue, IntentOpenUrlEventValue,
+    IntentOpenUrlPayloadValue, LocationSampleValue, NotificationDeliveredEventValue,
     NotificationEventMetadataValue, NotificationEventValue, NotificationImmediateTriggerValue,
-    NotificationPriority, NotificationRequestValue, NotificationTriggerValue,
+    NotificationPriority, NotificationRequestValue, NotificationTriggerValue, Permission,
 };
+use crate::runtime::BindingCallContext;
 
 #[test]
 fn test_map_application_lifecycle_to_initializing() {
@@ -70,26 +75,22 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
             request_id: Some(HostRequestId(7)),
-            permission: "camera".to_string(),
+            permission: Permission::Camera,
             granted: true,
         })],
     );
 }
 
 #[test]
-fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
+fn test_notify_intent_event_enqueues_intent_event_for_runtime_bridge() {
     let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
         HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_session_id();
+    let event = HostAbiIntentEvent::from_value(&BindingCallContext::default(), test_intent_event());
 
-    ios_notify_intent_open_url(
-        runtime_id.0,
-        Some("com.example.source"),
-        "https://example.com",
-    )
-    .unwrap();
+    ios_notify_intent_event(runtime_id.0, event).unwrap();
 
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(
@@ -101,6 +102,21 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
             },
         })],
     );
+}
+
+/// Build one representative intent event payload.
+fn test_intent_event() -> IntentEventValue {
+    IntentEventValue::IntentOpenUrlEvent(IntentOpenUrlEventValue {
+        kind: "openUrl".to_string(),
+        metadata: IntentEventMetadataValue {
+            timestamp_ns: 42,
+            sequence: 7,
+            source: Some("com.example.source".to_string()),
+        },
+        payload: IntentOpenUrlPayloadValue {
+            url: "https://example.com".to_string(),
+        },
+    })
 }
 
 #[test]
@@ -151,8 +167,15 @@ fn test_notify_document_result_enqueues_document_event_for_runtime_bridge() {
         HostSessionRegistry::register_queue(Platform::IOS, runtime_id, Arc::clone(&queue), None);
     let runtime_id = registration.host_session_id();
     let documents = vec![test_document_descriptor()];
+    let result = HostDocumentResult {
+        request_id: 7,
+        documents: <_ as NativeAbiCodec>::from_value(
+            &BindingCallContext::default(),
+            documents.clone(),
+        ),
+    };
 
-    ios_notify_document_result(runtime_id.0, 7, documents.clone()).unwrap();
+    ios_notify_document_result(runtime_id.0, result).unwrap();
 
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(

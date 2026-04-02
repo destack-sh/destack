@@ -5,6 +5,7 @@ import dev.destack.runtime.android.module.text.UnsupportedTextRequests
 import dev.destack.runtime.android.module.background.BackgroundEvents
 import dev.destack.runtime.android.module.background.BackgroundRequests
 import dev.destack.runtime.android.module.background.UnsupportedBackgroundRequests
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 
 /**
  * The Android runtime host for one attached Destack runtime session.
@@ -88,7 +89,7 @@ public class RuntimeHost(
 ) {
     private data class PendingPermissionRequest(
         val requestId: HostRequestId,
-        val permission: String,
+        val permission: RuntimeHostPermission,
     )
 
     private var pendingDocumentRequestId: HostRequestId? = null
@@ -176,7 +177,7 @@ public class RuntimeHost(
      */
     internal fun beginPermissionRequest(
         requestId: HostRequestId,
-        permission: String,
+        permission: RuntimeHostPermission,
     ) {
         // reject overlapping permission flows
         require(pendingPermissionRequest == null) {
@@ -199,7 +200,7 @@ public class RuntimeHost(
     /**
      * Return the in-flight permission payload when present.
      */
-    internal fun pendingPermission(): String? {
+    internal fun pendingPermission(): RuntimeHostPermission? {
         return pendingPermissionRequest?.permission
     }
 
@@ -208,7 +209,7 @@ public class RuntimeHost(
      */
     internal fun restorePermissionRequest(
         requestId: HostRequestId?,
-        permission: String?,
+        permission: RuntimeHostPermission?,
     ) {
         // restore a complete permission flow or nothing
         require((requestId == null) == (permission == null)) {
@@ -228,7 +229,7 @@ public class RuntimeHost(
     /**
      * Finish the in-flight permission request.
      */
-    internal fun finishPermissionRequest(): Pair<HostRequestId, String> {
+    internal fun finishPermissionRequest(): Pair<HostRequestId, RuntimeHostPermission> {
         val state = requireNotNull(pendingPermissionRequest) {
             "permission result arrived without one in-flight request"
         }

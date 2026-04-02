@@ -1,20 +1,24 @@
+#[path = "background.generated.rs"]
 mod background;
 mod core;
+#[path = "document.generated.rs"]
 mod document;
+#[path = "intent.generated.rs"]
 mod intent;
 pub(crate) mod lifecycle;
+#[path = "location.generated.rs"]
 mod location;
+#[path = "notification.generated.rs"]
 mod notification;
+#[path = "permission.generated.rs"]
 mod permission;
 mod system;
+#[path = "text.generated.rs"]
 mod text;
 
 pub(crate) use background::ios_notify_background_event;
 pub(crate) use document::ios_notify_document_result;
-pub(crate) use intent::{
-    ios_notify_intent_custom_action, ios_notify_intent_open_file, ios_notify_intent_open_url,
-    ios_notify_intent_share_files, ios_notify_intent_share_text,
-};
+pub(crate) use intent::ios_notify_intent_event;
 pub(crate) use lifecycle::{IosApplicationLifecycle, ios_notify_application_lifecycle};
 pub(crate) use location::ios_notify_location_sample;
 pub(crate) use notification::ios_notify_notification_event;

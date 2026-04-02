@@ -2,10 +2,10 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::background::{
-    HostBackgroundCompleteRequest, HostBackgroundListResponse, HostBackgroundStatusResponse,
-    HostBackgroundTaskOptionsPayload, HostBackgroundTriggerTestRequest,
-    HostBackgroundTriggerTestResponse, HostBackgroundUnregisterRequest, decode_descriptor,
-    decode_status, encode_result,
+    HostBackgroundCompleteRequest, HostBackgroundListResponse, HostBackgroundStatus,
+    HostBackgroundStatusResponse, HostBackgroundTaskOptions, HostBackgroundTaskResult,
+    HostBackgroundTriggerTestRequest, HostBackgroundTriggerTestResponse,
+    HostBackgroundUnregisterRequest,
 };
 use crate::host::android::abi::background::{
     destack_host_android_background_complete, destack_host_android_background_list,
@@ -14,7 +14,9 @@ use crate::host::android::abi::background::{
 };
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringRef;
+use crate::runtime::BindingCallContext;
 
 /// Return one Android background request outcome when supported.
 pub(crate) fn submit_background_request(
@@ -34,10 +36,14 @@ pub(crate) fn submit_background_request(
             decode_callback_host_status(response.status, request.operation_name())?;
 
             // decode returned payload
-            let status = if response.has_scheduler_status {
-                decode_status(response.scheduler_status)
-            } else {
-                decode_status(crate::host::abi::background::HostBackgroundStatus::Unavailable)
+            let status = unsafe { response.scheduler_status.into_value()? };
+            let status = match status {
+                Some(status) => status,
+                None => unsafe {
+                    <HostBackgroundStatus as NativeAbiCodec>::into_value(
+                        HostBackgroundStatus::Unavailable,
+                    )?
+                },
             };
 
             Ok(Some(HostRequestOutcome::immediate(
@@ -55,22 +61,17 @@ pub(crate) fn submit_background_request(
             decode_callback_host_status(response.status, request.operation_name())?;
 
             // decode returned payload
-            let descriptors = unsafe { response.descriptors.as_slice() }?;
-            let mut descriptors_value = Vec::with_capacity(descriptors.len());
-
-            // decode each background task descriptor
-            for descriptor in descriptors {
-                descriptors_value.push(decode_descriptor(*descriptor)?);
-            }
+            let descriptors_value = unsafe { response.descriptors.into_value()? };
 
             Ok(Some(HostRequestOutcome::immediate(
                 HostRequestResult::BackgroundTaskDescriptors(descriptors_value),
             )))
         }
         HostRequest::OsBackgroundRegister { options } => {
-            let options = HostBackgroundTaskOptionsPayload::new(options);
+            let binding = BindingCallContext::from_current_agent_for_native()?;
+            let options = HostBackgroundTaskOptions::from_value(&binding, options.clone());
             let call_status =
-                unsafe { destack_host_android_background_register_task(runtime_id, options.abi()) };
+                unsafe { destack_host_android_background_register_task(runtime_id, options) };
             decode_callback_host_status(call_status, request.operation_name())?;
 
             Ok(Some(HostRequestOutcome::immediate(HostRequestResult::None)))
@@ -111,9 +112,10 @@ pub(crate) fn submit_background_request(
             execution_id,
             result,
         } => {
+            let binding = BindingCallContext::from_current_agent_for_native()?;
             let payload = HostBackgroundCompleteRequest {
                 execution_id: NativeStringRef::from(execution_id),
-                result: encode_result(*result),
+                result: <HostBackgroundTaskResult as NativeAbiCodec>::from_value(&binding, *result),
             };
             let call_status =
                 unsafe { destack_host_android_background_complete(runtime_id, payload) };

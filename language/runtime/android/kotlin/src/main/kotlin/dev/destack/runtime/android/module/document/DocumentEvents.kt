@@ -2,8 +2,6 @@
 
 package dev.destack.runtime.android.module.document
 
-import dev.destack.runtime.android.core.HostRequestId
-
 /**
  * The document event surface attached to one Android runtime host.
  */
@@ -12,8 +10,7 @@ public fun interface DocumentEvents {
      * Deliver one document result into one runtime session.
      */
     public fun notifyDocumentResult(
-        requestId: HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>,
+        result: RuntimeHostDocumentResult,
     )
 
 }
@@ -26,8 +23,7 @@ public object NoopDocumentEvents : DocumentEvents {
      * Deliver one document result into one runtime session.
      */
     override fun notifyDocumentResult(
-        requestId: HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>,
+        result: RuntimeHostDocumentResult,
     ) {
     }
 

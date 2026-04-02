@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::abi::notification::encode_notification_request;
+use crate::host::abi::notification::HostNotificationRequest;
 use crate::host::apple::abi::notification::{
     destack_host_ios_notification_cancel, destack_host_ios_notification_cancel_all,
     destack_host_ios_notification_post,
@@ -7,6 +7,7 @@ use crate::host::apple::abi::notification::{
 use crate::host::core::callback::decode_callback_host_status;
 use crate::host::core::error::not_supported;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeSlice;
 use crate::platform::os::abi_generated::NotificationRequestValue;
 use crate::runtime::BindingCallContext;
@@ -65,9 +66,9 @@ fn submit_notification_post(
     request: &NotificationRequestValue,
 ) -> RuntimeResult<String> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let request = encode_notification_request(&binding, request, operation)?;
+    let request = HostNotificationRequest::from_value(&binding, request.clone());
     let status = unsafe { destack_host_ios_notification_post(runtime_id, request) };
     decode_callback_host_status(status, operation)?;
 
-    Ok(unsafe { request.identifier.as_str()? }.to_string())
+    Ok(unsafe { request.tag.as_str()? }.to_string())
 }

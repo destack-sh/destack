@@ -17,7 +17,7 @@ use crate::platform::model::{
     CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
     CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind, CatalogReplayPayload,
     CatalogReplayPolicy, binding_type_symbols, collect_binding_params, collect_binding_return,
-    format_declared_signature,
+    format_declared_signature, patched_dir_artifact, resolved_dir_artifact,
 };
 
 /// Binding metadata extracted from a declaration node.
@@ -111,10 +111,9 @@ pub(crate) fn collect_platform_bindings(
     profile_id: ProfileId,
     platform_modules: &[ModuleId],
 ) -> BindingCatalog {
-    let binding_decorator_symbol = compiler.language_symbol(profile_id, LanguageSymbol::Binding);
-
     // collect binding type symbols
-    let binding_symbols = binding_type_symbols(compiler.artifacts.as_ref(), profile_id);
+    let binding_symbols = binding_type_symbols(compiler, compiler.artifacts.as_ref(), profile_id);
+    let binding_decorator_symbol = compiler.language_symbol(profile_id, LanguageSymbol::Binding);
 
     // collect bindings by domain
     let mut domains: BindingCatalog = BindingCatalog::default();
@@ -124,14 +123,10 @@ pub(crate) fn collect_platform_bindings(
         // load module metadata
         let module = program.modules.get(*module_id);
         let module = module.as_ref();
-        let resolved_dir = compiler
-            .artifacts
-            .dir_resolved(module.id, profile_id)
-            .unwrap_or_else(|| panic!("missing resolved dir artifact for module {:?}", module.id));
-        let dir = compiler
-            .artifacts
-            .dir_patched(module.id, profile_id)
-            .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
+        let resolved_dir =
+            resolved_dir_artifact(compiler, compiler.artifacts.as_ref(), module.id, profile_id);
+        let dir =
+            patched_dir_artifact(compiler, compiler.artifacts.as_ref(), module.id, profile_id);
         let tree = &resolved_dir.tree;
         let types = &dir.types;
         let symbols = &dir.symbols;

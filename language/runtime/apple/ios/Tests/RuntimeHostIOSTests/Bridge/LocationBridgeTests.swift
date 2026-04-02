@@ -48,7 +48,7 @@ func testLocationRequestsAndIngressRouteIntoRuntimeHost() throws {
     )
   )
   bridge.notifyLocationSample(
-    watchID: "watch-1",
+    "watch-1",
     sample: makeIOSLocationSample()
   )
   let closeStatus = bridge.locationWatchClose(

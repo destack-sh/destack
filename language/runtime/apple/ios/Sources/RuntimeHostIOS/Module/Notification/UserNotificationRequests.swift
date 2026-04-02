@@ -13,8 +13,21 @@ public final class UserNotificationRequests: NotificationRequests {
     _ request: RuntimeHostNotificationRequest
   ) -> UInt32 {
     #if canImport(UserNotifications)
-      guard !request.identifier.isEmpty else {
+      guard !request.tag.isEmpty else {
         return hostStatusInvalidArgument
+      }
+
+      if request.subtitle != nil
+        || request.channelId != nil
+        || request.badgeCount != nil
+        || request.sound != nil
+        || request.categoryId != nil
+        || request.threadId != nil
+        || request.actionId != nil
+        || request.priority != .normal
+        || request.trigger.kind != .immediate
+      {
+        return hostStatusNotSupported
       }
 
       let content = UNMutableNotificationContent()
@@ -26,7 +39,7 @@ public final class UserNotificationRequests: NotificationRequests {
         repeats: false
       )
       let notificationRequest = UNNotificationRequest(
-        identifier: request.identifier,
+        identifier: request.tag,
         content: content,
         trigger: trigger
       )

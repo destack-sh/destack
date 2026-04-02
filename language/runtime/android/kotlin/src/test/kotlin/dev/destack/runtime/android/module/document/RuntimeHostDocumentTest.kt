@@ -16,7 +16,7 @@ class RuntimeHostDocumentTest {
     fun testCreateDocumentRequestAndResult() {
         val request = RuntimeHostDocumentRequest(
             requestId = HostRequestId(rawValue = 7),
-            allowsMultipleSelection = true,
+            multiple = true,
             contentTypes = listOf("image/png", "image/jpeg"),
         )
         val result = sampleDocumentResult(request.requestId)

@@ -62,9 +62,8 @@ class ContactBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val listResponse = bridge.contactList(
+        val listQuery = RuntimeHostContactQuery(
             cursor = "cursor-1",
-            hasLimit = true,
             limit = 25,
             includePhones = true,
             includeEmails = false,
@@ -72,86 +71,54 @@ class ContactBridgeTest {
             includeOrganization = false,
             includeNotes = true,
         )
-        val searchResponse = bridge.contactSearch(
-            queryText = "alice",
+        val searchQuery = RuntimeHostContactQuery(
             cursor = null,
-            hasLimit = false,
-            limit = 0,
+            limit = null,
             includePhones = true,
             includeEmails = true,
             includeAddresses = false,
             includeOrganization = true,
             includeNotes = false,
         )
-        val readResponse = bridge.contactRead("contact-3")
+        val createDraft = sampleDraft("Alice")
+        val updateDraft = sampleDraft("Bob")
+
+        val listResponse = bridge.contactList(
+            runtimeHost = runtimeHost,
+            query = listQuery,
+        )
+        val searchResponse = bridge.contactSearch(
+            runtimeHost = runtimeHost,
+            queryText = "alice",
+            query = searchQuery,
+        )
+        val readResponse = bridge.contactRead(runtimeHost, "contact-3")
         val createResponse = bridge.contactCreate(
-            givenName = "Alice",
-            middleName = "",
-            familyName = "Example",
-            prefix = "",
-            suffix = "",
-            nickname = "ally",
-            phoneticGivenName = "",
-            phoneticFamilyName = "",
-            phones = emptyArray(),
-            emails = emptyArray(),
-            addresses = emptyArray(),
-            company = "Destack",
-            department = "Runtime",
-            title = "Engineer",
-            note = "note",
+            runtimeHost = runtimeHost,
+            draft = createDraft,
         )
         val updateStatus = bridge.contactUpdate(
+            runtimeHost = runtimeHost,
             id = "contact-4",
-            givenName = "Bob",
-            middleName = "",
-            familyName = "Example",
-            prefix = "",
-            suffix = "",
-            nickname = "",
-            phoneticGivenName = "",
-            phoneticFamilyName = "",
-            phones = emptyArray(),
-            emails = emptyArray(),
-            addresses = emptyArray(),
-            company = "",
-            department = "",
-            title = "",
-            note = "",
+            draft = updateDraft,
         )
-        val deleteStatus = bridge.contactDeleteContact("contact-4")
+        val deleteStatus = bridge.contactDeleteContact(runtimeHost, "contact-4")
 
         assertEquals(
             listOf(
-                RuntimeHostContactQuery(
-                    cursor = "cursor-1",
-                    limit = 25,
-                    includePhones = true,
-                    includeEmails = false,
-                    includeAddresses = true,
-                    includeOrganization = false,
-                    includeNotes = true,
-                ),
+                listQuery,
             ),
             contactRequests.listQueries,
         )
         assertEquals(
             listOf(
-                "alice" to RuntimeHostContactQuery(
-                    cursor = null,
-                    limit = null,
-                    includePhones = true,
-                    includeEmails = true,
-                    includeAddresses = false,
-                    includeOrganization = true,
-                    includeNotes = false,
-                ),
+                "alice" to searchQuery,
             ),
             contactRequests.searchQueries,
         )
         assertEquals(listOf("contact-3"), contactRequests.readIdentifiers)
-        assertEquals(listOf(sampleDraft("Alice")), contactRequests.createDrafts)
-        assertEquals(listOf("contact-4" to sampleDraft("Bob")), contactRequests.updateCalls)
+        assertEquals(listOf(createDraft), contactRequests.createDrafts)
+        assertEquals(listOf("contact-4" to updateDraft), contactRequests.updateCalls)
         assertEquals(listOf("contact-4"), contactRequests.deleteIdentifiers)
         assertEquals(0, listResponse.status)
         assertEquals(0, searchResponse.status)

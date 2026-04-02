@@ -1,7 +1,8 @@
+use crate::host::abi::document::HostDocumentResult;
+use crate::host::abi::intent::HostIntentEvent as HostAbiIntentEvent;
 use crate::host::android::ingress::{
-    android_notify_background_event, android_notify_document_result,
-    android_notify_intent_open_url, android_notify_location_sample,
-    android_notify_notification_event,
+    android_notify_background_event, android_notify_document_result, android_notify_intent_event,
+    android_notify_location_sample, android_notify_notification_event,
 };
 use crate::host::android::tests::register_android_runtime;
 use crate::host::core::HostRequestId;
@@ -9,24 +10,23 @@ use crate::host::{
     HostBackgroundEvent, HostDocumentEvent, HostEvent, HostIntentEvent, HostIntentPayload,
     HostLocationEvent, HostNotificationEvent,
 };
+use crate::platform::NativeAbiCodec;
 use crate::platform::os::{
     BackgroundEventMetadataValue, BackgroundEventValue, BackgroundTaskReadyEventValue,
-    DocumentDescriptorValue, LocationSampleValue, NotificationDeliveredEventValue,
+    DocumentDescriptorValue, IntentEventMetadataValue, IntentEventValue, IntentOpenUrlEventValue,
+    IntentOpenUrlPayloadValue, LocationSampleValue, NotificationDeliveredEventValue,
     NotificationEventMetadataValue, NotificationEventValue, NotificationImmediateTriggerValue,
     NotificationPriority, NotificationRequestValue, NotificationTriggerValue,
 };
+use crate::runtime::BindingCallContext;
 
 /// Enqueue one Android intent event for the registered runtime.
 #[test]
-fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
+fn test_notify_intent_event_enqueues_intent_event_for_runtime_bridge() {
     let (queue, _registration, runtime_id) = register_android_runtime();
+    let event = HostAbiIntentEvent::from_value(&BindingCallContext::default(), test_intent_event());
 
-    android_notify_intent_open_url(
-        runtime_id,
-        Some("com.example.source"),
-        "https://example.com",
-    )
-    .unwrap();
+    android_notify_intent_event(runtime_id, event).unwrap();
 
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(
@@ -38,6 +38,21 @@ fn test_notify_intent_open_url_enqueues_intent_event_for_runtime_bridge() {
             },
         })],
     );
+}
+
+/// Build one representative intent event payload.
+fn test_intent_event() -> IntentEventValue {
+    IntentEventValue::IntentOpenUrlEvent(IntentOpenUrlEventValue {
+        kind: "openUrl".to_string(),
+        metadata: IntentEventMetadataValue {
+            timestamp_ns: 42,
+            sequence: 7,
+            source: Some("com.example.source".to_string()),
+        },
+        payload: IntentOpenUrlPayloadValue {
+            url: "https://example.com".to_string(),
+        },
+    })
 }
 
 /// Enqueue one Android notification event for the registered runtime.
@@ -79,8 +94,15 @@ fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
 fn test_notify_document_result_enqueues_document_event_for_runtime_bridge() {
     let (queue, _registration, runtime_id) = register_android_runtime();
     let documents = vec![test_document_descriptor()];
+    let result = HostDocumentResult {
+        request_id: 7,
+        documents: <_ as NativeAbiCodec>::from_value(
+            &BindingCallContext::default(),
+            documents.clone(),
+        ),
+    };
 
-    android_notify_document_result(runtime_id, 7, documents.clone()).unwrap();
+    android_notify_document_result(runtime_id, result).unwrap();
 
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(

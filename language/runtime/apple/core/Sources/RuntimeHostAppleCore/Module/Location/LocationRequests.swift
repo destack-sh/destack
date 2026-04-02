@@ -6,15 +6,15 @@ import Foundation
 @MainActor
 public protocol LocationRequests: AnyObject {
   /// Read whether location services are enabled.
-  func servicesEnabled() -> RuntimeHostLocationServicesResponse
+  func servicesEnabled() -> RuntimeLocationServicesResponse
 
   /// Read one last-known location sample.
-  func lastKnown() -> RuntimeHostLocationLastKnownResponse
+  func lastKnown() -> RuntimeLocationLastKnownResponse
 
   /// Open one location watch.
   func watchOpen(
     _ watchID: String,
-    options: RuntimeHostLocationWatchOptions
+    options: RuntimeLocationWatchOptions
   ) -> UInt32
 
   /// Close one location watch.
@@ -31,19 +31,19 @@ public final class UnsupportedLocationRequests: LocationRequests {
   public init() {}
 
   /// Read whether location services are enabled.
-  public func servicesEnabled() -> RuntimeHostLocationServicesResponse {
-    return RuntimeHostLocationServicesResponse(status: hostStatusNotSupported)
+  public func servicesEnabled() -> RuntimeLocationServicesResponse {
+    return RuntimeLocationServicesResponse(status: hostStatusNotSupported)
   }
 
   /// Read one last-known location sample.
-  public func lastKnown() -> RuntimeHostLocationLastKnownResponse {
-    return RuntimeHostLocationLastKnownResponse(status: hostStatusNotSupported)
+  public func lastKnown() -> RuntimeLocationLastKnownResponse {
+    return RuntimeLocationLastKnownResponse(status: hostStatusNotSupported)
   }
 
   /// Open one location watch.
   public func watchOpen(
     _ watchID: String,
-    options: RuntimeHostLocationWatchOptions
+    options: RuntimeLocationWatchOptions
   ) -> UInt32 {
     return hostStatusNotSupported
   }

@@ -12,7 +12,7 @@ use destack_workspace::{ProfileId, Program};
 use super::domain::module_platform_domain;
 use crate::platform::model::{
     BindingType, BindingTypeContext, ConstantCatalog, ConstantEntry, ConstantValue,
-    binding_type_symbols,
+    binding_type_symbols, patched_dir_artifact,
 };
 
 /// Collect exported platform constants from builtin modules.
@@ -24,7 +24,7 @@ pub(crate) fn collect_platform_constants(
     platform_modules: &[ModuleId],
 ) -> ConstantCatalog {
     // collect binding type symbols for constant type lowering
-    let binding_symbols = binding_type_symbols(compiler.artifacts.as_ref(), profile_id);
+    let binding_symbols = binding_type_symbols(compiler, compiler.artifacts.as_ref(), profile_id);
 
     // collect constants grouped by owning domain
     let mut domains: ConstantCatalog = ConstantCatalog::default();
@@ -38,10 +38,8 @@ pub(crate) fn collect_platform_constants(
             continue;
         };
 
-        let dir = compiler
-            .artifacts
-            .dir_patched(module.id, profile_id)
-            .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module.id));
+        let dir =
+            patched_dir_artifact(compiler, compiler.artifacts.as_ref(), module.id, profile_id);
         let tree = &dir.tree;
         let types = &dir.types;
         let symbols = &dir.symbols;

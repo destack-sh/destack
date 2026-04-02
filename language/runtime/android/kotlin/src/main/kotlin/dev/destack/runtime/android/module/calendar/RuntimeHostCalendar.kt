@@ -8,121 +8,161 @@ internal const val runtimeHostCalendarDefaultEventLimit: Int = 100
 /**
  * The Android calendar access level returned by one host surface.
  */
-public enum class RuntimeHostCalendarAccess {
+public enum class RuntimeHostCalendarAccess(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
     /**
      * One read-only calendar.
      */
-    Read,
+    Read(1),
 
     /**
      * One read-write calendar.
      */
-    Write,
+    Write(2),
 }
 
 /**
  * The Android calendar availability class for one event.
  */
-public enum class RuntimeHostCalendarAvailability {
+public enum class RuntimeHostCalendarAvailability(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
     /**
      * One busy slot.
      */
-    Busy,
+    Busy(1),
 
     /**
      * One free slot.
      */
-    Free,
+    Free(2),
 
     /**
      * One tentative slot.
      */
-    Tentative,
+    Tentative(3),
 
     /**
      * One out-of-office slot.
      */
-    OutOfOffice,
+    OutOfOffice(4),
 
     /**
      * One unavailable slot.
      */
-    Unavailable,
+    Unavailable(5),
 
     /**
      * One unknown slot.
      */
-    Unknown,
+    Unknown(6),
 }
 
 /**
  * The Android participant response status for one attendee.
  */
-public enum class RuntimeHostCalendarParticipantStatus {
+public enum class RuntimeHostCalendarParticipantStatus(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
     /**
      * One unknown response.
      */
-    Unknown,
+    Unknown(1),
 
     /**
      * One pending response.
      */
-    Pending,
+    Pending(2),
 
     /**
      * One accepted response.
      */
-    Accepted,
+    Accepted(3),
 
     /**
      * One tentative response.
      */
-    Tentative,
+    Tentative(4),
 
     /**
      * One declined response.
      */
-    Declined,
+    Declined(5),
 
     /**
      * One delegated response.
      */
-    Delegated,
+    Delegated(6),
 
     /**
      * One completed response.
      */
-    Completed,
+    Completed(7),
 
     /**
      * One in-process response.
      */
-    InProcess,
+    InProcess(8),
 }
 
 /**
  * The Android recurrence frequency for one event rule.
  */
-public enum class RuntimeHostCalendarRecurrenceFrequency {
+public enum class RuntimeHostCalendarRecurrenceFrequency(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
     /**
      * One daily recurrence.
      */
-    Daily,
+    Daily(1),
 
     /**
      * One weekly recurrence.
      */
-    Weekly,
+    Weekly(2),
 
     /**
      * One monthly recurrence.
      */
-    Monthly,
+    Monthly(3),
 
     /**
      * One yearly recurrence.
      */
-    Yearly,
+    Yearly(4),
+}
+
+/**
+ * The Android calendar reminder kind for one bridge payload.
+ */
+public enum class RuntimeHostCalendarReminderKind(
+    /**
+     * The stable ABI discriminant.
+     */
+    val rawValue: Int,
+) {
+    /**
+     * One absolute reminder.
+     */
+    Absolute(1),
+
+    /**
+     * One relative reminder.
+     */
+    Relative(2),
 }
 
 /**
@@ -199,27 +239,22 @@ public data class RuntimeHostCalendarRelativeReminder(
 /**
  * One Android reminder payload.
  */
-public sealed interface RuntimeHostCalendarReminder {
+public data class RuntimeHostCalendarReminder(
     /**
-     * One absolute reminder payload.
+     * The bridge-facing reminder kind.
      */
-    public data class Absolute(
-        /**
-         * The absolute reminder payload.
-         */
-        val value: RuntimeHostCalendarAbsoluteReminder,
-    ) : RuntimeHostCalendarReminder
+    val kind: RuntimeHostCalendarReminderKind,
 
     /**
-     * One relative reminder payload.
+     * The bridge-facing absolute reminder timestamp.
      */
-    public data class Relative(
-        /**
-         * The relative reminder payload.
-         */
-        val value: RuntimeHostCalendarRelativeReminder,
-    ) : RuntimeHostCalendarReminder
-}
+    val absoluteUnixNs: Long = 0,
+
+    /**
+     * The bridge-facing relative reminder offset.
+     */
+    val minutesBeforeStart: Int = 0,
+)
 
 /**
  * One Android recurrence rule payload.

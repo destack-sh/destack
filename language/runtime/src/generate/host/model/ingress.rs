@@ -38,6 +38,11 @@ impl HostIngress {
         self.abi.name
     }
 
+    /// Return the authored ingress callback.
+    pub(crate) fn abi(&self) -> &HostAbiFunction {
+        &self.abi
+    }
+
     /// Return the ingress documentation.
     pub(crate) fn documentation(&self) -> &'static str {
         self.abi.documentation

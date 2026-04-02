@@ -11,6 +11,7 @@ import dev.destack.runtime.android.module.contact.RuntimeHostContactQuery
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentRequest
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentResult
 import dev.destack.runtime.android.module.lifecycle.RuntimeHostLifecycleState
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
 
@@ -53,7 +54,7 @@ class ActivityEmbedderTest {
         embedder.permission.request(
             RuntimeHostPermissionRequest(
                 requestId = HostRequestId(rawValue = 1),
-                permission = "android.permission.CAMERA",
+                permission = RuntimeHostPermission.Camera,
             ),
         )
         registry.completeLastLaunch(true)
@@ -61,7 +62,7 @@ class ActivityEmbedderTest {
         embedder.document.pick(
             RuntimeHostDocumentRequest(
                 requestId = HostRequestId(rawValue = 2),
-                allowsMultipleSelection = true,
+                multiple = true,
                 contentTypes = listOf("image/png"),
             ),
         )
@@ -90,7 +91,7 @@ class ActivityEmbedderTest {
             listOf(
                 RuntimeHostPermissionEvent(
                     requestId = HostRequestId(rawValue = 1),
-                    permission = "android.permission.CAMERA",
+                    permission = RuntimeHostPermission.Camera,
                     isGranted = true,
                 ),
             ),
@@ -134,7 +135,7 @@ class ActivityEmbedderTest {
         )
         val request = RuntimeHostPermissionRequest(
             requestId = HostRequestId(rawValue = 9),
-            permission = "android.permission.CAMERA",
+            permission = RuntimeHostPermission.Camera,
         )
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)

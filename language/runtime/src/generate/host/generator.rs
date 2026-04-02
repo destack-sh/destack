@@ -1,17 +1,17 @@
+use std::collections::BTreeMap;
+
 use crate::host::model::{HostArtifact, HostCatalog, HostPlatform};
-use crate::platform::model::WorkspaceLayout;
+use crate::platform::model::{ModuleAbiTypes, WorkspaceLayout};
 
 use super::emit::{android, apple, rust};
 
 /// Generate the host bridge artifacts for all supported categories.
-pub(crate) fn generate_host_artifacts(layout: &WorkspaceLayout) -> Vec<HostArtifact> {
+pub(crate) fn generate_host_artifacts(
+    layout: &WorkspaceLayout,
+    _abi_types_by_module: &BTreeMap<String, ModuleAbiTypes>,
+) -> Vec<HostArtifact> {
     let generated_catalog = HostCatalog::load();
     let mut files = Vec::new();
-
-    // shared Rust bridge surface
-    for module in generated_catalog.modules() {
-        files.extend(rust::render_bridge_files(layout, module));
-    }
 
     // Android bridge bindings
     files.extend(android::render_binding_files(layout, &generated_catalog));
@@ -37,6 +37,9 @@ pub(crate) fn generate_host_artifacts(layout: &WorkspaceLayout) -> Vec<HostArtif
         files.extend(rust::render_ios_files(layout, module));
         files.extend(rust::render_ios_ingress_files(layout, module));
     }
+
+    // runtime ABI crate surface
+    files.extend(rust::render_runtime_abi_files(layout, &generated_catalog));
 
     files
 }

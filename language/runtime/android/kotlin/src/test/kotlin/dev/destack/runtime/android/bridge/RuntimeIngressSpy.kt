@@ -1,9 +1,7 @@
 package dev.destack.runtime.android.bridge
 
-import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.core.HostSessionHandle
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEvent
-import dev.destack.runtime.android.module.document.RuntimeHostDocumentDescriptor
 import dev.destack.runtime.android.module.document.RuntimeHostDocumentResult
 import dev.destack.runtime.android.module.intent.RuntimeHostIntentEvent
 import dev.destack.runtime.android.module.location.RuntimeHostLocationSample
@@ -44,13 +42,9 @@ class RuntimeIngressSpy : RuntimeIngress {
 
     override fun notifyDocumentResult(
         sessionHandle: HostSessionHandle,
-        requestId: HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>,
+        result: RuntimeHostDocumentResult,
     ): RuntimeIngressStatus {
-        documentResults += sessionHandle to RuntimeHostDocumentResult(
-            requestId = requestId,
-            documents = documents,
-        )
+        documentResults += sessionHandle to result
 
         return RuntimeIngressStatus(code = 0, errorId = 0)
     }

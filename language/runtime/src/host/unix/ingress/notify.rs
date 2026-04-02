@@ -11,6 +11,7 @@ use crate::host::{
     HostWallClockEvent,
 };
 use crate::platform::os::abi_generated::LocationSampleValue;
+use crate::platform::os::{invalid_data, parse_host_permission_name};
 /// Unix application lifecycle transitions from native ingress hooks.
 #[cfg_attr(test, allow(dead_code))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -58,9 +59,16 @@ pub(crate) fn unix_notify_permission_result(
     granted: bool,
 ) -> RuntimeResult<()> {
     let bridge = unix_host_bridge(runtime_id, platform)?;
+    let permission = parse_host_permission_name(permission).ok_or_else(|| {
+        invalid_data(
+            "destack.host.unix.notify_permission_result",
+            format!("unknown host permission {permission}"),
+        )
+    })?;
+
     bridge.enqueue(HostEvent::Permission(HostPermissionEvent {
         request_id: None,
-        permission: permission.to_string(),
+        permission,
         granted,
     }));
 

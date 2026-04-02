@@ -13,8 +13,7 @@ func
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    runtimeApi: bindings,
-    notificationTimestampNs: { 42 }
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,

@@ -11,8 +11,7 @@ func testRuntimeBridgeSendsNotificationEventsIntoRuntimeIngress() throws {
   let sessionHandle = makeTestSessionHandle()
   let bridge = RuntimeBridge(
     sessionHandle: sessionHandle,
-    runtimeApi: bindings,
-    notificationTimestampNs: { 42 }
+    runtimeApi: bindings
   )
   let runtimeHost = createBridgeRuntimeHost(
     sessionHandle: sessionHandle,
@@ -22,16 +21,20 @@ func testRuntimeBridgeSendsNotificationEventsIntoRuntimeIngress() throws {
     mediaRequests: MediaRequestRecorder()
   )
   let event = RuntimeHostNotificationEvent(
-    identifier: "test-notification",
-    request: RuntimeHostNotificationRequest(
-      identifier: "test-notification",
-      title: "Title",
-      body: "Body"
+    kind: .interacted,
+    metadata: RuntimeHostNotificationEventMetadata(
+      timestampNs: 42,
+      sequence: 1,
+      id: "test-notification",
+      request: RuntimeHostNotificationRequest(
+        title: "Title",
+        body: "Body",
+        tag: "test-notification"
+      )
     ),
-    kind: .activated,
-    actionIdentifier: "open",
-    sequence: 1,
-    timestampNs: 42
+    payload: RuntimeHostNotificationInteractedPayload(
+      actionId: "open"
+    )
   )
 
   try bridge.attach(runtimeHost: runtimeHost)

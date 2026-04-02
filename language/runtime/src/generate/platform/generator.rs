@@ -3,9 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileKey, Runtime};
-use destack_compiler::{
-    ArtifactRequirementCollector, ArtifactRequirementError, Compiler, CompilerOptions,
-};
+use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::DiagnosticSeverity;
 use destack_workspace::{ProfileId, Program, Session};
 
@@ -129,64 +127,6 @@ impl RuntimeGenerator {
                 profile_key,
             )
             .expect("platform builtin lib is missing")
-    }
-
-    /// Analyze platform modules for one profile.
-    fn analyze_platform_modules(
-        &self,
-        profile_id: ProfileId,
-        platform_modules: &[destack_source::ModuleId],
-    ) -> Result<(), String> {
-        self.compiler
-            .run_to_completion(|compiler| {
-                self.require_platform_analysis(compiler, profile_id, platform_modules)
-            })
-            .map_err(|error| match error {
-                ArtifactRequirementError::NotReady { requirement } => {
-                    format!("platform analysis did not converge: {requirement:?}")
-                }
-                ArtifactRequirementError::Failed { requirement } => {
-                    format!("failed to analyze platform modules: {requirement:?}")
-                }
-            })?;
-
-        Ok(())
-    }
-
-    /// Require the full platform analysis surface for one profile.
-    fn require_platform_analysis(
-        &self,
-        compiler: &Compiler,
-        profile_id: ProfileId,
-        platform_modules: &[destack_source::ModuleId],
-    ) -> Result<(), ArtifactRequirementError> {
-        // collect the full root requirement set before driving
-        let mut collector = ArtifactRequirementCollector::new();
-
-        if let Some(error) =
-            collector.try_collect(compiler.require_language_environment(profile_id))
-        {
-            return Err(error);
-        }
-
-        if let Some(error) = collector.try_collect(compiler.require_library_environment(profile_id))
-        {
-            return Err(error);
-        }
-
-        for module_id in platform_modules {
-            if let Some(error) =
-                collector.try_collect(compiler.require_dir_patched(*module_id, profile_id))
-            {
-                return Err(error);
-            }
-        }
-
-        if let Some(requirement) = collector.try_into_requirement() {
-            return Err(ArtifactRequirementError::NotReady { requirement });
-        }
-
-        Ok(())
     }
 
     /// Print diagnostics and stop on errors.
@@ -332,7 +272,7 @@ impl RuntimeGenerator {
         platform_modules: &[destack_source::ModuleId],
         write_platform_index: bool,
         refresh_stubs: bool,
-    ) {
+    ) -> Result<(), String> {
         // collect module inputs
         let catalog = self.collect_catalog(profile_id, platform_modules);
         let constants = self.collect_constants(profile_id, platform_modules);
@@ -345,6 +285,10 @@ impl RuntimeGenerator {
         );
         let abi_types = self.collect_abi_types(&catalog, &constants, &exported_types);
         let modules = self.collect_modules(&catalog);
+
+        // stop before writing when lazy analysis produced diagnostics
+        self.report_diagnostics()?;
+
         let file_writer = PlatformFileWriter::new(&self.layout);
 
         // write generated files
@@ -356,9 +300,11 @@ impl RuntimeGenerator {
         }
 
         // host bridge structural outputs
-        for file in generate_host_artifacts(&self.layout) {
+        for file in generate_host_artifacts(&self.layout, &abi_types) {
             file_writer.write_file(&file.path, &file.contents);
         }
+
+        Ok(())
     }
 }
 
@@ -385,28 +331,13 @@ impl RuntimeGenerator {
         let selected_modules =
             generator.select_modules(&platform_modules, options.domains.as_ref())?;
 
-        // keep full analysis for whole-library generation
-        // targeted domain runs should only analyze the selected surface so unrelated module drift
-        // does not block regeneration of one module under audit
-        let analysis_modules = if options.domains.is_some() {
-            selected_modules.clone()
-        } else {
-            platform_modules.clone()
-        };
-
-        // run analysis passes before extraction
-        generator.analyze_platform_modules(profile_id, &analysis_modules)?;
-
-        // validate diagnostics before rendering output
-        generator.report_diagnostics()?;
-
         // collect bindings and render outputs
         generator.generate_bindings(
             profile_id,
             &selected_modules,
             options.domains.is_none(),
             options.refresh_stubs,
-        );
+        )?;
 
         // regenerate runtime capability kinds from intrinsic capability source of truth
         generate_platform_capability_kind();
@@ -467,10 +398,6 @@ mod tests {
             )
             .expect("time domain should resolve");
 
-        generator
-            .analyze_platform_modules(profile_id, &selected_modules)
-            .expect("platform analysis should complete");
-
         let catalog = generator.collect_catalog(profile_id, &selected_modules);
         assert!(
             !catalog.is_empty(),
@@ -496,10 +423,6 @@ mod tests {
                 Some(&BTreeSet::from(["fs".to_string(), "os".to_string()])),
             )
             .expect("fs and os domains should resolve");
-
-        generator
-            .analyze_platform_modules(profile_id, &selected_modules)
-            .expect("platform analysis should complete");
 
         let catalog = generator.collect_catalog(profile_id, &selected_modules);
         let fs_binding = &catalog["fs"]["destack.fs.xattr.listxattr"];
@@ -532,10 +455,6 @@ mod tests {
                 Some(&BTreeSet::from(["crypto".to_string()])),
             )
             .expect("crypto domain should resolve");
-
-        generator
-            .analyze_platform_modules(profile_id, &selected_modules)
-            .expect("platform analysis should complete");
 
         let exported_types = collect_platform_types(
             &generator.compiler,

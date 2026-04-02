@@ -770,12 +770,12 @@ private fun insertEventReminders(
 
     val operations = ArrayList<ContentProviderOperation>(reminders.size)
     for (reminder in reminders) {
-        val minutes = when (reminder) {
-            is RuntimeHostCalendarReminder.Absolute -> {
-                ((draft.startUnixNs - reminder.value.absoluteUnixNs) / nanosecondsPerMinute).toInt()
+        val minutes = when (reminder.kind) {
+            RuntimeHostCalendarReminderKind.Absolute -> {
+                ((draft.startUnixNs - reminder.absoluteUnixNs) / nanosecondsPerMinute).toInt()
             }
-            is RuntimeHostCalendarReminder.Relative -> {
-                reminder.value.minutesBeforeStart
+            RuntimeHostCalendarReminderKind.Relative -> {
+                reminder.minutesBeforeStart
             }
         }
         val builder = ContentProviderOperation.newInsert(CalendarContract.Reminders.CONTENT_URI)
@@ -864,11 +864,10 @@ private fun loadEventReminders(
         buildList {
             while (cursor.moveToNext()) {
                 add(
-                    RuntimeHostCalendarReminder.Relative(
-                        RuntimeHostCalendarRelativeReminder(
-                            minutesBeforeStart = cursor.getInt(
-                                cursor.columnIndexOrThrow(CalendarContract.Reminders.MINUTES),
-                            ),
+                    RuntimeHostCalendarReminder(
+                        kind = RuntimeHostCalendarReminderKind.Relative,
+                        minutesBeforeStart = cursor.getInt(
+                            cursor.columnIndexOrThrow(CalendarContract.Reminders.MINUTES),
                         ),
                     ),
                 )

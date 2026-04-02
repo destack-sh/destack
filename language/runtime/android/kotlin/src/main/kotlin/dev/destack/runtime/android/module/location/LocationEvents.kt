@@ -11,7 +11,7 @@ public fun interface LocationEvents {
      */
     public fun notifyLocationSample(
         watchId: String,
-        sample: RuntimeHostLocationSample,
+        sample: RuntimeLocationSample,
     )
 
 }
@@ -25,7 +25,7 @@ public object NoopLocationEvents : LocationEvents {
      */
     override fun notifyLocationSample(
         watchId: String,
-        sample: RuntimeHostLocationSample,
+        sample: RuntimeLocationSample,
     ) {
     }
 

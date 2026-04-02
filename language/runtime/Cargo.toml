@@ -73,6 +73,7 @@ destack_workspace = { workspace = true }
 # general
 base64 = { workspace = true }
 argon2 = { workspace = true }
+cfg-if = { workspace = true }
 foreign-types-shared = { workspace = true }
 jiff = { workspace = true }
 libc = { workspace = true }

@@ -85,6 +85,21 @@ public struct RuntimeHostDocumentRequest: Sendable, Hashable, Codable {
   /// Whether the host should copy results into one sandbox path.
   public let copiesToSandbox: Bool
 
+  /// The bridge-facing multiple-selection flag.
+  public var multiple: Bool {
+    allowsMultipleSelection
+  }
+
+  /// The bridge-facing directory-selection flag.
+  public var allowDirectories: Bool {
+    allowsDirectorySelection
+  }
+
+  /// The bridge-facing sandbox-copy flag.
+  public var copyToSandbox: Bool {
+    copiesToSandbox
+  }
+
   /// Create one document request.
   public init(
     requestID: HostRequestID,
@@ -121,6 +136,25 @@ public struct RuntimeHostDocumentRequest: Sendable, Hashable, Codable {
       extensions: extensions,
       allowsDirectorySelection: allowsDirectorySelection,
       copiesToSandbox: copiesToSandbox
+    )
+  }
+
+  /// Create one document request from the generated bridge field names.
+  public init(
+    requestID: HostRequestID,
+    mimeTypes: [String],
+    extensions: [String],
+    multiple: Bool = false,
+    allowDirectories: Bool = false,
+    copyToSandbox: Bool = false
+  ) {
+    self.init(
+      requestID: requestID,
+      mimeTypes: mimeTypes,
+      extensions: extensions,
+      allowsMultipleSelection: multiple,
+      allowsDirectorySelection: allowDirectories,
+      copiesToSandbox: copyToSandbox
     )
   }
 }

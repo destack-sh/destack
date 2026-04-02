@@ -2,6 +2,7 @@ package dev.destack.runtime.android.bridge
 
 import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.core.HostSessionHandle
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
 
@@ -30,7 +31,7 @@ class PermissionBridgeTest {
         bridge.attach(runtimeHost)
         val status = bridge.permissionRequest(
             requestId = 5,
-            permission = "camera",
+            permission = RuntimeHostPermission.Camera.rawValue,
         )
 
         assertEquals(0, status)
@@ -38,7 +39,7 @@ class PermissionBridgeTest {
             listOf(
                 RuntimeHostPermissionRequest(
                     requestId = HostRequestId(rawValue = 5),
-                    permission = "camera",
+                    permission = RuntimeHostPermission.Camera,
                 ),
             ),
             permissionRequests.requests,
@@ -84,7 +85,7 @@ class PermissionBridgeTest {
         )
         val event = RuntimeHostPermissionEvent(
             requestId = HostRequestId(rawValue = 9),
-            permission = "camera",
+            permission = RuntimeHostPermission.Camera,
             isGranted = true,
         )
 

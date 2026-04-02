@@ -38,11 +38,14 @@ internal class ActivityPermissionRequests(
     override fun request(
         request: RuntimeHostPermissionRequest,
     ): Int {
+        val permissionName = androidPermissionName(request.permission)
+            ?: return hostStatusNotSupported
+
         runtimeHost.beginPermissionRequest(
             requestId = request.requestId,
             permission = request.permission,
         )
-        permissionLauncher.launch(request.permission)
+        permissionLauncher.launch(permissionName)
 
         return hostStatusOk
     }

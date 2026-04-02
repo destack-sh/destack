@@ -20,11 +20,9 @@ public class RuntimeBridge internal constructor(
      */
     sessionHandle: HostSessionHandle,
     runtimeApi: RuntimeIngress = ProcessRuntimeIngress,
-    private val notificationTimestampNs: () -> Long = System::nanoTime,
 ) : GeneratedRuntimeBridge(
     sessionHandle = sessionHandle,
     runtimeApi = runtimeApi,
-    timestampNs = notificationTimestampNs,
 ), BackgroundEvents, NotificationEvents {
     private val mainHandler: Handler by lazy(LazyThreadSafetyMode.NONE) {
         Handler(Looper.getMainLooper())
