@@ -36,8 +36,8 @@ AndroidHostLocationCallbacks make_location_callbacks();
 /// Register the location runtime ingress JNI methods.
 bool register_location_runtime_natives(JNIEnv *env);
 
-/// Send the `location_sample` location ingress payload into the runtime ingress path.
-RuntimeStatus send_location_sample(
+/// Send the `notify_location_sample` location ingress payload into the runtime ingress path.
+RuntimeStatus send_notify_location_sample(
     uint64_t session_handle,
     NativeStringRef watch_id,
     LocationSample sample

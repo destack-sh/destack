@@ -28,6 +28,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 /// Convert one Java string into one native string reference backed by stable storage.
 NativeStringRef string_ref_from_java(
     JNIEnv *env,
@@ -151,8 +219,7 @@ HostBackgroundStatusResponse decode_HostBackgroundStatusResponse(JNIEnv *env, jo
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject scheduler_status_value = call_object_getter(env, value, "getSchedulerStatus", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundStatus;");
-    decoded.has_scheduler_status = scheduler_status_value != nullptr;
-    decoded.scheduler_status = scheduler_status_value == nullptr ? static_cast<HostBackgroundStatus>(0) : decode_HostBackgroundStatus(env, scheduler_status_value);
+    decoded.scheduler_status = ([&]() -> OptionalHostBackgroundStatus { if (scheduler_status_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostBackgroundStatus(env, scheduler_status_value) }; })();
     if (scheduler_status_value != nullptr) { env->DeleteLocalRef(scheduler_status_value); }
 
 
@@ -223,13 +290,11 @@ HostBackgroundTaskSchedule decode_HostBackgroundTaskSchedule(JNIEnv *env, jobjec
     if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
 
     jobject earliest_begin_unix_ns_value = call_object_getter(env, value, "getEarliestBeginUnixNs", "()Ljava/lang/Long;");
-    decoded.has_earliest_begin_unix_ns = earliest_begin_unix_ns_value != nullptr;
-    decoded.earliest_begin_unix_ns = earliest_begin_unix_ns_value == nullptr ? 0 : decode_boxed_u64(env, earliest_begin_unix_ns_value);
+    decoded.earliest_begin_unix_ns = ([&]() -> OptionalU64 { if (earliest_begin_unix_ns_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, earliest_begin_unix_ns_value) }; })();
     if (earliest_begin_unix_ns_value != nullptr) { env->DeleteLocalRef(earliest_begin_unix_ns_value); }
 
     jobject repeat_interval_ns_value = call_object_getter(env, value, "getRepeatIntervalNs", "()Ljava/lang/Long;");
-    decoded.has_repeat_interval_ns = repeat_interval_ns_value != nullptr;
-    decoded.repeat_interval_ns = repeat_interval_ns_value == nullptr ? 0 : decode_boxed_u64(env, repeat_interval_ns_value);
+    decoded.repeat_interval_ns = ([&]() -> OptionalU64 { if (repeat_interval_ns_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, repeat_interval_ns_value) }; })();
     if (repeat_interval_ns_value != nullptr) { env->DeleteLocalRef(repeat_interval_ns_value); }
 
 
@@ -312,7 +377,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         status_method = env->GetMethodID(
             bridge_class,
             "backgroundStatus",
-            "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundStatusResponse;"
+            "()Ldev/destack/runtime/android/bridge/RuntimeHostBackgroundStatusResponse;"
         );
     }
 
@@ -320,7 +385,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         list_method = env->GetMethodID(
             bridge_class,
             "backgroundList",
-            "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundListResponse;"
+            "()Ldev/destack/runtime/android/bridge/RuntimeHostBackgroundListResponse;"
         );
     }
 
@@ -328,7 +393,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         registerTask_method = env->GetMethodID(
             bridge_class,
             "backgroundRegisterTask",
-            "(Ljava/lang/String;IIZJZJIZZI)I"
+            "(Ljava/lang/String;IILjava/lang/Long;Ljava/lang/Long;IZZI)I"
         );
     }
 
@@ -344,7 +409,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         triggerTest_method = env->GetMethodID(
             bridge_class,
             "backgroundTriggerTest",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundTriggerTestResponse;"
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostBackgroundTriggerTestResponse;"
         );
     }
 
@@ -400,7 +465,13 @@ uint32_t call_background_status(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostBackgroundStatusResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundStatusResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostBackgroundStatusResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
@@ -442,7 +513,13 @@ uint32_t call_background_list(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostBackgroundListResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundListResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostBackgroundListResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
@@ -467,23 +544,33 @@ uint32_t call_background_register_task(
     }
 
     jstring identifier_value = java_string_or_null(env, request.identifier);
+    jobject trigger_value = encode_HostBackgroundTriggerKind(env, request.trigger);
+    jobject kind_value = encode_HostBackgroundTaskScheduleKind(env, request.schedule.kind);
+    jobject earliest_begin_unix_ns_value = request.schedule.earliest_begin_unix_ns.has_value ? box_long(env, static_cast<jlong>(request.schedule.earliest_begin_unix_ns.value)) : nullptr;
+    jobject repeat_interval_ns_value = request.schedule.repeat_interval_ns.has_value ? box_long(env, static_cast<jlong>(request.schedule.repeat_interval_ns.value)) : nullptr;
+    jobject network_value = encode_HostBackgroundNetworkRequirement(env, request.network);
+    jobject conflict_policy_value = encode_HostBackgroundConflictPolicy(env, request.conflict_policy);
 
     jint status = env->CallIntMethod(
         bridge,
         registerTask_method,
         identifier_value,
-        static_cast<jint>(request.trigger),
-        static_cast<jint>(request.schedule.kind),
-        request.schedule.has_earliest_begin_unix_ns ? JNI_TRUE : JNI_FALSE,
-        static_cast<jlong>(request.schedule.earliest_begin_unix_ns),
-        request.schedule.has_repeat_interval_ns ? JNI_TRUE : JNI_FALSE,
-        static_cast<jlong>(request.schedule.repeat_interval_ns),
-        static_cast<jint>(request.network),
+        trigger_value,
+        kind_value,
+        earliest_begin_unix_ns_value,
+        repeat_interval_ns_value,
+        network_value,
         request.requires_charging ? JNI_TRUE : JNI_FALSE,
         request.requires_idle ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(request.conflict_policy)
+        conflict_policy_value
     );
     if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
+    if (trigger_value != nullptr) { env->DeleteLocalRef(trigger_value); }
+    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
+    if (earliest_begin_unix_ns_value != nullptr) { env->DeleteLocalRef(earliest_begin_unix_ns_value); }
+    if (repeat_interval_ns_value != nullptr) { env->DeleteLocalRef(repeat_interval_ns_value); }
+    if (network_value != nullptr) { env->DeleteLocalRef(network_value); }
+    if (conflict_policy_value != nullptr) { env->DeleteLocalRef(conflict_policy_value); }
     env->DeleteLocalRef(bridge);
 
     if (env->ExceptionCheck()) {
@@ -556,7 +643,13 @@ uint32_t call_background_trigger_test(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostBackgroundTriggerTestResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/background/RuntimeHostBackgroundTriggerTestResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostBackgroundTriggerTestResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (identifier_value != nullptr) { env->DeleteLocalRef(identifier_value); }
     env->DeleteLocalRef(response_object);
@@ -582,14 +675,16 @@ uint32_t call_background_complete(
     }
 
     jstring execution_id_value = java_string_or_null(env, request.execution_id);
+    jobject result_value = encode_HostBackgroundTaskResult(env, request.result);
 
     jint status = env->CallIntMethod(
         bridge,
         complete_method,
         execution_id_value,
-        static_cast<jint>(request.result)
+        result_value
     );
     if (execution_id_value != nullptr) { env->DeleteLocalRef(execution_id_value); }
+    if (result_value != nullptr) { env->DeleteLocalRef(result_value); }
     env->DeleteLocalRef(bridge);
 
     if (env->ExceptionCheck()) {

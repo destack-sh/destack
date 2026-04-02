@@ -18,7 +18,8 @@ import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTrigge
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTriggerTestResponse
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundCompleteRequest
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEventMetadata
-import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEventKind
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskReadyEvent
+import dev.destack.runtime.android.module.background.RuntimeHostBackgroundTaskExpiredEvent
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEvent
 
 /**
@@ -83,10 +84,8 @@ internal fun decodeBridgeHostBackgroundTaskOptions(
     identifier: String,
     trigger: Int,
     scheduleKind: Int,
-    scheduleHasEarliestBeginUnixNs: Boolean,
-    scheduleEarliestBeginUnixNs: Long,
-    scheduleHasRepeatIntervalNs: Boolean,
-    scheduleRepeatIntervalNs: Long,
+    scheduleEarliestBeginUnixNs: Long?,
+    scheduleRepeatIntervalNs: Long?,
     network: Int,
     requiresCharging: Boolean,
     requiresIdle: Boolean,
@@ -97,9 +96,7 @@ internal fun decodeBridgeHostBackgroundTaskOptions(
         trigger = decodeBridgeHostBackgroundTriggerKind(trigger) ?: return null,
         schedule = decodeBridgeHostBackgroundTaskSchedule(
             scheduleKind,
-            scheduleHasEarliestBeginUnixNs,
             scheduleEarliestBeginUnixNs,
-            scheduleHasRepeatIntervalNs,
             scheduleRepeatIntervalNs
         ) ?: return null,
         network = decodeBridgeHostBackgroundNetworkRequirement(network) ?: return null,
@@ -114,23 +111,13 @@ internal fun decodeBridgeHostBackgroundTaskOptions(
  */
 internal fun decodeBridgeHostBackgroundTaskSchedule(
     kind: Int,
-    hasEarliestBeginUnixNs: Boolean,
-    earliestBeginUnixNs: Long,
-    hasRepeatIntervalNs: Boolean,
-    repeatIntervalNs: Long
+    earliestBeginUnixNs: Long?,
+    repeatIntervalNs: Long?
 ): RuntimeHostBackgroundTaskSchedule? {
     return RuntimeHostBackgroundTaskSchedule(
         kind = decodeBridgeHostBackgroundTaskScheduleKind(kind) ?: return null,
-        earliestBeginUnixNs = if (hasEarliestBeginUnixNs) {
-            earliestBeginUnixNs
-        } else {
-            null
-        },
-        repeatIntervalNs = if (hasRepeatIntervalNs) {
-            repeatIntervalNs
-        } else {
-            null
-        },
+        earliestBeginUnixNs = earliestBeginUnixNs,
+        repeatIntervalNs = repeatIntervalNs,
     )
 }
 

@@ -4,37 +4,35 @@ use crate::host::android::abi::bindings::invoke_android_binding_callback;
 use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 
 /// The host callback for `can_open_url`.
-pub type AndroidHostIntentCanOpenUrlCallback =
+pub(crate) type AndroidHostIntentCanOpenUrlCallback =
     unsafe extern "C" fn(session_handle: u64, url: NativeStringRef, is_supported: *mut bool) -> u32;
 
 /// The host callback for `open_url`.
-pub type AndroidHostIntentOpenUrlCallback =
+pub(crate) type AndroidHostIntentOpenUrlCallback =
     unsafe extern "C" fn(session_handle: u64, url: NativeStringRef) -> u32;
 
 /// The host callback for `open_path`.
-pub type AndroidHostIntentOpenPathCallback =
+pub(crate) type AndroidHostIntentOpenPathCallback =
     unsafe extern "C" fn(session_handle: u64, path: NativeStringRef) -> u32;
 
 /// The host callback for `share_text`.
-pub type AndroidHostIntentShareTextCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostIntentShareTextCallback = unsafe extern "C" fn(
     session_handle: u64,
     text: NativeStringRef,
-    has_mime_type: bool,
-    mime_type: NativeStringRef,
+    mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32;
 
 /// The host callback for `share_paths`.
-pub type AndroidHostIntentSharePathsCallback = unsafe extern "C" fn(
+pub(crate) type AndroidHostIntentSharePathsCallback = unsafe extern "C" fn(
     session_handle: u64,
     paths: NativeStringSlice,
-    has_mime_type: bool,
-    mime_type: NativeStringRef,
+    mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32;
 
 /// Callback table for Android host intent request interop.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct AndroidHostIntentCallbacks {
+pub(crate) struct AndroidHostIntentCallbacks {
     /// The callback for `can_open_url`.
     pub can_open_url: Option<AndroidHostIntentCanOpenUrlCallback>,
     /// The callback for `open_url`.

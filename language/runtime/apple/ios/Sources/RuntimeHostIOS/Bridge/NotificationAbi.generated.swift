@@ -8,7 +8,7 @@ import RuntimeHostAppleCore
 typealias NotificationPostCallback =
   @convention(c) (
     UInt64,
-    DestackRustNotificationRequest
+    DestackRustHostNotificationRequest
   ) -> UInt32
 
 /// Cancel one host notification by stable identifier.
@@ -64,7 +64,7 @@ func makeNotificationCallbacks() -> IosHostNotificationCallbacks {
 /// Handle one runtime callback asking to post one host notification request.
 func handleNotificationPost(
   sessionHandle: UInt64,
-  request: DestackRustNotificationRequest
+  request: DestackRustHostNotificationRequest
 ) -> UInt32 {
   let decodedRequest: RuntimeHostNotificationRequest
   do {
@@ -105,7 +105,7 @@ func handleNotificationCancel(
     ) { bridge, runtimeHost in
       bridge.notificationCancel(
         runtimeHost: runtimeHost,
-        decodedIdentifier
+        identifier: decodedIdentifier
       )
     }
   }
@@ -224,95 +224,398 @@ func currentNotificationBridgeArena() -> NotificationBridgeArena {
   return arena
 }
 
-/// Build one Swift NotificationRequest from one bridge payload.
+/// Build one Swift HostNotificationPriority from one bridge raw value.
+func decodeBridgeHostNotificationPriority(
+  _ value: DestackRustHostNotificationPriority
+) throws -> RuntimeHostNotificationPriority {
+  guard let value = RuntimeHostNotificationPriority(rawValue: .init(value)) else {
+    throw BridgeStringError.invalidStringSlice
+  }
+
+  return value
+}
+
+/// Build one Swift HostNotificationRequest from one bridge payload.
 func decodeBridgeHostNotificationRequest(
-  _ value: DestackRustNotificationRequest
+  _ value: DestackRustHostNotificationRequest
 ) throws -> RuntimeHostNotificationRequest {
   RuntimeHostNotificationRequest(
-    identifier:
-      try tryDecodeNativeString(value.identifier),
     title:
       try tryDecodeNativeString(value.title),
+    subtitle:
+      (value.subtitle.has_value ? Optional(try tryDecodeNativeString(value.subtitle.value)) : nil),
     body:
-      try tryDecodeNativeString(value.body)
+      try tryDecodeNativeString(value.body),
+    tag:
+      try tryDecodeNativeString(value.tag),
+    channelID:
+      (value.channel_id.has_value ? Optional(try tryDecodeNativeString(value.channel_id.value)) : nil),
+    priority:
+      try decodeBridgeHostNotificationPriority(value.priority),
+    badgeCount:
+      (value.badge_count.has_value ? Optional(value.badge_count.value) : nil),
+    sound:
+      (value.sound.has_value ? Optional(try tryDecodeNativeString(value.sound.value)) : nil),
+    categoryID:
+      (value.category_id.has_value ? Optional(try tryDecodeNativeString(value.category_id.value)) : nil),
+    threadID:
+      (value.thread_id.has_value ? Optional(try tryDecodeNativeString(value.thread_id.value)) : nil),
+    trigger:
+      try decodeBridgeHostNotificationTrigger(value.trigger),
+    actionID:
+      (value.action_id.has_value ? Optional(try tryDecodeNativeString(value.action_id.value)) : nil)
   )
 }
 
-/// Encode one Swift NotificationEventKind as one bridge raw value.
-func encodeBridgeHostNotificationEventKind(
-  _ value: RuntimeHostNotificationEventKind
-) -> DestackRustNotificationEventKind {
+/// Encode one Swift HostNotificationPriority as one bridge raw value.
+func encodeBridgeHostNotificationPriority(
+  _ value: RuntimeHostNotificationPriority
+) -> DestackRustHostNotificationPriority {
   value.rawValue
 }
 
-/// Encode one Swift NotificationRequest as one bridge payload.
+/// Encode one Swift HostNotificationCalendarTrigger as one bridge payload.
+func encodeBridgeHostNotificationCalendarTrigger(
+  _ value: RuntimeHostNotificationCalendarTrigger,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationCalendarTrigger {
+  DestackRustHostNotificationCalendarTrigger(
+    year:
+      value.year,
+    month:
+      value.month,
+    day:
+      value.day,
+    hour:
+      value.hour,
+    minute:
+      value.minute,
+    second:
+      value.second,
+    time_zone:
+      arena.makeStringRef(value.timeZone),
+    repeats:
+      value.repeats
+  )
+}
+
+func encodeBridgeHostNotificationCalendarTrigger(
+  _ value: RuntimeHostNotificationCalendarTrigger
+) -> DestackRustHostNotificationCalendarTrigger {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationCalendarTrigger(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationCalendarTrigger as one C bridge payload.
+func withNativeHostNotificationCalendarTrigger<T>(
+  _ value: RuntimeHostNotificationCalendarTrigger,
+  body: (DestackRustHostNotificationCalendarTrigger) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationCalendarTrigger(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationCalendarDateTrigger as one bridge payload.
+func encodeBridgeHostNotificationCalendarDateTrigger(
+  _ value: RuntimeHostNotificationCalendarDateTrigger,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationCalendarDateTrigger {
+  DestackRustHostNotificationCalendarDateTrigger(
+    kind:
+      arena.makeStringRef(value.kind),
+    calendar:
+      encodeBridgeHostNotificationCalendarTrigger(value.calendar, arena: arena)
+  )
+}
+
+func encodeBridgeHostNotificationCalendarDateTrigger(
+  _ value: RuntimeHostNotificationCalendarDateTrigger
+) -> DestackRustHostNotificationCalendarDateTrigger {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationCalendarDateTrigger(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationCalendarDateTrigger as one C bridge payload.
+func withNativeHostNotificationCalendarDateTrigger<T>(
+  _ value: RuntimeHostNotificationCalendarDateTrigger,
+  body: (DestackRustHostNotificationCalendarDateTrigger) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationCalendarDateTrigger(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationImmediateTrigger as one bridge payload.
+func encodeBridgeHostNotificationImmediateTrigger(
+  _ value: RuntimeHostNotificationImmediateTrigger,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationImmediateTrigger {
+  DestackRustHostNotificationImmediateTrigger(
+    kind:
+      arena.makeStringRef(value.kind)
+  )
+}
+
+func encodeBridgeHostNotificationImmediateTrigger(
+  _ value: RuntimeHostNotificationImmediateTrigger
+) -> DestackRustHostNotificationImmediateTrigger {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationImmediateTrigger(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationImmediateTrigger as one C bridge payload.
+func withNativeHostNotificationImmediateTrigger<T>(
+  _ value: RuntimeHostNotificationImmediateTrigger,
+  body: (DestackRustHostNotificationImmediateTrigger) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationImmediateTrigger(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationTimeIntervalTrigger as one bridge payload.
+func encodeBridgeHostNotificationTimeIntervalTrigger(
+  _ value: RuntimeHostNotificationTimeIntervalTrigger,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationTimeIntervalTrigger {
+  DestackRustHostNotificationTimeIntervalTrigger(
+    kind:
+      arena.makeStringRef(value.kind),
+    interval_ns:
+      value.intervalNs
+  )
+}
+
+func encodeBridgeHostNotificationTimeIntervalTrigger(
+  _ value: RuntimeHostNotificationTimeIntervalTrigger
+) -> DestackRustHostNotificationTimeIntervalTrigger {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationTimeIntervalTrigger(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationTimeIntervalTrigger as one C bridge payload.
+func withNativeHostNotificationTimeIntervalTrigger<T>(
+  _ value: RuntimeHostNotificationTimeIntervalTrigger,
+  body: (DestackRustHostNotificationTimeIntervalTrigger) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationTimeIntervalTrigger(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationRequest as one bridge payload.
 func encodeBridgeHostNotificationRequest(
   _ value: RuntimeHostNotificationRequest,
   arena: NotificationBridgeArena
-) -> DestackRustNotificationRequest {
-  DestackRustNotificationRequest(
-    identifier:
-      arena.makeStringRef(value.identifier),
+) -> DestackRustHostNotificationRequest {
+  DestackRustHostNotificationRequest(
     title:
       arena.makeStringRef(value.title),
+    subtitle:
+      ({ if let unwrappedValue = value.subtitle { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     body:
-      arena.makeStringRef(value.body)
+      arena.makeStringRef(value.body),
+    tag:
+      arena.makeStringRef(value.tag),
+    channel_id:
+      ({ if let unwrappedValue = value.channelID { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
+    priority:
+      encodeBridgeHostNotificationPriority(value.priority),
+    badge_count:
+      ({ if let unwrappedValue = value.badgeCount { return DestackRustOptionalU32(has_value: true, value: UInt32(unwrappedValue)) } return DestackRustOptionalU32(has_value: false, value: 0) }()),
+    sound:
+      ({ if let unwrappedValue = value.sound { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
+    category_id:
+      ({ if let unwrappedValue = value.categoryID { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
+    thread_id:
+      ({ if let unwrappedValue = value.threadID { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
+    trigger:
+      encodeBridgeHostNotificationTrigger(value.trigger, arena: arena),
+    action_id:
+      ({ if let unwrappedValue = value.actionID { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
   )
 }
 
 func encodeBridgeHostNotificationRequest(
   _ value: RuntimeHostNotificationRequest
-) -> DestackRustNotificationRequest {
+) -> DestackRustHostNotificationRequest {
   let arena = currentNotificationBridgeArena()
 
   return encodeBridgeHostNotificationRequest(value, arena: arena)
 }
 
-/// Encode one Swift NotificationRequest as one C bridge payload.
+/// Encode one Swift HostNotificationRequest as one C bridge payload.
 func withNativeHostNotificationRequest<T>(
   _ value: RuntimeHostNotificationRequest,
-  body: (DestackRustNotificationRequest) -> T
+  body: (DestackRustHostNotificationRequest) -> T
 ) -> T {
   let arena = currentNotificationBridgeArena()
 
   return body(encodeBridgeHostNotificationRequest(value, arena: arena))
 }
 
-/// Encode one Swift NotificationEvent as one bridge payload.
-func encodeBridgeHostNotificationEvent(
-  _ value: RuntimeHostNotificationEvent,
+/// Encode one Swift HostNotificationEventMetadata as one bridge payload.
+func encodeBridgeHostNotificationEventMetadata(
+  _ value: RuntimeHostNotificationEventMetadata,
   arena: NotificationBridgeArena
-) -> DestackRustNotificationEvent {
-  DestackRustNotificationEvent(
-    kind:
-      encodeBridgeHostNotificationEventKind(value.kind),
-    sequence:
-      value.sequence,
+) -> DestackRustHostNotificationEventMetadata {
+  DestackRustHostNotificationEventMetadata(
     timestamp_ns:
       value.timestampNs,
+    sequence:
+      value.sequence,
+    id:
+      arena.makeStringRef(value.id),
     request:
-      encodeBridgeHostNotificationRequest(value.request, arena: arena),
-    has_action_identifier: value.actionIdentifier != nil,
-    action_identifier:
-      value.actionIdentifier.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0)
+      encodeBridgeHostNotificationRequest(value.request, arena: arena)
   )
 }
 
-func encodeBridgeHostNotificationEvent(
-  _ value: RuntimeHostNotificationEvent
-) -> DestackRustNotificationEvent {
+func encodeBridgeHostNotificationEventMetadata(
+  _ value: RuntimeHostNotificationEventMetadata
+) -> DestackRustHostNotificationEventMetadata {
   let arena = currentNotificationBridgeArena()
 
-  return encodeBridgeHostNotificationEvent(value, arena: arena)
+  return encodeBridgeHostNotificationEventMetadata(value, arena: arena)
 }
 
-/// Encode one Swift NotificationEvent as one C bridge payload.
-func withNativeHostNotificationEvent<T>(
-  _ value: RuntimeHostNotificationEvent,
-  body: (DestackRustNotificationEvent) -> T
+/// Encode one Swift HostNotificationEventMetadata as one C bridge payload.
+func withNativeHostNotificationEventMetadata<T>(
+  _ value: RuntimeHostNotificationEventMetadata,
+  body: (DestackRustHostNotificationEventMetadata) -> T
 ) -> T {
   let arena = currentNotificationBridgeArena()
 
-  return body(encodeBridgeHostNotificationEvent(value, arena: arena))
+  return body(encodeBridgeHostNotificationEventMetadata(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationInteractedPayload as one bridge payload.
+func encodeBridgeHostNotificationInteractedPayload(
+  _ value: RuntimeHostNotificationInteractedPayload,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationInteractedPayload {
+  DestackRustHostNotificationInteractedPayload(
+    action_id:
+      ({ if let unwrappedValue = value.actionID { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
+    action_response_text:
+      ({ if let unwrappedValue = value.actionResponseText { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
+  )
+}
+
+func encodeBridgeHostNotificationInteractedPayload(
+  _ value: RuntimeHostNotificationInteractedPayload
+) -> DestackRustHostNotificationInteractedPayload {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationInteractedPayload(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationInteractedPayload as one C bridge payload.
+func withNativeHostNotificationInteractedPayload<T>(
+  _ value: RuntimeHostNotificationInteractedPayload,
+  body: (DestackRustHostNotificationInteractedPayload) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationInteractedPayload(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationDeliveredEvent as one bridge payload.
+func encodeBridgeHostNotificationDeliveredEvent(
+  _ value: RuntimeHostNotificationDeliveredEvent,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationDeliveredEvent {
+  DestackRustHostNotificationDeliveredEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostNotificationEventMetadata(value.metadata, arena: arena)
+  )
+}
+
+func encodeBridgeHostNotificationDeliveredEvent(
+  _ value: RuntimeHostNotificationDeliveredEvent
+) -> DestackRustHostNotificationDeliveredEvent {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationDeliveredEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationDeliveredEvent as one C bridge payload.
+func withNativeHostNotificationDeliveredEvent<T>(
+  _ value: RuntimeHostNotificationDeliveredEvent,
+  body: (DestackRustHostNotificationDeliveredEvent) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationDeliveredEvent(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationDismissedEvent as one bridge payload.
+func encodeBridgeHostNotificationDismissedEvent(
+  _ value: RuntimeHostNotificationDismissedEvent,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationDismissedEvent {
+  DestackRustHostNotificationDismissedEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostNotificationEventMetadata(value.metadata, arena: arena)
+  )
+}
+
+func encodeBridgeHostNotificationDismissedEvent(
+  _ value: RuntimeHostNotificationDismissedEvent
+) -> DestackRustHostNotificationDismissedEvent {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationDismissedEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationDismissedEvent as one C bridge payload.
+func withNativeHostNotificationDismissedEvent<T>(
+  _ value: RuntimeHostNotificationDismissedEvent,
+  body: (DestackRustHostNotificationDismissedEvent) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationDismissedEvent(value, arena: arena))
+}
+
+/// Encode one Swift HostNotificationInteractedEvent as one bridge payload.
+func encodeBridgeHostNotificationInteractedEvent(
+  _ value: RuntimeHostNotificationInteractedEvent,
+  arena: NotificationBridgeArena
+) -> DestackRustHostNotificationInteractedEvent {
+  DestackRustHostNotificationInteractedEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostNotificationEventMetadata(value.metadata, arena: arena),
+    payload:
+      encodeBridgeHostNotificationInteractedPayload(value.payload, arena: arena)
+  )
+}
+
+func encodeBridgeHostNotificationInteractedEvent(
+  _ value: RuntimeHostNotificationInteractedEvent
+) -> DestackRustHostNotificationInteractedEvent {
+  let arena = currentNotificationBridgeArena()
+
+  return encodeBridgeHostNotificationInteractedEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostNotificationInteractedEvent as one C bridge payload.
+func withNativeHostNotificationInteractedEvent<T>(
+  _ value: RuntimeHostNotificationInteractedEvent,
+  body: (DestackRustHostNotificationInteractedEvent) -> T
+) -> T {
+  let arena = currentNotificationBridgeArena()
+
+  return body(encodeBridgeHostNotificationInteractedEvent(value, arena: arena))
 }

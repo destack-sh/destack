@@ -14,7 +14,7 @@ use crate::host::apple::abi::calendar::{
 };
 use crate::platform::abi::NativeStringRef;
 
-/// Forward the `list` calendar request through the ABI artifact.
+/// Forward the `list` calendar request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_calendar_list(
     session_handle: u64,
@@ -23,7 +23,7 @@ pub unsafe extern "C" fn destack_host_ios_calendar_list(
     unsafe { runtime_calendar_list(session_handle, response) }
 }
 
-/// Forward the `event_list` calendar request through the ABI artifact.
+/// Forward the `event_list` calendar request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_calendar_event_list(
     session_handle: u64,
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn destack_host_ios_calendar_event_list(
     unsafe { runtime_calendar_event_list(session_handle, query, response) }
 }
 
-/// Forward the `event_read` calendar request through the ABI artifact.
+/// Forward the `event_read` calendar request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_calendar_event_read(
     session_handle: u64,
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn destack_host_ios_calendar_event_read(
     unsafe { runtime_calendar_event_read(session_handle, id, response) }
 }
 
-/// Forward the `event_create` calendar request through the ABI artifact.
+/// Forward the `event_create` calendar request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_calendar_event_create(
     session_handle: u64,
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn destack_host_ios_calendar_event_create(
     unsafe { runtime_calendar_event_create(session_handle, draft, response) }
 }
 
-/// Forward the `event_update` calendar request through the ABI artifact.
+/// Forward the `event_update` calendar request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_calendar_event_update(
     session_handle: u64,
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn destack_host_ios_calendar_event_update(
     unsafe { runtime_calendar_event_update(session_handle, id, draft) }
 }
 
-/// Forward the `event_delete` calendar request through the ABI artifact.
+/// Forward the `event_delete` calendar request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_calendar_event_delete(
     session_handle: u64,

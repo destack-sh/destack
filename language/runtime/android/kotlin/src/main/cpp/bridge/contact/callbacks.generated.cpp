@@ -28,6 +28,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signature) {
     return env->GetMethodID(value_class, "<init>", signature);
 }
@@ -96,11 +164,7 @@ jobject encode_HostContactPhone(JNIEnv *env, HostContactPhone value) {
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        label_value,
-        number_value,
-        normalized_number_value,
-        value.primary ? JNI_TRUE : JNI_FALSE
+        constructorlabel_valuenumber_valuenormalized_number_valuevalue.primary ? JNI_TRUE : JNI_FALSE
     );
 
     if (label_value != nullptr) { env->DeleteLocalRef(label_value); }
@@ -128,10 +192,7 @@ jobject encode_HostContactEmail(JNIEnv *env, HostContactEmail value) {
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        label_value,
-        address_value,
-        value.primary ? JNI_TRUE : JNI_FALSE
+        constructorlabel_valueaddress_valuevalue.primary ? JNI_TRUE : JNI_FALSE
     );
 
     if (label_value != nullptr) { env->DeleteLocalRef(label_value); }
@@ -163,14 +224,7 @@ jobject encode_HostContactAddress(JNIEnv *env, HostContactAddress value) {
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        label_value,
-        street_value,
-        city_value,
-        region_value,
-        postal_code_value,
-        country_value,
-        country_code_value
+        constructorlabel_valuestreet_valuecity_valueregion_valuepostal_code_valuecountry_valuecountry_code_value
     );
 
     if (label_value != nullptr) { env->DeleteLocalRef(label_value); }
@@ -351,8 +405,7 @@ HostContactPageResponse decode_HostContactPageResponse(JNIEnv *env, jobject valu
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject page_value = call_object_getter(env, value, "getPage", "()Ldev/destack/runtime/android/module/contact/RuntimeHostContactPage;");
-    decoded.has_page = page_value != nullptr;
-    decoded.page = page_value == nullptr ? HostContactPage {} : decode_HostContactPage(env, page_value, string_storage);
+    decoded.page = ([&]() -> OptionalHostContactPage { if (page_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostContactPage(env, page_value, string_storage) }; })();
     if (page_value != nullptr) { env->DeleteLocalRef(page_value); }
 
 
@@ -548,8 +601,7 @@ HostContactResponse decode_HostContactResponse(JNIEnv *env, jobject value, std::
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject contact_value = call_object_getter(env, value, "getContact", "()Ldev/destack/runtime/android/module/contact/RuntimeHostContact;");
-    decoded.has_contact = contact_value != nullptr;
-    decoded.contact = contact_value == nullptr ? HostContact {} : decode_HostContact(env, contact_value, string_storage);
+    decoded.contact = ([&]() -> OptionalHostContact { if (contact_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostContact(env, contact_value, string_storage) }; })();
     if (contact_value != nullptr) { env->DeleteLocalRef(contact_value); }
 
 
@@ -562,8 +614,7 @@ HostContactCreateResponse decode_HostContactCreateResponse(JNIEnv *env, jobject 
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject id_value = call_object_getter(env, value, "getId", "()Ljava/lang/String;");
-    decoded.has_id = id_value != nullptr;
-    decoded.id = id_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(id_value), string_storage);
+    decoded.id = ([&]() -> OptionalStringRef { if (id_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(id_value), string_storage) }; })();
     if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
 
 
@@ -698,7 +749,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         list_method = env->GetMethodID(
             bridge_class,
             "contactList",
-            "(ZLjava/lang/String;ZIZZZZZ)Ldev/destack/runtime/android/module/contact/RuntimeHostContactListResponse;"
+            "(Ljava/lang/String;Ljava/lang/Integer;ZZZZZ)Ldev/destack/runtime/android/bridge/RuntimeHostContactListResponse;"
         );
     }
 
@@ -706,7 +757,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         search_method = env->GetMethodID(
             bridge_class,
             "contactSearch",
-            "(Ljava/lang/String;ZLjava/lang/String;ZIZZZZZ)Ldev/destack/runtime/android/module/contact/RuntimeHostContactSearchResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ZZZZZ)Ldev/destack/runtime/android/bridge/RuntimeHostContactSearchResponse;"
         );
     }
 
@@ -714,7 +765,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         read_method = env->GetMethodID(
             bridge_class,
             "contactRead",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/contact/RuntimeHostContactReadResponse;"
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostContactReadResponse;"
         );
     }
 
@@ -722,7 +773,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         create_method = env->GetMethodID(
             bridge_class,
             "contactCreate",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactPhone;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactEmail;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactAddress;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ldev/destack/runtime/android/module/contact/RuntimeHostContactCreateResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactPhone;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactEmail;[Ldev/destack/runtime/android/module/contact/RuntimeHostContactAddress;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostContactCreateResponse;"
         );
     }
 
@@ -769,15 +820,14 @@ uint32_t call_contact_list(
         return HOST_STATUS_NOT_FOUND;
     }
 
-    jstring cursor_value = java_string_or_null(env, query.cursor);
+    jstring cursor_value = query.cursor.has_value ? java_string_or_null(env, query.cursor.value) : nullptr;
+    jobject limit_value = query.limit.has_value ? box_int(env, static_cast<jint>(query.limit.value)) : nullptr;
 
     jobject response_object = env->CallObjectMethod(
         bridge,
         list_method,
-        query.has_cursor ? JNI_TRUE : JNI_FALSE,
         cursor_value,
-        query.has_limit ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(query.limit),
+        limit_value,
         query.include_phones ? JNI_TRUE : JNI_FALSE,
         query.include_emails ? JNI_TRUE : JNI_FALSE,
         query.include_addresses ? JNI_TRUE : JNI_FALSE,
@@ -786,6 +836,7 @@ uint32_t call_contact_list(
     );
     if (response_object == nullptr) {
         if (cursor_value != nullptr) { env->DeleteLocalRef(cursor_value); }
+        if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
         }
@@ -798,9 +849,16 @@ uint32_t call_contact_list(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostContactPageResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/contact/RuntimeHostContactPageResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostContactPageResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (cursor_value != nullptr) { env->DeleteLocalRef(cursor_value); }
+    if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
 
@@ -826,16 +884,15 @@ uint32_t call_contact_search(
     }
 
     jstring query_text_value = java_string_or_null(env, query_text);
-    jstring cursor_value = java_string_or_null(env, query.cursor);
+    jstring cursor_value = query.cursor.has_value ? java_string_or_null(env, query.cursor.value) : nullptr;
+    jobject limit_value = query.limit.has_value ? box_int(env, static_cast<jint>(query.limit.value)) : nullptr;
 
     jobject response_object = env->CallObjectMethod(
         bridge,
         search_method,
         query_text_value,
-        query.has_cursor ? JNI_TRUE : JNI_FALSE,
         cursor_value,
-        query.has_limit ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(query.limit),
+        limit_value,
         query.include_phones ? JNI_TRUE : JNI_FALSE,
         query.include_emails ? JNI_TRUE : JNI_FALSE,
         query.include_addresses ? JNI_TRUE : JNI_FALSE,
@@ -845,6 +902,7 @@ uint32_t call_contact_search(
     if (response_object == nullptr) {
         if (query_text_value != nullptr) { env->DeleteLocalRef(query_text_value); }
         if (cursor_value != nullptr) { env->DeleteLocalRef(cursor_value); }
+        if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
         }
@@ -857,10 +915,17 @@ uint32_t call_contact_search(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostContactPageResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/contact/RuntimeHostContactPageResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostContactPageResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (query_text_value != nullptr) { env->DeleteLocalRef(query_text_value); }
     if (cursor_value != nullptr) { env->DeleteLocalRef(cursor_value); }
+    if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
 
@@ -905,7 +970,13 @@ uint32_t call_contact_read(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostContactResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/contact/RuntimeHostContactResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostContactResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
     env->DeleteLocalRef(response_object);
@@ -1042,7 +1113,13 @@ uint32_t call_contact_create(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostContactCreateResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/contact/RuntimeHostContactCreateResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostContactCreateResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (given_name_value != nullptr) { env->DeleteLocalRef(given_name_value); }
     if (middle_name_value != nullptr) { env->DeleteLocalRef(middle_name_value); }

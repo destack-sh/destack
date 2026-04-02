@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "../loader.h"
 #include "callbacks.generated.h"
 #include "runtime.generated.h"
 

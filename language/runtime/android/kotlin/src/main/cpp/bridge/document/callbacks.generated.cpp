@@ -17,6 +17,43 @@ jmethodID pick_method = nullptr;
 jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signature) {
     return env->GetMethodID(value_class, "<init>", signature);
 }
+thread_local std::deque<std::vector<NativeStringRef>> result_string_slice_storage;
+
+void clear_result_decode_storage() {
+    result_string_slice_storage.clear();
+}
+
+jint call_list_size(JNIEnv *env, jobject value);
+jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
+jobjectArray encode_string_slice(JNIEnv *env, NativeStringSlice values) {
+    return new_java_string_array(env, values);
+}
+
+NativeStringSlice decode_string_list(JNIEnv *env, jobject list, std::deque<std::string> *string_storage) {
+    if (list == nullptr) {
+        return NativeStringSlice {
+            .data = nullptr,
+            .len = 0,
+        };
+    }
+
+    jint size = call_list_size(env, list);
+    result_string_slice_storage.emplace_back();
+    auto &storage = result_string_slice_storage.back();
+    storage.reserve(static_cast<size_t>(size));
+
+    for (jint index = 0; index < size; index += 1) {
+        jobject value = call_list_get(env, list, index);
+        storage.push_back(string_ref_from_java(env, static_cast<jstring>(value), string_storage));
+        env->DeleteLocalRef(value);
+    }
+
+    return NativeStringSlice {
+        .data = storage.data(),
+        .len = static_cast<uint32_t>(storage.size()),
+    };
+}
 
 /// Resolve the document bridge methods from one runtime bridge instance.
 bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
@@ -86,9 +123,9 @@ uint32_t call_document_pick(
         static_cast<jlong>(request.request_id),
         mime_types_value,
         extensions_value,
-        request.allows_multiple_selection ? JNI_TRUE : JNI_FALSE,
-        request.allows_directory_selection ? JNI_TRUE : JNI_FALSE,
-        request.copies_to_sandbox ? JNI_TRUE : JNI_FALSE
+        request.multiple ? JNI_TRUE : JNI_FALSE,
+        request.allow_directories ? JNI_TRUE : JNI_FALSE,
+        request.copy_to_sandbox ? JNI_TRUE : JNI_FALSE
     );
     if (mime_types_value != nullptr) { env->DeleteLocalRef(mime_types_value); }
     if (extensions_value != nullptr) { env->DeleteLocalRef(extensions_value); }

@@ -14,7 +14,7 @@ use crate::host::android::abi::contact::{
 };
 use crate::platform::abi::NativeStringRef;
 
-/// Forward the `list` contact request through the ABI artifact.
+/// Forward the `list` contact request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_contact_list(
     session_handle: u64,
@@ -24,7 +24,7 @@ pub unsafe extern "C" fn destack_host_android_contact_list(
     unsafe { runtime_contact_list(session_handle, query, response) }
 }
 
-/// Forward the `search` contact request through the ABI artifact.
+/// Forward the `search` contact request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_contact_search(
     session_handle: u64,
@@ -35,7 +35,7 @@ pub unsafe extern "C" fn destack_host_android_contact_search(
     unsafe { runtime_contact_search(session_handle, query_text, query, response) }
 }
 
-/// Forward the `read` contact request through the ABI artifact.
+/// Forward the `read` contact request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_contact_read(
     session_handle: u64,
@@ -45,7 +45,7 @@ pub unsafe extern "C" fn destack_host_android_contact_read(
     unsafe { runtime_contact_read(session_handle, id, response) }
 }
 
-/// Forward the `create` contact request through the ABI artifact.
+/// Forward the `create` contact request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_contact_create(
     session_handle: u64,
@@ -55,7 +55,7 @@ pub unsafe extern "C" fn destack_host_android_contact_create(
     unsafe { runtime_contact_create(session_handle, draft, response) }
 }
 
-/// Forward the `update` contact request through the ABI artifact.
+/// Forward the `update` contact request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_contact_update(
     session_handle: u64,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn destack_host_android_contact_update(
     unsafe { runtime_contact_update(session_handle, id, draft) }
 }
 
-/// Forward the `delete_contact` contact request through the ABI artifact.
+/// Forward the `delete_contact` contact request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_contact_delete_contact(
     session_handle: u64,

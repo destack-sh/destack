@@ -34,8 +34,7 @@ uint32_t call_intent_share_text(
     JNIEnv *env,
     uint64_t session_handle,
     NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 );
 
 /// Call the intent-share-paths entrypoint on one registered bridge.
@@ -43,8 +42,7 @@ uint32_t call_intent_share_paths(
     JNIEnv *env,
     uint64_t session_handle,
     NativeStringSlice paths,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 );
 
 #endif

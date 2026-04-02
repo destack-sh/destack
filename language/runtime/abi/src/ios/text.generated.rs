@@ -13,7 +13,7 @@ use crate::host::apple::abi::text::{
     destack_host_ios_text_set_state as runtime_text_set_state,
 };
 
-/// Forward the `open` text request through the ABI artifact.
+/// Forward the `open` text request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_text_open(
     session_handle: u64,
@@ -22,7 +22,7 @@ pub unsafe extern "C" fn destack_host_ios_text_open(
     unsafe { runtime_text_open(session_handle, request) }
 }
 
-/// Forward the `close` text request through the ABI artifact.
+/// Forward the `close` text request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_text_close(
     session_handle: u64,
@@ -31,7 +31,7 @@ pub unsafe extern "C" fn destack_host_ios_text_close(
     unsafe { runtime_text_close(session_handle, request) }
 }
 
-/// Forward the `set_geometry` text request through the ABI artifact.
+/// Forward the `set_geometry` text request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_text_set_geometry(
     session_handle: u64,
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn destack_host_ios_text_set_geometry(
     unsafe { runtime_text_set_geometry(session_handle, request) }
 }
 
-/// Forward the `set_state` text request through the ABI artifact.
+/// Forward the `set_state` text request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_text_set_state(
     session_handle: u64,
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn destack_host_ios_text_set_state(
     unsafe { runtime_text_set_state(session_handle, request) }
 }
 
-/// Forward the `notify_text_input_state` ingress through the ABI artifact.
+/// Forward the `notify_text_input_state` ingress through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_notify_text_input_state(
     runtime_id: u64,

@@ -139,8 +139,7 @@ HostTextInputState decode_HostTextInputState(JNIEnv *env, jobject value, std::de
     if (selection_value != nullptr) { env->DeleteLocalRef(selection_value); }
 
     jobject composing_value = call_object_getter(env, value, "getComposing", "()Ldev/destack/runtime/android/module/text/RuntimeHostTextInputRange;");
-    decoded.has_composing = composing_value != nullptr;
-    decoded.composing = composing_value == nullptr ? HostTextInputRange {} : decode_HostTextInputRange(env, composing_value, string_storage);
+    decoded.composing = ([&]() -> OptionalHostTextInputRange { if (composing_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostTextInputRange(env, composing_value, string_storage) }; })();
     if (composing_value != nullptr) { env->DeleteLocalRef(composing_value); }
 
 
@@ -172,7 +171,7 @@ static jlongArray nativeNotifyTextInputState(
 
     HostTextInputEvent decoded_event = decode_HostTextInputEvent(env, event, &runtime_string_storage);
 
-    RuntimeStatus status = send_text_input_state(
+    RuntimeStatus status = send_notify_text_input_state(
         static_cast<uint64_t>(sessionHandle),
         decoded_event
     );
@@ -192,7 +191,7 @@ bool register_text_runtime_natives(JNIEnv *env) {
 
     return register_native_methods(
         env,
-        "dev/destack/runtime/android/bridge/ProcessRuntimeIngress",
+        "dev/destack/runtime/android/bridge/ProcessRuntimeAbi",
         methods,
         static_cast<jint>(sizeof(methods) / sizeof(methods[0]))
     );

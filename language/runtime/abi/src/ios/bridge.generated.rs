@@ -6,7 +6,7 @@ use crate::host::apple::abi::bridge::{
     destack_host_ios_unregister_runtime_bridge_bindings as runtime_unregister_runtime_bridge_bindings,
 };
 
-/// Register one iOS runtime-bridge callback table through the ABI artifact.
+/// Register one iOS runtime-bridge callback table through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_register_runtime_bridge_bindings(
     session_handle: u64,
@@ -15,7 +15,7 @@ pub unsafe extern "C" fn destack_host_ios_register_runtime_bridge_bindings(
     unsafe { runtime_register_runtime_bridge_bindings(session_handle, bindings) }
 }
 
-/// Remove one iOS runtime-bridge callback table through the ABI artifact.
+/// Remove one iOS runtime-bridge callback table through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_unregister_runtime_bridge_bindings(session_handle: u64) {
     unsafe { runtime_unregister_runtime_bridge_bindings(session_handle) }

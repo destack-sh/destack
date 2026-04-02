@@ -151,7 +151,7 @@ static jlongArray nativeNotifyLocationSample(
     NativeStringRef decoded_watch_id = string_ref_from_java(env, static_cast<jstring>(watchId), &runtime_string_storage);
     LocationSample decoded_sample = decode_LocationSample(env, sample, &runtime_string_storage);
 
-    RuntimeStatus status = send_location_sample(
+    RuntimeStatus status = send_notify_location_sample(
         static_cast<uint64_t>(sessionHandle),
         decoded_watch_id,
         decoded_sample
@@ -172,7 +172,7 @@ bool register_location_runtime_natives(JNIEnv *env) {
 
     return register_native_methods(
         env,
-        "dev/destack/runtime/android/bridge/ProcessRuntimeIngress",
+        "dev/destack/runtime/android/bridge/ProcessRuntimeAbi",
         methods,
         static_cast<jint>(sizeof(methods) / sizeof(methods[0]))
     );

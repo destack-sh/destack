@@ -119,8 +119,7 @@ LocationLastKnownResponse decode_LocationLastKnownResponse(JNIEnv *env, jobject 
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject sample_value = call_object_getter(env, value, "getSample", "()Ldev/destack/runtime/android/module/location/RuntimeLocationSample;");
-    decoded.has_sample = sample_value != nullptr;
-    decoded.sample = sample_value == nullptr ? LocationSample {} : decode_LocationSample(env, sample_value, string_storage);
+    decoded.sample = ([&]() -> OptionalLocationSample { if (sample_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_LocationSample(env, sample_value, string_storage) }; })();
     if (sample_value != nullptr) { env->DeleteLocalRef(sample_value); }
 
 
@@ -170,7 +169,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         servicesEnabled_method = env->GetMethodID(
             bridge_class,
             "locationServicesEnabled",
-            "()Ldev/destack/runtime/android/module/location/RuntimeHostLocationServicesEnabledResponse;"
+            "()Ldev/destack/runtime/android/bridge/RuntimeHostLocationServicesEnabledResponse;"
         );
     }
 
@@ -178,7 +177,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         lastKnown_method = env->GetMethodID(
             bridge_class,
             "locationLastKnown",
-            "()Ldev/destack/runtime/android/module/location/RuntimeHostLocationLastKnownResponse;"
+            "()Ldev/destack/runtime/android/bridge/RuntimeHostLocationLastKnownResponse;"
         );
     }
 
@@ -240,7 +239,13 @@ uint32_t call_location_services_enabled(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_LocationServicesResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/location/RuntimeLocationServicesResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_LocationServicesResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
@@ -282,7 +287,13 @@ uint32_t call_location_last_known(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_LocationLastKnownResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/location/RuntimeLocationLastKnownResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_LocationLastKnownResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
@@ -308,17 +319,19 @@ uint32_t call_location_watch_open(
     }
 
     jstring watch_id_value = java_string_or_null(env, watch_id);
+    jobject accuracy_value = encode_LocationAccuracy(env, options.accuracy);
 
     jint status = env->CallIntMethod(
         bridge,
         watchOpen_method,
         watch_id_value,
-        static_cast<jint>(options.accuracy),
+        accuracy_value,
         static_cast<jlong>(options.minimum_interval_ns),
         static_cast<jdouble>(options.minimum_distance_meters),
         options.include_heading ? JNI_TRUE : JNI_FALSE
     );
     if (watch_id_value != nullptr) { env->DeleteLocalRef(watch_id_value); }
+    if (accuracy_value != nullptr) { env->DeleteLocalRef(accuracy_value); }
     env->DeleteLocalRef(bridge);
 
     if (env->ExceptionCheck()) {

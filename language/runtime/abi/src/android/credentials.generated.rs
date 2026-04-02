@@ -9,7 +9,7 @@ use crate::host::android::abi::credentials::{
 };
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
-/// Forward the `read` credentials request through the ABI artifact.
+/// Forward the `read` credentials request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_credentials_read(
     session_handle: u64,
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_read(
     }
 }
 
-/// Forward the `write` credentials request through the ABI artifact.
+/// Forward the `write` credentials request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_credentials_write(
     session_handle: u64,
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_write(
     }
 }
 
-/// Forward the `delete` credentials request through the ABI artifact.
+/// Forward the `delete` credentials request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_credentials_delete(
     session_handle: u64,
@@ -74,7 +74,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_delete(
     unsafe { runtime_credentials_delete(session_handle, service, account, access_group) }
 }
 
-/// Forward the `contains` credentials request through the ABI artifact.
+/// Forward the `contains` credentials request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_credentials_contains(
     session_handle: u64,
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn destack_host_android_credentials_contains(
     }
 }
 
-/// Forward the `authenticate` credentials request through the ABI artifact.
+/// Forward the `authenticate` credentials request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_credentials_authenticate(
     session_handle: u64,

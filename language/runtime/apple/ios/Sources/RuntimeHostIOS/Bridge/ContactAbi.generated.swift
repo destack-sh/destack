@@ -8,8 +8,8 @@ import RuntimeHostAppleCore
 typealias ContactListCallback =
   @convention(c) (
     UInt64,
-    DestackRustContactQuery,
-    UnsafeMutablePointer<DestackRustContactPageResponse>?
+    DestackRustHostContactQuery,
+    UnsafeMutablePointer<DestackRustHostContactPageResponse>?
   ) -> UInt32
 
 /// Search contacts for one query string and one query shape.
@@ -17,8 +17,8 @@ typealias ContactSearchCallback =
   @convention(c) (
     UInt64,
     DestackRustStringRef,
-    DestackRustContactQuery,
-    UnsafeMutablePointer<DestackRustContactPageResponse>?
+    DestackRustHostContactQuery,
+    UnsafeMutablePointer<DestackRustHostContactPageResponse>?
   ) -> UInt32
 
 /// Read one contact by stable identifier.
@@ -26,15 +26,15 @@ typealias ContactReadCallback =
   @convention(c) (
     UInt64,
     DestackRustStringRef,
-    UnsafeMutablePointer<DestackRustContactResponse>?
+    UnsafeMutablePointer<DestackRustHostContactResponse>?
   ) -> UInt32
 
 /// Create one contact and return its stable identifier.
 typealias ContactCreateCallback =
   @convention(c) (
     UInt64,
-    DestackRustContactDraft,
-    UnsafeMutablePointer<DestackRustContactCreateResponse>?
+    DestackRustHostContactDraft,
+    UnsafeMutablePointer<DestackRustHostContactCreateResponse>?
   ) -> UInt32
 
 /// Update one contact by stable identifier.
@@ -42,7 +42,7 @@ typealias ContactUpdateCallback =
   @convention(c) (
     UInt64,
     DestackRustStringRef,
-    DestackRustContactDraft
+    DestackRustHostContactDraft
   ) -> UInt32
 
 /// Delete one contact by stable identifier.
@@ -139,8 +139,8 @@ func makeContactCallbacks() -> IosHostContactCallbacks {
 /// Handle one runtime callback asking to list one page of contacts for one query.
 func handleContactList(
   sessionHandle: UInt64,
-  query: DestackRustContactQuery,
-  response: UnsafeMutablePointer<DestackRustContactPageResponse>?
+  query: DestackRustHostContactQuery,
+  response: UnsafeMutablePointer<DestackRustHostContactPageResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -176,8 +176,8 @@ func handleContactList(
 func handleContactSearch(
   sessionHandle: UInt64,
   queryText: DestackRustStringRef,
-  query: DestackRustContactQuery,
-  response: UnsafeMutablePointer<DestackRustContactPageResponse>?
+  query: DestackRustHostContactQuery,
+  response: UnsafeMutablePointer<DestackRustHostContactPageResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -203,7 +203,7 @@ func handleContactSearch(
     ) { bridge, runtimeHost in
       bridge.contactSearch(
         runtimeHost: runtimeHost,
-        decodedQueryText,
+        queryText: decodedQueryText,
         query: decodedQuery
       )
     }
@@ -221,7 +221,7 @@ func handleContactSearch(
 func handleContactRead(
   sessionHandle: UInt64,
   id: DestackRustStringRef,
-  response: UnsafeMutablePointer<DestackRustContactResponse>?
+  response: UnsafeMutablePointer<DestackRustHostContactResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -240,7 +240,7 @@ func handleContactRead(
     ) { bridge, runtimeHost in
       bridge.contactRead(
         runtimeHost: runtimeHost,
-        decodedId
+        id: decodedId
       )
     }
   }
@@ -256,8 +256,8 @@ func handleContactRead(
 /// Handle one runtime callback asking to create one contact and return its stable identifier.
 func handleContactCreate(
   sessionHandle: UInt64,
-  draft: DestackRustContactDraft,
-  response: UnsafeMutablePointer<DestackRustContactCreateResponse>?
+  draft: DestackRustHostContactDraft,
+  response: UnsafeMutablePointer<DestackRustHostContactCreateResponse>?
 ) -> UInt32 {
   guard let response else {
     return hostStatusInvalidArgument
@@ -293,7 +293,7 @@ func handleContactCreate(
 func handleContactUpdate(
   sessionHandle: UInt64,
   id: DestackRustStringRef,
-  draft: DestackRustContactDraft
+  draft: DestackRustHostContactDraft
 ) -> UInt32 {
   let decodedId: String
   do {
@@ -316,7 +316,7 @@ func handleContactUpdate(
     ) { bridge, runtimeHost in
       bridge.contactUpdate(
         runtimeHost: runtimeHost,
-        decodedId,
+        id: decodedId,
         draft: decodedDraft
       )
     }
@@ -342,7 +342,7 @@ func handleContactDeleteContact(
     ) { bridge, runtimeHost in
       bridge.contactDeleteContact(
         runtimeHost: runtimeHost,
-        decodedId
+        id: decodedId
       )
     }
   }
@@ -445,19 +445,15 @@ func currentContactBridgeArena() -> ContactBridgeArena {
   return arena
 }
 
-/// Build one Swift ContactQuery from one bridge payload.
+/// Build one Swift HostContactQuery from one bridge payload.
 func decodeBridgeHostContactQuery(
-  _ value: DestackRustContactQuery
+  _ value: DestackRustHostContactQuery
 ) throws -> RuntimeHostContactQuery {
   RuntimeHostContactQuery(
     cursor:
-      value.has_cursor
-      ? try tryDecodeNativeString(value.cursor)
-      : nil,
+      (value.cursor.has_value ? Optional(try tryDecodeNativeString(value.cursor.value)) : nil),
     limit:
-      value.has_limit
-      ? value.limit
-      : nil,
+      (value.limit.has_value ? Optional(value.limit.value) : nil),
     includePhones:
       value.include_phones,
     includeEmails:
@@ -471,9 +467,9 @@ func decodeBridgeHostContactQuery(
   )
 }
 
-/// Build one Swift ContactDraft from one bridge payload.
+/// Build one Swift HostContactDraft from one bridge payload.
 func decodeBridgeHostContactDraft(
-  _ value: DestackRustContactDraft
+  _ value: DestackRustHostContactDraft
 ) throws -> RuntimeHostContactDraft {
   RuntimeHostContactDraft(
     name:
@@ -491,9 +487,9 @@ func decodeBridgeHostContactDraft(
   )
 }
 
-/// Build one Swift ContactName from one bridge payload.
+/// Build one Swift HostContactName from one bridge payload.
 func decodeBridgeHostContactName(
-  _ value: DestackRustContactName
+  _ value: DestackRustHostContactName
 ) throws -> RuntimeHostContactName {
   RuntimeHostContactName(
     givenName:
@@ -515,9 +511,9 @@ func decodeBridgeHostContactName(
   )
 }
 
-/// Build one Swift ContactPhone from one bridge payload.
+/// Build one Swift HostContactPhone from one bridge payload.
 func decodeBridgeHostContactPhone(
-  _ value: DestackRustContactPhone
+  _ value: DestackRustHostContactPhone
 ) throws -> RuntimeHostContactPhone {
   RuntimeHostContactPhone(
     label:
@@ -531,9 +527,9 @@ func decodeBridgeHostContactPhone(
   )
 }
 
-/// Build one Swift ContactEmail from one bridge payload.
+/// Build one Swift HostContactEmail from one bridge payload.
 func decodeBridgeHostContactEmail(
-  _ value: DestackRustContactEmail
+  _ value: DestackRustHostContactEmail
 ) throws -> RuntimeHostContactEmail {
   RuntimeHostContactEmail(
     label:
@@ -545,9 +541,9 @@ func decodeBridgeHostContactEmail(
   )
 }
 
-/// Build one Swift ContactAddress from one bridge payload.
+/// Build one Swift HostContactAddress from one bridge payload.
 func decodeBridgeHostContactAddress(
-  _ value: DestackRustContactAddress
+  _ value: DestackRustHostContactAddress
 ) throws -> RuntimeHostContactAddress {
   RuntimeHostContactAddress(
     label:
@@ -567,9 +563,9 @@ func decodeBridgeHostContactAddress(
   )
 }
 
-/// Build one Swift ContactOrganization from one bridge payload.
+/// Build one Swift HostContactOrganization from one bridge payload.
 func decodeBridgeHostContactOrganization(
-  _ value: DestackRustContactOrganization
+  _ value: DestackRustHostContactOrganization
 ) throws -> RuntimeHostContactOrganization {
   RuntimeHostContactOrganization(
     company:
@@ -581,9 +577,9 @@ func decodeBridgeHostContactOrganization(
   )
 }
 
-/// Build one Swift ContactAddress slice from one bridge payload.
+/// Build one Swift HostContactAddress slice from one bridge payload.
 func decodeBridgeHostContactAddressSlice(
-  _ value: DestackRustContactAddressSlice
+  _ value: DestackRustHostContactAddressSlice
 ) throws -> [RuntimeHostContactAddress] {
   if value.len == 0 {
     return []
@@ -601,9 +597,9 @@ func decodeBridgeHostContactAddressSlice(
   return try buffer.map { try decodeBridgeHostContactAddress($0) }
 }
 
-/// Build one Swift ContactEmail slice from one bridge payload.
+/// Build one Swift HostContactEmail slice from one bridge payload.
 func decodeBridgeHostContactEmailSlice(
-  _ value: DestackRustContactEmailSlice
+  _ value: DestackRustHostContactEmailSlice
 ) throws -> [RuntimeHostContactEmail] {
   if value.len == 0 {
     return []
@@ -621,9 +617,9 @@ func decodeBridgeHostContactEmailSlice(
   return try buffer.map { try decodeBridgeHostContactEmail($0) }
 }
 
-/// Build one Swift ContactPhone slice from one bridge payload.
+/// Build one Swift HostContactPhone slice from one bridge payload.
 func decodeBridgeHostContactPhoneSlice(
-  _ value: DestackRustContactPhoneSlice
+  _ value: DestackRustHostContactPhoneSlice
 ) throws -> [RuntimeHostContactPhone] {
   if value.len == 0 {
     return []
@@ -641,19 +637,16 @@ func decodeBridgeHostContactPhoneSlice(
   return try buffer.map { try decodeBridgeHostContactPhone($0) }
 }
 
-/// Encode one Swift ContactQuery as one bridge payload.
+/// Encode one Swift HostContactQuery as one bridge payload.
 func encodeBridgeHostContactQuery(
   _ value: RuntimeHostContactQuery,
   arena: ContactBridgeArena
-) -> DestackRustContactQuery {
-  DestackRustContactQuery(
-    has_cursor: value.cursor != nil,
+) -> DestackRustHostContactQuery {
+  DestackRustHostContactQuery(
     cursor:
-      value.cursor.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0),
-    has_limit: value.limit != nil,
+      ({ if let unwrappedValue = value.cursor { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
     limit:
-      value.limit ?? 0,
+      ({ if let unwrappedValue = value.limit { return DestackRustOptionalU32(has_value: true, value: UInt32(unwrappedValue)) } return DestackRustOptionalU32(has_value: false, value: 0) }()),
     include_phones:
       value.includePhones,
     include_emails:
@@ -669,28 +662,28 @@ func encodeBridgeHostContactQuery(
 
 func encodeBridgeHostContactQuery(
   _ value: RuntimeHostContactQuery
-) -> DestackRustContactQuery {
+) -> DestackRustHostContactQuery {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactQuery(value, arena: arena)
 }
 
-/// Encode one Swift ContactQuery as one C bridge payload.
+/// Encode one Swift HostContactQuery as one C bridge payload.
 func withNativeHostContactQuery<T>(
   _ value: RuntimeHostContactQuery,
-  body: (DestackRustContactQuery) -> T
+  body: (DestackRustHostContactQuery) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactQuery(value, arena: arena))
 }
 
-/// Encode one Swift ContactName as one bridge payload.
+/// Encode one Swift HostContactName as one bridge payload.
 func encodeBridgeHostContactName(
   _ value: RuntimeHostContactName,
   arena: ContactBridgeArena
-) -> DestackRustContactName {
-  DestackRustContactName(
+) -> DestackRustHostContactName {
+  DestackRustHostContactName(
     given_name:
       arena.makeStringRef(value.givenName),
     middle_name:
@@ -712,28 +705,28 @@ func encodeBridgeHostContactName(
 
 func encodeBridgeHostContactName(
   _ value: RuntimeHostContactName
-) -> DestackRustContactName {
+) -> DestackRustHostContactName {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactName(value, arena: arena)
 }
 
-/// Encode one Swift ContactName as one C bridge payload.
+/// Encode one Swift HostContactName as one C bridge payload.
 func withNativeHostContactName<T>(
   _ value: RuntimeHostContactName,
-  body: (DestackRustContactName) -> T
+  body: (DestackRustHostContactName) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactName(value, arena: arena))
 }
 
-/// Encode one Swift ContactPhone as one bridge payload.
+/// Encode one Swift HostContactPhone as one bridge payload.
 func encodeBridgeHostContactPhone(
   _ value: RuntimeHostContactPhone,
   arena: ContactBridgeArena
-) -> DestackRustContactPhone {
-  DestackRustContactPhone(
+) -> DestackRustHostContactPhone {
+  DestackRustHostContactPhone(
     label:
       arena.makeStringRef(value.label),
     number:
@@ -747,55 +740,55 @@ func encodeBridgeHostContactPhone(
 
 func encodeBridgeHostContactPhone(
   _ value: RuntimeHostContactPhone
-) -> DestackRustContactPhone {
+) -> DestackRustHostContactPhone {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactPhone(value, arena: arena)
 }
 
-/// Encode one Swift ContactPhone as one C bridge payload.
+/// Encode one Swift HostContactPhone as one C bridge payload.
 func withNativeHostContactPhone<T>(
   _ value: RuntimeHostContactPhone,
-  body: (DestackRustContactPhone) -> T
+  body: (DestackRustHostContactPhone) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactPhone(value, arena: arena))
 }
 
-/// Encode one Swift ContactPhone slice as one bridge payload.
+/// Encode one Swift HostContactPhone slice as one bridge payload.
 func encodeBridgeHostContactPhoneSlice(
   _ values: [RuntimeHostContactPhone],
   arena: ContactBridgeArena
-) -> DestackRustContactPhoneSlice {
+) -> DestackRustHostContactPhoneSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostContactPhone(value, arena: arena)
     }
   }
 
-  return DestackRustContactPhoneSlice(
+  return DestackRustHostContactPhoneSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift ContactPhone slice as one C bridge payload.
+/// Encode one Swift HostContactPhone slice as one C bridge payload.
 func withNativeHostContactPhoneSlice<T>(
   _ values: [RuntimeHostContactPhone],
-  body: (DestackRustContactPhoneSlice) -> T
+  body: (DestackRustHostContactPhoneSlice) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactPhoneSlice(values, arena: arena))
 }
 
-/// Encode one Swift ContactEmail as one bridge payload.
+/// Encode one Swift HostContactEmail as one bridge payload.
 func encodeBridgeHostContactEmail(
   _ value: RuntimeHostContactEmail,
   arena: ContactBridgeArena
-) -> DestackRustContactEmail {
-  DestackRustContactEmail(
+) -> DestackRustHostContactEmail {
+  DestackRustHostContactEmail(
     label:
       arena.makeStringRef(value.label),
     address:
@@ -807,55 +800,55 @@ func encodeBridgeHostContactEmail(
 
 func encodeBridgeHostContactEmail(
   _ value: RuntimeHostContactEmail
-) -> DestackRustContactEmail {
+) -> DestackRustHostContactEmail {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactEmail(value, arena: arena)
 }
 
-/// Encode one Swift ContactEmail as one C bridge payload.
+/// Encode one Swift HostContactEmail as one C bridge payload.
 func withNativeHostContactEmail<T>(
   _ value: RuntimeHostContactEmail,
-  body: (DestackRustContactEmail) -> T
+  body: (DestackRustHostContactEmail) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactEmail(value, arena: arena))
 }
 
-/// Encode one Swift ContactEmail slice as one bridge payload.
+/// Encode one Swift HostContactEmail slice as one bridge payload.
 func encodeBridgeHostContactEmailSlice(
   _ values: [RuntimeHostContactEmail],
   arena: ContactBridgeArena
-) -> DestackRustContactEmailSlice {
+) -> DestackRustHostContactEmailSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostContactEmail(value, arena: arena)
     }
   }
 
-  return DestackRustContactEmailSlice(
+  return DestackRustHostContactEmailSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift ContactEmail slice as one C bridge payload.
+/// Encode one Swift HostContactEmail slice as one C bridge payload.
 func withNativeHostContactEmailSlice<T>(
   _ values: [RuntimeHostContactEmail],
-  body: (DestackRustContactEmailSlice) -> T
+  body: (DestackRustHostContactEmailSlice) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactEmailSlice(values, arena: arena))
 }
 
-/// Encode one Swift ContactAddress as one bridge payload.
+/// Encode one Swift HostContactAddress as one bridge payload.
 func encodeBridgeHostContactAddress(
   _ value: RuntimeHostContactAddress,
   arena: ContactBridgeArena
-) -> DestackRustContactAddress {
-  DestackRustContactAddress(
+) -> DestackRustHostContactAddress {
+  DestackRustHostContactAddress(
     label:
       arena.makeStringRef(value.label),
     street:
@@ -875,55 +868,55 @@ func encodeBridgeHostContactAddress(
 
 func encodeBridgeHostContactAddress(
   _ value: RuntimeHostContactAddress
-) -> DestackRustContactAddress {
+) -> DestackRustHostContactAddress {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactAddress(value, arena: arena)
 }
 
-/// Encode one Swift ContactAddress as one C bridge payload.
+/// Encode one Swift HostContactAddress as one C bridge payload.
 func withNativeHostContactAddress<T>(
   _ value: RuntimeHostContactAddress,
-  body: (DestackRustContactAddress) -> T
+  body: (DestackRustHostContactAddress) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactAddress(value, arena: arena))
 }
 
-/// Encode one Swift ContactAddress slice as one bridge payload.
+/// Encode one Swift HostContactAddress slice as one bridge payload.
 func encodeBridgeHostContactAddressSlice(
   _ values: [RuntimeHostContactAddress],
   arena: ContactBridgeArena
-) -> DestackRustContactAddressSlice {
+) -> DestackRustHostContactAddressSlice {
   let data = arena.makeArray(count: values.count) { buffer in
     for (index, value) in values.enumerated() {
       buffer[index] = encodeBridgeHostContactAddress(value, arena: arena)
     }
   }
 
-  return DestackRustContactAddressSlice(
+  return DestackRustHostContactAddressSlice(
     data: data,
     len: UInt32(values.count)
   )
 }
 
-/// Encode one Swift ContactAddress slice as one C bridge payload.
+/// Encode one Swift HostContactAddress slice as one C bridge payload.
 func withNativeHostContactAddressSlice<T>(
   _ values: [RuntimeHostContactAddress],
-  body: (DestackRustContactAddressSlice) -> T
+  body: (DestackRustHostContactAddressSlice) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactAddressSlice(values, arena: arena))
 }
 
-/// Encode one Swift ContactOrganization as one bridge payload.
+/// Encode one Swift HostContactOrganization as one bridge payload.
 func encodeBridgeHostContactOrganization(
   _ value: RuntimeHostContactOrganization,
   arena: ContactBridgeArena
-) -> DestackRustContactOrganization {
-  DestackRustContactOrganization(
+) -> DestackRustHostContactOrganization {
+  DestackRustHostContactOrganization(
     company:
       arena.makeStringRef(value.company),
     department:
@@ -935,28 +928,28 @@ func encodeBridgeHostContactOrganization(
 
 func encodeBridgeHostContactOrganization(
   _ value: RuntimeHostContactOrganization
-) -> DestackRustContactOrganization {
+) -> DestackRustHostContactOrganization {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactOrganization(value, arena: arena)
 }
 
-/// Encode one Swift ContactOrganization as one C bridge payload.
+/// Encode one Swift HostContactOrganization as one C bridge payload.
 func withNativeHostContactOrganization<T>(
   _ value: RuntimeHostContactOrganization,
-  body: (DestackRustContactOrganization) -> T
+  body: (DestackRustHostContactOrganization) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactOrganization(value, arena: arena))
 }
 
-/// Encode one Swift Contact as one bridge payload.
+/// Encode one Swift HostContact as one bridge payload.
 func encodeBridgeHostContact(
   _ value: RuntimeHostContact,
   arena: ContactBridgeArena
-) -> DestackRustContact {
-  DestackRustContact(
+) -> DestackRustHostContact {
+  DestackRustHostContact(
     id:
       arena.makeStringRef(value.id),
     name:
@@ -976,55 +969,28 @@ func encodeBridgeHostContact(
 
 func encodeBridgeHostContact(
   _ value: RuntimeHostContact
-) -> DestackRustContact {
+) -> DestackRustHostContact {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContact(value, arena: arena)
 }
 
-/// Encode one Swift Contact as one C bridge payload.
+/// Encode one Swift HostContact as one C bridge payload.
 func withNativeHostContact<T>(
   _ value: RuntimeHostContact,
-  body: (DestackRustContact) -> T
+  body: (DestackRustHostContact) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContact(value, arena: arena))
 }
 
-/// Encode one Swift Contact slice as one bridge payload.
-func encodeBridgeHostContactSlice(
-  _ values: [RuntimeHostContact],
-  arena: ContactBridgeArena
-) -> DestackRustContactSlice {
-  let data = arena.makeArray(count: values.count) { buffer in
-    for (index, value) in values.enumerated() {
-      buffer[index] = encodeBridgeHostContact(value, arena: arena)
-    }
-  }
-
-  return DestackRustContactSlice(
-    data: data,
-    len: UInt32(values.count)
-  )
-}
-
-/// Encode one Swift Contact slice as one C bridge payload.
-func withNativeHostContactSlice<T>(
-  _ values: [RuntimeHostContact],
-  body: (DestackRustContactSlice) -> T
-) -> T {
-  let arena = currentContactBridgeArena()
-
-  return body(encodeBridgeHostContactSlice(values, arena: arena))
-}
-
-/// Encode one Swift ContactDraft as one bridge payload.
+/// Encode one Swift HostContactDraft as one bridge payload.
 func encodeBridgeHostContactDraft(
   _ value: RuntimeHostContactDraft,
   arena: ContactBridgeArena
-) -> DestackRustContactDraft {
-  DestackRustContactDraft(
+) -> DestackRustHostContactDraft {
+  DestackRustHostContactDraft(
     name:
       encodeBridgeHostContactName(value.name, arena: arena),
     phones:
@@ -1042,28 +1008,28 @@ func encodeBridgeHostContactDraft(
 
 func encodeBridgeHostContactDraft(
   _ value: RuntimeHostContactDraft
-) -> DestackRustContactDraft {
+) -> DestackRustHostContactDraft {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactDraft(value, arena: arena)
 }
 
-/// Encode one Swift ContactDraft as one C bridge payload.
+/// Encode one Swift HostContactDraft as one C bridge payload.
 func withNativeHostContactDraft<T>(
   _ value: RuntimeHostContactDraft,
-  body: (DestackRustContactDraft) -> T
+  body: (DestackRustHostContactDraft) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactDraft(value, arena: arena))
 }
 
-/// Encode one Swift ContactPage as one bridge payload.
+/// Encode one Swift HostContactPage as one bridge payload.
 func encodeBridgeHostContactPage(
   _ value: RuntimeHostContactPage,
   arena: ContactBridgeArena
-) -> DestackRustContactPage {
-  DestackRustContactPage(
+) -> DestackRustHostContactPage {
+  DestackRustHostContactPage(
     contacts:
       encodeBridgeHostContactSlice(value.contacts, arena: arena),
     next_cursor:
@@ -1075,140 +1041,109 @@ func encodeBridgeHostContactPage(
 
 func encodeBridgeHostContactPage(
   _ value: RuntimeHostContactPage
-) -> DestackRustContactPage {
+) -> DestackRustHostContactPage {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactPage(value, arena: arena)
 }
 
-/// Encode one Swift ContactPage as one C bridge payload.
+/// Encode one Swift HostContactPage as one C bridge payload.
 func withNativeHostContactPage<T>(
   _ value: RuntimeHostContactPage,
-  body: (DestackRustContactPage) -> T
+  body: (DestackRustHostContactPage) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactPage(value, arena: arena))
 }
 
-/// Encode one Swift ContactPageResponse as one bridge payload.
+/// Encode one Swift HostContactPageResponse as one bridge payload.
 func encodeBridgeHostContactPageResponse(
   _ value: RuntimeHostContactPageResponse,
   arena: ContactBridgeArena
-) -> DestackRustContactPageResponse {
-  DestackRustContactPageResponse(
+) -> DestackRustHostContactPageResponse {
+  DestackRustHostContactPageResponse(
     status:
       value.status,
-    has_page: value.page != nil,
     page:
-      value.page.map { encodeBridgeHostContactPage($0, arena: arena) }
-      ?? DestackRustContactPage(
-        contacts: DestackRustContactSlice(data: nil, len: 0),
-        next_cursor: DestackRustStringRef(data: nil, len: 0),
-        has_more: false
-      )
+      ({ if let unwrappedValue = value.page { return DestackRustOptionalHostContactPage(has_value: true, value: encodeBridgeHostContactPage(unwrappedValue, arena: arena)) } return DestackRustOptionalHostContactPage(has_value: false, value: DestackRustHostContactPage(contacts: DestackRustHostContactSlice(data: nil, len: 0), next_cursor: DestackRustStringRef(data: nil, len: 0), has_more: false)) }())
   )
 }
 
 func encodeBridgeHostContactPageResponse(
   _ value: RuntimeHostContactPageResponse
-) -> DestackRustContactPageResponse {
+) -> DestackRustHostContactPageResponse {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactPageResponse(value, arena: arena)
 }
 
-/// Encode one Swift ContactPageResponse as one C bridge payload.
+/// Encode one Swift HostContactPageResponse as one C bridge payload.
 func withNativeHostContactPageResponse<T>(
   _ value: RuntimeHostContactPageResponse,
-  body: (DestackRustContactPageResponse) -> T
+  body: (DestackRustHostContactPageResponse) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactPageResponse(value, arena: arena))
 }
 
-/// Encode one Swift ContactResponse as one bridge payload.
+/// Encode one Swift HostContactResponse as one bridge payload.
 func encodeBridgeHostContactResponse(
   _ value: RuntimeHostContactResponse,
   arena: ContactBridgeArena
-) -> DestackRustContactResponse {
-  DestackRustContactResponse(
+) -> DestackRustHostContactResponse {
+  DestackRustHostContactResponse(
     status:
       value.status,
-    has_contact: value.contact != nil,
     contact:
-      value.contact.map { encodeBridgeHostContact($0, arena: arena) }
-      ?? DestackRustContact(
-        id: DestackRustStringRef(data: nil, len: 0),
-        name: DestackRustContactName(
-          given_name: DestackRustStringRef(data: nil, len: 0),
-          middle_name: DestackRustStringRef(data: nil, len: 0),
-          family_name: DestackRustStringRef(data: nil, len: 0),
-          prefix: DestackRustStringRef(data: nil, len: 0),
-          suffix: DestackRustStringRef(data: nil, len: 0),
-          nickname: DestackRustStringRef(data: nil, len: 0),
-          phonetic_given_name: DestackRustStringRef(data: nil, len: 0),
-          phonetic_family_name: DestackRustStringRef(data: nil, len: 0)
-        ),
-        phones: DestackRustContactPhoneSlice(data: nil, len: 0),
-        emails: DestackRustContactEmailSlice(data: nil, len: 0),
-        addresses: DestackRustContactAddressSlice(data: nil, len: 0),
-        organization: DestackRustContactOrganization(
-          company: DestackRustStringRef(data: nil, len: 0),
-          department: DestackRustStringRef(data: nil, len: 0),
-          title: DestackRustStringRef(data: nil, len: 0)
-        ),
-        note: DestackRustStringRef(data: nil, len: 0)
-      )
+      ({ if let unwrappedValue = value.contact { return DestackRustOptionalHostContact(has_value: true, value: encodeBridgeHostContact(unwrappedValue, arena: arena)) } return DestackRustOptionalHostContact(has_value: false, value: DestackRustHostContact(id: DestackRustStringRef(data: nil, len: 0), name: DestackRustHostContactName(given_name: DestackRustStringRef(data: nil, len: 0), middle_name: DestackRustStringRef(data: nil, len: 0), family_name: DestackRustStringRef(data: nil, len: 0), prefix: DestackRustStringRef(data: nil, len: 0), suffix: DestackRustStringRef(data: nil, len: 0), nickname: DestackRustStringRef(data: nil, len: 0), phonetic_given_name: DestackRustStringRef(data: nil, len: 0), phonetic_family_name: DestackRustStringRef(data: nil, len: 0)), phones: DestackRustHostContactPhoneSlice(data: nil, len: 0), emails: DestackRustHostContactEmailSlice(data: nil, len: 0), addresses: DestackRustHostContactAddressSlice(data: nil, len: 0), organization: DestackRustHostContactOrganization(company: DestackRustStringRef(data: nil, len: 0), department: DestackRustStringRef(data: nil, len: 0), title: DestackRustStringRef(data: nil, len: 0)), note: DestackRustStringRef(data: nil, len: 0))) }())
   )
 }
 
 func encodeBridgeHostContactResponse(
   _ value: RuntimeHostContactResponse
-) -> DestackRustContactResponse {
+) -> DestackRustHostContactResponse {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactResponse(value, arena: arena)
 }
 
-/// Encode one Swift ContactResponse as one C bridge payload.
+/// Encode one Swift HostContactResponse as one C bridge payload.
 func withNativeHostContactResponse<T>(
   _ value: RuntimeHostContactResponse,
-  body: (DestackRustContactResponse) -> T
+  body: (DestackRustHostContactResponse) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 
   return body(encodeBridgeHostContactResponse(value, arena: arena))
 }
 
-/// Encode one Swift ContactCreateResponse as one bridge payload.
+/// Encode one Swift HostContactCreateResponse as one bridge payload.
 func encodeBridgeHostContactCreateResponse(
   _ value: RuntimeHostContactCreateResponse,
   arena: ContactBridgeArena
-) -> DestackRustContactCreateResponse {
-  DestackRustContactCreateResponse(
+) -> DestackRustHostContactCreateResponse {
+  DestackRustHostContactCreateResponse(
     status:
       value.status,
-    has_id: value.id != nil,
     id:
-      value.id.map { arena.makeStringRef($0) }
-      ?? DestackRustStringRef(data: nil, len: 0)
+      ({ if let unwrappedValue = value.id { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
   )
 }
 
 func encodeBridgeHostContactCreateResponse(
   _ value: RuntimeHostContactCreateResponse
-) -> DestackRustContactCreateResponse {
+) -> DestackRustHostContactCreateResponse {
   let arena = currentContactBridgeArena()
 
   return encodeBridgeHostContactCreateResponse(value, arena: arena)
 }
 
-/// Encode one Swift ContactCreateResponse as one C bridge payload.
+/// Encode one Swift HostContactCreateResponse as one C bridge payload.
 func withNativeHostContactCreateResponse<T>(
   _ value: RuntimeHostContactCreateResponse,
-  body: (DestackRustContactCreateResponse) -> T
+  body: (DestackRustHostContactCreateResponse) -> T
 ) -> T {
   let arena = currentContactBridgeArena()
 

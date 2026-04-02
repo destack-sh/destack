@@ -5,36 +5,4 @@
 
 #include "BaseTypes.generated.h"
 
-/// One optional string reference passed through the Apple bridge.
-typedef struct DestackRustOptionalStringRef {
-    /// Whether the optional field is present.
-    bool has_value;
-    /// The wrapped string reference.
-    DestackRustStringRef value;
-} DestackRustOptionalStringRef;
-
-/// One optional `u32` passed through the Apple bridge.
-typedef struct DestackRustOptionalU32 {
-    /// Whether the optional field is present.
-    bool has_value;
-    /// The wrapped integer value.
-    uint32_t value;
-} DestackRustOptionalU32;
-
-/// One optional `u64` passed through the Apple bridge.
-typedef struct DestackRustOptionalU64 {
-    /// Whether the optional field is present.
-    bool has_value;
-    /// The wrapped integer value.
-    uint64_t value;
-} DestackRustOptionalU64;
-
-/// One optional `i8` passed through the Apple bridge.
-typedef struct DestackRustOptionalI8 {
-    /// Whether the optional field is present.
-    bool has_value;
-    /// The wrapped integer value.
-    int8_t value;
-} DestackRustOptionalI8;
-
 #endif

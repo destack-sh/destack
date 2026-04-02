@@ -6,73 +6,73 @@
 /// The background-status callback type registered for one runtime session.
 typedef uint32_t (*DestackRustBackgroundStatusCallback)(
     uint64_t session_handle,
-    DestackRustBackgroundStatusResponse * response
+    DestackRustHostBackgroundStatusResponse * response
 );
 
 /// The background-list callback type registered for one runtime session.
 typedef uint32_t (*DestackRustBackgroundListCallback)(
     uint64_t session_handle,
-    DestackRustBackgroundListResponse * response
+    DestackRustHostBackgroundListResponse * response
 );
 
 /// The background-register-task callback type registered for one runtime session.
 typedef uint32_t (*DestackRustBackgroundRegisterTaskCallback)(
     uint64_t session_handle,
-    DestackRustBackgroundTaskOptions request
+    DestackRustHostBackgroundTaskOptions request
 );
 
 /// The background-unregister callback type registered for one runtime session.
 typedef uint32_t (*DestackRustBackgroundUnregisterCallback)(
     uint64_t session_handle,
-    DestackRustBackgroundUnregisterRequest request
+    DestackRustHostBackgroundUnregisterRequest request
 );
 
 /// The background-trigger-test callback type registered for one runtime session.
 typedef uint32_t (*DestackRustBackgroundTriggerTestCallback)(
     uint64_t session_handle,
-    DestackRustBackgroundTriggerTestRequest request,
-    DestackRustBackgroundTriggerTestResponse * response
+    DestackRustHostBackgroundTriggerTestRequest request,
+    DestackRustHostBackgroundTriggerTestResponse * response
 );
 
 /// The background-complete callback type registered for one runtime session.
 typedef uint32_t (*DestackRustBackgroundCompleteCallback)(
     uint64_t session_handle,
-    DestackRustBackgroundCompleteRequest request
+    DestackRustHostBackgroundCompleteRequest request
 );
 
 
 /// The calendar-list callback type registered for one runtime session.
 typedef uint32_t (*DestackRustCalendarListCallback)(
     uint64_t session_handle,
-    DestackRustCalendarListResponse * response
+    DestackRustHostCalendarListResponse * response
 );
 
 /// The calendar-event-list callback type registered for one runtime session.
 typedef uint32_t (*DestackRustCalendarEventListCallback)(
     uint64_t session_handle,
-    DestackRustCalendarEventQuery query,
-    DestackRustCalendarEventListResponse * response
+    DestackRustHostCalendarEventQuery query,
+    DestackRustHostCalendarEventListResponse * response
 );
 
 /// The calendar-event-read callback type registered for one runtime session.
 typedef uint32_t (*DestackRustCalendarEventReadCallback)(
     uint64_t session_handle,
     DestackRustStringRef id,
-    DestackRustCalendarEventReadResponse * response
+    DestackRustHostCalendarEventReadResponse * response
 );
 
 /// The calendar-event-create callback type registered for one runtime session.
 typedef uint32_t (*DestackRustCalendarEventCreateCallback)(
     uint64_t session_handle,
-    DestackRustCalendarEventDraft draft,
-    DestackRustCalendarEventCreateResponse * response
+    DestackRustHostCalendarEventDraft draft,
+    DestackRustHostCalendarEventCreateResponse * response
 );
 
 /// The calendar-event-update callback type registered for one runtime session.
 typedef uint32_t (*DestackRustCalendarEventUpdateCallback)(
     uint64_t session_handle,
     DestackRustStringRef id,
-    DestackRustCalendarEventDraft draft
+    DestackRustHostCalendarEventDraft draft
 );
 
 /// The calendar-event-delete callback type registered for one runtime session.
@@ -85,37 +85,37 @@ typedef uint32_t (*DestackRustCalendarEventDeleteCallback)(
 /// The contact-list callback type registered for one runtime session.
 typedef uint32_t (*DestackRustContactListCallback)(
     uint64_t session_handle,
-    DestackRustContactQuery query,
-    DestackRustContactPageResponse * response
+    DestackRustHostContactQuery query,
+    DestackRustHostContactPageResponse * response
 );
 
 /// The contact-search callback type registered for one runtime session.
 typedef uint32_t (*DestackRustContactSearchCallback)(
     uint64_t session_handle,
     DestackRustStringRef query_text,
-    DestackRustContactQuery query,
-    DestackRustContactPageResponse * response
+    DestackRustHostContactQuery query,
+    DestackRustHostContactPageResponse * response
 );
 
 /// The contact-read callback type registered for one runtime session.
 typedef uint32_t (*DestackRustContactReadCallback)(
     uint64_t session_handle,
     DestackRustStringRef id,
-    DestackRustContactResponse * response
+    DestackRustHostContactResponse * response
 );
 
 /// The contact-create callback type registered for one runtime session.
 typedef uint32_t (*DestackRustContactCreateCallback)(
     uint64_t session_handle,
-    DestackRustContactDraft draft,
-    DestackRustContactCreateResponse * response
+    DestackRustHostContactDraft draft,
+    DestackRustHostContactCreateResponse * response
 );
 
 /// The contact-update callback type registered for one runtime session.
 typedef uint32_t (*DestackRustContactUpdateCallback)(
     uint64_t session_handle,
     DestackRustStringRef id,
-    DestackRustContactDraft draft
+    DestackRustHostContactDraft draft
 );
 
 /// The contact-delete-contact callback type registered for one runtime session.
@@ -128,7 +128,7 @@ typedef uint32_t (*DestackRustContactDeleteContactCallback)(
 /// The document callback type registered for one runtime session.
 typedef uint32_t (*DestackRustDocumentCallback)(
     uint64_t session_handle,
-    DestackRustDocumentRequest request
+    DestackRustHostDocumentRequest request
 );
 
 
@@ -155,16 +155,14 @@ typedef uint32_t (*DestackRustIntentOpenPathCallback)(
 typedef uint32_t (*DestackRustIntentShareTextCallback)(
     uint64_t session_handle,
     DestackRustStringRef text,
-    bool has_mime_type,
-    DestackRustStringRef mime_type
+    DestackRustOptionalStringRef mime_type
 );
 
 /// The intent-share-paths callback type registered for one runtime session.
 typedef uint32_t (*DestackRustIntentSharePathsCallback)(
     uint64_t session_handle,
     DestackRustStringSlice paths,
-    bool has_mime_type,
-    DestackRustStringRef mime_type
+    DestackRustOptionalStringRef mime_type
 );
 
 
@@ -197,36 +195,36 @@ typedef uint32_t (*DestackRustLocationWatchCloseCallback)(
 /// The media-list callback type registered for one runtime session.
 typedef uint32_t (*DestackRustMediaListCallback)(
     uint64_t session_handle,
-    DestackRustMediaListRequest request,
-    DestackRustMediaListResponse * response
+    DestackRustHostMediaListRequest request,
+    DestackRustHostMediaListResponse * response
 );
 
 /// The media-read callback type registered for one runtime session.
 typedef uint32_t (*DestackRustMediaReadCallback)(
     uint64_t session_handle,
     DestackRustStringRef identifier,
-    DestackRustMediaReadResponse * response
+    DestackRustHostMediaReadResponse * response
 );
 
 /// The media-import-path callback type registered for one runtime session.
 typedef uint32_t (*DestackRustMediaImportPathCallback)(
     uint64_t session_handle,
-    DestackRustMediaImportPathRequest request,
-    DestackRustMediaImportPathResponse * response
+    DestackRustHostMediaImportPathRequest request,
+    DestackRustHostMediaImportPathResponse * response
 );
 
 /// The media-delete callback type registered for one runtime session.
 typedef uint32_t (*DestackRustMediaDeleteCallback)(
     uint64_t session_handle,
-    DestackRustMediaDeleteRequest request,
-    DestackRustMediaDeleteResponse * response
+    DestackRustHostMediaDeleteRequest request,
+    DestackRustHostMediaDeleteResponse * response
 );
 
 
 /// The notification-post callback type registered for one runtime session.
 typedef uint32_t (*DestackRustNotificationPostCallback)(
     uint64_t session_handle,
-    DestackRustNotificationRequest request
+    DestackRustHostNotificationRequest request
 );
 
 /// The notification-cancel callback type registered for one runtime session.
@@ -244,7 +242,7 @@ typedef uint32_t (*DestackRustNotificationCancelAllCallback)(
 /// The permission-request callback type registered for one runtime session.
 typedef uint32_t (*DestackRustPermissionRequestCallback)(
     uint64_t session_handle,
-    DestackRustPermissionRequest request
+    DestackRustHostPermissionRequest request
 );
 
 /// The permission-open-settings callback type registered for one runtime session.
@@ -256,25 +254,25 @@ typedef uint32_t (*DestackRustPermissionOpenSettingsCallback)(
 /// The text-open callback type registered for one runtime session.
 typedef uint32_t (*DestackRustTextOpenCallback)(
     uint64_t session_handle,
-    DestackRustTextInputOpenRequest request
+    DestackRustHostTextInputOpenRequest request
 );
 
 /// The text-close callback type registered for one runtime session.
 typedef uint32_t (*DestackRustTextCloseCallback)(
     uint64_t session_handle,
-    DestackRustTextInputCloseRequest request
+    DestackRustHostTextInputCloseRequest request
 );
 
 /// The text-set-geometry callback type registered for one runtime session.
 typedef uint32_t (*DestackRustTextSetGeometryCallback)(
     uint64_t session_handle,
-    DestackRustTextInputGeometryRequest request
+    DestackRustHostTextInputGeometryRequest request
 );
 
 /// The text-set-state callback type registered for one runtime session.
 typedef uint32_t (*DestackRustTextSetStateCallback)(
     uint64_t session_handle,
-    DestackRustTextInputStateRequest request
+    DestackRustHostTextInputStateRequest request
 );
 
 
@@ -387,14 +385,19 @@ void destack_host_ios_unregister_runtime_bridge_bindings(
 /// Deliver one background event into one runtime session.
 DestackRustRuntimeStatus destack_host_ios_notify_background_event(
     uint64_t session_handle,
-    DestackRustBackgroundEvent event
+    DestackRustHostBackgroundEvent event
 );
 
 /// Deliver one document result into one runtime session.
 DestackRustRuntimeStatus destack_host_ios_notify_document_result(
     uint64_t session_handle,
-    uint64_t request_id,
-    DestackRustDocumentDescriptorSlice documents
+    DestackRustHostDocumentResult result
+);
+
+/// Deliver one intent event into one runtime session.
+DestackRustRuntimeStatus destack_host_ios_notify_intent_event(
+    uint64_t session_handle,
+    DestackRustHostIntentEvent event
 );
 
 /// Deliver one location sample into one runtime session.
@@ -407,72 +410,19 @@ DestackRustRuntimeStatus destack_host_ios_notify_location_sample(
 /// Deliver one notification event into one runtime session.
 DestackRustRuntimeStatus destack_host_ios_notify_notification_event(
     uint64_t session_handle,
-    DestackRustNotificationEvent event
+    DestackRustHostNotificationEvent event
 );
 
 /// Deliver one permission result into one runtime session.
 DestackRustRuntimeStatus destack_host_ios_notify_permission_result(
     uint64_t session_handle,
-    DestackRustPermissionEvent event
+    DestackRustHostPermissionEvent event
 );
 
 /// Deliver one text-session state event into one runtime session.
 DestackRustRuntimeStatus destack_host_ios_notify_text_input_state(
     uint64_t session_handle,
-    DestackRustTextInputEvent event
-);
-
-/// Deliver one intent open-url event into one runtime session.
-DestackRustRuntimeStatus destack_host_ios_notify_intent_open_url(
-    uint64_t session_handle,
-    bool has_source,
-    DestackRustStringRef source,
-    DestackRustStringRef url
-);
-
-/// Deliver one intent open-file event into one runtime session.
-DestackRustRuntimeStatus destack_host_ios_notify_intent_open_file(
-    uint64_t session_handle,
-    bool has_source,
-    DestackRustStringRef source,
-    DestackRustStringRef path,
-    bool has_mime_type,
-    DestackRustStringRef mime_type
-);
-
-/// Deliver one intent share-text event into one runtime session.
-DestackRustRuntimeStatus destack_host_ios_notify_intent_share_text(
-    uint64_t session_handle,
-    bool has_source,
-    DestackRustStringRef source,
-    DestackRustStringRef text,
-    bool has_mime_type,
-    DestackRustStringRef mime_type
-);
-
-/// Deliver one intent share-files event into one runtime session.
-DestackRustRuntimeStatus destack_host_ios_notify_intent_share_files(
-    uint64_t session_handle,
-    bool has_source,
-    DestackRustStringRef source,
-    DestackRustStringSlice paths,
-    bool has_mime_type,
-    DestackRustStringRef mime_type
-);
-
-/// Deliver one intent custom-action event into one runtime session.
-DestackRustRuntimeStatus destack_host_ios_notify_intent_custom_action(
-    uint64_t session_handle,
-    bool has_source,
-    DestackRustStringRef source,
-    DestackRustStringRef action,
-    bool has_url,
-    DestackRustStringRef url,
-    DestackRustStringSlice paths,
-    bool has_text,
-    DestackRustStringRef text,
-    bool has_mime_type,
-    DestackRustStringRef mime_type
+    DestackRustHostTextInputEvent event
 );
 
 #endif

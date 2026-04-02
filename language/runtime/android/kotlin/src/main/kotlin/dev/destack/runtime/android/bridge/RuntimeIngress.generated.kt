@@ -2,87 +2,69 @@
 
 package dev.destack.runtime.android.bridge
 
-import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.core.HostSessionHandle
 import dev.destack.runtime.android.module.background.RuntimeHostBackgroundEvent
-import dev.destack.runtime.android.module.document.RuntimeHostDocumentDescriptor
+import dev.destack.runtime.android.module.document.RuntimeHostDocumentResult
 import dev.destack.runtime.android.module.intent.RuntimeHostIntentEvent
-import dev.destack.runtime.android.module.intent.RuntimeHostIntentPayload
-import dev.destack.runtime.android.module.location.RuntimeHostLocationSample
+import dev.destack.runtime.android.module.location.RuntimeLocationSample
 import dev.destack.runtime.android.module.notification.RuntimeHostNotificationEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.text.RuntimeHostTextInputEvent
 
 /**
- * One runtime status returned by one runtime session API ingress call.
- */
-public data class RuntimeIngressStatus(
-    /**
-     * The status code, where zero means success.
-     */
-    val code: Int,
-
-    /**
-     * The recorded runtime error identifier when one failure occurred.
-     */
-    val errorId: Long,
-)
-
-/**
  * The generated low-level runtime ABI surface for one Android host bridge.
  */
-public interface RuntimeIngress {
+public interface RuntimeAbi {
     /**
      * Deliver one background event into one runtime session.
      */
     public fun notifyBackgroundEvent(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostBackgroundEvent
-    ): RuntimeIngressStatus
+    ): RuntimeAbiStatus
     /**
      * Deliver one document result into one runtime session.
      */
     public fun notifyDocumentResult(
         sessionHandle: HostSessionHandle,
-        requestId: HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>
-    ): RuntimeIngressStatus
+        result: RuntimeHostDocumentResult
+    ): RuntimeAbiStatus
     /**
      * Deliver one intent event into one runtime session.
      */
     public fun notifyIntentEvent(
         sessionHandle: HostSessionHandle,
-        event: RuntimeHostIntentEvent,
-    ): RuntimeIngressStatus
+        event: RuntimeHostIntentEvent
+    ): RuntimeAbiStatus
     /**
      * Deliver one location sample into one runtime session.
      */
     public fun notifyLocationSample(
         sessionHandle: HostSessionHandle,
         watchId: String,
-        sample: RuntimeHostLocationSample
-    ): RuntimeIngressStatus
+        sample: RuntimeLocationSample
+    ): RuntimeAbiStatus
     /**
      * Deliver one notification event into one runtime session.
      */
     public fun notifyNotificationEvent(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostNotificationEvent
-    ): RuntimeIngressStatus
+    ): RuntimeAbiStatus
     /**
      * Deliver one permission result into one runtime session.
      */
     public fun notifyPermissionResult(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostPermissionEvent
-    ): RuntimeIngressStatus
+    ): RuntimeAbiStatus
     /**
      * Deliver one text-session state event into one runtime session.
      */
     public fun notifyTextInputState(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostTextInputEvent
-    ): RuntimeIngressStatus
+    ): RuntimeAbiStatus
     /**
      * Attach one bridge instance to one runtime session.
      */
@@ -102,9 +84,9 @@ public interface RuntimeIngress {
 /**
  * The generated process runtime ABI resolved through the Android JNI bridge.
  */
-public object ProcessRuntimeIngress : RuntimeIngress {
+public object ProcessRuntimeAbi : RuntimeAbi {
     init {
-        System.loadLibrary("destack_runtime_host_android")
+        RuntimeHostLibraryLoader.ensureLoaded()
     }
 
     /**
@@ -113,13 +95,13 @@ public object ProcessRuntimeIngress : RuntimeIngress {
     override fun notifyBackgroundEvent(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostBackgroundEvent
-    ): RuntimeIngressStatus {
+    ): RuntimeAbiStatus {
         val values = nativeNotifyBackgroundEvent(
             sessionHandle = sessionHandle.rawValue,
             event = event,
         )
 
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
             code = values[0].toInt(),
             errorId = values[1],
         )
@@ -135,16 +117,14 @@ public object ProcessRuntimeIngress : RuntimeIngress {
      */
     override fun notifyDocumentResult(
         sessionHandle: HostSessionHandle,
-        requestId: HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>
-    ): RuntimeIngressStatus {
+        result: RuntimeHostDocumentResult
+    ): RuntimeAbiStatus {
         val values = nativeNotifyDocumentResult(
             sessionHandle = sessionHandle.rawValue,
-            requestId = requestId.rawValue,
-            documents = documents,
+            result = result,
         )
 
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
             code = values[0].toInt(),
             errorId = values[1],
         )
@@ -152,8 +132,7 @@ public object ProcessRuntimeIngress : RuntimeIngress {
 
     private external fun nativeNotifyDocumentResult(
         sessionHandle: Long,
-        requestId: Long,
-        documents: List<RuntimeHostDocumentDescriptor>,
+        result: RuntimeHostDocumentResult,
     ): LongArray
 
     /**
@@ -161,126 +140,22 @@ public object ProcessRuntimeIngress : RuntimeIngress {
      */
     override fun notifyIntentEvent(
         sessionHandle: HostSessionHandle,
-        event: RuntimeHostIntentEvent,
-    ): RuntimeIngressStatus {
-        val values = when (val payload = event.payload) {
-            is RuntimeHostIntentPayload.OpenUrl -> {
-                val (url) = payload
-                nativeIntentOpenUrl(
-                    sessionHandle = sessionHandle.rawValue,
-                    has_source = event.source != null,
-                    source = event.source,
-                    url = url
-                )
-            }
+        event: RuntimeHostIntentEvent
+    ): RuntimeAbiStatus {
+        val values = nativeNotifyIntentEvent(
+            sessionHandle = sessionHandle.rawValue,
+            event = event,
+        )
 
-            is RuntimeHostIntentPayload.OpenFile -> {
-                val (path, contentType) = payload
-                nativeIntentOpenFile(
-                    sessionHandle = sessionHandle.rawValue,
-                    has_source = event.source != null,
-                    source = event.source,
-                    path = path,
-                    has_mime_type = contentType != null,
-                    mime_type = contentType
-                )
-            }
-
-            is RuntimeHostIntentPayload.ShareText -> {
-                val (text, contentType) = payload
-                nativeIntentShareText(
-                    sessionHandle = sessionHandle.rawValue,
-                    has_source = event.source != null,
-                    source = event.source,
-                    text = text,
-                    has_mime_type = contentType != null,
-                    mime_type = contentType
-                )
-            }
-
-            is RuntimeHostIntentPayload.ShareFiles -> {
-                val (paths, contentType) = payload
-                nativeIntentShareFiles(
-                    sessionHandle = sessionHandle.rawValue,
-                    has_source = event.source != null,
-                    source = event.source,
-                    paths = paths.toTypedArray(),
-                    has_mime_type = contentType != null,
-                    mime_type = contentType
-                )
-            }
-
-            is RuntimeHostIntentPayload.CustomAction -> {
-                val (action, url, paths, text, contentType) = payload
-                nativeIntentCustomAction(
-                    sessionHandle = sessionHandle.rawValue,
-                    has_source = event.source != null,
-                    source = event.source,
-                    action = action,
-                    has_url = url != null,
-                    url = url,
-                    paths = paths.toTypedArray(),
-                    has_text = text != null,
-                    text = text,
-                    has_mime_type = contentType != null,
-                    mime_type = contentType
-                )
-            }
-
-        }
-
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
             code = values[0].toInt(),
             errorId = values[1],
         )
     }
 
-    private external fun nativeIntentOpenUrl(
+    private external fun nativeNotifyIntentEvent(
         sessionHandle: Long,
-        has_source: Boolean,
-        source: String?,
-        url: String?,
-    ): LongArray
-
-    private external fun nativeIntentOpenFile(
-        sessionHandle: Long,
-        has_source: Boolean,
-        source: String?,
-        path: String?,
-        has_mime_type: Boolean,
-        mime_type: String?,
-    ): LongArray
-
-    private external fun nativeIntentShareText(
-        sessionHandle: Long,
-        has_source: Boolean,
-        source: String?,
-        text: String?,
-        has_mime_type: Boolean,
-        mime_type: String?,
-    ): LongArray
-
-    private external fun nativeIntentShareFiles(
-        sessionHandle: Long,
-        has_source: Boolean,
-        source: String?,
-        paths: Array<String>,
-        has_mime_type: Boolean,
-        mime_type: String?,
-    ): LongArray
-
-    private external fun nativeIntentCustomAction(
-        sessionHandle: Long,
-        has_source: Boolean,
-        source: String?,
-        action: String?,
-        has_url: Boolean,
-        url: String?,
-        paths: Array<String>,
-        has_text: Boolean,
-        text: String?,
-        has_mime_type: Boolean,
-        mime_type: String?,
+        event: RuntimeHostIntentEvent,
     ): LongArray
 
     /**
@@ -289,15 +164,15 @@ public object ProcessRuntimeIngress : RuntimeIngress {
     override fun notifyLocationSample(
         sessionHandle: HostSessionHandle,
         watchId: String,
-        sample: RuntimeHostLocationSample
-    ): RuntimeIngressStatus {
+        sample: RuntimeLocationSample
+    ): RuntimeAbiStatus {
         val values = nativeNotifyLocationSample(
             sessionHandle = sessionHandle.rawValue,
             watchId = watchId,
             sample = sample,
         )
 
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
             code = values[0].toInt(),
             errorId = values[1],
         )
@@ -306,7 +181,7 @@ public object ProcessRuntimeIngress : RuntimeIngress {
     private external fun nativeNotifyLocationSample(
         sessionHandle: Long,
         watchId: String,
-        sample: RuntimeHostLocationSample,
+        sample: RuntimeLocationSample,
     ): LongArray
 
     /**
@@ -315,13 +190,13 @@ public object ProcessRuntimeIngress : RuntimeIngress {
     override fun notifyNotificationEvent(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostNotificationEvent
-    ): RuntimeIngressStatus {
+    ): RuntimeAbiStatus {
         val values = nativeNotifyNotificationEvent(
             sessionHandle = sessionHandle.rawValue,
             event = event,
         )
 
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
             code = values[0].toInt(),
             errorId = values[1],
         )
@@ -338,13 +213,13 @@ public object ProcessRuntimeIngress : RuntimeIngress {
     override fun notifyPermissionResult(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostPermissionEvent
-    ): RuntimeIngressStatus {
+    ): RuntimeAbiStatus {
         val values = nativeNotifyPermissionResult(
             sessionHandle = sessionHandle.rawValue,
             event = event,
         )
 
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
             code = values[0].toInt(),
             errorId = values[1],
         )
@@ -361,13 +236,13 @@ public object ProcessRuntimeIngress : RuntimeIngress {
     override fun notifyTextInputState(
         sessionHandle: HostSessionHandle,
         event: RuntimeHostTextInputEvent
-    ): RuntimeIngressStatus {
+    ): RuntimeAbiStatus {
         val values = nativeNotifyTextInputState(
             sessionHandle = sessionHandle.rawValue,
             event = event,
         )
 
-        return RuntimeIngressStatus(
+        return RuntimeAbiStatus(
             code = values[0].toInt(),
             errorId = values[1],
         )

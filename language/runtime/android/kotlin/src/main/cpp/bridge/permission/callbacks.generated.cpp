@@ -15,15 +15,6 @@ jclass bridge_class = nullptr;
 jmethodID request_method = nullptr;
 jmethodID openSettings_method = nullptr;
 
-/// Build one JNI string borrowed from one native string reference.
-jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
-    if (value.data == nullptr) {
-        return nullptr;
-    }
-
-    return new_java_string(env, value);
-}
-
 /// Resolve the permission bridge methods from one runtime bridge instance.
 bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (bridge_class == nullptr) {
@@ -43,7 +34,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         request_method = env->GetMethodID(
             bridge_class,
             "permissionRequest",
-            "(JLjava/lang/String;)I"
+            "(JI)I"
         );
     }
 
@@ -77,7 +68,7 @@ uint32_t call_permission_request(
         return HOST_STATUS_NOT_FOUND;
     }
 
-    jstring permission_value = java_string_or_null(env, request.permission);
+    jobject permission_value = encode_HostPermission(env, request.permission);
 
     jint status = env->CallIntMethod(
         bridge,

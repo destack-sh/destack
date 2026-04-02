@@ -42,6 +42,7 @@ void clear_result_decode_storage() {
 
 jint call_list_size(JNIEnv *env, jobject value);
 jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
 jint call_int_getter(JNIEnv *env, jobject value, const char *name);
 
 jintArray encode_u8_slice(JNIEnv *env, NativeU8Slice values) {
@@ -94,41 +95,26 @@ jobject encode_AndroidHostUsbDeviceDescriptorHeader(JNIEnv *env, AndroidHostUsbD
         return nullptr;
     }
 
-    jmethodID constructor = resolve_constructor(env, value_class, "(IIIIIIIIIIIIIIIIIIIIIII)V");
+    jmethodID constructor = resolve_constructor(env, value_class, "(IIIIIIIIIILjava/lang/Integer;Ljava/lang/Integer;IIIIILjava/lang/Integer;Ljava/lang/Integer;)V");
     if (constructor == nullptr) {
         env->DeleteLocalRef(value_class);
         return nullptr;
     }
 
+    jobject usb_version_bcd_value = value.usb_version_bcd.has_value ? box_int(env, static_cast<jint>(value.usb_version_bcd.value)) : nullptr;
+    jobject device_version_bcd_value = value.device_version_bcd.has_value ? box_int(env, static_cast<jint>(value.device_version_bcd.value)) : nullptr;
+    jobject speed_value = value.speed.has_value ? box_int(env, static_cast<jint>(value.speed.value)) : nullptr;
+    jobject bus_number_value = value.bus_number.has_value ? box_int(env, static_cast<jint>(value.bus_number.value)) : nullptr;
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.manufacturer_offset),
-        static_cast<jint>(value.manufacturer_len),
-        static_cast<jint>(value.product_offset),
-        static_cast<jint>(value.product_len),
-        static_cast<jint>(value.serial_number_offset),
-        static_cast<jint>(value.serial_number_len),
-        static_cast<jint>(value.port_path_offset),
-        static_cast<jint>(value.port_path_len),
-        static_cast<jint>(value.usb_version_bcd),
-        static_cast<jint>(value.has_usb_version_bcd),
-        static_cast<jint>(value.device_version_bcd),
-        static_cast<jint>(value.has_device_version_bcd),
-        static_cast<jint>(value.vendor_id),
-        static_cast<jint>(value.product_id),
-        static_cast<jint>(value.class_code),
-        static_cast<jint>(value.subclass_code),
-        static_cast<jint>(value.protocol_code),
-        static_cast<jint>(value.speed),
-        static_cast<jint>(value.has_speed),
-        static_cast<jint>(value.bus_number),
-        static_cast<jint>(value.has_bus_number)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.manufacturer_offset)static_cast<jint>(value.manufacturer_len)static_cast<jint>(value.product_offset)static_cast<jint>(value.product_len)static_cast<jint>(value.serial_number_offset)static_cast<jint>(value.serial_number_len)static_cast<jint>(value.port_path_offset)static_cast<jint>(value.port_path_len)usb_version_bcd_valuedevice_version_bcd_valuestatic_cast<jint>(value.vendor_id)static_cast<jint>(value.product_id)static_cast<jint>(value.class_code)static_cast<jint>(value.subclass_code)static_cast<jint>(value.protocol_code)speed_valuebus_number_value
     );
 
+    if (usb_version_bcd_value != nullptr) { env->DeleteLocalRef(usb_version_bcd_value); }
+    if (device_version_bcd_value != nullptr) { env->DeleteLocalRef(device_version_bcd_value); }
+    if (speed_value != nullptr) { env->DeleteLocalRef(speed_value); }
+    if (bus_number_value != nullptr) { env->DeleteLocalRef(bus_number_value); }
     env->DeleteLocalRef(value_class);
 
     return result;
@@ -268,13 +254,13 @@ AndroidHostUsbDeviceDescriptorHeader decode_AndroidHostUsbDeviceDescriptorHeader
 
     decoded.port_path_len = static_cast<uint32_t>(call_int_getter(env, value, "getPortPathLen"));
 
-    decoded.usb_version_bcd = static_cast<uint16_t>(call_int_getter(env, value, "getUsbVersionBcd"));
+    jobject usb_version_bcd_value = call_object_getter(env, value, "getUsbVersionBcd", "()Ljava/lang/Integer;");
+    decoded.usb_version_bcd = ([&]() -> OptionalU16 { if (usb_version_bcd_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = static_cast<uint16_t>(call_int_getter(env, usb_version_bcd_value, "intValue")) }; })();
+    if (usb_version_bcd_value != nullptr) { env->DeleteLocalRef(usb_version_bcd_value); }
 
-    decoded.has_usb_version_bcd = static_cast<uint32_t>(call_int_getter(env, value, "getHasUsbVersionBcd"));
-
-    decoded.device_version_bcd = static_cast<uint16_t>(call_int_getter(env, value, "getDeviceVersionBcd"));
-
-    decoded.has_device_version_bcd = static_cast<uint32_t>(call_int_getter(env, value, "getHasDeviceVersionBcd"));
+    jobject device_version_bcd_value = call_object_getter(env, value, "getDeviceVersionBcd", "()Ljava/lang/Integer;");
+    decoded.device_version_bcd = ([&]() -> OptionalU16 { if (device_version_bcd_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = static_cast<uint16_t>(call_int_getter(env, device_version_bcd_value, "intValue")) }; })();
+    if (device_version_bcd_value != nullptr) { env->DeleteLocalRef(device_version_bcd_value); }
 
     decoded.vendor_id = static_cast<uint16_t>(call_int_getter(env, value, "getVendorId"));
 
@@ -286,13 +272,13 @@ AndroidHostUsbDeviceDescriptorHeader decode_AndroidHostUsbDeviceDescriptorHeader
 
     decoded.protocol_code = static_cast<uint8_t>(call_int_getter(env, value, "getProtocolCode"));
 
-    decoded.speed = static_cast<uint32_t>(call_int_getter(env, value, "getSpeed"));
+    jobject speed_value = call_object_getter(env, value, "getSpeed", "()Ljava/lang/Integer;");
+    decoded.speed = ([&]() -> OptionalU32 { if (speed_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = static_cast<uint32_t>(call_int_getter(env, speed_value, "intValue")) }; })();
+    if (speed_value != nullptr) { env->DeleteLocalRef(speed_value); }
 
-    decoded.has_speed = static_cast<uint32_t>(call_int_getter(env, value, "getHasSpeed"));
-
-    decoded.bus_number = static_cast<uint8_t>(call_int_getter(env, value, "getBusNumber"));
-
-    decoded.has_bus_number = static_cast<uint32_t>(call_int_getter(env, value, "getHasBusNumber"));
+    jobject bus_number_value = call_object_getter(env, value, "getBusNumber", "()Ljava/lang/Integer;");
+    decoded.bus_number = ([&]() -> OptionalU8 { if (bus_number_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = static_cast<uint8_t>(call_int_getter(env, bus_number_value, "intValue")) }; })();
+    if (bus_number_value != nullptr) { env->DeleteLocalRef(bus_number_value); }
 
 
     return decoded;
@@ -318,7 +304,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         deviceList_method = env->GetMethodID(
             bridge_class,
             "usbDeviceList",
-            "([Ldev/destack/runtime/android/module/usb/RuntimeAndroidHostUsbDeviceDescriptorHeader;[I[I)Ldev/destack/runtime/android/module/usb/RuntimeHostUsbDeviceListResponse;"
+            "([Ldev/destack/runtime/android/module/usb/RuntimeAndroidHostUsbDeviceDescriptorHeader;[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostUsbDeviceListResponse;"
         );
     }
 
@@ -326,7 +312,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         watchOpen_method = env->GetMethodID(
             bridge_class,
             "usbWatchOpen",
-            "()Ldev/destack/runtime/android/module/usb/RuntimeHostUsbWatchOpenResponse;"
+            "()Ldev/destack/runtime/android/bridge/RuntimeHostUsbWatchOpenResponse;"
         );
     }
 
@@ -342,7 +328,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         watchRead_method = env->GetMethodID(
             bridge_class,
             "usbWatchRead",
-            "(JJ[I[I)Ldev/destack/runtime/android/module/usb/RuntimeHostUsbWatchReadResponse;"
+            "(JJ[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostUsbWatchReadResponse;"
         );
     }
 
@@ -350,7 +336,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         watchTryRead_method = env->GetMethodID(
             bridge_class,
             "usbWatchTryRead",
-            "(J[I[I)Ldev/destack/runtime/android/module/usb/RuntimeHostUsbWatchTryReadResponse;"
+            "(J[I[I)Ldev/destack/runtime/android/bridge/RuntimeHostUsbWatchTryReadResponse;"
         );
     }
 
@@ -358,7 +344,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         open_method = env->GetMethodID(
             bridge_class,
             "usbOpen",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/usb/RuntimeHostUsbOpenResponse;"
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostUsbOpenResponse;"
         );
     }
 

@@ -28,6 +28,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signature) {
     return env->GetMethodID(value_class, "<init>", signature);
 }
@@ -66,12 +134,14 @@ NativeStringRef string_ref_from_java(
 }
 
 thread_local std::deque<std::string> result_string_storage;
+thread_local std::deque<std::vector<NativeStringRef>> result_string_slice_storage;
 thread_local std::deque<std::vector<uint8_t>> result_u8_storage;
 thread_local std::deque<std::vector<int8_t>> result_i8_storage;
 thread_local std::deque<std::vector<int16_t>> result_i16_storage;
 
 void clear_result_decode_storage() {
     result_string_storage.clear();
+    result_string_slice_storage.clear();
     result_u8_storage.clear();
     result_i8_storage.clear();
     result_i16_storage.clear();
@@ -79,7 +149,37 @@ void clear_result_decode_storage() {
 
 jint call_list_size(JNIEnv *env, jobject value);
 jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
 jint call_int_getter(JNIEnv *env, jobject value, const char *name);
+
+jobjectArray encode_string_slice(JNIEnv *env, NativeStringSlice values) {
+    return new_java_string_array(env, values);
+}
+
+NativeStringSlice decode_string_list(JNIEnv *env, jobject list, std::deque<std::string> *string_storage) {
+    if (list == nullptr) {
+        return NativeStringSlice {
+            .data = nullptr,
+            .len = 0,
+        };
+    }
+
+    jint size = call_list_size(env, list);
+    result_string_slice_storage.emplace_back();
+    auto &storage = result_string_slice_storage.back();
+    storage.reserve(static_cast<size_t>(size));
+
+    for (jint index = 0; index < size; index += 1) {
+        jobject value = call_list_get(env, list, index);
+        storage.push_back(string_ref_from_java(env, static_cast<jstring>(value), string_storage));
+        env->DeleteLocalRef(value);
+    }
+
+    return NativeStringSlice {
+        .data = storage.data(),
+        .len = static_cast<uint32_t>(storage.size()),
+    };
+}
 
 jintArray encode_u8_slice(JNIEnv *env, NativeU8Slice values) {
     jintArray array = env->NewIntArray(static_cast<jsize>(values.len));
@@ -204,274 +304,6 @@ NativeI16Slice decode_i16_list(JNIEnv *env, jobject list) {
     };
 }
 
-jobject encode_HostCalendarRecurrenceWeekday(JNIEnv *env, HostCalendarRecurrenceWeekday value);
-jobject encode_HostCalendarAttendee(JNIEnv *env, HostCalendarAttendee value);
-jobject encode_HostCalendarParticipantStatus(JNIEnv *env, HostCalendarParticipantStatus value);
-jobject encode_HostCalendarReminder(JNIEnv *env, HostCalendarReminder value);
-jobject encode_HostCalendarReminderKind(JNIEnv *env, HostCalendarReminderKind value);
-jobjectArray encode_HostCalendarRecurrenceWeekdaySlice(JNIEnv *env, HostCalendarRecurrenceWeekdaySlice value);
-jobjectArray encode_HostCalendarAttendeeSlice(JNIEnv *env, HostCalendarAttendeeSlice value);
-jobjectArray encode_HostCalendarReminderSlice(JNIEnv *env, HostCalendarReminderSlice value);
-
-jobject encode_HostCalendarRecurrenceWeekday(JNIEnv *env, HostCalendarRecurrenceWeekday value) {
-    jclass value_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarRecurrenceWeekday");
-    if (value_class == nullptr) {
-        return nullptr;
-    }
-
-    jmethodID constructor = resolve_constructor(env, value_class, "(IZI)V");
-    if (constructor == nullptr) {
-        env->DeleteLocalRef(value_class);
-        return nullptr;
-    }
-
-
-    jobject result = env->NewObject(
-        value_class,
-        constructor,
-        static_cast<jint>(value.day),
-        value.has_week_number ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(value.week_number)
-    );
-
-    env->DeleteLocalRef(value_class);
-
-    return result;
-}
-
-jobject encode_HostCalendarAttendee(JNIEnv *env, HostCalendarAttendee value) {
-    jclass value_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarAttendee");
-    if (value_class == nullptr) {
-        return nullptr;
-    }
-
-    jmethodID constructor = resolve_constructor(env, value_class, "(ZLjava/lang/String;ZLjava/lang/String;ZLjava/lang/String;ZZLdev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;)V");
-    if (constructor == nullptr) {
-        env->DeleteLocalRef(value_class);
-        return nullptr;
-    }
-
-    jstring id_value = java_string_or_null(env, value.id);
-    jstring name_value = java_string_or_null(env, value.name);
-    jstring email_value = java_string_or_null(env, value.email);
-    jobject response_status_value = encode_HostCalendarParticipantStatus(env, value.response_status);
-
-    jobject result = env->NewObject(
-        value_class,
-        constructor,
-        value.has_id ? JNI_TRUE : JNI_FALSE,
-        id_value,
-        value.has_name ? JNI_TRUE : JNI_FALSE,
-        name_value,
-        value.has_email ? JNI_TRUE : JNI_FALSE,
-        email_value,
-        value.optional ? JNI_TRUE : JNI_FALSE,
-        value.organizer ? JNI_TRUE : JNI_FALSE,
-        response_status_value
-    );
-
-    if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-    if (name_value != nullptr) { env->DeleteLocalRef(name_value); }
-    if (email_value != nullptr) { env->DeleteLocalRef(email_value); }
-    if (response_status_value != nullptr) { env->DeleteLocalRef(response_status_value); }
-    env->DeleteLocalRef(value_class);
-
-    return result;
-}
-
-jobject encode_HostCalendarParticipantStatus(JNIEnv *env, HostCalendarParticipantStatus value) {
-    jclass value_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus");
-    if (value_class == nullptr) {
-        return nullptr;
-    }
-
-    jobject result = nullptr;
-
-    switch (value) {
-        case HostCalendarParticipantStatus::Unknown: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Unknown", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarParticipantStatus::Pending: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Pending", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarParticipantStatus::Accepted: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Accepted", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarParticipantStatus::Tentative: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Tentative", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarParticipantStatus::Declined: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Declined", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarParticipantStatus::Delegated: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Delegated", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarParticipantStatus::Completed: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Completed", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarParticipantStatus::InProcess: {
-            jfieldID field = env->GetStaticFieldID(value_class, "InProcess", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarParticipantStatus;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        default:
-            break;
-    }
-
-    env->DeleteLocalRef(value_class);
-
-    return result;
-}
-
-jobject encode_HostCalendarReminder(JNIEnv *env, HostCalendarReminder value) {
-    jclass value_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminder");
-    if (value_class == nullptr) {
-        return nullptr;
-    }
-
-    jmethodID constructor = resolve_constructor(env, value_class, "(Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminderKind;JI)V");
-    if (constructor == nullptr) {
-        env->DeleteLocalRef(value_class);
-        return nullptr;
-    }
-
-    jobject kind_value = encode_HostCalendarReminderKind(env, value.kind);
-
-    jobject result = env->NewObject(
-        value_class,
-        constructor,
-        kind_value,
-        static_cast<jlong>(value.absolute_unix_ns),
-        static_cast<jint>(value.minutes_before_start)
-    );
-
-    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
-    env->DeleteLocalRef(value_class);
-
-    return result;
-}
-
-jobject encode_HostCalendarReminderKind(JNIEnv *env, HostCalendarReminderKind value) {
-    jclass value_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminderKind");
-    if (value_class == nullptr) {
-        return nullptr;
-    }
-
-    jobject result = nullptr;
-
-    switch (value) {
-        case HostCalendarReminderKind::Absolute: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Absolute", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminderKind;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        case HostCalendarReminderKind::Relative: {
-            jfieldID field = env->GetStaticFieldID(value_class, "Relative", "Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminderKind;");
-            result = field == nullptr ? nullptr : env->GetStaticObjectField(value_class, field);
-            break;
-        }
-        default:
-            break;
-    }
-
-    env->DeleteLocalRef(value_class);
-
-    return result;
-}
-
-jobjectArray encode_HostCalendarRecurrenceWeekdaySlice(JNIEnv *env, HostCalendarRecurrenceWeekdaySlice value) {
-    jclass element_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarRecurrenceWeekday");
-    if (element_class == nullptr) {
-        return nullptr;
-    }
-
-    jobjectArray array = env->NewObjectArray(static_cast<jsize>(value.len), element_class, nullptr);
-    env->DeleteLocalRef(element_class);
-    if (array == nullptr) {
-        return nullptr;
-    }
-
-    for (uint32_t index = 0; index < value.len; index += 1) {
-        jobject element = encode_HostCalendarRecurrenceWeekday(env, value.data[index]);
-        if (element == nullptr) {
-            env->DeleteLocalRef(array);
-            return nullptr;
-        }
-
-        env->SetObjectArrayElement(array, static_cast<jsize>(index), element);
-        env->DeleteLocalRef(element);
-    }
-
-    return array;
-}
-
-jobjectArray encode_HostCalendarAttendeeSlice(JNIEnv *env, HostCalendarAttendeeSlice value) {
-    jclass element_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarAttendee");
-    if (element_class == nullptr) {
-        return nullptr;
-    }
-
-    jobjectArray array = env->NewObjectArray(static_cast<jsize>(value.len), element_class, nullptr);
-    env->DeleteLocalRef(element_class);
-    if (array == nullptr) {
-        return nullptr;
-    }
-
-    for (uint32_t index = 0; index < value.len; index += 1) {
-        jobject element = encode_HostCalendarAttendee(env, value.data[index]);
-        if (element == nullptr) {
-            env->DeleteLocalRef(array);
-            return nullptr;
-        }
-
-        env->SetObjectArrayElement(array, static_cast<jsize>(index), element);
-        env->DeleteLocalRef(element);
-    }
-
-    return array;
-}
-
-jobjectArray encode_HostCalendarReminderSlice(JNIEnv *env, HostCalendarReminderSlice value) {
-    jclass element_class = env->FindClass("dev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminder");
-    if (element_class == nullptr) {
-        return nullptr;
-    }
-
-    jobjectArray array = env->NewObjectArray(static_cast<jsize>(value.len), element_class, nullptr);
-    env->DeleteLocalRef(element_class);
-    if (array == nullptr) {
-        return nullptr;
-    }
-
-    for (uint32_t index = 0; index < value.len; index += 1) {
-        jobject element = encode_HostCalendarReminder(env, value.data[index]);
-        if (element == nullptr) {
-            env->DeleteLocalRef(array);
-            return nullptr;
-        }
-
-        env->SetObjectArrayElement(array, static_cast<jsize>(index), element);
-        env->DeleteLocalRef(element);
-    }
-
-    return array;
-}
-
-
 HostCalendarListResponse decode_HostCalendarListResponse(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 HostCalendarDescriptor decode_HostCalendarDescriptor(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 HostCalendarAccess decode_HostCalendarAccess(JNIEnv *env, jobject value);
@@ -484,7 +316,6 @@ HostCalendarRecurrenceWeekday decode_HostCalendarRecurrenceWeekday(JNIEnv *env, 
 HostCalendarAttendee decode_HostCalendarAttendee(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 HostCalendarParticipantStatus decode_HostCalendarParticipantStatus(JNIEnv *env, jobject value);
 HostCalendarReminder decode_HostCalendarReminder(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
-HostCalendarReminderKind decode_HostCalendarReminderKind(JNIEnv *env, jobject value);
 HostCalendarEventReadResponse decode_HostCalendarEventReadResponse(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 HostCalendarEventCreateResponse decode_HostCalendarEventCreateResponse(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
 HostCalendarDescriptorSlice decode_HostCalendarDescriptorSlice(JNIEnv *env, jobject value, std::deque<std::string> *string_storage);
@@ -588,8 +419,7 @@ HostCalendarDescriptor decode_HostCalendarDescriptor(JNIEnv *env, jobject value,
     if (source_value != nullptr) { env->DeleteLocalRef(source_value); }
 
     jobject owner_value = call_object_getter(env, value, "getOwner", "()Ljava/lang/String;");
-    decoded.has_owner = owner_value != nullptr;
-    decoded.owner = owner_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(owner_value), string_storage);
+    decoded.owner = ([&]() -> OptionalStringRef { if (owner_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(owner_value), string_storage) }; })();
     if (owner_value != nullptr) { env->DeleteLocalRef(owner_value); }
 
     decoded.color_argb = static_cast<uint32_t>(call_int_getter(env, value, "getColorArgb"));
@@ -639,13 +469,11 @@ HostCalendarEvent decode_HostCalendarEvent(JNIEnv *env, jobject value, std::dequ
     if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
 
     jobject notes_value = call_object_getter(env, value, "getNotes", "()Ljava/lang/String;");
-    decoded.has_notes = notes_value != nullptr;
-    decoded.notes = notes_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(notes_value), string_storage);
+    decoded.notes = ([&]() -> OptionalStringRef { if (notes_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(notes_value), string_storage) }; })();
     if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
 
     jobject location_value = call_object_getter(env, value, "getLocation", "()Ljava/lang/String;");
-    decoded.has_location = location_value != nullptr;
-    decoded.location = location_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(location_value), string_storage);
+    decoded.location = ([&]() -> OptionalStringRef { if (location_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(location_value), string_storage) }; })();
     if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
 
     decoded.start_unix_ns = static_cast<uint64_t>(call_long_getter(env, value, "getStartUnixNs"));
@@ -657,8 +485,7 @@ HostCalendarEvent decode_HostCalendarEvent(JNIEnv *env, jobject value, std::dequ
     decoded.canceled = call_boolean_getter(env, value, "getCanceled") == JNI_TRUE;
 
     jobject time_zone_value = call_object_getter(env, value, "getTimeZone", "()Ljava/lang/String;");
-    decoded.has_time_zone = time_zone_value != nullptr;
-    decoded.time_zone = time_zone_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(time_zone_value), string_storage);
+    decoded.time_zone = ([&]() -> OptionalStringRef { if (time_zone_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(time_zone_value), string_storage) }; })();
     if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
 
     jobject availability_value = call_object_getter(env, value, "getAvailability", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarAvailability;");
@@ -666,45 +493,37 @@ HostCalendarEvent decode_HostCalendarEvent(JNIEnv *env, jobject value, std::dequ
     if (availability_value != nullptr) { env->DeleteLocalRef(availability_value); }
 
     jobject url_value = call_object_getter(env, value, "getUrl", "()Ljava/lang/String;");
-    decoded.has_url = url_value != nullptr;
-    decoded.url = url_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(url_value), string_storage);
+    decoded.url = ([&]() -> OptionalStringRef { if (url_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(url_value), string_storage) }; })();
     if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
 
     jobject organizer_name_value = call_object_getter(env, value, "getOrganizerName", "()Ljava/lang/String;");
-    decoded.has_organizer_name = organizer_name_value != nullptr;
-    decoded.organizer_name = organizer_name_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(organizer_name_value), string_storage);
+    decoded.organizer_name = ([&]() -> OptionalStringRef { if (organizer_name_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(organizer_name_value), string_storage) }; })();
     if (organizer_name_value != nullptr) { env->DeleteLocalRef(organizer_name_value); }
 
     jobject organizer_email_value = call_object_getter(env, value, "getOrganizerEmail", "()Ljava/lang/String;");
-    decoded.has_organizer_email = organizer_email_value != nullptr;
-    decoded.organizer_email = organizer_email_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(organizer_email_value), string_storage);
+    decoded.organizer_email = ([&]() -> OptionalStringRef { if (organizer_email_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(organizer_email_value), string_storage) }; })();
     if (organizer_email_value != nullptr) { env->DeleteLocalRef(organizer_email_value); }
 
     decoded.recurring = call_boolean_getter(env, value, "getRecurring") == JNI_TRUE;
 
     jobject recurrence_master_id_value = call_object_getter(env, value, "getRecurrenceMasterId", "()Ljava/lang/String;");
-    decoded.has_recurrence_master_id = recurrence_master_id_value != nullptr;
-    decoded.recurrence_master_id = recurrence_master_id_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(recurrence_master_id_value), string_storage);
+    decoded.recurrence_master_id = ([&]() -> OptionalStringRef { if (recurrence_master_id_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(recurrence_master_id_value), string_storage) }; })();
     if (recurrence_master_id_value != nullptr) { env->DeleteLocalRef(recurrence_master_id_value); }
 
     jobject recurrence_id_unix_ns_value = call_object_getter(env, value, "getRecurrenceIdUnixNs", "()Ljava/lang/Long;");
-    decoded.has_recurrence_id_unix_ns = recurrence_id_unix_ns_value != nullptr;
-    decoded.recurrence_id_unix_ns = recurrence_id_unix_ns_value == nullptr ? 0 : decode_boxed_u64(env, recurrence_id_unix_ns_value);
+    decoded.recurrence_id_unix_ns = ([&]() -> OptionalU64 { if (recurrence_id_unix_ns_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, recurrence_id_unix_ns_value) }; })();
     if (recurrence_id_unix_ns_value != nullptr) { env->DeleteLocalRef(recurrence_id_unix_ns_value); }
 
     jobject recurrence_rule_value = call_object_getter(env, value, "getRecurrenceRule", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarRecurrenceRule;");
-    decoded.has_recurrence_rule = recurrence_rule_value != nullptr;
-    decoded.recurrence_rule = recurrence_rule_value == nullptr ? HostCalendarRecurrenceRule {} : decode_HostCalendarRecurrenceRule(env, recurrence_rule_value, string_storage);
+    decoded.recurrence_rule = ([&]() -> OptionalHostCalendarRecurrenceRule { if (recurrence_rule_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostCalendarRecurrenceRule(env, recurrence_rule_value, string_storage) }; })();
     if (recurrence_rule_value != nullptr) { env->DeleteLocalRef(recurrence_rule_value); }
 
     jobject attendees_value = call_object_getter(env, value, "getAttendees", "()Ljava/util/List;");
-    decoded.has_attendees = attendees_value != nullptr;
-    decoded.attendees = attendees_value == nullptr ? HostCalendarAttendeeSlice { .data = nullptr, .len = 0 } : decode_HostCalendarAttendeeSlice(env, attendees_value, string_storage);
+    decoded.attendees = ([&]() -> OptionalHostCalendarAttendeeSlice { if (attendees_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostCalendarAttendeeSlice(env, attendees_value, string_storage) }; })();
     if (attendees_value != nullptr) { env->DeleteLocalRef(attendees_value); }
 
     jobject reminders_value = call_object_getter(env, value, "getReminders", "()Ljava/util/List;");
-    decoded.has_reminders = reminders_value != nullptr;
-    decoded.reminders = reminders_value == nullptr ? HostCalendarReminderSlice { .data = nullptr, .len = 0 } : decode_HostCalendarReminderSlice(env, reminders_value, string_storage);
+    decoded.reminders = ([&]() -> OptionalHostCalendarReminderSlice { if (reminders_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostCalendarReminderSlice(env, reminders_value, string_storage) }; })();
     if (reminders_value != nullptr) { env->DeleteLocalRef(reminders_value); }
 
 
@@ -727,13 +546,11 @@ HostCalendarRecurrenceRule decode_HostCalendarRecurrenceRule(JNIEnv *env, jobjec
     decoded.interval = static_cast<uint32_t>(call_int_getter(env, value, "getInterval"));
 
     jobject count_value = call_object_getter(env, value, "getCount", "()Ljava/lang/Integer;");
-    decoded.has_count = count_value != nullptr;
-    decoded.count = count_value == nullptr ? 0 : static_cast<uint32_t>(call_int_getter(env, count_value, "intValue"));
+    decoded.count = ([&]() -> OptionalU32 { if (count_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = static_cast<uint32_t>(call_int_getter(env, count_value, "intValue")) }; })();
     if (count_value != nullptr) { env->DeleteLocalRef(count_value); }
 
     jobject until_unix_ns_value = call_object_getter(env, value, "getUntilUnixNs", "()Ljava/lang/Long;");
-    decoded.has_until_unix_ns = until_unix_ns_value != nullptr;
-    decoded.until_unix_ns = until_unix_ns_value == nullptr ? 0 : decode_boxed_u64(env, until_unix_ns_value);
+    decoded.until_unix_ns = ([&]() -> OptionalU64 { if (until_unix_ns_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_boxed_u64(env, until_unix_ns_value) }; })();
     if (until_unix_ns_value != nullptr) { env->DeleteLocalRef(until_unix_ns_value); }
 
     jobject by_week_days_value = call_object_getter(env, value, "getByWeekDays", "()Ljava/util/List;");
@@ -780,8 +597,7 @@ HostCalendarRecurrenceWeekday decode_HostCalendarRecurrenceWeekday(JNIEnv *env, 
     decoded.day = static_cast<uint8_t>(call_int_getter(env, value, "getDay"));
 
     jobject week_number_value = call_object_getter(env, value, "getWeekNumber", "()Ljava/lang/Integer;");
-    decoded.has_week_number = week_number_value != nullptr;
-    decoded.week_number = week_number_value == nullptr ? 0 : static_cast<int8_t>(call_int_getter(env, week_number_value, "intValue"));
+    decoded.week_number = ([&]() -> OptionalI8 { if (week_number_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = static_cast<int8_t>(call_int_getter(env, week_number_value, "intValue")) }; })();
     if (week_number_value != nullptr) { env->DeleteLocalRef(week_number_value); }
 
 
@@ -792,18 +608,15 @@ HostCalendarAttendee decode_HostCalendarAttendee(JNIEnv *env, jobject value, std
     HostCalendarAttendee decoded = {};
 
     jobject id_value = call_object_getter(env, value, "getId", "()Ljava/lang/String;");
-    decoded.has_id = id_value != nullptr;
-    decoded.id = id_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(id_value), string_storage);
+    decoded.id = ([&]() -> OptionalStringRef { if (id_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(id_value), string_storage) }; })();
     if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
 
     jobject name_value = call_object_getter(env, value, "getName", "()Ljava/lang/String;");
-    decoded.has_name = name_value != nullptr;
-    decoded.name = name_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(name_value), string_storage);
+    decoded.name = ([&]() -> OptionalStringRef { if (name_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(name_value), string_storage) }; })();
     if (name_value != nullptr) { env->DeleteLocalRef(name_value); }
 
     jobject email_value = call_object_getter(env, value, "getEmail", "()Ljava/lang/String;");
-    decoded.has_email = email_value != nullptr;
-    decoded.email = email_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(email_value), string_storage);
+    decoded.email = ([&]() -> OptionalStringRef { if (email_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(email_value), string_storage) }; })();
     if (email_value != nullptr) { env->DeleteLocalRef(email_value); }
 
     decoded.optional = call_boolean_getter(env, value, "getOptional") == JNI_TRUE;
@@ -827,22 +640,17 @@ HostCalendarParticipantStatus decode_HostCalendarParticipantStatus(JNIEnv *env, 
 HostCalendarReminder decode_HostCalendarReminder(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
     HostCalendarReminder decoded = {};
 
-    jobject kind_value = call_object_getter(env, value, "getKind", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminderKind;");
-    decoded.kind = decode_HostCalendarReminderKind(env, kind_value);
-    if (kind_value != nullptr) { env->DeleteLocalRef(kind_value); }
+    decoded.tag = static_cast<HostCalendarReminderTag>(call_int_getter(env, value, "tag"));
 
-    decoded.absolute_unix_ns = static_cast<uint64_t>(call_long_getter(env, value, "getAbsoluteUnixNs"));
+    jobject calendar_absolute_reminder_value = call_object_getter(env, value, "getCalendarAbsoluteReminder", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarAbsoluteReminder;");
+    decoded.calendar_absolute_reminder = decode_HostCalendarAbsoluteReminder(env, calendar_absolute_reminder_value, string_storage);
+    if (calendar_absolute_reminder_value != nullptr) { env->DeleteLocalRef(calendar_absolute_reminder_value); }
 
-    decoded.minutes_before_start = static_cast<int32_t>(call_int_getter(env, value, "getMinutesBeforeStart"));
-
+    jobject calendar_relative_reminder_value = call_object_getter(env, value, "getCalendarRelativeReminder", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarRelativeReminder;");
+    decoded.calendar_relative_reminder = decode_HostCalendarRelativeReminder(env, calendar_relative_reminder_value, string_storage);
+    if (calendar_relative_reminder_value != nullptr) { env->DeleteLocalRef(calendar_relative_reminder_value); }
 
     return decoded;
-}
-
-HostCalendarReminderKind decode_HostCalendarReminderKind(JNIEnv *env, jobject value) {
-    jint ordinal = call_int_getter(env, value, "ordinal");
-
-    return static_cast<HostCalendarReminderKind>(ordinal + 1);
 }
 
 HostCalendarEventReadResponse decode_HostCalendarEventReadResponse(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {
@@ -851,8 +659,7 @@ HostCalendarEventReadResponse decode_HostCalendarEventReadResponse(JNIEnv *env, 
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject event_value = call_object_getter(env, value, "getEvent", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEvent;");
-    decoded.has_event = event_value != nullptr;
-    decoded.event = event_value == nullptr ? HostCalendarEvent {} : decode_HostCalendarEvent(env, event_value, string_storage);
+    decoded.event = ([&]() -> OptionalHostCalendarEvent { if (event_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = decode_HostCalendarEvent(env, event_value, string_storage) }; })();
     if (event_value != nullptr) { env->DeleteLocalRef(event_value); }
 
 
@@ -865,8 +672,7 @@ HostCalendarEventCreateResponse decode_HostCalendarEventCreateResponse(JNIEnv *e
     decoded.status = static_cast<uint32_t>(call_int_getter(env, value, "getStatus"));
 
     jobject id_value = call_object_getter(env, value, "getId", "()Ljava/lang/String;");
-    decoded.has_id = id_value != nullptr;
-    decoded.id = id_value == nullptr ? NativeStringRef { .data = nullptr, .len = 0 } : string_ref_from_java(env, static_cast<jstring>(id_value), string_storage);
+    decoded.id = ([&]() -> OptionalStringRef { if (id_value == nullptr) { return { .has_value = false, .value = {} }; } return { .has_value = true, .value = string_ref_from_java(env, static_cast<jstring>(id_value), string_storage) }; })();
     if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
 
 
@@ -1028,7 +834,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         list_method = env->GetMethodID(
             bridge_class,
             "calendarList",
-            "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarListResponse;"
+            "()Ldev/destack/runtime/android/bridge/RuntimeHostCalendarListResponse;"
         );
     }
 
@@ -1036,7 +842,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         eventList_method = env->GetMethodID(
             bridge_class,
             "calendarEventList",
-            "([Ljava/lang/String;JJZIZZZ)Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventListResponse;"
+            "([Ljava/lang/String;JJLjava/lang/Integer;ZZZ)Ldev/destack/runtime/android/bridge/RuntimeHostCalendarEventListResponse;"
         );
     }
 
@@ -1044,7 +850,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         eventRead_method = env->GetMethodID(
             bridge_class,
             "calendarEventRead",
-            "(Ljava/lang/String;)Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventReadResponse;"
+            "(Ljava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostCalendarEventReadResponse;"
         );
     }
 
@@ -1052,7 +858,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         eventCreate_method = env->GetMethodID(
             bridge_class,
             "calendarEventCreate",
-            "(Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ZLjava/lang/String;JJZZLjava/lang/String;IZLjava/lang/String;ZIIZIZJ[I[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarRecurrenceWeekday;[I[I[I[I[IZ[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarAttendee;Z[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminder;)Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventCreateResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJZLjava/lang/String;ILjava/lang/String;Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarRecurrenceRule;[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarAttendee;[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminder;)Ldev/destack/runtime/android/bridge/RuntimeHostCalendarEventCreateResponse;"
         );
     }
 
@@ -1060,7 +866,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         eventUpdate_method = env->GetMethodID(
             bridge_class,
             "calendarEventUpdate",
-            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ZLjava/lang/String;JJZZLjava/lang/String;IZLjava/lang/String;ZIIZIZJ[I[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarRecurrenceWeekday;[I[I[I[I[IZ[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarAttendee;Z[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminder;)I"
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJZLjava/lang/String;ILjava/lang/String;Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarRecurrenceRule;[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarAttendee;[Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarReminder;)I"
         );
     }
 
@@ -1116,7 +922,13 @@ uint32_t call_calendar_list(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostCalendarListResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarListResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostCalendarListResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
@@ -1149,6 +961,7 @@ uint32_t call_calendar_event_list(
         env->DeleteLocalRef(bridge);
         return HOST_STATUS_FAILED;
     }
+    jobject limit_value = query.limit.has_value ? box_int(env, static_cast<jint>(query.limit.value)) : nullptr;
 
     jobject response_object = env->CallObjectMethod(
         bridge,
@@ -1156,14 +969,14 @@ uint32_t call_calendar_event_list(
         calendar_ids_value,
         static_cast<jlong>(query.start_unix_ns),
         static_cast<jlong>(query.end_unix_ns),
-        query.has_limit ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(query.limit),
+        limit_value,
         query.include_canceled ? JNI_TRUE : JNI_FALSE,
         query.include_declined ? JNI_TRUE : JNI_FALSE,
         query.include_recurrence_instances ? JNI_TRUE : JNI_FALSE
     );
     if (response_object == nullptr) {
         if (calendar_ids_value != nullptr) { env->DeleteLocalRef(calendar_ids_value); }
+        if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
         }
@@ -1176,9 +989,16 @@ uint32_t call_calendar_event_list(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostCalendarEventListResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventListResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostCalendarEventListResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (calendar_ids_value != nullptr) { env->DeleteLocalRef(calendar_ids_value); }
+    if (limit_value != nullptr) { env->DeleteLocalRef(limit_value); }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);
 
@@ -1223,7 +1043,13 @@ uint32_t call_calendar_event_read(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostCalendarEventReadResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventReadResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostCalendarEventReadResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
     env->DeleteLocalRef(response_object);
@@ -1251,207 +1077,30 @@ uint32_t call_calendar_event_create(
 
     jstring calendar_id_value = java_string_or_null(env, draft.calendar_id);
     jstring title_value = java_string_or_null(env, draft.title);
-    jstring notes_value = java_string_or_null(env, draft.notes);
-    jstring location_value = java_string_or_null(env, draft.location);
-    jstring time_zone_value = java_string_or_null(env, draft.time_zone);
-    jstring url_value = java_string_or_null(env, draft.url);
-    jintArray by_week_days_value = encode_u8_slice(env, draft.recurrence_rule.by_week_days);
-    if (by_week_days_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jobjectArray by_weekday_ordinals_value = encode_HostCalendarRecurrenceWeekdaySlice(env, draft.recurrence_rule.by_weekday_ordinals);
-    if (by_weekday_ordinals_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_month_days_value = encode_i8_slice(env, draft.recurrence_rule.by_month_days);
-    if (by_month_days_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_months_value = encode_u8_slice(env, draft.recurrence_rule.by_months);
-    if (by_months_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_year_days_value = encode_i16_slice(env, draft.recurrence_rule.by_year_days);
-    if (by_year_days_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_week_numbers_value = encode_i8_slice(env, draft.recurrence_rule.by_week_numbers);
-    if (by_week_numbers_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_set_positions_value = encode_i16_slice(env, draft.recurrence_rule.by_set_positions);
-    if (by_set_positions_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jobjectArray attendees_value = encode_HostCalendarAttendeeSlice(env, draft.attendees);
-    if (attendees_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-        if (by_set_positions_value != nullptr) { env->DeleteLocalRef(by_set_positions_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jobjectArray reminders_value = encode_HostCalendarReminderSlice(env, draft.reminders);
-    if (reminders_value == nullptr) {
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-        if (by_set_positions_value != nullptr) { env->DeleteLocalRef(by_set_positions_value); }
-        if (attendees_value != nullptr) { env->DeleteLocalRef(attendees_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
+    jstring notes_value = draft.notes.has_value ? java_string_or_null(env, draft.notes.value) : nullptr;
+    jstring location_value = draft.location.has_value ? java_string_or_null(env, draft.location.value) : nullptr;
+    jstring time_zone_value = draft.time_zone.has_value ? java_string_or_null(env, draft.time_zone.value) : nullptr;
+    jobject availability_value = encode_HostCalendarAvailability(env, draft.availability);
+    jstring url_value = draft.url.has_value ? java_string_or_null(env, draft.url.value) : nullptr;
+    jobject recurrence_rule_value = draft.recurrence_rule.has_value ? encode_HostCalendarRecurrenceRule(env, draft.recurrence_rule.value) : nullptr;
+    jobjectArray attendees_value = draft.attendees.has_value ? encode_HostCalendarAttendeeSlice(env, draft.attendees.value) : nullptr;
+    jobjectArray reminders_value = draft.reminders.has_value ? encode_HostCalendarReminderSlice(env, draft.reminders.value) : nullptr;
 
     jobject response_object = env->CallObjectMethod(
         bridge,
         eventCreate_method,
         calendar_id_value,
         title_value,
-        draft.has_notes ? JNI_TRUE : JNI_FALSE,
         notes_value,
-        draft.has_location ? JNI_TRUE : JNI_FALSE,
         location_value,
         static_cast<jlong>(draft.start_unix_ns),
         static_cast<jlong>(draft.end_unix_ns),
         draft.all_day ? JNI_TRUE : JNI_FALSE,
-        draft.has_time_zone ? JNI_TRUE : JNI_FALSE,
         time_zone_value,
-        static_cast<jint>(draft.availability),
-        draft.has_url ? JNI_TRUE : JNI_FALSE,
+        availability_value,
         url_value,
-        draft.has_recurrence_rule ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(draft.recurrence_rule.frequency),
-        static_cast<jint>(draft.recurrence_rule.interval),
-        draft.recurrence_rule.has_count ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(draft.recurrence_rule.count),
-        draft.recurrence_rule.has_until_unix_ns ? JNI_TRUE : JNI_FALSE,
-        static_cast<jlong>(draft.recurrence_rule.until_unix_ns),
-        by_week_days_value,
-        by_weekday_ordinals_value,
-        by_month_days_value,
-        by_months_value,
-        by_year_days_value,
-        by_week_numbers_value,
-        by_set_positions_value,
-        draft.has_attendees ? JNI_TRUE : JNI_FALSE,
+        recurrence_rule_value,
         attendees_value,
-        draft.has_reminders ? JNI_TRUE : JNI_FALSE,
         reminders_value
     );
     if (response_object == nullptr) {
@@ -1460,14 +1109,9 @@ uint32_t call_calendar_event_create(
         if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
         if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
         if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
+        if (availability_value != nullptr) { env->DeleteLocalRef(availability_value); }
         if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-        if (by_set_positions_value != nullptr) { env->DeleteLocalRef(by_set_positions_value); }
+        if (recurrence_rule_value != nullptr) { env->DeleteLocalRef(recurrence_rule_value); }
         if (attendees_value != nullptr) { env->DeleteLocalRef(attendees_value); }
         if (reminders_value != nullptr) { env->DeleteLocalRef(reminders_value); }
         if (env->ExceptionCheck()) {
@@ -1482,21 +1126,22 @@ uint32_t call_calendar_event_create(
 
     jint status = call_int_getter(env, response_object, "getStatus");
     if (status == HOST_STATUS_OK) {
-        *response = decode_HostCalendarEventCreateResponse(env, response_object, string_storage);
+        jobject response_value = call_object_getter(env, response_object, "getResponse", "()Ldev/destack/runtime/android/module/calendar/RuntimeHostCalendarEventCreateResponse;");
+        if (response_value == nullptr) {
+            status = HOST_STATUS_FAILED;
+        } else {
+            *response = decode_HostCalendarEventCreateResponse(env, response_value, string_storage);
+            env->DeleteLocalRef(response_value);
+        }
     }
     if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
     if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
     if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
     if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
     if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
+    if (availability_value != nullptr) { env->DeleteLocalRef(availability_value); }
     if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-    if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-    if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-    if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-    if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-    if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-    if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-    if (by_set_positions_value != nullptr) { env->DeleteLocalRef(by_set_positions_value); }
+    if (recurrence_rule_value != nullptr) { env->DeleteLocalRef(recurrence_rule_value); }
     if (attendees_value != nullptr) { env->DeleteLocalRef(attendees_value); }
     if (reminders_value != nullptr) { env->DeleteLocalRef(reminders_value); }
     env->DeleteLocalRef(response_object);
@@ -1525,181 +1170,14 @@ uint32_t call_calendar_event_update(
     jstring id_value = java_string_or_null(env, id);
     jstring calendar_id_value = java_string_or_null(env, draft.calendar_id);
     jstring title_value = java_string_or_null(env, draft.title);
-    jstring notes_value = java_string_or_null(env, draft.notes);
-    jstring location_value = java_string_or_null(env, draft.location);
-    jstring time_zone_value = java_string_or_null(env, draft.time_zone);
-    jstring url_value = java_string_or_null(env, draft.url);
-    jintArray by_week_days_value = encode_u8_slice(env, draft.recurrence_rule.by_week_days);
-    if (by_week_days_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jobjectArray by_weekday_ordinals_value = encode_HostCalendarRecurrenceWeekdaySlice(env, draft.recurrence_rule.by_weekday_ordinals);
-    if (by_weekday_ordinals_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_month_days_value = encode_i8_slice(env, draft.recurrence_rule.by_month_days);
-    if (by_month_days_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_months_value = encode_u8_slice(env, draft.recurrence_rule.by_months);
-    if (by_months_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_year_days_value = encode_i16_slice(env, draft.recurrence_rule.by_year_days);
-    if (by_year_days_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_week_numbers_value = encode_i8_slice(env, draft.recurrence_rule.by_week_numbers);
-    if (by_week_numbers_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jintArray by_set_positions_value = encode_i16_slice(env, draft.recurrence_rule.by_set_positions);
-    if (by_set_positions_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jobjectArray attendees_value = encode_HostCalendarAttendeeSlice(env, draft.attendees);
-    if (attendees_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-        if (by_set_positions_value != nullptr) { env->DeleteLocalRef(by_set_positions_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
-    jobjectArray reminders_value = encode_HostCalendarReminderSlice(env, draft.reminders);
-    if (reminders_value == nullptr) {
-        if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
-        if (calendar_id_value != nullptr) { env->DeleteLocalRef(calendar_id_value); }
-        if (title_value != nullptr) { env->DeleteLocalRef(title_value); }
-        if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
-        if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
-        if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
-        if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-        if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-        if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-        if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-        if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-        if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-        if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-        if (by_set_positions_value != nullptr) { env->DeleteLocalRef(by_set_positions_value); }
-        if (attendees_value != nullptr) { env->DeleteLocalRef(attendees_value); }
-        if (env->ExceptionCheck()) {
-            env->ExceptionClear();
-        }
-        env->DeleteLocalRef(bridge);
-        return HOST_STATUS_FAILED;
-    }
+    jstring notes_value = draft.notes.has_value ? java_string_or_null(env, draft.notes.value) : nullptr;
+    jstring location_value = draft.location.has_value ? java_string_or_null(env, draft.location.value) : nullptr;
+    jstring time_zone_value = draft.time_zone.has_value ? java_string_or_null(env, draft.time_zone.value) : nullptr;
+    jobject availability_value = encode_HostCalendarAvailability(env, draft.availability);
+    jstring url_value = draft.url.has_value ? java_string_or_null(env, draft.url.value) : nullptr;
+    jobject recurrence_rule_value = draft.recurrence_rule.has_value ? encode_HostCalendarRecurrenceRule(env, draft.recurrence_rule.value) : nullptr;
+    jobjectArray attendees_value = draft.attendees.has_value ? encode_HostCalendarAttendeeSlice(env, draft.attendees.value) : nullptr;
+    jobjectArray reminders_value = draft.reminders.has_value ? encode_HostCalendarReminderSlice(env, draft.reminders.value) : nullptr;
 
     jint status = env->CallIntMethod(
         bridge,
@@ -1707,35 +1185,16 @@ uint32_t call_calendar_event_update(
         id_value,
         calendar_id_value,
         title_value,
-        draft.has_notes ? JNI_TRUE : JNI_FALSE,
         notes_value,
-        draft.has_location ? JNI_TRUE : JNI_FALSE,
         location_value,
         static_cast<jlong>(draft.start_unix_ns),
         static_cast<jlong>(draft.end_unix_ns),
         draft.all_day ? JNI_TRUE : JNI_FALSE,
-        draft.has_time_zone ? JNI_TRUE : JNI_FALSE,
         time_zone_value,
-        static_cast<jint>(draft.availability),
-        draft.has_url ? JNI_TRUE : JNI_FALSE,
+        availability_value,
         url_value,
-        draft.has_recurrence_rule ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(draft.recurrence_rule.frequency),
-        static_cast<jint>(draft.recurrence_rule.interval),
-        draft.recurrence_rule.has_count ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(draft.recurrence_rule.count),
-        draft.recurrence_rule.has_until_unix_ns ? JNI_TRUE : JNI_FALSE,
-        static_cast<jlong>(draft.recurrence_rule.until_unix_ns),
-        by_week_days_value,
-        by_weekday_ordinals_value,
-        by_month_days_value,
-        by_months_value,
-        by_year_days_value,
-        by_week_numbers_value,
-        by_set_positions_value,
-        draft.has_attendees ? JNI_TRUE : JNI_FALSE,
+        recurrence_rule_value,
         attendees_value,
-        draft.has_reminders ? JNI_TRUE : JNI_FALSE,
         reminders_value
     );
     if (id_value != nullptr) { env->DeleteLocalRef(id_value); }
@@ -1744,14 +1203,9 @@ uint32_t call_calendar_event_update(
     if (notes_value != nullptr) { env->DeleteLocalRef(notes_value); }
     if (location_value != nullptr) { env->DeleteLocalRef(location_value); }
     if (time_zone_value != nullptr) { env->DeleteLocalRef(time_zone_value); }
+    if (availability_value != nullptr) { env->DeleteLocalRef(availability_value); }
     if (url_value != nullptr) { env->DeleteLocalRef(url_value); }
-    if (by_week_days_value != nullptr) { env->DeleteLocalRef(by_week_days_value); }
-    if (by_weekday_ordinals_value != nullptr) { env->DeleteLocalRef(by_weekday_ordinals_value); }
-    if (by_month_days_value != nullptr) { env->DeleteLocalRef(by_month_days_value); }
-    if (by_months_value != nullptr) { env->DeleteLocalRef(by_months_value); }
-    if (by_year_days_value != nullptr) { env->DeleteLocalRef(by_year_days_value); }
-    if (by_week_numbers_value != nullptr) { env->DeleteLocalRef(by_week_numbers_value); }
-    if (by_set_positions_value != nullptr) { env->DeleteLocalRef(by_set_positions_value); }
+    if (recurrence_rule_value != nullptr) { env->DeleteLocalRef(recurrence_rule_value); }
     if (attendees_value != nullptr) { env->DeleteLocalRef(attendees_value); }
     if (reminders_value != nullptr) { env->DeleteLocalRef(reminders_value); }
     env->DeleteLocalRef(bridge);

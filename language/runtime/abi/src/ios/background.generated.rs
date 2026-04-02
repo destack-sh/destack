@@ -16,7 +16,7 @@ use crate::host::apple::abi::background::{
 };
 use crate::host::apple::abi::ingress::destack_host_ios_notify_background_event as runtime_notify_background_event;
 
-/// Forward the `status` background request through the ABI artifact.
+/// Forward the `status` background request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_background_status(
     session_handle: u64,
@@ -25,7 +25,7 @@ pub unsafe extern "C" fn destack_host_ios_background_status(
     unsafe { runtime_background_status(session_handle, response) }
 }
 
-/// Forward the `list` background request through the ABI artifact.
+/// Forward the `list` background request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_background_list(
     session_handle: u64,
@@ -34,7 +34,7 @@ pub unsafe extern "C" fn destack_host_ios_background_list(
     unsafe { runtime_background_list(session_handle, response) }
 }
 
-/// Forward the `register_task` background request through the ABI artifact.
+/// Forward the `register_task` background request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_background_register_task(
     session_handle: u64,
@@ -43,7 +43,7 @@ pub unsafe extern "C" fn destack_host_ios_background_register_task(
     unsafe { runtime_background_register_task(session_handle, request) }
 }
 
-/// Forward the `unregister` background request through the ABI artifact.
+/// Forward the `unregister` background request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_background_unregister(
     session_handle: u64,
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn destack_host_ios_background_unregister(
     unsafe { runtime_background_unregister(session_handle, request) }
 }
 
-/// Forward the `trigger_test` background request through the ABI artifact.
+/// Forward the `trigger_test` background request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_background_trigger_test(
     session_handle: u64,
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn destack_host_ios_background_trigger_test(
     unsafe { runtime_background_trigger_test(session_handle, request, response) }
 }
 
-/// Forward the `complete` background request through the ABI artifact.
+/// Forward the `complete` background request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_background_complete(
     session_handle: u64,
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn destack_host_ios_background_complete(
     unsafe { runtime_background_complete(session_handle, request) }
 }
 
-/// Forward the `notify_background_event` ingress through the ABI artifact.
+/// Forward the `notify_background_event` ingress through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_ios_notify_background_event(
     runtime_id: u64,

@@ -28,8 +28,8 @@ AndroidHostNotificationCallbacks make_notification_callbacks();
 /// Register the notification runtime ingress JNI methods.
 bool register_notification_runtime_natives(JNIEnv *env);
 
-/// Send the `notification_event` notification ingress payload into the runtime ingress path.
-RuntimeStatus send_notification_event(
+/// Send the `notify_notification_event` notification ingress payload into the runtime ingress path.
+RuntimeStatus send_notify_notification_event(
     uint64_t session_handle,
     HostNotificationEvent event
 );

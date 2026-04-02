@@ -35,8 +35,8 @@ AndroidHostTextCallbacks make_text_callbacks();
 /// Register the text runtime ingress JNI methods.
 bool register_text_runtime_natives(JNIEnv *env);
 
-/// Send the `text_input_state` text ingress payload into the runtime ingress path.
-RuntimeStatus send_text_input_state(
+/// Send the `notify_text_input_state` text ingress payload into the runtime ingress path.
+RuntimeStatus send_notify_text_input_state(
     uint64_t session_handle,
     HostTextInputEvent event
 );

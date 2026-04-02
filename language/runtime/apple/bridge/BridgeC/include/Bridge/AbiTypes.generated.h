@@ -5,296 +5,326 @@
 
 #include "BaseTypes.generated.h"
 
-typedef struct DestackRustBackgroundTaskSchedule DestackRustBackgroundTaskSchedule;
-typedef struct DestackRustBackgroundTaskOptions DestackRustBackgroundTaskOptions;
-typedef struct DestackRustBackgroundStatusResponse DestackRustBackgroundStatusResponse;
-typedef struct DestackRustBackgroundTaskDescriptor DestackRustBackgroundTaskDescriptor;
-typedef struct DestackRustBackgroundListResponse DestackRustBackgroundListResponse;
-typedef struct DestackRustBackgroundUnregisterRequest DestackRustBackgroundUnregisterRequest;
-typedef struct DestackRustBackgroundTriggerTestRequest DestackRustBackgroundTriggerTestRequest;
-typedef struct DestackRustBackgroundTriggerTestResponse DestackRustBackgroundTriggerTestResponse;
-typedef struct DestackRustBackgroundCompleteRequest DestackRustBackgroundCompleteRequest;
-typedef struct DestackRustBackgroundEventMetadata DestackRustBackgroundEventMetadata;
-typedef struct DestackRustBackgroundEvent DestackRustBackgroundEvent;
-typedef struct DestackRustCalendarRecurrenceWeekday DestackRustCalendarRecurrenceWeekday;
-typedef struct DestackRustCalendarRecurrenceRule DestackRustCalendarRecurrenceRule;
-typedef struct DestackRustCalendarAttendee DestackRustCalendarAttendee;
-typedef struct DestackRustCalendarReminder DestackRustCalendarReminder;
-typedef struct DestackRustCalendarDescriptor DestackRustCalendarDescriptor;
-typedef struct DestackRustCalendarEvent DestackRustCalendarEvent;
-typedef struct DestackRustCalendarEventDraft DestackRustCalendarEventDraft;
-typedef struct DestackRustCalendarEventQuery DestackRustCalendarEventQuery;
-typedef struct DestackRustCalendarListResponse DestackRustCalendarListResponse;
-typedef struct DestackRustCalendarEventListResponse DestackRustCalendarEventListResponse;
-typedef struct DestackRustCalendarEventReadResponse DestackRustCalendarEventReadResponse;
-typedef struct DestackRustCalendarEventCreateResponse DestackRustCalendarEventCreateResponse;
-typedef struct DestackRustContactQuery DestackRustContactQuery;
-typedef struct DestackRustContactName DestackRustContactName;
-typedef struct DestackRustContactPhone DestackRustContactPhone;
-typedef struct DestackRustContactEmail DestackRustContactEmail;
-typedef struct DestackRustContactAddress DestackRustContactAddress;
-typedef struct DestackRustContactOrganization DestackRustContactOrganization;
-typedef struct DestackRustContact DestackRustContact;
-typedef struct DestackRustContactDraft DestackRustContactDraft;
-typedef struct DestackRustContactPage DestackRustContactPage;
-typedef struct DestackRustContactPageResponse DestackRustContactPageResponse;
-typedef struct DestackRustContactResponse DestackRustContactResponse;
-typedef struct DestackRustContactCreateResponse DestackRustContactCreateResponse;
-typedef struct DestackRustDocumentRequest DestackRustDocumentRequest;
-typedef struct DestackRustDocumentDescriptor DestackRustDocumentDescriptor;
+typedef struct DestackRustHostBackgroundTaskSchedule DestackRustHostBackgroundTaskSchedule;
+typedef struct DestackRustHostBackgroundTaskOptions DestackRustHostBackgroundTaskOptions;
+typedef struct DestackRustHostBackgroundStatusResponse DestackRustHostBackgroundStatusResponse;
+typedef struct DestackRustHostBackgroundTaskDescriptor DestackRustHostBackgroundTaskDescriptor;
+typedef struct DestackRustHostBackgroundListResponse DestackRustHostBackgroundListResponse;
+typedef struct DestackRustHostBackgroundUnregisterRequest DestackRustHostBackgroundUnregisterRequest;
+typedef struct DestackRustHostBackgroundTriggerTestRequest DestackRustHostBackgroundTriggerTestRequest;
+typedef struct DestackRustHostBackgroundTriggerTestResponse DestackRustHostBackgroundTriggerTestResponse;
+typedef struct DestackRustHostBackgroundCompleteRequest DestackRustHostBackgroundCompleteRequest;
+typedef struct DestackRustHostBackgroundEventMetadata DestackRustHostBackgroundEventMetadata;
+typedef struct DestackRustHostBackgroundTaskReadyEvent DestackRustHostBackgroundTaskReadyEvent;
+typedef struct DestackRustHostBackgroundTaskExpiredEvent DestackRustHostBackgroundTaskExpiredEvent;
+typedef struct DestackRustHostBackgroundEvent DestackRustHostBackgroundEvent;
+typedef struct DestackRustHostCalendarRecurrenceWeekday DestackRustHostCalendarRecurrenceWeekday;
+typedef struct DestackRustHostCalendarRecurrenceRule DestackRustHostCalendarRecurrenceRule;
+typedef struct DestackRustHostCalendarAttendee DestackRustHostCalendarAttendee;
+typedef struct DestackRustHostCalendarAbsoluteReminder DestackRustHostCalendarAbsoluteReminder;
+typedef struct DestackRustHostCalendarRelativeReminder DestackRustHostCalendarRelativeReminder;
+typedef struct DestackRustHostCalendarReminder DestackRustHostCalendarReminder;
+typedef struct DestackRustHostCalendarDescriptor DestackRustHostCalendarDescriptor;
+typedef struct DestackRustHostCalendarEvent DestackRustHostCalendarEvent;
+typedef struct DestackRustHostCalendarEventDraft DestackRustHostCalendarEventDraft;
+typedef struct DestackRustHostCalendarEventQuery DestackRustHostCalendarEventQuery;
+typedef struct DestackRustHostCalendarListResponse DestackRustHostCalendarListResponse;
+typedef struct DestackRustHostCalendarEventListResponse DestackRustHostCalendarEventListResponse;
+typedef struct DestackRustHostCalendarEventReadResponse DestackRustHostCalendarEventReadResponse;
+typedef struct DestackRustHostCalendarEventCreateResponse DestackRustHostCalendarEventCreateResponse;
+typedef struct DestackRustHostContactQuery DestackRustHostContactQuery;
+typedef struct DestackRustHostContactName DestackRustHostContactName;
+typedef struct DestackRustHostContactPhone DestackRustHostContactPhone;
+typedef struct DestackRustHostContactEmail DestackRustHostContactEmail;
+typedef struct DestackRustHostContactAddress DestackRustHostContactAddress;
+typedef struct DestackRustHostContactOrganization DestackRustHostContactOrganization;
+typedef struct DestackRustHostContact DestackRustHostContact;
+typedef struct DestackRustHostContactDraft DestackRustHostContactDraft;
+typedef struct DestackRustHostContactPage DestackRustHostContactPage;
+typedef struct DestackRustHostContactPageResponse DestackRustHostContactPageResponse;
+typedef struct DestackRustHostContactResponse DestackRustHostContactResponse;
+typedef struct DestackRustHostContactCreateResponse DestackRustHostContactCreateResponse;
+typedef struct DestackRustHostDocumentRequest DestackRustHostDocumentRequest;
+typedef struct DestackRustHostDocumentDescriptor DestackRustHostDocumentDescriptor;
+typedef struct DestackRustHostDocumentResult DestackRustHostDocumentResult;
+typedef struct DestackRustHostIntentEventMetadata DestackRustHostIntentEventMetadata;
+typedef struct DestackRustHostIntentOpenUrlPayload DestackRustHostIntentOpenUrlPayload;
+typedef struct DestackRustHostIntentOpenUrlEvent DestackRustHostIntentOpenUrlEvent;
+typedef struct DestackRustHostIntentOpenFilePayload DestackRustHostIntentOpenFilePayload;
+typedef struct DestackRustHostIntentOpenFileEvent DestackRustHostIntentOpenFileEvent;
+typedef struct DestackRustHostIntentShareTextPayload DestackRustHostIntentShareTextPayload;
+typedef struct DestackRustHostIntentShareTextEvent DestackRustHostIntentShareTextEvent;
+typedef struct DestackRustHostIntentShareFilesPayload DestackRustHostIntentShareFilesPayload;
+typedef struct DestackRustHostIntentShareFilesEvent DestackRustHostIntentShareFilesEvent;
+typedef struct DestackRustHostIntentCustomActionPayload DestackRustHostIntentCustomActionPayload;
+typedef struct DestackRustHostIntentCustomActionEvent DestackRustHostIntentCustomActionEvent;
+typedef struct DestackRustHostIntentEvent DestackRustHostIntentEvent;
 typedef struct DestackRustLocationSample DestackRustLocationSample;
 typedef struct DestackRustLocationWatchOptions DestackRustLocationWatchOptions;
 typedef struct DestackRustLocationServicesResponse DestackRustLocationServicesResponse;
 typedef struct DestackRustLocationLastKnownResponse DestackRustLocationLastKnownResponse;
-typedef struct DestackRustMediaListRequest DestackRustMediaListRequest;
-typedef struct DestackRustMediaAssetDescriptor DestackRustMediaAssetDescriptor;
-typedef struct DestackRustMediaListResult DestackRustMediaListResult;
-typedef struct DestackRustMediaListResponse DestackRustMediaListResponse;
-typedef struct DestackRustMediaReadResponse DestackRustMediaReadResponse;
-typedef struct DestackRustMediaImportPathRequest DestackRustMediaImportPathRequest;
-typedef struct DestackRustMediaImportPathResponse DestackRustMediaImportPathResponse;
-typedef struct DestackRustMediaDeleteRequest DestackRustMediaDeleteRequest;
-typedef struct DestackRustMediaDeleteResponse DestackRustMediaDeleteResponse;
-typedef struct DestackRustNotificationRequest DestackRustNotificationRequest;
-typedef struct DestackRustNotificationEvent DestackRustNotificationEvent;
-typedef struct DestackRustPermissionRequest DestackRustPermissionRequest;
-typedef struct DestackRustPermissionEvent DestackRustPermissionEvent;
-typedef struct DestackRustTextInputRange DestackRustTextInputRange;
-typedef struct DestackRustTextInputRectangle DestackRustTextInputRectangle;
-typedef struct DestackRustTextInputTransform2D DestackRustTextInputTransform2D;
-typedef struct DestackRustTextInputGeometry DestackRustTextInputGeometry;
-typedef struct DestackRustTextInputConfiguration DestackRustTextInputConfiguration;
-typedef struct DestackRustTextInputState DestackRustTextInputState;
-typedef struct DestackRustTextInputOpenRequest DestackRustTextInputOpenRequest;
-typedef struct DestackRustTextInputCloseRequest DestackRustTextInputCloseRequest;
-typedef struct DestackRustTextInputGeometryRequest DestackRustTextInputGeometryRequest;
-typedef struct DestackRustTextInputStateRequest DestackRustTextInputStateRequest;
-typedef struct DestackRustTextInputEvent DestackRustTextInputEvent;
+typedef struct DestackRustHostMediaListRequest DestackRustHostMediaListRequest;
+typedef struct DestackRustHostMediaAssetDescriptor DestackRustHostMediaAssetDescriptor;
+typedef struct DestackRustHostMediaListResult DestackRustHostMediaListResult;
+typedef struct DestackRustHostMediaListResponse DestackRustHostMediaListResponse;
+typedef struct DestackRustHostMediaReadResponse DestackRustHostMediaReadResponse;
+typedef struct DestackRustHostMediaImportPathRequest DestackRustHostMediaImportPathRequest;
+typedef struct DestackRustHostMediaImportPathResponse DestackRustHostMediaImportPathResponse;
+typedef struct DestackRustHostMediaDeleteRequest DestackRustHostMediaDeleteRequest;
+typedef struct DestackRustHostMediaDeleteResponse DestackRustHostMediaDeleteResponse;
+typedef struct DestackRustHostNotificationCalendarTrigger DestackRustHostNotificationCalendarTrigger;
+typedef struct DestackRustHostNotificationCalendarDateTrigger DestackRustHostNotificationCalendarDateTrigger;
+typedef struct DestackRustHostNotificationImmediateTrigger DestackRustHostNotificationImmediateTrigger;
+typedef struct DestackRustHostNotificationTimeIntervalTrigger DestackRustHostNotificationTimeIntervalTrigger;
+typedef struct DestackRustHostNotificationTrigger DestackRustHostNotificationTrigger;
+typedef struct DestackRustHostNotificationRequest DestackRustHostNotificationRequest;
+typedef struct DestackRustHostNotificationEventMetadata DestackRustHostNotificationEventMetadata;
+typedef struct DestackRustHostNotificationInteractedPayload DestackRustHostNotificationInteractedPayload;
+typedef struct DestackRustHostNotificationDeliveredEvent DestackRustHostNotificationDeliveredEvent;
+typedef struct DestackRustHostNotificationDismissedEvent DestackRustHostNotificationDismissedEvent;
+typedef struct DestackRustHostNotificationInteractedEvent DestackRustHostNotificationInteractedEvent;
+typedef struct DestackRustHostNotificationEvent DestackRustHostNotificationEvent;
+typedef struct DestackRustHostPermissionRequest DestackRustHostPermissionRequest;
+typedef struct DestackRustHostPermissionEvent DestackRustHostPermissionEvent;
+typedef struct DestackRustHostTextInputRange DestackRustHostTextInputRange;
+typedef struct DestackRustHostTextInputRectangle DestackRustHostTextInputRectangle;
+typedef struct DestackRustHostTextInputTransform2D DestackRustHostTextInputTransform2D;
+typedef struct DestackRustHostTextInputGeometry DestackRustHostTextInputGeometry;
+typedef struct DestackRustHostTextInputConfiguration DestackRustHostTextInputConfiguration;
+typedef struct DestackRustHostTextInputState DestackRustHostTextInputState;
+typedef struct DestackRustHostTextInputOpenRequest DestackRustHostTextInputOpenRequest;
+typedef struct DestackRustHostTextInputCloseRequest DestackRustHostTextInputCloseRequest;
+typedef struct DestackRustHostTextInputGeometryRequest DestackRustHostTextInputGeometryRequest;
+typedef struct DestackRustHostTextInputStateRequest DestackRustHostTextInputStateRequest;
+typedef struct DestackRustHostTextInputEvent DestackRustHostTextInputEvent;
 
 /// One host background scheduler status payload.
-typedef uint32_t DestackRustBackgroundStatus;
+typedef uint32_t DestackRustHostBackgroundStatus;
 
 /// One host background trigger kind payload.
-typedef uint32_t DestackRustBackgroundTriggerKind;
+typedef uint32_t DestackRustHostBackgroundTriggerKind;
 
 /// One host background task-result payload.
-typedef uint32_t DestackRustBackgroundTaskResult;
+typedef uint32_t DestackRustHostBackgroundTaskResult;
 
 /// One host background network-requirement payload.
-typedef uint32_t DestackRustBackgroundNetworkRequirement;
+typedef uint32_t DestackRustHostBackgroundNetworkRequirement;
 
 /// One host background conflict-policy payload.
-typedef uint32_t DestackRustBackgroundConflictPolicy;
+typedef uint32_t DestackRustHostBackgroundConflictPolicy;
 
 /// One host background schedule-kind payload.
-typedef uint32_t DestackRustBackgroundTaskScheduleKind;
-
-/// One host background event kind payload.
-typedef uint32_t DestackRustBackgroundEventKind;
+typedef uint32_t DestackRustHostBackgroundTaskScheduleKind;
 
 /// One host calendar access payload.
-typedef uint32_t DestackRustCalendarAccess;
+typedef uint32_t DestackRustHostCalendarAccess;
 
 /// One host calendar availability payload.
-typedef uint32_t DestackRustCalendarAvailability;
+typedef uint32_t DestackRustHostCalendarAvailability;
 
 /// One host calendar participant-status payload.
-typedef uint32_t DestackRustCalendarParticipantStatus;
+typedef uint32_t DestackRustHostCalendarParticipantStatus;
 
 /// One host calendar recurrence-frequency payload.
-typedef uint32_t DestackRustCalendarRecurrenceFrequency;
-
-/// One host calendar reminder-kind payload.
-typedef uint32_t DestackRustCalendarReminderKind;
+typedef uint32_t DestackRustHostCalendarRecurrenceFrequency;
 
 /// One location accuracy preference.
 typedef int32_t DestackRustLocationAccuracy;
 
 /// One host media asset-kind payload.
-typedef uint32_t DestackRustMediaAssetKind;
+typedef uint32_t DestackRustHostMediaAssetKind;
 
-/// One host notification event-kind payload.
-typedef uint32_t DestackRustNotificationEventKind;
+/// One host notification priority payload.
+typedef uint32_t DestackRustHostNotificationPriority;
+
+/// One host permission selector payload.
+typedef int32_t DestackRustHostPermission;
 
 /// One host text-input type hint payload.
-typedef int32_t DestackRustTextInputType;
+typedef int32_t DestackRustHostTextInputType;
 
-/// One background task descriptor slice passed through the Apple bridge
-typedef struct DestackRustBackgroundTaskDescriptorSlice {
-    const DestackRustBackgroundTaskDescriptor *data;
+/// One host background task descriptor slice passed through the Apple bridge
+typedef struct DestackRustHostBackgroundTaskDescriptorSlice {
+    const DestackRustHostBackgroundTaskDescriptor *data;
     uint32_t len;
-} DestackRustBackgroundTaskDescriptorSlice;
+} DestackRustHostBackgroundTaskDescriptorSlice;
 
-/// One calendar descriptor slice passed through the Apple bridge
-typedef struct DestackRustCalendarDescriptorSlice {
-    const DestackRustCalendarDescriptor *data;
+/// One host calendar descriptor slice passed through the Apple bridge
+typedef struct DestackRustHostCalendarDescriptorSlice {
+    const DestackRustHostCalendarDescriptor *data;
     uint32_t len;
-} DestackRustCalendarDescriptorSlice;
+} DestackRustHostCalendarDescriptorSlice;
 
-/// One calendar event slice passed through the Apple bridge
-typedef struct DestackRustCalendarEventSlice {
-    const DestackRustCalendarEvent *data;
+/// One host calendar event slice passed through the Apple bridge
+typedef struct DestackRustHostCalendarEventSlice {
+    const DestackRustHostCalendarEvent *data;
     uint32_t len;
-} DestackRustCalendarEventSlice;
+} DestackRustHostCalendarEventSlice;
 
-/// One calendar recurrence weekday slice passed through the Apple bridge
-typedef struct DestackRustCalendarRecurrenceWeekdaySlice {
-    const DestackRustCalendarRecurrenceWeekday *data;
+/// One host calendar recurrence weekday slice passed through the Apple bridge
+typedef struct DestackRustHostCalendarRecurrenceWeekdaySlice {
+    const DestackRustHostCalendarRecurrenceWeekday *data;
     uint32_t len;
-} DestackRustCalendarRecurrenceWeekdaySlice;
+} DestackRustHostCalendarRecurrenceWeekdaySlice;
 
-/// One calendar attendee slice passed through the Apple bridge
-typedef struct DestackRustCalendarAttendeeSlice {
-    const DestackRustCalendarAttendee *data;
+/// One host calendar attendee slice passed through the Apple bridge
+typedef struct DestackRustHostCalendarAttendeeSlice {
+    const DestackRustHostCalendarAttendee *data;
     uint32_t len;
-} DestackRustCalendarAttendeeSlice;
+} DestackRustHostCalendarAttendeeSlice;
 
-/// One calendar reminder slice passed through the Apple bridge
-typedef struct DestackRustCalendarReminderSlice {
-    const DestackRustCalendarReminder *data;
+/// One host calendar reminder slice passed through the Apple bridge
+typedef struct DestackRustHostCalendarReminderSlice {
+    const DestackRustHostCalendarReminder *data;
     uint32_t len;
-} DestackRustCalendarReminderSlice;
+} DestackRustHostCalendarReminderSlice;
 
-/// One contact slice passed through the Apple bridge
-typedef struct DestackRustContactSlice {
-    const DestackRustContact *data;
+/// One host contact slice passed through the Apple bridge
+typedef struct DestackRustHostContactSlice {
+    const DestackRustHostContact *data;
     uint32_t len;
-} DestackRustContactSlice;
+} DestackRustHostContactSlice;
 
-/// One contact phone slice passed through the Apple bridge
-typedef struct DestackRustContactPhoneSlice {
-    const DestackRustContactPhone *data;
+/// One host contact phone slice passed through the Apple bridge
+typedef struct DestackRustHostContactPhoneSlice {
+    const DestackRustHostContactPhone *data;
     uint32_t len;
-} DestackRustContactPhoneSlice;
+} DestackRustHostContactPhoneSlice;
 
-/// One contact email slice passed through the Apple bridge
-typedef struct DestackRustContactEmailSlice {
-    const DestackRustContactEmail *data;
+/// One host contact email slice passed through the Apple bridge
+typedef struct DestackRustHostContactEmailSlice {
+    const DestackRustHostContactEmail *data;
     uint32_t len;
-} DestackRustContactEmailSlice;
+} DestackRustHostContactEmailSlice;
 
-/// One contact address slice passed through the Apple bridge
-typedef struct DestackRustContactAddressSlice {
-    const DestackRustContactAddress *data;
+/// One host contact address slice passed through the Apple bridge
+typedef struct DestackRustHostContactAddressSlice {
+    const DestackRustHostContactAddress *data;
     uint32_t len;
-} DestackRustContactAddressSlice;
+} DestackRustHostContactAddressSlice;
 
-/// One document descriptor slice passed through the Apple bridge
-typedef struct DestackRustDocumentDescriptorSlice {
-    const DestackRustDocumentDescriptor *data;
+/// One host document descriptor slice passed through the Apple bridge
+typedef struct DestackRustHostDocumentDescriptorSlice {
+    const DestackRustHostDocumentDescriptor *data;
     uint32_t len;
-} DestackRustDocumentDescriptorSlice;
+} DestackRustHostDocumentDescriptorSlice;
 
-/// One media asset kind slice passed through the Apple bridge
-typedef struct DestackRustMediaAssetKindSlice {
-    const DestackRustMediaAssetKind *data;
+/// One host media asset kind slice passed through the Apple bridge
+typedef struct DestackRustHostMediaAssetKindSlice {
+    const DestackRustHostMediaAssetKind *data;
     uint32_t len;
-} DestackRustMediaAssetKindSlice;
+} DestackRustHostMediaAssetKindSlice;
 
-/// One media asset descriptor slice passed through the Apple bridge
-typedef struct DestackRustMediaAssetDescriptorSlice {
-    const DestackRustMediaAssetDescriptor *data;
+/// One host media asset descriptor slice passed through the Apple bridge
+typedef struct DestackRustHostMediaAssetDescriptorSlice {
+    const DestackRustHostMediaAssetDescriptor *data;
     uint32_t len;
-} DestackRustMediaAssetDescriptorSlice;
+} DestackRustHostMediaAssetDescriptorSlice;
+
+/// One optional value passed through the Apple bridge
+typedef struct DestackRustOptionalU64 {
+    bool has_value;
+    uint64_t value;
+} DestackRustOptionalU64;
 
 /// One host background task-schedule payload.
-typedef struct DestackRustBackgroundTaskSchedule {
+typedef struct DestackRustHostBackgroundTaskSchedule {
     /// The declared schedule class.
-    DestackRustBackgroundTaskScheduleKind kind;
-    /// Whether the earliest execution target is present.
-    bool has_earliest_begin_unix_ns;
+    DestackRustHostBackgroundTaskScheduleKind kind;
     /// The earliest execution target in UTC nanoseconds.
-    uint64_t earliest_begin_unix_ns;
-    /// Whether the repeat interval is present.
-    bool has_repeat_interval_ns;
+    DestackRustOptionalU64 earliest_begin_unix_ns;
     /// The repeat interval in nanoseconds for recurring schedules.
-    uint64_t repeat_interval_ns;
-} DestackRustBackgroundTaskSchedule;
+    DestackRustOptionalU64 repeat_interval_ns;
+} DestackRustHostBackgroundTaskSchedule;
 
 /// One host background task-options payload.
-typedef struct DestackRustBackgroundTaskOptions {
+typedef struct DestackRustHostBackgroundTaskOptions {
     /// The stable task identifier.
     DestackRustStringRef identifier;
     /// The trigger class.
-    DestackRustBackgroundTriggerKind trigger;
+    DestackRustHostBackgroundTriggerKind trigger;
     /// The requested schedule payload.
-    DestackRustBackgroundTaskSchedule schedule;
+    DestackRustHostBackgroundTaskSchedule schedule;
     /// The requested network requirement.
-    DestackRustBackgroundNetworkRequirement network;
+    DestackRustHostBackgroundNetworkRequirement network;
     /// Whether charging power is required.
     bool requires_charging;
     /// Whether idle mode is required.
     bool requires_idle;
     /// The registration conflict policy.
-    DestackRustBackgroundConflictPolicy conflict_policy;
-} DestackRustBackgroundTaskOptions;
+    DestackRustHostBackgroundConflictPolicy conflict_policy;
+} DestackRustHostBackgroundTaskOptions;
+
+/// One optional host background status passed through the Apple bridge
+typedef struct DestackRustOptionalHostBackgroundStatus {
+    bool has_value;
+    DestackRustHostBackgroundStatus value;
+} DestackRustOptionalHostBackgroundStatus;
 
 /// One host background status response payload.
-typedef struct DestackRustBackgroundStatusResponse {
+typedef struct DestackRustHostBackgroundStatusResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether one scheduler status is present.
-    bool has_scheduler_status;
     /// The scheduler status when present.
-    DestackRustBackgroundStatus scheduler_status;
-} DestackRustBackgroundStatusResponse;
+    DestackRustOptionalHostBackgroundStatus scheduler_status;
+} DestackRustHostBackgroundStatusResponse;
 
 /// One host background task-descriptor payload.
-typedef struct DestackRustBackgroundTaskDescriptor {
+typedef struct DestackRustHostBackgroundTaskDescriptor {
     /// The stable task identifier.
     DestackRustStringRef identifier;
     /// The trigger class.
-    DestackRustBackgroundTriggerKind trigger;
+    DestackRustHostBackgroundTriggerKind trigger;
     /// The effective schedule payload.
-    DestackRustBackgroundTaskSchedule schedule;
+    DestackRustHostBackgroundTaskSchedule schedule;
     /// The effective network requirement.
-    DestackRustBackgroundNetworkRequirement network;
+    DestackRustHostBackgroundNetworkRequirement network;
     /// Whether charging power is required.
     bool requires_charging;
     /// Whether idle mode is required.
     bool requires_idle;
     /// The registration conflict policy.
-    DestackRustBackgroundConflictPolicy conflict_policy;
-} DestackRustBackgroundTaskDescriptor;
+    DestackRustHostBackgroundConflictPolicy conflict_policy;
+} DestackRustHostBackgroundTaskDescriptor;
 
 /// One host background task-list response payload.
-typedef struct DestackRustBackgroundListResponse {
+typedef struct DestackRustHostBackgroundListResponse {
     /// The request status code.
     uint32_t status;
     /// The returned task descriptors.
-    DestackRustBackgroundTaskDescriptorSlice descriptors;
-} DestackRustBackgroundListResponse;
+    DestackRustHostBackgroundTaskDescriptorSlice descriptors;
+} DestackRustHostBackgroundListResponse;
 
 /// One host background unregister request payload.
-typedef struct DestackRustBackgroundUnregisterRequest {
+typedef struct DestackRustHostBackgroundUnregisterRequest {
     /// The stable task identifier.
     DestackRustStringRef identifier;
-} DestackRustBackgroundUnregisterRequest;
+} DestackRustHostBackgroundUnregisterRequest;
 
 /// One host background trigger-test request payload.
-typedef struct DestackRustBackgroundTriggerTestRequest {
+typedef struct DestackRustHostBackgroundTriggerTestRequest {
     /// The stable task identifier.
     DestackRustStringRef identifier;
-} DestackRustBackgroundTriggerTestRequest;
+} DestackRustHostBackgroundTriggerTestRequest;
 
 /// One host background trigger-test response payload.
-typedef struct DestackRustBackgroundTriggerTestResponse {
+typedef struct DestackRustHostBackgroundTriggerTestResponse {
     /// The request status code.
     uint32_t status;
     /// Whether the host triggered one task execution.
     bool is_triggered;
-} DestackRustBackgroundTriggerTestResponse;
+} DestackRustHostBackgroundTriggerTestResponse;
 
 /// One host background complete request payload.
-typedef struct DestackRustBackgroundCompleteRequest {
+typedef struct DestackRustHostBackgroundCompleteRequest {
     /// The stable execution identifier.
     DestackRustStringRef execution_id;
     /// The completion result.
-    DestackRustBackgroundTaskResult result;
-} DestackRustBackgroundCompleteRequest;
+    DestackRustHostBackgroundTaskResult result;
+} DestackRustHostBackgroundCompleteRequest;
 
 /// One host background event metadata payload.
-typedef struct DestackRustBackgroundEventMetadata {
+typedef struct DestackRustHostBackgroundEventMetadata {
     /// The monotonic event timestamp in nanoseconds.
     uint64_t timestamp_ns;
     /// The monotonic sequence number for this event stream.
@@ -305,44 +335,58 @@ typedef struct DestackRustBackgroundEventMetadata {
     DestackRustStringRef execution_id;
     /// The host execution deadline in UTC nanoseconds.
     uint64_t deadline_unix_ns;
-} DestackRustBackgroundEventMetadata;
+} DestackRustHostBackgroundEventMetadata;
 
-/// One host background event payload.
-typedef struct DestackRustBackgroundEvent {
-    /// The event kind.
-    DestackRustBackgroundEventKind kind;
+/// One host background task-ready event payload.
+typedef struct DestackRustHostBackgroundTaskReadyEvent {
+    /// The event kind discriminator.
+    DestackRustStringRef kind;
     /// The shared event metadata.
-    DestackRustBackgroundEventMetadata metadata;
-} DestackRustBackgroundEvent;
+    DestackRustHostBackgroundEventMetadata metadata;
+} DestackRustHostBackgroundTaskReadyEvent;
+
+/// One host background task-expired event payload.
+typedef struct DestackRustHostBackgroundTaskExpiredEvent {
+    /// The event kind discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostBackgroundEventMetadata metadata;
+} DestackRustHostBackgroundTaskExpiredEvent;
+
+/// One optional value passed through the Apple bridge
+typedef struct DestackRustOptionalI8 {
+    bool has_value;
+    int8_t value;
+} DestackRustOptionalI8;
 
 /// One host calendar recurrence-weekday payload.
-typedef struct DestackRustCalendarRecurrenceWeekday {
+typedef struct DestackRustHostCalendarRecurrenceWeekday {
     /// The weekday number in ISO-8601 encoding, 1 through 7.
     uint8_t day;
-    /// Whether the weekday carries one ordinal week number.
-    bool has_week_number;
     /// The ordinal week number when present.
-    int8_t week_number;
-} DestackRustCalendarRecurrenceWeekday;
+    DestackRustOptionalI8 week_number;
+} DestackRustHostCalendarRecurrenceWeekday;
+
+/// One optional value passed through the Apple bridge
+typedef struct DestackRustOptionalU32 {
+    bool has_value;
+    uint32_t value;
+} DestackRustOptionalU32;
 
 /// One host calendar recurrence-rule payload.
-typedef struct DestackRustCalendarRecurrenceRule {
+typedef struct DestackRustHostCalendarRecurrenceRule {
     /// The recurrence frequency.
-    DestackRustCalendarRecurrenceFrequency frequency;
+    DestackRustHostCalendarRecurrenceFrequency frequency;
     /// The recurrence interval.
     uint32_t interval;
-    /// Whether the recurrence carries one occurrence count.
-    bool has_count;
     /// The bounded occurrence count when present.
-    uint32_t count;
-    /// Whether the recurrence carries one end timestamp.
-    bool has_until_unix_ns;
+    DestackRustOptionalU32 count;
     /// The bounded end timestamp in UTC nanoseconds when present.
-    uint64_t until_unix_ns;
+    DestackRustOptionalU64 until_unix_ns;
     /// The weekday numbers in ISO-8601 encoding.
     DestackRustU8Slice by_week_days;
     /// The weekday selectors with optional ordinals.
-    DestackRustCalendarRecurrenceWeekdaySlice by_weekday_ordinals;
+    DestackRustHostCalendarRecurrenceWeekdaySlice by_weekday_ordinals;
     /// The day-of-month set.
     DestackRustI8Slice by_month_days;
     /// The month set, 1 through 12.
@@ -353,76 +397,94 @@ typedef struct DestackRustCalendarRecurrenceRule {
     DestackRustI8Slice by_week_numbers;
     /// The final set-position filters.
     DestackRustI16Slice by_set_positions;
-} DestackRustCalendarRecurrenceRule;
+} DestackRustHostCalendarRecurrenceRule;
+
+/// One optional string reference passed through the Apple bridge
+typedef struct DestackRustOptionalStringRef {
+    bool has_value;
+    DestackRustStringRef value;
+} DestackRustOptionalStringRef;
 
 /// One host calendar attendee payload.
-typedef struct DestackRustCalendarAttendee {
-    /// Whether the attendee carries one stable identifier.
-    bool has_id;
+typedef struct DestackRustHostCalendarAttendee {
     /// The stable attendee identifier when present.
-    DestackRustStringRef id;
-    /// Whether the attendee carries one display name.
-    bool has_name;
+    DestackRustOptionalStringRef id;
     /// The display name when present.
-    DestackRustStringRef name;
-    /// Whether the attendee carries one email address.
-    bool has_email;
+    DestackRustOptionalStringRef name;
     /// The email address when present.
-    DestackRustStringRef email;
+    DestackRustOptionalStringRef email;
     /// Whether the attendee is optional.
     bool optional;
     /// Whether the attendee is the organizer.
     bool organizer;
     /// The attendee response status.
-    DestackRustCalendarParticipantStatus response_status;
-} DestackRustCalendarAttendee;
+    DestackRustHostCalendarParticipantStatus response_status;
+} DestackRustHostCalendarAttendee;
 
 /// One host calendar reminder payload.
-typedef struct DestackRustCalendarReminder {
-    /// The reminder variant kind.
-    DestackRustCalendarReminderKind kind;
+typedef struct DestackRustHostCalendarAbsoluteReminder {
+    /// The reminder variant discriminator.
+    DestackRustStringRef kind;
     /// The absolute reminder timestamp in UTC nanoseconds.
     uint64_t absolute_unix_ns;
+} DestackRustHostCalendarAbsoluteReminder;
+
+/// One host calendar relative reminder payload.
+typedef struct DestackRustHostCalendarRelativeReminder {
+    /// The reminder variant discriminator.
+    DestackRustStringRef kind;
     /// The minutes before the event start for relative reminders.
     int32_t minutes_before_start;
-} DestackRustCalendarReminder;
+} DestackRustHostCalendarRelativeReminder;
 
 /// One host calendar descriptor payload.
-typedef struct DestackRustCalendarDescriptor {
+typedef struct DestackRustHostCalendarDescriptor {
     /// The stable calendar identifier.
     DestackRustStringRef id;
     /// The calendar title payload.
     DestackRustStringRef title;
     /// The source or account label payload.
     DestackRustStringRef source;
-    /// Whether the descriptor carries one owner label.
-    bool has_owner;
     /// The owner label when present.
-    DestackRustStringRef owner;
+    DestackRustOptionalStringRef owner;
     /// The ARGB color payload.
     uint32_t color_argb;
     /// Whether this is the primary write target.
     bool primary;
     /// The calendar access mode.
-    DestackRustCalendarAccess access;
-} DestackRustCalendarDescriptor;
+    DestackRustHostCalendarAccess access;
+} DestackRustHostCalendarDescriptor;
+
+/// One optional host calendar recurrence rule passed through the Apple bridge
+typedef struct DestackRustOptionalHostCalendarRecurrenceRule {
+    bool has_value;
+    DestackRustHostCalendarRecurrenceRule value;
+} DestackRustOptionalHostCalendarRecurrenceRule;
+
+/// One optional value passed through the Apple bridge
+typedef struct DestackRustOptionalHostCalendarAttendeeSlice {
+    bool has_value;
+    DestackRustHostCalendarAttendeeSlice value;
+} DestackRustOptionalHostCalendarAttendeeSlice;
+
+/// One optional value passed through the Apple bridge
+typedef struct DestackRustOptionalHostCalendarReminderSlice {
+    bool has_value;
+    DestackRustHostCalendarReminderSlice value;
+} DestackRustOptionalHostCalendarReminderSlice;
 
 /// One host calendar event payload.
-typedef struct DestackRustCalendarEvent {
+typedef struct DestackRustHostCalendarEvent {
     /// The stable event identifier.
     DestackRustStringRef id;
     /// The calendar identifier.
     DestackRustStringRef calendar_id;
     /// The event title payload.
     DestackRustStringRef title;
-    /// Whether the event carries one notes payload.
-    bool has_notes;
     /// The notes payload when present.
-    DestackRustStringRef notes;
-    /// Whether the event carries one location payload.
-    bool has_location;
+    DestackRustOptionalStringRef notes;
     /// The location payload when present.
-    DestackRustStringRef location;
+    DestackRustOptionalStringRef location;
     /// The start timestamp in UTC nanoseconds.
     uint64_t start_unix_ns;
     /// The end timestamp in UTC nanoseconds.
@@ -431,158 +493,122 @@ typedef struct DestackRustCalendarEvent {
     bool all_day;
     /// Whether the event is canceled.
     bool canceled;
-    /// Whether the event carries one timezone identifier.
-    bool has_time_zone;
     /// The timezone identifier when present.
-    DestackRustStringRef time_zone;
+    DestackRustOptionalStringRef time_zone;
     /// The event availability class.
-    DestackRustCalendarAvailability availability;
-    /// Whether the event carries one URL.
-    bool has_url;
+    DestackRustHostCalendarAvailability availability;
     /// The event URL when present.
-    DestackRustStringRef url;
-    /// Whether the event carries one organizer name.
-    bool has_organizer_name;
+    DestackRustOptionalStringRef url;
     /// The organizer name when present.
-    DestackRustStringRef organizer_name;
-    /// Whether the event carries one organizer email.
-    bool has_organizer_email;
+    DestackRustOptionalStringRef organizer_name;
     /// The organizer email when present.
-    DestackRustStringRef organizer_email;
+    DestackRustOptionalStringRef organizer_email;
     /// Whether the event is one recurring item.
     bool recurring;
-    /// Whether the event carries one recurrence-master identifier.
-    bool has_recurrence_master_id;
     /// The recurrence-master identifier when present.
-    DestackRustStringRef recurrence_master_id;
-    /// Whether the event carries one recurrence-instance timestamp.
-    bool has_recurrence_id_unix_ns;
+    DestackRustOptionalStringRef recurrence_master_id;
     /// The recurrence-instance timestamp when present.
-    uint64_t recurrence_id_unix_ns;
-    /// Whether the event carries one recurrence rule.
-    bool has_recurrence_rule;
+    DestackRustOptionalU64 recurrence_id_unix_ns;
     /// The recurrence rule when present.
-    DestackRustCalendarRecurrenceRule recurrence_rule;
-    /// Whether the event carries one attendee list.
-    bool has_attendees;
+    DestackRustOptionalHostCalendarRecurrenceRule recurrence_rule;
     /// The attendee list when present.
-    DestackRustCalendarAttendeeSlice attendees;
-    /// Whether the event carries one reminder list.
-    bool has_reminders;
+    DestackRustOptionalHostCalendarAttendeeSlice attendees;
     /// The reminder list when present.
-    DestackRustCalendarReminderSlice reminders;
-} DestackRustCalendarEvent;
+    DestackRustOptionalHostCalendarReminderSlice reminders;
+} DestackRustHostCalendarEvent;
 
 /// One host calendar event-draft payload.
-typedef struct DestackRustCalendarEventDraft {
+typedef struct DestackRustHostCalendarEventDraft {
     /// The calendar identifier.
     DestackRustStringRef calendar_id;
     /// The event title payload.
     DestackRustStringRef title;
-    /// Whether the draft carries one notes payload.
-    bool has_notes;
     /// The notes payload when present.
-    DestackRustStringRef notes;
-    /// Whether the draft carries one location payload.
-    bool has_location;
+    DestackRustOptionalStringRef notes;
     /// The location payload when present.
-    DestackRustStringRef location;
+    DestackRustOptionalStringRef location;
     /// The start timestamp in UTC nanoseconds.
     uint64_t start_unix_ns;
     /// The end timestamp in UTC nanoseconds.
     uint64_t end_unix_ns;
     /// Whether the event is all-day.
     bool all_day;
-    /// Whether the draft carries one timezone identifier.
-    bool has_time_zone;
     /// The timezone identifier when present.
-    DestackRustStringRef time_zone;
+    DestackRustOptionalStringRef time_zone;
     /// The event availability class.
-    DestackRustCalendarAvailability availability;
-    /// Whether the draft carries one URL.
-    bool has_url;
+    DestackRustHostCalendarAvailability availability;
     /// The event URL when present.
-    DestackRustStringRef url;
-    /// Whether the draft carries one recurrence rule.
-    bool has_recurrence_rule;
+    DestackRustOptionalStringRef url;
     /// The recurrence rule when present.
-    DestackRustCalendarRecurrenceRule recurrence_rule;
-    /// Whether the draft carries one attendee list.
-    bool has_attendees;
+    DestackRustOptionalHostCalendarRecurrenceRule recurrence_rule;
     /// The attendee list when present.
-    DestackRustCalendarAttendeeSlice attendees;
-    /// Whether the draft carries one reminder list.
-    bool has_reminders;
+    DestackRustOptionalHostCalendarAttendeeSlice attendees;
     /// The reminder list when present.
-    DestackRustCalendarReminderSlice reminders;
-} DestackRustCalendarEventDraft;
+    DestackRustOptionalHostCalendarReminderSlice reminders;
+} DestackRustHostCalendarEventDraft;
 
 /// One host calendar event-query payload.
-typedef struct DestackRustCalendarEventQuery {
+typedef struct DestackRustHostCalendarEventQuery {
     /// The selected calendar identifiers, empty means every readable calendar.
     DestackRustStringSlice calendar_ids;
     /// The query start timestamp in UTC nanoseconds.
     uint64_t start_unix_ns;
     /// The query end timestamp in UTC nanoseconds.
     uint64_t end_unix_ns;
-    /// Whether the query carries one page limit.
-    bool has_limit;
     /// The maximum returned event count when present.
-    uint32_t limit;
+    DestackRustOptionalU32 limit;
     /// Whether canceled events should be included.
     bool include_canceled;
     /// Whether declined events should be included.
     bool include_declined;
     /// Whether expanded recurrence instances should be included.
     bool include_recurrence_instances;
-} DestackRustCalendarEventQuery;
+} DestackRustHostCalendarEventQuery;
 
 /// One host calendar-list response payload.
-typedef struct DestackRustCalendarListResponse {
+typedef struct DestackRustHostCalendarListResponse {
     /// The request status code.
     uint32_t status;
     /// The returned calendars.
-    DestackRustCalendarDescriptorSlice calendars;
-} DestackRustCalendarListResponse;
+    DestackRustHostCalendarDescriptorSlice calendars;
+} DestackRustHostCalendarListResponse;
 
 /// One host calendar event-list response payload.
-typedef struct DestackRustCalendarEventListResponse {
+typedef struct DestackRustHostCalendarEventListResponse {
     /// The request status code.
     uint32_t status;
     /// The returned events.
-    DestackRustCalendarEventSlice events;
-} DestackRustCalendarEventListResponse;
+    DestackRustHostCalendarEventSlice events;
+} DestackRustHostCalendarEventListResponse;
+
+/// One optional host calendar event passed through the Apple bridge
+typedef struct DestackRustOptionalHostCalendarEvent {
+    bool has_value;
+    DestackRustHostCalendarEvent value;
+} DestackRustOptionalHostCalendarEvent;
 
 /// One host calendar event-read response payload.
-typedef struct DestackRustCalendarEventReadResponse {
+typedef struct DestackRustHostCalendarEventReadResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response carries one event.
-    bool has_event;
     /// The returned event when present.
-    DestackRustCalendarEvent event;
-} DestackRustCalendarEventReadResponse;
+    DestackRustOptionalHostCalendarEvent event;
+} DestackRustHostCalendarEventReadResponse;
 
 /// One host calendar event-create response payload.
-typedef struct DestackRustCalendarEventCreateResponse {
+typedef struct DestackRustHostCalendarEventCreateResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response carries one created identifier.
-    bool has_id;
     /// The created identifier when present.
-    DestackRustStringRef id;
-} DestackRustCalendarEventCreateResponse;
+    DestackRustOptionalStringRef id;
+} DestackRustHostCalendarEventCreateResponse;
 
 /// One host contact query payload.
-typedef struct DestackRustContactQuery {
-    /// Whether the query carries one cursor.
-    bool has_cursor;
+typedef struct DestackRustHostContactQuery {
     /// The opaque cursor from one prior list or search call.
-    DestackRustStringRef cursor;
-    /// Whether the query carries one limit.
-    bool has_limit;
+    DestackRustOptionalStringRef cursor;
     /// The maximum returned contacts for this page.
-    uint32_t limit;
+    DestackRustOptionalU32 limit;
     /// Whether phone values should be returned.
     bool include_phones;
     /// Whether email values should be returned.
@@ -593,10 +619,10 @@ typedef struct DestackRustContactQuery {
     bool include_organization;
     /// Whether note fields should be returned.
     bool include_notes;
-} DestackRustContactQuery;
+} DestackRustHostContactQuery;
 
 /// One host contact-name payload.
-typedef struct DestackRustContactName {
+typedef struct DestackRustHostContactName {
     /// The given or first name.
     DestackRustStringRef given_name;
     /// The middle name.
@@ -613,10 +639,10 @@ typedef struct DestackRustContactName {
     DestackRustStringRef phonetic_given_name;
     /// The phonetic family name.
     DestackRustStringRef phonetic_family_name;
-} DestackRustContactName;
+} DestackRustHostContactName;
 
 /// One host contact-phone payload.
-typedef struct DestackRustContactPhone {
+typedef struct DestackRustHostContactPhone {
     /// The user-visible label for this phone value.
     DestackRustStringRef label;
     /// The original phone number string.
@@ -625,20 +651,20 @@ typedef struct DestackRustContactPhone {
     DestackRustStringRef normalized_number;
     /// Whether this phone value is marked as primary.
     bool primary;
-} DestackRustContactPhone;
+} DestackRustHostContactPhone;
 
 /// One host contact-email payload.
-typedef struct DestackRustContactEmail {
+typedef struct DestackRustHostContactEmail {
     /// The user-visible label for this email value.
     DestackRustStringRef label;
     /// The email address.
     DestackRustStringRef address;
     /// Whether this email value is marked as primary.
     bool primary;
-} DestackRustContactEmail;
+} DestackRustHostContactEmail;
 
 /// One host contact-address payload.
-typedef struct DestackRustContactAddress {
+typedef struct DestackRustHostContactAddress {
     /// The user-visible label for this address value.
     DestackRustStringRef label;
     /// The street-line payload.
@@ -653,94 +679,100 @@ typedef struct DestackRustContactAddress {
     DestackRustStringRef country;
     /// The country-code payload.
     DestackRustStringRef country_code;
-} DestackRustContactAddress;
+} DestackRustHostContactAddress;
 
 /// One host contact-organization payload.
-typedef struct DestackRustContactOrganization {
+typedef struct DestackRustHostContactOrganization {
     /// The company or organization name.
     DestackRustStringRef company;
     /// The department name.
     DestackRustStringRef department;
     /// The job title.
     DestackRustStringRef title;
-} DestackRustContactOrganization;
+} DestackRustHostContactOrganization;
 
 /// One host contact payload.
-typedef struct DestackRustContact {
+typedef struct DestackRustHostContact {
     /// The stable host contact identifier.
     DestackRustStringRef id;
     /// The structured name payload.
-    DestackRustContactName name;
+    DestackRustHostContactName name;
     /// The phone values.
-    DestackRustContactPhoneSlice phones;
+    DestackRustHostContactPhoneSlice phones;
     /// The email values.
-    DestackRustContactEmailSlice emails;
+    DestackRustHostContactEmailSlice emails;
     /// The address values.
-    DestackRustContactAddressSlice addresses;
+    DestackRustHostContactAddressSlice addresses;
     /// The organization metadata.
-    DestackRustContactOrganization organization;
+    DestackRustHostContactOrganization organization;
     /// The contact note payload.
     DestackRustStringRef note;
-} DestackRustContact;
+} DestackRustHostContact;
 
 /// One host contact draft payload.
-typedef struct DestackRustContactDraft {
+typedef struct DestackRustHostContactDraft {
     /// The structured name payload.
-    DestackRustContactName name;
+    DestackRustHostContactName name;
     /// The phone values.
-    DestackRustContactPhoneSlice phones;
+    DestackRustHostContactPhoneSlice phones;
     /// The email values.
-    DestackRustContactEmailSlice emails;
+    DestackRustHostContactEmailSlice emails;
     /// The address values.
-    DestackRustContactAddressSlice addresses;
+    DestackRustHostContactAddressSlice addresses;
     /// The organization metadata.
-    DestackRustContactOrganization organization;
+    DestackRustHostContactOrganization organization;
     /// The contact note payload.
     DestackRustStringRef note;
-} DestackRustContactDraft;
+} DestackRustHostContactDraft;
 
 /// One host contact page payload.
-typedef struct DestackRustContactPage {
+typedef struct DestackRustHostContactPage {
     /// The listed contacts for this page.
-    DestackRustContactSlice contacts;
+    DestackRustHostContactSlice contacts;
     /// The opaque next-page cursor.
     DestackRustStringRef next_cursor;
     /// Whether more contacts are available.
     bool has_more;
-} DestackRustContactPage;
+} DestackRustHostContactPage;
+
+/// One optional host contact page passed through the Apple bridge
+typedef struct DestackRustOptionalHostContactPage {
+    bool has_value;
+    DestackRustHostContactPage value;
+} DestackRustOptionalHostContactPage;
 
 /// One host contact-page response payload.
-typedef struct DestackRustContactPageResponse {
+typedef struct DestackRustHostContactPageResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one page.
-    bool has_page;
     /// The returned contact page when available.
-    DestackRustContactPage page;
-} DestackRustContactPageResponse;
+    DestackRustOptionalHostContactPage page;
+} DestackRustHostContactPageResponse;
+
+/// One optional host contact passed through the Apple bridge
+typedef struct DestackRustOptionalHostContact {
+    bool has_value;
+    DestackRustHostContact value;
+} DestackRustOptionalHostContact;
 
 /// One host contact-read response payload.
-typedef struct DestackRustContactResponse {
+typedef struct DestackRustHostContactResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one contact.
-    bool has_contact;
     /// The returned contact when available.
-    DestackRustContact contact;
-} DestackRustContactResponse;
+    DestackRustOptionalHostContact contact;
+} DestackRustHostContactResponse;
 
 /// One host contact-create response payload.
-typedef struct DestackRustContactCreateResponse {
+typedef struct DestackRustHostContactCreateResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one created contact identifier.
-    bool has_id;
     /// The created contact identifier when available.
-    DestackRustStringRef id;
-} DestackRustContactCreateResponse;
+    DestackRustOptionalStringRef id;
+} DestackRustHostContactCreateResponse;
 
 /// One host document request payload.
-typedef struct DestackRustDocumentRequest {
+typedef struct DestackRustHostDocumentRequest {
     /// The stable request identifier for this interactive host flow.
     uint64_t request_id;
     /// MIME-type filters, empty means any type.
@@ -748,38 +780,148 @@ typedef struct DestackRustDocumentRequest {
     /// File-extension filters without the leading dot.
     DestackRustStringSlice extensions;
     /// Whether multiple documents may be selected.
-    bool allows_multiple_selection;
+    bool multiple;
     /// Whether directory selection is allowed.
-    bool allows_directory_selection;
+    bool allow_directories;
     /// Whether the host should copy selected files into one runtime-visible sandbox path when possible.
-    bool copies_to_sandbox;
-} DestackRustDocumentRequest;
+    bool copy_to_sandbox;
+} DestackRustHostDocumentRequest;
+
+/// One optional value passed through the Apple bridge
+typedef struct DestackRustOptionalOsPath {
+    bool has_value;
+    DestackRustStringRef value;
+} DestackRustOptionalOsPath;
 
 /// One host document descriptor payload.
-typedef struct DestackRustDocumentDescriptor {
+typedef struct DestackRustHostDocumentDescriptor {
     /// The stable URI or content identifier returned by the host.
     DestackRustStringRef uri;
     /// The normalized document name.
     DestackRustStringRef name;
-    /// Whether the host provided one MIME type.
-    bool has_mime_type;
     /// The normalized content type when available.
-    DestackRustStringRef mime_type;
-    /// Whether the host provided one size.
-    bool has_size_bytes;
+    DestackRustOptionalStringRef mime_type;
     /// The document size in bytes when available.
-    uint64_t size_bytes;
-    /// Whether the host provided one modification timestamp.
-    bool has_modified_unix_ns;
+    DestackRustOptionalU64 size_bytes;
     /// The document modification timestamp in UTC nanoseconds when available.
-    uint64_t modified_unix_ns;
+    DestackRustOptionalU64 modified_unix_ns;
     /// Whether this descriptor represents one directory.
     bool is_directory;
-    /// Whether the host provided one local path.
-    bool has_local_path;
     /// The optional host-local path when the host exposes one directly.
-    DestackRustStringRef local_path;
-} DestackRustDocumentDescriptor;
+    DestackRustOptionalOsPath local_path;
+} DestackRustHostDocumentDescriptor;
+
+/// One host document result payload.
+typedef struct DestackRustHostDocumentResult {
+    /// The stable request identifier for this interactive host flow.
+    uint64_t request_id;
+    /// The selected document descriptors.
+    DestackRustHostDocumentDescriptorSlice documents;
+} DestackRustHostDocumentResult;
+
+/// One host intent event metadata payload.
+typedef struct DestackRustHostIntentEventMetadata {
+    /// The monotonic event timestamp in nanoseconds.
+    uint64_t timestamp_ns;
+    /// The monotonic sequence number for this event stream.
+    uint64_t sequence;
+    /// The source package, bundle, or process identifier when available.
+    DestackRustOptionalStringRef source;
+} DestackRustHostIntentEventMetadata;
+
+/// One host open-url intent payload.
+typedef struct DestackRustHostIntentOpenUrlPayload {
+    /// The URL payload from the host.
+    DestackRustStringRef url;
+} DestackRustHostIntentOpenUrlPayload;
+
+/// One host open-url intent event payload.
+typedef struct DestackRustHostIntentOpenUrlEvent {
+    /// The intent event discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostIntentEventMetadata metadata;
+    /// The open-url payload.
+    DestackRustHostIntentOpenUrlPayload payload;
+} DestackRustHostIntentOpenUrlEvent;
+
+/// One host open-file intent payload.
+typedef struct DestackRustHostIntentOpenFilePayload {
+    /// The path payload from the host.
+    DestackRustStringRef path;
+    /// The normalized content type when available.
+    DestackRustOptionalStringRef mime_type;
+} DestackRustHostIntentOpenFilePayload;
+
+/// One host open-file intent event payload.
+typedef struct DestackRustHostIntentOpenFileEvent {
+    /// The intent event discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostIntentEventMetadata metadata;
+    /// The open-file payload.
+    DestackRustHostIntentOpenFilePayload payload;
+} DestackRustHostIntentOpenFileEvent;
+
+/// One host share-text intent payload.
+typedef struct DestackRustHostIntentShareTextPayload {
+    /// The shared text payload from the host.
+    DestackRustStringRef text;
+    /// The normalized content type when available.
+    DestackRustOptionalStringRef mime_type;
+} DestackRustHostIntentShareTextPayload;
+
+/// One host share-text intent event payload.
+typedef struct DestackRustHostIntentShareTextEvent {
+    /// The intent event discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostIntentEventMetadata metadata;
+    /// The share-text payload.
+    DestackRustHostIntentShareTextPayload payload;
+} DestackRustHostIntentShareTextEvent;
+
+/// One host share-files intent payload.
+typedef struct DestackRustHostIntentShareFilesPayload {
+    /// The shared path payloads from the host.
+    DestackRustStringSlice paths;
+    /// The normalized content type when available.
+    DestackRustOptionalStringRef mime_type;
+} DestackRustHostIntentShareFilesPayload;
+
+/// One host share-files intent event payload.
+typedef struct DestackRustHostIntentShareFilesEvent {
+    /// The intent event discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostIntentEventMetadata metadata;
+    /// The share-files payload.
+    DestackRustHostIntentShareFilesPayload payload;
+} DestackRustHostIntentShareFilesEvent;
+
+/// One host custom-action intent payload.
+typedef struct DestackRustHostIntentCustomActionPayload {
+    /// The custom action identifier from the host.
+    DestackRustStringRef action;
+    /// The URL payload when available.
+    DestackRustOptionalStringRef url;
+    /// The file-path payloads when available.
+    DestackRustStringSlice paths;
+    /// The shared text payload when available.
+    DestackRustOptionalStringRef text;
+    /// The normalized content type when available.
+    DestackRustOptionalStringRef mime_type;
+} DestackRustHostIntentCustomActionPayload;
+
+/// One host custom-action intent event payload.
+typedef struct DestackRustHostIntentCustomActionEvent {
+    /// The intent event discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostIntentEventMetadata metadata;
+    /// The custom-action payload.
+    DestackRustHostIntentCustomActionPayload payload;
+} DestackRustHostIntentCustomActionEvent;
 
 /// One location sample payload.
 typedef struct DestackRustLocationSample {
@@ -821,36 +963,36 @@ typedef struct DestackRustLocationServicesResponse {
     bool is_enabled;
 } DestackRustLocationServicesResponse;
 
+/// One optional location sample passed through the Apple bridge
+typedef struct DestackRustOptionalLocationSample {
+    bool has_value;
+    DestackRustLocationSample value;
+} DestackRustOptionalLocationSample;
+
 /// One last-known location response payload.
 typedef struct DestackRustLocationLastKnownResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one sample.
-    bool has_sample;
     /// The returned sample when available.
-    DestackRustLocationSample sample;
+    DestackRustOptionalLocationSample sample;
 } DestackRustLocationLastKnownResponse;
 
 /// One host media-list request payload.
-typedef struct DestackRustMediaListRequest {
-    /// Whether the request carries one cursor.
-    bool has_cursor;
+typedef struct DestackRustHostMediaListRequest {
     /// The opaque cursor from one prior media-list call.
-    DestackRustStringRef cursor;
-    /// Whether the request carries one limit.
-    bool has_limit;
+    DestackRustOptionalStringRef cursor;
     /// The maximum returned assets for this page.
-    uint32_t limit;
+    DestackRustOptionalU32 limit;
     /// The requested asset kinds, empty means every kind.
-    DestackRustMediaAssetKindSlice kinds;
+    DestackRustHostMediaAssetKindSlice kinds;
     /// Whether hidden assets should be included.
     bool include_hidden;
-} DestackRustMediaListRequest;
+} DestackRustHostMediaListRequest;
 
 /// One host media asset-descriptor payload.
-typedef struct DestackRustMediaAssetDescriptor {
+typedef struct DestackRustHostMediaAssetDescriptor {
     /// The stable asset identifier.
-    DestackRustStringRef identifier;
+    DestackRustStringRef id;
     /// The host URI for this asset.
     DestackRustStringRef uri;
     /// The asset filename payload.
@@ -858,7 +1000,7 @@ typedef struct DestackRustMediaAssetDescriptor {
     /// The asset MIME type payload when available.
     DestackRustStringRef mime_type;
     /// The asset class.
-    DestackRustMediaAssetKind kind;
+    DestackRustHostMediaAssetKind kind;
     /// The asset width in pixels when available.
     uint32_t width;
     /// The asset height in pixels when available.
@@ -871,124 +1013,220 @@ typedef struct DestackRustMediaAssetDescriptor {
     uint64_t created_unix_ns;
     /// The asset modification timestamp in UTC nanoseconds when available.
     uint64_t modified_unix_ns;
-} DestackRustMediaAssetDescriptor;
+} DestackRustHostMediaAssetDescriptor;
 
 /// One host media-list result payload.
-typedef struct DestackRustMediaListResult {
+typedef struct DestackRustHostMediaListResult {
     /// The returned assets for this page.
-    DestackRustMediaAssetDescriptorSlice assets;
+    DestackRustHostMediaAssetDescriptorSlice assets;
     /// The opaque next-page cursor, empty when absent.
     DestackRustStringRef next_cursor;
     /// Whether more assets are available.
     bool has_more;
-} DestackRustMediaListResult;
+} DestackRustHostMediaListResult;
+
+/// One optional host media list result passed through the Apple bridge
+typedef struct DestackRustOptionalHostMediaListResult {
+    bool has_value;
+    DestackRustHostMediaListResult value;
+} DestackRustOptionalHostMediaListResult;
 
 /// One host media-list response payload.
-typedef struct DestackRustMediaListResponse {
+typedef struct DestackRustHostMediaListResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one page.
-    bool has_page;
     /// The returned page when available.
-    DestackRustMediaListResult page;
-} DestackRustMediaListResponse;
+    DestackRustOptionalHostMediaListResult page;
+} DestackRustHostMediaListResponse;
+
+/// One optional host media asset descriptor passed through the Apple bridge
+typedef struct DestackRustOptionalHostMediaAssetDescriptor {
+    bool has_value;
+    DestackRustHostMediaAssetDescriptor value;
+} DestackRustOptionalHostMediaAssetDescriptor;
 
 /// One host media-read response payload.
-typedef struct DestackRustMediaReadResponse {
+typedef struct DestackRustHostMediaReadResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one descriptor.
-    bool has_descriptor;
     /// The returned descriptor when available.
-    DestackRustMediaAssetDescriptor descriptor;
-} DestackRustMediaReadResponse;
+    DestackRustOptionalHostMediaAssetDescriptor descriptor;
+} DestackRustHostMediaReadResponse;
 
 /// One host media-import request payload.
-typedef struct DestackRustMediaImportPathRequest {
+typedef struct DestackRustHostMediaImportPathRequest {
     /// The local path to import into the host media library.
     DestackRustStringRef path;
     /// The requested asset kind.
-    DestackRustMediaAssetKind kind;
-} DestackRustMediaImportPathRequest;
+    DestackRustHostMediaAssetKind kind;
+} DestackRustHostMediaImportPathRequest;
 
 /// One host media-import response payload.
-typedef struct DestackRustMediaImportPathResponse {
+typedef struct DestackRustHostMediaImportPathResponse {
     /// The request status code.
     uint32_t status;
-    /// Whether the response includes one imported asset identifier.
-    bool has_identifier;
     /// The imported asset identifier when available.
-    DestackRustStringRef identifier;
-} DestackRustMediaImportPathResponse;
+    DestackRustOptionalStringRef identifier;
+} DestackRustHostMediaImportPathResponse;
 
 /// One host media-delete request payload.
-typedef struct DestackRustMediaDeleteRequest {
+typedef struct DestackRustHostMediaDeleteRequest {
     /// The stable host media identifiers to delete.
     DestackRustStringSlice identifiers;
-} DestackRustMediaDeleteRequest;
+} DestackRustHostMediaDeleteRequest;
 
 /// One host media-delete response payload.
-typedef struct DestackRustMediaDeleteResponse {
+typedef struct DestackRustHostMediaDeleteResponse {
     /// The request status code.
     uint32_t status;
     /// The number of deleted assets.
     uint32_t deleted_count;
-} DestackRustMediaDeleteResponse;
+} DestackRustHostMediaDeleteResponse;
+
+/// One host notification calendar trigger payload.
+typedef struct DestackRustHostNotificationCalendarTrigger {
+    /// The trigger year.
+    uint16_t year;
+    /// The trigger month, 1 to 12.
+    uint8_t month;
+    /// The trigger day of month, 1 to 31.
+    uint8_t day;
+    /// The trigger hour, 0 to 23.
+    uint8_t hour;
+    /// The trigger minute, 0 to 59.
+    uint8_t minute;
+    /// The trigger second, 0 to 59.
+    uint8_t second;
+    /// The trigger timezone identifier.
+    DestackRustStringRef time_zone;
+    /// Whether this trigger repeats.
+    bool repeats;
+} DestackRustHostNotificationCalendarTrigger;
+
+/// One host notification calendar-date trigger payload.
+typedef struct DestackRustHostNotificationCalendarDateTrigger {
+    /// The trigger variant discriminator.
+    DestackRustStringRef kind;
+    /// The calendar trigger payload.
+    DestackRustHostNotificationCalendarTrigger calendar;
+} DestackRustHostNotificationCalendarDateTrigger;
+
+/// One host notification immediate trigger payload.
+typedef struct DestackRustHostNotificationImmediateTrigger {
+    /// The trigger variant discriminator.
+    DestackRustStringRef kind;
+} DestackRustHostNotificationImmediateTrigger;
+
+/// One host notification time-interval trigger payload.
+typedef struct DestackRustHostNotificationTimeIntervalTrigger {
+    /// The trigger variant discriminator.
+    DestackRustStringRef kind;
+    /// The time-interval trigger delay in nanoseconds.
+    uint64_t interval_ns;
+} DestackRustHostNotificationTimeIntervalTrigger;
 
 /// One host notification request payload.
-typedef struct DestackRustNotificationRequest {
-    /// The stable runtime notification identifier.
-    DestackRustStringRef identifier;
+typedef struct DestackRustHostNotificationRequest {
     /// The primary notification title.
     DestackRustStringRef title;
+    /// The subtitle when present.
+    DestackRustOptionalStringRef subtitle;
     /// The primary notification body text.
     DestackRustStringRef body;
-} DestackRustNotificationRequest;
+    /// The host notification tag.
+    DestackRustStringRef tag;
+    /// The channel identifier when present.
+    DestackRustOptionalStringRef channel_id;
+    /// The priority class.
+    DestackRustHostNotificationPriority priority;
+    /// The badge count when present.
+    DestackRustOptionalU32 badge_count;
+    /// The sound identifier when present.
+    DestackRustOptionalStringRef sound;
+    /// The category identifier when present.
+    DestackRustOptionalStringRef category_id;
+    /// The thread identifier when present.
+    DestackRustOptionalStringRef thread_id;
+    /// The delivery trigger selector.
+    DestackRustHostNotificationTrigger trigger;
+    /// The action identifier when present.
+    DestackRustOptionalStringRef action_id;
+} DestackRustHostNotificationRequest;
 
-/// One host notification event payload.
-typedef struct DestackRustNotificationEvent {
-    /// The notification interaction kind.
-    DestackRustNotificationEventKind kind;
-    /// The event sequence number for this stream.
-    uint64_t sequence;
+/// One host notification event metadata payload.
+typedef struct DestackRustHostNotificationEventMetadata {
     /// The monotonic event timestamp in nanoseconds.
     uint64_t timestamp_ns;
-    /// The simplified request associated with this event.
-    DestackRustNotificationRequest request;
-    /// Whether the host provided one action identifier.
-    bool has_action_identifier;
-    /// The action identifier for interactive notifications when available.
-    DestackRustStringRef action_identifier;
-} DestackRustNotificationEvent;
+    /// The monotonic sequence number for this event stream.
+    uint64_t sequence;
+    /// The host notification identifier.
+    DestackRustStringRef id;
+    /// The notification request payload.
+    DestackRustHostNotificationRequest request;
+} DestackRustHostNotificationEventMetadata;
+
+/// One host notification interacted payload.
+typedef struct DestackRustHostNotificationInteractedPayload {
+    /// The action identifier when present.
+    DestackRustOptionalStringRef action_id;
+    /// The text-input response when present.
+    DestackRustOptionalStringRef action_response_text;
+} DestackRustHostNotificationInteractedPayload;
+
+/// One host notification delivered event payload.
+typedef struct DestackRustHostNotificationDeliveredEvent {
+    /// The notification interaction discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostNotificationEventMetadata metadata;
+} DestackRustHostNotificationDeliveredEvent;
+
+/// One host notification dismissed event payload.
+typedef struct DestackRustHostNotificationDismissedEvent {
+    /// The notification interaction discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostNotificationEventMetadata metadata;
+} DestackRustHostNotificationDismissedEvent;
+
+/// One host notification interacted event payload.
+typedef struct DestackRustHostNotificationInteractedEvent {
+    /// The notification interaction discriminator.
+    DestackRustStringRef kind;
+    /// The shared event metadata.
+    DestackRustHostNotificationEventMetadata metadata;
+    /// The interaction payload.
+    DestackRustHostNotificationInteractedPayload payload;
+} DestackRustHostNotificationInteractedEvent;
 
 /// One host permission request payload.
-typedef struct DestackRustPermissionRequest {
+typedef struct DestackRustHostPermissionRequest {
     /// The stable request identifier for this interactive host flow.
     uint64_t request_id;
-    /// The normalized permission name requested by the runtime.
-    DestackRustStringRef permission;
-} DestackRustPermissionRequest;
+    /// The permission requested by the runtime.
+    DestackRustHostPermission permission;
+} DestackRustHostPermissionRequest;
 
 /// One host permission event payload.
-typedef struct DestackRustPermissionEvent {
+typedef struct DestackRustHostPermissionEvent {
     /// The stable request identifier for this interactive host flow.
     uint64_t request_id;
-    /// The normalized permission name.
-    DestackRustStringRef permission;
+    /// The permission associated with this result.
+    DestackRustHostPermission permission;
     /// Whether the permission was granted.
     bool is_granted;
-} DestackRustPermissionEvent;
+} DestackRustHostPermissionEvent;
 
 /// One host text range payload.
-typedef struct DestackRustTextInputRange {
+typedef struct DestackRustHostTextInputRange {
     /// The inclusive selection start offset.
     uint32_t start_offset;
     /// The exclusive selection end offset.
     uint32_t end_offset;
-} DestackRustTextInputRange;
+} DestackRustHostTextInputRange;
 
 /// One host text rectangle payload.
-typedef struct DestackRustTextInputRectangle {
+typedef struct DestackRustHostTextInputRectangle {
     /// The left edge in local logical units.
     double x;
     /// The top edge in local logical units.
@@ -997,10 +1235,10 @@ typedef struct DestackRustTextInputRectangle {
     double width;
     /// The rectangle height in local logical units.
     double height;
-} DestackRustTextInputRectangle;
+} DestackRustHostTextInputRectangle;
 
 /// One host text transform payload.
-typedef struct DestackRustTextInputTransform2D {
+typedef struct DestackRustHostTextInputTransform2D {
     /// The first-row X coefficient.
     double xx;
     /// The first-row Y coefficient.
@@ -1013,84 +1251,90 @@ typedef struct DestackRustTextInputTransform2D {
     double tx;
     /// The translation Y component.
     double ty;
-} DestackRustTextInputTransform2D;
+} DestackRustHostTextInputTransform2D;
+
+/// One optional host text input rectangle passed through the Apple bridge
+typedef struct DestackRustOptionalHostTextInputRectangle {
+    bool has_value;
+    DestackRustHostTextInputRectangle value;
+} DestackRustOptionalHostTextInputRectangle;
 
 /// One host text geometry payload.
-typedef struct DestackRustTextInputGeometry {
+typedef struct DestackRustHostTextInputGeometry {
     /// The local-to-target transform.
-    DestackRustTextInputTransform2D local_to_target_transform;
+    DestackRustHostTextInputTransform2D local_to_target_transform;
     /// The full editor rectangle.
-    DestackRustTextInputRectangle editor_rectangle;
-    /// Whether one caret rectangle is present.
-    bool has_caret_rectangle;
+    DestackRustHostTextInputRectangle editor_rectangle;
     /// The caret rectangle when present.
-    DestackRustTextInputRectangle caret_rectangle;
-    /// Whether one composing rectangle is present.
-    bool has_composing_rectangle;
+    DestackRustOptionalHostTextInputRectangle caret_rectangle;
     /// The composing rectangle when present.
-    DestackRustTextInputRectangle composing_rectangle;
-} DestackRustTextInputGeometry;
+    DestackRustOptionalHostTextInputRectangle composing_rectangle;
+} DestackRustHostTextInputGeometry;
 
 /// One host text session configuration payload.
-typedef struct DestackRustTextInputConfiguration {
+typedef struct DestackRustHostTextInputConfiguration {
     /// The stable runtime text session identifier.
     uint64_t session_id;
     /// The text input type hint.
-    DestackRustTextInputType input_type;
+    DestackRustHostTextInputType input_type;
     /// Whether the session is multiline.
     bool is_multiline;
     /// Whether the session is secure or password-like.
     bool is_secure;
-} DestackRustTextInputConfiguration;
+} DestackRustHostTextInputConfiguration;
+
+/// One optional host text input range passed through the Apple bridge
+typedef struct DestackRustOptionalHostTextInputRange {
+    bool has_value;
+    DestackRustHostTextInputRange value;
+} DestackRustOptionalHostTextInputRange;
 
 /// One host text state payload.
-typedef struct DestackRustTextInputState {
+typedef struct DestackRustHostTextInputState {
     /// The current text payload.
     DestackRustStringRef text;
     /// The current selection range.
-    DestackRustTextInputRange selection;
-    /// Whether one composing range is present.
-    bool has_composing;
+    DestackRustHostTextInputRange selection;
     /// The composing range when present.
-    DestackRustTextInputRange composing;
-} DestackRustTextInputState;
+    DestackRustOptionalHostTextInputRange composing;
+} DestackRustHostTextInputState;
 
 /// One host text open request payload.
-typedef struct DestackRustTextInputOpenRequest {
+typedef struct DestackRustHostTextInputOpenRequest {
     /// The text session configuration.
-    DestackRustTextInputConfiguration configuration;
+    DestackRustHostTextInputConfiguration configuration;
     /// The initial renderer-owned text state.
-    DestackRustTextInputState state;
-} DestackRustTextInputOpenRequest;
+    DestackRustHostTextInputState state;
+} DestackRustHostTextInputOpenRequest;
 
 /// One host text close request payload.
-typedef struct DestackRustTextInputCloseRequest {
+typedef struct DestackRustHostTextInputCloseRequest {
     /// The stable runtime text session identifier.
     uint64_t session_id;
-} DestackRustTextInputCloseRequest;
+} DestackRustHostTextInputCloseRequest;
 
 /// One host text-geometry update payload.
-typedef struct DestackRustTextInputGeometryRequest {
+typedef struct DestackRustHostTextInputGeometryRequest {
     /// The stable runtime text session identifier.
     uint64_t session_id;
     /// The next renderer-owned geometry payload.
-    DestackRustTextInputGeometry geometry;
-} DestackRustTextInputGeometryRequest;
+    DestackRustHostTextInputGeometry geometry;
+} DestackRustHostTextInputGeometryRequest;
 
 /// One host text-state update payload.
-typedef struct DestackRustTextInputStateRequest {
+typedef struct DestackRustHostTextInputStateRequest {
     /// The stable runtime text session identifier.
     uint64_t session_id;
     /// The next renderer-owned text state.
-    DestackRustTextInputState state;
-} DestackRustTextInputStateRequest;
+    DestackRustHostTextInputState state;
+} DestackRustHostTextInputStateRequest;
 
 /// One host text ingress event payload.
-typedef struct DestackRustTextInputEvent {
+typedef struct DestackRustHostTextInputEvent {
     /// The stable runtime text session identifier.
     uint64_t session_id;
     /// The current text-session state.
-    DestackRustTextInputState state;
-} DestackRustTextInputEvent;
+    DestackRustHostTextInputState state;
+} DestackRustHostTextInputEvent;
 
 #endif

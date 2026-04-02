@@ -8,7 +8,7 @@ import RuntimeHostAppleCore
 typealias PermissionRequestCallback =
   @convention(c) (
     UInt64,
-    DestackRustPermissionRequest
+    DestackRustHostPermissionRequest
   ) -> UInt32
 
 /// Open one host permission settings surface.
@@ -46,7 +46,7 @@ func makePermissionCallbacks() -> IosHostPermissionCallbacks {
 /// Handle one runtime callback asking to submit one host permission request.
 func handlePermissionRequest(
   sessionHandle: UInt64,
-  request: DestackRustPermissionRequest
+  request: DestackRustHostPermissionRequest
 ) -> UInt32 {
   let decodedRequest: RuntimeHostPermissionRequest
   do {
@@ -181,59 +181,77 @@ func currentPermissionBridgeArena() -> PermissionBridgeArena {
   return arena
 }
 
-/// Build one Swift PermissionRequest from one bridge payload.
+/// Build one Swift HostPermission from one bridge raw value.
+func decodeBridgeHostPermission(
+  _ value: DestackRustHostPermission
+) throws -> RuntimeHostPermission {
+  guard let value = RuntimeHostPermission(rawValue: .init(value)) else {
+    throw BridgeStringError.invalidStringSlice
+  }
+
+  return value
+}
+
+/// Build one Swift HostPermissionRequest from one bridge payload.
 func decodeBridgeHostPermissionRequest(
-  _ value: DestackRustPermissionRequest
+  _ value: DestackRustHostPermissionRequest
 ) throws -> RuntimeHostPermissionRequest {
   RuntimeHostPermissionRequest(
     requestID:
       HostRequestID(rawValue: value.request_id),
     permission:
-      try tryDecodeNativeString(value.permission)
+      try decodeBridgeHostPermission(value.permission)
   )
 }
 
-/// Encode one Swift PermissionRequest as one bridge payload.
+/// Encode one Swift HostPermission as one bridge raw value.
+func encodeBridgeHostPermission(
+  _ value: RuntimeHostPermission
+) -> DestackRustHostPermission {
+  Int32(value.rawValue)
+}
+
+/// Encode one Swift HostPermissionRequest as one bridge payload.
 func encodeBridgeHostPermissionRequest(
   _ value: RuntimeHostPermissionRequest,
   arena: PermissionBridgeArena
-) -> DestackRustPermissionRequest {
-  DestackRustPermissionRequest(
+) -> DestackRustHostPermissionRequest {
+  DestackRustHostPermissionRequest(
     request_id:
       value.requestID.rawValue,
     permission:
-      arena.makeStringRef(value.permission)
+      encodeBridgeHostPermission(value.permission)
   )
 }
 
 func encodeBridgeHostPermissionRequest(
   _ value: RuntimeHostPermissionRequest
-) -> DestackRustPermissionRequest {
+) -> DestackRustHostPermissionRequest {
   let arena = currentPermissionBridgeArena()
 
   return encodeBridgeHostPermissionRequest(value, arena: arena)
 }
 
-/// Encode one Swift PermissionRequest as one C bridge payload.
+/// Encode one Swift HostPermissionRequest as one C bridge payload.
 func withNativeHostPermissionRequest<T>(
   _ value: RuntimeHostPermissionRequest,
-  body: (DestackRustPermissionRequest) -> T
+  body: (DestackRustHostPermissionRequest) -> T
 ) -> T {
   let arena = currentPermissionBridgeArena()
 
   return body(encodeBridgeHostPermissionRequest(value, arena: arena))
 }
 
-/// Encode one Swift PermissionEvent as one bridge payload.
+/// Encode one Swift HostPermissionEvent as one bridge payload.
 func encodeBridgeHostPermissionEvent(
   _ value: RuntimeHostPermissionEvent,
   arena: PermissionBridgeArena
-) -> DestackRustPermissionEvent {
-  DestackRustPermissionEvent(
+) -> DestackRustHostPermissionEvent {
+  DestackRustHostPermissionEvent(
     request_id:
       value.requestID.rawValue,
     permission:
-      arena.makeStringRef(value.permission),
+      encodeBridgeHostPermission(value.permission),
     is_granted:
       value.isGranted
   )
@@ -241,16 +259,16 @@ func encodeBridgeHostPermissionEvent(
 
 func encodeBridgeHostPermissionEvent(
   _ value: RuntimeHostPermissionEvent
-) -> DestackRustPermissionEvent {
+) -> DestackRustHostPermissionEvent {
   let arena = currentPermissionBridgeArena()
 
   return encodeBridgeHostPermissionEvent(value, arena: arena)
 }
 
-/// Encode one Swift PermissionEvent as one C bridge payload.
+/// Encode one Swift HostPermissionEvent as one C bridge payload.
 func withNativeHostPermissionEvent<T>(
   _ value: RuntimeHostPermissionEvent,
-  body: (DestackRustPermissionEvent) -> T
+  body: (DestackRustHostPermissionEvent) -> T
 ) -> T {
   let arena = currentPermissionBridgeArena()
 

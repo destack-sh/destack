@@ -66,9 +66,9 @@ uint32_t call_document_request(
         static_cast<jlong>(request.request_id),
         mime_types,
         extensions,
-        request.allows_multiple_selection ? JNI_TRUE : JNI_FALSE,
-        request.allows_directory_selection ? JNI_TRUE : JNI_FALSE,
-        request.copies_to_sandbox ? JNI_TRUE : JNI_FALSE
+        request.multiple ? JNI_TRUE : JNI_FALSE,
+        request.allow_directories ? JNI_TRUE : JNI_FALSE,
+        request.copy_to_sandbox ? JNI_TRUE : JNI_FALSE
     );
 
     env->DeleteLocalRef(bridge);

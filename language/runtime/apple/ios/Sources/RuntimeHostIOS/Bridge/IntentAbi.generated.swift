@@ -31,8 +31,7 @@ typealias IntentShareTextCallback =
   @convention(c) (
     UInt64,
     DestackRustStringRef,
-    Bool,
-    DestackRustStringRef
+    DestackRustOptionalStringRef
   ) -> UInt32
 
 /// Share one outbound path list through the host.
@@ -40,8 +39,7 @@ typealias IntentSharePathsCallback =
   @convention(c) (
     UInt64,
     DestackRustStringSlice,
-    Bool,
-    DestackRustStringRef
+    DestackRustOptionalStringRef
   ) -> UInt32
 
 let intentCanOpenUrlCallback: IntentCanOpenUrlCallback = {
@@ -79,13 +77,11 @@ let intentOpenPathCallback: IntentOpenPathCallback = {
 let intentShareTextCallback: IntentShareTextCallback = {
   sessionHandle,
   text,
-  hasMimeType,
   mimeType
   in
   handleIntentShareText(
     sessionHandle: sessionHandle,
     text: text,
-    hasMimeType: hasMimeType,
     mimeType: mimeType
   )
 }
@@ -93,13 +89,11 @@ let intentShareTextCallback: IntentShareTextCallback = {
 let intentSharePathsCallback: IntentSharePathsCallback = {
   sessionHandle,
   paths,
-  hasMimeType,
   mimeType
   in
   handleIntentSharePaths(
     sessionHandle: sessionHandle,
     paths: paths,
-    hasMimeType: hasMimeType,
     mimeType: mimeType
   )
 }
@@ -138,7 +132,7 @@ func handleIntentCanOpenUrl(
     ) { bridge, runtimeHost in
       bridge.intentCanOpenUrl(
         runtimeHost: runtimeHost,
-        decodedUrl
+        url: decodedUrl
       )
     }
   }
@@ -147,7 +141,7 @@ func handleIntentCanOpenUrl(
   }
   isSupported.pointee = bridgeResponse
 
-  return hostStatusOk
+  return bridgeResponse.status
 }
 
 /// Handle one runtime callback asking to open one outbound url route through the host.
@@ -169,7 +163,7 @@ func handleIntentOpenUrl(
     ) { bridge, runtimeHost in
       bridge.intentOpenUrl(
         runtimeHost: runtimeHost,
-        decodedUrl
+        url: decodedUrl
       )
     }
   }
@@ -194,7 +188,7 @@ func handleIntentOpenPath(
     ) { bridge, runtimeHost in
       bridge.intentOpenPath(
         runtimeHost: runtimeHost,
-        decodedPath
+        path: decodedPath
       )
     }
   }
@@ -204,8 +198,7 @@ func handleIntentOpenPath(
 func handleIntentShareText(
   sessionHandle: UInt64,
   text: DestackRustStringRef,
-  hasMimeType: Bool,
-  mimeType: DestackRustStringRef
+  mimeType: DestackRustOptionalStringRef
 ) -> UInt32 {
   let decodedText: String
   do {
@@ -214,11 +207,9 @@ func handleIntentShareText(
     return hostStatusInvalidArgument
   }
 
-  let decodedHasMimeType = hasMimeType
-
-  let decodedMimeType: String
+  let decodedMimeType: String?
   do {
-    decodedMimeType = try tryDecodeNativeString(mimeType)
+    decodedMimeType = (mimeType.has_value ? Optional(try tryDecodeNativeString(mimeType.value)) : nil)
   } catch {
     return hostStatusInvalidArgument
   }
@@ -230,8 +221,7 @@ func handleIntentShareText(
     ) { bridge, runtimeHost in
       bridge.intentShareText(
         runtimeHost: runtimeHost,
-        decodedText,
-        hasMimeType: decodedHasMimeType,
+        text: decodedText,
         mimeType: decodedMimeType
       )
     }
@@ -242,8 +232,7 @@ func handleIntentShareText(
 func handleIntentSharePaths(
   sessionHandle: UInt64,
   paths: DestackRustStringSlice,
-  hasMimeType: Bool,
-  mimeType: DestackRustStringRef
+  mimeType: DestackRustOptionalStringRef
 ) -> UInt32 {
   let decodedPaths: [String]
   do {
@@ -252,11 +241,9 @@ func handleIntentSharePaths(
     return hostStatusInvalidArgument
   }
 
-  let decodedHasMimeType = hasMimeType
-
-  let decodedMimeType: String
+  let decodedMimeType: String?
   do {
-    decodedMimeType = try tryDecodeNativeString(mimeType)
+    decodedMimeType = (mimeType.has_value ? Optional(try tryDecodeNativeString(mimeType.value)) : nil)
   } catch {
     return hostStatusInvalidArgument
   }
@@ -268,10 +255,463 @@ func handleIntentSharePaths(
     ) { bridge, runtimeHost in
       bridge.intentSharePaths(
         runtimeHost: runtimeHost,
-        decodedPaths,
-        hasMimeType: decodedHasMimeType,
+        paths: decodedPaths,
         mimeType: decodedMimeType
       )
     }
   }
+}
+
+/// One temporary native allocation arena for one bridge callback.
+final class IntentBridgeArena {
+  /// The raw deallocation actions recorded for this callback.
+  private var deallocations: [() -> Void] = []
+
+  /// Remove every recorded allocation before one new callback payload is encoded.
+  func reset() {
+    for deallocate in deallocations.reversed() {
+      deallocate()
+    }
+
+    deallocations.removeAll(keepingCapacity: true)
+  }
+
+  /// Release every recorded native allocation.
+  deinit {
+    for deallocate in deallocations.reversed() {
+      deallocate()
+    }
+  }
+
+  /// Allocate one copied UTF-8 buffer for one Swift string.
+  func makeStringRef(
+    _ value: String
+  ) -> DestackRustStringRef {
+    let bytes = Array(value.utf8)
+    if bytes.isEmpty {
+      return DestackRustStringRef(data: nil, len: 0)
+    }
+
+    let storage = UnsafeMutablePointer<UInt8>.allocate(capacity: bytes.count)
+    storage.initialize(from: bytes, count: bytes.count)
+    deallocations.append {
+      storage.deinitialize(count: bytes.count)
+      storage.deallocate()
+    }
+
+    return DestackRustStringRef(
+      data: UnsafePointer(storage),
+      len: UInt32(bytes.count)
+    )
+  }
+
+  /// Allocate one copied string-slice payload.
+  func makeStringSlice(
+    _ values: [String]
+  ) -> DestackRustStringSlice {
+    let data = makeArray(count: values.count) { buffer in
+      for (index, value) in values.enumerated() {
+        buffer[index] = makeStringRef(value)
+      }
+    }
+
+    return DestackRustStringSlice(
+      data: data,
+      len: UInt32(values.count)
+    )
+  }
+
+  /// Allocate one copied native array and fill it with one builder closure.
+  func makeArray<Element>(
+    count: Int,
+    fill: (UnsafeMutableBufferPointer<Element>) -> Void
+  ) -> UnsafeMutablePointer<Element>? {
+    if count == 0 {
+      return nil
+    }
+
+    let storage = UnsafeMutablePointer<Element>.allocate(capacity: count)
+    let buffer = UnsafeMutableBufferPointer(start: storage, count: count)
+    fill(buffer)
+    deallocations.append {
+      storage.deinitialize(count: count)
+      storage.deallocate()
+    }
+
+    return storage
+  }
+}
+
+/// Return the thread-local bridge arena for one callback thread.
+func currentIntentBridgeArena() -> IntentBridgeArena {
+  let dictionary = Thread.current.threadDictionary
+  let key = "dev.destack.runtime.apple.intent-bridge-arena"
+
+  if let arena = dictionary[key] as? IntentBridgeArena {
+    arena.reset()
+
+    return arena
+  }
+
+  let arena = IntentBridgeArena()
+  dictionary[key] = arena
+
+  return arena
+}
+
+/// Encode one Swift HostIntentEventMetadata as one bridge payload.
+func encodeBridgeHostIntentEventMetadata(
+  _ value: RuntimeHostIntentEventMetadata,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentEventMetadata {
+  DestackRustHostIntentEventMetadata(
+    timestamp_ns:
+      value.timestampNs,
+    sequence:
+      value.sequence,
+    source:
+      ({ if let unwrappedValue = value.source { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
+  )
+}
+
+func encodeBridgeHostIntentEventMetadata(
+  _ value: RuntimeHostIntentEventMetadata
+) -> DestackRustHostIntentEventMetadata {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentEventMetadata(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentEventMetadata as one C bridge payload.
+func withNativeHostIntentEventMetadata<T>(
+  _ value: RuntimeHostIntentEventMetadata,
+  body: (DestackRustHostIntentEventMetadata) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentEventMetadata(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentOpenUrlPayload as one bridge payload.
+func encodeBridgeHostIntentOpenUrlPayload(
+  _ value: RuntimeHostIntentOpenUrlPayload,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentOpenUrlPayload {
+  DestackRustHostIntentOpenUrlPayload(
+    url:
+      arena.makeStringRef(value.url)
+  )
+}
+
+func encodeBridgeHostIntentOpenUrlPayload(
+  _ value: RuntimeHostIntentOpenUrlPayload
+) -> DestackRustHostIntentOpenUrlPayload {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentOpenUrlPayload(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentOpenUrlPayload as one C bridge payload.
+func withNativeHostIntentOpenUrlPayload<T>(
+  _ value: RuntimeHostIntentOpenUrlPayload,
+  body: (DestackRustHostIntentOpenUrlPayload) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentOpenUrlPayload(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentOpenUrlEvent as one bridge payload.
+func encodeBridgeHostIntentOpenUrlEvent(
+  _ value: RuntimeHostIntentOpenUrlEvent,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentOpenUrlEvent {
+  DestackRustHostIntentOpenUrlEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostIntentEventMetadata(value.metadata, arena: arena),
+    payload:
+      encodeBridgeHostIntentOpenUrlPayload(value.payload, arena: arena)
+  )
+}
+
+func encodeBridgeHostIntentOpenUrlEvent(
+  _ value: RuntimeHostIntentOpenUrlEvent
+) -> DestackRustHostIntentOpenUrlEvent {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentOpenUrlEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentOpenUrlEvent as one C bridge payload.
+func withNativeHostIntentOpenUrlEvent<T>(
+  _ value: RuntimeHostIntentOpenUrlEvent,
+  body: (DestackRustHostIntentOpenUrlEvent) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentOpenUrlEvent(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentOpenFilePayload as one bridge payload.
+func encodeBridgeHostIntentOpenFilePayload(
+  _ value: RuntimeHostIntentOpenFilePayload,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentOpenFilePayload {
+  DestackRustHostIntentOpenFilePayload(
+    path:
+      arena.makeStringRef(value.path),
+    mime_type:
+      ({ if let unwrappedValue = value.mimeType { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
+  )
+}
+
+func encodeBridgeHostIntentOpenFilePayload(
+  _ value: RuntimeHostIntentOpenFilePayload
+) -> DestackRustHostIntentOpenFilePayload {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentOpenFilePayload(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentOpenFilePayload as one C bridge payload.
+func withNativeHostIntentOpenFilePayload<T>(
+  _ value: RuntimeHostIntentOpenFilePayload,
+  body: (DestackRustHostIntentOpenFilePayload) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentOpenFilePayload(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentOpenFileEvent as one bridge payload.
+func encodeBridgeHostIntentOpenFileEvent(
+  _ value: RuntimeHostIntentOpenFileEvent,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentOpenFileEvent {
+  DestackRustHostIntentOpenFileEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostIntentEventMetadata(value.metadata, arena: arena),
+    payload:
+      encodeBridgeHostIntentOpenFilePayload(value.payload, arena: arena)
+  )
+}
+
+func encodeBridgeHostIntentOpenFileEvent(
+  _ value: RuntimeHostIntentOpenFileEvent
+) -> DestackRustHostIntentOpenFileEvent {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentOpenFileEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentOpenFileEvent as one C bridge payload.
+func withNativeHostIntentOpenFileEvent<T>(
+  _ value: RuntimeHostIntentOpenFileEvent,
+  body: (DestackRustHostIntentOpenFileEvent) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentOpenFileEvent(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentShareTextPayload as one bridge payload.
+func encodeBridgeHostIntentShareTextPayload(
+  _ value: RuntimeHostIntentShareTextPayload,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentShareTextPayload {
+  DestackRustHostIntentShareTextPayload(
+    text:
+      arena.makeStringRef(value.text),
+    mime_type:
+      ({ if let unwrappedValue = value.mimeType { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
+  )
+}
+
+func encodeBridgeHostIntentShareTextPayload(
+  _ value: RuntimeHostIntentShareTextPayload
+) -> DestackRustHostIntentShareTextPayload {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentShareTextPayload(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentShareTextPayload as one C bridge payload.
+func withNativeHostIntentShareTextPayload<T>(
+  _ value: RuntimeHostIntentShareTextPayload,
+  body: (DestackRustHostIntentShareTextPayload) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentShareTextPayload(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentShareTextEvent as one bridge payload.
+func encodeBridgeHostIntentShareTextEvent(
+  _ value: RuntimeHostIntentShareTextEvent,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentShareTextEvent {
+  DestackRustHostIntentShareTextEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostIntentEventMetadata(value.metadata, arena: arena),
+    payload:
+      encodeBridgeHostIntentShareTextPayload(value.payload, arena: arena)
+  )
+}
+
+func encodeBridgeHostIntentShareTextEvent(
+  _ value: RuntimeHostIntentShareTextEvent
+) -> DestackRustHostIntentShareTextEvent {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentShareTextEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentShareTextEvent as one C bridge payload.
+func withNativeHostIntentShareTextEvent<T>(
+  _ value: RuntimeHostIntentShareTextEvent,
+  body: (DestackRustHostIntentShareTextEvent) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentShareTextEvent(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentShareFilesPayload as one bridge payload.
+func encodeBridgeHostIntentShareFilesPayload(
+  _ value: RuntimeHostIntentShareFilesPayload,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentShareFilesPayload {
+  DestackRustHostIntentShareFilesPayload(
+    paths:
+      arena.makeStringSlice(value.paths),
+    mime_type:
+      ({ if let unwrappedValue = value.mimeType { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
+  )
+}
+
+func encodeBridgeHostIntentShareFilesPayload(
+  _ value: RuntimeHostIntentShareFilesPayload
+) -> DestackRustHostIntentShareFilesPayload {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentShareFilesPayload(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentShareFilesPayload as one C bridge payload.
+func withNativeHostIntentShareFilesPayload<T>(
+  _ value: RuntimeHostIntentShareFilesPayload,
+  body: (DestackRustHostIntentShareFilesPayload) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentShareFilesPayload(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentShareFilesEvent as one bridge payload.
+func encodeBridgeHostIntentShareFilesEvent(
+  _ value: RuntimeHostIntentShareFilesEvent,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentShareFilesEvent {
+  DestackRustHostIntentShareFilesEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostIntentEventMetadata(value.metadata, arena: arena),
+    payload:
+      encodeBridgeHostIntentShareFilesPayload(value.payload, arena: arena)
+  )
+}
+
+func encodeBridgeHostIntentShareFilesEvent(
+  _ value: RuntimeHostIntentShareFilesEvent
+) -> DestackRustHostIntentShareFilesEvent {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentShareFilesEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentShareFilesEvent as one C bridge payload.
+func withNativeHostIntentShareFilesEvent<T>(
+  _ value: RuntimeHostIntentShareFilesEvent,
+  body: (DestackRustHostIntentShareFilesEvent) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentShareFilesEvent(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentCustomActionPayload as one bridge payload.
+func encodeBridgeHostIntentCustomActionPayload(
+  _ value: RuntimeHostIntentCustomActionPayload,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentCustomActionPayload {
+  DestackRustHostIntentCustomActionPayload(
+    action:
+      arena.makeStringRef(value.action),
+    url:
+      ({ if let unwrappedValue = value.url { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
+    paths:
+      arena.makeStringSlice(value.paths),
+    text:
+      ({ if let unwrappedValue = value.text { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }()),
+    mime_type:
+      ({ if let unwrappedValue = value.mimeType { return DestackRustOptionalStringRef(has_value: true, value: arena.makeStringRef(unwrappedValue)) } return DestackRustOptionalStringRef(has_value: false, value: DestackRustStringRef(data: nil, len: 0)) }())
+  )
+}
+
+func encodeBridgeHostIntentCustomActionPayload(
+  _ value: RuntimeHostIntentCustomActionPayload
+) -> DestackRustHostIntentCustomActionPayload {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentCustomActionPayload(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentCustomActionPayload as one C bridge payload.
+func withNativeHostIntentCustomActionPayload<T>(
+  _ value: RuntimeHostIntentCustomActionPayload,
+  body: (DestackRustHostIntentCustomActionPayload) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentCustomActionPayload(value, arena: arena))
+}
+
+/// Encode one Swift HostIntentCustomActionEvent as one bridge payload.
+func encodeBridgeHostIntentCustomActionEvent(
+  _ value: RuntimeHostIntentCustomActionEvent,
+  arena: IntentBridgeArena
+) -> DestackRustHostIntentCustomActionEvent {
+  DestackRustHostIntentCustomActionEvent(
+    kind:
+      arena.makeStringRef(value.kind),
+    metadata:
+      encodeBridgeHostIntentEventMetadata(value.metadata, arena: arena),
+    payload:
+      encodeBridgeHostIntentCustomActionPayload(value.payload, arena: arena)
+  )
+}
+
+func encodeBridgeHostIntentCustomActionEvent(
+  _ value: RuntimeHostIntentCustomActionEvent
+) -> DestackRustHostIntentCustomActionEvent {
+  let arena = currentIntentBridgeArena()
+
+  return encodeBridgeHostIntentCustomActionEvent(value, arena: arena)
+}
+
+/// Encode one Swift HostIntentCustomActionEvent as one C bridge payload.
+func withNativeHostIntentCustomActionEvent<T>(
+  _ value: RuntimeHostIntentCustomActionEvent,
+  body: (DestackRustHostIntentCustomActionEvent) -> T
+) -> T {
+  let arena = currentIntentBridgeArena()
+
+  return body(encodeBridgeHostIntentCustomActionEvent(value, arena: arena))
 }

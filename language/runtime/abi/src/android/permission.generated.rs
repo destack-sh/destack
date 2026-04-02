@@ -8,7 +8,7 @@ use crate::host::android::abi::permission::{
     destack_host_android_permission_request as runtime_permission_request,
 };
 
-/// Forward the `request` permission request through the ABI artifact.
+/// Forward the `request` permission request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_permission_request(
     session_handle: u64,
@@ -17,13 +17,13 @@ pub unsafe extern "C" fn destack_host_android_permission_request(
     unsafe { runtime_permission_request(session_handle, request) }
 }
 
-/// Forward the `open_settings` permission request through the ABI artifact.
+/// Forward the `open_settings` permission request through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_permission_open_settings(session_handle: u64) -> u32 {
     unsafe { runtime_permission_open_settings(session_handle) }
 }
 
-/// Forward the `notify_permission_result` ingress through the ABI artifact.
+/// Forward the `notify_permission_result` ingress through the ABI crate.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn destack_host_android_notify_permission_result(
     runtime_id: u64,

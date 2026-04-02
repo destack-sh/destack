@@ -26,6 +26,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 /// Resolve the text bridge methods from one runtime bridge instance.
 bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
     if (bridge_class == nullptr) {
@@ -45,7 +113,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         open_method = env->GetMethodID(
             bridge_class,
             "textOpen",
-            "(JIZZLjava/lang/String;IIZII)I"
+            "(JIZZLjava/lang/String;IILdev/destack/runtime/android/module/text/RuntimeHostTextInputRange;)I"
         );
     }
 
@@ -61,7 +129,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         setGeometry_method = env->GetMethodID(
             bridge_class,
             "textSetGeometry",
-            "(JDDDDDDDDDDZDDDDZDDDD)I"
+            "(JDDDDDDDDDDLdev/destack/runtime/android/module/text/RuntimeHostTextInputRectangle;Ldev/destack/runtime/android/module/text/RuntimeHostTextInputRectangle;)I"
         );
     }
 
@@ -69,7 +137,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         setState_method = env->GetMethodID(
             bridge_class,
             "textSetState",
-            "(JLjava/lang/String;IIZII)I"
+            "(JLjava/lang/String;IILdev/destack/runtime/android/module/text/RuntimeHostTextInputRange;)I"
         );
     }
 
@@ -97,23 +165,25 @@ uint32_t call_text_open(
         return HOST_STATUS_NOT_FOUND;
     }
 
+    jobject input_type_value = encode_HostTextInputType(env, request.configuration.input_type);
     jstring text_value = java_string_or_null(env, request.state.text);
+    jobject composing_value = request.state.composing.has_value ? encode_HostTextInputRange(env, request.state.composing.value) : nullptr;
 
     jint status = env->CallIntMethod(
         bridge,
         open_method,
         static_cast<jlong>(request.configuration.session_id),
-        static_cast<jint>(request.configuration.input_type),
+        input_type_value,
         request.configuration.is_multiline ? JNI_TRUE : JNI_FALSE,
         request.configuration.is_secure ? JNI_TRUE : JNI_FALSE,
         text_value,
         static_cast<jint>(request.state.selection.start_offset),
         static_cast<jint>(request.state.selection.end_offset),
-        request.state.has_composing ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(request.state.composing.start_offset),
-        static_cast<jint>(request.state.composing.end_offset)
+        composing_value
     );
+    if (input_type_value != nullptr) { env->DeleteLocalRef(input_type_value); }
     if (text_value != nullptr) { env->DeleteLocalRef(text_value); }
+    if (composing_value != nullptr) { env->DeleteLocalRef(composing_value); }
     env->DeleteLocalRef(bridge);
 
     if (env->ExceptionCheck()) {
@@ -162,6 +232,8 @@ uint32_t call_text_set_geometry(
         return HOST_STATUS_NOT_FOUND;
     }
 
+    jobject caret_rectangle_value = request.geometry.caret_rectangle.has_value ? encode_HostTextInputRectangle(env, request.geometry.caret_rectangle.value) : nullptr;
+    jobject composing_rectangle_value = request.geometry.composing_rectangle.has_value ? encode_HostTextInputRectangle(env, request.geometry.composing_rectangle.value) : nullptr;
 
     jint status = env->CallIntMethod(
         bridge,
@@ -177,17 +249,11 @@ uint32_t call_text_set_geometry(
         static_cast<jdouble>(request.geometry.editor_rectangle.y),
         static_cast<jdouble>(request.geometry.editor_rectangle.width),
         static_cast<jdouble>(request.geometry.editor_rectangle.height),
-        request.geometry.has_caret_rectangle ? JNI_TRUE : JNI_FALSE,
-        static_cast<jdouble>(request.geometry.caret_rectangle.x),
-        static_cast<jdouble>(request.geometry.caret_rectangle.y),
-        static_cast<jdouble>(request.geometry.caret_rectangle.width),
-        static_cast<jdouble>(request.geometry.caret_rectangle.height),
-        request.geometry.has_composing_rectangle ? JNI_TRUE : JNI_FALSE,
-        static_cast<jdouble>(request.geometry.composing_rectangle.x),
-        static_cast<jdouble>(request.geometry.composing_rectangle.y),
-        static_cast<jdouble>(request.geometry.composing_rectangle.width),
-        static_cast<jdouble>(request.geometry.composing_rectangle.height)
+        caret_rectangle_value,
+        composing_rectangle_value
     );
+    if (caret_rectangle_value != nullptr) { env->DeleteLocalRef(caret_rectangle_value); }
+    if (composing_rectangle_value != nullptr) { env->DeleteLocalRef(composing_rectangle_value); }
     env->DeleteLocalRef(bridge);
 
     if (env->ExceptionCheck()) {
@@ -210,6 +276,7 @@ uint32_t call_text_set_state(
     }
 
     jstring text_value = java_string_or_null(env, request.state.text);
+    jobject composing_value = request.state.composing.has_value ? encode_HostTextInputRange(env, request.state.composing.value) : nullptr;
 
     jint status = env->CallIntMethod(
         bridge,
@@ -218,11 +285,10 @@ uint32_t call_text_set_state(
         text_value,
         static_cast<jint>(request.state.selection.start_offset),
         static_cast<jint>(request.state.selection.end_offset),
-        request.state.has_composing ? JNI_TRUE : JNI_FALSE,
-        static_cast<jint>(request.state.composing.start_offset),
-        static_cast<jint>(request.state.composing.end_offset)
+        composing_value
     );
     if (text_value != nullptr) { env->DeleteLocalRef(text_value); }
+    if (composing_value != nullptr) { env->DeleteLocalRef(composing_value); }
     env->DeleteLocalRef(bridge);
 
     if (env->ExceptionCheck()) {

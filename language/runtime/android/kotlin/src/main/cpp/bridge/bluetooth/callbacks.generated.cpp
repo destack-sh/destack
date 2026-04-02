@@ -48,6 +48,74 @@ jstring java_string_or_null(JNIEnv *env, NativeStringRef value) {
     return new_java_string(env, value);
 }
 
+jobject box_int(JNIEnv *env, jint value) {
+    jclass value_class = env->FindClass("java/lang/Integer");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(I)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_long(JNIEnv *env, jlong value) {
+    jclass value_class = env->FindClass("java/lang/Long");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(J)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_boolean(JNIEnv *env, jboolean value) {
+    jclass value_class = env->FindClass("java/lang/Boolean");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(Z)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
+jobject box_double(JNIEnv *env, jdouble value) {
+    jclass value_class = env->FindClass("java/lang/Double");
+    if (value_class == nullptr) {
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(value_class, "<init>", "(D)V");
+    if (constructor == nullptr) {
+        env->DeleteLocalRef(value_class);
+        return nullptr;
+    }
+
+    jobject value_object = env->NewObject(value_class, constructor, value);
+    env->DeleteLocalRef(value_class);
+    return value_object;
+}
+
 jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signature) {
     return env->GetMethodID(value_class, "<init>", signature);
 }
@@ -62,6 +130,7 @@ void clear_result_decode_storage() {
 
 jint call_list_size(JNIEnv *env, jobject value);
 jobject call_list_get(JNIEnv *env, jobject value, jint index);
+
 jint call_int_getter(JNIEnv *env, jobject value, const char *name);
 
 jintArray encode_u8_slice(JNIEnv *env, NativeU8Slice values) {
@@ -131,16 +200,7 @@ jobject encode_AndroidHostBluetoothAdapterDescriptorHeader(JNIEnv *env, AndroidH
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.name_offset),
-        static_cast<jint>(value.name_len),
-        static_cast<jint>(value.capability_flags),
-        static_cast<jint>(value.transport_flags),
-        static_cast<jint>(value.is_powered),
-        static_cast<jint>(value.is_discoverable),
-        static_cast<jint>(value.is_discovering)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.name_offset)static_cast<jint>(value.name_len)static_cast<jint>(value.capability_flags)static_cast<jint>(value.transport_flags)static_cast<jint>(value.is_powered)static_cast<jint>(value.is_discoverable)static_cast<jint>(value.is_discovering)
     );
 
     env->DeleteLocalRef(value_class);
@@ -163,32 +223,7 @@ jobject encode_AndroidHostBluetoothDeviceDescriptorHeader(JNIEnv *env, AndroidHo
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.adapter_id_offset),
-        static_cast<jint>(value.adapter_id_len),
-        static_cast<jint>(value.name_offset),
-        static_cast<jint>(value.name_len),
-        static_cast<jint>(value.local_name_offset),
-        static_cast<jint>(value.local_name_len),
-        static_cast<jint>(value.manufacturer_offset),
-        static_cast<jint>(value.manufacturer_len),
-        static_cast<jint>(value.model_offset),
-        static_cast<jint>(value.model_len),
-        static_cast<jint>(value.address_offset),
-        static_cast<jint>(value.address_len),
-        static_cast<jint>(value.service_uuids_offset),
-        static_cast<jint>(value.service_uuids_len),
-        static_cast<jint>(value.manufacturer_data_offset),
-        static_cast<jint>(value.manufacturer_data_len),
-        static_cast<jint>(value.service_data_offset),
-        static_cast<jint>(value.service_data_len),
-        static_cast<jint>(value.transport),
-        static_cast<jint>(value.rssi_dbm),
-        static_cast<jint>(value.pair_state),
-        static_cast<jint>(value.phy_flags),
-        static_cast<jint>(value.is_connected)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.adapter_id_offset)static_cast<jint>(value.adapter_id_len)static_cast<jint>(value.name_offset)static_cast<jint>(value.name_len)static_cast<jint>(value.local_name_offset)static_cast<jint>(value.local_name_len)static_cast<jint>(value.manufacturer_offset)static_cast<jint>(value.manufacturer_len)static_cast<jint>(value.model_offset)static_cast<jint>(value.model_len)static_cast<jint>(value.address_offset)static_cast<jint>(value.address_len)static_cast<jint>(value.service_uuids_offset)static_cast<jint>(value.service_uuids_len)static_cast<jint>(value.manufacturer_data_offset)static_cast<jint>(value.manufacturer_data_len)static_cast<jint>(value.service_data_offset)static_cast<jint>(value.service_data_len)static_cast<jint>(value.transport)static_cast<jint>(value.rssi_dbm)static_cast<jint>(value.pair_state)static_cast<jint>(value.phy_flags)static_cast<jint>(value.is_connected)
     );
 
     env->DeleteLocalRef(value_class);
@@ -211,12 +246,7 @@ jobject encode_AndroidHostBluetoothGattServiceHeader(JNIEnv *env, AndroidHostBlu
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.uuid_offset),
-        static_cast<jint>(value.uuid_len),
-        static_cast<jint>(value.is_primary)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.uuid_offset)static_cast<jint>(value.uuid_len)static_cast<jint>(value.is_primary)
     );
 
     env->DeleteLocalRef(value_class);
@@ -239,14 +269,7 @@ jobject encode_AndroidHostBluetoothGattCharacteristicHeader(JNIEnv *env, Android
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.service_id_offset),
-        static_cast<jint>(value.service_id_len),
-        static_cast<jint>(value.uuid_offset),
-        static_cast<jint>(value.uuid_len),
-        static_cast<jint>(value.property_flags)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.service_id_offset)static_cast<jint>(value.service_id_len)static_cast<jint>(value.uuid_offset)static_cast<jint>(value.uuid_len)static_cast<jint>(value.property_flags)
     );
 
     env->DeleteLocalRef(value_class);
@@ -269,13 +292,7 @@ jobject encode_AndroidHostBluetoothGattDescriptorHeader(JNIEnv *env, AndroidHost
 
     jobject result = env->NewObject(
         value_class,
-        constructor,
-        static_cast<jint>(value.id_offset),
-        static_cast<jint>(value.id_len),
-        static_cast<jint>(value.characteristic_id_offset),
-        static_cast<jint>(value.characteristic_id_len),
-        static_cast<jint>(value.uuid_offset),
-        static_cast<jint>(value.uuid_len)
+        constructorstatic_cast<jint>(value.id_offset)static_cast<jint>(value.id_len)static_cast<jint>(value.characteristic_id_offset)static_cast<jint>(value.characteristic_id_len)static_cast<jint>(value.uuid_offset)static_cast<jint>(value.uuid_len)
     );
 
     env->DeleteLocalRef(value_class);
@@ -591,7 +608,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         adapterList_method = env->GetMethodID(
             bridge_class,
             "bluetoothAdapterList",
-            "([Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothAdapterDescriptorHeader;[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothAdapterListResponse;"
+            "([Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothAdapterDescriptorHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothAdapterListResponse;"
         );
     }
 
@@ -599,7 +616,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         scanOpen_method = env->GetMethodID(
             bridge_class,
             "bluetoothScanOpen",
-            "(Ljava/lang/String;IIIIIIIIIIIIIIIIII[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothScanOpenResponse;"
+            "(Ljava/lang/String;IIIIILjava/lang/Integer;IIIIIIIIIII[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothScanOpenResponse;"
         );
     }
 
@@ -615,7 +632,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         scanRead_method = env->GetMethodID(
             bridge_class,
             "bluetoothScanRead",
-            "(JJ[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothDeviceDescriptorHeader;[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothScanReadResponse;"
+            "(JJ[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothDeviceDescriptorHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothScanReadResponse;"
         );
     }
 
@@ -623,7 +640,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         scanTryRead_method = env->GetMethodID(
             bridge_class,
             "bluetoothScanTryRead",
-            "(J[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothDeviceDescriptorHeader;[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothScanTryReadResponse;"
+            "(J[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothDeviceDescriptorHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothScanTryReadResponse;"
         );
     }
 
@@ -631,7 +648,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         scanReadEvent_method = env->GetMethodID(
             bridge_class,
             "bluetoothScanReadEvent",
-            "(JJ[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothScanReadEventResponse;"
+            "(JJ[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothScanReadEventResponse;"
         );
     }
 
@@ -639,7 +656,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         scanTryReadEvent_method = env->GetMethodID(
             bridge_class,
             "bluetoothScanTryReadEvent",
-            "(J[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothScanTryReadEventResponse;"
+            "(J[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothScanTryReadEventResponse;"
         );
     }
 
@@ -647,7 +664,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         open_method = env->GetMethodID(
             bridge_class,
             "bluetoothOpen",
-            "(Ljava/lang/String;Ljava/lang/String;[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothOpenResponse;"
+            "(Ljava/lang/String;Ljava/lang/String;[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothOpenResponse;"
         );
     }
 
@@ -679,7 +696,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         readRssi_method = env->GetMethodID(
             bridge_class,
             "bluetoothReadRssi",
-            "(JJ)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothReadRssiResponse;"
+            "(JJ)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothReadRssiResponse;"
         );
     }
 
@@ -687,7 +704,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         sessionReadEvent_method = env->GetMethodID(
             bridge_class,
             "bluetoothSessionReadEvent",
-            "(JJ)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothSessionReadEventResponse;"
+            "(JJ)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothSessionReadEventResponse;"
         );
     }
 
@@ -695,7 +712,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         sessionTryReadEvent_method = env->GetMethodID(
             bridge_class,
             "bluetoothSessionTryReadEvent",
-            "(J)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothSessionTryReadEventResponse;"
+            "(J)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothSessionTryReadEventResponse;"
         );
     }
 
@@ -703,7 +720,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattServiceList_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattServiceList",
-            "(J[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothGattServiceHeader;[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattServiceListResponse;"
+            "(J[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothGattServiceHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattServiceListResponse;"
         );
     }
 
@@ -711,7 +728,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattCharacteristicList_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattCharacteristicList",
-            "(JLjava/lang/String;[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothGattCharacteristicHeader;[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattCharacteristicListResponse;"
+            "(JLjava/lang/String;[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothGattCharacteristicHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattCharacteristicListResponse;"
         );
     }
 
@@ -719,7 +736,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattDescriptorList_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattDescriptorList",
-            "(JLjava/lang/String;[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothGattDescriptorHeader;[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattDescriptorListResponse;"
+            "(JLjava/lang/String;[Ldev/destack/runtime/android/module/bluetooth/RuntimeAndroidHostBluetoothGattDescriptorHeader;[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattDescriptorListResponse;"
         );
     }
 
@@ -727,7 +744,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattMtu_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattMtu",
-            "(J)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattMtuResponse;"
+            "(J)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattMtuResponse;"
         );
     }
 
@@ -735,7 +752,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattRead_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattRead",
-            "(JLjava/lang/String;J[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattReadResponse;"
+            "(JLjava/lang/String;J[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattReadResponse;"
         );
     }
 
@@ -743,7 +760,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattReadDescriptor_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattReadDescriptor",
-            "(JLjava/lang/String;J[I)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattReadDescriptorResponse;"
+            "(JLjava/lang/String;J[I)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattReadDescriptorResponse;"
         );
     }
 
@@ -767,7 +784,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattSubscribe_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattSubscribe",
-            "(JLjava/lang/String;)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattSubscribeResponse;"
+            "(JLjava/lang/String;)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattSubscribeResponse;"
         );
     }
 
@@ -783,7 +800,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattReadEvent_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattReadEvent",
-            "(JJ)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattReadEventResponse;"
+            "(JJ)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattReadEventResponse;"
         );
     }
 
@@ -791,7 +808,7 @@ bool resolve_bridge_methods(JNIEnv *env, jobject bridge) {
         gattTryReadEvent_method = env->GetMethodID(
             bridge_class,
             "bluetoothGattTryReadEvent",
-            "(J)Ldev/destack/runtime/android/module/bluetooth/RuntimeHostBluetoothGattTryReadEventResponse;"
+            "(J)Ldev/destack/runtime/android/bridge/RuntimeHostBluetoothGattTryReadEventResponse;"
         );
     }
 
@@ -912,9 +929,11 @@ uint32_t call_bluetooth_scan_open(
     }
 
     jstring adapter_id_value = java_string_or_null(env, adapter_id);
+    jobject minimum_rssi_dbm_value = filter.minimum_rssi_dbm.has_value ? box_int(env, static_cast<jint>(filter.minimum_rssi_dbm.value)) : nullptr;
     jintArray filter_bytes_value = encode_u8_slice(env, filter_bytes);
     if (filter_bytes_value == nullptr) {
         if (adapter_id_value != nullptr) { env->DeleteLocalRef(adapter_id_value); }
+        if (minimum_rssi_dbm_value != nullptr) { env->DeleteLocalRef(minimum_rssi_dbm_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
         }
@@ -931,8 +950,7 @@ uint32_t call_bluetooth_scan_open(
         static_cast<jint>(filter.name_len),
         static_cast<jint>(filter.name_prefix_offset),
         static_cast<jint>(filter.name_prefix_len),
-        static_cast<jint>(filter.has_minimum_rssi),
-        static_cast<jint>(filter.minimum_rssi_dbm),
+        minimum_rssi_dbm_value,
         static_cast<jint>(filter.scan_mode),
         static_cast<jint>(filter.primary_phy),
         static_cast<jint>(filter.secondary_phy),
@@ -948,6 +966,7 @@ uint32_t call_bluetooth_scan_open(
     );
     if (response_object == nullptr) {
         if (adapter_id_value != nullptr) { env->DeleteLocalRef(adapter_id_value); }
+        if (minimum_rssi_dbm_value != nullptr) { env->DeleteLocalRef(minimum_rssi_dbm_value); }
         if (filter_bytes_value != nullptr) { env->DeleteLocalRef(filter_bytes_value); }
         if (env->ExceptionCheck()) {
             env->ExceptionClear();
@@ -961,6 +980,7 @@ uint32_t call_bluetooth_scan_open(
         *session_id = static_cast<uint64_t>(call_long_getter(env, response_object, "getSessionId"));
     }
     if (adapter_id_value != nullptr) { env->DeleteLocalRef(adapter_id_value); }
+    if (minimum_rssi_dbm_value != nullptr) { env->DeleteLocalRef(minimum_rssi_dbm_value); }
     if (filter_bytes_value != nullptr) { env->DeleteLocalRef(filter_bytes_value); }
     env->DeleteLocalRef(response_object);
     env->DeleteLocalRef(bridge);

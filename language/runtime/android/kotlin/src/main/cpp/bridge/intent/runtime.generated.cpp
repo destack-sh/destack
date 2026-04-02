@@ -2,7 +2,7 @@
 
 #include "../types.h"
 #include "../jni.h"
-#include "../runtime_abi.generated.h"
+#include "../loader.h"
 #include "callbacks.generated.h"
 #include "runtime.generated.h"
 
@@ -20,6 +20,36 @@ RuntimeStatus runtime_status_from_code(uint32_t code) {
     };
 
     return status;
+}
+
+/// Borrow one runtime string reference from one JNI string.
+NativeStringRef native_string_ref_from_jstring(JNIEnv *env, jstring value) {
+    if (value == nullptr) {
+        return {
+            .data = nullptr,
+            .len = 0,
+        };
+    }
+
+    const char *chars = env->GetStringUTFChars(value, nullptr);
+    jsize length = env->GetStringUTFLength(value);
+
+    return {
+        .data = reinterpret_cast<const uint8_t *>(chars),
+        .len = static_cast<uint32_t>(length),
+    };
+}
+
+/// Release one runtime string reference borrowed from one JNI string.
+void release_native_string_ref(JNIEnv *env, jstring value, NativeStringRef ref) {
+    if (value == nullptr || ref.data == nullptr) {
+        return;
+    }
+
+    env->ReleaseStringUTFChars(
+        value,
+        reinterpret_cast<const char *>(ref.data)
+    );
 }
 
 }
@@ -86,8 +116,7 @@ uint32_t call_intent_open_path_for_session(
 uint32_t call_intent_share_text_for_session(
     uint64_t session_handle,
     NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 ) {
     JNIEnv *env = nullptr;
     bool did_attach_thread = false;
@@ -96,7 +125,7 @@ uint32_t call_intent_share_text_for_session(
         return HOST_STATUS_FAILED;
     }
 
-    uint32_t status = call_intent_share_text(env, session_handle, text, has_mime_type, mime_type);
+    uint32_t status = call_intent_share_text(env, session_handle, text, mime_type);
 
     detach_jni_thread(did_attach_thread);
 
@@ -107,8 +136,7 @@ uint32_t call_intent_share_text_for_session(
 uint32_t call_intent_share_paths_for_session(
     uint64_t session_handle,
     NativeStringSlice paths,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    OptionalStringRef mime_type
 ) {
     JNIEnv *env = nullptr;
     bool did_attach_thread = false;
@@ -117,7 +145,7 @@ uint32_t call_intent_share_paths_for_session(
         return HOST_STATUS_FAILED;
     }
 
-    uint32_t status = call_intent_share_paths(env, session_handle, paths, has_mime_type, mime_type);
+    uint32_t status = call_intent_share_paths(env, session_handle, paths, mime_type);
 
     detach_jni_thread(did_attach_thread);
 
@@ -133,4 +161,18 @@ AndroidHostIntentCallbacks make_intent_callbacks() {
         .share_text = call_intent_share_text_for_session,
         .share_paths = call_intent_share_paths_for_session,
     };
+}
+
+/// Deliver one intent event into one runtime session.
+RuntimeStatus send_notify_intent_event(
+    uint64_t session_handle,
+    HostIntentEvent event
+) {
+    RuntimeBindings bindings = {};
+    RuntimeStatus status = runtime_status_from_code(resolve_runtime_bindings(&bindings));
+    if (status.code != HOST_STATUS_OK) {
+        return status;
+    }
+
+    return bindings.notify_intent_event(session_handle, event);
 }

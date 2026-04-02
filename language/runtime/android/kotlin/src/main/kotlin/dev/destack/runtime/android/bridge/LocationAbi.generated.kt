@@ -2,19 +2,19 @@
 
 package dev.destack.runtime.android.bridge
 
-import dev.destack.runtime.android.module.location.RuntimeHostLocationAccuracy
-import dev.destack.runtime.android.module.location.RuntimeHostLocationSample
-import dev.destack.runtime.android.module.location.RuntimeHostLocationWatchOptions
-import dev.destack.runtime.android.module.location.RuntimeHostLocationServicesResponse
-import dev.destack.runtime.android.module.location.RuntimeHostLocationLastKnownResponse
+import dev.destack.runtime.android.module.location.RuntimeLocationAccuracy
+import dev.destack.runtime.android.module.location.RuntimeLocationSample
+import dev.destack.runtime.android.module.location.RuntimeLocationWatchOptions
+import dev.destack.runtime.android.module.location.RuntimeLocationServicesResponse
+import dev.destack.runtime.android.module.location.RuntimeLocationLastKnownResponse
 
 /**
  * Build one Kotlin LocationAccuracy from one bridge raw value.
  */
 internal fun decodeBridgeLocationAccuracy(
     value: Int,
-): RuntimeHostLocationAccuracy? {
-    return RuntimeHostLocationAccuracy.entries.firstOrNull { entry ->
+): RuntimeLocationAccuracy? {
+    return RuntimeLocationAccuracy.entries.firstOrNull { entry ->
         entry.rawValue.toInt() == value
     }
 }
@@ -27,8 +27,8 @@ internal fun decodeBridgeLocationWatchOptions(
     minimumIntervalNs: Long,
     minimumDistanceMeters: Double,
     includeHeading: Boolean
-): RuntimeHostLocationWatchOptions? {
-    return RuntimeHostLocationWatchOptions(
+): RuntimeLocationWatchOptions? {
+    return RuntimeLocationWatchOptions(
         accuracy = decodeBridgeLocationAccuracy(accuracy) ?: return null,
         minimumIntervalNs = minimumIntervalNs,
         minimumDistanceMeters = minimumDistanceMeters,

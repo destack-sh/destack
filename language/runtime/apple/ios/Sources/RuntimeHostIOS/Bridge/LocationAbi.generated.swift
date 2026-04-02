@@ -93,7 +93,7 @@ func handleLocationServicesEnabled(
   guard let response else {
     return hostStatusInvalidArgument
   }
-  let bridgeResponse: RuntimeHostLocationServicesResponse? = runOnMainThread {
+  let bridgeResponse: RuntimeLocationServicesResponse? = runOnMainThread {
     withResolvedRuntimeBridge(
       sessionHandle: sessionHandle,
       onMissing: { nil }
@@ -120,7 +120,7 @@ func handleLocationLastKnown(
   guard let response else {
     return hostStatusInvalidArgument
   }
-  let bridgeResponse: RuntimeHostLocationLastKnownResponse? = runOnMainThread {
+  let bridgeResponse: RuntimeLocationLastKnownResponse? = runOnMainThread {
     withResolvedRuntimeBridge(
       sessionHandle: sessionHandle,
       onMissing: { nil }
@@ -152,7 +152,7 @@ func handleLocationWatchOpen(
     return hostStatusInvalidArgument
   }
 
-  let decodedOptions: RuntimeHostLocationWatchOptions
+  let decodedOptions: RuntimeLocationWatchOptions
   do {
     decodedOptions = try decodeBridgeLocationWatchOptions(options)
   } catch {
@@ -166,7 +166,7 @@ func handleLocationWatchOpen(
     ) { bridge, runtimeHost in
       bridge.locationWatchOpen(
         runtimeHost: runtimeHost,
-        decodedWatchId,
+        watchID: decodedWatchId,
         options: decodedOptions
       )
     }
@@ -192,7 +192,7 @@ func handleLocationWatchClose(
     ) { bridge, runtimeHost in
       bridge.locationWatchClose(
         runtimeHost: runtimeHost,
-        decodedWatchId
+        watchID: decodedWatchId
       )
     }
   }
@@ -298,8 +298,8 @@ func currentLocationBridgeArena() -> LocationBridgeArena {
 /// Build one Swift LocationAccuracy from one bridge raw value.
 func decodeBridgeLocationAccuracy(
   _ value: DestackRustLocationAccuracy
-) throws -> RuntimeHostLocationAccuracy {
-  guard let value = RuntimeHostLocationAccuracy(rawValue: .init(value)) else {
+) throws -> RuntimeLocationAccuracy {
+  guard let value = RuntimeLocationAccuracy(rawValue: .init(value)) else {
     throw BridgeStringError.invalidStringSlice
   }
 
@@ -309,8 +309,8 @@ func decodeBridgeLocationAccuracy(
 /// Build one Swift LocationWatchOptions from one bridge payload.
 func decodeBridgeLocationWatchOptions(
   _ value: DestackRustLocationWatchOptions
-) throws -> RuntimeHostLocationWatchOptions {
-  RuntimeHostLocationWatchOptions(
+) throws -> RuntimeLocationWatchOptions {
+  RuntimeLocationWatchOptions(
     accuracy:
       try decodeBridgeLocationAccuracy(value.accuracy),
     minimumIntervalNs:
@@ -324,14 +324,14 @@ func decodeBridgeLocationWatchOptions(
 
 /// Encode one Swift LocationAccuracy as one bridge raw value.
 func encodeBridgeLocationAccuracy(
-  _ value: RuntimeHostLocationAccuracy
+  _ value: RuntimeLocationAccuracy
 ) -> DestackRustLocationAccuracy {
   Int32(value.rawValue)
 }
 
 /// Encode one Swift LocationSample as one bridge payload.
 func encodeBridgeLocationSample(
-  _ value: RuntimeHostLocationSample,
+  _ value: RuntimeLocationSample,
   arena: LocationBridgeArena
 ) -> DestackRustLocationSample {
   DestackRustLocationSample(
@@ -355,7 +355,7 @@ func encodeBridgeLocationSample(
 }
 
 func encodeBridgeLocationSample(
-  _ value: RuntimeHostLocationSample
+  _ value: RuntimeLocationSample
 ) -> DestackRustLocationSample {
   let arena = currentLocationBridgeArena()
 
@@ -364,7 +364,7 @@ func encodeBridgeLocationSample(
 
 /// Encode one Swift LocationSample as one C bridge payload.
 func withNativeLocationSample<T>(
-  _ value: RuntimeHostLocationSample,
+  _ value: RuntimeLocationSample,
   body: (DestackRustLocationSample) -> T
 ) -> T {
   let arena = currentLocationBridgeArena()
@@ -374,7 +374,7 @@ func withNativeLocationSample<T>(
 
 /// Encode one Swift LocationWatchOptions as one bridge payload.
 func encodeBridgeLocationWatchOptions(
-  _ value: RuntimeHostLocationWatchOptions,
+  _ value: RuntimeLocationWatchOptions,
   arena: LocationBridgeArena
 ) -> DestackRustLocationWatchOptions {
   DestackRustLocationWatchOptions(
@@ -390,7 +390,7 @@ func encodeBridgeLocationWatchOptions(
 }
 
 func encodeBridgeLocationWatchOptions(
-  _ value: RuntimeHostLocationWatchOptions
+  _ value: RuntimeLocationWatchOptions
 ) -> DestackRustLocationWatchOptions {
   let arena = currentLocationBridgeArena()
 
@@ -399,7 +399,7 @@ func encodeBridgeLocationWatchOptions(
 
 /// Encode one Swift LocationWatchOptions as one C bridge payload.
 func withNativeLocationWatchOptions<T>(
-  _ value: RuntimeHostLocationWatchOptions,
+  _ value: RuntimeLocationWatchOptions,
   body: (DestackRustLocationWatchOptions) -> T
 ) -> T {
   let arena = currentLocationBridgeArena()
@@ -409,7 +409,7 @@ func withNativeLocationWatchOptions<T>(
 
 /// Encode one Swift LocationServicesResponse as one bridge payload.
 func encodeBridgeLocationServicesResponse(
-  _ value: RuntimeHostLocationServicesResponse,
+  _ value: RuntimeLocationServicesResponse,
   arena: LocationBridgeArena
 ) -> DestackRustLocationServicesResponse {
   DestackRustLocationServicesResponse(
@@ -421,7 +421,7 @@ func encodeBridgeLocationServicesResponse(
 }
 
 func encodeBridgeLocationServicesResponse(
-  _ value: RuntimeHostLocationServicesResponse
+  _ value: RuntimeLocationServicesResponse
 ) -> DestackRustLocationServicesResponse {
   let arena = currentLocationBridgeArena()
 
@@ -430,7 +430,7 @@ func encodeBridgeLocationServicesResponse(
 
 /// Encode one Swift LocationServicesResponse as one C bridge payload.
 func withNativeLocationServicesResponse<T>(
-  _ value: RuntimeHostLocationServicesResponse,
+  _ value: RuntimeLocationServicesResponse,
   body: (DestackRustLocationServicesResponse) -> T
 ) -> T {
   let arena = currentLocationBridgeArena()
@@ -440,30 +440,19 @@ func withNativeLocationServicesResponse<T>(
 
 /// Encode one Swift LocationLastKnownResponse as one bridge payload.
 func encodeBridgeLocationLastKnownResponse(
-  _ value: RuntimeHostLocationLastKnownResponse,
+  _ value: RuntimeLocationLastKnownResponse,
   arena: LocationBridgeArena
 ) -> DestackRustLocationLastKnownResponse {
   DestackRustLocationLastKnownResponse(
     status:
       value.status,
-    has_sample: value.sample != nil,
     sample:
-      value.sample.map { encodeBridgeLocationSample($0, arena: arena) }
-      ?? DestackRustLocationSample(
-        latitude_degrees: 0.0,
-        longitude_degrees: 0.0,
-        altitude_meters: 0.0,
-        horizontal_accuracy_meters: 0.0,
-        vertical_accuracy_meters: 0.0,
-        speed_meters_per_second: 0.0,
-        heading_degrees: 0.0,
-        timestamp_unix_ns: 0
-      )
+      ({ if let unwrappedValue = value.sample { return DestackRustOptionalLocationSample(has_value: true, value: encodeBridgeLocationSample(unwrappedValue, arena: arena)) } return DestackRustOptionalLocationSample(has_value: false, value: DestackRustLocationSample(latitude_degrees: 0, longitude_degrees: 0, altitude_meters: 0, horizontal_accuracy_meters: 0, vertical_accuracy_meters: 0, speed_meters_per_second: 0, heading_degrees: 0, timestamp_unix_ns: 0)) }())
   )
 }
 
 func encodeBridgeLocationLastKnownResponse(
-  _ value: RuntimeHostLocationLastKnownResponse
+  _ value: RuntimeLocationLastKnownResponse
 ) -> DestackRustLocationLastKnownResponse {
   let arena = currentLocationBridgeArena()
 
@@ -472,7 +461,7 @@ func encodeBridgeLocationLastKnownResponse(
 
 /// Encode one Swift LocationLastKnownResponse as one C bridge payload.
 func withNativeLocationLastKnownResponse<T>(
-  _ value: RuntimeHostLocationLastKnownResponse,
+  _ value: RuntimeLocationLastKnownResponse,
   body: (DestackRustLocationLastKnownResponse) -> T
 ) -> T {
   let arena = currentLocationBridgeArena()
