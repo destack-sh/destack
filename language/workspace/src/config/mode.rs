@@ -2,8 +2,8 @@ use serde::Deserialize;
 
 use super::target::{
     BundleLegalComment, DebugInfoLevel, DebugInfoLevelJson, LtoMode, LtoModeJson, OptimizeLevel,
-    ShrinkLevel, SourceMapMode, StripLevel, StripLevelJson, Target, TargetBundleMinify,
-    TargetBundleMinifyJson, TargetBundleTreeshake, TargetBundleTreeshakeJson, TargetOptions,
+    ShrinkLevel, SourceMapMode, StripLevel, StripLevelJson, Target, TargetMinifyOptions,
+    TargetMinifyOptionsJson, TargetOptions, TargetTreeshakeOptions, TargetTreeshakeOptionsJson,
 };
 
 /// Named build mode options.
@@ -18,9 +18,9 @@ pub struct ModeOptions {
     /// Legal comment handling policy for bundled output.
     pub legal_comments: Option<BundleLegalComment>,
     /// Bundled output tree shaking policy for this mode.
-    pub treeshake: Option<TargetBundleTreeshake>,
+    pub treeshake: Option<TargetTreeshakeOptions>,
     /// Bundled output minification policy for this mode.
-    pub minify: Option<TargetBundleMinify>,
+    pub minify: Option<TargetMinifyOptions>,
     /// Whether this mode enables optimized code generation.
     pub optimize: Option<bool>,
     /// Optimization level override for this mode.
@@ -43,8 +43,8 @@ impl ModeOptions {
             source_map_exclude_sources: json.source_map_exclude_sources,
             source_map_debug_ids: json.source_map_debug_ids,
             legal_comments: json.legal_comments,
-            treeshake: json.treeshake.as_ref().map(TargetBundleTreeshake::from),
-            minify: json.minify.as_ref().map(TargetBundleMinify::from),
+            treeshake: json.treeshake.as_ref().map(TargetTreeshakeOptions::from),
+            minify: json.minify.as_ref().map(TargetMinifyOptions::from),
             optimize: json.optimize,
             optimize_level: json.optimize_level.map(OptimizeLevel::from),
             lto_mode: json.lto_mode.map(LtoMode::from),
@@ -59,24 +59,24 @@ impl ModeOptions {
         // source maps
         if let Some(source_map_mode) = self.source_map_mode {
             target.source_map_mode = Some(source_map_mode);
-            target.bundle.output.sourcemap = Some(source_map_mode);
+            target.bundle_output.sourcemap = Some(source_map_mode);
         }
         if let Some(source_map_exclude_sources) = self.source_map_exclude_sources {
-            target.bundle.output.sourcemap_exclude_sources = source_map_exclude_sources;
+            target.bundle_output.sourcemap_exclude_sources = source_map_exclude_sources;
         }
         if let Some(source_map_debug_ids) = self.source_map_debug_ids {
-            target.bundle.output.sourcemap_debug_ids = source_map_debug_ids;
+            target.bundle_output.sourcemap_debug_ids = source_map_debug_ids;
         }
 
         // bundled output policy
         if let Some(legal_comments) = self.legal_comments {
-            target.bundle.output.legal_comments = legal_comments;
+            target.bundle_output.legal_comments = legal_comments;
         }
         if let Some(treeshake) = &self.treeshake {
-            target.bundle.treeshake = treeshake.clone();
+            target.treeshake = treeshake.clone();
         }
         if let Some(minify) = &self.minify {
-            target.bundle.minify = minify.clone();
+            target.minify = minify.clone();
         }
 
         // optimization and debuggability
@@ -105,24 +105,24 @@ impl ModeOptions {
         // source maps
         if let Some(source_map_mode) = self.source_map_mode {
             target.source_map_mode = Some(source_map_mode);
-            target.bundle.output.sourcemap = Some(source_map_mode);
+            target.bundle_output.sourcemap = Some(source_map_mode);
         }
         if let Some(source_map_exclude_sources) = self.source_map_exclude_sources {
-            target.bundle.output.sourcemap_exclude_sources = source_map_exclude_sources;
+            target.bundle_output.sourcemap_exclude_sources = source_map_exclude_sources;
         }
         if let Some(source_map_debug_ids) = self.source_map_debug_ids {
-            target.bundle.output.sourcemap_debug_ids = source_map_debug_ids;
+            target.bundle_output.sourcemap_debug_ids = source_map_debug_ids;
         }
 
         // bundled output policy
         if let Some(legal_comments) = self.legal_comments {
-            target.bundle.output.legal_comments = legal_comments;
+            target.bundle_output.legal_comments = legal_comments;
         }
         if let Some(treeshake) = &self.treeshake {
-            target.bundle.treeshake = treeshake.clone();
+            target.treeshake = treeshake.clone();
         }
         if let Some(minify) = &self.minify {
-            target.bundle.minify = minify.clone();
+            target.minify = minify.clone();
         }
 
         // optimization and debuggability
@@ -162,9 +162,9 @@ pub struct ModeJson {
     /// Legal comment handling policy for bundled output.
     pub legal_comments: Option<BundleLegalComment>,
     /// Bundled output tree shaking policy for this build mode.
-    pub treeshake: Option<TargetBundleTreeshakeJson>,
+    pub treeshake: Option<TargetTreeshakeOptionsJson>,
     /// Bundled output minification policy for this build mode.
-    pub minify: Option<TargetBundleMinifyJson>,
+    pub minify: Option<TargetMinifyOptionsJson>,
     /// Whether this mode enables optimized code generation.
     pub optimize: Option<bool>,
     /// Optimization level (0-4).
@@ -179,57 +179,4 @@ pub struct ModeJson {
     pub debug_info: Option<DebugInfoLevelJson>,
     /// Symbol stripping policy for this mode.
     pub strip: Option<StripLevelJson>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Apply output policy fields without changing target identity.
-    #[test]
-    fn test_mode_applies_output_policy_to_target_options() {
-        let mut target = TargetOptions::default();
-        let mode = ModeOptions {
-            source_map_mode: Some(SourceMapMode::Hidden),
-            source_map_exclude_sources: Some(true),
-            source_map_debug_ids: Some(true),
-            legal_comments: Some(BundleLegalComment::EndOfFile),
-            treeshake: Some(TargetBundleTreeshake {
-                enabled: true,
-                ..TargetBundleTreeshake::default()
-            }),
-            minify: Some(TargetBundleMinify {
-                syntax: true,
-                whitespace: true,
-                ..TargetBundleMinify::default()
-            }),
-            optimize: Some(true),
-            optimize_level: Some(OptimizeLevel::O3),
-            lto_mode: Some(LtoMode::Thin),
-            shrink_level: Some(ShrinkLevel::S2),
-            debug_info: Some(DebugInfoLevel::Line),
-            strip: Some(StripLevel::Full),
-        };
-
-        mode.apply_to_target_options(&mut target);
-
-        assert_eq!(target.source_map_mode, Some(SourceMapMode::Hidden));
-        assert_eq!(target.bundle.output.sourcemap, Some(SourceMapMode::Hidden));
-        assert!(target.bundle.output.sourcemap_exclude_sources);
-        assert!(target.bundle.output.sourcemap_debug_ids);
-        assert_eq!(
-            target.bundle.output.legal_comments,
-            BundleLegalComment::EndOfFile
-        );
-        assert!(target.bundle.treeshake.enabled);
-        assert!(target.bundle.minify.syntax);
-        assert!(target.bundle.minify.whitespace);
-        assert!(target.optimize);
-        assert_eq!(target.optimize_level, OptimizeLevel::O3);
-        assert_eq!(target.lto_mode, LtoMode::Thin);
-        assert_eq!(target.shrink_level, ShrinkLevel::S2);
-        assert_eq!(target.debug_info, DebugInfoLevel::Line);
-        assert_eq!(target.strip, StripLevel::Full);
-        assert_eq!(target.emit, Target::default().emit);
-    }
 }

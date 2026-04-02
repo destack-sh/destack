@@ -32,7 +32,7 @@ pub const DEFAULT_OUT_DIR: &str = "dist";
 ///
 /// Can be constructed from `destack.json` or programmatically.
 /// This is the type used by compiler/codegen, independent of config parsing.
-#[derive(Debug, Clone, Hash, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
     pub name: String,
@@ -61,8 +61,28 @@ pub struct Target {
     pub profile: Option<String>,
     /// Explicit mode name for this target.
     pub mode: Option<String>,
-    /// Bundling options for assembled JavaScript and HTML outputs.
-    pub bundle: TargetBundle,
+    /// Assembly topology for this script target.
+    pub assembly: BundleMode,
+    /// Whether to preserve one emitted module file per reachable module.
+    pub preserve_modules: bool,
+    /// Root directory for preserved module paths.
+    pub preserve_modules_root: Option<PathBuf>,
+    /// Manual chunk assignments keyed by chunk name.
+    pub manual_chunks: IndexMap<String, Vec<String>>,
+    /// Whether to only honor explicit manual chunk declarations.
+    pub only_explicit_manual_chunks: bool,
+    /// Dependency and resolution options.
+    pub bundle_dependencies: TargetDependencyOptions,
+    /// Asset handling options.
+    pub bundle_assets: TargetAssetOptions,
+    /// Tree shaking options.
+    pub treeshake: TargetTreeshakeOptions,
+    /// Output configuration for bundled products.
+    pub bundle_output: TargetOutputPolicy,
+    /// Compile time define replacements.
+    pub define: IndexMap<String, String>,
+    /// Minification options.
+    pub minify: TargetMinifyOptions,
     /// App declaration for packaging and runtime capability planning.
     pub app: TargetAppDeclaration,
     /// Referenced runtime feature definitions.
@@ -79,8 +99,6 @@ pub struct Target {
     pub runtime_version: Option<String>,
     /// Target platform / operating system.
     pub platform: Platform,
-    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
-    pub target_triple: Option<String>,
     /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
     pub target_arch: Option<TargetArch>,
     /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
@@ -93,8 +111,48 @@ pub struct Target {
     pub cpu_features: Vec<String>,
     /// Relocation model for native codegen.
     pub relocation_model: RelocationModel,
-    /// Native code generation and link options.
-    pub native: TargetNative,
+    /// Native output kind for this target.
+    pub native_output: TargetNativeOutputKind,
+    /// Link mode for native targets.
+    pub link_mode: LinkMode,
+    /// Explicit linker executable for native targets.
+    pub linker: Option<String>,
+    /// Linker driver family.
+    pub linker_flavor: TargetLinkerFlavor,
+    /// Extra linker arguments for native targets.
+    pub link_args: Vec<String>,
+    /// Sysroot path for native toolchains.
+    pub sysroot: Option<PathBuf>,
+    /// Additional library search paths.
+    pub library_search_paths: Vec<PathBuf>,
+    /// Additional libraries to link.
+    pub libraries: Vec<String>,
+    /// Additional framework search paths.
+    pub framework_search_paths: Vec<PathBuf>,
+    /// Additional frameworks to link.
+    pub frameworks: Vec<String>,
+    /// Runtime search paths embedded into the final output.
+    pub rpath: Vec<String>,
+    /// Runtime search paths emitted as runpath entries.
+    pub runpath: Vec<String>,
+    /// Explicit entry symbol override.
+    pub entry_symbol: Option<String>,
+    /// Explicitly exported symbol names.
+    pub export_symbols: Vec<String>,
+    /// Symbol visibility policy.
+    pub symbol_visibility: TargetSymbolVisibility,
+    /// Version script for exported symbols.
+    pub version_script: Option<PathBuf>,
+    /// Linker script for the final link.
+    pub linker_script: Option<PathBuf>,
+    /// Position independent code policy.
+    pub position_independent: TargetPositionIndependentMode,
+    /// C runtime linkage policy.
+    pub crt: TargetCrtLinkage,
+    /// Shared object soname.
+    pub soname: Option<String>,
+    /// Darwin install name.
+    pub install_name: Option<String>,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     pub declaration: bool,
     /// Source map emission mode.
@@ -167,6 +225,113 @@ pub struct Target {
     pub out_file: Option<PathBuf>,
     /// Separate directory for declaration files.
     pub declaration_dir: Option<PathBuf>,
+}
+
+impl std::hash::Hash for Target {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.name.hash(state);
+        self.synthetic.hash(state);
+        self.discovery.hash(state);
+        self.entry.hash(state);
+        self.include.hash(state);
+        self.exclude.hash(state);
+        self.module.hash(state);
+        self.es_target.hash(state);
+        self.lib.hash(state);
+        self.types.hash(state);
+        self.profile.hash(state);
+        self.mode.hash(state);
+        self.assembly.hash(state);
+        self.preserve_modules.hash(state);
+        self.preserve_modules_root.hash(state);
+        self.only_explicit_manual_chunks.hash(state);
+        self.bundle_dependencies.hash(state);
+        self.bundle_assets.hash(state);
+        self.treeshake.hash(state);
+        self.bundle_output.hash(state);
+        self.minify.hash(state);
+        self.app.hash(state);
+        self.features.hash(state);
+        self.telemetry.hash(state);
+        self.outputs.hash(state);
+        self.emit.hash(state);
+        self.runtime.hash(state);
+        self.runtime_version.hash(state);
+        self.platform.hash(state);
+        self.target_arch.hash(state);
+        self.target_vendor.hash(state);
+        self.target_env.hash(state);
+        self.cpu.hash(state);
+        self.cpu_features.hash(state);
+        self.relocation_model.hash(state);
+        self.native_output.hash(state);
+        self.link_mode.hash(state);
+        self.linker.hash(state);
+        self.linker_flavor.hash(state);
+        self.link_args.hash(state);
+        self.sysroot.hash(state);
+        self.library_search_paths.hash(state);
+        self.libraries.hash(state);
+        self.framework_search_paths.hash(state);
+        self.frameworks.hash(state);
+        self.rpath.hash(state);
+        self.runpath.hash(state);
+        self.entry_symbol.hash(state);
+        self.export_symbols.hash(state);
+        self.symbol_visibility.hash(state);
+        self.version_script.hash(state);
+        self.linker_script.hash(state);
+        self.position_independent.hash(state);
+        self.crt.hash(state);
+        self.soname.hash(state);
+        self.install_name.hash(state);
+        self.declaration.hash(state);
+        self.source_map_mode.hash(state);
+        self.artifacts.hash(state);
+        self.debug.hash(state);
+        self.optimize.hash(state);
+        self.optimize_level.hash(state);
+        self.unroll_threshold.hash(state);
+        self.inline_budget_scale_percent.hash(state);
+        self.lto_mode.hash(state);
+        self.shrink_level.hash(state);
+        self.float_math.hash(state);
+        self.debug_info.hash(state);
+        self.debug_mode.hash(state);
+        self.safepoint_mode.hash(state);
+        self.safepoint_interval.hash(state);
+        self.speculation_mode.hash(state);
+        self.profiling_mode.hash(state);
+        self.runtime_options.hash(state);
+        self.trust_policy.hash(state);
+        self.sandbox_policy.hash(state);
+        self.strip.hash(state);
+        self.panic.hash(state);
+        self.unwind.hash(state);
+        self.safety_preset.hash(state);
+        self.overflow_checks.hash(state);
+        self.bounds_checks.hash(state);
+        self.null_checks.hash(state);
+        self.division_checks.hash(state);
+        self.shift_checks.hash(state);
+        self.check_failure.hash(state);
+        self.allocator.hash(state);
+        self.out_dir.hash(state);
+        self.out_file.hash(state);
+        self.declaration_dir.hash(state);
+
+        self.manual_chunks.len().hash(state);
+        for (name, modules) in &self.manual_chunks {
+            name.hash(state);
+            modules.hash(state);
+        }
+
+        self.define.len().hash(state);
+        for (name, value) in &self.define {
+            name.hash(state);
+            value.hash(state);
+        }
+    }
 }
 
 impl Target {
@@ -406,12 +571,13 @@ impl Target {
     /// Return whether this target assembles one target level output shape.
     pub fn emits_assembled_output(&self) -> bool {
         is_assembled_target(
-            Some(self.bundle.assembly),
+            Some(self.assembly),
             self.discovery,
             self.entry.len(),
             &self.app,
             self.emit,
-            &self.bundle,
+            self.preserve_modules,
+            self.manual_chunks.is_empty(),
             self.out_file.is_some(),
         )
     }
@@ -423,32 +589,32 @@ impl Target {
 
     /// Return whether this target should minify assembled JavaScript, HTML, or CSS output text.
     pub fn should_minify_bundle_output(&self) -> bool {
-        self.bundle.minify.minifies_output()
+        self.minify.minifies_output()
     }
 
     /// Return whether this target should compact printed bundled JavaScript output.
     pub fn should_minify_bundle_script_output(&self) -> bool {
-        self.bundle.minify.enabled || self.bundle.minify.whitespace
+        self.minify.enabled || self.minify.whitespace
     }
 
     /// Return whether this target should structurally minify bundled JavaScript syntax.
     pub fn should_minify_bundle_script_syntax(&self) -> bool {
-        self.bundle.minify.enabled || self.bundle.minify.syntax
+        self.minify.enabled || self.minify.syntax
     }
 
     /// Return whether this target should structurally minify bundled CSS output.
     pub fn should_minify_bundle_css_syntax(&self) -> bool {
-        self.bundle.minify.enabled || self.bundle.minify.syntax
+        self.minify.enabled || self.minify.syntax
     }
 
     /// Return whether this target should compact bundled CSS output whitespace.
     pub fn should_minify_bundle_css_whitespace(&self) -> bool {
-        self.bundle.minify.enabled || self.bundle.minify.whitespace
+        self.minify.enabled || self.minify.whitespace
     }
 
     /// Return whether this target should structurally minify bundled HTML output.
     pub fn should_minify_bundle_html_output(&self) -> bool {
-        self.bundle.minify.minifies_output()
+        self.minify.minifies_output()
     }
 
     /// Return whether this target emits any source map data.
@@ -474,15 +640,11 @@ impl Target {
 
     /// Return the normalized source map mode for this target.
     pub fn source_map_mode(&self) -> Option<SourceMapMode> {
-        self.bundle.output.sourcemap.or(self.source_map_mode)
+        self.bundle_output.sourcemap.or(self.source_map_mode)
     }
 
     /// Resolve a target triple string from the target configuration.
     pub fn resolved_target_triple(&self) -> Option<String> {
-        if let Some(triple) = self.target_triple.as_ref() {
-            return Some(triple.clone());
-        }
-
         let target_arch = self.target_arch.as_ref()?;
         let os = self.platform.triple_os_component()?;
 
@@ -606,12 +768,6 @@ impl Target {
         self
     }
 
-    /// Set target triple for native codegen.
-    pub fn with_target_triple(mut self, target_triple: impl Into<String>) -> Self {
-        self.target_triple = Some(target_triple.into());
-        self
-    }
-
     /// Set target architecture for native codegen.
     pub fn with_target_arch(mut self, target_arch: TargetArch) -> Self {
         self.target_arch = Some(target_arch);
@@ -650,7 +806,7 @@ impl Target {
 
     /// Set link mode for native targets.
     pub fn with_link_mode(mut self, link_mode: LinkMode) -> Self {
-        self.native.link_mode = link_mode;
+        self.link_mode = link_mode;
         self
     }
 
@@ -936,7 +1092,7 @@ impl Target {
         module_path: &'a Path,
         package_relative_path: &'a Path,
     ) -> Option<&'a Path> {
-        let preserve_modules_root = self.bundle.preserve_modules_root.as_deref()?;
+        let preserve_modules_root = self.preserve_modules_root.as_deref()?;
 
         // package relative root
         if let Ok(relative) = package_relative_path.strip_prefix(preserve_modules_root) {
@@ -980,8 +1136,6 @@ pub struct TargetOptions {
     pub runtime_version: Option<String>,
     /// Target platform / operating system.
     pub platform: Platform,
-    /// Target triple for native codegen.
-    pub target_triple: Option<String>,
     /// Target architecture for native codegen.
     pub target_arch: Option<TargetArch>,
     /// Target vendor for native codegen.
@@ -994,8 +1148,48 @@ pub struct TargetOptions {
     pub cpu_features: Vec<String>,
     /// Relocation model for native codegen.
     pub relocation_model: RelocationModel,
-    /// Native code generation and link options.
-    pub native: TargetNative,
+    /// Native output kind for this target.
+    pub native_output: TargetNativeOutputKind,
+    /// Link mode for native targets.
+    pub link_mode: LinkMode,
+    /// Explicit linker executable for native targets.
+    pub linker: Option<String>,
+    /// Linker driver family.
+    pub linker_flavor: TargetLinkerFlavor,
+    /// Extra linker arguments for native targets.
+    pub link_args: Vec<String>,
+    /// Sysroot path for native toolchains.
+    pub sysroot: Option<PathBuf>,
+    /// Additional library search paths.
+    pub library_search_paths: Vec<PathBuf>,
+    /// Additional libraries to link.
+    pub libraries: Vec<String>,
+    /// Additional framework search paths.
+    pub framework_search_paths: Vec<PathBuf>,
+    /// Additional frameworks to link.
+    pub frameworks: Vec<String>,
+    /// Runtime search paths embedded into the final output.
+    pub rpath: Vec<String>,
+    /// Runtime search paths emitted as runpath entries.
+    pub runpath: Vec<String>,
+    /// Explicit entry symbol override.
+    pub entry_symbol: Option<String>,
+    /// Explicitly exported symbol names.
+    pub export_symbols: Vec<String>,
+    /// Symbol visibility policy.
+    pub symbol_visibility: TargetSymbolVisibility,
+    /// Version script for exported symbols.
+    pub version_script: Option<PathBuf>,
+    /// Linker script for the final link.
+    pub linker_script: Option<PathBuf>,
+    /// Position independent code policy.
+    pub position_independent: TargetPositionIndependentMode,
+    /// C runtime linkage policy.
+    pub crt: TargetCrtLinkage,
+    /// Shared object soname.
+    pub soname: Option<String>,
+    /// Darwin install name.
+    pub install_name: Option<String>,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     pub declaration: bool,
     /// Source map emission mode.
@@ -1024,8 +1218,28 @@ pub struct TargetOptions {
     pub profile: Option<String>,
     /// Explicit mode name for this target.
     pub mode: Option<String>,
-    /// Bundling options for assembled JavaScript and HTML outputs.
-    pub bundle: TargetBundle,
+    /// Assembly topology for this script target.
+    pub assembly: BundleMode,
+    /// Whether to preserve one emitted module file per reachable module.
+    pub preserve_modules: bool,
+    /// Root directory for preserved module paths.
+    pub preserve_modules_root: Option<PathBuf>,
+    /// Manual chunk assignments keyed by chunk name.
+    pub manual_chunks: IndexMap<String, Vec<String>>,
+    /// Whether to only honor explicit manual chunk declarations.
+    pub only_explicit_manual_chunks: bool,
+    /// Dependency and resolution options.
+    pub bundle_dependencies: TargetDependencyOptions,
+    /// Asset handling options.
+    pub bundle_assets: TargetAssetOptions,
+    /// Tree shaking options.
+    pub treeshake: TargetTreeshakeOptions,
+    /// Output configuration for bundled products.
+    pub bundle_output: TargetOutputPolicy,
+    /// Compile time define replacements.
+    pub define: IndexMap<String, String>,
+    /// Minification options.
+    pub minify: TargetMinifyOptions,
     /// App declaration for packaging and runtime capability planning.
     pub app: TargetAppDeclaration,
     /// Referenced runtime feature definitions.
@@ -1094,98 +1308,6 @@ pub struct TargetOptions {
     pub allocator: Allocator,
 }
 
-#[cfg(test)]
-mod tests {
-    use std::path::{Path, PathBuf};
-
-    use super::{Target, TargetJson, TargetOptions};
-
-    /// Strip the configured preserve-modules root before mirroring one module path.
-    #[test]
-    fn test_resolves_out_file_with_preserve_modules_root() {
-        let mut target = Target::js("library");
-        target.bundle.preserve_modules = true;
-        target.bundle.preserve_modules_root = Some(PathBuf::from("src"));
-        target.out_dir = PathBuf::from("dist/library");
-
-        let output = target.resolve_out_file(
-            Path::new("/workspace/pkg"),
-            Some(Path::new("src")),
-            Path::new("/workspace/pkg/src/application.js"),
-            "js",
-        );
-
-        assert_eq!(
-            output,
-            Path::new("/workspace/pkg/dist/library/application.js")
-        );
-    }
-
-    /// Fall back to the compiler root dir when no preserve-modules root was configured.
-    #[test]
-    fn test_resolves_out_file_with_root_dir_fallback() {
-        let mut target = Target::js("library");
-        target.bundle.preserve_modules = true;
-        target.out_dir = PathBuf::from("dist/library");
-
-        let output = target.resolve_out_file(
-            Path::new("/workspace/pkg"),
-            Some(Path::new("src")),
-            Path::new("/workspace/pkg/src/application.js"),
-            "js",
-        );
-
-        assert_eq!(
-            output,
-            Path::new("/workspace/pkg/dist/library/application.js")
-        );
-    }
-
-    /// Keep the full package-relative path when neither root hint applies.
-    #[test]
-    fn test_resolves_out_file_without_any_root_hint() {
-        let mut target = Target::js("library");
-        target.bundle.preserve_modules = true;
-        target.out_dir = PathBuf::from("dist/library");
-
-        let output = target.resolve_out_file(
-            Path::new("/workspace/pkg"),
-            None,
-            Path::new("/workspace/pkg/src/application.js"),
-            "js",
-        );
-
-        assert_eq!(
-            output,
-            Path::new("/workspace/pkg/dist/library/src/application.js")
-        );
-    }
-
-    /// Preserve the configured preserve-modules root through target normalization.
-    #[test]
-    fn test_normalizes_preserve_modules_root_from_json() {
-        let json: TargetJson = serde_json::from_str(
-            r#"
-            {
-              "emit": "js",
-              "entry": ["src/application.js"],
-              "bundle": {
-                "preserveModules": true,
-                "preserveModulesRoot": "src"
-              }
-            }
-            "#,
-        )
-        .unwrap_or_else(|error| panic!("failed to parse target options json: {error}"));
-        let target = TargetOptions::from(&json).to_target("library");
-
-        assert_eq!(
-            target.bundle.preserve_modules_root,
-            Some(PathBuf::from("src"))
-        );
-    }
-}
-
 impl Default for TargetOptions {
     fn default() -> Self {
         Self {
@@ -1199,14 +1321,33 @@ impl Default for TargetOptions {
             runtime: Runtime::default(),
             runtime_version: None,
             platform: Platform::default(),
-            target_triple: None,
             target_arch: None,
             target_vendor: None,
             target_env: None,
             cpu: None,
             cpu_features: Vec::new(),
             relocation_model: RelocationModel::default(),
-            native: TargetNative::default(),
+            native_output: TargetNativeOutputKind::default(),
+            link_mode: LinkMode::default(),
+            linker: None,
+            linker_flavor: TargetLinkerFlavor::default(),
+            link_args: Vec::new(),
+            sysroot: None,
+            library_search_paths: Vec::new(),
+            libraries: Vec::new(),
+            framework_search_paths: Vec::new(),
+            frameworks: Vec::new(),
+            rpath: Vec::new(),
+            runpath: Vec::new(),
+            entry_symbol: None,
+            export_symbols: Vec::new(),
+            symbol_visibility: TargetSymbolVisibility::default(),
+            version_script: None,
+            linker_script: None,
+            position_independent: TargetPositionIndependentMode::default(),
+            crt: TargetCrtLinkage::default(),
+            soname: None,
+            install_name: None,
             declaration: false,
             source_map_mode: None,
             artifacts: Vec::new(),
@@ -1219,7 +1360,17 @@ impl Default for TargetOptions {
             types: None,
             profile: None,
             mode: None,
-            bundle: TargetBundle::default(),
+            assembly: BundleMode::default(),
+            preserve_modules: false,
+            preserve_modules_root: None,
+            manual_chunks: IndexMap::new(),
+            only_explicit_manual_chunks: false,
+            bundle_dependencies: TargetDependencyOptions::default(),
+            bundle_assets: TargetAssetOptions::default(),
+            treeshake: TargetTreeshakeOptions::default(),
+            bundle_output: TargetOutputPolicy::default(),
+            define: IndexMap::new(),
+            minify: TargetMinifyOptions::default(),
             app: TargetAppDeclaration::default(),
             features: Vec::new(),
             telemetry: Vec::new(),
@@ -1289,14 +1440,33 @@ impl TargetOptions {
             runtime: self.runtime,
             runtime_version: self.runtime_version.clone(),
             platform: self.platform,
-            target_triple: self.target_triple.clone(),
             target_arch: self.target_arch.clone(),
             target_vendor: self.target_vendor.clone(),
             target_env: self.target_env.clone(),
             cpu: self.cpu.clone(),
             cpu_features: self.cpu_features.clone(),
             relocation_model: self.relocation_model,
-            native: self.native.clone(),
+            native_output: self.native_output,
+            link_mode: self.link_mode,
+            linker: self.linker.clone(),
+            linker_flavor: self.linker_flavor,
+            link_args: self.link_args.clone(),
+            sysroot: self.sysroot.clone(),
+            library_search_paths: self.library_search_paths.clone(),
+            libraries: self.libraries.clone(),
+            framework_search_paths: self.framework_search_paths.clone(),
+            frameworks: self.frameworks.clone(),
+            rpath: self.rpath.clone(),
+            runpath: self.runpath.clone(),
+            entry_symbol: self.entry_symbol.clone(),
+            export_symbols: self.export_symbols.clone(),
+            symbol_visibility: self.symbol_visibility,
+            version_script: self.version_script.clone(),
+            linker_script: self.linker_script.clone(),
+            position_independent: self.position_independent,
+            crt: self.crt,
+            soname: self.soname.clone(),
+            install_name: self.install_name.clone(),
             declaration: self.declaration,
             source_map_mode: self.source_map_mode,
             artifacts: self.artifacts.clone(),
@@ -1309,7 +1479,17 @@ impl TargetOptions {
             types: self.types.clone(),
             profile: self.profile.clone(),
             mode: self.mode.clone(),
-            bundle: self.bundle.clone(),
+            assembly: self.assembly,
+            preserve_modules: self.preserve_modules,
+            preserve_modules_root: self.preserve_modules_root.clone(),
+            manual_chunks: self.manual_chunks.clone(),
+            only_explicit_manual_chunks: self.only_explicit_manual_chunks,
+            bundle_dependencies: self.bundle_dependencies.clone(),
+            bundle_assets: self.bundle_assets.clone(),
+            treeshake: self.treeshake.clone(),
+            bundle_output: self.bundle_output.clone(),
+            define: self.define.clone(),
+            minify: self.minify.clone(),
             app: self.app.clone(),
             features: self.features.clone(),
             telemetry: self.telemetry.clone(),
@@ -1380,33 +1560,54 @@ impl TargetOptions {
         let emit = json.emit.map(EmitFormat::from).unwrap_or_default();
 
         // resolve one assembled output decision before deriving output groups
-        let mut bundle = json
-            .bundle
+        let preserve_modules = json.preserve_modules.unwrap_or_default();
+        let preserve_modules_root = json.preserve_modules_root.as_ref().map(PathBuf::from);
+        let manual_chunks = json.manual_chunks.clone().unwrap_or_default();
+        let only_explicit_manual_chunks = json.only_explicit_manual_chunks.unwrap_or_default();
+        let bundle_dependencies = json
+            .dependencies
             .as_ref()
-            .map(TargetBundle::from)
+            .map(TargetDependencyOptions::from)
             .unwrap_or_default();
-        let native = json
-            .native
+        let bundle_assets = json
+            .assets
             .as_ref()
-            .map(TargetNative::from)
+            .map(TargetAssetOptions::from)
             .unwrap_or_default();
-        let source_map_mode = bundle.output.sourcemap;
-        bundle.assembly = resolved_bundle_mode(
-            json.bundle.as_ref().and_then(|bundle| bundle.assembly),
+        let treeshake = json
+            .treeshake
+            .as_ref()
+            .map(TargetTreeshakeOptions::from)
+            .unwrap_or_default();
+        let bundle_output = json
+            .output
+            .as_ref()
+            .map(TargetOutputPolicy::from)
+            .unwrap_or_default();
+        let define = json.define.clone().unwrap_or_default();
+        let minify = json
+            .minify
+            .as_ref()
+            .map(TargetMinifyOptions::from)
+            .unwrap_or_default();
+        let source_map_mode = bundle_output.sourcemap;
+        let assembly = resolved_bundle_mode(
+            json.assembly,
             discovery,
             entry.len(),
             emit,
             json.out_file.is_some(),
-            &bundle,
+            preserve_modules,
+            manual_chunks.is_empty(),
         );
-        bundle.output.sourcemap = source_map_mode;
         let is_assembled = is_assembled_target(
-            json.bundle.as_ref().and_then(|bundle| bundle.assembly),
+            json.assembly,
             discovery,
             entry.len(),
             &app,
             emit,
-            &bundle,
+            preserve_modules,
+            manual_chunks.is_empty(),
             json.out_file.is_some(),
         );
 
@@ -1416,7 +1617,7 @@ impl TargetOptions {
             is_assembled,
             json.declaration,
             source_map_mode,
-            bundle.output.manifest,
+            bundle_output.manifest,
         );
 
         // seed runtime options with the resolved target app declaration
@@ -1445,7 +1646,6 @@ impl TargetOptions {
                 .as_deref()
                 .and_then(Platform::parse)
                 .unwrap_or_default(),
-            target_triple: json.target_triple.clone(),
             target_arch: json.arch.as_deref().and_then(TargetArch::parse),
             target_vendor: json.vendor.as_deref().and_then(TargetVendor::parse),
             target_env: json.env.as_deref().and_then(TargetEnv::parse),
@@ -1455,7 +1655,35 @@ impl TargetOptions {
                 .relocation_model
                 .map(RelocationModel::from)
                 .unwrap_or_default(),
-            native,
+            native_output: json.native_output.unwrap_or_default(),
+            link_mode: json.link_mode.map(LinkMode::from).unwrap_or_default(),
+            linker: json.linker.clone(),
+            linker_flavor: json.linker_flavor.unwrap_or_default(),
+            link_args: json.link_args.clone().unwrap_or_default(),
+            sysroot: json.sysroot.as_ref().map(PathBuf::from),
+            library_search_paths: json
+                .library_search_paths
+                .as_ref()
+                .map(|paths| paths.iter().map(PathBuf::from).collect())
+                .unwrap_or_default(),
+            libraries: json.libraries.clone().unwrap_or_default(),
+            framework_search_paths: json
+                .framework_search_paths
+                .as_ref()
+                .map(|paths| paths.iter().map(PathBuf::from).collect())
+                .unwrap_or_default(),
+            frameworks: json.frameworks.clone().unwrap_or_default(),
+            rpath: json.rpath.clone().unwrap_or_default(),
+            runpath: json.runpath.clone().unwrap_or_default(),
+            entry_symbol: json.entry_symbol.clone(),
+            export_symbols: json.export_symbols.clone().unwrap_or_default(),
+            symbol_visibility: json.symbol_visibility.unwrap_or_default(),
+            version_script: json.version_script.as_ref().map(PathBuf::from),
+            linker_script: json.linker_script.as_ref().map(PathBuf::from),
+            position_independent: json.position_independent.unwrap_or_default(),
+            crt: json.crt.unwrap_or_default(),
+            soname: json.soname.clone(),
+            install_name: json.install_name.clone(),
             declaration: json.declaration,
             source_map_mode,
             artifacts: json
@@ -1484,7 +1712,17 @@ impl TargetOptions {
             types: json.types.clone(),
             profile: json.profile.clone(),
             mode: json.mode.clone(),
-            bundle,
+            assembly,
+            preserve_modules,
+            preserve_modules_root,
+            manual_chunks,
+            only_explicit_manual_chunks,
+            bundle_dependencies,
+            bundle_assets,
+            treeshake,
+            bundle_output,
+            define,
+            minify,
             app,
             features: json
                 .features
@@ -1602,8 +1840,6 @@ pub struct TargetJson {
     pub runtime: Option<RuntimeConfigJson>,
     /// Host platform or packaging surface (e.g., browser, ios, android, macos, linux, windows).
     pub platform: Option<String>,
-    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
-    pub target_triple: Option<String>,
     /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
     pub arch: Option<String>,
     /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
@@ -1616,8 +1852,48 @@ pub struct TargetJson {
     pub cpu_features: Option<Vec<String>>,
     /// Relocation model.
     pub relocation_model: Option<RelocationModelJson>,
-    /// Native code generation and link options.
-    pub native: Option<TargetNativeJson>,
+    /// Native output kind for this target.
+    pub native_output: Option<TargetNativeOutputKind>,
+    /// Link mode for native targets.
+    pub link_mode: Option<LinkModeJson>,
+    /// Explicit linker executable for native targets.
+    pub linker: Option<String>,
+    /// Linker driver family.
+    pub linker_flavor: Option<TargetLinkerFlavor>,
+    /// Extra linker arguments for native targets.
+    pub link_args: Option<Vec<String>>,
+    /// Sysroot path for native toolchains.
+    pub sysroot: Option<String>,
+    /// Additional library search paths.
+    pub library_search_paths: Option<Vec<String>>,
+    /// Additional libraries to link.
+    pub libraries: Option<Vec<String>>,
+    /// Additional framework search paths.
+    pub framework_search_paths: Option<Vec<String>>,
+    /// Additional frameworks to link.
+    pub frameworks: Option<Vec<String>>,
+    /// Runtime search paths embedded into the final output.
+    pub rpath: Option<Vec<String>>,
+    /// Runtime search paths emitted as runpath entries.
+    pub runpath: Option<Vec<String>>,
+    /// Explicit entry symbol override.
+    pub entry_symbol: Option<String>,
+    /// Explicitly exported symbol names.
+    pub export_symbols: Option<Vec<String>>,
+    /// Symbol visibility policy.
+    pub symbol_visibility: Option<TargetSymbolVisibility>,
+    /// Version script for exported symbols.
+    pub version_script: Option<String>,
+    /// Linker script for the final link.
+    pub linker_script: Option<String>,
+    /// Position independent code policy.
+    pub position_independent: Option<TargetPositionIndependentMode>,
+    /// C runtime linkage policy.
+    pub crt: Option<TargetCrtLinkage>,
+    /// Shared object soname.
+    pub soname: Option<String>,
+    /// Darwin install name.
+    pub install_name: Option<String>,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     #[serde(default)]
     pub declaration: bool,
@@ -1645,8 +1921,29 @@ pub struct TargetJson {
     pub profile: Option<String>,
     /// Explicit mode name for this target.
     pub mode: Option<String>,
-    /// Bundling options for assembled JavaScript and HTML outputs.
-    pub bundle: Option<TargetBundleJson>,
+    /// Assembly topology for this script target.
+    pub assembly: Option<BundleMode>,
+    /// Whether to preserve one emitted module file per reachable module.
+    pub preserve_modules: Option<bool>,
+    /// Root directory for preserved module paths.
+    pub preserve_modules_root: Option<String>,
+    /// Manual chunk assignments keyed by chunk name.
+    pub manual_chunks: Option<IndexMap<String, Vec<String>>>,
+    /// Whether to only honor explicit manual chunk declarations.
+    pub only_explicit_manual_chunks: Option<bool>,
+    /// Dependency and resolution options.
+    #[serde(alias = "deps")]
+    pub dependencies: Option<TargetDependencyOptionsJson>,
+    /// Asset handling options.
+    pub assets: Option<TargetAssetOptionsJson>,
+    /// Tree shaking options.
+    pub treeshake: Option<TargetTreeshakeOptionsJson>,
+    /// Output options for assembled bundle files.
+    pub output: Option<TargetOutputPolicyJson>,
+    /// Compile time define replacements.
+    pub define: Option<IndexMap<String, String>>,
+    /// Minification options.
+    pub minify: Option<TargetMinifyOptionsJson>,
     /// App declaration for packaging and runtime capability planning.
     pub app: Option<TargetAppDeclarationJson>,
     /// Referenced runtime feature definitions.
@@ -1805,7 +2102,8 @@ fn resolved_bundle_mode(
     entry_count: usize,
     emit: EmitFormat,
     out_file: bool,
-    bundle: &TargetBundle,
+    preserve_modules: bool,
+    manual_chunks_is_empty: bool,
 ) -> BundleMode {
     if out_file || emit.is_single_file() {
         return BundleMode::SingleFile;
@@ -1815,11 +2113,11 @@ fn resolved_bundle_mode(
         return explicit_mode;
     }
 
-    if bundle.preserve_modules {
+    if preserve_modules {
         return BundleMode::PreserveModules;
     }
 
-    if !bundle.manual_chunks.is_empty() {
+    if !manual_chunks_is_empty {
         return BundleMode::Chunked;
     }
 
@@ -1840,7 +2138,8 @@ fn is_assembled_target(
     entry_count: usize,
     app: &TargetAppDeclaration,
     emit: EmitFormat,
-    bundle: &TargetBundle,
+    preserve_modules: bool,
+    manual_chunks_is_empty: bool,
     out_file: bool,
 ) -> bool {
     let bundle_mode = resolved_bundle_mode(
@@ -1849,7 +2148,8 @@ fn is_assembled_target(
         entry_count,
         emit,
         out_file,
-        bundle,
+        preserve_modules,
+        manual_chunks_is_empty,
     );
 
     if out_file || emit.is_single_file() {

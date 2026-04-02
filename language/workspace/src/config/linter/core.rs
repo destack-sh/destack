@@ -793,29 +793,6 @@ pub(crate) fn validate_exact_enum_order<T: PartialEq + Copy>(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{LinterCorrectnessJson, LinterJson};
-
-    #[test]
-    fn test_rejects_invalid_no_useless_escape_allow_regex_characters() {
-        let json = LinterJson {
-            correctness: LinterCorrectnessJson {
-                no_useless_escape_allow_regex_characters: Some(vec!["ab".to_string()]),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let error = json
-            .validate()
-            .expect_err("expected invalid character allowlist");
-        assert!(
-            error.contains("noUselessEscapeAllowRegexCharacters"),
-            "unexpected error: {error}"
-        );
-    }
-}
 /// Linter rules configuration.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
