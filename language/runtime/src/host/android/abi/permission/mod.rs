@@ -7,6 +7,6 @@ pub(crate) mod ffi;
 #[path = "types.generated.rs"]
 pub mod types;
 
-pub use callbacks::*;
-pub use ffi::*;
-pub use types::*;
+pub(crate) use callbacks::*;
+pub(crate) use ffi::*;
+pub(crate) use types::*;

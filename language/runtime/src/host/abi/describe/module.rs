@@ -580,7 +580,7 @@ macro_rules! host_abi_types {
         #[derive(Clone, Copy, Debug)]
         $(#[derive($($derive)*)])*
         #[repr(C)]
-        pub struct $name {
+        pub(crate) struct $name {
             $(
                 $(#[doc = $field_doc])*
                 pub $field_name: $crate::host::abi::describe::host_abi_rust_type!(
@@ -616,7 +616,7 @@ macro_rules! host_abi_types {
         $(#[doc = $doc])*
         #[derive(Clone, Copy, Debug)]
         #[repr($repr)]
-        pub enum $name {
+        pub(crate) enum $name {
             $(
                 $(#[doc = $variant_doc])*
                 $variant_name = $discriminant,
@@ -649,7 +649,7 @@ macro_rules! host_abi_types {
     ) => {
         $(#[doc = $doc])*
         #[derive(Clone, Copy, Debug)]
-        pub enum $name {
+        pub(crate) enum $name {
             $(
                 $(#[doc = $variant_doc])*
                 $variant_name($payload),

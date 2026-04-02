@@ -88,8 +88,8 @@ pub mod tls;
 pub mod tty;
 
 pub use abi::{
-    NativeArray, RuntimeStatus, VmAggregateCodec, VmArray, VmCollectionElement,
-    VmCollectionStorage, VmSlice, VmValueCodec,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, RuntimeStatus, VmAggregateCodec,
+    VmArray, VmCollectionElement, VmCollectionStorage, VmSlice, VmValueCodec,
 };
 #[cfg(not(feature = "generator"))]
 pub(crate) use core::{NativeAbiCodec, VmAbiCodec};

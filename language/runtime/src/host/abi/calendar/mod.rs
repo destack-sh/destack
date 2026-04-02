@@ -6,4 +6,4 @@ mod types;
 #[allow(unused_imports)]
 pub use module::*;
 #[allow(unused_imports)]
-pub use types::*;
+pub(crate) use types::*;
