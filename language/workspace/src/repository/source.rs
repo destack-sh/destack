@@ -19,7 +19,7 @@ pub(crate) fn normalize_logical_path(path: &Path) -> String {
 /// The origin metadata for one file identity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FileOrigin {
-    /// One workspace rooted file.
+    /// One workspace file.
     Workspace { path: PathBuf },
     /// One builtin file.
     Builtin {

@@ -10,15 +10,15 @@ use serde::{Deserialize, Serialize};
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ContentId(pub u64);
+pub struct FileContentId(pub u64);
 
-impl std::fmt::Display for ContentId {
+impl std::fmt::Display for FileContentId {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "c{:016x}", self.0)
     }
 }
 
-impl ContentId {
+impl FileContentId {
     /// Build one content id from one raw hash value.
     pub const fn new(value: u64) -> Self {
         Self(value)
@@ -27,23 +27,23 @@ impl ContentId {
 
 /// Shared immutable source content storage.
 #[derive(Debug, Default)]
-pub struct ContentStore {
+pub struct FileContentStore {
     /// Content payloads by exact content identity.
-    by_id: DashMap<ContentId, Arc<FileContent>>,
+    content_by_id: DashMap<FileContentId, Arc<FileContent>>,
 }
 
-impl ContentStore {
+impl FileContentStore {
     /// Create one empty content store.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Intern one content payload and return its exact identity.
-    pub fn intern(&self, content: FileContent) -> ContentId {
+    pub fn intern(&self, content: FileContent) -> FileContentId {
         let content = normalize_content(content);
         let content_id = content_id_for(&content);
 
-        self.by_id
+        self.content_by_id
             .entry(content_id)
             .or_insert_with(|| Arc::new(content));
 
@@ -51,15 +51,21 @@ impl ContentStore {
     }
 
     /// Get one shared content payload.
-    pub fn get(&self, content_id: ContentId) -> Option<Arc<FileContent>> {
-        self.by_id
+    pub fn get(&self, content_id: FileContentId) -> Option<Arc<FileContent>> {
+        self.content_by_id
             .get(&content_id)
             .map(|entry| Arc::clone(entry.value()))
     }
 
     /// Return whether one content payload exists.
-    pub fn contains(&self, content_id: ContentId) -> bool {
-        self.by_id.contains_key(&content_id)
+    pub fn contains(&self, content_id: FileContentId) -> bool {
+        self.content_by_id.contains_key(&content_id)
+    }
+
+    /// Retain only the reachable content ids.
+    pub fn retain_reachable(&self, reachable: &std::collections::HashSet<FileContentId>) {
+        self.content_by_id
+            .retain(|content_id, _| reachable.contains(content_id));
     }
 }
 
@@ -86,7 +92,7 @@ fn normalize_text(content: String) -> String {
     }
 }
 
-fn content_id_for(content: &FileContent) -> ContentId {
+fn content_id_for(content: &FileContent) -> FileContentId {
     let mut hasher = FxHasher::default();
 
     // variant tag
@@ -111,5 +117,5 @@ fn content_id_for(content: &FileContent) -> ContentId {
         }
     }
 
-    ContentId::new(hasher.finish())
+    FileContentId::new(hasher.finish())
 }

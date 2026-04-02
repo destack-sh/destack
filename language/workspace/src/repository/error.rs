@@ -3,8 +3,7 @@ use std::path::PathBuf;
 
 use destack_source::{ModuleId, PackageId};
 
-use crate::repository::ContentId;
-use crate::revision::{Ref, Revision};
+use crate::repository::{FileContentId, Ref, Revision};
 
 /// One error raised by repository operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,7 +13,7 @@ pub enum RepositoryError {
     /// The requested revision does not exist.
     MissingRevision { revision: Revision },
     /// The requested content payload does not exist.
-    MissingContent { content: ContentId },
+    MissingContent { content: FileContentId },
     /// The requested module does not exist in the given revision.
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
@@ -33,11 +32,6 @@ pub enum RepositoryError {
     },
     /// Workspace discovery or parsing failed.
     WorkspaceDiscovery { path: PathBuf, message: String },
-    /// Repository image persistence failed.
-    RepositoryImage {
-        operation: &'static str,
-        message: String,
-    },
 }
 
 impl fmt::Display for RepositoryError {
@@ -87,9 +81,6 @@ impl fmt::Display for RepositoryError {
                     "workspace discovery failed for '{}': {message}",
                     path.display()
                 )
-            }
-            Self::RepositoryImage { operation, message } => {
-                write!(formatter, "repository image {operation} failed: {message}")
             }
         }
     }

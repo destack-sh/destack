@@ -2,19 +2,93 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::Loader;
 use destack_source::{
-    File, FileContent, FileId, FileType, FileVersion, LanguageType, ModuleId, PackageId, PathExt,
-    ProfileId, Uri,
+    File, FileContent, FileId, FileType, LanguageType, ModuleId, PackageId, PathExt, ProfileId, Uri,
 };
+use im::OrdMap;
 
-use crate::repository::{ContentId, Repository, RepositoryError};
-use crate::revision::{Revision, RevisionData};
-use crate::{Module, ModuleDetection, ModuleFormat, SourceType, TsConfigDeclaration};
+use crate::repository::{
+    BUILTIN_PACKAGE_ID, FileContentId, FileOrigin, Repository, RepositoryError, Revision, SourceMap,
+};
+use crate::{
+    Module, ModuleDetection, ModuleFormat, ModuleSource, Package, SourceType, TsConfigDeclaration,
+};
 
 impl Repository {
     /// Return the synthetic root module id.
     pub fn root_module_id(&self) -> ModuleId {
         ModuleId::EPHEMERAL
+    }
+
+    /// Derive module views from one source map.
+    pub(crate) fn derive_modules(
+        &self,
+        source: &SourceMap,
+        packages: &OrdMap<PackageId, Package>,
+    ) -> OrdMap<ModuleId, Module> {
+        let mut modules = OrdMap::new();
+
+        for file_id in source.keys() {
+            let Some(origin) = self.file_origin_by_file_id(*file_id) else {
+                continue;
+            };
+
+            // synthetic root module
+            if matches!(origin, FileOrigin::Root) {
+                let module = Module::blank(
+                    self.root_module_id(),
+                    *file_id,
+                    Uri::from_string("<root>"),
+                    None,
+                    PackageId::EPHEMERAL,
+                    LanguageType::Destack,
+                    Loader::Destack,
+                    ModuleSource::User,
+                );
+
+                modules.insert(module.id, module);
+                continue;
+            }
+
+            // builtin module
+            if let Some(module) = self.builtin_module(*file_id, &origin) {
+                modules.insert(module.id, module);
+                continue;
+            }
+
+            let FileOrigin::Workspace { path } = origin else {
+                continue;
+            };
+            let path = path.to_path_buf();
+            let file_type = FileType::from_path_or_unknown(&path);
+            if !self.is_module_file(&path, file_type) {
+                continue;
+            }
+
+            let Some(package) = self.discovered_package_for_path(packages, &path) else {
+                continue;
+            };
+
+            let language_type = LanguageType::from(file_type);
+            let loader = Loader::from_file_type(file_type);
+            let module_id =
+                ModuleId::from_path_with_loader(package.id, &path, package.path.as_deref(), None);
+            let module = Module::blank(
+                module_id,
+                *file_id,
+                Uri::from_path(&path),
+                Some(path),
+                package.id,
+                language_type,
+                loader,
+                ModuleSource::User,
+            );
+
+            modules.insert(module_id, module);
+        }
+
+        modules
     }
 
     /// Return one source file snapshot for one revision and file id.
@@ -25,16 +99,14 @@ impl Repository {
     ) -> Result<Option<Arc<File>>, RepositoryError> {
         let revision_id = revision;
         let revision = self.revision(revision_id)?;
-        let Some(content_id) = revision.content_id(file_id) else {
+        let Some(content_id) = revision.file_content_id(file_id) else {
             return Ok(None);
         };
         let Some(logical_path) = self.logical_path_by_file_id(file_id) else {
             return Ok(None);
         };
-        let content = self.content(content_id)?;
-        let file_version = self.file_version_at(revision_id, file_id)?;
-        let file =
-            self.build_file_at_revision(file_id, logical_path.as_ref(), content, file_version);
+        let content = self.file_content_by_id(content_id)?;
+        let file = self.build_file_at_revision(file_id, logical_path.as_ref(), content);
 
         Ok(Some(Arc::new(file)))
     }
@@ -45,7 +117,6 @@ impl Repository {
         file_id: FileId,
         logical_path: &str,
         content: Arc<FileContent>,
-        file_version: FileVersion,
     ) -> File {
         let path = self.workspace_path_for_logical_path(logical_path);
         let uri = path
@@ -64,7 +135,7 @@ impl Repository {
                 .map(FileType::from_path_or_unknown)
                 .unwrap_or_else(|| FileType::from_path_or_unknown(Path::new(logical_path)))
         };
-        let file = match content.as_ref() {
+        match content.as_ref() {
             FileContent::Text { content } => {
                 if file_type == FileType::Json {
                     File::from_text_as_jsonc(
@@ -119,58 +190,7 @@ impl Repository {
             FileContent::Unloaded => {
                 File::unloaded(file_id, name.clone(), uri.clone(), path.clone(), file_type)
             }
-        };
-
-        file.with_version(file_version)
-    }
-
-    /// Return the derived file version for one revision-scoped file binding.
-    fn file_version_at(
-        &self,
-        revision: Revision,
-        file_id: FileId,
-    ) -> Result<FileVersion, RepositoryError> {
-        let revision_data = self.revision(revision)?;
-        self.file_version_in_revision_data(revision_data.as_ref(), file_id)
-    }
-
-    /// Return the derived file version from one revision record.
-    fn file_version_in_revision_data(
-        &self,
-        revision: &RevisionData,
-        file_id: FileId,
-    ) -> Result<FileVersion, RepositoryError> {
-        let current_content = revision.content_id(file_id);
-        if revision.parents.is_empty() {
-            return Ok(if current_content.is_some() {
-                FileVersion::new(1)
-            } else {
-                FileVersion::INITIAL
-            });
         }
-
-        let mut max_parent_version = FileVersion::INITIAL;
-        let mut matches_parent_content = false;
-
-        for parent_revision in &revision.parents {
-            let parent = self.revision(*parent_revision)?;
-            let parent_version = self.file_version_in_revision_data(parent.as_ref(), file_id)?;
-            let parent_content = parent.content_id(file_id);
-
-            if parent_version > max_parent_version {
-                max_parent_version = parent_version;
-            }
-
-            if parent_content == current_content {
-                matches_parent_content = true;
-            }
-        }
-
-        if current_content.is_none() || matches_parent_content {
-            return Ok(max_parent_version);
-        }
-
-        Ok(max_parent_version.next())
     }
 
     /// Materialize one physical path for one revision logical path when possible.
@@ -256,10 +276,10 @@ impl Repository {
         &self,
         revision: Revision,
         file_id: FileId,
-    ) -> Result<Option<ContentId>, RepositoryError> {
+    ) -> Result<Option<FileContentId>, RepositoryError> {
         let revision = self.revision(revision)?;
 
-        Ok(revision.content_id(file_id))
+        Ok(revision.file_content_id(file_id))
     }
 
     /// Return one file content payload from one revision.
@@ -272,7 +292,7 @@ impl Repository {
             return Ok(None);
         };
 
-        Ok(Some(self.content(content_id)?))
+        Ok(Some(self.file_content_by_id(content_id)?))
     }
 
     /// Return the tsconfig file id that applies to one module path.
@@ -573,6 +593,70 @@ impl Repository {
     /// Drop cached module graphs for one profile.
     pub fn drop_module_graph(&self, profile_id: ProfileId) {
         self.artifacts
-            .invalidate(&destack_artifact::ArtifactKey::module_graph(profile_id));
+            .evict_key(&destack_artifact::ArtifactKey::module_graph(profile_id));
+    }
+
+    /// Return whether one workspace file should materialize as a module.
+    fn is_module_file(&self, path: &Path, file_type: FileType) -> bool {
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            return false;
+        };
+
+        if matches!(file_name, "package.json" | "destack.json" | "tsconfig.json") {
+            return false;
+        }
+
+        file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
+    }
+
+    /// Return the nearest package entry for one path.
+    fn discovered_package_for_path<'a>(
+        &self,
+        packages: &'a OrdMap<PackageId, Package>,
+        path: &Path,
+    ) -> Option<&'a Package> {
+        packages
+            .values()
+            .filter_map(|package| {
+                let package_path = package.path.as_ref()?;
+                if !path.starts_with(package_path) {
+                    return None;
+                }
+
+                Some((package_path.as_os_str().len(), package))
+            })
+            .max_by_key(|(package_length, _)| *package_length)
+            .map(|(_, package)| package)
+    }
+
+    /// Return one builtin module entry for one file origin when applicable.
+    fn builtin_module(&self, file_id: FileId, origin: &FileOrigin) -> Option<Module> {
+        let FileOrigin::Builtin {
+            module_path,
+            source,
+        } = origin
+        else {
+            return None;
+        };
+
+        let file_type = FileType::from_path_or_unknown(Path::new(module_path));
+        let language_type = LanguageType::from(file_type);
+        let loader = Loader::from_file_type(file_type);
+        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(module_path));
+
+        Some(Module::blank(
+            module_id,
+            file_id,
+            Uri::from_string(
+                self.logical_path_by_file_id(file_id)
+                    .unwrap_or_else(|| Arc::<str>::from(format!("builtin://{module_path}")))
+                    .as_ref(),
+            ),
+            None,
+            BUILTIN_PACKAGE_ID,
+            language_type,
+            loader,
+            *source,
+        ))
     }
 }
