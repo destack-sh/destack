@@ -1,5 +1,6 @@
 use destack_heap::Value;
 use serde::{Deserialize, Serialize};
+use std::mem::size_of;
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::interpreter::StackAllocation;
@@ -33,4 +34,14 @@ pub struct InterpreterFrameImage {
     pub(crate) stack_allocations: Vec<Option<StackAllocation>>,
     /// The captured function environment.
     pub environment: Value,
+}
+
+impl InterpreterFrameImage {
+    /// Return the owned bytes for this durable interpreter frame.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.stack_allocations.capacity() * size_of::<Option<StackAllocation>>();
+
+        owned_bytes
+    }
 }

@@ -198,17 +198,6 @@ impl Isolate {
         self.string_interner.intern_string_literal(heap, value)
     }
 
-    /// Allocate a shared heap byte region and return its pointer.
-    pub fn allocate_shared_bytes(
-        &mut self,
-        memory: &mut MemoryContext<'_>,
-        bytes: &[u8],
-    ) -> SharedPointer {
-        memory
-            .allocate_shared_bytes(bytes)
-            .unwrap_or_else(|error| panic!("{error}"))
-    }
-
     /// Resolve a function id by name.
     pub fn function_id_by_name(
         &self,

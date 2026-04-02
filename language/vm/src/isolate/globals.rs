@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::size_of;
 
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
@@ -42,5 +43,12 @@ impl GlobalStorage {
     /// Check if empty.
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    /// Return the owned bytes for this global storage.
+    pub fn owned_bytes(&self) -> usize {
+        size_of::<Self>()
+            + self.values.capacity()
+                * (size_of::<mir::LocalNodeId<mir::Global>>() + size_of::<Value>())
     }
 }
