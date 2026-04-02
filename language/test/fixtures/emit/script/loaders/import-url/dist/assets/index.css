@@ -1,4 +1,8 @@
 @layer new{h2{color:rgb(0, 0, 255)}}
 
-@layer default, new;
+@layer theme{@layer theme{h2{letter-spacing:0.02em}}}
+
+@layer layout{@layer layout{h2{display:grid}}}
+
+@layer default, new, theme;
 @layer default{h2{color:rgb(255, 0, 0)}}

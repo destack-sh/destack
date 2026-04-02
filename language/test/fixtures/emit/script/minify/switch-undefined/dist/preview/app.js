@@ -1,1 +1,1 @@
-switch(1){case undefined:};console.log("PASS");
+switch(1){case undefined:default:};switch(undefined){case undefined:};console.log("PASS");

@@ -1,7 +1,18 @@
 import { getPageMetadata } from "./course-routes.js";
+import { getPanelCard } from "./course-routes.js";
+export const panelRoute = "courses-reports";
+export const panelLessonTitle = "lesson-reports";
+export const panelHeading = "reports-panel";
+const panelCard = getPanelCard(panelRoute, panelLessonTitle);
+const panelPage = getPageMetadata(panelRoute, panelLessonTitle);
+export const panelHref = panelCard.href;
+export const panelLabel = panelCard.label;
+export const panelPageTitle = panelPage.title;
+export const panelPageDescription = panelPage.description;
+export const panelImagePath = panelCard.imagePath;
+
 import { getOverviewRoute, getReportsRoute } from "./course-routes.js";
 import { getOverviewLessonTitle, getReportsLessonTitle } from "./course-routes.js";
-import { getPanelCard } from "./course-routes.js";
 const appRoute = getOverviewRoute();
 const appLessonTitle = getOverviewLessonTitle();
 const appReportsRoute = getReportsRoute();
@@ -23,6 +34,10 @@ export const appReportsPageState = {
     description: appReportsPage.description,
     imagePath: appReportsPanel.imagePath,
 };
-export const reportPanelPromise = import("./report-panel.js");
+export const reportPanelState = {
+    heading: panelHeading,
+    description: panelPageDescription,
+    imagePath: panelImagePath,
+};
 export { useState as reactState } from "react";
 //# sourceMappingURL=./app.js.map

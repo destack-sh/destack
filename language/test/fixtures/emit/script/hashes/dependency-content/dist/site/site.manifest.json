@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "path": "chunks/metadata-.js",
+      "path": "chunks/metadata-61dbede3.js",
       "type": "chunk",
       "loader": "js",
       "name": "metadata",
@@ -10,7 +10,7 @@
       "isDynamicEntry": false
     },
     {
-      "path": "entries/docs-.js",
+      "path": "entries/docs-d4b9b8f6.js",
       "type": "chunk",
       "loader": "js",
       "name": "docs",
@@ -18,11 +18,11 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "../chunks/metadata-.js"
+        "../chunks/metadata-61dbede3.js"
       ]
     },
     {
-      "path": "entries/marketing-.js",
+      "path": "entries/marketing-ac1a1700.js",
       "type": "chunk",
       "loader": "js",
       "name": "marketing",
@@ -30,7 +30,7 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "../chunks/metadata-.js"
+        "../chunks/metadata-61dbede3.js"
       ]
     }
   ]

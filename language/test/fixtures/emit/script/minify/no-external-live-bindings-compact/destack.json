@@ -9,6 +9,14 @@
             ],
             "outFile": "dist/preview/app.js",
             "bundle": {
+                "dependencies": {
+                    "neverBundle": [
+                        "external1",
+                        "external2",
+                        "external3",
+                        "external4"
+                    ]
+                },
                 "minify": {
                     "whitespace": true
                 },

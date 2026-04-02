@@ -5,5 +5,8 @@
 @import "https://example.com/stylesheet1.css";
 .bar{background-color:green}
 
+@import "https://example.com/theme-base.css";
+.theme-card{background-image:url("https://example.com/theme-card.png")}
+
 @import "https://example.com/stylesheet2.css";
 body{background-color:blue}

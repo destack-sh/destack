@@ -1,0 +1,34 @@
+{
+  "index": "landing.html",
+  "files": [
+    {
+      "path": "assets/hero-d3bd9f94.svg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/landing-956ef11d.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/styles/landing.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "landing.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "landing.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "landing",
+      "input": "src/scripts/landing.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    }
+  ]
+}

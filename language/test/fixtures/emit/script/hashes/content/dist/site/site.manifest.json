@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "path": "chunks/catalog-.js",
+      "path": "chunks/catalog-10e2d02d.js",
       "type": "chunk",
       "loader": "js",
       "name": "catalog",
@@ -10,7 +10,7 @@
       "isDynamicEntry": false
     },
     {
-      "path": "entries/docs-.js",
+      "path": "entries/docs-2832a0d6.js",
       "type": "chunk",
       "loader": "js",
       "name": "docs",
@@ -18,11 +18,11 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "../chunks/catalog-.js"
+        "../chunks/catalog-10e2d02d.js"
       ]
     },
     {
-      "path": "entries/marketing-.js",
+      "path": "entries/marketing-921a09c0.js",
       "type": "chunk",
       "loader": "js",
       "name": "marketing",
@@ -30,7 +30,7 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "../chunks/catalog-.js"
+        "../chunks/catalog-10e2d02d.js"
       ]
     }
   ]

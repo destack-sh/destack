@@ -1,5 +1,6 @@
 {
     "name": "html-chunking-shared-asset-grid",
+    "defaultTarget": "landing",
     "targets": {
         "landing": {
             "emit": "html",

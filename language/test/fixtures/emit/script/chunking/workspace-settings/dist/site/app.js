@@ -65,6 +65,30 @@ export function getPanelSummary(section = "sharing", totalCount = 128, rawPageSi
     return `${sectionTitle}:${sectionCount}:${paginationLabel}`;
 }
 
+export const sharingPanelTitle = "sharing-panel";
+export const notificationsPanelTitle = "notifications-panel";
+export function getSharingPanelTitle() {
+    return sharingPanelTitle;
+}
+export function getNotificationsPanelTitle() {
+    return notificationsPanelTitle;
+}
+export function getPanelTitle(panelName) {
+    if(panelName === "sharing") {
+        return getSharingPanelTitle();
+    }
+    return getNotificationsPanelTitle();
+}
+
+export const settingsPanelState = {
+    settingsPanelTitle: getSharingPanelTitle(),
+    notificationsPanelTitle: getPanelTitle("notifications"),
+    paginationLabel: getPaginationLabel(128, getPageNumber("2"), getPageSize("40")),
+    clipDuration: getClipDurationLabel(12, 98),
+    sectionTitle: getPanelSectionTitle("notifications"),
+    panelSummary: getPanelSummary("notifications", 128, "40"),
+};
+
 export const workspaceTitle = "notes-workspace";
 export const workspaceSlug = "notes";
 export const workspaceOwner = "editor";
@@ -86,5 +110,9 @@ export const appWorkspaceState = {
     clipDuration: getClipDurationLabel(4, 91),
     panelSummary: getPanelSummary("sharing", 240, "50"),
 };
-export const settingsPanelPromise = import("./settings-panel.js");
+export const settingsPanelPreview = {
+    title: settingsPanelState.settingsPanelTitle,
+    sectionTitle: settingsPanelState.sectionTitle,
+    panelSummary: settingsPanelState.panelSummary,
+};
 //# sourceMappingURL=./app.js.map

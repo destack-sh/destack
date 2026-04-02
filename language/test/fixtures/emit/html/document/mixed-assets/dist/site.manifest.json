@@ -10,14 +10,6 @@
       "isDynamicEntry": false
     },
     {
-      "path": "assets/local.css",
-      "type": "asset",
-      "loader": "css",
-      "input": "src/local.css",
-      "isEntry": true,
-      "isDynamicEntry": false
-    },
-    {
       "path": "assets/local.jpg",
       "type": "asset",
       "loader": "asset"

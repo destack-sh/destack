@@ -10,7 +10,7 @@ export function runExternalSourceMapped(fn) {
     return fn();
 }
 
-runExternalSourceMapped(function() {
+runExternalSourceMapped(() => {
     const sourceMapLabel = buildSourceMapLabel("input");
     return renderSourceMapCard("input", sourceMapLabel);
 });

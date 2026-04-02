@@ -4,4 +4,6 @@
 
 .imported{color:cyan}}}}
 
+@layer theme{@supports (display: grid){@media screen{.theme{color:lime}}}}
+
 .style{color:yellow}
