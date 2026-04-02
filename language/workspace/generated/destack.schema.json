@@ -283,7 +283,7 @@
       }
     },
     "accounts": {
-      "description": "Named control-plane accounts.",
+      "description": "Named control plane accounts.",
       "type": [
         "object",
         "null"
@@ -363,7 +363,7 @@
       }
     },
     "defaultTarget": {
-      "description": "Default target for workspace.",
+      "description": "Default target for the package.",
       "type": [
         "string",
         "null"
@@ -5209,63 +5209,14 @@
       ]
     },
     "CacheJson": {
-      "description": "Cache options (top-level).",
+      "description": "Artifact cache options from `destack.json`.",
       "type": "object",
       "properties": {
         "mode": {
-          "description": "Cache mode.",
+          "description": "The configured artifact cache mode.",
           "anyOf": [
             {
               "$ref": "#/$defs/CacheModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "dir": {
-          "description": "Cache directory path.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "maxSizeMb": {
-          "description": "Maximum cache size in megabytes.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "policy": {
-          "description": "Cache eviction policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CachePolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "validate": {
-          "description": "Cache validation policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CacheValidateJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "scope": {
-          "description": "Cache scope selection.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CacheScopeJson"
             },
             {
               "type": "null"
@@ -5275,67 +5226,17 @@
       }
     },
     "CacheModeJson": {
-      "description": "Cache mode for JSON deserialization.",
+      "description": "Artifact cache mode for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Disable caching.",
+          "description": "Disable artifact caching.",
           "type": "string",
           "const": "off"
         },
         {
-          "description": "Use in-memory caching only.",
-          "type": "string",
-          "const": "memory"
-        },
-        {
-          "description": "Use on-disk caching.",
+          "description": "Use persisted artifact caching.",
           "type": "string",
           "const": "disk"
-        }
-      ]
-    },
-    "CachePolicyJson": {
-      "description": "Cache eviction policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Least recently used eviction.",
-          "type": "string",
-          "const": "lru"
-        },
-        {
-          "description": "Time to live eviction.",
-          "type": "string",
-          "const": "ttl"
-        }
-      ]
-    },
-    "CacheValidateJson": {
-      "description": "Cache validation policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Always validate cache entries strictly.",
-          "type": "string",
-          "const": "strict"
-        },
-        {
-          "description": "Validate only on mismatched metadata or changes.",
-          "type": "string",
-          "const": "fast"
-        }
-      ]
-    },
-    "CacheScopeJson": {
-      "description": "Cache scope selection for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Cache entries are workspace-local.",
-          "type": "string",
-          "const": "workspace"
-        },
-        {
-          "description": "Cache entries are stored in a global shared cache.",
-          "type": "string",
-          "const": "global"
         }
       ]
     },

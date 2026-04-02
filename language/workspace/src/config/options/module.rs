@@ -1,5 +1,5 @@
 use crate::config::{
-    CacheOptions, CompilerOptions, DaemonOptions, FormatterOptions, LinterOptions, RuntimeOptions,
+    CompilerOptions, DaemonOptions, FormatterOptions, LinterOptions, RuntimeOptions,
 };
 
 /// Effective normalized module options for one revision scoped module view.
@@ -13,8 +13,6 @@ pub struct ModuleOptions {
     pub formatter: FormatterOptions,
     /// The effective linter options.
     pub linter: LinterOptions,
-    /// The effective cache options.
-    pub cache: CacheOptions,
     /// The effective daemon options.
     pub daemon: DaemonOptions,
 }

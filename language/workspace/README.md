@@ -29,11 +29,7 @@ We still read `tsconfig.json` and `package.json` where needed for compatibility,
         "random": { "mode": "deterministic", "seed": 1337 }
     },
     "cache": {
-        "mode": "disk",
-        "dir": ".destack",
-        "maxSizeMb": 2048,
-        "policy": "lru",
-        "validate": "strict"
+        "mode": "disk"
     },
     "watch": {
         "debounceMs": 30
