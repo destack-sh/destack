@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -178,5 +179,30 @@ impl DispatchTable {
         callsite: CallSite,
     ) -> Option<DevirtualizationMetadata> {
         self.callsite_metadata.remove(&callsite)
+    }
+
+    /// Return the owned bytes for this dispatch table.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.vtables.capacity() * size_of::<Vtable>();
+        owned_bytes += self.itabs.capacity() * size_of::<Itab>();
+        owned_bytes += self.interface_dispatch_shapes.capacity()
+            * size_of::<(LocalNodeId<Type>, InterfaceDispatchShape)>();
+        owned_bytes +=
+            self.callsite_metadata.capacity() * size_of::<(CallSite, DevirtualizationMetadata)>();
+
+        for vtable in &self.vtables {
+            owned_bytes += vtable.entries.capacity() * size_of::<crate::VtableEntry>();
+        }
+
+        for itab in &self.itabs {
+            owned_bytes += itab.entries.capacity() * size_of::<crate::ItabEntry>();
+        }
+
+        for shape in self.interface_dispatch_shapes.values() {
+            owned_bytes += shape.entries.capacity() * size_of::<crate::InterfaceDispatchEntry>();
+        }
+
+        owned_bytes
     }
 }

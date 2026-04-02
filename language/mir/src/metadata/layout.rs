@@ -1,3 +1,4 @@
+use std::mem::size_of;
 use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
@@ -136,6 +137,18 @@ impl LayoutTable {
         self.layouts
             .get(index)
             .unwrap_or_else(|| panic!("missing layout entry {index}"))
+    }
+
+    /// Return the owned bytes for this layout table.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.layouts.capacity() * size_of::<Layout>();
+
+        for layout in &self.layouts {
+            owned_bytes += layout.fields.capacity() * size_of::<LayoutField>();
+        }
+
+        owned_bytes
     }
 }
 

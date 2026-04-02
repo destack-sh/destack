@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::mem::size_of;
 
 use destack_core::StringId;
 
@@ -119,5 +120,12 @@ impl TbaaTable {
     /// Return the TBAA tag for an id.
     pub fn tag(&self, id: TbaaTagId) -> &TbaaTag {
         &self.tags[id.index()]
+    }
+
+    /// Return the owned bytes for this TBAA table.
+    pub fn owned_bytes(&self) -> usize {
+        size_of::<Self>()
+            + self.nodes.capacity() * size_of::<TbaaNode>()
+            + self.tags.capacity() * size_of::<TbaaTag>()
     }
 }

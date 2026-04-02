@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -155,6 +156,24 @@ impl ProvenanceTable {
     /// Create inlined provenance.
     pub fn inlined(&mut self, origins: Vec<u32>, parents: Vec<ProvenanceId>) -> ProvenanceId {
         self.create(ProvenanceKind::Inlined, None, origins, parents)
+    }
+
+    /// Return the owned bytes for this provenance table.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.records.capacity() * size_of::<Provenance>();
+        owned_bytes += self.records_by_origin.capacity() * size_of::<(u32, Vec<ProvenanceId>)>();
+
+        for record in &self.records {
+            owned_bytes += record.origins.capacity() * size_of::<u32>();
+            owned_bytes += record.parents.capacity() * size_of::<ProvenanceId>();
+        }
+
+        for records in self.records_by_origin.values() {
+            owned_bytes += records.capacity() * size_of::<ProvenanceId>();
+        }
+
+        owned_bytes
     }
 
     /// Create optimized provenance.

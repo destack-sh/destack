@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::size_of;
 
 use serde::{Deserialize, Serialize};
 
@@ -145,5 +146,25 @@ impl MemoryTable {
         instruction: LocalNodeId<Instruction>,
     ) -> Option<Vec<MemoryAccessMetadata>> {
         self.memory_accesses_by_instruction_id.remove(&instruction)
+    }
+
+    /// Return the owned bytes for this memory metadata table.
+    pub fn owned_bytes(&self) -> usize {
+        let mut owned_bytes = size_of::<Self>();
+        owned_bytes += self.memory_accesses_by_instruction_id.capacity()
+            * size_of::<(LocalNodeId<Instruction>, Vec<MemoryAccessMetadata>)>();
+        owned_bytes += self.alias_scopes.owned_bytes();
+        owned_bytes += self.tbaa.owned_bytes();
+
+        for accesses in self.memory_accesses_by_instruction_id.values() {
+            owned_bytes += accesses.capacity() * size_of::<MemoryAccessMetadata>();
+
+            for access in accesses {
+                owned_bytes += access.alias_scopes.capacity() * size_of::<AliasScopeId>();
+                owned_bytes += access.noalias_scopes.capacity() * size_of::<AliasScopeId>();
+            }
+        }
+
+        owned_bytes
     }
 }
