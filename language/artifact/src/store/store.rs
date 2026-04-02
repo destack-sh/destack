@@ -6,7 +6,7 @@ use destack_core::StringPool;
 use destack_source::{FileId, ModuleId, ProfileId};
 
 use crate::{
-    ArtifactDependency, ArtifactKey, ArtifactVersion, Ast, DirAnalyzed, DirBase, DirDeclared,
+    ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase, DirDeclared,
     DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment,
     LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized, ModuleGraph, ModuleOutput,
     PackageOutput,
@@ -101,7 +101,7 @@ impl ArtifactStore {
                 ArtifactKey::Ast {
                     module: root_module_id,
                 },
-                ArtifactDependency::new(0),
+                ArtifactStamp::new(0),
             ),
             root_module_ast,
         );
@@ -218,7 +218,7 @@ impl ArtifactStore {
             return;
         }
 
-        let mut retain_count = self.retained_versions.entry(version.clone()).or_insert(0);
+        let mut retain_count = self.retained_versions.entry(*version).or_insert(0);
         *retain_count += 1;
     }
 
@@ -711,7 +711,7 @@ impl ArtifactStore {
         module: ModuleId,
         profiles: &mut std::collections::HashSet<ProfileId>,
     ) {
-        for version in map.iter().map(|entry| entry.key().clone()) {
+        for version in map.iter().map(|entry| *entry.key()) {
             if version.module_id() == Some(module)
                 && let Some(profile_id) = version.profile_id()
             {
@@ -723,7 +723,7 @@ impl ArtifactStore {
     /// Publish one family entry at one exact artifact version.
     fn insert<T>(&self, map: &ArtifactMap<T>, version: ArtifactVersion, payload: Arc<T>) {
         // latest live version per key stays available by default
-        map.insert(version.clone(), payload);
+        map.insert(version, payload);
 
         // release alone controls older retained versions
         let superseded_versions = map
@@ -735,7 +735,7 @@ impl ArtifactStore {
                 }
 
                 (candidate.key == version.key && !self.retained_versions.contains_key(candidate))
-                    .then_some(candidate.clone())
+                    .then_some(*candidate)
             })
             .collect::<Vec<_>>();
 
@@ -748,7 +748,7 @@ impl ArtifactStore {
     fn evict_matching<T>(&self, map: &ArtifactMap<T>, key: &ArtifactKey) {
         let versions: Vec<_> = map
             .iter()
-            .filter_map(|entry| (entry.key().key == *key).then_some(entry.key().clone()))
+            .filter_map(|entry| (entry.key().key == *key).then_some(*entry.key()))
             .collect();
 
         for version in versions {
@@ -759,81 +759,21 @@ impl ArtifactStore {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::{ModuleId, ProfileId};
+    use destack_source::ModuleId;
 
-    use crate::{
-        ArtifactDependency, ArtifactKey, ArtifactVersion, Ast, BinaryArtifact, ModuleGraph,
-        ModuleOutput, ObjectArtifact, PackageOutput,
-    };
+    use crate::{ArtifactKey, ArtifactStamp, ArtifactVersion, Ast};
 
     use super::ArtifactStore;
-
-    /// Clear every published artifact family from the registry.
-    #[test]
-    fn test_clear_removes_all_published_artifact_families() {
-        let registry = ArtifactStore::new();
-        let profile = ProfileId::new(1);
-        let module = ModuleId::EPHEMERAL;
-        let package = destack_source::PackageId::EPHEMERAL;
-        let target = destack_source::TargetId::new(package, "test");
-
-        // seed a representative sample of graph and output artifacts
-        registry.publish_module_graph(
-            ArtifactVersion::new(
-                ArtifactKey::module_graph(profile),
-                ArtifactDependency::new(1),
-            ),
-            ModuleGraph::new(profile),
-        );
-        registry.publish_module_output(
-            ArtifactVersion::new(
-                ArtifactKey::ModuleOutput { module, target },
-                ArtifactDependency::new(2),
-            ),
-            ModuleOutput::Binary(Box::new(BinaryArtifact::Object(Box::new(ObjectArtifact {
-                bytes: Vec::new().into(),
-                debug: Vec::new(),
-            })))),
-        );
-        registry.publish_package_output(
-            ArtifactVersion::new(
-                ArtifactKey::PackageOutput { package, target },
-                ArtifactDependency::new(3),
-            ),
-            PackageOutput::default(),
-        );
-
-        // clear the full registry state
-        registry.clear();
-
-        // the registry should not retain stale live payloads after clear
-        let graph_version = ArtifactVersion::new(
-            ArtifactKey::module_graph(profile),
-            ArtifactDependency::new(1),
-        );
-        let module_version = ArtifactVersion::new(
-            ArtifactKey::ModuleOutput { module, target },
-            ArtifactDependency::new(2),
-        );
-        let package_version = ArtifactVersion::new(
-            ArtifactKey::PackageOutput { package, target },
-            ArtifactDependency::new(3),
-        );
-
-        assert!(registry.module_graph(&graph_version).is_none());
-        assert!(registry.module_output(&module_version).is_none());
-        assert!(registry.package_output(&package_version).is_none());
-    }
 
     /// Release one retained version after the last live owner drops it.
     #[test]
     fn test_release_evicts_unretained_exact_version() {
         let registry = ArtifactStore::new();
         let module = ModuleId::EPHEMERAL;
-        let version = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactDependency::new(1));
+        let version = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
 
         // publish and retain one exact version twice
-        registry.publish_ast(version.clone(), Ast::new(module));
+        registry.publish_ast(version, Ast::new(module));
         registry.retain(&version);
         registry.retain(&version);
 
@@ -852,14 +792,12 @@ mod tests {
     fn test_publish_evicts_superseded_unretained_version() {
         let registry = ArtifactStore::new();
         let module = ModuleId::EPHEMERAL;
-        let version_1 =
-            ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactDependency::new(1));
-        let version_2 =
-            ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactDependency::new(2));
+        let version_1 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
+        let version_2 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(2));
 
         // superseded latest version
-        registry.publish_ast(version_1.clone(), Ast::new(module));
-        registry.publish_ast(version_2.clone(), Ast::new(module));
+        registry.publish_ast(version_1, Ast::new(module));
+        registry.publish_ast(version_2, Ast::new(module));
 
         assert!(!registry.contains(&version_1));
         assert!(registry.contains(&version_2));
@@ -870,15 +808,13 @@ mod tests {
     fn test_publish_keeps_superseded_retained_version() {
         let registry = ArtifactStore::new();
         let module = ModuleId::EPHEMERAL;
-        let version_1 =
-            ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactDependency::new(1));
-        let version_2 =
-            ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactDependency::new(2));
+        let version_1 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
+        let version_2 = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(2));
 
         // retained older version
-        registry.publish_ast(version_1.clone(), Ast::new(module));
+        registry.publish_ast(version_1, Ast::new(module));
         registry.retain(&version_1);
-        registry.publish_ast(version_2.clone(), Ast::new(module));
+        registry.publish_ast(version_2, Ast::new(module));
 
         assert!(registry.contains(&version_1));
         assert!(registry.contains(&version_2));

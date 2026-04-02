@@ -4,25 +4,25 @@ use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::{ArtifactFamily, ProfileKey};
 
-/// Dependency token captured for one artifact build.
+/// Stamp captured for one artifact build.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct ArtifactDependency(pub u64);
+pub struct ArtifactStamp(pub u64);
 
-impl std::fmt::Debug for ArtifactDependency {
+impl std::fmt::Debug for ArtifactStamp {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "d{:016x}", self.0)
     }
 }
 
-impl std::fmt::Display for ArtifactDependency {
+impl std::fmt::Display for ArtifactStamp {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "d{:016x}", self.0)
     }
 }
 
-impl ArtifactDependency {
-    /// Create a new artifact dependency.
+impl ArtifactStamp {
+    /// Create a new artifact stamp.
     pub fn new(value: u64) -> Self {
         Self(value)
     }
@@ -32,18 +32,18 @@ impl ArtifactDependency {
 pub type ArtifactImageKey = ArtifactKey<ProfileKey>;
 
 /// One exact live artifact version.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ArtifactVersion {
     /// The semantic artifact slot.
     pub key: ArtifactKey,
-    /// The exact reusable dependency.
-    pub dependency: ArtifactDependency,
+    /// The exact reusable stamp.
+    pub stamp: ArtifactStamp,
 }
 
 impl ArtifactVersion {
-    /// Create one artifact version from one key and dependency.
-    pub fn new(key: ArtifactKey, dependency: ArtifactDependency) -> Self {
-        Self { key, dependency }
+    /// Create one artifact version from one key and stamp.
+    pub fn new(key: ArtifactKey, stamp: ArtifactStamp) -> Self {
+        Self { key, stamp }
     }
 
     /// Return the package referenced by this artifact version when one exists.
@@ -76,7 +76,7 @@ impl ArtifactVersion {
 }
 
 /// Semantic artifact identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArtifactKey<P = ProfileId> {
     /// Module dependency graph for one profile.
     ModuleGraph { profile: P },

@@ -35,25 +35,14 @@ impl From<std::io::Error> for CacheStoreError {
 
 /// Interface for cache storage backends.
 pub trait CacheStore: std::fmt::Debug + Send + Sync {
-    /// Run one operation under a shared cache lock.
-    fn with_shared_lock(
-        &self,
-        path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError>;
-
-    /// Run one operation under an exclusive cache lock.
-    fn with_exclusive_lock(
-        &self,
-        path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError>;
+    /// Run one operation under the cache lock.
+    fn with_lock(&self, path: &Path, operation: &mut dyn FnMut()) -> Result<(), CacheStoreError>;
 
     /// Read cache bytes from a path.
     fn read(&self, path: &Path) -> Result<Option<Vec<u8>>, CacheStoreError>;
 
     /// Write cache bytes using an atomic replace.
-    fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError>;
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError>;
 
     /// Touch a cache entry for access tracking.
     fn touch(&self, path: &Path) -> Result<(), CacheStoreError>;

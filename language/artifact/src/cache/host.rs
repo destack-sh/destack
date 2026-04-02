@@ -19,36 +19,7 @@ impl DiskCacheStore {
 }
 
 impl CacheStore for DiskCacheStore {
-    fn with_shared_lock(
-        &self,
-        path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
-        // ensure the lock directory exists
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-
-        // open and lock the cache lock file
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(path)?;
-        FileExt::lock_shared(&file)?;
-        let _lock = file;
-
-        operation();
-
-        Ok(())
-    }
-
-    fn with_exclusive_lock(
-        &self,
-        path: &Path,
-        operation: &mut dyn FnMut(),
-    ) -> Result<(), CacheStoreError> {
+    fn with_lock(&self, path: &Path, operation: &mut dyn FnMut()) -> Result<(), CacheStoreError> {
         // ensure the lock directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -77,7 +48,7 @@ impl CacheStore for DiskCacheStore {
         }
     }
 
-    fn write_atomic(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), CacheStoreError> {
         // ensure the parent directory exists
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
