@@ -2,10 +2,10 @@ use indexmap::IndexMap;
 use serde_json::Value;
 
 use crate::config::{
-    AccountOptions, AssetOptions, CacheOptions, CompilerOptions, ConfigOptions, DaemonOptions,
-    DestackJson, EnvironmentOptions, FeatureOptions, FormatterOptions, LinterOptions,
-    ProfileConfig, RuntimeOptions, StackOptions, TargetOptions, TaskOptions, TelemetryOptions,
-    WatchOptions, account_options_from_json, asset_options_from_json, config_options_from_json,
+    AccountOptions, AssetOptions, CompilerOptions, ConfigOptions, DaemonOptions, DestackJson,
+    EnvironmentOptions, FeatureOptions, FormatterOptions, LinterOptions, ProfileConfig,
+    RuntimeOptions, StackOptions, TargetOptions, TaskOptions, TelemetryOptions, WatchOptions,
+    account_options_from_json, asset_options_from_json, config_options_from_json,
     environment_options_from_json, feature_options_from_json, runtime_options_from_json,
     telemetry_options_from_json,
 };
@@ -63,8 +63,6 @@ pub struct PackageOptions {
     pub formatter: FormatterOptions,
     /// Linter options.
     pub linter: LinterOptions,
-    /// Cache options.
-    pub cache: CacheOptions,
     /// Watch options.
     pub watch: WatchOptions,
     /// Daemon options.
@@ -120,7 +118,6 @@ impl From<&DestackJson> for PackageOptions {
         let mut linter = LinterOptions::default();
         json.linter.apply(&mut linter);
 
-        let cache = CacheOptions::from(&json.cache);
         let watch = WatchOptions::from(&json.watch);
         let daemon = DaemonOptions::from(&json.daemon);
 
@@ -159,7 +156,6 @@ impl From<&DestackJson> for PackageOptions {
             runtime,
             formatter,
             linter,
-            cache,
             watch,
             daemon,
             accounts: account_options_from_json(&json.accounts),

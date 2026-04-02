@@ -1,15 +1,5 @@
 /// Environment key used to override the cache directory.
 pub const DESTACK_CACHE_DIR: &str = "DESTACK_CACHE_DIR";
-/// Environment key used to override the cache mode.
-pub const DESTACK_CACHE_MODE: &str = "DESTACK_CACHE_MODE";
-/// Environment key used to override the cache scope.
-pub const DESTACK_CACHE_SCOPE: &str = "DESTACK_CACHE_SCOPE";
-/// Environment key used to override the cache policy.
-pub const DESTACK_CACHE_POLICY: &str = "DESTACK_CACHE_POLICY";
-/// Environment key used to override the cache size limit in megabytes.
-pub const DESTACK_CACHE_MAX_MB: &str = "DESTACK_CACHE_MAX_MB";
-/// Environment key used to override the cache validation mode.
-pub const DESTACK_CACHE_VALIDATE: &str = "DESTACK_CACHE_VALIDATE";
 /// Environment key used to override the watch mode.
 pub const DESTACK_WATCH_MODE: &str = "DESTACK_WATCH_MODE";
 /// Environment key used to override the watch poll interval in milliseconds.

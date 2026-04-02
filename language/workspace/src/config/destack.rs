@@ -121,6 +121,23 @@ pub struct DestackJson {
     pub default_target: Option<String>,
 }
 
+impl DestackJson {
+    /// Return the declared `extends` specifiers in order.
+    pub fn extends(&self) -> impl Iterator<Item = &str> {
+        let specifiers = match &self.extends {
+            Some(ExtendsFieldJson::Single(specifier)) => {
+                vec![specifier.as_str()]
+            }
+            Some(ExtendsFieldJson::Multiple(specifiers)) => {
+                specifiers.iter().map(String::as_str).collect()
+            }
+            None => Vec::new(),
+        };
+
+        specifiers.into_iter()
+    }
+}
+
 /// Value for the "extends" field of a Destack config.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
