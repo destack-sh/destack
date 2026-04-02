@@ -1,21 +1,19 @@
 {
-    "name": "script-minify-compact-multiple-imports",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/main.ts"
-            ],
-            "outFile": "dist/preview/app.js",
-            "bundle": {
-                "minify": {
-                    "whitespace": true
-                },
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-minify-compact-multiple-imports",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "whitespace": true
+      },
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

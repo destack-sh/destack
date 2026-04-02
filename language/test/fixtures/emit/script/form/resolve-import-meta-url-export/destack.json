@@ -1,19 +1,17 @@
 {
-    "name": "script-form-resolve-import-meta-url-export",
-    "targets": {
-        "bundle": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/main.ts"
-            ],
-            "outFile": "dist/bundle/bundle.js",
-            "bundle": {
-                "output": {
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-form-resolve-import-meta-url-export",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/bundle/bundle.js",
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

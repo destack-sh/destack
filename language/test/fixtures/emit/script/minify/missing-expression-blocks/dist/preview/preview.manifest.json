@@ -5,7 +5,7 @@
       "type": "chunk",
       "loader": "js",
       "name": "preview",
-      "input": "src/index.ts",
+      "input": "src/app.ts",
       "isEntry": true,
       "isDynamicEntry": false
     }

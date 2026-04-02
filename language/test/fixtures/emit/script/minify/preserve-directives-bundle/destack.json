@@ -1,21 +1,19 @@
 {
-    "name": "script-minify-preserve-directives-bundle",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/entry.ts"
-            ],
-            "outFile": "dist/preview/app.js",
-            "bundle": {
-                "minify": {
-                    "syntax": true
-                },
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-minify-preserve-directives-bundle",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/entry.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "syntax": true
+      },
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

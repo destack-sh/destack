@@ -1,19 +1,17 @@
 {
-    "name": "script-sourcemaps-no-sourcemap-output",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/main.ts"
-            ],
-            "outFile": "dist/preview/app.js",
-            "bundle": {
-                "output": {
-                    "sourcemap": false,
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-sourcemaps-no-sourcemap-output",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "output": {
+        "sourcemap": false,
+        "manifest": true
+      }
     }
+  }
 }

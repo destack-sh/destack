@@ -1,29 +1,27 @@
 {
-    "name": "script-minify-no-external-live-bindings-compact",
-    "targets": {
-        "preview": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/main.ts"
-            ],
-            "outFile": "dist/preview/app.js",
-            "bundle": {
-                "dependencies": {
-                    "neverBundle": [
-                        "external1",
-                        "external2",
-                        "external3",
-                        "external4"
-                    ]
-                },
-                "minify": {
-                    "whitespace": true
-                },
-                "output": {
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-minify-no-external-live-bindings-compact",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "dependencies": {
+        "neverBundle": [
+          "external1",
+          "external2",
+          "external3",
+          "external4"
+        ]
+      },
+      "minify": {
+        "whitespace": true
+      },
+      "output": {
+        "manifest": true
+      }
     }
+  }
 }

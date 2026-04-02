@@ -1,20 +1,18 @@
 {
-    "name": "html-document-mixed-assets",
-    "targets": {
-        "site": {
-            "emit": "html",
-            "runtime": "browser",
-            "entry": [
-                "src/index.html"
-            ],
-            "outFile": "dist/index.html",
-            "bundle": {
-                "output": {
-                    "assetFileNames": "assets/[name].[ext]",
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "html-document-mixed-assets",
+  "targets": {
+    "site": {
+      "emit": "html",
+      "runtime": "browser",
+      "entry": [
+        "src/index.html"
+      ],
+      "outFile": "dist/index.html",
+      "output": {
+        "assetFileNames": "assets/[name].[ext]",
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }

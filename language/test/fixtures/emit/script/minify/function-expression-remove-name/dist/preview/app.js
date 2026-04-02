@@ -1,8 +1,8 @@
 export const ab = function() {
 }, cd = function() {
     return 1;
-}, ef = function d() {
-    return d();
+}, ef = function c() {
+    c();
 }, gh = function() {
 }, ij = class{
 }, kl = class{

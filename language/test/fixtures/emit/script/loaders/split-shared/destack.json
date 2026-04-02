@@ -1,24 +1,22 @@
 {
-    "name": "script-loaders-split-shared",
-    "targets": {
-        "site": {
-            "emit": "js",
-            "runtime": "browser",
-            "entry": [
-                "src/index.ts"
-            ],
-            "outDir": "dist/site",
-            "bundle": {
-                "mode": "chunked",
-                "assets": {
-                    "mode": "emit"
-                },
-                "output": {
-                    "assetFileNames": "assets/[name].[ext]",
-                    "sourcemap": "external",
-                    "manifest": true
-                }
-            }
-        }
+  "name": "script-loaders-split-shared",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/index.ts"
+      ],
+      "outDir": "dist/site",
+      "mode": "chunked",
+      "assets": {
+        "mode": "emit"
+      },
+      "output": {
+        "assetFileNames": "assets/[name].[ext]",
+        "sourcemap": "external",
+        "manifest": true
+      }
     }
+  }
 }
