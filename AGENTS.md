@@ -104,10 +104,11 @@ let number = 10 * first_digit + second_digit;
 - Do not introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between
 - It is often better to break / change the source directly and then let the compiler guide
 
-### Errors
+### Failures
 
 Always prefer explicit, loud errors through conventional channels.
-Outside of tests, errors should almost never be suppressed or somehow default to "default values".
+Outside of tests, errors should almost never be suppressed or somehow fall back to "default values" (especially evil are things like defaulting `unwrap_or(0)`, or other special values like `-1`, `MAX`).
+On the flipside, in general, and especially internally, we should assume that both sides of an API are consenting adults and we should _not_ check every conceivable failure state in every location - this is usually more noise than it's worth.
 
 ### Boundaries
 
