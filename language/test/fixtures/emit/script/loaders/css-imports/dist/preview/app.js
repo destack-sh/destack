@@ -14,6 +14,14 @@ if(typeof document !== "undefined") {
     document.head.appendChild(__destack_stylesheet_link_8f3497d8);
 }
 
+const __destack_resource_cebaf61f = "../assets/theme.css";
+if(typeof document !== "undefined") {
+    const __destack_stylesheet_link_cebaf61f = document.createElement("link");
+    __destack_stylesheet_link_cebaf61f.rel="stylesheet";
+    __destack_stylesheet_link_cebaf61f.href=__destack_resource_cebaf61f;
+    document.head.appendChild(__destack_stylesheet_link_cebaf61f);
+}
+
 const stylesheetUrl = __destack_resource_8f3497d8;
 export const linkedStylesheetUrl = stylesheetUrl;
 export const panelState = "ready";

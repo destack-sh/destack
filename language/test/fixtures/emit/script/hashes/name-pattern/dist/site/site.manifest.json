@@ -1,7 +1,7 @@
 {
   "files": [
     {
-      "path": "chunks/navigation-.js",
+      "path": "chunks/navigation-cfe7e839.js",
       "type": "chunk",
       "loader": "js",
       "name": "navigation",
@@ -10,7 +10,7 @@
       "isDynamicEntry": false
     },
     {
-      "path": "entries/home-.js",
+      "path": "entries/home-9f04f76e.js",
       "type": "chunk",
       "loader": "js",
       "name": "home",
@@ -18,11 +18,11 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "../chunks/navigation-.js"
+        "../chunks/navigation-cfe7e839.js"
       ]
     },
     {
-      "path": "entries/settings-.js",
+      "path": "entries/settings-028fa505.js",
       "type": "chunk",
       "loader": "js",
       "name": "settings",
@@ -30,7 +30,7 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "../chunks/navigation-.js"
+        "../chunks/navigation-cfe7e839.js"
       ]
     }
   ]

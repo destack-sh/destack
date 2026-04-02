@@ -4,7 +4,7 @@ export function buildImageLabel(name: string) {
 }
 
 /** Build a small asset manifest string for the static asset fixture. */
-export function buildImageManifest(assets: Record<string, string>) {
+export function buildImageManifest(assets) {
     const assetNames = Object.keys(assets).sort();
     const assetList = assetNames
         .map((name) => `${name}=${assets[name]}`)

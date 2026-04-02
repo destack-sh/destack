@@ -25,60 +25,13 @@
       "isDynamicEntry": false
     },
     {
-      "path": "b1.js",
-      "type": "chunk",
-      "loader": "js",
-      "name": "b1",
-      "input": "src/b1.css",
-      "isEntry": false,
-      "isDynamicEntry": true
-    },
-    {
-      "path": "b1.js.map",
-      "type": "asset",
-      "loader": "map"
-    },
-    {
-      "path": "entry.js",
-      "type": "chunk",
-      "loader": "js",
-      "name": "entry",
-      "input": "src/entry.css",
-      "isEntry": false,
-      "isDynamicEntry": true
-    },
-    {
-      "path": "entry.js.map",
-      "type": "asset",
-      "loader": "map"
-    },
-    {
-      "path": "entry2.js",
-      "type": "chunk",
-      "loader": "js",
-      "name": "entry2",
-      "input": "src/entry2.css",
-      "isEntry": false,
-      "isDynamicEntry": true
-    },
-    {
-      "path": "entry2.js.map",
-      "type": "asset",
-      "loader": "map"
-    },
-    {
       "path": "index.js",
       "type": "chunk",
       "loader": "js",
       "name": "index",
       "input": "src/index.ts",
       "isEntry": true,
-      "isDynamicEntry": false,
-      "dynamicImports": [
-        "./entry.js",
-        "./b1.js",
-        "./entry2.js"
-      ]
+      "isDynamicEntry": false
     },
     {
       "path": "index.js.map",

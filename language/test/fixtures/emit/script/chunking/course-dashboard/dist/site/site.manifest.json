@@ -11,9 +11,6 @@
       "imports": [
         "./course-routes.js",
         "react"
-      ],
-      "dynamicImports": [
-        "./report-panel.js"
       ]
     },
     {
@@ -49,23 +46,6 @@
     },
     {
       "path": "dashboard.js.map",
-      "type": "asset",
-      "loader": "map"
-    },
-    {
-      "path": "report-panel.js",
-      "type": "chunk",
-      "loader": "js",
-      "name": "report-panel",
-      "input": "src/report-panel.ts",
-      "isEntry": false,
-      "isDynamicEntry": true,
-      "imports": [
-        "./course-routes.js"
-      ]
-    },
-    {
-      "path": "report-panel.js.map",
       "type": "asset",
       "loader": "map"
     }

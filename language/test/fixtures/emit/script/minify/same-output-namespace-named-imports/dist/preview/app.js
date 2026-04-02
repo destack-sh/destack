@@ -1,0 +1,1 @@
+export const embeddedFiles={logo:"/assets/logo.svg"},argv=[];const a={get embeddedFiles(){return embeddedFiles;},get argv(){return argv;}};console.log(typeof embeddedFiles);console.log(typeof a.argv);

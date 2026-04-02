@@ -10,8 +10,6 @@ export const usedSymbols = {
     s3: Symbol.for("used3"),
     argument: Symbol.for("argument"),
     property: { prop: Symbol.for("property") },
-    returned: function() {
-        return Symbol.for("return");
-    }(),
+    returned: (() => Symbol.for("return"))(),
     sideEffect,
 };

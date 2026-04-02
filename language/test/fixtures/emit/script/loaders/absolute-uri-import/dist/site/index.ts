@@ -5,4 +5,10 @@ if(typeof document !== "undefined") {
     __destack_stylesheet_link_62b5e07f.href=__destack_resource_62b5e07f;
     document.head.appendChild(__destack_stylesheet_link_62b5e07f);
 }
+
+export function renderAbsoluteImportState(name) {
+    return `loader:${name}`;
+}
+
+console.log(renderAbsoluteImportState("absolute-uri-import"));
 //# sourceMappingURL=./index.ts.map

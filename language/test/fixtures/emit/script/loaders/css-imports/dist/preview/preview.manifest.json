@@ -17,6 +17,14 @@
       "isDynamicEntry": false
     },
     {
+      "path": "assets/theme.css",
+      "type": "asset",
+      "loader": "css",
+      "input": "src/shell/theme.css",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
       "path": "preview/app.js",
       "type": "chunk",
       "loader": "js",

@@ -22,6 +22,20 @@
       "isDynamicEntry": false
     },
     {
+      "path": "page2.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "page2",
+      "input": "src/scripts/page2.ts",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "page2.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
       "path": "shared.css",
       "type": "asset",
       "loader": "css",

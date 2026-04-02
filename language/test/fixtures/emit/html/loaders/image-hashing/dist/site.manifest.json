@@ -2,7 +2,17 @@
   "index": "index.html",
   "files": [
     {
-      "path": "assets/image.jpg",
+      "path": "assets/frame-3597cc21.svg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/image-6775a1df.jpg",
+      "type": "asset",
+      "loader": "asset"
+    },
+    {
+      "path": "assets/poster-09fdb595.svg",
       "type": "asset",
       "loader": "asset"
     },

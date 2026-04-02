@@ -1,6 +1,13 @@
 {
   "files": [
     {
+      "path": "assets/card.html",
+      "type": "asset",
+      "loader": "html",
+      "isEntry": true,
+      "isDynamicEntry": false
+    },
+    {
       "path": "assets/template.html",
       "type": "asset",
       "loader": "html",

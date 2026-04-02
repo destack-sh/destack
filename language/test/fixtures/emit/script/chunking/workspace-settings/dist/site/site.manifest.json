@@ -7,30 +7,10 @@
       "name": "app",
       "input": "src/app.ts",
       "isEntry": true,
-      "isDynamicEntry": false,
-      "dynamicImports": [
-        "./settings-panel.js"
-      ]
+      "isDynamicEntry": false
     },
     {
       "path": "app.js.map",
-      "type": "asset",
-      "loader": "map"
-    },
-    {
-      "path": "settings-panel.js",
-      "type": "chunk",
-      "loader": "js",
-      "name": "settings-panel",
-      "input": "src/settings-panel.ts",
-      "isEntry": false,
-      "isDynamicEntry": true,
-      "imports": [
-        "./app.js"
-      ]
-    },
-    {
-      "path": "settings-panel.js.map",
       "type": "asset",
       "loader": "map"
     }
