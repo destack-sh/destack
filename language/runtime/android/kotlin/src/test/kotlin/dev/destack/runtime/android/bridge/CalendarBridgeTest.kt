@@ -58,25 +58,31 @@ class CalendarBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val listResponse = bridge.calendarList()
+        val eventQuery = RuntimeHostCalendarEventQuery(
+            calendarIds = listOf("calendar-1"),
+            startUnixNs = 1_700_000_000_000_000_000L,
+            endUnixNs = 1_700_003_600_000_000_000L,
+            limit = 25,
+            includeCanceled = true,
+            includeDeclined = false,
+            includeRecurrenceInstances = true,
+        )
+        val createDraft = sampleCalendarDraft("calendar-1")
+        val updateDraft = sampleCalendarDraft("calendar-2")
+
+        val listResponse = bridge.calendarList(runtimeHost)
         val eventListResponse = bridge.calendarEventList(
-            RuntimeHostCalendarEventQuery(
-                calendarIds = listOf("calendar-1"),
-                startUnixNs = 1_700_000_000_000_000_000L,
-                endUnixNs = 1_700_003_600_000_000_000L,
-                limit = 25,
-                includeCanceled = true,
-                includeDeclined = false,
-                includeRecurrenceInstances = true,
-            ),
+            runtimeHost = runtimeHost,
+            query = eventQuery,
         )
-        val readResponse = bridge.calendarEventRead("event-2")
-        val createResponse = bridge.calendarEventCreate(sampleCalendarDraft("calendar-1"))
+        val readResponse = bridge.calendarEventRead(runtimeHost, "event-2")
+        val createResponse = bridge.calendarEventCreate(runtimeHost, createDraft)
         val updateStatus = bridge.calendarEventUpdate(
-            "event-3",
-            sampleCalendarDraft("calendar-2"),
+            runtimeHost = runtimeHost,
+            id = "event-3",
+            draft = updateDraft,
         )
-        val deleteStatus = bridge.calendarEventDelete("event-3")
+        val deleteStatus = bridge.calendarEventDelete(runtimeHost, "event-3")
 
         assertEquals(0, listResponse.status)
         assertEquals(0, eventListResponse.status)
@@ -86,24 +92,13 @@ class CalendarBridgeTest {
         assertEquals(0, deleteStatus)
         assertEquals(
             listOf(
-                RuntimeHostCalendarEventQuery(
-                    calendarIds = listOf("calendar-1"),
-                    startUnixNs = 1_700_000_000_000_000_000L,
-                    endUnixNs = 1_700_003_600_000_000_000L,
-                    limit = 25,
-                    includeCanceled = true,
-                    includeDeclined = false,
-                    includeRecurrenceInstances = true,
-                ),
+                eventQuery,
             ),
             calendarRequests.eventQueries,
         )
         assertEquals(listOf("event-2"), calendarRequests.readIdentifiers)
-        assertEquals(listOf(sampleCalendarDraft("calendar-1")), calendarRequests.createDrafts)
-        assertEquals(
-            listOf("event-3" to sampleCalendarDraft("calendar-2")),
-            calendarRequests.updateCalls,
-        )
+        assertEquals(listOf(createDraft), calendarRequests.createDrafts)
+        assertEquals(listOf("event-3" to updateDraft), calendarRequests.updateCalls)
         assertEquals(listOf("event-3"), calendarRequests.deleteIdentifiers)
     }
 }

@@ -7,8 +7,7 @@ import Foundation
 public protocol DocumentEvents {
   /// Deliver one document result into one runtime session.
   func notifyDocumentResult(
-    _ requestID: HostRequestID,
-    documents: [RuntimeHostDocumentDescriptor]
+    _ result: RuntimeHostDocumentResult
   )
 
 }
@@ -20,8 +19,7 @@ public final class NoopDocumentEvents: DocumentEvents {
 
   /// Deliver one document result into one runtime session.
   public func notifyDocumentResult(
-    _ requestID: HostRequestID,
-    documents: [RuntimeHostDocumentDescriptor]
+    _ result: RuntimeHostDocumentResult
   ) {
   }
 }

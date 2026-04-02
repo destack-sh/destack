@@ -6,8 +6,10 @@ import dev.destack.runtime.android.embedder.ActivityResults
 import dev.destack.runtime.android.core.HostEmbedderId
 import dev.destack.runtime.android.core.HostRequestId
 import dev.destack.runtime.android.module.permission.ActivityPermissionRequests
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
+import dev.destack.runtime.android.module.permission.androidPermissionName
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -37,7 +39,7 @@ class ActivityPermissionRequestsTest {
         )
         val request = RuntimeHostPermissionRequest(
             requestId = HostRequestId(rawValue = 2),
-            permission = "android.permission.CAMERA",
+            permission = RuntimeHostPermission.Camera,
         )
 
         owner.handleEvent(Lifecycle.Event.ON_CREATE)
@@ -52,7 +54,7 @@ class ActivityPermissionRequestsTest {
             registry.launchedContracts,
         )
         assertEquals(
-            request.permission,
+            androidPermissionName(request.permission),
             registry.launchedInputs.getValue(requestCode),
         )
 
@@ -64,7 +66,7 @@ class ActivityPermissionRequestsTest {
             listOf(
                 RuntimeHostPermissionEvent(
                     requestId = HostRequestId(rawValue = 2),
-                    permission = "android.permission.CAMERA",
+                    permission = RuntimeHostPermission.Camera,
                     isGranted = true,
                 ),
             ),

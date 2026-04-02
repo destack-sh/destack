@@ -146,13 +146,9 @@ private class RecordingDocumentEventSink : DocumentEvents {
     val results: MutableList<RuntimeHostDocumentResult> = mutableListOf()
 
     override fun notifyDocumentResult(
-        requestId: dev.destack.runtime.android.core.HostRequestId,
-        documents: List<RuntimeHostDocumentDescriptor>,
+        result: RuntimeHostDocumentResult,
     ) {
-        results += RuntimeHostDocumentResult(
-            requestId = requestId,
-            documents = documents,
-        )
+        results += result
     }
 }
 

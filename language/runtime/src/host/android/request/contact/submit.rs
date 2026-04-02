@@ -2,9 +2,8 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::contact::{
-    HostContactCreateResponse, HostContactPageResponse, HostContactResponse,
-    decode_contact_create_response, decode_contact_page_response, decode_contact_response,
-    encode_contact_draft, encode_contact_query,
+    HostContactCreateResponse, HostContactDraft, HostContactPageResponse, HostContactQuery,
+    HostContactResponse,
 };
 use crate::host::android::abi::contact::{
     destack_host_android_contact_create, destack_host_android_contact_delete_contact,
@@ -12,7 +11,9 @@ use crate::host::android::abi::contact::{
     destack_host_android_contact_search, destack_host_android_contact_update,
 };
 use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::invalid_argument_value;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
@@ -78,14 +79,26 @@ fn submit_contact_list(
     query: &ContactQueryValue,
 ) -> RuntimeResult<ContactPageValue> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let query = encode_contact_query(&binding, query);
+    let query = HostContactQuery::from_value(&binding, query.clone());
     let mut response = MaybeUninit::<HostContactPageResponse>::uninit();
     let status =
         unsafe { destack_host_android_contact_list(runtime_id, query, response.as_mut_ptr()) };
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
-    unsafe { decode_contact_page_response(response, operation) }
+    decode_callback_host_status(response.status, operation)?;
+
+    let page = unsafe { response.page.into_value()? };
+
+    let Some(page) = page else {
+        return Err(invalid_argument_value(
+            "response.page",
+            format!("{operation} returned success without one contact page"),
+        )
+        .into());
+    };
+
+    Ok(page)
 }
 
 /// Submit one Android contact-search request.
@@ -96,7 +109,7 @@ fn submit_contact_search(
     query: &ContactQueryValue,
 ) -> RuntimeResult<ContactPageValue> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let query = encode_contact_query(&binding, query);
+    let query = HostContactQuery::from_value(&binding, query.clone());
     let mut response = MaybeUninit::<HostContactPageResponse>::uninit();
     let status = unsafe {
         destack_host_android_contact_search(
@@ -109,7 +122,19 @@ fn submit_contact_search(
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
-    unsafe { decode_contact_page_response(response, operation) }
+    decode_callback_host_status(response.status, operation)?;
+
+    let page = unsafe { response.page.into_value()? };
+
+    let Some(page) = page else {
+        return Err(invalid_argument_value(
+            "response.page",
+            format!("{operation} returned success without one contact page"),
+        )
+        .into());
+    };
+
+    Ok(page)
 }
 
 /// Submit one Android contact-read request.
@@ -129,7 +154,19 @@ fn submit_contact_read(
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
-    unsafe { decode_contact_response(response, operation) }
+    decode_callback_host_status(response.status, operation)?;
+
+    let contact = unsafe { response.contact.into_value()? };
+
+    let Some(contact) = contact else {
+        return Err(invalid_argument_value(
+            "response.contact",
+            format!("{operation} returned success without one contact"),
+        )
+        .into());
+    };
+
+    Ok(contact)
 }
 
 /// Submit one Android contact-create request.
@@ -139,14 +176,26 @@ fn submit_contact_create(
     contact: &ContactDraftValue,
 ) -> RuntimeResult<String> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let draft = encode_contact_draft(&binding, contact);
+    let draft = HostContactDraft::from_value(&binding, contact.clone());
     let mut response = MaybeUninit::<HostContactCreateResponse>::uninit();
     let status =
         unsafe { destack_host_android_contact_create(runtime_id, draft, response.as_mut_ptr()) };
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
-    unsafe { decode_contact_create_response(response, operation) }
+    decode_callback_host_status(response.status, operation)?;
+
+    let id = unsafe { response.id.into_value()? };
+
+    let Some(id) = id else {
+        return Err(invalid_argument_value(
+            "response.id",
+            format!("{operation} returned success without one contact id"),
+        )
+        .into());
+    };
+
+    Ok(id)
 }
 
 /// Submit one Android contact-update request.
@@ -157,7 +206,7 @@ fn submit_contact_update(
     contact: &ContactDraftValue,
 ) -> RuntimeResult<()> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let draft = encode_contact_draft(&binding, contact);
+    let draft = HostContactDraft::from_value(&binding, contact.clone());
     let call_status = unsafe {
         destack_host_android_contact_update(runtime_id, NativeStringRef::from(id), draft)
     };

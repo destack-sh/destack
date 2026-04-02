@@ -54,18 +54,36 @@ public data class RuntimeHostDocumentRequest(
     /**
      * Whether multiple documents may be selected.
      */
-    val allowsMultipleSelection: Boolean = false,
+    val multiple: Boolean = false,
 
     /**
      * Whether directory selection is allowed.
      */
-    val allowsDirectorySelection: Boolean = false,
+    val allowDirectories: Boolean = false,
 
     /**
      * Whether selected files should be copied into one runtime sandbox when possible.
      */
-    val copiesToSandbox: Boolean = false,
+    val copyToSandbox: Boolean = false,
 ) {
+    /**
+     * Whether multiple documents may be selected.
+     */
+    public val allowsMultipleSelection: Boolean
+        get() = multiple
+
+    /**
+     * Whether directory selection is allowed.
+     */
+    public val allowsDirectorySelection: Boolean
+        get() = allowDirectories
+
+    /**
+     * Whether selected files should be copied into one runtime sandbox when possible.
+     */
+    public val copiesToSandbox: Boolean
+        get() = copyToSandbox
+
     /**
      * The normalized content filters for the picker.
      */

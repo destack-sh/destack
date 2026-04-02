@@ -2,18 +2,19 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::media::{
-    HostMediaDeleteResponse, HostMediaImportPathResponse, HostMediaListResponse,
-    HostMediaReadResponse, decode_media_delete_response, decode_media_import_path_response,
-    decode_media_list_response, decode_media_read_response, encode_media_delete_request,
-    encode_media_import_path_request, encode_media_list_request,
+    HostMediaAssetKind, HostMediaDeleteRequest, HostMediaDeleteResponse,
+    HostMediaImportPathRequest, HostMediaImportPathResponse, HostMediaListRequest,
+    HostMediaListResponse, HostMediaReadResponse,
 };
 use crate::host::android::abi::media::{
     destack_host_android_media_delete, destack_host_android_media_import_path,
     destack_host_android_media_list, destack_host_android_media_read,
 };
 use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::invalid_argument_value;
 use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
-use crate::platform::abi::NativeStringRef;
+use crate::platform::NativeAbiCodec;
+use crate::platform::abi::{NativeStringRef, NativeStringSlice};
 use crate::platform::fs::{OsPath, core as core_fs};
 use crate::platform::os::MediaAssetKind;
 use crate::platform::os::abi_generated::{
@@ -66,15 +67,26 @@ fn submit_media_list(
     query: &MediaQueryValue,
 ) -> RuntimeResult<MediaPageValue> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let request = encode_media_list_request(&binding, query);
+    let request = HostMediaListRequest::from_value(&binding, query.clone());
     let mut response = MaybeUninit::<HostMediaListResponse>::uninit();
     let status =
         unsafe { destack_host_android_media_list(runtime_id, request, response.as_mut_ptr()) };
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
+    decode_callback_host_status(response.status, operation)?;
 
-    unsafe { decode_media_list_response(response, operation) }
+    let page = unsafe { response.page.into_value()? };
+
+    let Some(page) = page else {
+        return Err(invalid_argument_value(
+            "response.page",
+            format!("{operation} returned success without one media page"),
+        )
+        .into());
+    };
+
+    Ok(page)
 }
 
 /// Submit one Android media-read request.
@@ -94,8 +106,19 @@ fn submit_media_read(
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
+    decode_callback_host_status(response.status, operation)?;
 
-    unsafe { decode_media_read_response(response, operation) }
+    let descriptor = unsafe { response.descriptor.into_value()? };
+
+    let Some(descriptor) = descriptor else {
+        return Err(invalid_argument_value(
+            "response.descriptor",
+            format!("{operation} returned success without one media asset descriptor"),
+        )
+        .into());
+    };
+
+    Ok(descriptor)
 }
 
 /// Submit one Android media-import request.
@@ -107,7 +130,10 @@ fn submit_media_import_path(
 ) -> RuntimeResult<String> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
     let path = core_fs::os_path_to_utf8_string(path, "path")?;
-    let request = encode_media_import_path_request(&binding, &path, kind);
+    let request = HostMediaImportPathRequest {
+        path: NativeStringRef::from_value(&binding, path),
+        kind: HostMediaAssetKind::from_value(&binding, kind),
+    };
     let mut response = MaybeUninit::<HostMediaImportPathResponse>::uninit();
     let status = unsafe {
         destack_host_android_media_import_path(runtime_id, request, response.as_mut_ptr())
@@ -115,8 +141,19 @@ fn submit_media_import_path(
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
+    decode_callback_host_status(response.status, operation)?;
 
-    unsafe { decode_media_import_path_response(response, operation) }
+    let identifier = unsafe { response.identifier.into_value()? };
+
+    let Some(identifier) = identifier else {
+        return Err(invalid_argument_value(
+            "response.identifier",
+            format!("{operation} returned success without one media identifier"),
+        )
+        .into());
+    };
+
+    Ok(identifier)
 }
 
 /// Submit one Android media-delete request.
@@ -126,13 +163,16 @@ fn submit_media_delete(
     ids: &[String],
 ) -> RuntimeResult<u32> {
     let binding = BindingCallContext::from_current_agent_for_native()?;
-    let request = encode_media_delete_request(&binding, ids);
+    let request = HostMediaDeleteRequest {
+        identifiers: NativeStringSlice::from_value(&binding, ids.to_vec()),
+    };
     let mut response = MaybeUninit::<HostMediaDeleteResponse>::uninit();
     let status =
         unsafe { destack_host_android_media_delete(runtime_id, request, response.as_mut_ptr()) };
     decode_callback_host_status(status, operation)?;
 
     let response = unsafe { response.assume_init() };
+    decode_callback_host_status(response.status, operation)?;
 
-    Ok(decode_media_delete_response(response))
+    Ok(response.deleted_count)
 }

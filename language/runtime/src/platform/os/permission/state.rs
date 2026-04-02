@@ -10,7 +10,6 @@ use crate::host::core::{
 use crate::host::{HostPermissionEvent, HostRequestId, operation};
 use crate::platform::os::state::{
     OS_READ_WAIT_SLICE_NS, PlatformOsState, invalid_data, invalid_handle, os_state,
-    parse_host_permission_name,
 };
 use crate::platform::os::{
     NotificationPermissionState, Permission, PermissionEntry, PermissionState,
@@ -171,16 +170,7 @@ impl PlatformOsState {
     /// Apply one host permission result.
     pub(crate) fn observe_permission_event(&self, event: &HostPermissionEvent) {
         let request_id = event.request_id;
-
-        let Some(permission) = parse_host_permission_name(event.permission.as_str()) else {
-            if let Some(request_id) = request_id
-                && let Some(transaction) = self.remove_permission_transaction(request_id)
-            {
-                transaction.close();
-            }
-
-            return;
-        };
+        let permission = event.permission;
 
         let state = if event.granted {
             PermissionState::Granted

@@ -4,6 +4,7 @@ mod binding;
 mod codec;
 mod cpp;
 mod docs;
+mod host;
 mod kotlin;
 mod name;
 

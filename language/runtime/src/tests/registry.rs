@@ -4,7 +4,7 @@ use crate::platform::display::tests::{
     monitor as display_monitor_tests, window as display_window_tests,
 };
 #[cfg(feature = "execution")]
-use crate::platform::input::clipboard::tests as input_clipboard_tests;
+use crate::platform::input::tests as input_clipboard_tests;
 /// Match one registered display execution case.
 #[cfg(feature = "execution")]
 macro_rules! display_execution_case {
@@ -25,9 +25,9 @@ macro_rules! input_execution_case {
     ($case_name:expr, $module:ident, $case:ident) => {
         $case_name
             == concat!(
-                "destack_runtime::platform::input::",
+                "destack_runtime::platform::input::tests::",
                 stringify!($module),
-                "::tests::",
+                "::",
                 stringify!($case)
             )
     };
@@ -57,19 +57,19 @@ pub(crate) fn run_execution_case(case_name: &str) -> bool {
             true
         }
         #[cfg(all(feature = "execution", target_os = "macos"))]
-        name if input_execution_case!(name, clipboard, test_clipboard_text_roundtrip) => {
+        name if input_execution_case!(name, clipboard_content, test_clipboard_text_roundtrip) => {
             input_clipboard_tests::test_clipboard_text_roundtrip();
             true
         }
         #[cfg(all(feature = "execution", target_os = "macos"))]
-        name if input_execution_case!(name, clipboard, test_clipboard_html_roundtrip) => {
+        name if input_execution_case!(name, clipboard_content, test_clipboard_html_roundtrip) => {
             input_clipboard_tests::test_clipboard_html_roundtrip();
             true
         }
         #[cfg(all(feature = "execution", target_os = "macos"))]
         name if input_execution_case!(
             name,
-            clipboard,
+            clipboard_content,
             test_clipboard_clear_resets_text_payload
         ) =>
         {

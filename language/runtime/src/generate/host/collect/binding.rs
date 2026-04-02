@@ -47,6 +47,7 @@ fn runtime_binding_type(ty: HostAbiRuntimeBindingType) -> RuntimeBindingType {
         HostAbiRuntimeBindingType::DocumentDescriptorSlice => {
             RuntimeBindingType::DocumentDescriptorSlice
         }
+        HostAbiRuntimeBindingType::IntentEvent => RuntimeBindingType::IntentEvent,
         HostAbiRuntimeBindingType::NotificationEvent => RuntimeBindingType::NotificationEvent,
         HostAbiRuntimeBindingType::PermissionEvent => RuntimeBindingType::PermissionEvent,
         HostAbiRuntimeBindingType::StringRef => RuntimeBindingType::StringRef,

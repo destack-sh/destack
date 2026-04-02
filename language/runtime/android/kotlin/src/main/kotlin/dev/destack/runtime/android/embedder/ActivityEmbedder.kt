@@ -16,6 +16,9 @@ import dev.destack.runtime.android.module.location.ActivityLocationRequests
 import dev.destack.runtime.android.module.location.LocationRequests
 import dev.destack.runtime.android.module.permission.PermissionActivityResults
 import dev.destack.runtime.android.module.permission.PermissionRequests
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
+import dev.destack.runtime.android.module.permission.decodeRuntimeHostPermission
+import dev.destack.runtime.android.module.permission.runtimeHostPermissionName
 import dev.destack.runtime.android.module.text.ActivityTextRequests
 import dev.destack.runtime.android.module.text.TextRequests
 
@@ -210,7 +213,7 @@ internal class SavedInteractiveState(
 ) {
     private data class PendingPermissionRequest(
         val requestId: HostRequestId,
-        val permission: String,
+        val permission: RuntimeHostPermission,
     )
 
     private data class RecordedInteractiveState(
@@ -300,7 +303,7 @@ internal class SavedInteractiveState(
             // permission
             if (permissionRequest != null) {
                 putLong(permissionRequestIdKey, permissionRequest.requestId.rawValue)
-                putString(permissionNameKey, permissionRequest.permission)
+                putString(permissionNameKey, runtimeHostPermissionName(permissionRequest.permission))
             }
         }
     }
@@ -326,14 +329,14 @@ internal class SavedInteractiveState(
     ): RecordedInteractiveState? {
         val documentRequestId = runtimeHost.pendingDocumentRequestId()
         val permissionRequestId = runtimeHost.pendingPermissionRequestId()
-        val permissionName = runtimeHost.pendingPermission()
+        val permission = runtimeHost.pendingPermission()
 
-        val permissionRequest = if (permissionRequestId == null || permissionName == null) {
+        val permissionRequest = if (permissionRequestId == null || permission == null) {
             null
         } else {
             PendingPermissionRequest(
                 requestId = permissionRequestId,
-                permission = permissionName,
+                permission = permission,
             )
         }
 
@@ -370,12 +373,19 @@ internal class SavedInteractiveState(
         val permissionRequest = if (!hasRequestId) {
             null
         } else {
-            PendingPermissionRequest(
-                requestId = HostRequestId(rawValue = bundle.getLong(permissionRequestIdKey)),
-                permission = requireNotNull(bundle.getString(permissionNameKey)) {
+            letPermission@ run {
+                val permissionName = requireNotNull(bundle.getString(permissionNameKey)) {
                     "interactive permission saved state is corrupted for Android runtime embedder"
-                },
-            )
+                }
+                val permission = requireNotNull(decodeRuntimeHostPermission(permissionName)) {
+                    "interactive permission saved state recorded one unknown permission token"
+                }
+
+                PendingPermissionRequest(
+                    requestId = HostRequestId(rawValue = bundle.getLong(permissionRequestIdKey)),
+                    permission = permission,
+                )
+            }
         }
 
         if (documentRequestId == null && permissionRequest == null) {

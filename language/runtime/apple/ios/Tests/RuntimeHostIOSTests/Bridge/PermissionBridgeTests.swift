@@ -112,7 +112,7 @@ func testRuntimeBridgeRejectsInvalidPermissionRequest() throws {
   try bridge.attach(runtimeHost: runtimeHost)
   let invalidRequest = DestackRustPermissionRequest(
     request_id: 5,
-    permission: DestackRustStringRef(data: nil, len: 1)
+    permission: 0
   )
   let status = bindings.permissionRequestCallback!(sessionHandle.rawValue, invalidRequest)
 

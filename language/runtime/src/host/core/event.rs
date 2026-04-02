@@ -1,8 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 use super::request::HostRequestId;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::PlatformError;
+use crate::platform::fs::abi_generated::OsPathValue;
+use crate::platform::input::InputTextSessionStateValue;
+use crate::platform::os::Permission;
 use crate::platform::os::abi_generated::{
-    BackgroundEventValue, DocumentDescriptorValue, LocationSampleValue, NotificationEventValue,
+    BackgroundEventValue, DocumentDescriptorValue, IntentEventValue, LocationSampleValue,
+    NotificationEventValue,
 };
 
 /// Host lifecycle state.
@@ -86,6 +92,8 @@ pub enum HostEventKind {
     Location,
     /// Permission result events.
     Permission,
+    /// Text session state events.
+    Text,
     /// Interruption events.
     Interruption,
     /// Memory pressure state events.
@@ -115,6 +123,8 @@ pub enum HostEvent {
     Location(Box<HostLocationEvent>),
     /// Host permission flow result event.
     Permission(HostPermissionEvent),
+    /// Host text session state event.
+    Text(Box<HostTextEvent>),
     /// Host interruption event.
     Interruption(HostInterruptionEvent),
     /// Host memory pressure state event.
@@ -138,6 +148,7 @@ impl HostEvent {
             HostEvent::Notification(_) => HostEventKind::Notification,
             HostEvent::Location(_) => HostEventKind::Location,
             HostEvent::Permission(_) => HostEventKind::Permission,
+            HostEvent::Text(_) => HostEventKind::Text,
             HostEvent::Interruption(_) => HostEventKind::Interruption,
             HostEvent::MemoryPressure(_) => HostEventKind::MemoryPressure,
             HostEvent::ThermalState(_) => HostEventKind::ThermalState,
@@ -205,6 +216,17 @@ pub struct HostLocationEvent {
 
 impl Eq for HostLocationEvent {}
 
+/// Host text session state payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HostTextEvent {
+    /// Runtime-scoped text session identifier.
+    pub session_id: u64,
+    /// Host-authoritative text session state.
+    pub state: InputTextSessionStateValue,
+}
+
+impl Eq for HostTextEvent {}
+
 /// Host intent ingress variants.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HostIntentPayload {
@@ -249,13 +271,122 @@ pub enum HostIntentPayload {
     },
 }
 
+/// Decode one semantic path value into one queue-owned utf8 path string.
+fn utf8_path_from_value(value: OsPathValue, label: &'static str) -> RuntimeResult<String> {
+    #[cfg(unix)]
+    {
+        match value {
+            OsPathValue::OsPathBytes(value) => String::from_utf8(value.bytes.0).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    label,
+                    "path bytes are not valid utf8",
+                ))
+                .boxed()
+            }),
+            OsPathValue::OsPathUtf16(value) => String::from_utf16(&value.utf16.0).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    label,
+                    "path utf16 is not valid",
+                ))
+                .boxed()
+            }),
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        match value {
+            OsPathValue::OsPathBytes(value) => String::from_utf8(value.bytes.0).map_err(|_| {
+                RuntimeError::from(PlatformError::invalid_argument_value(
+                    label,
+                    "path bytes are not valid utf8",
+                ))
+                .boxed()
+            }),
+            OsPathValue::OsPathUtf16(value) => Ok(String::from_utf16_lossy(&value.utf16.0)),
+        }
+    }
+}
+
+/// Build one core host intent event from one semantic intent value payload.
+pub(crate) fn host_intent_event_from_value(
+    event: IntentEventValue,
+) -> RuntimeResult<HostIntentEvent> {
+    // decode one semantic intent payload into the queue-facing host event
+    let (source, payload) = match event {
+        IntentEventValue::IntentOpenUrlEvent(value) => (
+            value.metadata.source,
+            HostIntentPayload::OpenUrl {
+                url: value.payload.url,
+            },
+        ),
+        IntentEventValue::IntentOpenFileEvent(value) => {
+            let path = utf8_path_from_value(value.payload.path, "path")?;
+
+            (
+                value.metadata.source,
+                HostIntentPayload::OpenFile {
+                    path,
+                    content_type: value.payload.mime_type,
+                },
+            )
+        }
+        IntentEventValue::IntentShareTextEvent(value) => (
+            value.metadata.source,
+            HostIntentPayload::ShareText {
+                text: value.payload.text,
+                content_type: value.payload.mime_type,
+            },
+        ),
+        IntentEventValue::IntentShareFilesEvent(value) => {
+            // lower each shared path into one queue-owned utf8 string
+            let mut paths = Vec::with_capacity(value.payload.paths.len());
+
+            for path in value.payload.paths {
+                let path = utf8_path_from_value(path, "paths")?;
+                paths.push(path);
+            }
+
+            (
+                value.metadata.source,
+                HostIntentPayload::ShareFiles {
+                    paths,
+                    content_type: value.payload.mime_type,
+                },
+            )
+        }
+        IntentEventValue::IntentCustomActionEvent(value) => {
+            // lower each shared path into one queue-owned utf8 string
+            let mut paths = Vec::with_capacity(value.payload.paths.len());
+
+            for path in value.payload.paths {
+                let path = utf8_path_from_value(path, "paths")?;
+                paths.push(path);
+            }
+
+            (
+                value.metadata.source,
+                HostIntentPayload::CustomAction {
+                    action: value.payload.action,
+                    url: value.payload.url,
+                    paths,
+                    text: value.payload.text,
+                    content_type: value.payload.mime_type,
+                },
+            )
+        }
+    };
+
+    Ok(HostIntentEvent { source, payload })
+}
+
 /// Host permission flow payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HostPermissionEvent {
     /// Stable request identifier when this result completes one explicit host request.
     pub request_id: Option<HostRequestId>,
-    /// Permission name associated with this result.
-    pub permission: String,
+    /// Permission selector associated with this result.
+    pub permission: Permission,
     /// Whether the permission was granted.
     pub granted: bool,
 }

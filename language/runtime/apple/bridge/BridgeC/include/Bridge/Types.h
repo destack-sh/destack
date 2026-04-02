@@ -35,57 +35,10 @@ typedef DestackRustRuntimeStatus (*NotifyNotificationEventFunction)(
     DestackRustNotificationEvent event
 );
 
-/// The runtime function that receives one intent open-url event.
-typedef DestackRustRuntimeStatus (*NotifyIntentOpenUrlFunction)(
+/// The runtime function that receives one intent event.
+typedef DestackRustRuntimeStatus (*NotifyIntentEventFunction)(
     uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef url
-);
-
-/// The runtime function that receives one intent open-file event.
-typedef DestackRustRuntimeStatus (*NotifyIntentOpenFileFunction)(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef path,
-    bool has_mime_type,
-    NativeStringRef mime_type
-);
-
-/// The runtime function that receives one intent share-text event.
-typedef DestackRustRuntimeStatus (*NotifyIntentShareTextFunction)(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
-);
-
-/// The runtime function that receives one intent share-files event.
-typedef DestackRustRuntimeStatus (*NotifyIntentShareFilesFunction)(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringSlice paths,
-    bool has_mime_type,
-    NativeStringRef mime_type
-);
-
-/// The runtime function that receives one intent custom-action event.
-typedef DestackRustRuntimeStatus (*NotifyIntentCustomActionFunction)(
-    uint64_t session_handle,
-    bool has_source,
-    NativeStringRef source,
-    NativeStringRef action,
-    bool has_url,
-    NativeStringRef url,
-    NativeStringSlice paths,
-    bool has_text,
-    NativeStringRef text,
-    bool has_mime_type,
-    NativeStringRef mime_type
+    DestackRustIntentEvent event
 );
 
 /// The runtime function that receives one permission result.

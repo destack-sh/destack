@@ -22,9 +22,24 @@ public class ContextNotificationRequests(
     override fun post(
         request: RuntimeHostNotificationRequest,
     ): Int {
-        // validate the notification identifier before posting
-        if (request.identifier.isBlank()) {
+        // validate the notification request before posting
+        if (request.tag.isBlank()) {
             return hostStatusInvalidArgument
+        }
+
+        // keep the mobile host surface honest until richer notification support lands
+        if (
+            request.subtitle != null ||
+            request.channelId != null ||
+            request.badgeCount != null ||
+            request.sound != null ||
+            request.categoryId != null ||
+            request.threadId != null ||
+            request.actionId != null ||
+            request.priority != RuntimeHostNotificationPriority.Normal ||
+            request.trigger.kind != RuntimeHostNotificationTriggerKind.Immediate
+        ) {
+            return hostStatusNotSupported
         }
 
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -45,8 +60,8 @@ public class ContextNotificationRequests(
 
         return try {
             manager.notify(
-                request.identifier,
-                notificationId(request.identifier),
+                request.tag,
+                notificationId(request.tag),
                 notification,
             )
             hostStatusOk
@@ -97,7 +112,7 @@ public class ContextNotificationRequests(
 }
 
 /**
- * Build one Android notification from one simplified runtime request.
+ * Build one Android notification from one runtime request.
  */
 @Suppress("DEPRECATION")
 private fun buildNotification(
@@ -144,7 +159,7 @@ private fun ensureDefaultChannel(
 }
 
 /**
- * Derive one stable Android notification integer id from one runtime identifier.
+ * Derive one stable Android notification integer id from one runtime tag.
  */
 private fun notificationId(
     identifier: String,

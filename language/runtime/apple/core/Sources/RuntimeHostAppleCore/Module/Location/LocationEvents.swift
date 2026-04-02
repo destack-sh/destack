@@ -8,7 +8,7 @@ public protocol LocationEvents {
   /// Deliver one location sample into one runtime session.
   func notifyLocationSample(
     _ watchID: String,
-    sample: RuntimeHostLocationSample
+    sample: RuntimeLocationSample
   )
 
 }
@@ -21,7 +21,7 @@ public final class NoopLocationEvents: LocationEvents {
   /// Deliver one location sample into one runtime session.
   public func notifyLocationSample(
     _ watchID: String,
-    sample: RuntimeHostLocationSample
+    sample: RuntimeLocationSample
   ) {
   }
 }

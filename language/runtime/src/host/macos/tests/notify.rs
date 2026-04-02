@@ -9,6 +9,7 @@ use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostLocationEvent,
     HostPermissionEvent, Platform,
 };
+use crate::platform::os::Permission;
 use crate::platform::os::abi_generated::LocationSampleValue;
 
 #[test]
@@ -55,7 +56,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
             request_id: None,
-            permission: "camera".to_string(),
+            permission: Permission::Camera,
             granted: true,
         })],
     );

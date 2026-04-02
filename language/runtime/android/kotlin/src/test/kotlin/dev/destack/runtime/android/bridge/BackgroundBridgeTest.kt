@@ -73,30 +73,38 @@ class BackgroundBridgeTest {
 
         bridge.attach(runtimeHost)
 
-        val statusResponse = bridge.backgroundStatus()
-        val listResponse = bridge.backgroundList()
+        val statusResponse = bridge.backgroundStatus(runtimeHost)
+        val listResponse = bridge.backgroundList(runtimeHost)
         val registerStatus = bridge.backgroundRegisterTask(
-            identifier = "sync",
-            trigger = 2,
-            scheduleKind = 2,
-            hasEarliestBeginUnixNs = true,
-            earliestBeginUnixNs = 0L,
-            hasRepeatIntervalNs = true,
-            repeatIntervalNs = 60_000_000_000L,
-            network = 2,
-            requiresCharging = false,
-            requiresIdle = false,
-            conflictPolicy = 1,
+            runtimeHost = runtimeHost,
+            request = RuntimeHostBackgroundTaskOptions(
+                identifier = "sync",
+                trigger = RuntimeHostBackgroundTriggerKind.Processing,
+                schedule = RuntimeHostBackgroundTaskSchedule(
+                    kind = RuntimeHostBackgroundTaskScheduleKind.Recurring,
+                    earliestBeginUnixNs = 0L,
+                    repeatIntervalNs = 60_000_000_000L,
+                ),
+                network = RuntimeHostBackgroundNetworkRequirement.Connected,
+                requiresCharging = false,
+                requiresIdle = false,
+                conflictPolicy = RuntimeHostBackgroundConflictPolicy.Replace,
+            ),
         )
         val unregisterStatus = bridge.backgroundUnregister(
-            identifier = "sync",
+            runtimeHost = runtimeHost,
+            request = RuntimeHostBackgroundUnregisterRequest(identifier = "sync"),
         )
         val triggerResponse = bridge.backgroundTriggerTest(
-            identifier = "sync",
+            runtimeHost = runtimeHost,
+            request = RuntimeHostBackgroundTriggerTestRequest(identifier = "sync"),
         )
         val completeStatus = bridge.backgroundComplete(
-            executionId = "execution-1",
-            result = RuntimeHostBackgroundTaskResult.Success.rawValue,
+            runtimeHost = runtimeHost,
+            request = RuntimeHostBackgroundCompleteRequest(
+                executionId = "execution-1",
+                result = RuntimeHostBackgroundTaskResult.Success,
+            ),
         )
 
         bridge.notifyBackgroundEvent(event)

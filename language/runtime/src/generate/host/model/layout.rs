@@ -57,6 +57,24 @@ impl<'a> HostLayout<'a> {
         ))
     }
 
+    /// Return the generated Android host-modules path.
+    pub(crate) fn android_kotlin_host_modules(&self) -> PathBuf {
+        self.workspace_layout.language_root.join(
+            "runtime/android/kotlin/src/main/kotlin/dev/destack/runtime/android/core/RuntimeHostModules.generated.kt",
+        )
+    }
+
+    /// Return the generated Android host-interface path.
+    pub(crate) fn android_kotlin_host_interface(
+        &self,
+        module_name: &str,
+        interface_name: &str,
+    ) -> PathBuf {
+        self.workspace_layout.language_root.join(format!(
+            "runtime/android/kotlin/src/main/kotlin/dev/destack/runtime/android/module/{module_name}/{interface_name}.kt"
+        ))
+    }
+
     /// Return the generated Apple Swift ABI path for one module.
     pub(crate) fn apple_swift_abi(&self, module_segment: &str) -> PathBuf {
         self.workspace_layout.language_root.join(format!(
@@ -64,24 +82,40 @@ impl<'a> HostLayout<'a> {
         ))
     }
 
-    /// Return the generated Apple bridge source path for one module.
-    pub(crate) fn apple_bridge_source(&self, module_segment: &str) -> PathBuf {
-        self.workspace_layout.language_root.join(format!(
-            "runtime/apple/bridge/BridgeC/Bridge/{module_segment}/Bridge.generated.c"
-        ))
+    /// Return the generated Apple host-modules path.
+    pub(crate) fn apple_swift_host_modules(&self) -> PathBuf {
+        self.workspace_layout.language_root.join(
+            "runtime/apple/core/Sources/RuntimeHostAppleCore/Core/RuntimeHostModules.generated.swift",
+        )
     }
 
-    /// Return the generated Apple runtime header path for one module.
-    pub(crate) fn apple_runtime_header(&self, module_segment: &str) -> PathBuf {
+    /// Return the generated Apple host-interface path.
+    pub(crate) fn apple_swift_host_interface(
+        &self,
+        module_name: &str,
+        interface_name: &str,
+    ) -> PathBuf {
+        let module_segment = host_module_segment(module_name);
+
         self.workspace_layout.language_root.join(format!(
-            "runtime/apple/bridge/BridgeC/include/Bridge/{module_segment}/Runtime.generated.h"
+            "runtime/apple/core/Sources/RuntimeHostAppleCore/Module/{module_segment}/{interface_name}.swift"
         ))
+    }
+}
+
+/// Return one PascalCase host module segment.
+fn host_module_segment(module_name: &str) -> String {
+    let mut output = String::new();
+
+    for segment in module_name.split('_') {
+        let mut characters = segment.chars();
+        let Some(first_character) = characters.next() else {
+            continue;
+        };
+
+        output.push(first_character.to_ascii_uppercase());
+        output.extend(characters);
     }
 
-    /// Return the generated Apple runtime source path for one module.
-    pub(crate) fn apple_runtime_source(&self, module_segment: &str) -> PathBuf {
-        self.workspace_layout.language_root.join(format!(
-            "runtime/apple/bridge/BridgeC/Bridge/{module_segment}/Runtime.generated.c"
-        ))
-    }
+    output
 }

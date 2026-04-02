@@ -63,21 +63,31 @@ impl<'a> NativeStubRenderer<'a> {
             .push_str("#![allow(clippy::missing_safety_doc)]\n");
         self.output
             .push_str("use crate::diagnostic::{RuntimeError, RuntimeResult};\n");
-        self.output.push_str("use crate::platform::{\n");
-        self.output.push_str("    PlatformError,\n");
+        self.output
+            .push_str("use crate::platform::PlatformError;\n");
+
+        let mut native_abi_types = Vec::new();
         if usage.uses_platform_slice {
-            self.output.push_str("    NativeSlice,\n");
+            native_abi_types.push("NativeSlice");
         }
         if usage.uses_platform_array {
-            self.output.push_str("    NativeArray,\n");
+            native_abi_types.push("NativeArray");
         }
         if usage.uses_platform_string_ref {
-            self.output.push_str("    NativeStringRef,\n");
+            native_abi_types.push("NativeStringRef");
         }
         if usage.uses_platform_string_slice {
-            self.output.push_str("    NativeStringSlice,\n");
+            native_abi_types.push("NativeStringSlice");
         }
-        self.output.push_str("};\n\n");
+
+        if !native_abi_types.is_empty() {
+            self.output.push_str(&format!(
+                "use crate::platform::abi::{{{}}};\n",
+                native_abi_types.join(", ")
+            ));
+        }
+
+        self.output.push('\n');
         self.output
             .push_str("use crate::runtime::BindingCallContext;\n");
         self.output.push('\n');

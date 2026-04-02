@@ -4,20 +4,24 @@ import Testing
 @Test
 func testCreateNotificationRequestAndEvent() {
   let request = RuntimeHostNotificationRequest(
-    identifier: "welcome",
     title: "Hello",
-    body: "Destack is ready"
+    body: "Destack is ready",
+    tag: "welcome"
   )
   let event = RuntimeHostNotificationEvent(
-    identifier: "welcome",
-    request: request,
-    kind: .activated,
-    actionIdentifier: "open"
+    kind: .interacted,
+    metadata: RuntimeHostNotificationEventMetadata(
+      id: "welcome",
+      request: request
+    ),
+    payload: RuntimeHostNotificationInteractedPayload(
+      actionId: "open"
+    )
   )
 
   #expect(request.identifier == "welcome")
   #expect(request.title == "Hello")
   #expect(event.identifier == "welcome")
-  #expect(event.kind == .activated)
+  #expect(event.kind == .interacted)
   #expect(event.actionIdentifier == "open")
 }

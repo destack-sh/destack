@@ -1,5 +1,49 @@
 use destack_runtime::host::abi::describe::{HostAbiFunction, HostAbiParameter, HostAbiType};
 
+/// One host-call parameter projected from one authored ABI request.
+#[derive(Clone, Copy)]
+pub(crate) enum HostCallParameter<'a> {
+    /// One direct ABI input parameter.
+    Abi(&'a HostAbiParameter),
+}
+
+impl<'a> HostCallParameter<'a> {
+    /// Return the canonical host-call parameter name.
+    pub(crate) fn name(self) -> &'a str {
+        match self {
+            Self::Abi(parameter) => parameter.name,
+        }
+    }
+
+    /// Return the lowered host-call parameter type.
+    pub(crate) fn ty(self) -> HostCallParameterType<'a> {
+        match self {
+            Self::Abi(parameter) => HostCallParameterType::Abi(&parameter.ty),
+        }
+    }
+}
+
+/// One lowered host-call parameter type.
+#[derive(Clone, Copy)]
+pub(crate) enum HostCallParameterType<'a> {
+    /// One direct ABI type.
+    Abi(&'a HostAbiType),
+}
+
+/// Return the lowered host-call parameters for one authored ABI signature.
+pub(crate) fn host_call_parameters(parameters: &[HostAbiParameter]) -> Vec<HostCallParameter<'_>> {
+    parameters
+        .iter()
+        .filter(|parameter| {
+            !matches!(
+                parameter.ty,
+                HostAbiType::HostSessionHandle | HostAbiType::OutputPointer(_)
+            )
+        })
+        .map(HostCallParameter::Abi)
+        .collect()
+}
+
 /// One resolved host request callback surface.
 #[derive(Clone)]
 pub(crate) struct HostRequest {
@@ -76,6 +120,11 @@ impl HostRequest {
     /// Return the ordered input parameters.
     pub(crate) fn input_parameters(&self) -> &[HostAbiParameter] {
         &self.input_parameters
+    }
+
+    /// Return the ordered output parameters.
+    pub(crate) fn output_parameters(&self) -> &[HostAbiParameter] {
+        &self.output_parameters
     }
 
     /// Return the optional first output parameter.

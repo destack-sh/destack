@@ -18,9 +18,17 @@ pub(super) fn android_named_type<'a>(
 pub(super) fn android_named_struct_fields<'a>(
     module: &'a HostAbiModule,
     name: &str,
-) -> &'a [HostAbiField] {
+) -> Vec<HostAbiField> {
     match &android_named_type(module, name).definition {
-        HostAbiNamedTypeDefinition::Struct { fields } => fields,
+        HostAbiNamedTypeDefinition::Struct { fields } => fields.clone(),
+        HostAbiNamedTypeDefinition::TaggedEnum { variants } => variants
+            .iter()
+            .map(|variant| HostAbiField {
+                name: Box::leak(android_tagged_variant_field_name(variant.name).into_boxed_str()),
+                documentation: variant.documentation,
+                ty: HostAbiType::Named(variant.payload_type),
+            })
+            .collect(),
         HostAbiNamedTypeDefinition::Enum { .. } => {
             panic!(
                 "expected Android named struct for {name} in {}",
@@ -71,6 +79,11 @@ fn android_named_type_uses_type(
             .iter()
             .any(|field| android_type_contains_type(module, &field.ty, ty)),
         HostAbiNamedTypeDefinition::Enum { .. } => false,
+        HostAbiNamedTypeDefinition::TaggedEnum { .. } => {
+            android_named_struct_fields(module, named_type.name)
+                .iter()
+                .any(|field| android_type_contains_type(module, &field.ty, ty))
+        }
     }
 }
 
@@ -85,14 +98,37 @@ fn android_type_contains_type(
     }
 
     match outer {
-        HostAbiType::Named(name) if !android_named_type_is_enum(module, name) => {
-            android_named_struct_fields(module, name)
-                .iter()
-                .any(|field| android_type_contains_type(module, &field.ty, inner))
-        }
+        HostAbiType::Named(name) => match &android_named_type(module, name).definition {
+            HostAbiNamedTypeDefinition::Struct { .. }
+            | HostAbiNamedTypeDefinition::TaggedEnum { .. } => {
+                android_named_struct_fields(module, name)
+                    .iter()
+                    .any(|field| android_type_contains_type(module, &field.ty, inner))
+            }
+            HostAbiNamedTypeDefinition::Enum { .. } => false,
+        },
         HostAbiType::NativeArray(element)
         | HostAbiType::NativeSlice(element)
         | HostAbiType::OutputPointer(element) => android_type_contains_type(module, element, inner),
         _ => false,
     }
+}
+
+/// Return the lowered field name for one tagged Android payload variant.
+fn android_tagged_variant_field_name(name: &str) -> String {
+    let mut output = String::new();
+
+    for (index, character) in name.chars().enumerate() {
+        if character.is_ascii_uppercase() {
+            if index > 0 {
+                output.push('_');
+            }
+
+            output.push(character.to_ascii_lowercase());
+        } else {
+            output.push(character);
+        }
+    }
+
+    output
 }

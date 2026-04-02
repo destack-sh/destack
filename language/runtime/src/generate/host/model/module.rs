@@ -22,7 +22,8 @@ impl HostType {
         // type shape
         let (is_enum, fields) = match &abi.definition {
             HostAbiNamedTypeDefinition::Struct { fields } => (false, fields.clone()),
-            HostAbiNamedTypeDefinition::Enum { .. } => (true, Vec::new()),
+            HostAbiNamedTypeDefinition::Enum { .. }
+            | HostAbiNamedTypeDefinition::TaggedEnum { .. } => (true, Vec::new()),
         };
 
         Self {

@@ -3,6 +3,8 @@ package dev.destack.runtime.android.bridge
 import dev.destack.runtime.android.core.HostSessionHandle
 import dev.destack.runtime.android.module.notification.RuntimeHostNotificationEvent
 import dev.destack.runtime.android.module.notification.RuntimeHostNotificationEventKind
+import dev.destack.runtime.android.module.notification.RuntimeHostNotificationEventMetadata
+import dev.destack.runtime.android.module.notification.RuntimeHostNotificationInteractedPayload
 import dev.destack.runtime.android.module.notification.RuntimeHostNotificationRequest
 
 import org.junit.Assert.assertEquals
@@ -22,7 +24,6 @@ class NotificationBridgeTest {
         val bridge = RuntimeBridge(
             sessionHandle,
             runtimeApi,
-            notificationTimestampNs = { 42L },
         )
         val runtimeHost = createBridgeRuntimeHost(
             sessionHandle = sessionHandle,
@@ -31,26 +32,25 @@ class NotificationBridgeTest {
             intentRequests = IntentRequestRecorder(),
         )
         val event = RuntimeHostNotificationEvent(
-            identifier = "test-notification",
-            kind = RuntimeHostNotificationEventKind.Activated,
-            request = RuntimeHostNotificationRequest(
-                identifier = "test-notification",
-                title = "Title",
-                body = "Body",
+            kind = RuntimeHostNotificationEventKind.Interacted,
+            metadata = RuntimeHostNotificationEventMetadata(
+                id = "test-notification",
+                request = RuntimeHostNotificationRequest(
+                    tag = "test-notification",
+                    title = "Title",
+                    body = "Body",
+                ),
             ),
-            actionIdentifier = "open",
+            payload = RuntimeHostNotificationInteractedPayload(
+                actionId = "open",
+            ),
         )
 
         bridge.attach(runtimeHost)
         bridge.notifyNotificationEvent(event)
 
         assertEquals(
-            listOf(
-                sessionHandle to event.copy(
-                    sequence = 1L,
-                    timestampNs = 42L,
-                ),
-            ),
+            listOf(sessionHandle to event),
             runtimeApi.notificationEvents,
         )
     }

@@ -320,6 +320,7 @@ mod tests {
         HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
         HostPermissionEvent,
     };
+    use crate::platform::os::Permission;
 
     fn lifecycle_event(state: HostLifecycleState) -> HostEvent {
         HostEvent::Lifecycle(HostLifecycleEvent {
@@ -328,10 +329,10 @@ mod tests {
         })
     }
 
-    fn permission_event(permission: &str, granted: bool) -> HostEvent {
+    fn permission_event(permission: Permission, granted: bool) -> HostEvent {
         HostEvent::Permission(HostPermissionEvent {
             request_id: None,
-            permission: permission.to_string(),
+            permission,
             granted,
         })
     }
@@ -401,11 +402,11 @@ mod tests {
         queue.configure_capacity(Some(1));
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
-        queue.enqueue(permission_event("camera", true));
+        queue.enqueue(permission_event(Permission::Camera, true));
 
         let events = queue.poll_events(Some(0)).unwrap();
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0], permission_event("camera", true));
+        assert_eq!(events[0], permission_event(Permission::Camera, true));
     }
 
     #[test]
@@ -414,7 +415,7 @@ mod tests {
         queue.configure_capacity(Some(1));
 
         queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
-        queue.enqueue(permission_event("camera", true));
+        queue.enqueue(permission_event(Permission::Camera, true));
 
         let dropped_first = queue.take_dropped_event_count();
         let dropped_second = queue.take_dropped_event_count();
@@ -457,15 +458,15 @@ mod tests {
         let queue = queue();
         queue.configure_capacity(Some(1));
 
-        queue.enqueue(permission_event("camera", false));
-        queue.enqueue(permission_event("microphone", true));
+        queue.enqueue(permission_event(Permission::Camera, false));
+        queue.enqueue(permission_event(Permission::Microphone, true));
 
         let events = queue.poll_events(Some(0)).unwrap();
         assert_eq!(
             events,
             vec![
-                permission_event("camera", false),
-                permission_event("microphone", true),
+                permission_event(Permission::Camera, false),
+                permission_event(Permission::Microphone, true),
             ]
         );
         assert_eq!(queue.take_dropped_event_count(), 0);
@@ -476,7 +477,7 @@ mod tests {
         let queue = queue();
         queue.configure_capacity(Some(1));
 
-        queue.enqueue(permission_event("camera", false));
+        queue.enqueue(permission_event(Permission::Camera, false));
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
         queue.enqueue(lifecycle_event(HostLifecycleState::Paused));
 
@@ -484,7 +485,7 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                permission_event("camera", false),
+                permission_event(Permission::Camera, false),
                 lifecycle_event(HostLifecycleState::Paused),
             ]
         );
@@ -496,14 +497,14 @@ mod tests {
         let queue = queue();
         queue.configure_capacity(Some(1));
 
-        queue.enqueue(permission_event("camera", false));
+        queue.enqueue(permission_event(Permission::Camera, false));
         queue.enqueue(lifecycle_event(HostLifecycleState::Running));
 
         let events = queue.poll_events(Some(0)).unwrap();
         assert_eq!(
             events,
             vec![
-                permission_event("camera", false),
+                permission_event(Permission::Camera, false),
                 lifecycle_event(HostLifecycleState::Running),
             ]
         );

@@ -1,23 +1,26 @@
+#[path = "background.generated.rs"]
 mod background;
 mod core;
+#[path = "document.generated.rs"]
 mod document;
+#[path = "intent.generated.rs"]
 mod intent;
 pub(crate) mod lifecycle;
+#[path = "location.generated.rs"]
 mod location;
 #[cfg(target_os = "android")]
 pub(crate) mod message;
+#[path = "notification.generated.rs"]
 mod notification;
+#[path = "permission.generated.rs"]
 mod permission;
 mod system;
+#[path = "text.generated.rs"]
 mod text;
 
 pub(crate) use background::android_notify_background_event;
 pub(crate) use document::android_notify_document_result;
-pub(crate) use intent::{
-    android_notify_intent_custom_action, android_notify_intent_open_file,
-    android_notify_intent_open_url, android_notify_intent_share_files,
-    android_notify_intent_share_text,
-};
+pub(crate) use intent::android_notify_intent_event;
 pub(crate) use lifecycle::{AndroidActivityLifecycle, android_notify_activity_lifecycle};
 pub(crate) use location::android_notify_location_sample;
 pub(crate) use notification::android_notify_notification_event;

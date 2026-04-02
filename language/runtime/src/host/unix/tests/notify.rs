@@ -6,6 +6,7 @@ use crate::host::unix::ingress::notify::{
     unix_notify_permission_result,
 };
 use crate::host::{HostEvent, HostLifecycleState, HostPermissionEvent, Platform};
+use crate::platform::os::Permission;
 
 #[test]
 fn test_map_unix_lifecycle_states() {
@@ -46,7 +47,7 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
         events.as_slice(),
         [HostEvent::Permission(HostPermissionEvent {
             request_id: None,
-            permission: "camera".to_string(),
+            permission: Permission::Camera,
             granted: true,
         })],
     );

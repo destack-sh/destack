@@ -19,6 +19,7 @@ import dev.destack.runtime.android.module.media.RuntimeHostMediaListRequest
 import dev.destack.runtime.android.module.media.RuntimeHostMediaListResponse
 import dev.destack.runtime.android.module.media.RuntimeHostMediaListResult
 import dev.destack.runtime.android.module.media.RuntimeHostMediaReadResponse
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
 
@@ -88,7 +89,7 @@ class RuntimeHostTest {
         )
         val request = RuntimeHostPermissionRequest(
             requestId = HostRequestId(rawValue = 3),
-            permission = "location",
+            permission = RuntimeHostPermission.Location,
         )
 
         host.permission.request(request)
@@ -123,7 +124,7 @@ class RuntimeHostTest {
         )
         val event = RuntimeHostPermissionEvent(
             requestId = HostRequestId(rawValue = 4),
-            permission = "location",
+            permission = RuntimeHostPermission.Location,
             isGranted = true,
         )
 
@@ -145,16 +146,13 @@ class RuntimeHostTest {
         )
         val request = RuntimeHostDocumentRequest(
             requestId = HostRequestId(rawValue = 5),
-            allowsMultipleSelection = true,
+            multiple = true,
             contentTypes = listOf("image/png"),
         )
 
         host.document.pick(request)
         val result = sampleDocumentResult(request.requestId)
-        host.document.notifyDocumentResult(
-            result.requestId,
-            result.documents,
-        )
+        host.document.notifyDocumentResult(result)
 
         assertEquals(listOf(request), documentRequests.requests)
         assertEquals("example.png", documentEvents.results.first().documents.first().displayName)

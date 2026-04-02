@@ -62,17 +62,13 @@ public final class RuntimeBridge: GeneratedRuntimeBridge, BackgroundEvents, Inte
   fileprivate nonisolated(unsafe) weak var runtimeHost: RuntimeHost?
 
   /// Create one runtime bridge for one runtime session using one injected runtime session API.
-  init(
+  override init(
     sessionHandle: HostSessionHandle,
-    runtimeApi: any RuntimeIngress,
-    notificationTimestampNs: @escaping () -> UInt64 = {
-      DispatchTime.now().uptimeNanoseconds
-    }
+    runtimeApi: any RuntimeIngress
   ) {
     super.init(
       sessionHandle: sessionHandle,
-      runtimeApi: runtimeApi,
-      timestampNs: notificationTimestampNs
+      runtimeApi: runtimeApi
     )
   }
 
@@ -82,10 +78,7 @@ public final class RuntimeBridge: GeneratedRuntimeBridge, BackgroundEvents, Inte
   ) {
     self.init(
       sessionHandle: sessionHandle,
-      runtimeApi: ProcessRuntimeIngress(),
-      notificationTimestampNs: {
-        DispatchTime.now().uptimeNanoseconds
-      }
+      runtimeApi: ProcessRuntimeIngress()
     )
   }
 

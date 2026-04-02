@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactStore, DirPatched};
+use destack_artifact::{ArtifactStore, DirPatched, DirResolved};
 use destack_builtin::LanguageSymbol;
 use destack_compiler::Compiler;
 use destack_core::{StringPool, fnv1a_64};
@@ -155,7 +155,7 @@ enum SliceKind {
 }
 
 /// Load one patched DIR artifact for runtime binding lowering.
-fn patched_dir_artifact(
+pub(crate) fn patched_dir_artifact(
     compiler: &Compiler,
     artifacts: &ArtifactStore,
     module_id: ModuleId,
@@ -178,11 +178,48 @@ fn patched_dir_artifact(
         .unwrap_or_else(|| panic!("missing patched dir artifact for module {:?}", module_id))
 }
 
+/// Load one resolved DIR artifact for runtime binding lowering.
+pub(crate) fn resolved_dir_artifact(
+    compiler: &Compiler,
+    artifacts: &ArtifactStore,
+    module_id: ModuleId,
+    profile_id: ProfileId,
+) -> Arc<DirResolved> {
+    // reuse the live artifact when it is already available
+    if let Some(dir) = artifacts.dir_resolved(module_id, profile_id) {
+        return dir;
+    }
+
+    // otherwise drive the artifact requirement to completion
+    compiler
+        .run_to_completion(|compiler| compiler.require_dir_resolved(module_id, profile_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build resolved dir for module {module_id:?}: {error:?}")
+        });
+
+    artifacts
+        .dir_resolved(module_id, profile_id)
+        .unwrap_or_else(|| panic!("missing resolved dir artifact for module {:?}", module_id))
+}
+
 /// Resolve binding type symbols for a profile.
 pub(crate) fn binding_type_symbols(
+    compiler: &Compiler,
     artifacts: &ArtifactStore,
     profile_id: ProfileId,
 ) -> BindingTypeSymbols {
+    // ensure semantic environments exist before reading their symbols
+    compiler
+        .run_to_completion(|compiler| compiler.require_language_environment(profile_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build language environment for profile {profile_id:?}: {error:?}")
+        });
+    compiler
+        .run_to_completion(|compiler| compiler.require_library_environment(profile_id))
+        .unwrap_or_else(|error| {
+            panic!("failed to build library environment for profile {profile_id:?}: {error:?}")
+        });
+
     // resolve semantic environments for the active profile
     let language_environment = artifacts
         .language_environment(profile_id)

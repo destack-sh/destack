@@ -193,6 +193,7 @@ pub(crate) fn read_camera_stream_capabilities(
         };
 
         // grow the capability buffer when the host reports truncation
+        // FUGU #Suspicious: do we still need BufferTooSmall?
         if status == HostStatus::BufferTooSmall.code() {
             let next_capacity = headers
                 .len()

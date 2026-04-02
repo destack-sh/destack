@@ -8,6 +8,7 @@ use crate::host::{
     HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
 };
 use crate::platform::os::abi_generated::{BackgroundEventValue, NotificationEventValue};
+use crate::platform::os::{invalid_data, parse_host_permission_name};
 
 use super::harness::HarnessContext;
 
@@ -55,9 +56,16 @@ impl HarnessContext<'_> {
         permission: &str,
         granted: bool,
     ) -> RuntimeResult<()> {
+        let permission = parse_host_permission_name(permission).ok_or_else(|| {
+            invalid_data(
+                "destack.platform.os.tests.enqueue_permission_event",
+                format!("unknown host permission {permission}"),
+            )
+        })?;
+
         self.dispatch_host_event(HostEvent::Permission(HostPermissionEvent {
             request_id: None,
-            permission: permission.to_string(),
+            permission,
             granted,
         }))
     }

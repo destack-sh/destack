@@ -97,10 +97,7 @@ internal class ActivityDocumentRequests(
     private fun completeDocumentPick(
         result: RuntimeHostDocumentResult,
     ) {
-        runtimeHost.document.notifyDocumentResult(
-            result.requestId,
-            result.documents,
-        )
+        runtimeHost.document.notifyDocumentResult(result)
     }
 
     /**

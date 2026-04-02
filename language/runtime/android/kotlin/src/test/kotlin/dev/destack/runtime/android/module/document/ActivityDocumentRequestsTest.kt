@@ -38,7 +38,7 @@ class ActivityDocumentRequestsTest {
         )
         val request = RuntimeHostDocumentRequest(
             requestId = HostRequestId(rawValue = 1),
-            allowsMultipleSelection = true,
+            multiple = true,
             mimeTypes = listOf("image/png"),
         )
 

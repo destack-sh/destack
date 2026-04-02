@@ -11,6 +11,7 @@ use super::docs::push_cpp_doc_comment;
 use super::kotlin::{
     android_kotlin_method_name, android_kotlin_native_name, android_kotlin_parameter_name,
     android_kotlin_runtime_abi_binary_name, android_runtime_bridge_method_name,
+    android_runtime_bridge_response_type_name,
 };
 use super::name::android_pascal_case;
 use destack_runtime::host::abi::describe::{
@@ -109,6 +110,7 @@ pub(super) fn android_cpp_type_uses_jni_strings(module: &HostAbiModule, ty: &Hos
                 .iter()
                 .any(|field| android_cpp_type_uses_jni_strings(module, &field.ty))
         }
+        HostAbiType::Optional(inner) => android_cpp_type_uses_jni_strings(module, inner),
         HostAbiType::NativeArray(inner)
         | HostAbiType::NativeSlice(inner)
         | HostAbiType::OutputPointer(inner) => android_cpp_type_uses_jni_strings(module, inner),
@@ -124,12 +126,14 @@ fn android_cpp_leaf_jni_signature(module: &HostAbiModule, ty: &HostAbiType) -> S
         HostAbiType::U64 | HostAbiType::HostRequestId => "J".to_string(),
         HostAbiType::Bool => "Z".to_string(),
         HostAbiType::F64 => "D".to_string(),
-        HostAbiType::StringRef => "Ljava/lang/String;".to_string(),
+        HostAbiType::StringRef | HostAbiType::OsPath => "Ljava/lang/String;".to_string(),
         HostAbiType::StringSlice => "[Ljava/lang/String;".to_string(),
         HostAbiType::Named(name) if android_named_type_is_enum(module, name) => "I".to_string(),
         HostAbiType::NativeSlice(inner) => {
             if let HostAbiType::Named(name) = inner.as_ref() {
                 format!("[L{};", android_runtime_named_binary_name(module, name))
+            } else if android_cpp_string_slice_type(inner).is_some() {
+                "[Ljava/lang/String;".to_string()
             } else if android_cpp_primitive_slice_type(inner).is_some() {
                 "[I".to_string()
             } else {
@@ -139,6 +143,43 @@ fn android_cpp_leaf_jni_signature(module: &HostAbiModule, ty: &HostAbiType) -> S
                 );
             }
         }
+        HostAbiType::Optional(inner) => match inner.as_ref() {
+            HostAbiType::StringRef | HostAbiType::OsPath => "Ljava/lang/String;".to_string(),
+            HostAbiType::StringSlice => "[Ljava/lang/String;".to_string(),
+            HostAbiType::Named(name) if android_named_type_is_enum(module, name) => {
+                "Ljava/lang/Integer;".to_string()
+            }
+            HostAbiType::Named(name) => {
+                format!("L{};", android_runtime_named_binary_name(module, name))
+            }
+            HostAbiType::NativeSlice(inner) => {
+                if let HostAbiType::Named(name) = inner.as_ref() {
+                    format!("[L{};", android_runtime_named_binary_name(module, name))
+                } else if android_cpp_string_slice_type(inner).is_some() {
+                    "[Ljava/lang/String;".to_string()
+                } else if android_cpp_primitive_slice_type(inner).is_some() {
+                    "[I".to_string()
+                } else {
+                    panic!(
+                        "unsupported Android JNI optional request leaf signature for {:?}",
+                        ty
+                    );
+                }
+            }
+            HostAbiType::U8
+            | HostAbiType::U16
+            | HostAbiType::I8
+            | HostAbiType::I16
+            | HostAbiType::U32
+            | HostAbiType::I32 => "Ljava/lang/Integer;".to_string(),
+            HostAbiType::U64 | HostAbiType::HostRequestId => "Ljava/lang/Long;".to_string(),
+            HostAbiType::Bool => "Ljava/lang/Boolean;".to_string(),
+            HostAbiType::F64 => "Ljava/lang/Double;".to_string(),
+            other => panic!(
+                "unsupported Android JNI optional request leaf signature for {:?}",
+                other
+            ),
+        },
         other => panic!(
             "unsupported Android JNI request leaf signature for {:?}",
             other
@@ -163,21 +204,23 @@ fn android_cpp_runtime_ingress_parameter_signature(
         | HostAbiType::I32 => "I".to_string(),
         HostAbiType::Bool => "Z".to_string(),
         HostAbiType::F64 => "D".to_string(),
-        HostAbiType::StringRef => "Ljava/lang/String;".to_string(),
+        HostAbiType::StringRef | HostAbiType::OsPath => "Ljava/lang/String;".to_string(),
         HostAbiType::StringSlice => "[Ljava/lang/String;".to_string(),
         HostAbiType::Named(name) if android_named_type_is_enum(module, name) => "I".to_string(),
         HostAbiType::Named(name) => {
             format!("L{};", android_runtime_named_binary_name(module, name))
         }
         HostAbiType::NativeSlice(inner) => {
-            let HostAbiType::Named(_) = inner.as_ref() else {
+            if matches!(inner.as_ref(), HostAbiType::Named(_))
+                || android_cpp_string_slice_type(inner).is_some()
+            {
+                "Ljava/util/List;".to_string()
+            } else {
                 panic!(
                     "unsupported Android runtime ingress slice signature for {:?}",
                     ty
                 );
-            };
-
-            "Ljava/util/List;".to_string()
+            }
         }
         other => panic!(
             "unsupported Android runtime ingress parameter signature for {:?}",
@@ -218,20 +261,18 @@ fn android_cpp_request_return_signature(
 
     format!(
         "L{};",
-        android_runtime_response_binary_name(module, request)
+        android_runtime_bridge_response_binary_name(module, request)
     )
 }
 
-/// Return one runtime response binary name for one request response object.
-fn android_runtime_response_binary_name(
+/// Return one bridge response binary name for one request response object.
+fn android_runtime_bridge_response_binary_name(
     module: &HostAbiModule,
     request: &HostAbiFunction,
 ) -> String {
     format!(
-        "dev/destack/runtime/android/module/{}/RuntimeHost{}{}Response",
-        module.name,
-        android_pascal_case(module.name),
-        android_pascal_case(request.name),
+        "dev/destack/runtime/android/bridge/{}",
+        android_runtime_bridge_response_type_name(module, request)
     )
 }
 
@@ -287,6 +328,14 @@ pub(crate) fn android_cpp_primitive_slice_type(inner: &HostAbiType) -> Option<&'
     }
 }
 
+/// Return the Android C++ slice type name for one string-like slice element.
+pub(crate) fn android_cpp_string_slice_type(inner: &HostAbiType) -> Option<&'static str> {
+    match inner {
+        HostAbiType::StringRef | HostAbiType::OsPath => Some("NativeStringSlice"),
+        _ => None,
+    }
+}
+
 /// Return the Android C++ primitive-slice decode helper name for one element type.
 fn android_cpp_primitive_slice_decode_function_name(inner: &HostAbiType) -> Option<&'static str> {
     match inner {
@@ -297,6 +346,11 @@ fn android_cpp_primitive_slice_decode_function_name(inner: &HostAbiType) -> Opti
     }
 }
 
+/// Return the Android C++ string-slice decode helper name for one element type.
+fn android_cpp_string_slice_decode_function_name(inner: &HostAbiType) -> Option<&'static str> {
+    android_cpp_string_slice_type(inner).map(|_| "decode_string_list")
+}
+
 /// Return the Android C++ primitive-slice encode helper name for one element type.
 fn android_cpp_primitive_slice_encode_function_name(inner: &HostAbiType) -> Option<&'static str> {
     match inner {
@@ -305,6 +359,11 @@ fn android_cpp_primitive_slice_encode_function_name(inner: &HostAbiType) -> Opti
         HostAbiType::I16 => Some("encode_i16_slice"),
         _ => None,
     }
+}
+
+/// Return the Android C++ string-slice encode helper name for one element type.
+fn android_cpp_string_slice_encode_function_name(inner: &HostAbiType) -> Option<&'static str> {
+    android_cpp_string_slice_type(inner).map(|_| "encode_string_slice")
 }
 
 /// Return one output storage slot name.
@@ -321,13 +380,36 @@ fn android_cpp_object_signature(module: &HostAbiModule, ty: &HostAbiType) -> Str
         HostAbiType::U32 | HostAbiType::I32 | HostAbiType::HostStatus => {
             "()Ljava/lang/Integer;".to_string()
         }
-        HostAbiType::StringRef => "()Ljava/lang/String;".to_string(),
+        HostAbiType::StringRef | HostAbiType::OsPath => "()Ljava/lang/String;".to_string(),
         HostAbiType::U64 | HostAbiType::HostRequestId => "()Ljava/lang/Long;".to_string(),
         HostAbiType::Bool => "()Ljava/lang/Boolean;".to_string(),
         HostAbiType::F64 => "()Ljava/lang/Double;".to_string(),
         HostAbiType::Named(name) => {
             format!("()L{};", android_runtime_named_binary_name(module, name))
         }
+        HostAbiType::Optional(inner) => match inner.as_ref() {
+            HostAbiType::U8
+            | HostAbiType::U16
+            | HostAbiType::I8
+            | HostAbiType::I16
+            | HostAbiType::U32
+            | HostAbiType::I32
+            | HostAbiType::HostStatus => "()Ljava/lang/Integer;".to_string(),
+            HostAbiType::StringRef | HostAbiType::OsPath => "()Ljava/lang/String;".to_string(),
+            HostAbiType::U64 | HostAbiType::HostRequestId => "()Ljava/lang/Long;".to_string(),
+            HostAbiType::Bool => "()Ljava/lang/Boolean;".to_string(),
+            HostAbiType::F64 => "()Ljava/lang/Double;".to_string(),
+            HostAbiType::Named(name) => {
+                format!("()L{};", android_runtime_named_binary_name(module, name))
+            }
+            HostAbiType::NativeArray(_) | HostAbiType::NativeSlice(_) => {
+                "()Ljava/util/List;".to_string()
+            }
+            other => panic!(
+                "unsupported Android optional object getter signature for {:?}",
+                other
+            ),
+        },
         HostAbiType::NativeArray(_) | HostAbiType::NativeSlice(_) => {
             "()Ljava/util/List;".to_string()
         }
@@ -335,32 +417,6 @@ fn android_cpp_object_signature(module: &HostAbiModule, ty: &HostAbiType) -> Str
             "unsupported Android object getter signature for {:?}",
             other
         ),
-    }
-}
-
-/// Return the default C++ value for one ABI type.
-fn android_cpp_default_value(module: &HostAbiModule, ty: &HostAbiType) -> String {
-    match ty {
-        HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => "0".to_string(),
-        HostAbiType::U32 | HostAbiType::I32 | HostAbiType::U64 | HostAbiType::HostRequestId => {
-            "0".to_string()
-        }
-        HostAbiType::Bool => "false".to_string(),
-        HostAbiType::F64 => "0.0".to_string(),
-        HostAbiType::StringRef => "NativeStringRef { .data = nullptr, .len = 0 }".to_string(),
-        HostAbiType::Named(name) if android_named_type_is_enum(module, name) => {
-            format!("static_cast<{name}>(0)")
-        }
-        HostAbiType::Named(name) => format!("{name} {{}}"),
-        HostAbiType::NativeArray(inner) => format!(
-            "NativeArray<{}> {{ .data = nullptr, .len = 0, .capacity = 0 }}",
-            render_cpp_type(inner)
-        ),
-        HostAbiType::NativeSlice(inner) => format!(
-            "{} {{ .data = nullptr, .len = 0 }}",
-            render_cpp_type(&HostAbiType::NativeSlice(inner.clone()))
-        ),
-        other => panic!("unsupported Android default value for {:?}", other),
     }
 }
 
@@ -396,6 +452,9 @@ fn android_cpp_primitive_getter_call(
             android_cpp_decode_function_name(name),
             android_cpp_object_signature(module, ty)
         ),
+        HostAbiType::Optional(_) => {
+            panic!("non-primitive getter call requested for {:?}", ty)
+        }
         HostAbiType::StringRef
         | HostAbiType::Named(_)
         | HostAbiType::NativeArray(_)
@@ -403,6 +462,28 @@ fn android_cpp_primitive_getter_call(
             panic!("non-primitive getter call requested for {:?}", ty)
         }
         other => panic!("unsupported Android primitive getter call for {:?}", other),
+    }
+}
+
+/// Return the JNI boxing helper name for one optional primitive leaf.
+fn android_cpp_optional_box_helper_name(
+    module: &HostAbiModule,
+    ty: &HostAbiType,
+) -> Option<&'static str> {
+    let _ = module;
+
+    match ty {
+        HostAbiType::U8
+        | HostAbiType::U16
+        | HostAbiType::I8
+        | HostAbiType::I16
+        | HostAbiType::U32
+        | HostAbiType::I32 => Some("box_int"),
+        HostAbiType::U64 | HostAbiType::HostRequestId => Some("box_long"),
+        HostAbiType::Bool => Some("box_boolean"),
+        HostAbiType::F64 => Some("box_double"),
+        HostAbiType::Named(_) => Some("box_int"),
+        _ => None,
     }
 }
 
@@ -447,6 +528,9 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
             HostAbiType::StringSlice | HostAbiType::NativeSlice(_)
         )
     });
+    let uses_optional_box_helpers = request_input_leaves.iter().flatten().any(|leaf| {
+        matches!(&leaf.ty, HostAbiType::Optional(inner) if android_cpp_optional_box_helper_name(module, inner).is_some())
+    });
     let uses_string_outputs = request_output_types
         .iter()
         .any(|ty| android_cpp_type_uses_jni_strings(module, ty));
@@ -458,6 +542,11 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         module,
         &HostAbiType::NativeSlice(Box::new(HostAbiType::I16)),
     );
+    let uses_string_list_decode = android_module_uses_type(module, &HostAbiType::StringSlice)
+        || android_module_uses_type(
+            module,
+            &HostAbiType::NativeSlice(Box::new(HostAbiType::OsPath)),
+        );
     let needs_encode_helpers = !encode_root_types.is_empty();
     let needs_decode_helpers = !request_output_types.is_empty();
     let needs_vector_output_storage = request_output_types
@@ -511,6 +600,82 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         output.push_str("}\n");
     }
 
+    if uses_optional_box_helpers {
+        output.push('\n');
+        output.push_str("jobject box_int(JNIEnv *env, jint value) {\n");
+        output.push_str("    jclass value_class = env->FindClass(\"java/lang/Integer\");\n");
+        output.push_str("    if (value_class == nullptr) {\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jmethodID constructor = env->GetMethodID(value_class, \"<init>\", \"(I)V\");\n",
+        );
+        output.push_str("    if (constructor == nullptr) {\n");
+        output.push_str("        env->DeleteLocalRef(value_class);\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jobject value_object = env->NewObject(value_class, constructor, value);\n",
+        );
+        output.push_str("    env->DeleteLocalRef(value_class);\n");
+        output.push_str("    return value_object;\n");
+        output.push_str("}\n\n");
+        output.push_str("jobject box_long(JNIEnv *env, jlong value) {\n");
+        output.push_str("    jclass value_class = env->FindClass(\"java/lang/Long\");\n");
+        output.push_str("    if (value_class == nullptr) {\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jmethodID constructor = env->GetMethodID(value_class, \"<init>\", \"(J)V\");\n",
+        );
+        output.push_str("    if (constructor == nullptr) {\n");
+        output.push_str("        env->DeleteLocalRef(value_class);\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jobject value_object = env->NewObject(value_class, constructor, value);\n",
+        );
+        output.push_str("    env->DeleteLocalRef(value_class);\n");
+        output.push_str("    return value_object;\n");
+        output.push_str("}\n\n");
+        output.push_str("jobject box_boolean(JNIEnv *env, jboolean value) {\n");
+        output.push_str("    jclass value_class = env->FindClass(\"java/lang/Boolean\");\n");
+        output.push_str("    if (value_class == nullptr) {\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jmethodID constructor = env->GetMethodID(value_class, \"<init>\", \"(Z)V\");\n",
+        );
+        output.push_str("    if (constructor == nullptr) {\n");
+        output.push_str("        env->DeleteLocalRef(value_class);\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jobject value_object = env->NewObject(value_class, constructor, value);\n",
+        );
+        output.push_str("    env->DeleteLocalRef(value_class);\n");
+        output.push_str("    return value_object;\n");
+        output.push_str("}\n\n");
+        output.push_str("jobject box_double(JNIEnv *env, jdouble value) {\n");
+        output.push_str("    jclass value_class = env->FindClass(\"java/lang/Double\");\n");
+        output.push_str("    if (value_class == nullptr) {\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jmethodID constructor = env->GetMethodID(value_class, \"<init>\", \"(D)V\");\n",
+        );
+        output.push_str("    if (constructor == nullptr) {\n");
+        output.push_str("        env->DeleteLocalRef(value_class);\n");
+        output.push_str("        return nullptr;\n");
+        output.push_str("    }\n\n");
+        output.push_str(
+            "    jobject value_object = env->NewObject(value_class, constructor, value);\n",
+        );
+        output.push_str("    env->DeleteLocalRef(value_class);\n");
+        output.push_str("    return value_object;\n");
+        output.push_str("}\n");
+    }
+
     if uses_complex_inputs {
         output.push('\n');
         output.push_str("jmethodID resolve_constructor(JNIEnv *env, jclass value_class, const char *signature) {\n");
@@ -556,6 +721,11 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         output.push('\n');
         output.push_str("thread_local std::deque<std::string> result_string_storage;\n");
     }
+    if uses_string_list_decode {
+        output.push_str(
+            "thread_local std::deque<std::vector<NativeStringRef>> result_string_slice_storage;\n",
+        );
+    }
 
     if uses_u8_slice {
         output.push_str("thread_local std::deque<std::vector<uint8_t>> result_u8_storage;\n");
@@ -567,11 +737,19 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         output.push_str("thread_local std::deque<std::vector<int16_t>> result_i16_storage;\n");
     }
 
-    if needs_decode_helpers || uses_u8_slice || uses_i8_slice || uses_i16_slice {
+    if needs_decode_helpers
+        || uses_string_list_decode
+        || uses_u8_slice
+        || uses_i8_slice
+        || uses_i16_slice
+    {
         output.push('\n');
         output.push_str("void clear_result_decode_storage() {\n");
         if needs_decode_helpers {
             output.push_str("    result_string_storage.clear();\n");
+        }
+        if uses_string_list_decode {
+            output.push_str("    result_string_slice_storage.clear();\n");
         }
         if uses_u8_slice {
             output.push_str("    result_u8_storage.clear();\n");
@@ -600,11 +778,47 @@ pub(super) fn render_generic_cpp_methods_source(module: &HostAbiModule) -> Strin
         }
     }
 
-    if uses_u8_slice || uses_i8_slice || uses_i16_slice {
+    if uses_string_list_decode || uses_u8_slice || uses_i8_slice || uses_i16_slice {
         output.push('\n');
         output.push_str("jint call_list_size(JNIEnv *env, jobject value);\n");
         output.push_str("jobject call_list_get(JNIEnv *env, jobject value, jint index);\n");
+    }
+
+    if uses_u8_slice || uses_i8_slice || uses_i16_slice {
+        output.push('\n');
         output.push_str("jint call_int_getter(JNIEnv *env, jobject value, const char *name);\n");
+    }
+
+    if uses_string_list_decode {
+        output.push('\n');
+        output.push_str(
+            "jobjectArray encode_string_slice(JNIEnv *env, NativeStringSlice values) {\n",
+        );
+        output.push_str("    return new_java_string_array(env, values);\n");
+        output.push_str("}\n\n");
+        output.push_str(
+            "NativeStringSlice decode_string_list(JNIEnv *env, jobject list, std::deque<std::string> *string_storage) {\n",
+        );
+        output.push_str("    if (list == nullptr) {\n");
+        output.push_str("        return NativeStringSlice {\n");
+        output.push_str("            .data = nullptr,\n");
+        output.push_str("            .len = 0,\n");
+        output.push_str("        };\n");
+        output.push_str("    }\n\n");
+        output.push_str("    jint size = call_list_size(env, list);\n");
+        output.push_str("    result_string_slice_storage.emplace_back();\n");
+        output.push_str("    auto &storage = result_string_slice_storage.back();\n");
+        output.push_str("    storage.reserve(static_cast<size_t>(size));\n\n");
+        output.push_str("    for (jint index = 0; index < size; index += 1) {\n");
+        output.push_str("        jobject value = call_list_get(env, list, index);\n");
+        output.push_str("        storage.push_back(string_ref_from_java(env, static_cast<jstring>(value), string_storage));\n");
+        output.push_str("        env->DeleteLocalRef(value);\n");
+        output.push_str("    }\n\n");
+        output.push_str("    return NativeStringSlice {\n");
+        output.push_str("        .data = storage.data(),\n");
+        output.push_str("        .len = static_cast<uint32_t>(storage.size()),\n");
+        output.push_str("    };\n");
+        output.push_str("}\n");
     }
 
     if uses_u8_slice {
@@ -866,7 +1080,8 @@ pub(super) fn collect_android_cpp_decode_named_types_from_type(
                 }
             }
         }
-        HostAbiType::NativeArray(inner)
+        HostAbiType::Optional(inner)
+        | HostAbiType::NativeArray(inner)
         | HostAbiType::NativeSlice(inner)
         | HostAbiType::OutputPointer(inner) => {
             collect_android_cpp_decode_named_types_from_type(module, inner, names);
@@ -1067,26 +1282,53 @@ fn render_android_cpp_decode_helpers(
                 while index < fields.len() {
                     let field = &fields[index];
 
-                    if let Some(optional_field_name) = field.name.strip_prefix("has_") {
-                        if let Some(value_field) = fields.get(index + 1) {
-                            if value_field.name == optional_field_name {
-                                render_android_cpp_optional_field_decode(
-                                    output,
-                                    module,
-                                    field,
-                                    value_field,
-                                );
-                                index += 2;
-                                continue;
-                            }
-                        }
-                    }
-
                     render_android_cpp_struct_field_decode(output, module, field);
                     index += 1;
                 }
 
                 output.push_str("\n    return decoded;\n");
+                output.push_str("}\n\n");
+            }
+            HostAbiNamedTypeDefinition::TaggedEnum { variants } => {
+                output.push_str(&format!(
+                    "{} {}(JNIEnv *env, jobject value, std::deque<std::string> *string_storage) {{\n",
+                    name,
+                    android_cpp_decode_function_name(&name)
+                ));
+                output.push_str(&format!("    {} decoded = {{}};\n\n", name));
+                output.push_str(&format!(
+                    "    decoded.tag = static_cast<{}Tag>(call_int_getter(env, value, \"tag\"));\n\n",
+                    name
+                ));
+
+                for variant in variants {
+                    let field_name = android_cpp_tagged_variant_field_name(variant.name);
+                    let value_object_name = format!("{field_name}_value");
+
+                    output.push_str(&format!(
+                        "    jobject {} = call_object_getter(env, value, \"{}\", \"{}\");\n",
+                        value_object_name,
+                        android_cpp_getter_name(&field_name, false),
+                        android_cpp_object_signature(
+                            module,
+                            &HostAbiType::Named(variant.payload_type),
+                        )
+                    ));
+                    output.push_str(&format!(
+                        "    decoded.{field_name} = {};\n",
+                        android_cpp_object_decode_expression(
+                            module,
+                            &HostAbiType::Named(variant.payload_type),
+                            &value_object_name,
+                        )
+                    ));
+                    output.push_str(&format!(
+                        "    if ({} != nullptr) {{ env->DeleteLocalRef({}); }}\n\n",
+                        value_object_name, value_object_name
+                    ));
+                }
+
+                output.push_str("    return decoded;\n");
                 output.push_str("}\n\n");
             }
         }
@@ -1221,110 +1463,111 @@ fn render_android_cpp_encode_helpers(
                 output.push_str("    }\n\n");
 
                 for field in fields {
-                    match &field.ty {
-                        HostAbiType::StringRef => {
-                            output.push_str(&format!(
-                                "    jstring {}_value = java_string_or_null(env, value.{});\n",
-                                field.name, field.name
-                            ));
-                        }
-                        HostAbiType::StringSlice => {
-                            output.push_str(&format!(
-                                "    jobjectArray {}_value = new_java_string_array(env, value.{});\n",
-                                field.name, field.name
-                            ));
-                        }
-                        HostAbiType::Named(inner_name) => {
-                            output.push_str(&format!(
-                                "    jobject {}_value = {}(env, value.{});\n",
-                                field.name,
-                                android_cpp_encode_function_name(inner_name),
-                                field.name
-                            ));
-                        }
-                        HostAbiType::NativeSlice(inner) => {
-                            if let HostAbiType::Named(inner_name) = inner.as_ref() {
-                                output.push_str(&format!(
-                                    "    jobjectArray {}_value = {}(env, value.{});\n",
-                                    field.name,
-                                    android_cpp_encode_slice_function_name(inner_name),
-                                    field.name
-                                ));
-                            } else if android_cpp_primitive_slice_type(inner).is_some() {
-                                output.push_str(&format!(
-                                    "    jintArray {}_value = {}(env, value.{});\n",
-                                    field.name,
-                                    android_cpp_primitive_slice_encode_function_name(inner)
-                                        .expect("primitive slice encode helper"),
-                                    field.name
-                                ));
-                            } else {
-                                panic!(
-                                    "unsupported Android encode helper field type for {:?}",
-                                    field.ty
-                                );
-                            }
-                        }
-                        _ => {}
-                    }
+                    render_android_cpp_request_local(
+                        output,
+                        module,
+                        field.name,
+                        &format!("value.{}", field.name),
+                        &field.ty,
+                        4,
+                    );
                 }
 
                 output.push_str("\n    jobject result = env->NewObject(\n");
                 output.push_str("        value_class,\n");
                 output.push_str("        constructor");
                 for field in fields {
-                    let argument = match &field.ty {
-                        HostAbiType::StringRef
-                        | HostAbiType::StringSlice
-                        | HostAbiType::NativeSlice(_) => {
-                            format!(",\n        {}_value", field.name)
-                        }
-                        HostAbiType::Named(_) => {
-                            format!(",\n        {}_value", field.name)
-                        }
-                        HostAbiType::Bool => {
-                            format!(",\n        value.{} ? JNI_TRUE : JNI_FALSE", field.name)
-                        }
-                        HostAbiType::U8
-                        | HostAbiType::U16
-                        | HostAbiType::I8
-                        | HostAbiType::I16
-                        | HostAbiType::U32
-                        | HostAbiType::I32 => {
-                            format!(",\n        static_cast<jint>(value.{})", field.name)
-                        }
-                        HostAbiType::U64 | HostAbiType::HostRequestId => {
-                            format!(",\n        static_cast<jlong>(value.{})", field.name)
-                        }
-                        HostAbiType::F64 => {
-                            format!(",\n        static_cast<jdouble>(value.{})", field.name)
-                        }
-                        other => {
-                            panic!("unsupported Android encode helper argument for {:?}", other)
-                        }
-                    };
+                    let argument = android_cpp_request_argument_expression(
+                        &format!("value.{}", field.name),
+                        field.name,
+                        &field.ty,
+                    );
                     output.push_str(&argument);
                 }
                 output.push_str("\n    );\n\n");
 
                 for field in fields {
-                    match &field.ty {
-                        HostAbiType::StringRef
-                        | HostAbiType::StringSlice
-                        | HostAbiType::NativeSlice(_) => {
-                            output.push_str(&format!(
-                                "    if ({}_value != nullptr) {{ env->DeleteLocalRef({}_value); }}\n",
-                                field.name, field.name
-                            ));
-                        }
-                        HostAbiType::Named(_) => {
-                            output.push_str(&format!(
-                                "    if ({}_value != nullptr) {{ env->DeleteLocalRef({}_value); }}\n",
-                                field.name, field.name
-                            ));
-                        }
-                        _ => {}
+                    if android_cpp_request_local_uses_local_ref(&field.ty) {
+                        output.push_str(&format!(
+                            "    if ({}_value != nullptr) {{ env->DeleteLocalRef({}_value); }}\n",
+                            field.name, field.name
+                        ));
                     }
+                }
+
+                output.push_str("    env->DeleteLocalRef(value_class);\n\n");
+                output.push_str("    return result;\n");
+                output.push_str("}\n\n");
+            }
+            HostAbiNamedTypeDefinition::TaggedEnum { variants } => {
+                output.push_str(&format!(
+                    "jobject {}(JNIEnv *env, {} value) {{\n",
+                    android_cpp_encode_function_name(&name),
+                    name,
+                ));
+                output.push_str(&format!(
+                    "    jclass value_class = env->FindClass(\"{}\");\n",
+                    android_runtime_named_binary_name(module, &name),
+                ));
+                output.push_str("    if (value_class == nullptr) {\n");
+                output.push_str("        return nullptr;\n");
+                output.push_str("    }\n\n");
+                output.push_str(&format!(
+                    "    jmethodID constructor = resolve_constructor(env, value_class, \"(I{})V\");\n",
+                    variants
+                        .iter()
+                        .map(|variant| android_cpp_request_object_signature(
+                            module,
+                            &HostAbiType::Named(variant.payload_type),
+                        ))
+                        .collect::<Vec<_>>()
+                        .join(""),
+                ));
+                output.push_str("    if (constructor == nullptr) {\n");
+                output.push_str("        env->DeleteLocalRef(value_class);\n");
+                output.push_str("        return nullptr;\n");
+                output.push_str("    }\n\n");
+
+                for variant in variants {
+                    let field_name = android_cpp_tagged_variant_field_name(variant.name);
+                    let field_ty = HostAbiType::Named(variant.payload_type);
+
+                    render_android_cpp_request_local(
+                        output,
+                        module,
+                        &field_name,
+                        &format!("value.{field_name}"),
+                        &field_ty,
+                        4,
+                    );
+                }
+
+                output.push_str("\n    jobject result = env->NewObject(\n");
+                output.push_str("        value_class,\n");
+                output.push_str("        constructor,\n");
+                output.push_str("        static_cast<jint>(value.tag)");
+
+                for variant in variants {
+                    let field_name = android_cpp_tagged_variant_field_name(variant.name);
+                    let field_ty = HostAbiType::Named(variant.payload_type);
+                    let argument = android_cpp_request_argument_expression(
+                        &format!("value.{field_name}"),
+                        &field_name,
+                        &field_ty,
+                    );
+
+                    output.push_str(&argument);
+                }
+
+                output.push_str("\n    );\n\n");
+
+                for variant in variants {
+                    let field_name = android_cpp_tagged_variant_field_name(variant.name);
+
+                    output.push_str(&format!(
+                        "    if ({}_value != nullptr) {{ env->DeleteLocalRef({}_value); }}\n",
+                        field_name, field_name
+                    ));
                 }
 
                 output.push_str("    env->DeleteLocalRef(value_class);\n\n");
@@ -1385,6 +1628,25 @@ fn render_android_cpp_encode_helpers(
     }
 }
 
+/// Return the lowered field name for one tagged Android payload variant.
+fn android_cpp_tagged_variant_field_name(name: &str) -> String {
+    let mut output = String::new();
+
+    for (index, character) in name.chars().enumerate() {
+        if character.is_ascii_uppercase() {
+            if index > 0 {
+                output.push('_');
+            }
+
+            output.push(character.to_ascii_lowercase());
+        } else {
+            output.push(character);
+        }
+    }
+
+    output
+}
+
 /// Return the JVM signature for one request-side object field.
 fn android_cpp_request_object_signature(module: &HostAbiModule, ty: &HostAbiType) -> String {
     match ty {
@@ -1401,12 +1663,45 @@ fn android_cpp_request_object_signature(module: &HostAbiModule, ty: &HostAbiType
         HostAbiType::NativeSlice(inner) => {
             if let HostAbiType::Named(name) = inner.as_ref() {
                 format!("[L{};", android_runtime_named_binary_name(module, name))
+            } else if android_cpp_string_slice_type(inner).is_some() {
+                "[Ljava/lang/String;".to_string()
             } else if android_cpp_primitive_slice_type(inner).is_some() {
                 "[I".to_string()
             } else {
                 panic!("unsupported Android request object signature for {:?}", ty);
             }
         }
+        HostAbiType::Optional(inner) => match inner.as_ref() {
+            HostAbiType::U8
+            | HostAbiType::U16
+            | HostAbiType::I8
+            | HostAbiType::I16
+            | HostAbiType::U32
+            | HostAbiType::I32 => "Ljava/lang/Integer;".to_string(),
+            HostAbiType::U64 | HostAbiType::HostRequestId => "Ljava/lang/Long;".to_string(),
+            HostAbiType::Bool => "Ljava/lang/Boolean;".to_string(),
+            HostAbiType::F64 => "Ljava/lang/Double;".to_string(),
+            HostAbiType::StringRef | HostAbiType::OsPath => "Ljava/lang/String;".to_string(),
+            HostAbiType::StringSlice => "[Ljava/lang/String;".to_string(),
+            HostAbiType::Named(name) => {
+                format!("L{};", android_runtime_named_binary_name(module, name))
+            }
+            HostAbiType::NativeSlice(inner) => {
+                if let HostAbiType::Named(name) = inner.as_ref() {
+                    format!("[L{};", android_runtime_named_binary_name(module, name))
+                } else if android_cpp_string_slice_type(inner).is_some() {
+                    "[Ljava/lang/String;".to_string()
+                } else if android_cpp_primitive_slice_type(inner).is_some() {
+                    "[I".to_string()
+                } else {
+                    panic!("unsupported Android request object signature for {:?}", ty);
+                }
+            }
+            other => panic!(
+                "unsupported Android request object signature for {:?}",
+                other
+            ),
+        },
         other => panic!(
             "unsupported Android request object signature for {:?}",
             other
@@ -1414,36 +1709,196 @@ fn android_cpp_request_object_signature(module: &HostAbiModule, ty: &HostAbiType
     }
 }
 
-/// Render one optional struct-field decode block.
-fn render_android_cpp_optional_field_decode(
+/// Return whether one request-side value uses one JNI local reference.
+fn android_cpp_request_local_uses_local_ref(ty: &HostAbiType) -> bool {
+    matches!(
+        ty,
+        HostAbiType::StringRef
+            | HostAbiType::OsPath
+            | HostAbiType::StringSlice
+            | HostAbiType::Named(_)
+            | HostAbiType::NativeSlice(_)
+            | HostAbiType::Optional(_)
+    )
+}
+
+/// Return one request-side constructor argument expression.
+fn android_cpp_request_argument_expression(
+    value_expression: &str,
+    local_name: &str,
+    ty: &HostAbiType,
+) -> String {
+    match ty {
+        HostAbiType::StringRef
+        | HostAbiType::OsPath
+        | HostAbiType::StringSlice
+        | HostAbiType::Named(_)
+        | HostAbiType::NativeSlice(_)
+        | HostAbiType::Optional(_) => format!("{local_name}_value"),
+        HostAbiType::Bool => format!("{value_expression} ? JNI_TRUE : JNI_FALSE"),
+        HostAbiType::U8
+        | HostAbiType::U16
+        | HostAbiType::I8
+        | HostAbiType::I16
+        | HostAbiType::U32
+        | HostAbiType::I32 => format!("static_cast<jint>({value_expression})"),
+        HostAbiType::U64 | HostAbiType::HostRequestId => {
+            format!("static_cast<jlong>({value_expression})")
+        }
+        HostAbiType::F64 => format!("static_cast<jdouble>({value_expression})"),
+        other => panic!("unsupported Android request argument for {:?}", other),
+    }
+}
+
+/// Return one boxed optional primitive expression.
+fn android_cpp_optional_boxed_value_expression(
+    module: &HostAbiModule,
+    value_expression: &str,
+    inner: &HostAbiType,
+) -> String {
+    let helper_name = android_cpp_optional_box_helper_name(module, inner)
+        .expect("missing Android optional box helper");
+
+    let boxed_value = match inner {
+        HostAbiType::Bool => format!("{value_expression} ? JNI_TRUE : JNI_FALSE"),
+        HostAbiType::U64 | HostAbiType::HostRequestId => {
+            format!("static_cast<jlong>({value_expression})")
+        }
+        HostAbiType::F64 => format!("static_cast<jdouble>({value_expression})"),
+        _ => format!("static_cast<jint>({value_expression})"),
+    };
+
+    format!("{helper_name}(env, {boxed_value})")
+}
+
+/// Return one request-side JNI local declaration.
+fn android_cpp_request_local_declaration(
+    module: &HostAbiModule,
+    local_name: &str,
+    value_expression: &str,
+    ty: &HostAbiType,
+) -> Option<String> {
+    let declaration = match ty {
+        HostAbiType::StringRef => {
+            format!("jstring {local_name}_value = java_string_or_null(env, {value_expression});")
+        }
+        HostAbiType::StringSlice => format!(
+            "jobjectArray {local_name}_value = new_java_string_array(env, {value_expression});"
+        ),
+        HostAbiType::Named(name) => format!(
+            "jobject {local_name}_value = {}(env, {value_expression});",
+            android_cpp_encode_function_name(name)
+        ),
+        HostAbiType::NativeSlice(inner) => {
+            if let HostAbiType::Named(name) = inner.as_ref() {
+                format!(
+                    "jobjectArray {local_name}_value = {}(env, {value_expression});",
+                    android_cpp_encode_slice_function_name(name)
+                )
+            } else if let Some(function_name) = android_cpp_string_slice_encode_function_name(inner)
+            {
+                format!(
+                    "jobjectArray {local_name}_value = {function_name}(env, {value_expression});"
+                )
+            } else if let Some(function_name) =
+                android_cpp_primitive_slice_encode_function_name(inner)
+            {
+                format!("jintArray {local_name}_value = {function_name}(env, {value_expression});")
+            } else {
+                panic!("unsupported Android request local declaration for {:?}", ty);
+            }
+        }
+        HostAbiType::Optional(inner) => {
+            let presence_expression = format!("{value_expression}.has_value");
+            let inner_value_expression = format!("{value_expression}.value");
+
+            match inner.as_ref() {
+                HostAbiType::StringRef | HostAbiType::OsPath => format!(
+                    "jstring {local_name}_value = {presence_expression} ? java_string_or_null(env, {inner_value_expression}) : nullptr;"
+                ),
+                HostAbiType::StringSlice => format!(
+                    "jobjectArray {local_name}_value = {presence_expression} ? new_java_string_array(env, {inner_value_expression}) : nullptr;"
+                ),
+                HostAbiType::Named(name) if android_named_type_is_enum(module, name) => format!(
+                    "jobject {local_name}_value = {presence_expression} ? {} : nullptr;",
+                    android_cpp_optional_boxed_value_expression(
+                        module,
+                        &inner_value_expression,
+                        inner,
+                    )
+                ),
+                HostAbiType::Named(name) => format!(
+                    "jobject {local_name}_value = {presence_expression} ? {}(env, {inner_value_expression}) : nullptr;",
+                    android_cpp_encode_function_name(name)
+                ),
+                HostAbiType::NativeSlice(slice_inner) => {
+                    if let HostAbiType::Named(name) = slice_inner.as_ref() {
+                        format!(
+                            "jobjectArray {local_name}_value = {presence_expression} ? {}(env, {inner_value_expression}) : nullptr;",
+                            android_cpp_encode_slice_function_name(name)
+                        )
+                    } else if let Some(function_name) =
+                        android_cpp_string_slice_encode_function_name(slice_inner)
+                    {
+                        format!(
+                            "jobjectArray {local_name}_value = {presence_expression} ? {function_name}(env, {inner_value_expression}) : nullptr;"
+                        )
+                    } else if let Some(function_name) =
+                        android_cpp_primitive_slice_encode_function_name(slice_inner)
+                    {
+                        format!(
+                            "jintArray {local_name}_value = {presence_expression} ? {function_name}(env, {inner_value_expression}) : nullptr;"
+                        )
+                    } else {
+                        panic!("unsupported Android request local declaration for {:?}", ty);
+                    }
+                }
+                HostAbiType::U8
+                | HostAbiType::U16
+                | HostAbiType::I8
+                | HostAbiType::I16
+                | HostAbiType::U32
+                | HostAbiType::I32
+                | HostAbiType::U64
+                | HostAbiType::HostRequestId
+                | HostAbiType::Bool
+                | HostAbiType::F64 => format!(
+                    "jobject {local_name}_value = {presence_expression} ? {} : nullptr;",
+                    android_cpp_optional_boxed_value_expression(
+                        module,
+                        &inner_value_expression,
+                        inner,
+                    )
+                ),
+                other => panic!(
+                    "unsupported Android request local declaration for {:?}",
+                    other
+                ),
+            }
+        }
+        _ => return None,
+    };
+
+    Some(declaration)
+}
+
+/// Render one request-side JNI local when needed.
+fn render_android_cpp_request_local(
     output: &mut String,
     module: &HostAbiModule,
-    has_field: &HostAbiField,
-    value_field: &HostAbiField,
+    local_name: &str,
+    value_expression: &str,
+    ty: &HostAbiType,
+    indent: usize,
 ) {
-    let getter_name = android_cpp_getter_name(value_field.name, false);
-    let value_object_name = format!("{}_value", value_field.name);
-    let getter_signature = android_cpp_object_signature(module, &value_field.ty);
+    let Some(declaration) =
+        android_cpp_request_local_declaration(module, local_name, value_expression, ty)
+    else {
+        return;
+    };
 
-    output.push_str(&format!(
-        "    jobject {} = call_object_getter(env, value, \"{}\", \"{}\");\n",
-        value_object_name, getter_name, getter_signature
-    ));
-    output.push_str(&format!(
-        "    decoded.{} = {} != nullptr;\n",
-        has_field.name, value_object_name
-    ));
-    output.push_str(&format!(
-        "    decoded.{} = {} == nullptr ? {} : {};\n",
-        value_field.name,
-        value_object_name,
-        android_cpp_default_value(module, &value_field.ty),
-        android_cpp_object_decode_expression(module, &value_field.ty, &value_object_name)
-    ));
-    output.push_str(&format!(
-        "    if ({} != nullptr) {{ env->DeleteLocalRef({}); }}\n\n",
-        value_object_name, value_object_name
-    ));
+    let prefix = " ".repeat(indent);
+    output.push_str(&format!("{prefix}{declaration}\n"));
 }
 
 /// Render one regular struct-field decode block.
@@ -1457,6 +1912,7 @@ fn render_android_cpp_struct_field_decode(
     match &field.ty {
         HostAbiType::StringRef
         | HostAbiType::Named(_)
+        | HostAbiType::Optional(_)
         | HostAbiType::NativeArray(_)
         | HostAbiType::NativeSlice(_) => {
             let value_object_name = format!("{}_value", field.name);
@@ -1493,7 +1949,7 @@ fn android_cpp_object_decode_expression(
     value_name: &str,
 ) -> String {
     match ty {
-        HostAbiType::StringRef => {
+        HostAbiType::StringRef | HostAbiType::OsPath => {
             format!("string_ref_from_java(env, static_cast<jstring>({value_name}), string_storage)")
         }
         HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => format!(
@@ -1521,6 +1977,14 @@ fn android_cpp_object_decode_expression(
             "{}(env, {value_name}, string_storage)",
             android_cpp_decode_function_name(name)
         ),
+        HostAbiType::Optional(inner) => {
+            let optional_type = render_cpp_type(ty);
+            let inner_decode = android_cpp_object_decode_expression(module, inner, value_name);
+
+            format!(
+                "([&]() -> {optional_type} {{ if ({value_name} == nullptr) {{ return {{ .has_value = false, .value = {{}} }}; }} return {{ .has_value = true, .value = {inner_decode} }}; }})()"
+            )
+        }
         HostAbiType::NativeSlice(inner) => {
             if let HostAbiType::Named(name) = inner.as_ref() {
                 format!(
@@ -1528,6 +1992,9 @@ fn android_cpp_object_decode_expression(
                     android_cpp_decode_slice_function_name(name),
                     value_name
                 )
+            } else if let Some(function_name) = android_cpp_string_slice_decode_function_name(inner)
+            {
+                format!("{function_name}(env, {value_name}, string_storage)")
             } else if let Some(function_name) =
                 android_cpp_primitive_slice_decode_function_name(inner)
             {
@@ -1551,9 +2018,6 @@ fn render_generic_cpp_request_method(
 ) {
     let input_leaves = collect_android_cpp_request_input_leaves(module, request);
     let output_parameters = android_cpp_output_parameters(request);
-    let uses_direct_response_decode = output_parameters.len() == 1
-        && output_parameters[0].name == "response"
-        && matches!(output_parameters[0].ty, HostAbiType::Named(_));
     let uses_output_decode_storage = output_parameters.iter().any(|output_parameter| {
         matches!(
             output_parameter.ty,
@@ -1591,62 +2055,22 @@ fn render_generic_cpp_request_method(
     output.push_str("    }\n\n");
 
     for (index, leaf) in input_leaves.iter().enumerate() {
-        match leaf.ty {
-            HostAbiType::StringRef => {
-                output.push_str(&format!(
-                    "    jstring {}_value = java_string_or_null(env, {});\n",
-                    leaf.name, leaf.expr
-                ));
+        render_android_cpp_request_local(output, module, &leaf.name, &leaf.expr, &leaf.ty, 4);
+
+        if matches!(
+            leaf.ty,
+            HostAbiType::StringSlice | HostAbiType::NativeSlice(_)
+        ) {
+            output.push_str(&format!("    if ({}_value == nullptr) {{\n", leaf.name));
+            if index != 0 {
+                render_android_cpp_release_input_locals(output, &input_leaves[..index], 8);
             }
-            HostAbiType::StringSlice => {
-                output.push_str(&format!(
-                    "    jobjectArray {}_value = new_java_string_array(env, {});\n",
-                    leaf.name, leaf.expr
-                ));
-                output.push_str(&format!("    if ({}_value == nullptr) {{\n", leaf.name));
-                if index != 0 {
-                    render_android_cpp_release_input_locals(output, &input_leaves[..index], 8);
-                }
-                output.push_str("        if (env->ExceptionCheck()) {\n");
-                output.push_str("            env->ExceptionClear();\n");
-                output.push_str("        }\n");
-                output.push_str("        env->DeleteLocalRef(bridge);\n");
-                output.push_str("        return HOST_STATUS_FAILED;\n");
-                output.push_str("    }\n");
-            }
-            HostAbiType::NativeSlice(ref inner) => {
-                if let HostAbiType::Named(name) = inner.as_ref() {
-                    output.push_str(&format!(
-                        "    jobjectArray {}_value = {}(env, {});\n",
-                        leaf.name,
-                        android_cpp_encode_slice_function_name(name),
-                        leaf.expr
-                    ));
-                } else if let Some(function_name) =
-                    android_cpp_primitive_slice_encode_function_name(inner)
-                {
-                    output.push_str(&format!(
-                        "    jintArray {}_value = {}(env, {});\n",
-                        leaf.name, function_name, leaf.expr
-                    ));
-                } else {
-                    panic!(
-                        "unsupported Android request input leaf local for {:?}",
-                        leaf.ty
-                    );
-                }
-                output.push_str(&format!("    if ({}_value == nullptr) {{\n", leaf.name));
-                if index != 0 {
-                    render_android_cpp_release_input_locals(output, &input_leaves[..index], 8);
-                }
-                output.push_str("        if (env->ExceptionCheck()) {\n");
-                output.push_str("            env->ExceptionClear();\n");
-                output.push_str("        }\n");
-                output.push_str("        env->DeleteLocalRef(bridge);\n");
-                output.push_str("        return HOST_STATUS_FAILED;\n");
-                output.push_str("    }\n");
-            }
-            _ => {}
+            output.push_str("        if (env->ExceptionCheck()) {\n");
+            output.push_str("            env->ExceptionClear();\n");
+            output.push_str("        }\n");
+            output.push_str("        env->DeleteLocalRef(bridge);\n");
+            output.push_str("        return HOST_STATUS_FAILED;\n");
+            output.push_str("    }\n");
         }
     }
 
@@ -1702,27 +2126,14 @@ fn render_generic_cpp_request_method(
             .push_str("    jint status = call_int_getter(env, response_object, \"getStatus\");\n");
 
         output.push_str("    if (status == HOST_STATUS_OK) {\n");
-        if uses_direct_response_decode {
-            let output_parameter = &output_parameters[0];
-            output.push_str(&format!(
-                "        *{} = {};\n",
-                output_parameter.expr,
-                android_cpp_object_decode_expression(
-                    module,
-                    &output_parameter.ty,
-                    "response_object"
-                )
-            ));
-        } else {
-            for output_parameter in &output_parameters {
-                render_android_cpp_output_decode(
-                    output,
-                    module,
-                    output_parameter,
-                    "response_object",
-                    8,
-                );
-            }
+        for output_parameter in &output_parameters {
+            render_android_cpp_output_decode(
+                output,
+                module,
+                output_parameter,
+                "response_object",
+                8,
+            );
         }
         output.push_str("    }\n");
     }
@@ -1743,40 +2154,11 @@ fn render_generic_cpp_request_method(
 /// Render the call arguments for one request method body.
 fn render_android_cpp_request_call_arguments(
     output: &mut String,
-    module: &HostAbiModule,
+    _module: &HostAbiModule,
     input_leaves: &[AndroidCppLeaf],
 ) {
     for (index, leaf) in input_leaves.iter().enumerate() {
-        let argument = match &leaf.ty {
-            HostAbiType::StringRef | HostAbiType::StringSlice => format!("{}_value", leaf.name),
-            HostAbiType::Bool => format!("{} ? JNI_TRUE : JNI_FALSE", leaf.expr),
-            HostAbiType::U32 | HostAbiType::I32 => {
-                format!("static_cast<jint>({})", leaf.expr)
-            }
-            HostAbiType::U64 | HostAbiType::HostRequestId => {
-                format!("static_cast<jlong>({})", leaf.expr)
-            }
-            HostAbiType::F64 => format!("static_cast<jdouble>({})", leaf.expr),
-            HostAbiType::Named(name) if android_named_type_is_enum(module, name) => {
-                format!("static_cast<jint>({})", leaf.expr)
-            }
-            HostAbiType::U8 | HostAbiType::U16 | HostAbiType::I8 | HostAbiType::I16 => {
-                format!("static_cast<jint>({})", leaf.expr)
-            }
-            HostAbiType::NativeSlice(inner) => {
-                if matches!(inner.as_ref(), HostAbiType::Named(_))
-                    || android_cpp_primitive_slice_type(inner).is_some()
-                {
-                    format!("{}_value", leaf.name)
-                } else {
-                    panic!(
-                        "unsupported Android request call argument for {:?}",
-                        leaf.ty
-                    );
-                }
-            }
-            other => panic!("unsupported Android request call argument for {:?}", other),
-        };
+        let argument = android_cpp_request_argument_expression(&leaf.expr, &leaf.name, &leaf.ty);
 
         let trailing = if index + 1 == input_leaves.len() {
             ""
@@ -1796,14 +2178,11 @@ fn render_android_cpp_release_input_locals(
     let prefix = " ".repeat(indent);
 
     for leaf in input_leaves {
-        match leaf.ty {
-            HostAbiType::StringRef | HostAbiType::StringSlice | HostAbiType::NativeSlice(_) => {
-                output.push_str(&format!(
-                    "{prefix}if ({}_value != nullptr) {{ env->DeleteLocalRef({}_value); }}\n",
-                    leaf.name, leaf.name
-                ));
-            }
-            _ => {}
+        if android_cpp_request_local_uses_local_ref(&leaf.ty) {
+            output.push_str(&format!(
+                "{prefix}if ({}_value != nullptr) {{ env->DeleteLocalRef({}_value); }}\n",
+                leaf.name, leaf.name
+            ));
         }
     }
 }
@@ -2159,7 +2538,7 @@ fn render_android_cpp_jni_parameter_type(_module: &HostAbiModule, ty: &HostAbiTy
         HostAbiType::U16 | HostAbiType::U32 | HostAbiType::I32 => "jint".to_string(),
         HostAbiType::Bool => "jboolean".to_string(),
         HostAbiType::F64 => "jdouble".to_string(),
-        HostAbiType::StringRef => "jstring".to_string(),
+        HostAbiType::StringRef | HostAbiType::OsPath => "jstring".to_string(),
         HostAbiType::Named(_) | HostAbiType::NativeSlice(_) => "jobject".to_string(),
         other => panic!("unsupported Android JNI parameter type for {:?}", other),
     }
@@ -2180,7 +2559,7 @@ fn android_cpp_jni_decode_expression(
         HostAbiType::I32 => format!("static_cast<int32_t>({value_name})"),
         HostAbiType::Bool => format!("{value_name} == JNI_TRUE"),
         HostAbiType::F64 => format!("static_cast<double>({value_name})"),
-        HostAbiType::StringRef => format!(
+        HostAbiType::StringRef | HostAbiType::OsPath => format!(
             "string_ref_from_java(env, static_cast<jstring>({value_name}), &runtime_string_storage)"
         ),
         HostAbiType::Named(name) if android_named_type_is_enum(module, name) => format!(
@@ -2192,14 +2571,21 @@ fn android_cpp_jni_decode_expression(
             android_cpp_decode_function_name(name)
         ),
         HostAbiType::NativeSlice(inner) => {
-            let HostAbiType::Named(name) = inner.as_ref() else {
+            if let HostAbiType::Named(name) = inner.as_ref() {
+                format!(
+                    "{}(env, {}, &runtime_string_storage)",
+                    android_cpp_decode_slice_function_name(name),
+                    value_name
+                )
+            } else if let Some(function_name) = android_cpp_string_slice_decode_function_name(inner)
+            {
+                format!(
+                    "{function_name}(env, {}, &runtime_string_storage)",
+                    value_name
+                )
+            } else {
                 panic!("unsupported Android JNI native slice element");
-            };
-            format!(
-                "{}(env, {}, &runtime_string_storage)",
-                android_cpp_decode_slice_function_name(name),
-                value_name
-            )
+            }
         }
         other => panic!("unsupported Android JNI decode for {:?}", other),
     }

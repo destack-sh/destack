@@ -18,14 +18,8 @@ final class RecordingDocumentEventSink: DocumentEvents {
   var results: [RuntimeHostDocumentResult] = []
 
   func notifyDocumentResult(
-    _ requestID: HostRequestID,
-    documents: [RuntimeHostDocumentDescriptor]
+    _ result: RuntimeHostDocumentResult
   ) {
-    results.append(
-      RuntimeHostDocumentResult(
-        requestID: requestID,
-        documents: documents
-      )
-    )
+    results.append(result)
   }
 }

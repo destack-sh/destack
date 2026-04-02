@@ -1,6 +1,7 @@
 package dev.destack.runtime.android
 
 import dev.destack.runtime.android.core.HostRequestId
+import dev.destack.runtime.android.module.permission.RuntimeHostPermission
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionEvent
 import dev.destack.runtime.android.module.permission.RuntimeHostPermissionRequest
 
@@ -15,18 +16,18 @@ class RuntimeHostPermissionTest {
     fun testCreatePermissionRequestAndEvent() {
         val request = RuntimeHostPermissionRequest(
             requestId = HostRequestId(rawValue = 6),
-            permission = "location",
+            permission = RuntimeHostPermission.Location,
         )
         val event = RuntimeHostPermissionEvent(
             requestId = HostRequestId(rawValue = 6),
-            permission = "location",
+            permission = RuntimeHostPermission.Location,
             isGranted = true,
         )
 
         assertEquals(HostRequestId(rawValue = 6), request.requestId)
-        assertEquals("location", request.permission)
+        assertEquals(RuntimeHostPermission.Location, request.permission)
         assertEquals(HostRequestId(rawValue = 6), event.requestId)
-        assertEquals("location", event.permission)
+        assertEquals(RuntimeHostPermission.Location, event.permission)
         assertEquals(true, event.isGranted)
     }
 }

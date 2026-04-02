@@ -1,15 +1,12 @@
 #![cfg_attr(target_arch = "wasm32", allow(dead_code))]
 
-#[cfg(not(feature = "generator"))]
-pub(crate) mod abi;
-#[cfg(feature = "generator")]
 pub mod abi;
 #[cfg(any(test, target_os = "android"))]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod android;
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+pub mod android;
+#[cfg(target_vendor = "apple")]
 #[cfg(not(feature = "generator"))]
-pub(crate) mod apple;
+pub mod apple;
 #[cfg(not(feature = "generator"))]
 mod bootstrap;
 #[cfg(not(feature = "generator"))]
@@ -26,7 +23,7 @@ mod haiku;
 #[cfg(target_os = "illumos")]
 #[cfg(not(feature = "generator"))]
 mod illumos;
-#[cfg(any(test, target_os = "ios"))]
+#[cfg(target_os = "ios")]
 #[cfg(not(feature = "generator"))]
 mod ios;
 #[cfg(target_os = "linux")]
@@ -91,7 +88,7 @@ pub use core::{
     HostEventKind, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
     HostLifecycleSourceKind, HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent,
     HostMemoryPressureLevel, HostNotificationEvent, HostPermissionEvent, HostPollOutcome,
-    HostPowerMode, HostPowerModeEvent, HostRequestId, HostSession, HostThermalEvent,
+    HostPowerMode, HostPowerModeEvent, HostRequestId, HostSession, HostTextEvent, HostThermalEvent,
     HostThermalState, HostWallClockEvent,
 };
 #[cfg(not(feature = "generator"))]

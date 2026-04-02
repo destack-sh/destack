@@ -16,11 +16,12 @@ pub use adapter::HostPollOutcome;
 #[cfg(any(test, feature = "execution"))]
 pub(crate) use adapter::without_native_ingress;
 pub(crate) use destack_artifact::Platform;
+pub(crate) use event::host_intent_event_from_value;
 pub use event::{
     HostBackgroundEvent, HostDocumentEvent, HostEvent, HostEventKind, HostIntentEvent,
     HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent, HostLifecycleSourceKind,
     HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
-    HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
+    HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostTextEvent,
     HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 pub(crate) use queue::HostQueue;

@@ -148,10 +148,7 @@ func testSubmitDocumentRequest() {
   )
 
   host.document.pick(request)
-  host.document.notifyDocumentResult(
-    result.requestID,
-    documents: result.documents
-  )
+  host.document.notifyDocumentResult(result)
 
   #expect(documentRequests.requests == [request])
   #expect(documentEvents.results.first?.documents.first?.displayName == "example.png")

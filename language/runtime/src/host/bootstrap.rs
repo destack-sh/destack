@@ -7,6 +7,8 @@ use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 use crate::host::android::AndroidHost;
 #[cfg(target_os = "android")]
 use crate::host::android::abi::registry::unregister_android_bindings;
+#[cfg(target_os = "ios")]
+use crate::host::apple::abi::registry::unregister_ios_bindings;
 use crate::host::core::HostAdapter;
 use crate::host::core::registry::HostCleanup;
 #[cfg(target_os = "dragonfly")]
@@ -19,8 +21,6 @@ use crate::host::haiku::HaikuHost;
 use crate::host::illumos::IllumosHost;
 #[cfg(target_os = "ios")]
 use crate::host::ios::IosHost;
-#[cfg(target_os = "ios")]
-use crate::host::ios::abi::registry::unregister_ios_bindings;
 #[cfg(target_os = "linux")]
 use crate::host::linux::LinuxHost;
 #[cfg(target_os = "linux")]
@@ -62,7 +62,7 @@ pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>,
     return (
         Platform::Android,
         Arc::new(AndroidHost::new()),
-        Some(unregister_android_bindings),
+        Some(|host_session_id| unregister_android_bindings(host_session_id.handle())),
     );
 
     #[cfg(target_os = "dragonfly")]
@@ -81,7 +81,7 @@ pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>,
     return (
         Platform::IOS,
         Arc::new(IosHost::new()),
-        Some(unregister_ios_bindings),
+        Some(|host_session_id| unregister_ios_bindings(host_session_id.handle())),
     );
 
     #[cfg(target_os = "linux")]
