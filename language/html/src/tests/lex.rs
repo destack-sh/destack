@@ -4,19 +4,17 @@ use std::{char, fs};
 
 use serde_json::{Map, Value};
 
-use super::buffer::{BufferQueue, SetResult};
-use super::encoding::{EncodingScanner, MetaEncodingScanner};
-use super::lexer::LexerMode::{Data, Plaintext, RawData};
-use super::lexer::{LexerMode, RawKind};
-use super::macros::small_char_set;
-use super::token::{
+use crate::lex::buffer::{BufferQueue, SetResult};
+use crate::lex::lexer::LexerMode::{Data, Plaintext, RawData};
+use crate::lex::lexer::{LexerMode, RawKind};
+use crate::lex::token::{
     CharacterTokens, CommentToken, Doctype, DoctypeToken, EOFToken, EndTag, LexHandler,
     LexerAction, LexerResult, NullCharacterToken, ParseError, StartTag, Tag, TagKind, TagToken,
     Token,
 };
-use super::{
-    Attribute, HtmlString, Lexer, LexerOptions, LocalName, QualifiedName, ToHtmlString,
-    lower_ascii_letter, ns,
+use crate::lex::{
+    Attribute, EncodingScanner, HtmlString, Lexer, LexerOptions, LocalName, MetaEncodingScanner,
+    QualifiedName, ToHtmlString, lower_ascii_letter, ns, small_char_set,
 };
 
 const MAX_SPLITS: usize = 1000;
@@ -879,7 +877,7 @@ fn test_html5lib_encoding_corpus() {
 
             let actual = EncodingScanner::new(&data)
                 .scan_document_encoding()
-                .map(|label| normalize_html_encoding_label(&label))
+                .map(|label| normalize_html_encoding_label(label.as_ref()))
                 .unwrap_or_else(|| "windows-1252".to_string());
             let input = decode_fixture_line(&data);
 
