@@ -7,7 +7,7 @@ use crate::analyze::common::{NormalizationMode, TreeSymbolView, TypeContext};
 use crate::analyze::infer::RemoteValueTypeReadDomain;
 use destack_core::StringId;
 use destack_dir::{
-    Argument, BinaryOperator, Declaration, DynamicKey, Expression, FlowBlock, FlowEdge,
+    Argument, BinaryOperator, Block, Declaration, DynamicKey, Expression, FlowBlock, FlowEdge,
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
     GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, NodeVisitor,
     NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind, ScalarLiteral,
@@ -94,12 +94,16 @@ impl NodeVisitor for FlowSensitiveVisitor {
             return;
         }
 
-        // detect statement-level calls for assertion narrowing
-        if let Expression::Statement { statement } = expression
-            && matches!(tree.get(*statement), Expression::Call { .. })
+        // detect block-leading calls for assertion narrowing
+        if matches!(expression, Expression::Call { .. })
+            && let Some(parent) = tree.get_parent(id.id)
+            && parent.ty == NodeType::Block
         {
-            self.mark_flow_required();
-            return;
+            let block = tree.get(parent.into_typed::<Block>());
+            if block.leading_expressions.contains(&id) {
+                self.mark_flow_required();
+                return;
+            }
         }
 
         // visit nested expressions
@@ -390,9 +394,6 @@ impl Compiler {
         let mut expression_id = node_id.into_typed::<Expression>();
         loop {
             match ctx.tree.get(expression_id) {
-                Expression::Statement { statement } => {
-                    expression_id = *statement;
-                }
                 Expression::Parenthesized { expression } => {
                     expression_id = *expression;
                 }

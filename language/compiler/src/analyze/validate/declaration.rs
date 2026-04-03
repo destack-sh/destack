@@ -653,8 +653,8 @@ impl Compiler {
         let block = tree.get(*block);
 
         // scan the directive prologue
-        for expression_id in &block.expressions {
-            let expression = tree.get(*expression_id);
+        for expression_id in block.iter_expressions() {
+            let expression = tree.get(expression_id);
             let Some(directive) = self.expression_directive_literal(tree, expression) else {
                 break;
             };
@@ -670,14 +670,10 @@ impl Compiler {
     /// Return the directive literal id for a statement expression when present.
     fn expression_directive_literal(
         &self,
-        tree: &NodeTree,
+        _tree: &NodeTree,
         expression: &Expression,
     ) -> Option<StringId> {
-        // directives are parsed either as statement wrappers or bare literals
-        let statement = match expression {
-            Expression::Statement { statement } => tree.get(*statement),
-            _ => expression,
-        };
+        let statement = expression;
 
         let Expression::ScalarLiteral {
             value: ScalarLiteral::String(string_id),
