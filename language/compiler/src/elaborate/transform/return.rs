@@ -143,11 +143,32 @@ impl Compiler {
                 // already explicit, do nothing
             }
 
-            Expression::Let { .. } | Expression::Using { .. } => {
-                // binding is a statement, don't wrap in return
-            }
+            Expression::Let { .. }
+            | Expression::Using { .. }
+            | Expression::Labelled { .. }
+            | Expression::Loop { .. }
+            | Expression::ForEach { .. }
+            | Expression::For { .. }
+            | Expression::Break { .. }
+            | Expression::UnresolvedBreak { .. }
+            | Expression::Continue { .. }
+            | Expression::UnresolvedContinue { .. }
+            | Expression::Throw { .. }
+            | Expression::Debugger => {}
 
             _ => {
+                let Some(type_id) = state
+                    .types
+                    .get_declared_or_inferred_type_id(expr_id.into_global_any(state.ctx.module_id))
+                else {
+                    self.replace_expression_with_explicit_return(state, expr_id, scope);
+                    return Ok(());
+                };
+
+                if self.type_is_void_or_never(state, type_id) {
+                    return Ok(());
+                }
+
                 // wrap value expression in return statement
                 self.replace_expression_with_explicit_return(state, expr_id, scope);
             }
@@ -186,6 +207,17 @@ impl Compiler {
                 value: TypeLiteral::Void,
             } => true,
             Type::Value { value } => self.type_is_void(state, *value),
+            _ => false,
+        }
+    }
+
+    /// Check whether a type id resolves to void or never.
+    fn type_is_void_or_never(&self, state: &ElaborateState<'_>, type_id: LocalTypeId) -> bool {
+        match state.types.get_type(type_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Void | TypeLiteral::Never,
+            } => true,
+            Type::Value { value } => self.type_is_void_or_never(state, *value),
             _ => false,
         }
     }

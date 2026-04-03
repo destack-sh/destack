@@ -5,7 +5,7 @@ use destack_workspace::{Module, ProfileId};
 use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind, TypeBinaryOperator};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
-use crate::{Compiler, CompilerContext, ElaborateError, ElaborateResult};
+use crate::{Compiler, CompilerContext, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -161,13 +161,19 @@ impl Compiler {
                 self.reify_resolution(state, expression_id)?;
             }
 
-            // assign binary should be desugared during bind
-            Expression::AssignBinary { .. } => {
-                return Err(ElaborateError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(state.ctx.module_id)
-                        .into_anchored(Some(state.ctx.profile)),
-                });
+            // compound assignments keep their surface shape here
+            Expression::AssignBinary {
+                left,
+                operator,
+                right,
+            } => {
+                self.reify_implicit_casts_in_assign_binary(
+                    state,
+                    expression_id,
+                    left,
+                    operator,
+                    right,
+                )?;
             }
 
             // nominal constructor calls to tagged expressions
