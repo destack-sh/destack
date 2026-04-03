@@ -29,7 +29,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let expression_id = state.tree.insert(expression_id, expression);
+        let expression_id = state.tree.insert_as_owner(expression_id, expression);
 
         // annotate with Type::Value(type_id)
         let type_value = Type::Value { value: type_id };
@@ -55,7 +55,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let literal_id = state.tree.insert(
+        let literal_id = state.tree.insert_as_owner(
             literal_id,
             Expression::TypeLiteral {
                 value: value.clone(),
@@ -88,7 +88,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let expression_id = state.tree.insert(
+        let expression_id = state.tree.insert_as_owner(
             expression_id,
             Expression::Binary {
                 left,
@@ -116,7 +116,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let expression_id = state.tree.insert(
+        let expression_id = state.tree.insert_as_owner(
             expression_id,
             Expression::TypeBinary {
                 left,

@@ -70,16 +70,13 @@ impl Compiler {
                 continue;
             };
 
-            let inner = state.tree.get(expression).clone();
-            state.tree.replace(expression_id, inner);
+            state.tree.replace_from(expression_id, expression);
         }
 
         Ok(())
     }
 
-    /// Try to unwrap a single-expression block to its inner expression.
-    /// Returns the inner expression if the block contains exactly one expression
-    /// that is not a statement. Otherwise returns the original expression.
+    /// Try to unwrap a single tail-expression block to its inner expression.
     fn try_unwrap_block(
         &self,
         state: &ElaborateState<'_>,
@@ -90,19 +87,18 @@ impl Compiler {
         };
 
         let block_node = state.tree.get(*block);
-        if block_node.expressions.len() != 1 {
+        if !block_node.leading_expressions.is_empty() {
             return expr_id;
         }
 
-        let inner_expr_id = block_node.expressions[0];
+        let Some(inner_expr_id) = block_node.tail_expression else {
+            return expr_id;
+        };
         let inner_expr = state.tree.get(inner_expr_id);
 
-        // don't unwrap if the inner expression is a statement (has side effects)
-        // or if it's a let/declaration
+        // don't unwrap bindings from block position
         match inner_expr {
-            Expression::Statement { .. } | Expression::Let { .. } | Expression::Using { .. } => {
-                expr_id
-            }
+            Expression::Let { .. } | Expression::Using { .. } => expr_id,
             _ => inner_expr_id,
         }
     }

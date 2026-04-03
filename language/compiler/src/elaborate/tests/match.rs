@@ -249,7 +249,6 @@ function sumPair(pair: Pair): int32 {
         module_id,
         r#"
 type Pair = { left: int32; right: int32 };
-
 function sumPair(pair): int32 {
     {
         const left = pair.left;
@@ -284,7 +283,6 @@ function width(value: Range): int32 {
         module_id,
         r#"
 newtype Range = (int32, int32,);
-
 function width(value): int32 {
     if (value is Range && value[0] == 0) {
         const upper = value[1];
@@ -326,7 +324,6 @@ struct User {
     age: int32;
     score: int32;
 }
-
 function summarize(user): int32 {
     if (user is User) {
         const years = user.age;
@@ -431,7 +428,6 @@ function classify(value: Range): int32 {
         module_id,
         r#"
 newtype Range = (int32, int32,);
-
 function classify(value): int32 {
     if ((value is Range && value[0] == 0 && value[1] == 1) ||
         (value is Range && value[0] == 2 && value[1] == 3)) {
@@ -529,7 +525,6 @@ function sumPair(pair: Pair): int32 {
         module_id,
         r#"
 type Pair = { left: int32; right: int32 };
-
 function sumPair(pair): int32 {
     {
         const left = pair.left;

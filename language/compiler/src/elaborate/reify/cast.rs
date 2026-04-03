@@ -10,9 +10,10 @@ use dir::{
 };
 
 use super::r#type::{
-    are_types_semantically_equal, common_numeric_type_id_for_binary, is_any_type, is_integer_type,
-    is_nullable_union, is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type,
-    is_union_type, is_unknown_type, numeric_cast_operator,
+    are_types_semantically_equal, common_numeric_type_id_for_binary,
+    has_matching_implicit_value_runtime_family, is_any_type, is_integer_type, is_nullable_union,
+    is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type, is_union_type,
+    is_unknown_type, numeric_cast_operator,
 };
 use crate::analyze::TypeView;
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
@@ -85,8 +86,7 @@ impl Compiler {
             let source_id = reified.into_global_any(state.ctx.module_id);
             let target_id = expression_id.into_global_any(state.ctx.module_id);
             state.types.copy_node_analysis(source_id, target_id);
-            let expression = state.tree.get(reified).clone();
-            state.tree.replace(expression_id, expression);
+            state.tree.replace_from(expression_id, reified);
             return Ok(());
         }
         if let Some(reified) =
@@ -95,8 +95,7 @@ impl Compiler {
             let source_id = reified.into_global_any(state.ctx.module_id);
             let target_id = expression_id.into_global_any(state.ctx.module_id);
             state.types.copy_node_analysis(source_id, target_id);
-            let expression = state.tree.get(reified).clone();
-            state.tree.replace(expression_id, expression);
+            state.tree.replace_from(expression_id, reified);
             return Ok(());
         }
 
@@ -139,8 +138,7 @@ impl Compiler {
             self.wrap_value_with_cast(state, expression_id, left, target_type_id)?;
 
         // replace the must wrapper with the reified expression
-        let reified_expression = state.tree.get(reified_value_id).clone();
-        state.tree.replace(expression_id, reified_expression);
+        state.tree.replace_from(expression_id, reified_value_id);
         state.types.copy_node_analysis(
             reified_value_id.into_global_any(state.ctx.module_id),
             expression_id.into_global_any(state.ctx.module_id),
@@ -222,6 +220,14 @@ impl Compiler {
             return Ok(());
         }
 
+        // skip references that only widen within one runtime family
+        if has_matching_implicit_value_runtime_family(
+            state.types.get_type(source_type_id),
+            state.types.get_type(target_type_id),
+        ) {
+            return Ok(());
+        }
+
         // classify the cast for this narrowing
         let operator = self.cast_operator_for_types(state, source_type_id, target_type_id);
         if operator == CastOperator::Identity {
@@ -235,7 +241,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
-        let value_expression_id = state.tree.insert(value_expression_id, expression);
+        let value_expression_id = state.tree.insert_as_owner(value_expression_id, expression);
         state.types.set_inferred_type(
             value_expression_id.into_global_any(state.ctx.module_id),
             source_type_id,
@@ -254,7 +260,9 @@ impl Compiler {
                 value: target_type_id,
             },
         };
-        let target_expression_id = state.tree.insert(target_expression_id, target_expression);
+        let target_expression_id = state
+            .tree
+            .insert_as_owner(target_expression_id, target_expression);
 
         // set the inferred type for the target type expression
         let target_type_value = Type::Value {
@@ -282,7 +290,9 @@ impl Compiler {
                 scope,
                 None,
             );
-            let cast_expression_id = state.tree.insert(cast_expression_id, cast_expression);
+            let cast_expression_id = state
+                .tree
+                .insert_as_owner(cast_expression_id, cast_expression);
             state.types.set_inferred_type(
                 cast_expression_id.into_global_any(state.ctx.module_id),
                 target_type_id,
@@ -321,18 +331,6 @@ impl Compiler {
                 let parent_expression = state.tree.get(parent_expression_id);
                 match parent_expression {
                     Expression::Parenthesized { expression } if *expression == current_id => {
-                        current_id = parent_expression_id;
-                        continue;
-                    }
-                    Expression::Statement { .. } => {
-                        if self.statement_alias_uses_non_value_operand(
-                            state,
-                            parent_expression_id,
-                            current_id,
-                        ) {
-                            return true;
-                        }
-
                         current_id = parent_expression_id;
                         continue;
                     }
@@ -432,34 +430,6 @@ impl Compiler {
                 }
                 _ => return false,
             }
-        }
-    }
-
-    /// Return whether one statement wrapper aliases an original non-value parent.
-    fn statement_alias_uses_non_value_operand(
-        &self,
-        state: &ElaborateState<'_>,
-        statement_id: LocalNodeId<Expression>,
-        current_id: LocalNodeId<Expression>,
-    ) -> bool {
-        let Some(alias_id) = state.tree.get_alias(statement_id.id) else {
-            return false;
-        };
-        let Ok(alias_expression_id) = alias_id.try_into_typed::<Expression>() else {
-            return false;
-        };
-        let alias_expression = state.tree.get(alias_expression_id);
-
-        match alias_expression {
-            Expression::Parenthesized { expression } => *expression == current_id,
-            Expression::Cast { target_type, .. } => *target_type == current_id,
-            Expression::TaggedScalarExpression { ty, .. }
-            | Expression::TaggedTupleExpression { ty, .. }
-            | Expression::TaggedObjectExpression { ty, .. } => *ty == current_id,
-            Expression::TypeBinary {
-                operator, right, ..
-            } => matches!(operator, TypeBinaryOperator::Cast) && *right == current_id,
-            _ => false,
         }
     }
 
@@ -879,7 +849,7 @@ impl Compiler {
                     scope: _,
                 } => {
                     let block = state.tree.get(body).clone();
-                    let Some(last_expression_id) = block.expressions.last().copied() else {
+                    let Some(last_expression_id) = block.tail_expression else {
                         continue;
                     };
 
@@ -891,16 +861,12 @@ impl Compiler {
                     )?;
 
                     if cast_last_id != last_expression_id {
-                        let mut expressions = block.expressions;
-                        let Some(last_expression) = expressions.last_mut() else {
-                            continue;
-                        };
-                        *last_expression = cast_last_id;
                         state.tree.replace(
                             body,
                             Block {
                                 scope: block.scope,
-                                expressions,
+                                leading_expressions: block.leading_expressions,
+                                tail_expression: Some(cast_last_id),
                             },
                         );
                     }
@@ -1199,6 +1165,18 @@ impl Compiler {
             }
         }
 
+        // keep same-family implicit value casts out of the syntax
+        if allow_assignable_skip
+            && !requires_representation_cast
+            && has_matching_implicit_value_runtime_family(&value_type, &target_type)
+        {
+            state.types.set_inferred_type(
+                value_id.into_global_any(state.ctx.module_id),
+                target_type_id,
+            );
+            return Ok(value_id);
+        }
+
         // skip numeric casts for scalar literals
         let value_type = state.types.get_type(value_type_id);
         if allow_assignable_skip
@@ -1237,7 +1215,9 @@ impl Compiler {
                 value: target_type_id,
             },
         };
-        let target_expression_id = state.tree.insert(target_expression_id, target_expression);
+        let target_expression_id = state
+            .tree
+            .insert_as_owner(target_expression_id, target_expression);
 
         // set the inferred type for the target type expression
         let target_type_value = Type::Value {
@@ -1256,7 +1236,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let cast_expression_id = state.tree.insert(
+        let cast_expression_id = state.tree.insert_as_owner(
             cast_expression_id,
             Expression::Cast {
                 operator,
@@ -1274,7 +1254,7 @@ impl Compiler {
                 state
                     .tree
                     .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-            let parenthesized_id = state.tree.insert(
+            let parenthesized_id = state.tree.insert_as_owner(
                 parenthesized_id,
                 Expression::Parenthesized {
                     expression: cast_expression_id,
@@ -1626,7 +1606,7 @@ impl Compiler {
                 state.tree.get_scope(origin_id),
                 None,
             );
-            let entry_argument_id = state.tree.insert(
+            let entry_argument_id = state.tree.insert_as_owner(
                 entry_argument_id,
                 Argument::Positional {
                     modifiers: None,
@@ -1643,7 +1623,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let entries_array_id = state.tree.insert(
+        let entries_array_id = state.tree.insert_as_owner(
             entries_array_id,
             Expression::ArrayExpression {
                 elements: entry_arguments,
@@ -1666,7 +1646,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let left_id = state.tree.insert(
+        let left_id = state.tree.insert_as_owner(
             left_id,
             Expression::ModuleReference {
                 path: Path::from(&[map_name, from_name][..]),
@@ -1683,7 +1663,7 @@ impl Compiler {
             None,
         );
         let entries_argument_id = self.argument_for_value(state, origin_id, entries_array_id);
-        let call_id = state.tree.insert(
+        let call_id = state.tree.insert_as_owner(
             call_id,
             Expression::Call {
                 left: left_id,
@@ -1872,7 +1852,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let left_id = state.tree.insert(
+        let left_id = state.tree.insert_as_owner(
             left_id,
             Expression::ModuleReference {
                 path: Path::from(&[array_name, from_name][..]),
@@ -1889,7 +1869,7 @@ impl Compiler {
             None,
         );
         let value_argument_id = self.argument_for_value(state, origin_id, value_id);
-        let call_id = state.tree.insert(
+        let call_id = state.tree.insert_as_owner(
             call_id,
             Expression::Call {
                 left: left_id,
@@ -2178,7 +2158,7 @@ impl Compiler {
                     state.tree.get_scope(origin_id),
                     None,
                 );
-                let key_expression_id = state.tree.insert(
+                let key_expression_id = state.tree.insert_as_owner(
                     key_expression_id,
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::String(name),
@@ -2221,7 +2201,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let key_argument_id = state.tree.insert(
+        let key_argument_id = state.tree.insert_as_owner(
             key_argument_id,
             Argument::Positional {
                 modifiers: None,
@@ -2234,7 +2214,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let value_argument_id = state.tree.insert(
+        let value_argument_id = state.tree.insert_as_owner(
             value_argument_id,
             Argument::Positional {
                 modifiers: None,
@@ -2249,7 +2229,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let tuple_expression_id = state.tree.insert(
+        let tuple_expression_id = state.tree.insert_as_owner(
             tuple_expression_id,
             Expression::TupleExpression {
                 elements: vec![key_argument_id, value_argument_id],
@@ -2328,7 +2308,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        state.tree.insert(
+        state.tree.insert_as_owner(
             argument_id,
             Argument::Positional {
                 modifiers: None,

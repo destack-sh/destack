@@ -28,7 +28,6 @@ function test(): float {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): float64 {
     let value = (intValue() as float64);
     return value;
@@ -65,7 +64,6 @@ function test(): float {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): float64 {
     let value = (intValue() as float64);
     value = (intValue() as float64);
@@ -101,7 +99,6 @@ function test(): float {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): float64 {
     return (intValue() as float64);
 }
@@ -139,11 +136,9 @@ function test(): float {
 function intValue(): int32 {
     return 1;
 }
-
 function takeFloat(value): float64 {
     return value;
 }
-
 function test(): float64 {
     return takeFloat((intValue() as float64));
 }
@@ -181,11 +176,9 @@ function test(condition: boolean): float {
 function floatValue(): float64 {
     return 1;
 }
-
 function intValue(): int32 {
     return 1;
 }
-
 function test(condition): float64 {
     return condition ? floatValue() : (intValue() as float64);
 }
@@ -223,7 +216,6 @@ function test(condition: boolean): float {
 function intValue(): int32 {
     return 1;
 }
-
 function test(condition): float64 {
     let value;
     if (condition == true) {
@@ -273,7 +265,6 @@ function test(condition: boolean): float {
 function intValue(): int32 {
     return 1;
 }
-
 function test(condition): float64 {
     let value;
     if (condition == true) {
@@ -390,7 +381,6 @@ function test(): int32 | float64 {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): int32 | float64 {
     let value = (intValue() as int32 | float64);
     return value;
@@ -431,11 +421,9 @@ function test(value: Foo | Bar): int32 {
 struct Foo {
     x: int32;
 }
-
 struct Bar {
     y: int32;
 }
-
 function test(value): int32 {
     if (value is Foo) {
         return (value as Foo).x;
@@ -478,11 +466,9 @@ function test(value: Foo | Bar): int32 {
 struct Foo {
     x: int32;
 }
-
 struct Bar {
     y: int32;
 }
-
 function test(value): int32 {
     if (value is Foo && (value as Foo).x > (0 as int32)) {
         return (value as Foo).x;
@@ -525,11 +511,9 @@ function test(value: Foo | Bar): int32 {
 struct Foo {
     x: int32;
 }
-
 struct Bar {
     y: int32;
 }
-
 function test(value): int32 {
     if (value is Foo && (value as Foo).x > (0 as int32) && (value as Foo).x < (10 as int32)) {
         return (value as Foo).x;
@@ -572,11 +556,9 @@ function test(value: Foo | Bar): int32 {
 struct Foo {
     x: int32;
 }
-
 struct Bar {
     y: int32;
 }
-
 function test(value): int32 {
     while (value is Foo && (value as Foo).x > (0 as int32)) {
         break;
@@ -616,11 +598,9 @@ function isFoo(value: Foo | Bar): boolean {
 struct Foo {
     x: int32;
 }
-
 struct Bar {
     y: int32;
 }
-
 function isFoo(value): boolean {
     return value is Foo;
 }
@@ -691,11 +671,9 @@ function test(value: Foo | Bar): int32 {
 class Foo {
     x: int32 = 0;
 }
-
 class Bar {
     y: int32 = 0;
 }
-
 function test(value): int32 {
     if (value instanceof Foo) {
         return (value as Foo).x;
@@ -731,9 +709,7 @@ function test(value: WithX | WithY): int32 {
         module_id,
         r#"
 type WithX = { x: int32 };
-
 type WithY = { y: int32 };
-
 function test(value): int32 {
     if ('x' in value) {
         return (value as { x: int32 }).x;
@@ -776,11 +752,9 @@ function test(value: Foo | Bar): int32 {
 struct Foo {
     x: int32;
 }
-
 struct Bar {
     y: int32;
 }
-
 function test(value): int32 {
     if (value is Foo) return (value as Foo).x; else {
         return 0;
@@ -819,11 +793,9 @@ function test(value: Foo | Bar): Foo {
 struct Foo {
     x: int32;
 }
-
 struct Bar {
     y: int32;
 }
-
 function test(value): Foo {
     return value as Foo;
 }
@@ -856,7 +828,6 @@ function make(value: int32): Counter {
 struct Counter {
     value: int32;
 }
-
 function make(value): Counter {
     return Counter { value };
 }
@@ -903,7 +874,6 @@ function test(): Greeter {
 interface Greeter {
     greet(): int32;
 }
-
 class GreeterImpl implements Greeter {
     value: int32;
     constructor(value) {
@@ -914,7 +884,6 @@ class GreeterImpl implements Greeter {
         return this.value;
     }
 }
-
 function test(): Greeter {
     let value = (new GreeterImpl(1) as Greeter);
     return value;
@@ -933,7 +902,6 @@ fn test_reify_implicit_cast_interface_to_interface() {
 interface Greeter {
     greet(): int32;
 }
-
 interface Speaker {
     greet(): int32;
 }
@@ -953,11 +921,9 @@ function test(value: Greeter): Speaker {
 interface Greeter {
     greet(): int32;
 }
-
 interface Speaker {
     greet(): int32;
 }
-
 function test(value): Speaker {
     let assigned = (value as Speaker);
     return assigned;
@@ -991,7 +957,6 @@ function test(): int32 | null {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): int32 | null {
     let value = (intValue() as int32 | null);
     return value;
@@ -1101,7 +1066,6 @@ function test(): int32 | undefined {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): int32 | undefined {
     let value = (intValue() as int32 | undefined);
     return value;
@@ -1138,11 +1102,9 @@ function test(): int32 | null | undefined {
 function accept(value): int32 | null | undefined {
     return value;
 }
-
 function intValue(): int32 {
     return 1;
 }
-
 function test(): int32 | null | undefined {
     return accept((intValue() as int32 | null | undefined));
 }
@@ -1178,7 +1140,6 @@ function test(): float {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): float64 {
     return intValue() as float64;
 }
@@ -1214,7 +1175,6 @@ function test(): void {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): void {
     using value = (intValue() as float64);
 }
@@ -1251,7 +1211,6 @@ function test(): int32 {
 function intValue(): int32 {
     return 1;
 }
-
 function test(): int32 {
     let value = intValue();
     return value;
@@ -1319,7 +1278,6 @@ function test(): object {
 function getArray(): int32[] {
     return [1, 2, 3];
 }
-
 function test(): object {
     let value = (getArray() as object);
     return value;
@@ -1358,11 +1316,9 @@ function test(): Foo {
 interface Foo {
     x: int32;
 }
-
 function getObject(): object {
     return ({ x: 1 } as object);
 }
-
 function test(): Foo {
     return getObject() as Foo;
 }
@@ -1496,7 +1452,6 @@ function test(): void {
 function take(record): void {
     return;
 }
-
 function test(): void {
     take(Map.from([("beta", 2,)]));
 }
@@ -1660,7 +1615,6 @@ function test(values: int32[3]): void {
 function take(values): void {
     return;
 }
-
 function test(values): void {
     take(Array.fromSized(values));
 }

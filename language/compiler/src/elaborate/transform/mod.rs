@@ -1,4 +1,4 @@
-mod blocks;
+mod block;
 mod coalesce;
 mod declarator;
 mod expression;

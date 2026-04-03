@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use dir::{
-    Argument, BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
+    BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
     Declarator, Expression, LocalNodeId, LocalNodeIdAny, LocalSymbolId, Mutability, Name, NodeType,
     Path, Pattern,
 };
@@ -28,26 +28,17 @@ impl Compiler {
         self.reinfer_block_type(block_id, state.tree, state.types, state.ctx.module_id)
     }
 
-    /// Insert a statement wrapper expression around another expression.
-    pub(crate) fn insert_statement_expression(
+    /// Return one expression for effect-position insertion.
+    pub(crate) fn insert_effect_expression(
         &self,
         state: &mut ElaborateState<'_>,
-        origin_id: LocalNodeId<Expression>,
-        statement: LocalNodeId<Expression>,
-        scope: dir::LocalScope,
+        _origin_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
+        _scope: dir::LocalScope,
     ) -> LocalNodeId<Expression> {
-        // create one statement wrapper expression
-        let statement_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let statement_id = state
-            .tree
-            .insert(statement_id, Expression::Statement { statement });
+        let _ = state;
 
-        // statement expressions are always void typed
-        self.set_void_expression_type(state.types, state.ctx.module_id, statement_id);
-        statement_id
+        expression_id
     }
 
     /// Clone an expression node and copy node-level analysis metadata.
@@ -66,7 +57,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let cloned_id = state.tree.insert(cloned_id, expression.clone());
+        let cloned_id = state.tree.insert_as_owner(cloned_id, expression.clone());
 
         // copy inferred type and resolution metadata
         state.types.copy_node_analysis(
@@ -77,68 +68,49 @@ impl Compiler {
         cloned_id
     }
 
-    /// Clone call argument nodes and copy node-level analysis metadata.
-    pub(crate) fn clone_arguments_with_analysis(
-        &self,
-        state: &mut ElaborateState<'_>,
-        origin_expression_id: LocalNodeId<Expression>,
-        argument_ids: &[LocalNodeId<Argument>],
-        scope: dir::LocalScope,
-    ) -> Vec<LocalNodeId<Argument>> {
-        let mut cloned_argument_ids = Vec::with_capacity(argument_ids.len());
-        for argument_id in argument_ids {
-            // clone each argument node in the current expression scope
-            let argument = state.tree.get(*argument_id).clone();
-            let cloned_argument_id = state.tree.reserve_from(
-                NodeType::Argument,
-                origin_expression_id.into_any(),
-                scope,
-                None,
-            );
-            let cloned_argument_id = state.tree.insert(cloned_argument_id, argument);
-
-            // copy inferred analysis for the cloned node
-            state.types.copy_node_analysis(
-                argument_id.into_global_any(state.ctx.module_id),
-                cloned_argument_id.into_global_any(state.ctx.module_id),
-            );
-            cloned_argument_ids.push(cloned_argument_id);
-        }
-
-        cloned_argument_ids
-    }
-
-    /// Replace an expression with a statement-wrapped explicit return.
-    pub(crate) fn replace_expression_with_statement_return(
+    /// Replace one expression with an explicit return expression.
+    pub(crate) fn replace_expression_with_explicit_return(
         &self,
         state: &mut ElaborateState<'_>,
         expression_id: LocalNodeId<Expression>,
         scope: dir::LocalScope,
     ) {
-        // build the explicit return node
-        let return_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
-        let original_expression_id = state.tree.replace(
-            expression_id,
-            Expression::Statement {
-                statement: LocalNodeId::new(return_id.id),
-            },
-        );
-        state.types.copy_node_analysis(
-            expression_id.into_global_any(state.ctx.module_id),
-            original_expression_id.into_global_any(state.ctx.module_id),
-        );
-        let return_expression_id: LocalNodeId<Expression> = state.tree.insert(
-            return_id,
-            Expression::Return {
-                value: Some(original_expression_id),
-            },
-        );
-        self.set_never_expression_type(state.types, state.ctx.module_id, return_expression_id);
+        // clone the original expression into a new value node
+        let original_expression = state.tree.get(expression_id).clone();
+        let value_id =
+            self.clone_expression_with_analysis(state, expression_id, &original_expression, scope);
 
-        // statement wrapper
+        // replace the original expression with an explicit return
+        state.tree.replace(
+            expression_id,
+            Expression::Return {
+                value: Some(value_id),
+            },
+        );
+        self.set_never_expression_type(state.types, state.ctx.module_id, expression_id);
+    }
+
+    /// Replace one expression with an explicit assignment expression.
+    pub(crate) fn replace_expression_with_explicit_assignment(
+        &self,
+        state: &mut ElaborateState<'_>,
+        expression_id: LocalNodeId<Expression>,
+        target: LocalNodeId<Expression>,
+        scope: dir::LocalScope,
+    ) {
+        // clone the original expression into a new value node
+        let original_expression = state.tree.get(expression_id).clone();
+        let value_id =
+            self.clone_expression_with_analysis(state, expression_id, &original_expression, scope);
+
+        // replace the original expression with an explicit assignment
+        state.tree.replace(
+            expression_id,
+            Expression::Assign {
+                left: target,
+                right: value_id,
+            },
+        );
         self.set_void_expression_type(state.types, state.ctx.module_id, expression_id);
     }
 
@@ -163,7 +135,7 @@ impl Compiler {
         let reference_id = state
             .tree
             .reserve_from(NodeType::Expression, origin_id, scope, None);
-        let reference_id: LocalNodeId<Expression> = state.tree.insert(
+        let reference_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             reference_id,
             Expression::LocalReference {
                 path: Path::from(&[name][..]),
@@ -200,7 +172,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Pattern, origin_id.into_any(), scope, None);
-        let pattern_id: LocalNodeId<Pattern> = state.tree.insert(
+        let pattern_id: LocalNodeId<Pattern> = state.tree.insert_as_owner(
             pattern_id,
             Pattern::Binding {
                 mutability: pattern_mutability,
@@ -215,7 +187,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Declarator, origin_id.into_any(), scope, None);
-        let declarator_id: LocalNodeId<Declarator> = state.tree.insert(
+        let declarator_id: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             declarator_id,
             Declarator {
                 pattern: pattern_id,
@@ -237,7 +209,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let let_id: LocalNodeId<Expression> = state.tree.insert(
+        let let_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             let_id,
             Expression::Let {
                 descriptor,

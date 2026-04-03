@@ -104,7 +104,7 @@ impl Compiler {
         match expr {
             Expression::Block { block } => {
                 let block_node = state.tree.get(block).clone();
-                if let Some(last_expr_id) = block_node.expressions.last().copied() {
+                if let Some(last_expr_id) = block_node.tail_expression {
                     // recursively transform the last expression
                     self.make_return_explicit(state, last_expr_id, scope)?;
                 }
@@ -132,7 +132,7 @@ impl Compiler {
                 ..
             } => {
                 // for ternary, return the whole expression as a statement
-                self.replace_expression_with_statement_return(state, expr_id, scope);
+                self.replace_expression_with_explicit_return(state, expr_id, scope);
             }
 
             Expression::Match { .. } => {
@@ -143,18 +143,13 @@ impl Compiler {
                 // already explicit, do nothing
             }
 
-            Expression::Statement { statement } => {
-                // recursively transform the inner statement
-                self.make_return_explicit(state, statement, scope)?;
-            }
-
             Expression::Let { .. } | Expression::Using { .. } => {
                 // binding is a statement, don't wrap in return
             }
 
             _ => {
                 // wrap value expression in return statement
-                self.replace_expression_with_statement_return(state, expr_id, scope);
+                self.replace_expression_with_explicit_return(state, expr_id, scope);
             }
         }
 
@@ -203,12 +198,10 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
         let block = state.tree.get(block_id);
-        let type_id = match block.expressions.last() {
-            Some(expression_id) => self.expression_type_id_or_error(
-                state.types.module_id,
-                *expression_id,
-                state.types,
-            )?,
+        let type_id = match block.tail_expression {
+            Some(expression_id) => {
+                self.expression_type_id_or_error(state.types.module_id, expression_id, state.types)?
+            }
             None => {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,

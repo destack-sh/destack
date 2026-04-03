@@ -369,6 +369,77 @@ pub(super) fn is_scalar_literal_type(ty: &Type) -> bool {
     )
 }
 
+/// Return whether a scalar literal and primitive share one runtime family.
+pub(super) fn has_matching_scalar_runtime_family(source: &Type, target: &Type) -> bool {
+    matches!(
+        (source, target),
+        (
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(_)),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            },
+        ) | (
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Character(_)),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Character),
+            },
+        ) | (
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        ) | (
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::RegexString { .. }),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+        ) | (
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Bigint(_)),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Bigint),
+            },
+        )
+    )
+}
+
+/// Return whether one implicit value cast preserves the runtime family.
+pub(super) fn has_matching_implicit_value_runtime_family(source: &Type, target: &Type) -> bool {
+    if has_matching_scalar_runtime_family(source, target) {
+        return true;
+    }
+
+    matches!(
+        (source, target),
+        (
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(_) | PrimitiveType::Float(_)),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        ) | (
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(
+                    ScalarLiteral::Integer(_) | ScalarLiteral::Float(_),
+                ),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            },
+        )
+    )
+}
+
 /// Check whether a type is a pointer type.
 pub(super) fn is_pointer_type(ty: &Type) -> bool {
     matches!(ty, Type::PointerOf { .. })

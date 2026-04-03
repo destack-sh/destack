@@ -48,22 +48,20 @@ impl Compiler {
         }
 
         let block = state.tree.get(block_id).clone();
-        let mut new_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
+        let mut new_leading_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
         let mut modified = false;
 
-        for expr_id in &block.expressions {
-            // check if this is a statement wrapping a binding
-            let (binding_expr_id, is_statement) = match state.tree.get(*expr_id) {
-                Expression::Statement { statement } => (*statement, true),
-                Expression::Let { .. } | Expression::Using { .. } => (*expr_id, false),
+        for &expression_id in &block.leading_expressions {
+            let binding_expression_id = match state.tree.get(expression_id) {
+                Expression::Let { .. } | Expression::Using { .. } => expression_id,
                 _ => {
-                    new_expressions.push(*expr_id);
+                    new_leading_expressions.push(expression_id);
                     continue;
                 }
             };
 
             let (descriptor, binding_kind, declarators) =
-                match state.tree.get(binding_expr_id).clone() {
+                match state.tree.get(binding_expression_id).clone() {
                     Expression::Let {
                         descriptor,
                         mutability,
@@ -75,25 +73,28 @@ impl Compiler {
                         declarators,
                     } => (descriptor, BindingKind::Using { asynchrony }, declarators),
                     _ => {
-                        new_expressions.push(*expr_id);
+                        new_leading_expressions.push(expression_id);
                         continue;
                     }
                 };
 
             // only split if there are multiple declarators
             if declarators.len() <= 1 {
-                new_expressions.push(*expr_id);
+                new_leading_expressions.push(expression_id);
                 continue;
             }
 
             modified = true;
-            let scope = state.tree.get_scope(binding_expr_id);
+            let scope = state.tree.get_scope(binding_expression_id);
+
+            // this original multi-declarator binding is removed from the block
+            state.tree.mark_inactive(binding_expression_id.into_any());
 
             // create individual binding for each declarator
             for declarator_id in declarators {
                 let new_let_id = state.tree.reserve_from(
                     NodeType::Expression,
-                    binding_expr_id.into_any(),
+                    binding_expression_id.into_any(),
                     scope,
                     None,
                 );
@@ -118,24 +119,17 @@ impl Compiler {
                         declarators: vec![declarator_id],
                     },
                 };
-                let new_let: LocalNodeId<Expression> = state.tree.insert(new_let_id, new_binding);
+                let new_let: LocalNodeId<Expression> =
+                    state.tree.insert_as_owner(new_let_id, new_binding);
                 self.set_void_expression_type(state.types, state.types.module_id, new_let);
-
-                // wrap in statement if original was wrapped
-                let final_expr = if is_statement {
-                    self.insert_statement_expression(state, binding_expr_id, new_let, scope)
-                } else {
-                    new_let
-                };
-
-                new_expressions.push(final_expr);
+                new_leading_expressions.push(new_let);
             }
         }
 
         // update block if modified
         if modified {
             let new_block = Block {
-                expressions: new_expressions,
+                leading_expressions: new_leading_expressions,
                 ..block
             };
             state.tree.replace(block_id, new_block);

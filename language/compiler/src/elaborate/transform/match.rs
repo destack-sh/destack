@@ -75,8 +75,7 @@ impl Compiler {
 
         // replace the match with the generated if else chain
         if let Some(replacement) = result {
-            let replacement = state.tree.get(replacement).clone();
-            state.tree.replace(match_id, replacement);
+            state.tree.replace_from(match_id, replacement);
         }
 
         Ok(())
@@ -172,7 +171,7 @@ impl Compiler {
                         .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
                 let block_expr: LocalNodeId<Expression> = state
                     .tree
-                    .insert(block_expr_id, Expression::Block { block: *body });
+                    .insert_as_owner(block_expr_id, Expression::Block { block: *body });
                 let block_type_id = state
                     .types
                     .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
@@ -382,7 +381,7 @@ impl Compiler {
             .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
 
         // insert the if expression
-        let if_expr: LocalNodeId<Expression> = state.tree.insert(
+        let if_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
             Expression::If {
                 kind: IfKind::If,
@@ -1357,7 +1356,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-        let index_expr: LocalNodeId<Expression> = state.tree.insert(
+        let index_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
             index_lit_id,
             Expression::ScalarLiteral {
                 value: ScalarLiteral::Integer(index as i64),
@@ -1375,7 +1374,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
-        let expr_id = state.tree.insert(
+        let expr_id = state.tree.insert_as_owner(
             idx_id,
             Expression::Index {
                 left: value,
@@ -1413,7 +1412,7 @@ impl Compiler {
                 .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
 
         // insert the member access expression
-        let expr_id = state.tree.insert(
+        let expr_id = state.tree.insert_as_owner(
             member_id,
             Expression::Member {
                 left: value,
@@ -1634,7 +1633,7 @@ impl Compiler {
         }
 
         // build let expressions for each binding
-        let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
+        let mut leading_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
 
         for (name, symbol, mutability, value) in bindings {
             // create one local let binding for this extracted value
@@ -1650,23 +1649,21 @@ impl Compiler {
             );
 
             // wrap in statement
-            let stmt = self.insert_statement_expression(state, match_id, let_expr, scope);
+            let stmt = self.insert_effect_expression(state, match_id, let_expr, scope);
 
-            expressions.push(stmt);
+            leading_expressions.push(stmt);
         }
-
-        // add body as final expression
-        expressions.push(body);
 
         // create Block containing all expressions
         let block_id = state
             .tree
             .reserve_from(NodeType::Block, match_id.into_any(), scope, None);
-        let block: LocalNodeId<Block> = state.tree.insert(
+        let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
                 scope: scope.0,
-                expressions,
+                leading_expressions,
+                tail_expression: Some(body),
             },
         );
 
@@ -1677,7 +1674,7 @@ impl Compiler {
                 .reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
         let expr_id = state
             .tree
-            .insert(block_expr_id, Expression::Block { block });
+            .insert_as_owner(block_expr_id, Expression::Block { block });
         let body_type_id = state
             .types
             .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
@@ -1729,11 +1726,12 @@ impl Compiler {
         let block_id = state
             .tree
             .reserve_from(NodeType::Block, origin_id.into_any(), scope, None);
-        let block: LocalNodeId<Block> = state.tree.insert(
+        let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
                 scope: scope.0,
-                expressions: vec![body],
+                leading_expressions: Vec::new(),
+                tail_expression: Some(body),
             },
         );
 
@@ -1744,7 +1742,7 @@ impl Compiler {
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
         let expr_id = state
             .tree
-            .insert(block_expr_id, Expression::Block { block });
+            .insert_as_owner(block_expr_id, Expression::Block { block });
         let body_type_id = state
             .types
             .get_declared_or_inferred_type_id(body.into_global_any(state.tree.module_id))
