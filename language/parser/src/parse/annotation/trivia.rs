@@ -1,10 +1,11 @@
 use crate::Parser;
 use crate::lex::SideRange;
+use crate::parse::timing::tags;
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, BlankTrivia, Comment,
     CommentDirective, CommentStyle, CommentTrivia, Doc, DocStyle, Expression, LocalNodeId,
-    NodeParentIndex, NodeType, PostfixPosition, StringId, TokenSpan, TokenType, TriviaBoundary,
-    TriviaNewlineFlags, normalize_comment_payload,
+    NodeType, StringId, TokenSpan, TokenType, TriviaBoundary, TriviaNewlineFlags,
+    normalize_comment_payload,
 };
 use destack_source::{NodeSearchMode, Span};
 
@@ -61,8 +62,7 @@ impl Parser {
     pub(crate) fn attach_trivia_annotations(&mut self) {
         {
             // materialize stream once so trivia flags and token indexes are stable
-            let _lex_to_end_timing =
-                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_LEX_TO_END);
+            let _lex_to_end_timing = self.timing_scope(tags::PARSE_ANNOTATIONS_LEX_TO_END);
             self.token_stream.lex_to_end();
         }
 
@@ -75,8 +75,7 @@ impl Parser {
 
         // keep attach_trivia idempotent for repeated parser entrypoints
         {
-            let _attached_check_timing =
-                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACHED_CHECK);
+            let _attached_check_timing = self.timing_scope(tags::PARSE_ANNOTATIONS_ATTACHED_CHECK);
             if self.has_attached_trivia_annotations() {
                 return;
             }
@@ -84,8 +83,7 @@ impl Parser {
 
         // borrow token arrays directly for one sweep emission
         let (semantic_tokens, side_tokens, leading_side_ranges, comment_side_token_indexes) = {
-            let _collect_tokens_timing =
-                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_TOKENS);
+            let _collect_tokens_timing = self.timing_scope(tags::PARSE_ANNOTATIONS_COLLECT_TOKENS);
             let semantic_tokens_len = self.token_stream.tokens().len();
             let side_tokens_len = self.token_stream.side_tokens().len();
             if semantic_tokens_len == 0 && side_tokens_len == 0 {
@@ -123,7 +121,7 @@ impl Parser {
         // build seam indexes
         let neighbor_index = {
             let _collect_wrappers_timing =
-                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_COLLECT_WRAPPERS);
+                self.timing_scope(tags::PARSE_ANNOTATIONS_COLLECT_WRAPPERS);
             Self::build_token_neighbor_index(semantic_tokens)
         };
         let documentation_target_token_indexes = self.collect_documentation_target_token_indexes(
@@ -134,9 +132,8 @@ impl Parser {
             &neighbor_index,
         );
         let documentation_owner_index = {
-            let _build_owner_index_timing = self.timing_scope(
-                crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_OWNER_INDEX,
-            );
+            let _build_owner_index_timing =
+                self.timing_scope(tags::PARSE_ANNOTATIONS_ATTACH_SIDE_BUILD_OWNER_INDEX);
             self.build_documentation_owner_index(
                 semantic_tokens,
                 &documentation_target_token_indexes,
@@ -145,8 +142,7 @@ impl Parser {
 
         // emit side token comments and semantic docs
         let inserted_docs = {
-            let _attach_side_timing =
-                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE);
+            let _attach_side_timing = self.timing_scope(tags::PARSE_ANNOTATIONS_ATTACH_SIDE);
             self.emit_comment_and_documentation_trivia(
                 semantic_tokens,
                 side_tokens,
@@ -157,29 +153,16 @@ impl Parser {
             )
         };
 
-        // reattach decorator prefix comments onto class and object body owners
-        self.attach_decorator_prefix_comment_targets(semantic_tokens);
-
-        // reattach end-of-line statement comments onto statement boundaries
-        self.attach_statement_line_postfix_boundary_comment_targets(semantic_tokens);
-
-        // reattach empty-call callee line comments onto statement boundaries
-        self.attach_empty_call_boundary_line_comment_targets(semantic_tokens);
-
-        // reattach chain-boundary comments onto the preceding expression owner
-        self.attach_chain_boundary_comment_targets(semantic_tokens);
-
         // emit blank runs
         {
-            let _group_loop_timing = self
-                .timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_GROUP_LOOP);
+            let _group_loop_timing =
+                self.timing_scope(tags::PARSE_ANNOTATIONS_ATTACH_SIDE_GROUP_LOOP);
             self.emit_blank_trivia(semantic_tokens, &neighbor_index);
         }
 
         // keep semantic annotation order stable after doc inserts
         if inserted_docs {
-            let _sort_timing =
-                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_SORT);
+            let _sort_timing = self.timing_scope(tags::PARSE_ANNOTATIONS_SORT);
             self.tree.sort_annotations();
         }
     }
@@ -211,8 +194,7 @@ impl Parser {
             Vec::<PendingCommentTriviaRecord>::with_capacity(comment_side_token_indexes.len());
 
         {
-            let _scan_timing =
-                self.timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_SCAN);
+            let _scan_timing = self.timing_scope(tags::PARSE_ANNOTATIONS_ATTACH_SIDE_SCAN);
 
             for (comment_offset, &comment_side_index) in
                 comment_side_token_indexes.iter().enumerate()
@@ -345,8 +327,8 @@ impl Parser {
 
         // emit semantic documentation after lookup phase to keep source-map index stable
         {
-            let _emit_docs_timing = self
-                .timing_scope(crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_DOCS);
+            let _emit_docs_timing =
+                self.timing_scope(tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_DOCS);
             for pending in pending_documentation {
                 let doc_id = self.insert_node(
                     Doc {
@@ -362,9 +344,8 @@ impl Parser {
 
         // emit comment trivia after lookup phase to keep source-map index stable
         {
-            let _emit_comments_timing = self.timing_scope(
-                crate::parse::timing::tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_COMMENTS,
-            );
+            let _emit_comments_timing =
+                self.timing_scope(tags::PARSE_ANNOTATIONS_ATTACH_SIDE_EMIT_COMMENTS);
             for pending in pending_comment_trivia {
                 let comment_id = self.insert_node(
                     Comment {
@@ -377,413 +358,11 @@ impl Parser {
                     span: pending.span,
                     boundary: pending.boundary,
                     directive: pending.directive,
-                    target_node: None,
-                    position: AnnotationPosition::BlockInfix,
                 });
             }
         }
 
         inserted_docs
-    }
-
-    /// Attach prefix comment trivia that belongs to decorator chains onto body owners.
-    fn attach_decorator_prefix_comment_targets(&mut self, semantic_tokens: &[TokenSpan]) {
-        if semantic_tokens.is_empty() || self.tree.comment_trivia().is_empty() {
-            return;
-        }
-
-        let node_count = self.tree.next_id();
-        for node_id in 0..node_count {
-            let node_type = self.tree.get_node_type(node_id);
-            if !matches!(node_type, NodeType::Property | NodeType::Member) {
-                continue;
-            }
-
-            let annotation_ids = self.tree.get_annotations_ref(node_id);
-            if annotation_ids.is_empty() {
-                continue;
-            }
-
-            let mut token_after_indexes = Vec::new();
-            for &annotation_id in annotation_ids {
-                let annotation = self.tree.get(annotation_id);
-                if !matches!(
-                    annotation,
-                    Annotation::Decorator {
-                        position: AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix,
-                        ..
-                    }
-                ) {
-                    continue;
-                }
-
-                let annotation_span = self.tree.get_span(annotation_id);
-                if let Ok(token_index) = semantic_tokens
-                    .binary_search_by_key(&annotation_span.start, |token| token.span.start)
-                {
-                    token_after_indexes.push(token_index as u32);
-                }
-            }
-
-            if token_after_indexes.is_empty() {
-                continue;
-            }
-
-            let owner_span = self.tree.get_span_by_id(node_id);
-            if let Ok(token_index) =
-                semantic_tokens.binary_search_by_key(&owner_span.start, |token| token.span.start)
-            {
-                token_after_indexes.push(token_index as u32);
-            }
-
-            token_after_indexes.sort_unstable();
-            token_after_indexes.dedup();
-
-            for trivia in self.tree.comment_trivia_mut() {
-                if trivia.target_node.is_some()
-                    || !token_after_indexes.contains(&trivia.boundary.token_after)
-                {
-                    continue;
-                }
-
-                trivia.target_node = Some(node_id);
-                trivia.position = if trivia.boundary.newlines.has_leading_newline() {
-                    AnnotationPosition::BlockPrefix
-                } else {
-                    AnnotationPosition::LinePrefix
-                };
-            }
-        }
-    }
-
-    /// Attach `callee // comment\n()` seams onto statement-boundary trivia.
-    fn attach_empty_call_boundary_line_comment_targets(&mut self, semantic_tokens: &[TokenSpan]) {
-        if semantic_tokens.is_empty() || self.tree.comment_trivia().is_empty() {
-            return;
-        }
-
-        let node_count = self.tree.next_id();
-        for node_id in 0..node_count {
-            if self.tree.get_node_type(node_id) != NodeType::Expression {
-                continue;
-            }
-
-            let statement_expression_id = LocalNodeId::<Expression>::new(node_id);
-            let Expression::Statement(inner_expression_id) = self.tree.get(statement_expression_id)
-            else {
-                continue;
-            };
-            let inner_expression_id = *inner_expression_id;
-            let Expression::Call {
-                left,
-                position,
-                static_arguments,
-                dynamic_arguments,
-            } = self.tree.get(inner_expression_id)
-            else {
-                continue;
-            };
-            if static_arguments.is_some() || !dynamic_arguments.is_empty() {
-                continue;
-            }
-
-            let boundary_left_id = if *position == PostfixPosition::Indirect {
-                match self.tree.get(*left) {
-                    Expression::Maybe {
-                        left,
-                        position: PostfixPosition::Direct,
-                    } => *left,
-                    _ => *left,
-                }
-            } else {
-                *left
-            };
-
-            let callee_span = self.tree.get_span(boundary_left_id);
-            let call_span = self.tree.get_span(inner_expression_id);
-            let operator_token_type = match position {
-                PostfixPosition::Direct => TokenType::OpenParenthesis,
-                PostfixPosition::Indirect => TokenType::Maybe,
-            };
-            let Some(operator_token_start) = semantic_tokens.iter().find_map(|token| {
-                (token.span.file == call_span.file
-                    && token.span.start >= callee_span.end
-                    && token.span.end <= call_span.end
-                    && token.token.ty == operator_token_type)
-                    .then_some(token.span.start)
-            }) else {
-                continue;
-            };
-            let Some(open_parenthesis_start) = semantic_tokens.iter().find_map(|token| {
-                (token.span.file == call_span.file
-                    && token.span.start >= operator_token_start
-                    && token.span.end <= call_span.end
-                    && token.token.ty == TokenType::OpenParenthesis)
-                    .then_some(token.span.start)
-            }) else {
-                continue;
-            };
-
-            let matching_trivia_indexes = self
-                .tree
-                .comment_trivia()
-                .iter()
-                .enumerate()
-                .filter_map(|(index, trivia)| {
-                    if trivia.target_node.is_some() {
-                        return None;
-                    }
-
-                    let comment = self.tree.get(trivia.comment);
-                    (comment.style == CommentStyle::Slash
-                        && trivia.span.file == call_span.file
-                        && trivia.span.start >= callee_span.end
-                        && trivia.span.end <= open_parenthesis_start)
-                        .then_some(index)
-                })
-                .collect::<Vec<_>>();
-
-            for trivia_index in matching_trivia_indexes {
-                let trivia = &mut self.tree.comment_trivia_mut()[trivia_index];
-                trivia.target_node = Some(inner_expression_id.id);
-                trivia.position = AnnotationPosition::LinePostfixBoundary;
-            }
-        }
-    }
-
-    /// Attach end-of-line statement comments onto the wrapped statement value.
-    fn attach_statement_line_postfix_boundary_comment_targets(
-        &mut self,
-        semantic_tokens: &[TokenSpan],
-    ) {
-        if semantic_tokens.is_empty() || self.tree.comment_trivia().is_empty() {
-            return;
-        }
-
-        let matching_trivia_indexes = self
-            .tree
-            .comment_trivia()
-            .iter()
-            .enumerate()
-            .filter_map(|(index, trivia)| {
-                let comment = self.tree.get(trivia.comment);
-                let is_end_of_file_comment = trivia.boundary.token_after == NO_TOKEN_INDEX;
-                let is_end_of_line_comment = comment.style == CommentStyle::Slash
-                    && !trivia.boundary.newlines.has_leading_newline()
-                    && (trivia.boundary.newlines.has_trailing_newline() || is_end_of_file_comment);
-                if !is_end_of_line_comment {
-                    return None;
-                }
-
-                let token_before_index = Self::decode_token_index(trivia.boundary.token_before)?;
-                let token_before = semantic_tokens.get(token_before_index).copied()?;
-                (token_before.token.ty == TokenType::Semicolon).then_some(index)
-            })
-            .collect::<Vec<_>>();
-
-        for trivia_index in matching_trivia_indexes {
-            let trivia = self.tree.comment_trivia()[trivia_index];
-            let Some(token_before_index) = Self::decode_token_index(trivia.boundary.token_before)
-            else {
-                continue;
-            };
-            let Some(token_before) = semantic_tokens.get(token_before_index).copied() else {
-                continue;
-            };
-
-            let statement_owner = self
-                .find_node_enclosing_at(
-                    &token_before.span,
-                    NodeSearchMode::SmallestOutermost,
-                    |candidate| {
-                        if self.is_annotation_node_id(candidate.idx) {
-                            return false;
-                        }
-
-                        if self.tree.get_node_type(candidate.idx) != NodeType::Expression {
-                            return false;
-                        }
-
-                        matches!(
-                            self.tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
-                            Expression::Statement(_)
-                        )
-                    },
-                )
-                .or_else(|| {
-                    self.find_node_enclosing_at(
-                        &token_before.span,
-                        NodeSearchMode::BiggestOutermost,
-                        |candidate| {
-                            if self.is_annotation_node_id(candidate.idx) {
-                                return false;
-                            }
-
-                            if self.tree.get_node_type(candidate.idx) != NodeType::Expression {
-                                return false;
-                            }
-
-                            matches!(
-                                self.tree.get(LocalNodeId::<Expression>::new(candidate.idx)),
-                                Expression::Statement(_)
-                            )
-                        },
-                    )
-                });
-            let Some(statement_owner) = statement_owner else {
-                continue;
-            };
-
-            let statement_expression_id = LocalNodeId::<Expression>::new(statement_owner.idx);
-            let Expression::Statement(inner_expression_id) = self.tree.get(statement_expression_id)
-            else {
-                continue;
-            };
-            let inner_expression_id = *inner_expression_id;
-
-            let trivia = &mut self.tree.comment_trivia_mut()[trivia_index];
-            trivia.target_node = Some(inner_expression_id.id);
-            trivia.position = AnnotationPosition::LinePostfixBoundary;
-        }
-    }
-
-    /// Attach unowned chain-boundary comments onto the preceding expression owner.
-    fn attach_chain_boundary_comment_targets(&mut self, semantic_tokens: &[TokenSpan]) {
-        if semantic_tokens.is_empty() || self.tree.comment_trivia().is_empty() {
-            return;
-        }
-
-        let parents = NodeParentIndex::from_tree(&self.tree);
-        let node_count = self.tree.next_id();
-
-        for node_id in 0..node_count {
-            if self.tree.get_node_type(node_id) != NodeType::Expression {
-                continue;
-            }
-
-            let expression_id = LocalNodeId::<Expression>::new(node_id);
-            let Some(parent_id) = parents.get_by_id(node_id) else {
-                continue;
-            };
-            if self.tree.get_node_type(parent_id) != NodeType::Expression {
-                continue;
-            }
-
-            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            let parent_expression = self.tree.get(parent_expression_id);
-            let parent_uses_left = match parent_expression {
-                Expression::Member { left, .. }
-                | Expression::PrivateMember { left, .. }
-                | Expression::Call { left, .. }
-                | Expression::Index { left, .. }
-                | Expression::Instantiation { left, .. }
-                | Expression::Maybe { left, .. }
-                | Expression::Must { left, .. } => *left == expression_id,
-                _ => false,
-            };
-            if !parent_uses_left {
-                continue;
-            }
-
-            // call like seams: comments before `(` and `?.(` behave like trailing comments
-            // on the preceding expression, while member seams stay owned by the following op
-            let should_attach = match parent_expression {
-                Expression::Call { .. } => true,
-                Expression::Maybe {
-                    position: PostfixPosition::Direct,
-                    ..
-                } => parents.get_by_id(parent_id).is_some_and(|grandparent_id| {
-                    self.tree.get_node_type(grandparent_id) == NodeType::Expression
-                        && matches!(
-                            self.tree.get(LocalNodeId::<Expression>::new(grandparent_id)),
-                            Expression::Call {
-                                left,
-                                position: PostfixPosition::Indirect,
-                                ..
-                            } if *left == parent_expression_id
-                        )
-                }),
-                _ => false,
-            };
-            if !should_attach {
-                continue;
-            }
-
-            let node_anchor_end = self.expression_trivia_anchor_end(expression_id);
-            let Some(parent_operator_start) = self.chain_parent_operator_start(
-                expression_id,
-                parent_expression_id,
-                semantic_tokens,
-            ) else {
-                continue;
-            };
-            if parent_operator_start <= node_anchor_end {
-                continue;
-            }
-
-            let expression_span = self.tree.get_span(expression_id);
-            let comment_trivia_len = self.tree.comment_trivia().len();
-            for trivia_index in 0..comment_trivia_len {
-                let trivia = self.tree.comment_trivia()[trivia_index];
-                if trivia.span.file != expression_span.file
-                    || trivia.span.start < node_anchor_end
-                    || trivia.span.end > parent_operator_start
-                {
-                    continue;
-                }
-
-                let comment = self.tree.get(trivia.comment);
-                let is_retargetable_existing_call_owner =
-                    trivia.target_node == Some(parent_id) && comment.style == CommentStyle::Star;
-                if trivia.target_node.is_some() && !is_retargetable_existing_call_owner {
-                    continue;
-                }
-
-                let trivia = &mut self.tree.comment_trivia_mut()[trivia_index];
-                trivia.target_node = Some(node_id);
-                trivia.position = AnnotationPosition::LinePostfixBoundary;
-            }
-        }
-    }
-
-    /// Return the expression anchor end used for chain-boundary trivia ownership.
-    fn expression_trivia_anchor_end(&self, expression_id: LocalNodeId<Expression>) -> u32 {
-        let expression = self.tree.get(expression_id);
-        let span = self.tree.get_span(expression_id);
-
-        match expression {
-            Expression::Member { .. } | Expression::PrivateMember { .. } => self
-                .tree
-                .get_main_span(expression_id)
-                .map_or(span.end, |member_span| member_span.end),
-            Expression::Identifier { .. } => self
-                .tree
-                .get_main_span(expression_id)
-                .map_or(span.end, |path_span| path_span.end),
-            _ => span.end,
-        }
-    }
-
-    /// Find the first non-whitespace parent operator token after one chain node.
-    fn chain_parent_operator_start(
-        &self,
-        node_id: LocalNodeId<Expression>,
-        parent_id: LocalNodeId<Expression>,
-        semantic_tokens: &[TokenSpan],
-    ) -> Option<u32> {
-        let node_anchor_end = self.expression_trivia_anchor_end(node_id);
-        let parent_span = self.tree.get_span(parent_id);
-        if parent_span.end <= node_anchor_end {
-            return None;
-        }
-
-        semantic_tokens.iter().find_map(|token| {
-            (token.span.file == parent_span.file
-                && token.span.start >= node_anchor_end
-                && token.span.end <= parent_span.end
-                && !matches!(token.token.ty, TokenType::Whitespace | TokenType::Newline))
-            .then_some(token.span.start)
-        })
     }
 
     /// Build a direct token-to-owner map for semantic documentation targets.
@@ -1079,8 +658,6 @@ impl Parser {
                 blank: blank_id,
                 span: pending.span,
                 boundary: pending.boundary,
-                target_node: None,
-                position: AnnotationPosition::BlockInfix,
             });
         }
     }
@@ -1170,21 +747,14 @@ impl Parser {
 
     /// Normalize one documentation owner to the semantic declaration node when available.
     fn normalize_documentation_owner(&self, owner_id: u32) -> u32 {
-        let mut current_id = owner_id;
+        if self.tree.get_node_type(owner_id) != NodeType::Expression {
+            return owner_id;
+        }
 
-        loop {
-            if self.tree.get_node_type(current_id) != NodeType::Expression {
-                return current_id;
-            }
-
-            let expression_id = LocalNodeId::<Expression>::new(current_id);
-            match self.tree.get(expression_id) {
-                Expression::Declaration(declaration_id) => return declaration_id.id,
-                Expression::Statement(inner_expression_id) => {
-                    current_id = inner_expression_id.id;
-                }
-                _ => return current_id,
-            }
+        let expression_id = LocalNodeId::<Expression>::new(owner_id);
+        match self.tree.get(expression_id) {
+            Expression::Declaration(declaration_id) => declaration_id.id,
+            _ => owner_id,
         }
     }
 
@@ -1255,7 +825,6 @@ impl Parser {
             let expression_id = LocalNodeId::<Expression>::new(current_id);
             let Some(next_id) = (match self.tree.get(expression_id) {
                 Expression::Parenthesized { expression } => Some(expression.id),
-                Expression::Statement(expression) => Some(expression.id),
                 _ => None,
             }) else {
                 return current_id;

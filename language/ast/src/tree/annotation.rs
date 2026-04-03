@@ -286,10 +286,6 @@ pub struct CommentTrivia {
     pub boundary: TriviaBoundary,
     /// Normalized lexer directive kind.
     pub directive: CommentDirective,
-    /// Resolved target node id.
-    pub target_node: Option<u32>,
-    /// Resolved attachment position.
-    pub position: AnnotationPosition,
 }
 
 /// Blank trivia payload with placement metadata.
@@ -301,10 +297,6 @@ pub struct BlankTrivia {
     pub span: Span,
     /// Token-boundary metadata.
     pub boundary: TriviaBoundary,
-    /// Resolved target node id.
-    pub target_node: Option<u32>,
-    /// Resolved attachment position.
-    pub position: AnnotationPosition,
 }
 
 /// Stable source-order reference into split trivia buffers.
