@@ -248,52 +248,6 @@ struct ObservationSubscription {
     next_sequence: ObservationSequence,
 }
 
-/// Scheduler observation outcome.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ObservationSchedulerOutcome {
-    /// Runnable work or ingress progressed.
-    Progressed,
-    /// Virtual time advanced to one deadline.
-    AdvancedTime,
-}
-
-/// Payload data for one emitted observation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ObservationData {
-    /// One summary message.
-    Summary {
-        /// Short summary payload.
-        message: String,
-    },
-    /// One resource lifecycle payload.
-    ResourceLifecycle {
-        /// Agent that owns the resource.
-        agent_id: AgentId,
-        /// Logical world resource identifier.
-        resource_id: WorldResourceId,
-        /// Whether the resource was attached or detached.
-        is_attach: bool,
-        /// Resource backing model.
-        backing: ResourceBacking,
-        /// Resource capture model.
-        capture: ResourceCapture,
-        /// Resource portability model.
-        portability: ResourcePortability,
-    },
-    /// One scheduler progress payload.
-    Scheduler {
-        /// Scheduler outcome classification.
-        outcome: ObservationSchedulerOutcome,
-        /// Optional virtual-time deadline reached by the scheduler.
-        deadline: Option<WorldInstant>,
-    },
-    /// One generic structured field payload.
-    Fields {
-        /// Structured observation fields.
-        fields: BTreeMap<String, String>,
-    },
-}
-
 /// One emitted observable fact.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Observation {
@@ -303,239 +257,192 @@ pub struct Observation {
     pub scope: Scope,
     /// Stable observation name.
     pub name: String,
-    /// Structured observation tags.
-    pub tags: BTreeMap<String, String>,
-    /// Observation payload data.
-    pub data: ObservationData,
+    /// Structured observation labels.
+    pub labels: BTreeMap<String, String>,
+    /// Structured observation annotations.
+    pub annotations: BTreeMap<String, String>,
 }
 
 impl Observation {
     /// Create one observation from explicit parts.
-    pub fn new(
-        category: ObservationCategory,
-        scope: Scope,
-        name: impl Into<String>,
-        data: ObservationData,
-    ) -> Self {
+    pub fn new(category: ObservationCategory, scope: Scope, name: impl Into<String>) -> Self {
         Self {
             category,
             scope,
             name: name.into(),
-            tags: BTreeMap::new(),
-            data,
+            labels: BTreeMap::new(),
+            annotations: BTreeMap::new(),
         }
     }
 
-    /// Create one summary observation.
-    pub fn summary(
+    /// Create one world-scoped structured-annotation observation.
+    pub fn world_annotations<K, V>(
         category: ObservationCategory,
-        scope: Scope,
         name: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        Self::new(
+        annotations: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::annotations(category, Scope::world(), name, annotations)
+    }
+
+    /// Create one runtime-scoped structured-annotation observation.
+    pub fn runtime_annotations<K, V>(
+        category: ObservationCategory,
+        runtime_id: RuntimeId,
+        name: impl Into<String>,
+        annotations: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::annotations(category, Scope::runtime(runtime_id), name, annotations)
+    }
+
+    /// Create one agent-scoped structured-annotation observation.
+    pub fn agent_annotations<K, V>(
+        category: ObservationCategory,
+        runtime_id: Option<RuntimeId>,
+        agent_id: AgentId,
+        name: impl Into<String>,
+        annotations: impl IntoIterator<Item = (K, V)>,
+    ) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        Self::annotations(
             category,
-            scope,
+            Scope::agent(runtime_id, agent_id),
             name,
-            ObservationData::Summary {
-                message: message.into(),
-            },
+            annotations,
         )
     }
 
-    /// Create one world-scoped summary observation.
-    pub fn world_summary(
-        category: ObservationCategory,
-        name: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        Self::summary(category, Scope::world(), name, message)
-    }
-
-    /// Create one world-scoped structured-field observation.
-    pub fn world_fields<K, V>(
-        category: ObservationCategory,
-        name: impl Into<String>,
-        fields: impl IntoIterator<Item = (K, V)>,
-    ) -> Self
-    where
-        K: Into<String>,
-        V: Into<String>,
-    {
-        Self::fields(category, Scope::world(), name, fields)
-    }
-
-    /// Create one runtime-scoped summary observation.
-    pub fn runtime_summary(
-        category: ObservationCategory,
-        runtime_id: RuntimeId,
-        name: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        Self::summary(category, Scope::runtime(runtime_id), name, message)
-    }
-
-    /// Create one runtime-scoped structured-field observation.
-    pub fn runtime_fields<K, V>(
-        category: ObservationCategory,
-        runtime_id: RuntimeId,
-        name: impl Into<String>,
-        fields: impl IntoIterator<Item = (K, V)>,
-    ) -> Self
-    where
-        K: Into<String>,
-        V: Into<String>,
-    {
-        Self::fields(category, Scope::runtime(runtime_id), name, fields)
-    }
-
-    /// Create one agent-scoped summary observation.
-    pub fn agent_summary(
-        category: ObservationCategory,
-        runtime_id: Option<RuntimeId>,
-        agent_id: AgentId,
-        name: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        Self::summary(category, Scope::agent(runtime_id, agent_id), name, message)
-    }
-
-    /// Create one agent-scoped structured-field observation.
-    pub fn agent_fields<K, V>(
-        category: ObservationCategory,
-        runtime_id: Option<RuntimeId>,
-        agent_id: AgentId,
-        name: impl Into<String>,
-        fields: impl IntoIterator<Item = (K, V)>,
-    ) -> Self
-    where
-        K: Into<String>,
-        V: Into<String>,
-    {
-        Self::fields(category, Scope::agent(runtime_id, agent_id), name, fields)
-    }
-
-    /// Create one entity-scoped summary observation.
-    pub fn entity_summary(
+    /// Create one entity-scoped structured-annotation observation.
+    pub fn entity_annotations<K, V>(
         category: ObservationCategory,
         entity_id: impl Into<String>,
         name: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        Self::summary(category, Scope::entity(entity_id), name, message)
-    }
-
-    /// Create one entity-scoped structured-field observation.
-    pub fn entity_fields<K, V>(
-        category: ObservationCategory,
-        entity_id: impl Into<String>,
-        name: impl Into<String>,
-        fields: impl IntoIterator<Item = (K, V)>,
+        annotations: impl IntoIterator<Item = (K, V)>,
     ) -> Self
     where
         K: Into<String>,
         V: Into<String>,
     {
-        Self::fields(category, Scope::entity(entity_id), name, fields)
+        Self::annotations(category, Scope::entity(entity_id), name, annotations)
     }
 
-    /// Create one edge-scoped summary observation.
-    pub fn edge_summary(
+    /// Create one edge-scoped structured-annotation observation.
+    pub fn edge_annotations<K, V>(
         category: ObservationCategory,
         edge_id: impl Into<String>,
         name: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        Self::summary(category, Scope::edge(edge_id), name, message)
-    }
-
-    /// Create one edge-scoped structured-field observation.
-    pub fn edge_fields<K, V>(
-        category: ObservationCategory,
-        edge_id: impl Into<String>,
-        name: impl Into<String>,
-        fields: impl IntoIterator<Item = (K, V)>,
+        annotations: impl IntoIterator<Item = (K, V)>,
     ) -> Self
     where
         K: Into<String>,
         V: Into<String>,
     {
-        Self::fields(category, Scope::edge(edge_id), name, fields)
+        Self::annotations(category, Scope::edge(edge_id), name, annotations)
     }
 
-    /// Create one structured-field observation.
-    pub fn fields<K, V>(
+    /// Create one structured-annotation observation.
+    pub fn annotations<K, V>(
         category: ObservationCategory,
         scope: Scope,
         name: impl Into<String>,
-        fields: impl IntoIterator<Item = (K, V)>,
+        annotations: impl IntoIterator<Item = (K, V)>,
     ) -> Self
     where
         K: Into<String>,
         V: Into<String>,
     {
-        let fields = fields
+        let annotations = annotations
             .into_iter()
             .map(|(key, value)| (key.into(), value.into()))
             .collect();
 
-        Self::new(category, scope, name, ObservationData::Fields { fields })
+        Self {
+            category,
+            scope,
+            name: name.into(),
+            labels: BTreeMap::new(),
+            annotations,
+        }
     }
 
-    /// Create one resource lifecycle observation.
-    pub fn resource_lifecycle(
+    /// Create one resource-attached observation.
+    pub fn resource_attached(
         agent_id: AgentId,
         resource_id: WorldResourceId,
-        is_attach: bool,
         backing: ResourceBacking,
         capture: ResourceCapture,
         portability: ResourcePortability,
     ) -> Self {
-        let name = if is_attach {
-            "resource.attach"
-        } else {
-            "resource.detach"
-        };
-
-        Self::new(
+        Self::annotations(
             ObservationCategory::Resource,
             Scope::resource(agent_id, resource_id),
-            name,
-            ObservationData::ResourceLifecycle {
-                agent_id,
-                resource_id,
-                is_attach,
-                backing,
-                capture,
-                portability,
-            },
+            "resource.attached",
+            [
+                ("agent_id", agent_id.0.to_string()),
+                ("resource_id", resource_id.resource_id.0.to_string()),
+                ("backing", format!("{backing:?}")),
+                ("capture", format!("{capture:?}")),
+                ("portability", format!("{portability:?}")),
+            ],
         )
     }
 
-    /// Create one scheduler observation.
-    pub fn scheduler(outcome: ObservationSchedulerOutcome, deadline: Option<WorldInstant>) -> Self {
-        let name = match outcome {
-            ObservationSchedulerOutcome::Progressed => "scheduler.progressed",
-            ObservationSchedulerOutcome::AdvancedTime => "scheduler.advanced_time",
-        };
+    /// Create one resource-detached observation.
+    pub fn resource_detached(agent_id: AgentId, resource_id: WorldResourceId) -> Self {
+        Self::annotations(
+            ObservationCategory::Resource,
+            Scope::resource(agent_id, resource_id),
+            "resource.detached",
+            [
+                ("agent_id", agent_id.0.to_string()),
+                ("resource_id", resource_id.resource_id.0.to_string()),
+            ],
+        )
+    }
 
+    /// Create one scheduler-progress observation.
+    pub fn scheduler_progressed() -> Self {
         Self::new(
             ObservationCategory::Scheduler,
             Scope::world(),
-            name,
-            ObservationData::Scheduler { outcome, deadline },
+            "scheduler.progressed",
         )
     }
 
-    /// Return one copy of this observation with one additional tag.
-    pub fn tagged(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.tags.insert(key.into(), value.into());
+    /// Create one scheduler-advanced-time observation.
+    pub fn scheduler_advanced_time(deadline: WorldInstant) -> Self {
+        Self::annotations(
+            ObservationCategory::Scheduler,
+            Scope::world(),
+            "scheduler.advanced_time",
+            [("deadline_ns", deadline.get().to_string())],
+        )
+    }
+
+    /// Return one copy of this observation with one additional label.
+    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.labels.insert(key.into(), value.into());
         self
     }
 
-    /// Return the value for one observation tag when present.
-    pub fn tag(&self, key: &str) -> Option<&str> {
-        self.tags.get(key).map(String::as_str)
+    /// Return the value for one observation annotation when present.
+    pub fn annotation(&self, key: &str) -> Option<&str> {
+        self.annotations.get(key).map(String::as_str)
+    }
+
+    /// Return the value for one observation label when present.
+    pub fn label_value(&self, key: &str) -> Option<&str> {
+        self.labels.get(key).map(String::as_str)
     }
 }
 
@@ -550,9 +457,9 @@ pub struct ObservationRecord {
     pub observation: Observation,
 }
 
-/// World-owned observation log kept separate from causal trace.
+/// World-owned observation stream kept separate from causal trace.
 #[derive(Debug, Default)]
-pub struct ObservationLog {
+pub struct Observations {
     /// Next observation sequence number.
     next_sequence: AtomicU64,
     /// Next observation subscription identifier.
@@ -563,7 +470,7 @@ pub struct ObservationLog {
     subscriptions: RwLock<BTreeMap<ObservationSubscriptionId, ObservationSubscription>>,
 }
 
-impl ObservationLog {
+impl Observations {
     /// Record one observation at one exact execution coordinate.
     pub fn record_at(&self, moment: Moment, observation: Observation) -> ObservationSequence {
         let sequence = ObservationSequence::new(self.next_sequence.fetch_add(1, Ordering::SeqCst));
@@ -693,7 +600,7 @@ impl ObservationLog {
             entries.partition_point(|entry| entry.sequence < subscription.next_sequence);
         let mut batch = Vec::new();
 
-        // scan the shared observation log from the subscription cursor
+        // scan the shared observation stream from the subscription cursor
         for entry in &entries[start_index..] {
             if !subscription.options.allows(entry.observation.category) {
                 continue;
@@ -717,7 +624,6 @@ impl ObservationLog {
 impl World {
     /// Emit one observation at the current execution coordinate.
     pub fn observe(&self, observation: Observation) -> ObservationSequence {
-        let moment = self.moment();
-        self.observations.record_at(moment, observation)
+        self.observations.record_at(self.moment(), observation)
     }
 }

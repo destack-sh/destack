@@ -121,10 +121,10 @@ impl Event {
         self.observation().map(|observation| &observation.scope)
     }
 
-    /// Return the event tag value when this event wraps one tagged observation.
-    pub fn tag(&self, key: &str) -> Option<&str> {
+    /// Return the event label value when this event wraps one labeled observation.
+    pub fn label_value(&self, key: &str) -> Option<&str> {
         self.observation()
-            .and_then(|observation| observation.tag(key))
+            .and_then(|observation| observation.label_value(key))
     }
 
     /// Build one projected trace event at the moment after one record.
@@ -262,10 +262,10 @@ impl EventSet {
         self.filter(|event| event.category() == Some(category))
     }
 
-    /// Keep only observation events tagged with one exact key-value pair.
-    pub fn tagged(self, key: &str, value: &str) -> Self {
-        self.filter(|event| match event.tag(key) {
-            Some(tag) => value == tag,
+    /// Keep only observation events labeled with one exact key-value pair.
+    pub fn label(self, key: &str, value: &str) -> Self {
+        self.filter(|event| match event.label_value(key) {
+            Some(label) => value == label,
             None => false,
         })
     }

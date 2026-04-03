@@ -12,7 +12,7 @@ use crate::platform::{
 use crate::runtime::AgentId;
 use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
 use crate::runtime::world::{
-    Observation, RuntimeId, World, WorldEntityKind, WorldResource, WorldResourceId,
+    Observation, RuntimeId, WorldEntityKind, WorldRef, WorldResource, WorldResourceId,
 };
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
@@ -603,7 +603,7 @@ impl Hooks {
     /// Evaluate pre-call runtime effects for one binding invocation.
     pub(crate) fn on_before_binding(
         &self,
-        world: &World,
+        world: &WorldRef,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
     ) -> RuntimeResult<PolicyCallId> {
@@ -630,7 +630,7 @@ impl Hooks {
     /// Evaluate post-call runtime effects for one binding invocation.
     pub(crate) fn on_after_binding(
         &self,
-        world: &World,
+        world: &WorldRef,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
         call_id: PolicyCallId,
@@ -648,7 +648,7 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one scheduler enqueue event.
-    pub fn on_scheduler_enqueue(&self, world: &World) {
+    pub(crate) fn on_scheduler_enqueue(&self, world: &WorldRef) {
         self.on_policy_event(
             world,
             HookEvent::SchedulerEnqueue {
@@ -659,7 +659,7 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one scheduler dequeue event.
-    pub fn on_scheduler_dequeue(&self, world: &World) {
+    pub(crate) fn on_scheduler_dequeue(&self, world: &WorldRef) {
         self.on_policy_event(
             world,
             HookEvent::SchedulerDequeue {
@@ -670,7 +670,7 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one scheduler timer fire event.
-    pub fn on_scheduler_timer_fire(&self, world: &World) {
+    pub(crate) fn on_scheduler_timer_fire(&self, world: &WorldRef) {
         self.on_policy_event(
             world,
             HookEvent::SchedulerTimerFire {
@@ -681,7 +681,7 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one ingress enqueue.
-    pub fn on_ingress_enqueue(&self, world: &World) {
+    pub(crate) fn on_ingress_enqueue(&self, world: &WorldRef) {
         self.on_policy_event(
             world,
             HookEvent::IngressEnqueue {
@@ -692,7 +692,7 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one time read.
-    pub fn on_time_read(&self, world: &World, engine: Option<BindingEngine>) {
+    pub(crate) fn on_time_read(&self, world: &WorldRef, engine: Option<BindingEngine>) {
         self.on_policy_event(
             world,
             HookEvent::TimeRead {
@@ -704,7 +704,7 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one random read.
-    pub fn on_random_read(&self, world: &World, engine: Option<BindingEngine>) {
+    pub(crate) fn on_random_read(&self, world: &WorldRef, engine: Option<BindingEngine>) {
         self.on_policy_event(
             world,
             HookEvent::RandomRead {
@@ -716,9 +716,9 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one resource attach.
-    pub fn on_resource_attach(
+    pub(crate) fn on_resource_attach(
         &self,
-        world: &World,
+        world: &WorldRef,
         resource_id: ResourceId,
         resource_kind: ResourceKind,
         resource_label: Option<&str>,
@@ -735,11 +735,23 @@ impl Hooks {
             resource_capture,
             resource_portability,
         );
-        world.create_resource(resource)?;
-        world.observe(Observation::resource_lifecycle(
+        world
+            .topology_mut()
+            .attach_resource(
+                resource.id,
+                resource.kind.clone(),
+                resource.label.as_deref(),
+            )
+            .map_err(|message| {
+                RuntimeError::Internal {
+                    message: message.to_string(),
+                }
+                .boxed()
+            })?;
+        world.resources_mut().insert(resource.id, resource);
+        world.observe(Observation::resource_attached(
             self.agent_id,
             WorldResourceId::new(self.agent_id, resource_id),
-            true,
             resource_backing,
             resource_capture,
             resource_portability,
@@ -757,9 +769,9 @@ impl Hooks {
     }
 
     /// Evaluate runtime effects for one resource detach.
-    pub fn on_resource_detach(
+    pub(crate) fn on_resource_detach(
         &self,
-        world: &World,
+        world: &WorldRef,
         resource_id: ResourceId,
         _resource_kind: ResourceKind,
         resource_label: Option<&str>,
@@ -767,14 +779,11 @@ impl Hooks {
     ) -> RuntimeResult<()> {
         let _resource_label = resource_label;
         let world_resource_id = WorldResourceId::new(self.agent_id, resource_id);
-        world.destroy_resource(WorldResourceId::new(self.agent_id, resource_id))?;
-        world.observe(Observation::resource_lifecycle(
+        world.topology_mut().detach_resource(world_resource_id);
+        world.resources_mut().remove(&world_resource_id);
+        world.observe(Observation::resource_detached(
             self.agent_id,
             world_resource_id,
-            false,
-            ResourceBacking::Host,
-            ResourceCapture::None,
-            ResourcePortability::Local,
         ));
 
         self.on_policy_event(
@@ -794,7 +803,7 @@ impl Hooks {
     }
 
     /// Evaluate one policy event.
-    fn on_policy_event(&self, world: &World, event: HookEvent) -> HookDecision {
+    fn on_policy_event(&self, world: &WorldRef, event: HookEvent) -> HookDecision {
         // apply callback hook interceptors first
         let hook_decision = self.dispatch_hook_event(&event);
         if matches!(hook_decision, HookDecision::Deny { .. }) {
