@@ -30,6 +30,6 @@ impl Gc {
     /// Record one completed collection cycle.
     pub fn on_cycle_complete(&mut self, stats: GcStats) {
         // seed next cycle targets from observed live bytes
-        self.pacer.update(&self.options, stats.live_bytes);
+        self.pacer.update(&self.options, stats.allocated_bytes);
     }
 }

@@ -1,6 +1,7 @@
 mod branch;
 mod event;
 mod history;
+mod images;
 pub(crate) mod lineage;
 mod moment;
 mod query;
@@ -12,6 +13,8 @@ mod view;
 pub use branch::*;
 pub use event::*;
 pub use history::*;
+pub use images::ImageStoreSnapshot;
+pub(crate) use images::*;
 pub use lineage::LineageSnapshot;
 pub(crate) use lineage::*;
 pub use moment::*;

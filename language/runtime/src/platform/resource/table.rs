@@ -15,12 +15,12 @@ use tracing::error;
 
 use super::{
     ResourceAffinity, ResourceBacking, ResourceCapture, ResourceHandle, ResourceId,
-    ResourceImageEntry, ResourceKind, ResourcePortability, ResourceProvider, ResourceRebindContext,
+    ResourceImageEntry, ResourceKind, ResourcePortability, ResourceProvider, ResourceRebinders,
     ResourceRoute,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::bindings::{BindingAffinity, BindingEngine};
-use crate::runtime::world::World;
+use crate::runtime::world::WorldRef;
 use crate::runtime::{ExecutionContext, Hooks};
 
 /// Durable resource-table state captured at one checkpoint.
@@ -404,9 +404,9 @@ impl ResourceTable {
     }
 
     /// Allocate and insert a resource entry.
-    pub fn insert(
+    pub(crate) fn insert(
         &self,
-        world: &World,
+        world: &WorldRef,
         entry: ResourceEntry,
         engine: Option<BindingEngine>,
     ) -> ResourceId {
@@ -439,9 +439,9 @@ impl ResourceTable {
     }
 
     /// Insert a resource entry with an explicit id.
-    pub fn insert_with_id(
+    pub(crate) fn insert_with_id(
         &self,
-        world: &World,
+        world: &WorldRef,
         resource_id: ResourceId,
         entry: ResourceEntry,
         engine: Option<BindingEngine>,
@@ -500,9 +500,9 @@ impl ResourceTable {
     }
 
     /// Remove a resource entry from the table.
-    pub fn remove(
+    pub(crate) fn remove(
         &self,
-        world: &World,
+        world: &WorldRef,
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> Option<ResourceEntry> {
@@ -527,9 +527,9 @@ impl ResourceTable {
     }
 
     /// Remove a resource entry and run its finalizer.
-    pub fn remove_and_finalize(
+    pub(crate) fn remove_and_finalize(
         &self,
-        world: &World,
+        world: &WorldRef,
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> bool {
@@ -627,7 +627,7 @@ impl ResourceTable {
     pub(crate) fn restore_snapshot(
         &self,
         snapshot: &ResourceTableSnapshot,
-        rebind_context: Option<&ResourceRebindContext>,
+        rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
         self.restore_barrier()?;
         self.next_id.store(snapshot.next_id, Ordering::Relaxed);
@@ -716,7 +716,7 @@ impl Capture for ResourceTable {
     type Image = ResourceTableSnapshot;
     type Error = Box<RuntimeError>;
     type CaptureContext<'a> = ();
-    type RestoreContext<'a> = Option<&'a ResourceRebindContext>;
+    type RestoreContext<'a> = Option<&'a ResourceRebinders>;
 
     /// Capture one resource-table image.
     fn capture_image(
@@ -754,12 +754,12 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use destack_core::CaptureMode;
+    use destack_workspace::RuntimeOptions;
 
     use super::ResourceId;
     use crate::platform::diagnostic::PlatformError;
     use crate::platform::resource::{
-        ResourceCapture, ResourcePortability, ResourceRebindContext, ResourceRebinder,
-        ResourceSnapshot,
+        ResourceCapture, ResourcePortability, ResourceRebinder, ResourceRebinders, ResourceSnapshot,
     };
 
     use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceProvider, ResourceTable};
@@ -770,7 +770,9 @@ mod tests {
     fn test_insert_remove_and_finalize() {
         // create a new resource table
         let table = ResourceTable::default();
-        let world = World::default();
+        let mut world = World::from_options(&RuntimeOptions::default())
+            .expect("resource-table test world should build");
+        let world_ref = world.world_ref();
 
         // create a finalizer to track removals
         let hits = Arc::new(AtomicUsize::new(0));
@@ -778,24 +780,26 @@ mod tests {
 
         // insert an entry with a finalizer
         let entry = ResourceEntry::new(ResourceKind::Timer).with_finalizer(finalizer);
-        let resource_id = table.insert(&world, entry, None);
+        let resource_id = table.insert(&world_ref, entry, None);
         assert!(table.contains(resource_id));
 
         // remove and finalize the entry
-        let removed = table.remove_and_finalize(&world, resource_id, None);
+        let removed = table.remove_and_finalize(&world_ref, resource_id, None);
         assert!(removed);
         assert_eq!(hits.load(Ordering::SeqCst), 1);
         assert!(!table.contains(resource_id));
 
         // removing again should return false
-        let removed_again = table.remove_and_finalize(&world, resource_id, None);
+        let removed_again = table.remove_and_finalize(&world_ref, resource_id, None);
         assert!(!removed_again);
     }
 
     /// Capturing and restoring one resource table should roundtrip provider-backed entries.
     #[test]
     fn test_snapshot_roundtrip_restores_provider_backed_resources() {
-        let world = World::default();
+        let mut world = World::from_options(&RuntimeOptions::default())
+            .expect("resource-table test world should build");
+        let world_ref = world.world_ref();
         let table = ResourceTable::default();
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
@@ -803,7 +807,7 @@ mod tests {
         let entry = ResourceEntry::new(ResourceKind::Timer)
             .with_capture(ResourceCapture::State)
             .with_portability(ResourcePortability::Portable);
-        let resource_id = table.insert(&world, entry, None);
+        let resource_id = table.insert(&world_ref, entry, None);
 
         let snapshot = table
             .snapshot(CaptureMode::Fork)
@@ -822,7 +826,9 @@ mod tests {
     /// External resources should require explicit rebinding on restore.
     #[test]
     fn test_snapshot_restore_requires_external_rebinding() {
-        let world = World::default();
+        let mut world = World::from_options(&RuntimeOptions::default())
+            .expect("resource-table test world should build");
+        let world_ref = world.world_ref();
         let table = ResourceTable::default();
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
@@ -830,7 +836,7 @@ mod tests {
         let entry = ResourceEntry::new(ResourceKind::Timer)
             .with_capture(ResourceCapture::Recipe)
             .with_portability(ResourcePortability::External);
-        let _ = table.insert(&world, entry, None);
+        let _ = table.insert(&world_ref, entry, None);
 
         let snapshot = table
             .snapshot(CaptureMode::Hibernate)
@@ -846,7 +852,7 @@ mod tests {
             "unexpected resource restore error: {message}"
         );
 
-        let mut rebind_context = ResourceRebindContext::default();
+        let mut rebind_context = ResourceRebinders::default();
         rebind_context.register(ResourceKind::Timer, Arc::new(TestResourceRebinder));
 
         restored

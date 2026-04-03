@@ -131,13 +131,6 @@ impl BindingPolicy {
     }
 }
 
-impl Default for BindingPolicy {
-    /// Create the default policy for fast execution mode.
-    fn default() -> Self {
-        Self::new(ExecutionMode::Fast)
-    }
-}
-
 /// Calculate the allowed effects for a mode.
 const fn allowed_effects_for_mode(mode: ExecutionMode) -> BindingEffectMask {
     let mut mask = BindingEffectMask::PURE;

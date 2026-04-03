@@ -54,12 +54,6 @@ impl TraceHeader {
     }
 }
 
-impl Default for TraceHeader {
-    fn default() -> Self {
-        Self::new(EnvironmentConfig::default())
-    }
-}
-
 /// Environment configuration captured for trace.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EnvironmentConfig {

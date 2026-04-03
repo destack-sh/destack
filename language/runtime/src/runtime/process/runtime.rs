@@ -2,11 +2,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostSession;
+use crate::platform::resource::ResourceRebinders;
 use crate::runtime::engine::{Engine, Entry, ExecutionOutput};
 use crate::runtime::poller::HostPoller;
 use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
-use crate::runtime::world::{RebindContext, RuntimeId, RuntimeIngress, Wake, World};
+use crate::runtime::world::{RuntimeId, RuntimeIngress, Wake, WorldRef};
 use crate::runtime::{DropCounts, DropReason};
 use destack_core::CaptureMode;
 use destack_heap as heap;
@@ -94,7 +95,7 @@ impl Runtime {
     pub(crate) fn from_options_in_world(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &World,
+        world: &WorldRef,
         engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
@@ -170,19 +171,10 @@ impl Runtime {
         self.agents.get_mut(&agent_id).map(Box::as_mut)
     }
 
-    /// Spawn one additional agent in the shared runtime world.
-    pub fn spawn_agent(
-        &mut self,
-        world: &World,
-        engine: Box<dyn Engine>,
-    ) -> RuntimeResult<AgentId> {
-        self.spawn_agent_with_options(world, &self.options.clone(), engine)
-    }
-
     /// Spawn one additional agent with explicit options in the shared runtime world.
-    pub fn spawn_agent_with_options(
+    pub(crate) fn spawn_agent_with_options(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         options: &RuntimeOptions,
         engine: Box<dyn Engine>,
     ) -> RuntimeResult<AgentId> {
@@ -232,7 +224,7 @@ impl Runtime {
     /// Run one entrypoint through the default runtime agent event loop.
     pub(crate) fn run_entrypoint(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         entry: &Entry,
         args: &[heap::Value],
     ) -> RuntimeResult<ExecutionOutput> {
@@ -242,7 +234,7 @@ impl Runtime {
     /// Run one entrypoint through one explicit runtime agent event loop.
     pub(crate) fn run_entrypoint_for_agent(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         agent_id: AgentId,
         entry: &Entry,
         args: &[heap::Value],
@@ -265,7 +257,7 @@ impl Runtime {
     /// Run one replayable entrypoint through one explicit runtime agent event loop.
     pub(crate) fn run_replayable_entrypoint_for_agent(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         agent_id: AgentId,
         entry: &Entry,
         args: &[heap::Value],
@@ -286,7 +278,7 @@ impl Runtime {
     }
 
     /// Execute one runtime tick across all agents without advancing world time.
-    pub(crate) fn tick(&mut self, world: &World) -> RuntimeResult<TickOutcome> {
+    pub(crate) fn tick(&mut self, world: &WorldRef) -> RuntimeResult<TickOutcome> {
         // poll and handle runtime ingress first
         let ingress_handled = self.poll_ingress(world)?;
 
@@ -368,7 +360,7 @@ impl Runtime {
     }
 
     /// Return the next virtual deadline across all agents and simulation.
-    pub(crate) fn next_deadline(&self, world: &World) -> Option<WorldInstant> {
+    pub(crate) fn next_deadline(&self, world: &WorldRef) -> Option<WorldInstant> {
         // current virtual timestamps: monotonic deadlines are projected onto wall time
         let wall_now = world.wall();
         let mono_now = world.mono();
@@ -383,7 +375,7 @@ impl Runtime {
     /// Drain due agent timers after the world advances time.
     pub(crate) fn collect_due_timers(
         &mut self,
-        world: &World,
+        world: &WorldRef,
     ) -> RuntimeResult<Vec<(RuntimeId, AgentId, Timer)>> {
         let wall_now = world.wall();
         let mono_now = world.mono();
@@ -400,7 +392,7 @@ impl Runtime {
     }
 
     /// Poll runtime-owned ingress sources and deliver arrivals to agent event loops.
-    fn poll_ingress(&mut self, world: &World) -> RuntimeResult<bool> {
+    fn poll_ingress(&mut self, world: &WorldRef) -> RuntimeResult<bool> {
         let mut ingress = Vec::new();
 
         // host semantic ingress
@@ -433,7 +425,7 @@ impl Runtime {
     /// Deliver coordinator-owned ingress into agent event loops.
     fn deliver_ingress(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         ingress: Vec<RuntimeIngress>,
     ) -> RuntimeResult<bool> {
         let mut handled_any = false;
@@ -518,7 +510,11 @@ impl Runtime {
     }
 
     /// Deliver one batch of due agent-timer wakes.
-    pub(crate) fn deliver_wakes(&mut self, world: &World, wakes: Vec<Wake>) -> RuntimeResult<()> {
+    pub(crate) fn deliver_wakes(
+        &mut self,
+        world: &WorldRef,
+        wakes: Vec<Wake>,
+    ) -> RuntimeResult<()> {
         for wake in wakes {
             match wake {
                 Wake::AgentTimer {
@@ -590,10 +586,10 @@ impl Runtime {
 
     /// Restore one runtime from one materialized runtime image.
     pub(crate) fn from_image(
-        world: &World,
+        world: &WorldRef,
         image: &RuntimeImage,
         agent_images: &BTreeMap<AgentId, AgentImage>,
-        rebind_context: Option<&RebindContext>,
+        rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<Self> {
         // runtime-wide reconstructed state
         let platform_args: Arc<[String]> = image.platform_args.clone().into();

@@ -14,7 +14,9 @@ use crate::runtime::engine::Entry;
 use crate::runtime::policy::{Effect, Rule, RuleId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::WorldInstant;
-use crate::runtime::trace::{EntropyKind, EntropySubject, Trace, TraceError, TraceHeader};
+use crate::runtime::trace::{
+    EntropyKind, EntropySubject, EnvironmentConfig, Trace, TraceError, TraceHeader,
+};
 use crate::runtime::world::{
     Input, Mutation, RuntimeId, WorldEntity, WorldEntityKind, WorldEntityKindDefinition,
     WorldResource, WorldResourceId,
@@ -42,6 +44,11 @@ struct BindingErrorReplayPayload {
     result: Result<u64, TraceError>,
 }
 
+/// Build one explicit trace header for replay tests.
+fn test_trace_header() -> TraceHeader {
+    TraceHeader::new(EnvironmentConfig::default())
+}
+
 /// Recordable binding calls replay in order.
 #[test]
 fn test_record_replay_binding_call() {
@@ -54,7 +61,7 @@ fn test_record_replay_binding_call() {
     );
 
     // record a binding call
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_binding_call(descriptor, &[1, 2, 3])
         .expect("record binding call");
@@ -81,7 +88,7 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
     );
 
     // record one failing binding call
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let record_error = record_state
         .run_binding_without_context(
             descriptor,
@@ -141,7 +148,7 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
 #[test]
 fn test_record_replay_random_stream() {
     // record a stream allocation
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.random.stream");
     let stream_id = record_state
         .run_random_stream(subject, || {}, || Ok(42))
@@ -162,7 +169,7 @@ fn test_record_replay_random_stream() {
 #[test]
 fn test_replay_time_read_executes_replay_hook() {
     // record one wall clock read
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.time.wall");
     let recorded = record_state
         .run_time_read(EntropyKind::TimeReadWall, subject, || {}, || Ok(123))
@@ -194,7 +201,7 @@ fn test_replay_time_read_executes_replay_hook() {
 fn test_replay_random_u64_executes_replay_hook() {
     // record one stream-scoped random sample
     let stream_id = RandomStreamId::new(99);
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.random.u64");
     let recorded = record_state
         .run_random_u64(subject, stream_id, || {}, || Ok(777))
@@ -225,7 +232,7 @@ fn test_replay_random_u64_executes_replay_hook() {
 #[test]
 fn test_replay_entropy_platform_error_roundtrip() {
     // record one time read that fails with one platform error
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.time.wall.error");
     let record_error = record_state
         .run_time_read(
@@ -258,7 +265,7 @@ fn test_replay_entropy_platform_error_roundtrip() {
 #[test]
 fn test_replay_entropy_runtime_error_roundtrip() {
     // record one random read that fails with one runtime policy error
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.random.u64.error");
     let stream_id = RandomStreamId::new(17);
     let record_error = record_state
@@ -299,7 +306,7 @@ fn test_replay_entropy_runtime_error_roundtrip() {
 #[test]
 fn test_replay_entropy_vm_error_roundtrip() {
     // record one random read that fails with one VM panic
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     let subject = test_entropy_subject("destack.test.random.vm.error");
     let stream_id = RandomStreamId::new(23);
     let record_error = record_state
@@ -351,7 +358,7 @@ fn test_record_replay_policy_mutation() {
     };
 
     // record the mutation input to the replay log
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_input(Input::Mutation(mutation.clone()))
         .expect("record world input");
@@ -377,7 +384,7 @@ fn test_record_replay_topology_mutation() {
     };
 
     // record the mutation input to the replay log
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_input(Input::Mutation(mutation.clone()))
         .expect("record world input");
@@ -412,7 +419,7 @@ fn test_record_replay_world_mutation_inputs() {
     ];
 
     // record the mutation inputs to the replay log
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     for mutation in &mutations {
         record_state
             .record_input(Input::Mutation(mutation.clone()))
@@ -450,7 +457,7 @@ fn test_record_replay_world_inputs() {
         },
     ];
 
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     for input in &inputs {
         record_state
             .record_input(input.clone())
@@ -482,7 +489,7 @@ fn test_record_replay_resource_mutation() {
     };
 
     // record the mutation input to the replay log
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_input(Input::Mutation(mutation.clone()))
         .expect("record world input");
@@ -505,7 +512,7 @@ fn test_record_replay_resource_mutation() {
 #[test]
 fn test_record_replay_tick() {
     // record one virtual time advance
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_time_advance(WorldInstant::new(123_456))
         .expect("record tick");
@@ -524,7 +531,7 @@ fn test_record_replay_tick() {
 #[test]
 fn test_resolve_tick_rejects_mismatch() {
     // record one virtual time advance
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_time_advance(WorldInstant::new(123_456))
         .expect("record tick");
@@ -544,7 +551,7 @@ fn test_resolve_tick_rejects_mismatch() {
 #[test]
 fn test_replay_rejects_backward_tick() {
     // record one forward tick and one backward tick in one log
-    let record_state = Trace::new(ExecutionMode::Record, TraceHeader::default());
+    let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
         .record_time_advance(WorldInstant::new(50))
         .expect("record tick");

@@ -4,9 +4,9 @@ use crate::runtime::bindings::{BindingDescriptor, BindingEngine, BindingReplayPa
 use crate::runtime::policy::{BindingDispatchDecision, HookEvent, PolicyDecision, RuleSubject};
 use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeWorld};
 
-use super::{RuntimeId, World};
+use super::{RuntimeId, WorldRef};
 
-impl World {
+impl WorldRef {
     /// Resolve binding dispatch decisions for one binding call.
     pub(crate) fn resolve_binding_dispatch(
         &self,
@@ -19,11 +19,10 @@ impl World {
         default_world: RuntimeWorld,
         default_replay_payload: BindingReplayPayload,
     ) -> RuntimeResult<BindingDispatchDecision> {
-        let topology = self.topology.borrow();
-        let subject = Self::resolve_rule_subject(&topology, runtime_id, agent_id, mode)?;
+        let subject = Self::resolve_rule_subject(self.topology(), runtime_id, agent_id, mode)?;
 
         // evaluate dispatch decision against active policy
-        let decision = self.policy.borrow().resolve_binding_dispatch_for_subject(
+        let decision = self.policy().resolve_binding_dispatch_for_subject(
             subject,
             descriptor,
             engine,
@@ -43,12 +42,41 @@ impl World {
         agent_id: AgentId,
         event: &HookEvent,
     ) -> RuntimeResult<Vec<PolicyDecision>> {
-        let topology = self.topology.borrow();
-        let subject = Self::resolve_rule_subject(&topology, runtime_id, agent_id, mode)?;
+        let (runtime_name, runtime_labels, agent_name, agent_labels) = {
+            let (runtime_name, runtime_labels) =
+                self.topology().runtime_subject(runtime_id).ok_or_else(|| {
+                    RuntimeError::TopologyRuntimeMissing {
+                        runtime_id: runtime_id.0,
+                    }
+                    .boxed()
+                })?;
+            let (agent_name, agent_labels) =
+                self.topology().agent_subject(agent_id).ok_or_else(|| {
+                    RuntimeError::TopologyAgentMissing {
+                        agent_id: agent_id.0,
+                    }
+                    .boxed()
+                })?;
+
+            (
+                runtime_name.to_string(),
+                runtime_labels.clone(),
+                agent_name.to_string(),
+                agent_labels.clone(),
+            )
+        };
 
         // evaluate one policy event with world-randomness context
-        let mut policy = self.policy.borrow_mut();
-        let decisions = policy.on_event_for_subject(event, subject, &self.random);
+        let subject = RuleSubject::new(
+            &runtime_name,
+            &runtime_labels,
+            &agent_name,
+            &agent_labels,
+            mode,
+        );
+        let decisions = self
+            .policy_mut()
+            .on_event_for_subject(event, subject, self.random());
 
         Ok(decisions)
     }

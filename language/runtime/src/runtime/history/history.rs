@@ -1,10 +1,9 @@
-use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::resource::ResourceRebinders;
 use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::policy::PolicyState;
 use crate::runtime::random::Random;
 use crate::runtime::time::WorldInstant;
 use crate::runtime::trace::{
@@ -19,9 +18,9 @@ use destack_workspace::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::world::{AccessState, Input, ObservationLog, World};
+use crate::runtime::world::{Observations, World};
 
-use super::{BranchId, CommittedRevision, Image, Moment, RebindContext, RevisionId, Snapshot};
+use super::{BranchId, Image, Moment, Revision, RevisionId, Snapshot};
 
 /// Checkpoint identifier for one durable world restore point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -54,24 +53,19 @@ pub struct Checkpoint {
 
 impl World {
     /// Create one checkpoint for the active branch.
-    pub fn checkpoint(&self, name: impl Into<String>) -> RuntimeResult<CheckpointId> {
-        let (checkpoint_id, revision_id, image, sequence) = {
-            let _exclusive_access = self.acquire_exclusive_access()?;
-            let committed = self.materialize_revision(CaptureMode::Fork, Some(name.into()))?;
-            let checkpoint = committed.checkpoint.ok_or_else(|| {
-                RuntimeError::Internal {
-                    message: "checkpoint commit did not produce checkpoint metadata".to_string(),
-                }
-                .boxed()
-            })?;
-
-            (
-                checkpoint.id,
-                committed.revision.id,
-                committed.image,
-                self.trace.log().next_sequence(),
-            )
-        };
+    pub fn checkpoint(&mut self, name: impl Into<String>) -> RuntimeResult<CheckpointId> {
+        let checkpoint_name = name.into();
+        let committed = self.commit(CaptureMode::Fork, Some(checkpoint_name))?;
+        let checkpoint = committed.2.ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "checkpoint commit did not produce checkpoint metadata".to_string(),
+            }
+            .boxed()
+        })?;
+        let checkpoint_id = checkpoint.id;
+        let revision_id = committed.0.id;
+        let image = committed.1;
+        let sequence = self.trace.log().next_sequence();
 
         let (size_bytes, hash) = World::image_size_and_hash(&image)?;
         self.trace
@@ -89,9 +83,9 @@ impl World {
     }
 
     /// Restore the world to one stored checkpoint.
-    pub fn rewind(&self, checkpoint_id: CheckpointId) -> RuntimeResult<()> {
+    pub fn rewind(&mut self, checkpoint_id: CheckpointId) -> RuntimeResult<()> {
         let revision_id = {
-            let lineage = self.lineage.borrow();
+            let lineage = self.lineage.read();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
                 RuntimeError::CheckpointNotFound {
                     checkpoint_id: checkpoint_id.get(),
@@ -106,17 +100,16 @@ impl World {
 
     /// Fork one child world from one stored checkpoint.
     pub fn fork(
-        &self,
+        &mut self,
         checkpoint_id: CheckpointId,
         name: impl Into<String>,
-    ) -> RuntimeResult<Arc<World>> {
-        let _exclusive_access = self.acquire_exclusive_access()?;
+    ) -> RuntimeResult<World> {
         self.fork_inner(checkpoint_id, name.into())
     }
 
     /// Return metadata for one stored checkpoint.
     pub fn checkpoint_info(&self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
-        let lineage = self.lineage.borrow();
+        let lineage = self.lineage.read();
         let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
             RuntimeError::CheckpointNotFound {
                 checkpoint_id: checkpoint_id.get(),
@@ -129,7 +122,7 @@ impl World {
 
     /// Return identifiers for all stored checkpoints in stable order.
     pub fn checkpoint_ids(&self) -> Vec<CheckpointId> {
-        self.lineage.borrow().checkpoints.keys().copied().collect()
+        self.lineage.read().checkpoints.keys().copied().collect()
     }
 
     /// Replace labels for one specific checkpoint.
@@ -138,7 +131,7 @@ impl World {
         checkpoint_id: CheckpointId,
         labels: BTreeMap<String, String>,
     ) -> RuntimeResult<()> {
-        let mut lineage = self.lineage.borrow_mut();
+        let mut lineage = self.lineage.write();
         let checkpoint = lineage.checkpoints.get_mut(&checkpoint_id).ok_or_else(|| {
             RuntimeError::CheckpointNotFound {
                 checkpoint_id: checkpoint_id.get(),
@@ -151,19 +144,25 @@ impl World {
     }
 
     /// Restore this branch to one specific revision.
-    pub fn rewind_revision(&self, revision_id: RevisionId) -> RuntimeResult<()> {
-        let plan = {
-            let lineage = self.lineage.borrow();
-            lineage.resolve_revision_restore_plan(revision_id)?
+    pub fn rewind_revision(&mut self, revision_id: RevisionId) -> RuntimeResult<()> {
+        let (target_revision, base_revision, image, trace_image) = {
+            let lineage = self.lineage.read();
+            let target_revision = lineage.revision(revision_id)?;
+            let base_revision_id = self.nearest_image_revision_id(revision_id)?;
+            let (base_revision, image, _) = self.revision_data(base_revision_id)?;
+            let trace_image = self.trace_image(revision_id)?;
+
+            (target_revision, base_revision, image, trace_image)
         };
 
-        let _exclusive_access = self.acquire_exclusive_access()?;
-        let image = self.materialize_revision_image_from_plan(&plan, None)?;
-        self.restore_revision_image(plan.target_revision.id, &image, &plan.trace_image, None)
+        let image =
+            self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
+
+        self.restore_revision_image(target_revision.id, &image, &trace_image, None)
     }
 
     /// Restore this branch to one specific moment.
-    pub fn restore_moment(&self, moment: Moment) -> RuntimeResult<()> {
+    pub fn restore_moment(&mut self, moment: Moment) -> RuntimeResult<()> {
         if moment.branch_id != self.branch_id {
             return Err(RuntimeError::MomentBranchMismatch {
                 moment_branch_id: moment.branch_id.get(),
@@ -172,35 +171,45 @@ impl World {
             .boxed());
         }
 
-        let plan = {
-            let lineage = self.lineage.borrow();
-            lineage.resolve_moment_restore_plan(moment)?
+        let (anchor_revision, base_revision, image) = {
+            let lineage = self.lineage.read();
+            let head_revision = lineage.head_revision_for_branch(moment.branch_id)?;
+            if head_revision.sequence.get() < moment.sequence.get() {
+                return Err(RuntimeError::MomentNotFound {
+                    branch_id: moment.branch_id.get(),
+                    sequence: moment.sequence.get(),
+                }
+                .boxed());
+            }
+            let anchor_revision =
+                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+            let base_revision_id = self.nearest_image_revision_id(anchor_revision.id)?;
+            let (base_revision, image, _) = self.revision_data(base_revision_id)?;
+
+            (anchor_revision, base_revision, image)
         };
 
-        let _exclusive_access = self.acquire_exclusive_access()?;
-        let image = self.materialize_moment_image_from_plan(&plan, None)?;
-        let trace_image = self
-            .trace
-            .capture_image_through(plan.target_moment.sequence)?;
-        self.restore_revision_image(plan.anchor_revision.id, &image, &trace_image, None)
+        let image = self.moment_image(moment, &base_revision, &image, None)?;
+        let trace_image = self.trace.capture_image_through(moment.sequence)?;
+
+        self.restore_revision_image(anchor_revision.id, &image, &trace_image, None)
     }
 
     /// Fork one child world from one specific revision.
     pub fn fork_revision(
-        &self,
+        &mut self,
         revision_id: RevisionId,
         name: impl Into<String>,
-    ) -> RuntimeResult<Arc<World>> {
-        let _exclusive_access = self.acquire_exclusive_access()?;
+    ) -> RuntimeResult<World> {
         self.fork_revision_inner(revision_id, name.into())
     }
 
-    /// Materialize one new revision for the active branch.
-    fn materialize_revision(
-        &self,
+    /// Commit one new revision for the active branch.
+    fn commit(
+        &mut self,
         mode: CaptureMode,
         checkpoint_name: Option<String>,
-    ) -> RuntimeResult<CommittedRevision> {
+    ) -> RuntimeResult<(Revision, Arc<Image>, Option<Checkpoint>)> {
         // capture one exact world image first
         let image = self.capture_image(mode)?;
         let trace_image = self.trace.capture_image();
@@ -209,55 +218,67 @@ impl World {
         let retain_image = self.trace.mode() != ExecutionMode::Record
             || checkpoint_name.is_some()
             || !matches!(mode, CaptureMode::Suspend);
-        let committed = {
-            let mut lineage = self.lineage.borrow_mut();
+        let mut image = image;
+        let image_id = self.images.write().allocate_image_id();
+        image.id = image_id;
+
+        let image = Arc::new(image);
+        let trace_image = Arc::new(trace_image);
+        let (revision, checkpoint) = {
+            let mut lineage = self.lineage.write();
             lineage.commit_revision(
                 self.branch_id,
-                image,
-                trace_image,
-                retain_image,
+                image_id,
+                trace_image.next_sequence,
                 WorldInstant::from_nanos(self.wall()),
                 WorldInstant::from_nanos(self.mono()),
                 checkpoint_name,
             )?
         };
 
-        // move committed observations into lineage history
+        {
+            let mut images = self.images.write();
+            if retain_image {
+                images.insert_image(image.clone());
+            }
+
+            images.insert_trace_image(revision.id, trace_image);
+        }
+
         let observations = self
             .observations
-            .drain_through(self.branch_id, committed.revision.sequence);
+            .drain_through(self.branch_id, revision.sequence);
 
         if !observations.is_empty() {
-            let mut lineage = self.lineage.borrow_mut();
+            let mut lineage = self.lineage.write();
             lineage.record_observations(self.branch_id, observations);
         }
 
-        Ok(committed)
+        Ok((revision, image, checkpoint))
     }
 
     /// Capture one suspendable live revision for later local resume.
-    pub fn suspend(&self) -> RuntimeResult<RevisionId> {
-        let _exclusive_access = self.acquire_exclusive_access()?;
-        let committed = self.materialize_revision(CaptureMode::Suspend, None)?;
+    pub fn suspend(&mut self) -> RuntimeResult<RevisionId> {
+        let committed = self.commit(CaptureMode::Suspend, None)?;
 
-        Ok(committed.revision.id)
+        Ok(committed.0.id)
     }
 
     /// Capture one hibernation snapshot for durable restore.
-    pub fn hibernate_snapshot(&self) -> RuntimeResult<Snapshot> {
+    pub fn hibernate_snapshot(&mut self) -> RuntimeResult<Snapshot> {
         let revision_id = {
-            let _exclusive_access = self.acquire_exclusive_access()?;
-            let committed = self.materialize_revision(CaptureMode::Hibernate, None)?;
-            committed.revision.id
+            let committed = self.commit(CaptureMode::Hibernate, None)?;
+
+            committed.0.id
         };
 
         self.snapshot_revision(revision_id)
     }
 
     /// Fork one child world from one stored checkpoint.
-    fn fork_inner(&self, checkpoint_id: CheckpointId, name: String) -> RuntimeResult<Arc<World>> {
+    fn fork_inner(&mut self, checkpoint_id: CheckpointId, name: String) -> RuntimeResult<World> {
         let revision_id = {
-            let lineage = self.lineage.borrow();
+            let lineage = self.lineage.read();
             let checkpoint = lineage.checkpoints.get(&checkpoint_id).ok_or_else(|| {
                 RuntimeError::CheckpointNotFound {
                     checkpoint_id: checkpoint_id.get(),
@@ -273,48 +294,54 @@ impl World {
 
     /// Restore one specific revision image and update branch lineage.
     pub(crate) fn restore_revision_image(
-        &self,
+        &mut self,
         revision_id: RevisionId,
         image: &Image,
         trace_image: &TraceImage,
-        rebind_context: Option<&RebindContext>,
+        rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
         self.restore_image(image, rebind_context)?;
         self.trace.restore_image(trace_image)?;
         self.trace.set_branch_id(self.branch_id);
 
-        let mut lineage = self.lineage.borrow_mut();
+        let mut lineage = self.lineage.write();
         lineage.set_branch_head_revision_id(self.branch_id, revision_id);
 
         Ok(())
     }
 
     /// Fork one child world from one stored revision.
-    #[allow(clippy::arc_with_non_send_sync)]
     fn fork_revision_inner(
-        &self,
+        &mut self,
         revision_id: RevisionId,
         name: String,
-    ) -> RuntimeResult<Arc<World>> {
-        // load the revision backing and allocate the child branch
-        let (child_branch, plan) = {
-            let mut lineage = self.lineage.borrow_mut();
-            let plan = lineage.resolve_revision_restore_plan(revision_id)?;
-            let child_branch = lineage.fork_branch(plan.target_revision.id, name)?;
+    ) -> RuntimeResult<World> {
+        // resolve the retained fork point before mutating lineage
+        let target_revision = {
+            let lineage = self.lineage.read();
+            lineage.revision(revision_id)?
+        };
+        let base_revision_id = self.nearest_image_revision_id(revision_id)?;
+        let (base_revision, image, _) = self.revision_data(base_revision_id)?;
+        let trace_image = self.trace_image(revision_id)?;
 
-            (child_branch, plan)
+        // allocate the child branch after retained resolution is complete
+        let child_branch = {
+            let mut lineage = self.lineage.write();
+            lineage.fork_branch(target_revision.id, name)?
         };
 
         // child trace: clone header but switch to the child branch
         let trace_header = self.fork_trace_header(child_branch.id);
 
-        // child world: fresh mutable state over shared lineage backing
-        let child = self.fork_child_world(child_branch.id, trace_header);
+        // child world: fresh mutable state over shared lineage data
+        let mut child = self.fork_child_world(child_branch.id, trace_header);
 
         // restore the child to the fork checkpoint
-        let image = self.materialize_revision_image_from_plan(&plan, None)?;
+        let image =
+            self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
         child.restore_image(&image, None)?;
-        child.trace.restore_image(&plan.trace_image)?;
+        child.trace.restore_image(&trace_image)?;
         child.trace.set_branch_id(child.branch_id);
 
         Ok(child)
@@ -352,106 +379,89 @@ impl World {
         }
     }
 
-    /// Materialize one exact image for one restore plan.
-    pub(super) fn materialize_revision_image_from_plan(
+    /// Restore one exact image for one committed revision.
+    pub(super) fn revision_image(
         &self,
-        plan: &super::RevisionRestorePlan,
-        rebind_context: Option<&RebindContext>,
+        target_revision: &Revision,
+        base_revision: &Revision,
+        image: &Image,
+        trace_image: &TraceImage,
+        rebinders: Option<&ResourceRebinders>,
     ) -> RuntimeResult<Image> {
-        if !plan.requires_replay() {
-            return Ok(plan.image.as_ref().clone());
+        if base_revision.id == target_revision.id {
+            return Ok(image.clone());
         }
 
         let options = self.replay_runtime_options();
-        let replay_world =
-            World::build_with_branch(plan.target_revision.branch_id, &options, None)?;
-        replay_world.restore_image(&plan.image, rebind_context)?;
-        replay_world.trace.restore_replay_image(&plan.trace_image)?;
-        replay_world
-            .trace
-            .set_branch_id(plan.target_revision.branch_id);
-        replay_world
-            .trace
-            .seek_sequence(plan.base_revision.sequence)?;
-        replay_world.replay_revision_suffix(plan.target_revision.sequence, rebind_context)?;
+        let mut replay_world = World::for_branch(target_revision.branch_id, &options, None)?;
+        replay_world.restore_image(image, rebinders)?;
+        replay_world.trace.restore_replay_image(trace_image)?;
+        replay_world.trace.set_branch_id(target_revision.branch_id);
+        replay_world.trace.seek_sequence(base_revision.sequence)?;
+        let replay_trace =
+            Trace::from_log(ExecutionMode::Replay, replay_world.trace().log().clone());
+        replay_trace.set_branch_id(target_revision.branch_id);
+        replay_trace.seek_sequence(base_revision.sequence)?;
+        replay_world.replay_to(&replay_trace, target_revision.sequence, rebinders)?;
 
         replay_world.capture_image(CaptureMode::Suspend)
     }
 
-    /// Materialize one exact image for one moment restore plan.
-    fn materialize_moment_image_from_plan(
+    /// Restore one exact image for one moment.
+    fn moment_image(
         &self,
-        plan: &super::MomentRestorePlan,
-        rebind_context: Option<&RebindContext>,
+        moment: Moment,
+        base_revision: &Revision,
+        image: &Image,
+        rebinders: Option<&ResourceRebinders>,
     ) -> RuntimeResult<Image> {
-        if !plan.requires_replay() {
-            return Ok(plan.image.as_ref().clone());
+        if base_revision.sequence == moment.sequence {
+            return Ok(image.clone());
         }
 
         let options = self.replay_runtime_options();
-        let replay_world = World::build_with_branch(plan.target_moment.branch_id, &options, None)?;
-        let replay_world = Arc::try_unwrap(replay_world).map_err(|_| {
-            RuntimeError::Internal {
-                message: "fresh replay world should have one strong reference".to_string(),
-            }
-            .boxed()
-        })?;
-        replay_world.restore_image(&plan.image, rebind_context)?;
+        let mut replay_world = World::for_branch(moment.branch_id, &options, None)?;
+        replay_world.restore_image(image, rebinders)?;
         let replay_trace = Trace::from_log(ExecutionMode::Replay, self.trace.log().clone());
-        replay_trace.set_branch_id(plan.target_moment.branch_id);
-        replay_trace.seek_sequence(plan.base_revision.sequence)?;
-
-        while replay_trace.sequence()? != plan.target_moment.sequence {
-            let event = replay_trace.next_event()?.ok_or_else(|| {
-                RuntimeError::TraceExhausted {
-                    sequence: plan.target_moment.sequence.get(),
-                }
-                .boxed()
-            })?;
-
-            match event {
-                TraceRecord::Input(input) => {
-                    replay_world.replay_input(input, rebind_context)?;
-                }
-                TraceRecord::Anchor(_) => {}
-                TraceRecord::Outcome(
-                    outcome @ (Outcome::RuntimeSpawned { .. } | Outcome::AgentSpawned { .. }),
-                ) => {
-                    replay_world.replay_outcome(outcome, rebind_context)?;
-                }
-                TraceRecord::Outcome(Outcome::TimeAdvance(_))
-                | TraceRecord::Outcome(Outcome::Entropy(_))
-                | TraceRecord::Outcome(Outcome::BindingCall(_)) => {
-                    return Err(RuntimeError::Internal {
-                        message: "unexpected low-level trace event escaped world replay"
-                            .to_string(),
-                    }
-                    .boxed());
-                }
-            }
-        }
+        replay_trace.set_branch_id(moment.branch_id);
+        replay_trace.seek_sequence(base_revision.sequence)?;
+        replay_world.replay_to(&replay_trace, moment.sequence, rebinders)?;
 
         replay_world.capture_image(CaptureMode::Suspend)
     }
 
     /// Materialize one exact image for one committed moment.
-    pub(crate) fn image_at_committed_moment(&self, moment: Moment) -> RuntimeResult<Image> {
-        let plan = {
-            let lineage = self.lineage.borrow();
-            lineage.resolve_moment_restore_plan(moment)?
+    pub(crate) fn image_at_moment(&self, moment: Moment) -> RuntimeResult<Image> {
+        let (_anchor_revision, base_revision, image) = {
+            let lineage = self.lineage.read();
+            let head_revision = lineage.head_revision_for_branch(moment.branch_id)?;
+            if head_revision.sequence.get() < moment.sequence.get() {
+                return Err(RuntimeError::MomentNotFound {
+                    branch_id: moment.branch_id.get(),
+                    sequence: moment.sequence.get(),
+                }
+                .boxed());
+            }
+            let anchor_revision =
+                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+            let base_revision_id = self.nearest_image_revision_id(anchor_revision.id)?;
+            let (base_revision, image, _) = self.revision_data(base_revision_id)?;
+
+            (anchor_revision, base_revision, image)
         };
 
-        self.materialize_moment_image_from_plan(&plan, None)
+        self.moment_image(moment, &base_revision, &image, None)
     }
 
-    /// Replay one revision suffix until the requested sequence boundary.
-    fn replay_revision_suffix(
-        &self,
+    /// Replay one trace through one requested sequence boundary.
+    fn replay_to(
+        &mut self,
+        trace: &Trace,
         target_sequence: TraceSequence,
-        rebind_context: Option<&RebindContext>,
+        rebinders: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
-        while self.trace.sequence()? != target_sequence {
-            let event = self.trace.next_event()?.ok_or_else(|| {
+        while trace.sequence()? != target_sequence {
+            let event = trace.next_event()?.ok_or_else(|| {
                 RuntimeError::TraceExhausted {
                     sequence: target_sequence.get(),
                 }
@@ -460,13 +470,32 @@ impl World {
 
             match event {
                 TraceRecord::Input(input) => {
-                    self.replay_input(input, rebind_context)?;
+                    self.apply_input(input)?;
                 }
                 TraceRecord::Anchor(_) => {}
                 TraceRecord::Outcome(
                     outcome @ (Outcome::RuntimeSpawned { .. } | Outcome::AgentSpawned { .. }),
                 ) => {
-                    self.replay_outcome(outcome, rebind_context)?;
+                    match outcome {
+                        // runtime restore
+                        Outcome::RuntimeSpawned { runtime, agents } => {
+                            self.install_runtime_image(&runtime, &agents, rebinders)?;
+                        }
+
+                        // agent restore
+                        Outcome::AgentSpawned { agent } => {
+                            self.install_agent_image(&agent, rebinders)?;
+                        }
+
+                        // replay only world outcomes are handled above
+                        Outcome::TimeAdvance(_) | Outcome::Entropy(_) | Outcome::BindingCall(_) => {
+                            return Err(RuntimeError::Internal {
+                                message: "unexpected low-level trace event escaped world replay"
+                                    .to_string(),
+                            }
+                            .boxed());
+                        }
+                    }
                 }
                 TraceRecord::Outcome(Outcome::TimeAdvance(_))
                 | TraceRecord::Outcome(Outcome::Entropy(_))
@@ -477,44 +506,6 @@ impl World {
                     }
                     .boxed());
                 }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Apply one replayed world input.
-    fn replay_input(
-        &self,
-        input: Input,
-        _rebind_context: Option<&RebindContext>,
-    ) -> RuntimeResult<()> {
-        self.apply_input(input)
-    }
-
-    /// Apply one replayed world outcome.
-    fn replay_outcome(
-        &self,
-        outcome: Outcome,
-        rebind_context: Option<&RebindContext>,
-    ) -> RuntimeResult<()> {
-        match outcome {
-            // runtime restore
-            Outcome::RuntimeSpawned { runtime, agents } => {
-                self.install_runtime_image(&runtime, &agents, rebind_context)?;
-            }
-
-            // agent restore
-            Outcome::AgentSpawned { agent } => {
-                self.install_agent_image(&agent, rebind_context)?;
-            }
-
-            // replay only world outcomes are handled above
-            Outcome::TimeAdvance(_) | Outcome::Entropy(_) | Outcome::BindingCall(_) => {
-                return Err(RuntimeError::Internal {
-                    message: "unexpected low-level trace event escaped world replay".to_string(),
-                }
-                .boxed());
             }
         }
 
@@ -529,8 +520,7 @@ impl World {
     }
 
     /// Build one fresh child-world shell for one forked branch.
-    #[allow(clippy::arc_with_non_send_sync)] // NOTE #Architecture: worlds are intentionally thread-affine and still reference counted
-    fn fork_child_world(&self, branch_id: BranchId, trace_header: TraceHeader) -> Arc<World> {
+    fn fork_child_world(&self, branch_id: BranchId, trace_header: TraceHeader) -> World {
         // parent execution mode
         let trace_mode = self.trace.mode();
 
@@ -539,30 +529,25 @@ impl World {
         let random = Random::new(self.random.root_seed());
 
         // fresh child shell: restore_image will install policy, topology, resources, simulation, ids, and runtimes
-        Arc::new(World {
+        World {
             branch_id,
-            runtimes: RefCell::new(Default::default()),
-            simulation: RefCell::new(Default::default()),
+            runtimes: Default::default(),
+            simulation: Default::default(),
+            policy: self.policy.clone(),
+            next_runtime_id: 0,
+            next_agent_id: 0,
+            topology: Default::default(),
+            resources: Default::default(),
             time_mode: self.time_mode,
             random_mode: self.random_mode,
             clock,
             random,
             trace: Trace::new(trace_mode, trace_header),
-            observations: ObservationLog::default(),
-            policy: RefCell::new(PolicyState::new(self.policy())),
-            mutation_active: Cell::new(false),
-            next_runtime_id: Cell::new(0),
-            next_agent_id: Cell::new(0),
+            observations: Observations::default(),
             lineage: self.lineage.clone(),
-            access_state: Cell::new(AccessState::Shared {
-                active_operations: 0,
-            }),
-            topology: RefCell::new(Default::default()),
-            resources: RefCell::new(Default::default()),
-            shared: RefCell::new(heap::SharedSpace::with_page_bytes(
-                self.shared.borrow().page_bytes(),
-            )),
+            images: self.images.clone(),
+            shared: heap::SharedSpace::with_page_bytes(self.shared.page_bytes()),
             shared_limits: self.shared_limits,
-        })
+        }
     }
 }

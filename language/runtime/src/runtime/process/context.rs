@@ -16,7 +16,7 @@ use crate::platform::NativeArray;
 use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::runtime::bindings::BindingAffinity;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
-use crate::runtime::world::World;
+use crate::runtime::world::WorldRef;
 
 thread_local! {
     /// TLS slot for the current runtime execution context.
@@ -72,7 +72,7 @@ pub(crate) struct CurrentAgentContext {
     /// Host pointer for callback dispatch.
     pub host: *const HostSession,
     /// World pointer for replay, time, random, and policy.
-    pub world: *const World,
+    pub world: *const WorldRef,
     /// Execution context identifier for callback dispatch.
     pub execution_context_id: ExecutionContextId,
     /// Whether this execution scope runs on the process main context.
@@ -710,7 +710,7 @@ pub(crate) fn enter_current_agent_context(
     agent: *const Agent,
     event_loop: *const EventLoop,
     host: *const HostSession,
-    world: *const World,
+    world: *const WorldRef,
     is_process_main: bool,
 ) -> CurrentAgentContextGuard {
     let event_loop = unsafe { &*event_loop };

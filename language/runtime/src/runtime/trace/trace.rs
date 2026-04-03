@@ -676,12 +676,6 @@ impl TraceImage {
     }
 }
 
-impl Default for Trace {
-    fn default() -> Self {
-        Self::new(ExecutionMode::Fast, TraceHeader::default())
-    }
-}
-
 impl Capture for Trace {
     type Image = TraceImage;
     type Error = Box<RuntimeError>;

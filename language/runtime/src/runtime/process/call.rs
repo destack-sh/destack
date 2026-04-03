@@ -1,4 +1,3 @@
-use std::cell::Ref;
 use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
@@ -12,7 +11,7 @@ use crate::runtime::policy::BindingDispatchDecision;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::runtime::trace::{EntropySubject, Trace};
-use crate::runtime::world::World;
+use crate::runtime::world::WorldRef;
 use crate::simulation::Simulation;
 
 use super::{
@@ -34,7 +33,7 @@ pub struct BindingCallContext {
     /// Host state for platform callbacks.
     host: *const HostSession,
     /// Shared world for replay, time, random, and policy.
-    world: *const World,
+    world: *const WorldRef,
     /// Engine kind for this binding call.
     engine: BindingEngine,
     /// Event loop scope metadata for the current call.
@@ -62,8 +61,14 @@ impl Drop for BindingHookGuard<'_> {
 }
 
 impl BindingCallContext {
-    /// Create a binding call context for TLS.
-    pub fn new(agent: &Agent, event_loop: &EventLoop, host: &HostSession, world: &World) -> Self {
+    /// Create a binding call context for tests.
+    #[cfg(test)]
+    pub(crate) fn new(
+        agent: &Agent,
+        event_loop: &EventLoop,
+        host: &HostSession,
+        world: &WorldRef,
+    ) -> Self {
         let execution_context = event_loop.execution_context(host.is_process_main_context());
 
         Self {
@@ -82,7 +87,7 @@ impl BindingCallContext {
         agent: *const Agent,
         event_loop: *const EventLoop,
         host: *const HostSession,
-        world: *const World,
+        world: *const WorldRef,
         engine: BindingEngine,
     ) -> Self {
         let event_loop = unsafe { &*event_loop };
@@ -228,15 +233,15 @@ impl BindingCallContext {
 
     /// Borrow the shared runtime world.
     #[inline]
-    pub fn world(&self) -> &World {
+    pub(crate) fn world(&self) -> &WorldRef {
         // safety: pointer is owned by the runtime caller
         unsafe { &*self.world }
     }
 
     /// Borrow one read guard for the simulation state.
     #[inline]
-    pub fn read_simulation(&self) -> Ref<'_, Simulation> {
-        self.world().read_simulation()
+    pub fn simulation(&self) -> &Simulation {
+        self.world().simulation()
     }
 
     /// Return the current event loop scope.

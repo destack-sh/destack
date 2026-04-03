@@ -33,7 +33,7 @@ impl World {
 
     /// Return the exact execution coordinate for one committed revision.
     pub fn revision_moment(&self, revision_id: RevisionId) -> RuntimeResult<Moment> {
-        let lineage = self.lineage.borrow();
+        let lineage = self.lineage.read();
         let revision = lineage.revisions.get(&revision_id).ok_or_else(|| {
             RuntimeError::RevisionNotFound {
                 revision_id: revision_id.get(),
