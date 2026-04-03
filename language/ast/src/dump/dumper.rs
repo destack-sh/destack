@@ -785,9 +785,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::Block(_) => {
                 self.node("Expression::Block", _id.id).end();
             }
-            Expression::Statement(_) => {
-                self.node("Expression::Statement", _id.id).end();
-            }
             Expression::Labelled { label, body: _ } => {
                 self.node("Expression::Labelled", _id.id)
                     .field("label", label)

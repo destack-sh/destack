@@ -120,9 +120,9 @@ pub fn walk_block<V: NodeVisitor + ?Sized>(
     block: &Block,
 ) {
     visitor.visit_any(tree, NodeType::Block, id.id);
-    for expression_id in &block.expressions {
-        let expression = tree.get(*expression_id);
-        visitor.visit_expression(tree, *expression_id, expression);
+    for expression_id in block.iter_expressions() {
+        let expression = tree.get(expression_id);
+        visitor.visit_expression(tree, expression_id, expression);
     }
 }
 
@@ -143,11 +143,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Block(block_id) => {
             let block = tree.get(*block_id);
             visitor.visit_block(tree, *block_id, block);
-        }
-
-        Expression::Statement(statement_id) => {
-            let statement = tree.get(*statement_id);
-            visitor.visit_expression(tree, *statement_id, statement);
         }
 
         Expression::Labelled { label: _, body } => {
