@@ -1,7 +1,4 @@
-use crate::{
-    Compiler, ImportResolveContext, ResolveError, ResolveMode, ResolveResult, ResolveWarning,
-    typescript_commonjs_default_interop_is_enabled,
-};
+use crate::{Compiler, ResolveError, ResolveMode, ResolveResult, ResolveWarning};
 use destack_artifact::{
     DirPrepared, DirResolved, ImportedModuleTable, ModuleEdgeRelation, Runtime,
 };
@@ -1059,64 +1056,5 @@ impl Compiler {
         }
 
         None
-    }
-
-    /// Return whether one default import may fall back to namespace lookup.
-    pub(super) fn default_import_uses_namespace_fallback(
-        &self,
-        revision: destack_workspace::Revision,
-        module: &Module,
-        source: DependencySource,
-        kind: DependencyKind,
-        profile: ProfileId,
-        remote_target: ModuleTarget,
-    ) -> ResolveResult<bool> {
-        // only static import declarations can use this interop path
-        if source != DependencySource::ImportStatement {
-            return Ok(false);
-        }
-
-        // read one source interop context
-        let context = ImportResolveContext {
-            dependency_kind: kind,
-            source_language_type: Some(module.language_type),
-            edge_relation: self.import_edge_kind(module, source),
-        };
-
-        // read target runtime format
-        let target_module_format =
-            self.module_format_for_target(revision, module.id, profile, remote_target)?;
-
-        // read source interop policy from config first, then tsconfig fallback
-        let is_typescript_commonjs_default_interop_enabled = self
-            .repository
-            .package_options_for_module(revision, module)
-            .map_err(|error| ResolveError::Internal {
-                message: format!("failed to load package options: {error}"),
-            })?
-            .map(|options| {
-                let options = options.compiler;
-
-                matches!(
-                    options.module_resolution,
-                    destack_workspace::ModuleResolution::Node16
-                        | destack_workspace::ModuleResolution::NodeNext
-                )
-            })
-            .or_else(|| {
-                self.repository
-                    .tsconfig_options_for_module(revision, module)
-                    .ok()
-                    .flatten()
-                    .map(|options| {
-                        typescript_commonjs_default_interop_is_enabled(&options.compiler)
-                    })
-            })
-            .unwrap_or(false);
-
-        Ok(context.allows_commonjs_default_namespace_import(
-            target_module_format,
-            is_typescript_commonjs_default_interop_enabled,
-        ))
     }
 }

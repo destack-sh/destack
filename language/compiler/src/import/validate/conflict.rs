@@ -138,24 +138,20 @@ impl Compiler {
                     entry.entry(category).or_insert(symbol_id);
                 }
             }
+
             // check for local redeclarations
             if no_redeclare_locals {
-                // validate redeclaration conflicts across switch case scopes
-                self.validate_switch_case_binding_conflicts(
-                    module,
-                    tree,
-                    symbols,
-                    &mut reported_conflicts,
-                );
-
-                // validate conflicts that require ancestor scope checks
-                self.validate_ancestor_binding_conflicts(
+                let mut context = ConflictContext::new(
+                    self,
                     module,
                     tree,
                     symbols,
                     global_augmentation_scope,
-                    &mut reported_conflicts,
+                    reported_conflicts,
                 );
+
+                context.validate_switch_case_binding_conflicts();
+                context.validate_ancestor_binding_conflicts();
             }
         }
     }
@@ -423,93 +419,6 @@ impl Compiler {
     }
 
     /// Validate conflicts between declarations in ancestor scope chains.
-    fn validate_ancestor_binding_conflicts(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        global_augmentation_scope: LocalScopeId,
-        reported_conflicts: &mut HashSet<(u32, u32)>,
-    ) {
-        for scope in symbols.scopes() {
-            for (key, symbol_id) in symbols.active_named_symbols(scope) {
-                let normalized_key = self.normalize_conflict_key(key);
-                let symbol = symbols.get_symbol(symbol_id);
-                let binding_category = self.symbol_binding_category(symbol);
-                if !self.is_conflict_binding_category(binding_category) {
-                    continue;
-                }
-                let Some(primary_declaration) = symbol.primary_declaration else {
-                    continue;
-                };
-                let scope_is_global_augmentation = self.scope_is_within_global_augmentation(
-                    symbols,
-                    symbol.scope.0,
-                    global_augmentation_scope,
-                );
-
-                // walk ancestor scopes up to the nearest function boundary
-                let mut current_parent = scope.parent;
-                while let Some((ancestor_scope_id, _ancestor_mark)) = current_parent {
-                    let ancestor_scope = symbols.get_scope_by_id(ancestor_scope_id);
-                    let ancestor_is_global_augmentation = self.scope_is_within_global_augmentation(
-                        symbols,
-                        ancestor_scope_id,
-                        global_augmentation_scope,
-                    );
-
-                    // keep global augmentations isolated from module-local ancestor checks
-                    if scope_is_global_augmentation != ancestor_is_global_augmentation {
-                        break;
-                    }
-
-                    for (ancestor_key, ancestor_symbol_id) in
-                        symbols.active_named_symbols(ancestor_scope)
-                    {
-                        let ancestor_normalized_key = self.normalize_conflict_key(ancestor_key);
-                        if ancestor_normalized_key != normalized_key {
-                            continue;
-                        }
-                        let ancestor_symbol = symbols.get_symbol(ancestor_symbol_id);
-                        let ancestor_binding_category =
-                            self.symbol_binding_category(ancestor_symbol);
-                        let should_conflict = self.ancestor_binding_categories_conflict(
-                            tree,
-                            symbols,
-                            symbol,
-                            ancestor_symbol,
-                            binding_category,
-                            ancestor_binding_category,
-                            symbol.scope.0,
-                            ancestor_scope_id,
-                        );
-                        if !should_conflict {
-                            continue;
-                        }
-
-                        let Some(ancestor_declaration) = ancestor_symbol.primary_declaration else {
-                            continue;
-                        };
-                        self.report_conflicting_binding(
-                            module,
-                            symbol.scope.0,
-                            key,
-                            primary_declaration,
-                            ancestor_declaration,
-                            reported_conflicts,
-                        );
-                    }
-
-                    // stop at function boundaries
-                    if self.scope_is_function_boundary(tree, symbols, ancestor_scope_id) {
-                        break;
-                    }
-                    current_parent = ancestor_scope.parent;
-                }
-            }
-        }
-    }
-
     /// Return true when a scope is the global augmentation scope or nested under it.
     /// (This keeps `declare global` bindings isolated from module-local redeclaration checks.)
     fn scope_is_within_global_augmentation(
@@ -793,6 +702,223 @@ impl Compiler {
         } else {
             (right_id, left_id)
         }
+    }
+}
+
+/// Stateful caches and reporting for binding conflict validation.
+struct ConflictContext<'a> {
+    /// The compiler driving validation.
+    compiler: &'a Compiler,
+    /// The module being validated.
+    module: &'a Module,
+    /// The module syntax tree.
+    tree: &'a NodeTree,
+    /// The module symbol table.
+    symbols: &'a SymbolTable,
+    /// The root scope for `declare global` isolation.
+    global_augmentation_scope: LocalScopeId,
+    /// The conflicts already reported for this module.
+    reported_conflicts: HashSet<(u32, u32)>,
+    /// The normalized active symbols by scope.
+    normalized_scope_symbols: HashMap<LocalScopeId, HashMap<StaticKey, Vec<LocalSymbolId>>>,
+    /// The cached global augmentation ancestry facts.
+    scope_global_augmentations: HashMap<LocalScopeId, bool>,
+    /// The cached function-boundary facts.
+    scope_function_boundaries: HashMap<LocalScopeId, bool>,
+}
+
+impl<'a> ConflictContext<'a> {
+    /// Create a new binding conflict validation context.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        tree: &'a NodeTree,
+        symbols: &'a SymbolTable,
+        global_augmentation_scope: LocalScopeId,
+        reported_conflicts: HashSet<(u32, u32)>,
+    ) -> Self {
+        Self {
+            compiler,
+            module,
+            tree,
+            symbols,
+            global_augmentation_scope,
+            reported_conflicts,
+            normalized_scope_symbols: HashMap::new(),
+            scope_global_augmentations: HashMap::new(),
+            scope_function_boundaries: HashMap::new(),
+        }
+    }
+
+    /// Validate duplicate declarations across switch case scopes.
+    fn validate_switch_case_binding_conflicts(&mut self) {
+        self.compiler.validate_switch_case_binding_conflicts(
+            self.module,
+            self.tree,
+            self.symbols,
+            &mut self.reported_conflicts,
+        );
+    }
+
+    /// Validate conflicts between declarations in ancestor scope chains.
+    fn validate_ancestor_binding_conflicts(&mut self) {
+        for scope in self.symbols.scopes() {
+            for (key, symbol_id) in self.symbols.active_named_symbols(scope) {
+                let normalized_key = self.compiler.normalize_conflict_key(key);
+                let symbol = self.symbols.get_symbol(symbol_id);
+                let scope_id = symbol.scope.0;
+                let binding_category = self.compiler.symbol_binding_category(symbol);
+
+                // skip symbols that do not participate in redeclaration checks
+                if !self.compiler.is_conflict_binding_category(binding_category) {
+                    continue;
+                }
+
+                // only real declarations can participate in a reported conflict
+                let Some(primary_declaration) = symbol.primary_declaration else {
+                    continue;
+                };
+
+                // keep global augmentations isolated from module-local ancestor checks
+                let scope_is_global_augmentation =
+                    self.scope_is_within_global_augmentation(scope_id);
+
+                // walk ancestors up to the nearest function boundary
+                let mut current_parent = scope.parent;
+                while let Some((ancestor_scope_id, _ancestor_mark)) = current_parent {
+                    let ancestor_is_global_augmentation =
+                        self.scope_is_within_global_augmentation(ancestor_scope_id);
+                    if scope_is_global_augmentation != ancestor_is_global_augmentation {
+                        break;
+                    }
+
+                    // inspect only same-name candidates in the ancestor scope
+                    let ancestor_symbol_ids = self
+                        .normalized_active_named_symbols_for_scope(ancestor_scope_id)
+                        .get(&normalized_key)
+                        .cloned();
+
+                    if let Some(ancestor_symbol_ids) = ancestor_symbol_ids {
+                        for ancestor_symbol_id in ancestor_symbol_ids {
+                            let ancestor_symbol = self.symbols.get_symbol(ancestor_symbol_id);
+                            let ancestor_binding_category =
+                                self.compiler.symbol_binding_category(ancestor_symbol);
+                            let should_conflict =
+                                self.compiler.ancestor_binding_categories_conflict(
+                                    self.tree,
+                                    self.symbols,
+                                    symbol,
+                                    ancestor_symbol,
+                                    binding_category,
+                                    ancestor_binding_category,
+                                    scope_id,
+                                    ancestor_scope_id,
+                                );
+
+                            // skip same-name ancestors that are semantically compatible
+                            if !should_conflict {
+                                continue;
+                            }
+
+                            // only real declarations can be reported
+                            let Some(ancestor_declaration) = ancestor_symbol.primary_declaration
+                            else {
+                                continue;
+                            };
+
+                            self.report_conflicting_binding(
+                                scope_id,
+                                key,
+                                primary_declaration,
+                                ancestor_declaration,
+                            );
+                        }
+                    }
+
+                    // stop once redeclaration checks no longer cross the function boundary
+                    if self.scope_is_function_boundary(ancestor_scope_id) {
+                        break;
+                    }
+
+                    current_parent = self.symbols.get_scope_by_id(ancestor_scope_id).parent;
+                }
+            }
+        }
+    }
+
+    /// Return the normalized active named symbols for a scope.
+    fn normalized_active_named_symbols_for_scope(
+        &mut self,
+        scope_id: LocalScopeId,
+    ) -> &HashMap<StaticKey, Vec<LocalSymbolId>> {
+        self.normalized_scope_symbols
+            .entry(scope_id)
+            .or_insert_with(|| {
+                let scope = self.symbols.get_scope_by_id(scope_id);
+                let mut normalized_symbols = HashMap::new();
+
+                // group active symbols by normalized name
+                for (key, symbol_id) in self.symbols.active_named_symbols(scope) {
+                    let normalized_key = self.compiler.normalize_conflict_key(key);
+                    normalized_symbols
+                        .entry(normalized_key)
+                        .or_insert_with(Vec::new)
+                        .push(symbol_id);
+                }
+
+                normalized_symbols
+            })
+    }
+
+    /// Return true when a scope belongs to the global augmentation chain.
+    fn scope_is_within_global_augmentation(&mut self, scope_id: LocalScopeId) -> bool {
+        if let Some(is_within_global_augmentation) = self.scope_global_augmentations.get(&scope_id)
+        {
+            return *is_within_global_augmentation;
+        }
+
+        let is_within_global_augmentation = self.compiler.scope_is_within_global_augmentation(
+            self.symbols,
+            scope_id,
+            self.global_augmentation_scope,
+        );
+        self.scope_global_augmentations
+            .insert(scope_id, is_within_global_augmentation);
+
+        is_within_global_augmentation
+    }
+
+    /// Return true when a scope belongs to a function or method.
+    fn scope_is_function_boundary(&mut self, scope_id: LocalScopeId) -> bool {
+        if let Some(is_function_boundary) = self.scope_function_boundaries.get(&scope_id) {
+            return *is_function_boundary;
+        }
+
+        let is_function_boundary =
+            self.compiler
+                .scope_is_function_boundary(self.tree, self.symbols, scope_id);
+        self.scope_function_boundaries
+            .insert(scope_id, is_function_boundary);
+
+        is_function_boundary
+    }
+
+    /// Report a conflicting binding pair if it has not been reported.
+    fn report_conflicting_binding(
+        &mut self,
+        scope_id: LocalScopeId,
+        key: StaticKey,
+        declaration: GlobalNodeIdAny,
+        other_declaration: GlobalNodeIdAny,
+    ) {
+        self.compiler.report_conflicting_binding(
+            self.module,
+            scope_id,
+            key,
+            declaration,
+            other_declaration,
+            &mut self.reported_conflicts,
+        );
     }
 }
 

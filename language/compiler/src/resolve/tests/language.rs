@@ -187,6 +187,26 @@ fn test_resolve_native_well_known_fixed_array_symbol() {
     );
 }
 
+/// Resolve ambient bare JavaScript globals from the selected ES library surface.
+#[test]
+fn test_resolve_bare_javascript_globals_from_builtin_libraries() {
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020", "js"]);
+    let module_id = test.add_module(
+        "main.ts",
+        r#"
+const infinityValue = Infinity;
+const nanValue = NaN;
+const rootValue = globalThis;
+
+export const appValue = [infinityValue, nanValue, rootValue];
+"#,
+    );
+
+    test.resolve_module(module_id);
+    test.compile_check_clean();
+}
+
 /// Resolve the native String well-known symbol for an implicit native target profile.
 #[test]
 fn test_resolve_native_well_known_string_symbol_from_target_profile() {

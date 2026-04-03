@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir::{
     DependencySource, Expression, ImportTarget, LocalNodeId, LocalScopeId, LocalSymbolId, NodeTree,
-    NodeType, ScalarLiteral, SymbolTable, TypeTable, UnaryOperator,
+    ScalarLiteral, SymbolTable, TypeTable,
 };
 use destack_source::{NodeSpanType, SourcePartKey};
 
@@ -39,54 +39,6 @@ impl Compiler {
             };
 
             return Some(*target);
-        }
-    }
-
-    /// Return true when an unresolved identifier path is the direct operand of runtime `typeof`.
-    fn unresolved_path_is_runtime_typeof_operand(
-        &self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-        expression: &Expression,
-    ) -> bool {
-        // only bare identifiers can remain unresolved under runtime typeof
-        let Expression::UnresolvedPath {
-            path,
-            static_arguments: None,
-            ..
-        } = expression
-        else {
-            return false;
-        };
-        if path.segments.len() != 1 {
-            return false;
-        }
-
-        // walk through parenthesized wrappers until the immediate unary parent
-        let mut current_id = expression_id;
-        loop {
-            let Some(parent_id) = tree.get_parent(current_id.id) else {
-                return false;
-            };
-            if parent_id.ty != NodeType::Expression {
-                return false;
-            }
-
-            let parent_expression = tree.get(parent_id.into_typed::<Expression>());
-            // allow optional parenthesized wrappers around the operand
-            if let Expression::Parenthesized { expression } = parent_expression
-                && *expression == current_id
-            {
-                current_id = parent_id.into_typed::<Expression>();
-                continue;
-            }
-
-            // require runtime unary typeof as the direct parent
-            if let Expression::Unary { operator, right } = parent_expression {
-                return *operator == UnaryOperator::Typeof && *right == current_id;
-            }
-
-            return false;
         }
     }
 
@@ -234,13 +186,6 @@ impl Compiler {
                 ref static_arguments,
                 space_order,
             } => {
-                // track runtime typeof tolerance for missing symbols only
-                let is_runtime_typeof_operand = self.unresolved_path_is_runtime_typeof_operand(
-                    tree,
-                    expression_id,
-                    &expression,
-                );
-
                 // clone path data to release immutable tree borrows before resolution
                 let path = path.clone();
                 let static_arguments = static_arguments.clone();
@@ -308,7 +253,7 @@ impl Compiler {
                     )
                 };
 
-                // keep unresolved identifiers only for runtime typeof missing symbol probes
+                // resolve the path or report the missing symbol
                 match resolve_result {
                     Ok((resolved_expression, segment_targets)) => {
                         // record resolved path segment targets for query consumers
@@ -324,9 +269,6 @@ impl Compiler {
                         }
 
                         resolved_expression
-                    }
-                    Err(ResolveError::MissingSymbol { .. }) if is_runtime_typeof_operand => {
-                        return Ok(());
                     }
                     Err(error) => return Err(error),
                 }

@@ -757,9 +757,7 @@ impl Compiler {
         module: &Module,
         tree: &NodeTree,
         symbols: &mut SymbolTable,
-        roots: &[LocalNodeId<Expression>],
         namespace_scope: LocalScopeId,
-        namespace_symbol: LocalSymbolId,
         default_symbol: LocalSymbolId,
         export_assignment_symbol: LocalSymbolId,
         export_assignment: &mut Option<LocalNodeId<DependencyItem>>,
@@ -770,7 +768,6 @@ impl Compiler {
     ) {
         // cache the default export name
         let default_name = self.repository.strings.intern("default");
-        let is_commonjs_module = module.module_format.is_commonjs();
 
         // collect the export assignment if present
         let dependency_items = dependency_items_by_scope
@@ -793,7 +790,6 @@ impl Compiler {
             && namespace_scope_symbols.named_symbols.is_empty()
             && namespace_scope_symbols.anonymous_symbols.is_empty()
             && !self.module_is_ambient_lib(module)
-            && !is_commonjs_module
         {
             exported_symbols.clear();
             return;
@@ -836,19 +832,6 @@ impl Compiler {
                 namespace_scope,
                 default_symbol,
                 export_assignment_symbol,
-                symbols,
-                exported_symbols,
-            );
-        }
-
-        // synthesize static named exports for commonjs modules
-        if is_commonjs_module && export_assignment_item.is_none() {
-            self.insert_commonjs_named_exports(
-                module.id,
-                namespace_scope,
-                namespace_symbol.into_global(module.id),
-                roots,
-                tree,
                 symbols,
                 exported_symbols,
             );
