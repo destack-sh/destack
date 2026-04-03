@@ -967,4 +967,48 @@ interface Add<T, R = Self> {
         assert_eq!(parser.tree.comment_trivia().len(), 1);
         crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "interface-head");
     }
+
+    #[test]
+    fn test_parse_export_newtype_interface_with_default_this_parameter() {
+        let mut test = TestParser::new(
+            r#"
+export newtype interface Add<T, R = this> {
+    add(other: T): R;
+}
+"#,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parser errors: {:?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Interface { descriptor, kind, generics, members, .. } => {
+                assert!(descriptor.export.is_some());
+                assert_eq!(*kind, TypeKind::Nominal);
+                assert_string!(parser, descriptor.name.unwrap().string(), "Add");
+
+                // <T, R = this>
+                let parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                assert_eq!(parameters.len(), 2);
+                assert_node!(parser.tree, parameters[1], Parameter::Named { name, default: Some(default), .. } => {
+                    assert_string!(parser, *name, "R");
+                    assert_node!(parser.tree, *default, Expression::This);
+                });
+
+                // add(other: T): R
+                assert_eq!(members.len(), 1);
+                assert_node!(parser.tree, members[0], Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+                    assert_string!(parser, *name, "add");
+                    assert_eq!(signature.dynamic_parameters.len(), 1);
+                });
+            });
+        });
+    }
 }
