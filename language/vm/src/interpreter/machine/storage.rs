@@ -55,7 +55,7 @@ fn decode_function_value_storage(
     let (signature_type, function_offset, environment_offset, byte_len) =
         function_value_payload_layout(state.tree(), ty)?;
     let bytes = state
-        .heap_ref()
+        .heap()
         .managed_bytes(handle)
         .ok_or(Error::InvalidManagedReference)?;
 
@@ -115,7 +115,7 @@ pub(crate) fn allocate_function_value(
     };
     let layout_id = state.tree().type_layout_id(ty);
     let handle = state
-        .heap()
+        .heap_mut()
         .allocate_managed_bytes_typed(&bytes, reference_map, layout_id, ty.id)
         .map_err(Error::from)?;
 
@@ -260,7 +260,7 @@ fn write_raw_bytes(
     bytes: &[u8],
 ) -> Result<(), Error> {
     let byte_len = state
-        .heap_ref()
+        .heap()
         .raw_byte_len(pointer)
         .ok_or(Error::InvalidManagedReference)?;
     let end = byte_offset
@@ -277,7 +277,7 @@ fn write_raw_bytes(
         });
     }
 
-    if !state.heap().set_raw_bytes(pointer, byte_offset, bytes) {
+    if !state.heap_mut().set_raw_bytes(pointer, byte_offset, bytes) {
         return Err(Error::InvalidFieldAccess {
             index: byte_offset as u32,
             field_count: byte_len,
@@ -402,7 +402,7 @@ pub(crate) fn managed_storage_type(
     handle: ManagedReference,
 ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
     let type_id = state
-        .heap_ref()
+        .heap()
         .managed_type_id(handle)
         .ok_or(Error::InvalidManagedReference)?;
     let ty = mir::LocalNodeId::new(type_id);
@@ -425,7 +425,7 @@ pub(crate) fn clone_typed_storage_bytes_from_value(
         }
 
         let bytes = state
-            .heap_ref()
+            .heap()
             .managed_bytes(handle)
             .ok_or(Error::InvalidManagedReference)?
             .into_owned();
@@ -761,7 +761,7 @@ pub(crate) fn load_from_raw_pointer_typed(
 
     let owned_window = {
         let bytes = state
-            .heap_ref()
+            .heap()
             .raw_bytes(pointer)
             .ok_or(Error::InvalidManagedReference)?;
         let window = bytes
@@ -803,7 +803,7 @@ pub(crate) fn store_to_raw_pointer_typed(
         let source_type = managed_storage_type(state, handle)?;
         if source_type == access.value_type {
             let source_bytes = state
-                .heap_ref()
+                .heap()
                 .managed_bytes(handle)
                 .ok_or(Error::InvalidManagedReference)?
                 .into_owned();

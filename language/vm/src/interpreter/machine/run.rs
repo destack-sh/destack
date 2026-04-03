@@ -10,9 +10,7 @@ use crate::executable::{CallTarget, Executable};
 use crate::interpreter::{
     Continuation, ExecutionOutcome, ExecutionOutput, Interpreter, YieldState,
 };
-use crate::isolate::{
-    ExternalCallContext, ExternalFn, ExternalFnPtr, GlobalStorage, SchemaRegistry, StringInterner,
-};
+use crate::isolate::{ExternalCallContext, ExternalFn, GlobalStorage, SchemaRegistry, StringInterner};
 use crate::options::IsolateOptions;
 use destack_heap::Value;
 
@@ -29,7 +27,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         name: &str,
         arguments: &[Value],
@@ -42,7 +39,6 @@ impl Interpreter {
             string_interner,
             globals,
             externals,
-            externals_by_id,
             memory,
             name,
             arguments,
@@ -68,7 +64,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         name: &str,
         arguments: &[Value],
@@ -90,7 +85,6 @@ impl Interpreter {
             string_interner,
             globals,
             externals,
-            externals_by_id,
             memory,
             func_id,
             arguments,
@@ -110,7 +104,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
@@ -123,7 +116,6 @@ impl Interpreter {
             string_interner,
             globals,
             externals,
-            externals_by_id,
             memory,
             func_id,
             arguments,
@@ -149,7 +141,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
@@ -164,10 +155,7 @@ impl Interpreter {
         match Self::functions(executable).resolve(func_id) {
             Some(CallTarget::Import) => {
                 // call imports directly without entering the lowered machine
-                let handler =
-                    self.external_for_id(executable, externals, externals_by_id, func_id)?;
-
-                let handler = unsafe { handler.as_ref() };
+                let handler = self.external_for_id(executable, externals, func_id)?;
                 let value = {
                     let memory = memory.reborrow();
                     let mut context =
@@ -196,7 +184,6 @@ impl Interpreter {
             string_interner,
             globals,
             externals,
-            externals_by_id,
             memory,
             func_id,
             arguments,
@@ -215,7 +202,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         continuation: Continuation,
         resume_value: Value,
@@ -248,7 +234,6 @@ impl Interpreter {
             string_interner,
             globals,
             externals,
-            externals_by_id,
             memory,
             continuation.yield_state,
             resume_value,
@@ -265,7 +250,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         yield_state: YieldState,
         resume_value: Value,
@@ -290,7 +274,6 @@ impl Interpreter {
             string_interner,
             globals,
             externals,
-            externals_by_id,
             memory,
         )
     }
@@ -322,7 +305,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
@@ -392,7 +374,6 @@ impl Interpreter {
             string_interner,
             globals,
             externals,
-            externals_by_id,
             memory,
         )
     }
@@ -407,7 +388,6 @@ impl Interpreter {
         string_interner: &mut StringInterner,
         globals: &mut GlobalStorage,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
     ) -> RuntimeResult<ExecutionOutcome> {
         let collect_stats = options.telemetry.collect_stats;
@@ -483,7 +463,6 @@ impl Interpreter {
                 schema,
                 string_interner,
                 externals,
-                externals_by_id,
                 memory,
                 current_func,
                 transfer,

@@ -7,17 +7,15 @@ use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use destack_mir as mir;
 
 use super::{
-    ExternalCallContext, ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage, SchemaRegistry,
-    StringInterner, StringRef,
+    ExternalCallContext, ExternalFn, ExternalHandler, GlobalStorage, SchemaRegistry, StringInterner,
+    StringRef,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
 use crate::interpreter::{Continuation, ExecutionOutcome, ExecutionOutput, Interpreter};
 use crate::options::IsolateOptions;
 use crate::snapshot::{ContinuationImage, IsolateImage, IsolateSnapshot};
-use destack_heap::{
-    GcStats, Heap, ManagedReference, MemoryContext, SharedPointer, SharedSpace, Value,
-};
+use destack_heap::{GcStats, Heap, ManagedReference, MemoryContext, SharedSpace, Value};
 
 // isolate id generator for continuation validation
 static ISOLATE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -36,8 +34,6 @@ pub struct Isolate {
     globals: GlobalStorage,
     /// External function handlers.
     externals: HashMap<String, ExternalFn>,
-    /// Cached external handlers by function id.
-    externals_by_id: Vec<Option<ExternalFnPtr>>,
     /// Runtime ABI storage schemas installed into this isolate.
     schema: SchemaRegistry,
     /// Interpreter engine backing this isolate.
@@ -68,7 +64,6 @@ impl Isolate {
             string_interner: StringInterner::new(&image.tree),
             globals: image.globals.clone(),
             externals: HashMap::new(),
-            externals_by_id: Vec::new(),
             schema: SchemaRegistry::new(),
             interpreter: Interpreter::new(),
         };
@@ -102,7 +97,6 @@ impl Isolate {
             string_interner,
             globals: GlobalStorage::new(),
             externals: HashMap::new(),
-            externals_by_id: Vec::new(),
             schema: SchemaRegistry::new(),
             interpreter: Interpreter::new(),
         })
@@ -169,8 +163,7 @@ impl Isolate {
 
     /// Register a VM binding handler.
     pub fn register_vm_binding(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
-        self.externals.insert(name.to_string(), Box::new(handler));
-        self.rebuild_external_cache();
+        self.externals.insert(name.to_string(), Arc::new(handler));
     }
 
     /// Register one runtime named type for external ABI fallback.
@@ -227,7 +220,6 @@ impl Isolate {
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
-            &mut self.externals_by_id,
             memory,
             name,
             arguments,
@@ -249,7 +241,6 @@ impl Isolate {
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
-            &mut self.externals_by_id,
             memory,
             name,
             arguments,
@@ -271,7 +262,6 @@ impl Isolate {
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
-            &mut self.externals_by_id,
             memory,
             func_id,
             arguments,
@@ -293,7 +283,6 @@ impl Isolate {
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
-            &mut self.externals_by_id,
             memory,
             func_id,
             arguments,
@@ -315,7 +304,6 @@ impl Isolate {
             &mut self.string_interner,
             &mut self.globals,
             &self.externals,
-            &mut self.externals_by_id,
             memory,
             continuation,
             resume_value,
@@ -413,7 +401,6 @@ impl Isolate {
         self.isolate_id = image.isolate_id;
         self.string_interner.restore_image(&image.string_interner);
         self.globals = image.globals.clone();
-        self.rebuild_external_cache();
 
         // rebuild interpreter state over the restored isolate
         let _ = heap;
@@ -476,23 +463,6 @@ impl Isolate {
         &self.executable.tree
     }
 
-    /// Rebuild the executable keyed external handler cache.
-    pub(crate) fn rebuild_external_cache(&mut self) {
-        self.externals_by_id.clear();
-
-        for (name, handler) in &self.externals {
-            let Some(func_id) = self.executable.function_id_by_name.get(name).copied() else {
-                continue;
-            };
-
-            let index = func_id.id as usize;
-            if self.externals_by_id.len() <= index {
-                self.externals_by_id.resize(index + 1, None);
-            }
-
-            self.externals_by_id[index] = Some(ExternalFnPtr::from(handler.as_ref()));
-        }
-    }
 }
 
 impl Capture for Isolate {

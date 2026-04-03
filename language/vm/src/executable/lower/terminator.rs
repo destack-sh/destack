@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::collections::HashMap;
 
 use destack_mir as mir;
@@ -427,8 +426,6 @@ impl<'a> BlockLowerer<'a> {
                         arguments,
                         normal_resume_point,
                         unwind_resume_point,
-                        cached_function: Cell::new(None),
-                        cached_target: Cell::new(None),
                     },
                 }
             }
@@ -543,8 +540,6 @@ impl<'a> BlockLowerer<'a> {
                         callee: *callee,
                         signature: *signature,
                         arguments: args,
-                        cached_function: Cell::new(None),
-                        cached_ptr: Cell::new(None),
                     },
                 }
             }

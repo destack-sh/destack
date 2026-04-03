@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ptr::NonNull;
 #[cfg(feature = "stats")]
 use std::time::Duration;
 
@@ -9,7 +8,7 @@ use crate::diagnostic::{Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
 use crate::interpreter::Continuation;
 use crate::isolate::{
-    ExternalCallContext, ExternalFn, ExternalFnPtr, GlobalStorage, SchemaRegistry, StringInterner,
+    ExternalCallContext, ExternalFn, GlobalStorage, SchemaRegistry, StringInterner,
 };
 use crate::snapshot::InterpreterImage;
 use crate::telemetry::Statistics;
@@ -148,27 +147,14 @@ impl Interpreter {
         &self,
         executable: &Executable,
         externals: &HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         function_id: mir::LocalNodeId<mir::Function>,
-    ) -> Result<ExternalFnPtr, RuntimeError> {
-        let index = function_id.id as usize;
-        if let Some(handler) = externals_by_id.get(index).copied().flatten() {
-            return Ok(handler);
-        }
-
-        if externals_by_id.len() <= index {
-            externals_by_id.resize(index + 1, None);
-        }
-
+    ) -> Result<ExternalFn, RuntimeError> {
         let func = executable.tree.get(function_id);
         let name = executable.strings.get(func.name).to_string();
-        let handler = externals
+        externals
             .get(&name)
-            .ok_or_else(|| self.make_error(executable, Error::ExternalFunctionNotFound { name }))?;
-        let handler_ptr = NonNull::from(handler.as_ref());
-        externals_by_id[index] = Some(handler_ptr);
-
-        Ok(handler_ptr)
+            .cloned()
+            .ok_or_else(|| self.make_error(executable, Error::ExternalFunctionNotFound { name }))
     }
 
     /// Create an error with current call stack.

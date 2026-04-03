@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
-use std::ptr::NonNull;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::diagnostic::Error;
 use crate::executable::{ComponentLayout, Executable, Layout, repr_type};
@@ -41,10 +41,7 @@ impl<T> ExternalHandler for T where
 }
 
 /// Boxed external handler type.
-pub type ExternalFn = Box<dyn ExternalHandler>;
-
-/// Cached external handler pointer.
-pub(crate) type ExternalFnPtr = NonNull<dyn ExternalHandler>;
+pub type ExternalFn = Arc<dyn ExternalHandler>;
 
 /// Runtime call context with restricted access to isolate state.
 pub struct ExternalCallContext<'ctx> {

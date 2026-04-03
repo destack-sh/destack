@@ -1,13 +1,11 @@
-use std::cell::Cell;
 use std::fmt;
-use std::ptr::NonNull;
 
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::diagnostic::Error;
 use destack_heap::{LayoutId, ReferenceMeta, Value};
 
-use super::{ArgumentRange, CallTarget, CopyRange, Function, SwitchRange};
+use super::{ArgumentRange, CallTarget, CopyRange, SwitchRange};
 
 /// Control transfer requested by one lowered instruction.
 #[derive(Debug)]
@@ -717,8 +715,6 @@ pub(crate) enum InstructionData {
         callee: mir::Value,
         signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
-        cached_function: Cell<Option<u32>>,
-        cached_target: Cell<Option<CallTarget>>,
     },
 
     /// Indirect call terminator with explicit normal and unwind continuations.
@@ -728,8 +724,6 @@ pub(crate) enum InstructionData {
         arguments: ArgumentRange,
         normal_resume_point: engine::ResumePointId,
         unwind_resume_point: engine::ResumePointId,
-        cached_function: Cell<Option<u32>>,
-        cached_target: Cell<Option<CallTarget>>,
     },
 
     /// Load local variable.
@@ -1361,8 +1355,6 @@ pub(crate) enum InstructionData {
         callee: mir::Value,
         signature: mir::LocalNodeId<mir::Type>,
         arguments: ArgumentRange,
-        cached_function: Cell<Option<u32>>,
-        cached_ptr: Cell<Option<NonNull<Function>>>,
     },
 }
 
