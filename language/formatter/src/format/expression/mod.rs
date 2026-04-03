@@ -47,8 +47,7 @@ pub use self::shape::{
     is_trivial_argument, is_trivial_expression, is_trivial_property,
 };
 pub(crate) use self::statement::{
-    format_statement_expression, statement_drops_parenthesized_expression_wrapper,
-    write_statement_expression_trailing_annotations,
+    format_statement_expression, write_statement_expression_trailing_annotations,
 };
 pub(crate) use self::ternary::{
     argument_value, format_expanded_ternary_expression, format_inline_ternary_expression,

@@ -56,19 +56,12 @@ pub(crate) fn ternary_requires_terminator(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+    let Some((_, parent_type)) = context.parent(node_id) else {
         return false;
     };
 
     if parent_type == NodeType::Block {
         return true;
-    }
-
-    if parent_type == NodeType::Expression {
-        let parent_id = LocalNodeId::<Expression>::new(parent_id);
-        if parent_id.id == node_id.id {
-            return false;
-        }
     }
 
     false

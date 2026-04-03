@@ -3,13 +3,12 @@ use super::{
     parenthesized_has_leading_inner_comments, parenthesized_has_leading_inner_line_comment,
     parenthesized_has_leading_inner_trivia,
 };
-use crate::DestackFormatter;
 use crate::format::chain::{receiver_is_await_wrapped, transparent_inner_expression};
 use crate::format::declaration::expression_is_decorated_class_declaration;
 use crate::format::operator::{
-    expression_is_type_position, type_union_has_explicit_leading_separator,
-    write_postfix_base_expression,
+    type_union_has_explicit_leading_separator, write_postfix_base_expression,
 };
+use crate::{DestackFormatter, ExpressionFormatRole};
 use destack_ast::{Expression, LocalNodeId, NodeTree, PostfixPosition};
 use destack_core::StringId;
 use destack_fir::format::{
@@ -151,7 +150,10 @@ pub(crate) fn should_unwrap_parenthesized_member_object(
     }
 
     // keep nested type slot grouping stable across repeated formatting
-    if expression_is_type_position(context, parenthesized_id) {
+    if context
+        .expression_format_role(parenthesized_id)
+        .is_some_and(|role| role == ExpressionFormatRole::Type)
+    {
         return false;
     }
 

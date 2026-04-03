@@ -93,6 +93,122 @@ pub(crate) fn tree_argument_is_wrapped_in_braces(
     starts_with_open_brace && ends_with_close_brace
 }
 
+/// Return whether stub prefix docs must stay inside the surrounding `{ ... }`.
+fn stub_argument_keeps_prefix_annotations_inside_braces(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+    value_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .annotation_ids(argument_id)
+        .iter()
+        .copied()
+        .any(|annotation_id| {
+            let annotation = context.annotation(annotation_id);
+            matches!(annotation, Annotation::Doc { .. })
+                && matches!(
+                    annotation.position(),
+                    AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                )
+        })
+        || context
+            .annotation_ids(value_id)
+            .iter()
+            .copied()
+            .any(|annotation_id| {
+                let annotation = context.annotation(annotation_id);
+                matches!(annotation, Annotation::Doc { .. })
+                    && matches!(
+                        annotation.position(),
+                        AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+                    )
+            })
+}
+
+/// Return stub comment nodes owned by the value span or argument span.
+fn stub_argument_comment_nodes(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+    value_id: LocalNodeId<Expression>,
+) -> (Vec<LocalNodeId<destack_ast::Comment>>, bool) {
+    let expression_comment_nodes =
+        context.comment_nodes_in_range(context.span(value_id).start, context.span(value_id).end);
+    if !expression_comment_nodes.is_empty() {
+        return (expression_comment_nodes, false);
+    }
+
+    let argument_comment_nodes = context.comment_nodes_in_range(
+        context.span(argument_id).start,
+        context.span(argument_id).end,
+    );
+    let rendered_inline_from_argument = !argument_comment_nodes.is_empty();
+
+    (argument_comment_nodes, rendered_inline_from_argument)
+}
+
+/// Write one stub argument inside `{ ... }` and return whether annotations stayed inline.
+fn write_stub_tree_expression_argument<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    argument_id: LocalNodeId<Argument>,
+    value_id: LocalNodeId<Expression>,
+) -> FormatResult<bool> {
+    let keep_stub_prefix_inside_braces =
+        stub_argument_keeps_prefix_annotations_inside_braces(f.context(), argument_id, value_id);
+    if keep_stub_prefix_inside_braces {
+        write!(f, [token("{")])?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                argument_id
+            )]
+        )?;
+        write!(
+            f,
+            [crate::format::annotation::prefix_annotations(
+                f.context(),
+                value_id
+            )]
+        )?;
+        write!(f, [token("}")])?;
+        return Ok(true);
+    }
+
+    let (comment_nodes, rendered_inline_from_argument) =
+        stub_argument_comment_nodes(f.context(), argument_id, value_id);
+
+    if comment_nodes.iter().any(|comment_id| {
+        f.context()
+            .tree
+            .get::<destack_ast::Comment>(*comment_id)
+            .style
+            == destack_ast::CommentStyle::Slash
+    }) {
+        write!(
+            f,
+            [group(&format_args![
+                token("{"),
+                block_indent(&format_with(|f| {
+                    format_multiline_stub_comment_nodes(f, &comment_nodes)
+                })),
+                hard_line_break(),
+                token("}")
+            ])]
+        )?;
+    } else {
+        write!(f, [token("{")])?;
+        let mut wrote_stub_comment = format_inline_stub_comments(f, f.context().span(value_id))?;
+        if !wrote_stub_comment {
+            wrote_stub_comment = format_inline_stub_comments(f, f.context().span(argument_id))?;
+        }
+        write!(f, [token("}")])?;
+
+        return Ok(rendered_inline_from_argument && wrote_stub_comment);
+    }
+
+    Ok(rendered_inline_from_argument)
+}
+
 /// Write one tree expression argument.
 pub(crate) fn write_tree_expression_argument<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -187,97 +303,8 @@ pub(crate) fn write_tree_expression_argument<'ast>(
                 );
             if needs_braces {
                 if matches!(value_expr, Expression::Stub) {
-                    let keep_stub_prefix_inside_braces = stub_value_id.is_some_and(|value_id| {
-                        f.context().annotation_ids(argument_id).iter().copied().any(
-                            |annotation_id| {
-                                let annotation = f.context().annotation(annotation_id);
-                                matches!(annotation, Annotation::Doc { .. })
-                                    && matches!(
-                                        annotation.position(),
-                                        AnnotationPosition::BlockPrefix
-                                            | AnnotationPosition::LinePrefix
-                                    )
-                            },
-                        ) || f.context().annotation_ids(value_id).iter().copied().any(
-                            |annotation_id| {
-                                let annotation = f.context().annotation(annotation_id);
-                                matches!(annotation, Annotation::Doc { .. })
-                                    && matches!(
-                                        annotation.position(),
-                                        AnnotationPosition::BlockPrefix
-                                            | AnnotationPosition::LinePrefix
-                                    )
-                            },
-                        )
-                    });
-                    if keep_stub_prefix_inside_braces {
-                        write!(f, [token("{")])?;
-                        write!(
-                            f,
-                            [crate::format::annotation::prefix_annotations(
-                                f.context(),
-                                argument_id
-                            )]
-                        )?;
-                        write!(
-                            f,
-                            [crate::format::annotation::prefix_annotations(
-                                f.context(),
-                                *value
-                            )]
-                        )?;
-                        write!(f, [token("}")])?;
-                        stub_argument_annotations_rendered_inline = true;
-                    } else {
-                        let expression_comment_nodes = f.context().comment_nodes_in_range(
-                            f.context().span(*value).start,
-                            f.context().span(*value).end,
-                        );
-                        let argument_comment_nodes = f.context().comment_nodes_in_range(
-                            f.context().span(argument_id).start,
-                            f.context().span(argument_id).end,
-                        );
-
-                        let mut comment_nodes = expression_comment_nodes;
-                        if comment_nodes.is_empty() {
-                            comment_nodes = argument_comment_nodes;
-                            if !comment_nodes.is_empty() {
-                                stub_argument_annotations_rendered_inline = true;
-                            }
-                        }
-
-                        if comment_nodes.iter().any(|comment_id| {
-                            f.context()
-                                .tree
-                                .get::<destack_ast::Comment>(*comment_id)
-                                .style
-                                == destack_ast::CommentStyle::Slash
-                        }) {
-                            write!(
-                                f,
-                                [group(&format_args![
-                                    token("{"),
-                                    block_indent(&format_with(|f| {
-                                        format_multiline_stub_comment_nodes(f, &comment_nodes)
-                                    })),
-                                    hard_line_break(),
-                                    token("}")
-                                ])]
-                            )?;
-                        } else {
-                            write!(f, [token("{")])?;
-                            let mut wrote_stub_comment =
-                                format_inline_stub_comments(f, f.context().span(*value))?;
-                            if !wrote_stub_comment {
-                                wrote_stub_comment =
-                                    format_inline_stub_comments(f, f.context().span(argument_id))?;
-                                if wrote_stub_comment {
-                                    stub_argument_annotations_rendered_inline = true;
-                                }
-                            }
-                            write!(f, [token("}")])?;
-                        }
-                    }
+                    stub_argument_annotations_rendered_inline =
+                        write_stub_tree_expression_argument(f, argument_id, *value)?;
                 } else if force_multiline_braced_expression {
                     write!(
                         f,

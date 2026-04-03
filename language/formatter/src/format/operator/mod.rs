@@ -20,12 +20,14 @@ pub(crate) use self::postfix::{
 };
 pub(crate) use self::r#type::{
     expression_has_static_type_arguments, expression_has_type_grouping_semantics,
-    expression_is_type_position, expression_static_arguments, format_static_argument_list,
+    expression_static_arguments, format_static_argument_list,
     format_static_argument_list_with_relational_spacing, leading_raw_type_position_comment_nodes,
     normalize_parenthesized_type_grouping_inner_expression,
     parenthesized_type_expression_prefers_soft_block_layout,
-    should_drop_parenthesized_type_expression, write_colon_prefixed_type_annotation,
-    write_expression_with_inline_prefix_annotations,
+    raw_type_position_comment_nodes_in_range, should_drop_parenthesized_type_expression,
+    write_colon_prefixed_type_annotation, write_expression_with_inline_prefix_annotations,
+    write_type_expression_with_inline_prefix_annotations,
+    write_type_expression_without_prefix_annotations,
 };
 pub(crate) use self::types::is_object_like_type_expression;
 pub(crate) use self::union::{

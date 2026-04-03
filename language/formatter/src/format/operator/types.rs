@@ -1,5 +1,5 @@
 use super::r#type::{
-    leading_raw_type_position_comment_nodes, write_expression_with_inline_prefix_annotations,
+    leading_raw_type_position_comment_nodes, write_type_expression_with_inline_prefix_annotations,
 };
 use crate::format::annotation::raw_prefix_comment_nodes;
 use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
@@ -89,7 +89,7 @@ fn write_type_binary_operator_and_right<'ast>(
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     write!(f, [operator, space()])?;
-    write_expression_with_inline_prefix_annotations(f, right)
+    write_type_expression_with_inline_prefix_annotations(f, right)
 }
 
 /// Return whether this cast expression should keep TypeScript angle assertion syntax.
@@ -198,7 +198,7 @@ pub(crate) fn format_type_binary_expression<'ast>(
                         indent(&format_args![
                             hard_line_break(),
                             format_with(|f| {
-                                write_expression_with_inline_prefix_annotations(f, right)
+                                write_type_expression_with_inline_prefix_annotations(f, right)
                             })
                         ]),
                         hard_line_break(),

@@ -1,12 +1,11 @@
 use crate::format::call::layout::{
-    argument_has_callback_blocking_comment, argument_has_line_comment,
-    argument_has_prefix_line_comment, argument_is_block_callback, argument_is_collection_literal,
-    argument_is_compact_inline_callback, argument_is_inline_closure_cast_object,
-    argument_is_interpolated_template_literal, argument_is_template_literal,
-    argument_is_trivial_unannotated_non_lambda_value, call_argument_layout_facts,
-    call_force_expand_single_collection_for_type_binary_callee,
-    call_force_expand_single_multiline_with_static_arguments, call_has_static_arguments,
-    chain_call_argument_force_expand, single_argument_requires_expanded_list,
+    CallArgumentLayoutFacts, argument_expression_id, argument_has_callback_blocking_comment,
+    argument_has_line_comment, argument_has_prefix_line_comment, argument_is_block_callback,
+    argument_is_collection_literal, argument_is_compact_inline_callback,
+    argument_is_inline_closure_cast_object, argument_is_interpolated_template_literal,
+    argument_is_template_literal, argument_is_trivial_unannotated_non_lambda_value,
+    call_argument_layout_facts, call_has_static_arguments, chain_call_argument_force_expand,
+    single_argument_requires_expanded_list,
 };
 use crate::format::chain::{argument_value_id_if_present, transparent_inner_expression};
 use crate::format::collection::{TrailingSeparator, separated_entries};
@@ -33,13 +32,12 @@ enum GroupedCallArgumentLayout {
     GroupedLastArgument,
 }
 
-/// Return the plain expression value behind one call argument.
-fn call_argument_expression_id(
-    ctx: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> Option<LocalNodeId<Expression>> {
-    let value_id = argument_value_id_if_present(ctx.tree, argument_id)?;
-    Some(transparent_inner_expression(ctx, value_id))
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum GroupedArgumentExpressionFamily {
+    ArrayLike,
+    FunctionLike,
+    ObjectLike,
+    Other,
 }
 
 /// Return whether one expression is a function-like call argument.
@@ -52,6 +50,27 @@ fn expression_is_function_like_argument(
     };
 
     matches!(ctx.tree.get(*declaration_id), Declaration::Function { .. })
+}
+
+/// Return the grouped-layout family for one call argument expression.
+fn grouped_argument_expression_family(
+    ctx: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> GroupedArgumentExpressionFamily {
+    match ctx.tree.get(expression_id) {
+        Expression::ObjectExpression { .. } => GroupedArgumentExpressionFamily::ObjectLike,
+        Expression::ArrayExpression { .. } => GroupedArgumentExpressionFamily::ArrayLike,
+        Expression::TypeBinary {
+            operator:
+                destack_ast::TypeBinaryOperator::Cast | destack_ast::TypeBinaryOperator::Satisfies,
+            left,
+            ..
+        } => grouped_argument_expression_family(ctx, transparent_inner_expression(ctx, *left)),
+        _ if expression_is_function_like_argument(ctx, expression_id) => {
+            GroupedArgumentExpressionFamily::FunctionLike
+        }
+        _ => GroupedArgumentExpressionFamily::Other,
+    }
 }
 
 /// Return whether one expression is a block-bodied lambda call argument.
@@ -84,26 +103,30 @@ fn can_group_expression_argument(
     ctx: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    match ctx.tree.get(expression_id) {
-        Expression::ObjectExpression { properties, .. } => {
+    match grouped_argument_expression_family(ctx, expression_id) {
+        GroupedArgumentExpressionFamily::ObjectLike => {
+            let Expression::ObjectExpression { properties, .. } = ctx.tree.get(expression_id)
+            else {
+                return false;
+            };
+
             !properties.is_empty()
                 || !ctx
                     .comments_in_range(ctx.span(expression_id).start, ctx.span(expression_id).end)
                     .is_empty()
         }
-        Expression::ArrayExpression { elements, .. } => {
+        GroupedArgumentExpressionFamily::ArrayLike => {
+            let Expression::ArrayExpression { elements, .. } = ctx.tree.get(expression_id) else {
+                return false;
+            };
+
             !elements.is_empty()
                 || !ctx
                     .comments_in_range(ctx.span(expression_id).start, ctx.span(expression_id).end)
                     .is_empty()
         }
-        Expression::TypeBinary {
-            operator:
-                destack_ast::TypeBinaryOperator::Cast | destack_ast::TypeBinaryOperator::Satisfies,
-            left,
-            ..
-        } => can_group_expression_argument(ctx, transparent_inner_expression(ctx, *left)),
-        _ => expression_is_function_like_argument(ctx, expression_id),
+        GroupedArgumentExpressionFamily::FunctionLike => true,
+        GroupedArgumentExpressionFamily::Other => false,
     }
 }
 
@@ -144,28 +167,11 @@ fn grouped_last_arguments_share_family(
     penultimate_id: LocalNodeId<Expression>,
     last_id: LocalNodeId<Expression>,
 ) -> bool {
-    matches!(
-        (ctx.tree.get(penultimate_id), ctx.tree.get(last_id)),
-        (
-            Expression::ObjectExpression { .. },
-            Expression::ObjectExpression { .. }
-        ) | (
-            Expression::ArrayExpression { .. },
-            Expression::ArrayExpression { .. }
-        ) | (
-            Expression::TypeBinary {
-                operator: destack_ast::TypeBinaryOperator::Cast
-                    | destack_ast::TypeBinaryOperator::Satisfies,
-                ..
-            },
-            Expression::TypeBinary {
-                operator: destack_ast::TypeBinaryOperator::Cast
-                    | destack_ast::TypeBinaryOperator::Satisfies,
-                ..
-            }
-        )
-    ) || (expression_is_function_like_argument(ctx, penultimate_id)
-        && expression_is_function_like_argument(ctx, last_id))
+    let penultimate_family = grouped_argument_expression_family(ctx, penultimate_id);
+    let last_family = grouped_argument_expression_family(ctx, last_id);
+
+    penultimate_family != GroupedArgumentExpressionFamily::Other
+        && penultimate_family == last_family
 }
 
 /// Return the grouped call-argument layout, if one standard grouped layout applies.
@@ -181,8 +187,8 @@ fn grouped_call_argument_layout(
     }
 
     if dynamic_arguments.len() == 1 {
-        let argument_expression_id = call_argument_expression_id(ctx, dynamic_arguments[0])?;
-        if expression_is_function_like_argument(ctx, argument_expression_id) {
+        let expression_id = argument_expression_id(ctx, dynamic_arguments[0])?;
+        if expression_is_function_like_argument(ctx, expression_id) {
             return Some(GroupedCallArgumentLayout::GroupedFirstArgument);
         }
 
@@ -193,8 +199,8 @@ fn grouped_call_argument_layout(
         return None;
     }
 
-    let first_id = call_argument_expression_id(ctx, dynamic_arguments[0])?;
-    let second_id = call_argument_expression_id(ctx, dynamic_arguments[1])?;
+    let first_id = argument_expression_id(ctx, dynamic_arguments[0])?;
+    let second_id = argument_expression_id(ctx, dynamic_arguments[1])?;
 
     if expression_is_block_lambda_argument(ctx, first_id)
         && expression_is_relatively_short_group_partner(ctx, second_id)
@@ -350,22 +356,11 @@ pub(crate) fn call_arguments_force_expand_for_chain(
         return false;
     }
 
-    let (
-        has_call_infix_annotations,
-        _has_boundary_comments,
-        _has_any_argument_annotation,
-        _all_single_line_and_unannotated,
-        all_compact_simple_unannotated,
-        _has_line_comments,
-        _arrow_argument_count,
-        _function_argument_count,
-        _has_complex_non_callback_argument,
-        _trailing_collection_argument,
-    ) = call_argument_layout_facts(ctx, call_node_id, dynamic_arguments);
+    let layout_facts = call_argument_layout_facts(ctx, call_node_id, dynamic_arguments);
     let should_bypass_simple_false = dynamic_arguments.len() == 1
         && single_argument_requires_expanded_list(ctx, dynamic_arguments);
-    let can_use_simple_false = !has_call_infix_annotations
-        && all_compact_simple_unannotated
+    let can_use_simple_false = !layout_facts.has_call_infix_annotations
+        && layout_facts.all_compact_simple_unannotated
         && !should_bypass_simple_false;
     if can_use_simple_false {
         return false;
@@ -382,39 +377,17 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
     group_id: GroupId,
 ) -> FormatResult<()> {
     let single_argument = [argument_id];
-    let (
-        has_call_infix_annotations,
-        has_boundary_comments,
-        has_any_argument_annotation,
-        all_single_line_and_unannotated,
-        all_compact_simple_unannotated,
-        has_line_comments,
-        arrow_argument_count,
-        function_argument_count,
-        has_complex_non_callback_argument,
-        trailing_collection_argument,
-    ) = call_argument_layout_facts(f.context(), call_node_id, &single_argument);
+    let layout_facts = call_argument_layout_facts(f.context(), call_node_id, &single_argument);
     let call_has_static_arguments = call_has_static_arguments(f.context(), call_node_id);
     let single_argument_force_expand =
         single_argument_requires_expanded_list(f.context(), &single_argument);
-    let force_expand_single_multiline_with_static_arguments =
-        call_force_expand_single_multiline_with_static_arguments(
-            f.context(),
-            call_node_id,
-            &single_argument,
-        );
-    let force_expand_single_collection_for_type_binary_callee =
-        call_force_expand_single_collection_for_type_binary_callee(
-            f.context(),
-            call_node_id,
-            &single_argument,
-        );
+
     // simple short-circuit path
-    let use_single_simple_short_circuit = !has_boundary_comments
+    let use_single_simple_short_circuit = !layout_facts.has_boundary_comments
         && !call_has_static_arguments
-        && !has_call_infix_annotations
+        && !layout_facts.has_call_infix_annotations
         && !single_argument_force_expand
-        && all_single_line_and_unannotated
+        && layout_facts.all_single_line_and_unannotated
         && {
             if let Some(value_id) = argument_value_id_if_present(f.context().tree, argument_id) {
                 let value_id = transparent_inner_expression(f.context(), value_id);
@@ -438,7 +411,9 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
     }
 
     // inline closure cast object path
-    if !has_boundary_comments && argument_is_inline_closure_cast_object(f.context(), argument_id) {
+    if !layout_facts.has_boundary_comments
+        && argument_is_inline_closure_cast_object(f.context(), argument_id)
+    {
         write_single_call_argument_inline_wrapped(f, argument_id)?;
         return Ok(());
     }
@@ -449,18 +424,8 @@ pub(crate) fn format_single_call_argument_with_group<'ast>(
         call_node_id,
         &single_argument,
         group_id,
-        has_call_infix_annotations,
-        has_any_argument_annotation,
-        all_compact_simple_unannotated,
-        has_line_comments,
-        arrow_argument_count,
-        function_argument_count,
-        has_complex_non_callback_argument,
-        trailing_collection_argument,
+        &layout_facts,
         single_argument_force_expand,
-        force_expand_single_multiline_with_static_arguments,
-        force_expand_single_collection_for_type_binary_callee,
-        has_boundary_comments,
     )?;
     Ok(())
 }
@@ -545,35 +510,14 @@ pub(crate) fn format_call_arguments_with_group<'ast>(
     }
 
     // multi argument path: scan once, choose layout, then render
-    let (
-        has_call_infix_annotations,
-        has_boundary_comments,
-        has_any_argument_annotation,
-        _all_single_line_and_unannotated,
-        all_compact_simple_unannotated,
-        has_line_comments,
-        arrow_argument_count,
-        function_argument_count,
-        has_complex_non_callback_argument,
-        trailing_collection_argument,
-    ) = call_argument_layout_facts(f.context(), call_node_id, dynamic_arguments);
+    let layout_facts = call_argument_layout_facts(f.context(), call_node_id, dynamic_arguments);
     format_decided_call_argument_list(
         f,
         call_node_id,
         dynamic_arguments,
         group_id,
-        has_call_infix_annotations,
-        has_any_argument_annotation,
-        all_compact_simple_unannotated,
-        has_line_comments,
-        arrow_argument_count,
-        function_argument_count,
-        has_complex_non_callback_argument,
-        trailing_collection_argument,
+        &layout_facts,
         false,
-        false,
-        false,
-        has_boundary_comments,
     )
 }
 
@@ -730,26 +674,16 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
     _call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
-    has_call_infix_annotations: bool,
-    has_any_argument_annotation: bool,
-    all_compact_simple_unannotated: bool,
-    has_line_comments: bool,
-    arrow_argument_count: usize,
-    function_argument_count: usize,
-    has_complex_non_callback_argument: bool,
-    trailing_collection_argument: bool,
+    layout_facts: &CallArgumentLayoutFacts,
     single_argument_force_expand: bool,
-    force_expand_single_multiline_with_static_arguments: bool,
-    force_expand_single_collection_for_type_binary_callee: bool,
-    has_boundary_comments: bool,
 ) -> FormatResult<()> {
     // grouped standard layouts
     if let Some(layout) = grouped_call_argument_layout(
         f.context(),
         dynamic_arguments,
-        has_call_infix_annotations,
-        has_any_argument_annotation,
-        has_boundary_comments,
+        layout_facts.has_call_infix_annotations,
+        layout_facts.has_any_argument_annotation,
+        layout_facts.has_boundary_comments,
     ) {
         return format_grouped_call_argument_layout(f, dynamic_arguments, layout);
     }
@@ -757,20 +691,16 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
     if dynamic_arguments.len() == 1 {
         let argument_id = dynamic_arguments[0];
 
-        if !force_expand_single_multiline_with_static_arguments
-            && !force_expand_single_collection_for_type_binary_callee
-            && !single_argument_force_expand
-            && !has_any_argument_annotation
+        if !single_argument_force_expand
+            && !layout_facts.has_any_argument_annotation
             && argument_is_trivial_unannotated_non_lambda_value(f.context(), argument_id)
         {
             return write_single_call_argument_inline_wrapped(f, argument_id);
         }
 
-        if !has_call_infix_annotations
-            && !force_expand_single_multiline_with_static_arguments
-            && !force_expand_single_collection_for_type_binary_callee
-            && !has_boundary_comments
-            && !has_any_argument_annotation
+        if !layout_facts.has_call_infix_annotations
+            && !layout_facts.has_boundary_comments
+            && !layout_facts.has_any_argument_annotation
             && argument_is_compact_inline_callback(f.context(), argument_id)
         {
             return write_single_call_argument_inline_wrapped(f, argument_id);
@@ -794,7 +724,7 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
         let force_expand_single_commented_callback =
             argument_is_block_callback(f.context(), argument_id)
                 && (argument_has_callback_blocking_comment(f.context(), argument_id)
-                    || has_call_infix_annotations);
+                    || layout_facts.has_call_infix_annotations);
         let force_expand_single_prefix_line_commented_argument =
             argument_has_prefix_line_comment(f.context(), argument_id);
 
@@ -802,36 +732,36 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
             force_expand_jsx
                 || has_line_comments
                 || force_expand_single_commented_callback
-                || force_expand_single_multiline_with_static_arguments
                 || single_argument_force_expand
-                || force_expand_single_collection_for_type_binary_callee
                 || force_expand_single_prefix_line_commented_argument
-                || has_call_infix_annotations,
+                || layout_facts.has_call_infix_annotations,
             trailing_collection_argument,
         )
-    } else if !has_call_infix_annotations && all_compact_simple_unannotated {
-        (false, trailing_collection_argument)
+    } else if !layout_facts.has_call_infix_annotations
+        && layout_facts.all_compact_simple_unannotated
+    {
+        (false, layout_facts.trailing_collection_argument)
     } else {
         let force_expand_jsx = has_multiline_jsx_argument(f.context(), dynamic_arguments);
-        let force_expand_callback_with_collection_tail = trailing_collection_argument
+        let force_expand_callback_with_collection_tail = layout_facts.trailing_collection_argument
             && dynamic_arguments[..dynamic_arguments.len().saturating_sub(1)]
                 .iter()
                 .copied()
                 .any(|argument_id| argument_is_block_callback(f.context(), argument_id));
 
         let has_multiple_function_arguments =
-            arrow_argument_count >= 2 || function_argument_count >= 2;
+            layout_facts.arrow_argument_count >= 2 || layout_facts.function_argument_count >= 2;
         if has_multiple_function_arguments {
-            (true, trailing_collection_argument)
+            (true, layout_facts.trailing_collection_argument)
         } else {
             (
                 force_expand_jsx
-                    || has_complex_non_callback_argument
-                    || has_line_comments
+                    || layout_facts.has_complex_non_callback_argument
+                    || layout_facts.has_line_comments
                     || force_expand_callback_with_collection_tail
                     || has_multiple_function_arguments
-                    || has_call_infix_annotations,
-                trailing_collection_argument,
+                    || layout_facts.has_call_infix_annotations,
+                layout_facts.trailing_collection_argument,
             )
         }
     };
@@ -841,8 +771,8 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
             .last()
             .copied()
             .is_some_and(|last_argument_id| {
-                let has_last_line_comment =
-                    has_line_comments && argument_has_line_comment(f.context(), last_argument_id);
+                let has_last_line_comment = layout_facts.has_line_comments
+                    && argument_has_line_comment(f.context(), last_argument_id);
                 let has_last_source_comment = {
                     let argument_span = f.context().span(last_argument_id);
                     !f.context()
@@ -851,8 +781,9 @@ pub(crate) fn format_decided_call_argument_list<'ast>(
                 };
                 has_last_line_comment || has_last_source_comment
             });
-    let force_expand =
-        force_expand_regular || has_boundary_comments || trailing_collection_comment_force_expand;
+    let force_expand = force_expand_regular
+        || layout_facts.has_boundary_comments
+        || trailing_collection_comment_force_expand;
     format_default_call_argument_list(
         f,
         group_id,

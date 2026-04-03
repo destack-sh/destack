@@ -12,6 +12,7 @@ use crate::format::expression::{
     expression_has_prefix_comment_or_doc_annotation_in_left_spine,
     expression_has_static_type_arguments,
 };
+use crate::format::operator::write_type_expression_with_inline_prefix_annotations;
 use crate::{Annotation, DestackFormatter, FormatNode, empty_block_with_infix_annotations};
 use destack_ast::{
     AnnotationPosition, Declaration, DeclarationAbstraction, DeclarationDescriptor,
@@ -213,9 +214,11 @@ fn format_class_extends_expression<'ast>(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if class_extends_expression_requires_parentheses(f, expression_id) {
-        write!(f, [token("("), expression_id, token(")")])?;
+        write!(f, [token("(")])?;
+        write_type_expression_with_inline_prefix_annotations(f, expression_id)?;
+        write!(f, [token(")")])?;
     } else {
-        write!(f, [expression_id])?;
+        write_type_expression_with_inline_prefix_annotations(f, expression_id)?;
     }
 
     Ok(())
@@ -298,6 +301,115 @@ fn format_declaration_where_clauses<'ast>(
     Ok(())
 }
 
+/// Write the separator between one declaration head and its body.
+fn write_declaration_body_separator<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    has_head_boundary: bool,
+    has_body_head_comment: bool,
+) -> FormatResult<()> {
+    if has_head_boundary {
+        write!(f, [hard_line_break()])?;
+    } else if !has_body_head_comment {
+        write!(f, [space()])?;
+    } else {
+        // body-head annotations emit their own boundary separator
+    }
+
+    Ok(())
+}
+
+/// Write one member-backed declaration body, including infix and postfix annotations.
+fn write_member_declaration_body_or_empty<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    members: &[LocalNodeId<Member>],
+) -> FormatResult<bool> {
+    if members.is_empty() {
+        write!(f, [empty_block_with_infix_annotations(node_id)])?;
+        write!(
+            f,
+            [
+                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                    f.context(),
+                    node_id
+                )
+            ]
+        )?;
+        return Ok(true);
+    }
+
+    write!(f, [token("{"), hard_line_break()])?;
+    write!(
+        f,
+        [group(&format_args![block_indent(&format_with(|f| {
+            format_block_of_members(f, members)
+        })),])]
+    )?;
+    write!(
+        f,
+        [crate::format::annotation::block_infix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
+    write!(f, [hard_line_break(), token("}")])?;
+
+    Ok(false)
+}
+
+/// Write one enum declaration body, including field and member sections.
+fn write_enum_declaration_body_or_empty<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    fields: &[LocalNodeId<EnumField>],
+    members: &[LocalNodeId<Member>],
+) -> FormatResult<bool> {
+    if fields.is_empty() && members.is_empty() {
+        write!(f, [empty_block_with_infix_annotations(node_id)])?;
+        write!(
+            f,
+            [
+                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                    f.context(),
+                    node_id
+                )
+            ]
+        )?;
+        return Ok(true);
+    }
+
+    write!(f, [token("{"), hard_line_break()])?;
+    write!(
+        f,
+        [group(&format_args![block_indent(&format_with(|f| {
+            f.join_with(&format_args![&hard_line_break()])
+                .entries(fields)
+                .finish()
+        })),])]
+    )?;
+
+    if !fields.is_empty() && !members.is_empty() {
+        write!(f, [hard_line_break(), empty_line()])?;
+    }
+
+    write!(
+        f,
+        [group(&format_args![block_indent(&format_with(|f| {
+            format_block_of_members(f, members)
+        })),])]
+    )?;
+    write!(
+        f,
+        [crate::format::annotation::block_infix_annotations(
+            f.context(),
+            node_id
+        )]
+    )?;
+    write!(f, [hard_line_break(), token("}")])?;
+
+    Ok(false)
+}
+
 /// Format declaration head seam annotations before heritage clauses.
 fn format_declaration_heritage_head_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -368,7 +480,8 @@ fn format_declaration_heritage<'ast>(
             && extends_types.len() == 1
             && is_parenthesized_class_extends_type(f, extends_types[0]);
         if extends_should_stay_inline_with_head {
-            write!(f, [space(), Keyword::Extends, space(), extends_types[0]])?;
+            write!(f, [space(), Keyword::Extends, space()])?;
+            write_type_expression_with_inline_prefix_annotations(f, extends_types[0])?;
         } else {
             format_super_type_clause_with_expand(
                 f,
@@ -465,7 +578,11 @@ fn format_anonymous_class_heritage<'ast>(
                 f,
                 [format_with(|f| {
                     f.join_with(&format_args![&token(","), space()])
-                        .entries(implements_types)
+                        .entries(implements_types.iter().copied().map(|type_id| {
+                            format_with(move |f| {
+                                write_type_expression_with_inline_prefix_annotations(f, type_id)
+                            })
+                        }))
                         .finish()
                 })]
             )?;
@@ -549,43 +666,12 @@ pub(crate) fn format_struct_or_class_declaration<'ast>(
     let has_heritage_line_boundary_annotation =
         has_generic_head_comment || implements_has_line_boundary_comment;
 
-    if has_heritage_line_boundary_annotation {
-        write!(f, [hard_line_break()])?;
-    } else if !has_body_head_comment {
-        write!(f, [space()])?;
-    } else {
-        // body-head annotations emit their own boundary separator.
-    }
-    if members.is_empty() {
-        write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [
-                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                    f.context(),
-                    node_id
-                )
-            ]
-        )?;
-        return Ok(true);
-    }
-
-    write!(f, [token("{"), hard_line_break()])?;
-    write!(
+    write_declaration_body_separator(
         f,
-        [group(&format_args![block_indent(&format_with(|f| {
-            format_block_of_members(f, members)
-        })),])]
+        has_heritage_line_boundary_annotation,
+        has_body_head_comment,
     )?;
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
-    write!(f, [hard_line_break(), token("}")])?;
-    Ok(false)
+    write_member_declaration_body_or_empty(f, node_id, members)
 }
 
 /// Format one enum field entry.
@@ -658,52 +744,8 @@ pub(crate) fn format_enum_declaration<'ast>(
     format_declaration_heritage(f, heritage, true, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
 
-    write!(f, [space()])?;
-
-    if fields.is_empty() && members.is_empty() {
-        write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [
-                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                    f.context(),
-                    node_id
-                )
-            ]
-        )?;
-        return Ok(true);
-    }
-
-    write!(f, [token("{"), hard_line_break()])?;
-    write!(
-        f,
-        [group(&format_args![block_indent(&format_with(|f| {
-            f.join_with(&format_args![&hard_line_break()])
-                .entries(fields)
-                .finish()
-        })),])]
-    )?;
-
-    if !fields.is_empty() && !members.is_empty() {
-        write!(f, [hard_line_break()])?;
-        write!(f, [empty_line()])?;
-    }
-
-    write!(
-        f,
-        [group(&format_args![block_indent(&format_with(|f| {
-            format_block_of_members(f, members)
-        })),])]
-    )?;
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
-    write!(f, [hard_line_break(), token("}")])?;
-    Ok(false)
+    write_declaration_body_separator(f, false, false)?;
+    write_enum_declaration_body_or_empty(f, node_id, fields, members)
 }
 
 /// Format an interface declaration and return whether it ended early.
@@ -735,36 +777,6 @@ pub(crate) fn format_interface_declaration<'ast>(
     format_declaration_heritage(f, heritage, false, has_heritage_head_comment)?;
     format_declaration_where_clauses(f, generics.where_clauses.as_deref())?;
 
-    write!(f, [space()])?;
-
-    if members.is_empty() {
-        write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [
-                crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                    f.context(),
-                    node_id
-                )
-            ]
-        )?;
-        return Ok(true);
-    }
-
-    write!(f, [token("{"), hard_line_break()])?;
-    write!(
-        f,
-        [group(&format_args![block_indent(&format_with(|f| {
-            format_block_of_members(f, members)
-        })),])]
-    )?;
-    write!(
-        f,
-        [crate::format::annotation::block_infix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
-    write!(f, [hard_line_break(), token("}")])?;
-    Ok(false)
+    write_declaration_body_separator(f, false, false)?;
+    write_member_declaration_body_or_empty(f, node_id, members)
 }

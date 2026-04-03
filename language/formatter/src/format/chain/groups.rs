@@ -2,7 +2,7 @@ use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead,
     chain_annotation_is_inline_non_breaking, chain_has_parent_intervening_break_or_comment,
     chain_head_id, chain_member_has_promotable_boundary_comment, chain_node_has_forcing_annotation,
-    chain_node_has_non_inline_annotation, chain_operation_node_id,
+    chain_node_has_non_inline_annotation, chain_operation_is_call_like, chain_operation_node_id,
     chain_overflows_in_type_binary_left, has_comment_between_expressions, is_numeric_index,
     is_simple_chain_static_arguments, member_has_intervening_comment, transparent_inner_expression,
 };
@@ -14,6 +14,16 @@ use crate::format::operator::expression_has_static_type_arguments;
 use destack_ast::{AnnotationPosition, Expression, LocalNodeId, NodeType, PostfixPosition};
 use smallvec::SmallVec;
 
+/// The grouping role of one chain operation.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ChainOperationGroupingKind {
+    NumericDirectIndex,
+    MemberLike,
+    CallLike,
+    AttachedTail,
+    Standalone,
+}
+
 /// Return the number of operations that stay in the head group.
 pub(crate) fn chain_head_operation_count(
     context: &DestackFormatContext<'_>,
@@ -24,72 +34,22 @@ pub(crate) fn chain_head_operation_count(
 
     while head_operation_count < operations.len() {
         let operation = &operations[head_operation_count];
-        let is_numeric_direct_index = matches!(
-            operation,
-            ChainExpression::Index {
-                position: PostfixPosition::Direct,
-                index,
-                ..
-            } if is_numeric_index(context, index)
-        );
-        if !matches!(
-            operation,
-            ChainExpression::Call {
-                position: PostfixPosition::Direct,
-                ..
-            } | ChainExpression::Instantiation { .. }
-                | ChainExpression::Maybe { .. }
-                | ChainExpression::Must { .. }
-        ) && !is_numeric_direct_index
-        {
+        if !chain_operation_stays_in_head_group(context, operation) {
             break;
         }
 
         head_operation_count += 1;
     }
 
-    let base_has_leading_call_like = match &base.head {
-        ChainExpressionBaseHead::Expression(expression_id) => {
-            let expression_id = transparent_inner_expression(context, *expression_id);
-            let expression = context.tree.get(expression_id);
-            matches!(
-                expression,
-                Expression::Call { .. } | Expression::Instantiation { .. }
-            ) || matches!(
-                expression,
-                Expression::Parenthesized { expression }
-                    if matches!(
-                        context.tree.get(*expression),
-                        Expression::Call { .. } | Expression::Instantiation { .. }
-                    )
-            ) || base.body.first().is_some_and(|operation| {
-                matches!(
-                    operation,
-                    ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-                )
-            })
-        }
-        ChainExpressionBaseHead::Path { .. } => base.body.first().is_some_and(|operation| {
-            matches!(
-                operation,
-                ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-            )
-        }),
-    };
+    let base_has_leading_call_like = chain_base_has_leading_call_like(context, base);
 
     if !base_has_leading_call_like {
         while head_operation_count + 1 < operations.len() {
             let operation = &operations[head_operation_count];
             let next_operation = &operations[head_operation_count + 1];
             if chain_node_has_non_inline_annotation(context, chain_operation_node_id(operation))
-                || !matches!(
-                    operation,
-                    ChainExpression::Member { .. } | ChainExpression::Index { .. }
-                )
-                || !matches!(
-                    next_operation,
-                    ChainExpression::Member { .. } | ChainExpression::Index { .. }
-                )
+                || !chain_operation_extends_member_head_group(context, operation)
+                || !chain_operation_extends_member_head_group(context, next_operation)
             {
                 break;
             }
@@ -111,10 +71,31 @@ pub(crate) fn build_tail_chain_lines(
     let mut has_seen_call_like = false;
 
     for operation in tail_operations {
-        if chain_operation_is_array_member_access(context, &operation) {
-            current_line.push(operation);
-        } else if chain_operation_is_member_like(context, &operation) {
-            if has_seen_call_like {
+        match chain_operation_grouping_kind(context, &operation) {
+            ChainOperationGroupingKind::NumericDirectIndex => {
+                current_line.push(operation);
+            }
+            ChainOperationGroupingKind::MemberLike => {
+                if has_seen_call_like {
+                    if !current_line.is_empty() {
+                        lines.push(current_line);
+                        current_line = SmallVec::new();
+                    }
+
+                    current_line.push(operation);
+                    has_seen_call_like = false;
+                } else {
+                    current_line.push(operation);
+                }
+            }
+            ChainOperationGroupingKind::CallLike => {
+                current_line.push(operation);
+                has_seen_call_like = true;
+            }
+            ChainOperationGroupingKind::AttachedTail => {
+                current_line.push(operation);
+            }
+            ChainOperationGroupingKind::Standalone => {
                 if !current_line.is_empty() {
                     lines.push(current_line);
                     current_line = SmallVec::new();
@@ -122,22 +103,7 @@ pub(crate) fn build_tail_chain_lines(
 
                 current_line.push(operation);
                 has_seen_call_like = false;
-            } else {
-                current_line.push(operation);
             }
-        } else if chain_operation_is_call_like(&operation) {
-            current_line.push(operation);
-            has_seen_call_like = true;
-        } else if chain_operation_stays_in_current_group(&operation) {
-            current_line.push(operation);
-        } else {
-            if !current_line.is_empty() {
-                lines.push(current_line);
-                current_line = SmallVec::new();
-            }
-
-            current_line.push(operation);
-            has_seen_call_like = false;
         }
 
         if chain_operation_has_trailing_annotations(context, current_line.last().unwrap()) {
@@ -195,6 +161,103 @@ pub(crate) fn chain_instantiation_prefix_wrap_body_ops(
     }
 }
 
+/// Return whether one base begins with call-like chaining.
+fn chain_base_has_leading_call_like(
+    context: &DestackFormatContext<'_>,
+    base: &ChainExpressionBase,
+) -> bool {
+    match &base.head {
+        ChainExpressionBaseHead::Expression(expression_id) => {
+            let expression_id = transparent_inner_expression(context, *expression_id);
+            let expression = context.tree.get(expression_id);
+            chain_expression_is_call_like_base(context, expression)
+                || base.body.first().is_some_and(chain_operation_is_call_like)
+        }
+        ChainExpressionBaseHead::Path { .. } => {
+            base.body.first().is_some_and(chain_operation_is_call_like)
+        }
+    }
+}
+
+/// Return whether one expression behaves like a call-like chain base.
+fn chain_expression_is_call_like_base(
+    context: &DestackFormatContext<'_>,
+    expression: &Expression,
+) -> bool {
+    matches!(
+        expression,
+        Expression::Call { .. } | Expression::Instantiation { .. }
+    ) || matches!(
+        expression,
+        Expression::Parenthesized { expression }
+            if matches!(
+                context.tree.get(*expression),
+                Expression::Call { .. } | Expression::Instantiation { .. }
+            )
+    )
+}
+
+/// Return whether one operation stays in the head group.
+fn chain_operation_stays_in_head_group(
+    context: &DestackFormatContext<'_>,
+    operation: &ChainExpression,
+) -> bool {
+    matches!(
+        chain_operation_grouping_kind(context, operation),
+        ChainOperationGroupingKind::NumericDirectIndex
+            | ChainOperationGroupingKind::CallLike
+            | ChainOperationGroupingKind::AttachedTail
+    )
+}
+
+/// Return whether one operation extends the member-like head group.
+fn chain_operation_extends_member_head_group(
+    context: &DestackFormatContext<'_>,
+    operation: &ChainExpression,
+) -> bool {
+    matches!(
+        chain_operation_grouping_kind(context, operation),
+        ChainOperationGroupingKind::NumericDirectIndex | ChainOperationGroupingKind::MemberLike
+    )
+}
+
+/// Return the grouping role of one chain operation.
+fn chain_operation_grouping_kind(
+    context: &DestackFormatContext<'_>,
+    operation: &ChainExpression,
+) -> ChainOperationGroupingKind {
+    if matches!(
+        operation,
+        ChainExpression::Index {
+            position: PostfixPosition::Direct,
+            index,
+            ..
+        } if is_numeric_index(context, index)
+    ) {
+        return ChainOperationGroupingKind::NumericDirectIndex;
+    }
+
+    if matches!(
+        operation,
+        ChainExpression::Member { .. } | ChainExpression::Index { .. }
+    ) {
+        return ChainOperationGroupingKind::MemberLike;
+    }
+
+    if chain_operation_is_call_like(operation) {
+        return ChainOperationGroupingKind::CallLike;
+    }
+
+    if matches!(
+        operation,
+        ChainExpression::Maybe { .. } | ChainExpression::Must { .. }
+    ) {
+        return ChainOperationGroupingKind::AttachedTail;
+    }
+
+    ChainOperationGroupingKind::Standalone
+}
+
 /// Return whether an operation carries static instantiation arguments.
 fn chain_operation_has_static_instantiation_arguments(operation: &ChainExpression) -> bool {
     match operation {
@@ -208,48 +271,6 @@ fn chain_operation_has_static_instantiation_arguments(operation: &ChainExpressio
             .is_some_and(|arguments| !arguments.is_empty()),
         _ => false,
     }
-}
-
-/// Return whether an operation is a numeric direct index access.
-fn chain_operation_is_array_member_access(
-    context: &DestackFormatContext<'_>,
-    operation: &ChainExpression,
-) -> bool {
-    matches!(
-        operation,
-        ChainExpression::Index {
-            position: PostfixPosition::Direct,
-            index,
-            ..
-        } if is_numeric_index(context, index)
-    )
-}
-
-/// Return whether an operation behaves like a member access in grouping.
-fn chain_operation_is_member_like(
-    context: &DestackFormatContext<'_>,
-    operation: &ChainExpression,
-) -> bool {
-    matches!(
-        operation,
-        ChainExpression::Member { .. } | ChainExpression::Index { .. }
-    ) && !chain_operation_is_array_member_access(context, operation)
-}
-
-/// Return whether an operation behaves like a call in grouping.
-fn chain_operation_is_call_like(operation: &ChainExpression) -> bool {
-    matches!(
-        operation,
-        ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-    )
-}
-
-/// Return whether an operation should stay attached to the current group.
-fn chain_operation_stays_in_current_group(operation: &ChainExpression) -> bool {
-    matches!(
-        operation,
-        ChainExpression::Maybe { .. } | ChainExpression::Must { .. }
-    )
 }
 
 /// Return whether an operation has postfix annotations that force a split.

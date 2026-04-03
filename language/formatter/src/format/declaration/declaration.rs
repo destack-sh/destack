@@ -4,6 +4,7 @@ use crate::format::declaration::assignment::format_type_alias_assignment_like;
 use crate::format::declaration::sequence::format_block_statement_sequence;
 use crate::format::declaration::signature::format_where_clause_with_break;
 use crate::format::expression::{expression_has_static_type_arguments, format_declarator};
+use crate::format::operator::write_type_expression_with_inline_prefix_annotations;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode as AstFormatNode,
     empty_block_with_infix_annotations,
@@ -92,6 +93,27 @@ fn declaration_export_head_comment_nodes(
     comment_ids
 }
 
+/// Return the declaration expression wrapper when one declaration is used as an expression.
+fn declaration_expression_id(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Declaration>,
+) -> Option<LocalNodeId<Expression>> {
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return None;
+    };
+    if parent_type != NodeType::Expression {
+        return None;
+    }
+
+    let expression_id = LocalNodeId::<Expression>::new(parent_id);
+    match context.tree.get(expression_id) {
+        Expression::Declaration(parent_declaration_id) if *parent_declaration_id == node_id => {
+            Some(expression_id)
+        }
+        _ => None,
+    }
+}
+
 /// Write raw comment seams between `export` and the declaration head.
 fn write_declaration_export_head_comment_seams<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -125,6 +147,49 @@ fn write_declaration_export_head_comment_seams<'ast>(
     }
 
     Ok(())
+}
+
+/// Write one expression-backed declaration body with local block ownership.
+fn write_expression_declaration_body<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Declaration>,
+    expressions: &[LocalNodeId<Expression>],
+    has_break_before_block_infix: bool,
+) -> FormatResult<()> {
+    write!(f, [space()])?;
+
+    if expressions.is_empty() {
+        write!(f, [empty_block_with_infix_annotations(node_id)])?;
+        write!(
+            f,
+            [crate::format::annotation::postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        )?;
+        return Ok(());
+    }
+
+    let expressions = expressions.to_vec();
+    write!(f, [token("{"), hard_line_break()])?;
+    write!(
+        f,
+        [group(&block_indent(&format_with(move |f| {
+            format_block_statement_sequence(f, &expressions, false)
+        })))]
+    )?;
+
+    if has_break_before_block_infix {
+        write!(f, [hard_line_break()])?;
+    }
+
+    write!(
+        f,
+        [
+            crate::format::annotation::block_infix_annotations(f.context(), node_id),
+            token("}")
+        ]
+    )
 }
 
 /// Format one declaration export modifier and export-head seam comments.
@@ -240,9 +305,11 @@ fn format_super_type_expression<'ast>(
     let should_wrap_class_extends_head = keyword == Keyword::Extends
         && class_extends_expression_requires_parenthesized_head(f.context(), expression_id);
     if should_wrap_class_extends_head {
-        write!(f, [token("("), expression_id, token(")")])?;
+        write!(f, [token("(")])?;
+        write_type_expression_with_inline_prefix_annotations(f, expression_id)?;
+        write!(f, [token(")")])?;
     } else {
-        write!(f, [expression_id])?;
+        write_type_expression_with_inline_prefix_annotations(f, expression_id)?;
     }
 
     Ok(())
@@ -407,35 +474,7 @@ pub(crate) fn format_global_declaration<'ast>(
     write!(f, [token("global")])?;
 
     // body
-    write!(f, [space()])?;
-    if expressions.is_empty() {
-        write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
-    } else {
-        let expressions = expressions.to_vec();
-        write!(f, [token("{"), hard_line_break()])?;
-        write!(
-            f,
-            [group(&block_indent(&format_with(move |_f| {
-                format_block_statement_sequence(_f, &expressions, false)
-            })))]
-        )?;
-        write!(
-            f,
-            [
-                crate::format::annotation::block_infix_annotations(f.context(), node_id),
-                token("}")
-            ]
-        )?;
-    }
-
-    Ok(())
+    write_expression_declaration_body(f, node_id, expressions, false)
 }
 
 /// Format a namespace declaration.
@@ -480,36 +519,7 @@ pub(crate) fn format_namespace_declaration<'ast>(
     }
 
     // body
-    write!(f, [space()])?;
-    if expressions.is_empty() {
-        write!(f, [empty_block_with_infix_annotations(node_id)])?;
-        write!(
-            f,
-            [crate::format::annotation::postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
-    } else {
-        let expressions = expressions.to_vec();
-        write!(f, [token("{"), hard_line_break()])?;
-        write!(
-            f,
-            [group(&block_indent(&format_with(move |_f| {
-                format_block_statement_sequence(_f, &expressions, false)
-            })))]
-        )?;
-        write!(
-            f,
-            [
-                hard_line_break(),
-                crate::format::annotation::block_infix_annotations(f.context(), node_id),
-                token("}")
-            ]
-        )?;
-    }
-
-    Ok(())
+    write_expression_declaration_body(f, node_id, expressions, true)
 }
 
 /// Format an import alias declaration.
@@ -551,7 +561,11 @@ pub(crate) fn format_import_alias_declaration<'ast>(
             )?;
         }
         ImportAliasTarget::Path { value } => {
-            write!(f, [*value])?;
+            if kind == DependencyKind::Type {
+                write_type_expression_with_inline_prefix_annotations(f, *value)?;
+            } else {
+                write!(f, [*value])?;
+            }
         }
     }
 
@@ -627,7 +641,8 @@ pub(crate) fn format_extension_declaration<'ast>(
     }
 
     // for keyword + target type
-    write!(f, [space(), Keyword::For, space(), target_type])?;
+    write!(f, [space(), Keyword::For, space()])?;
+    write_type_expression_with_inline_prefix_annotations(f, target_type)?;
 
     // implements types
     if let Some(implements_types) = heritage.implements_types.as_ref()
@@ -722,24 +737,7 @@ impl<'ast> AstFormatNode<'ast, Declaration> for Declaration {
             self,
             Declaration::Function { signature, .. } if signature.kind == FunctionKind::Lambda
         );
-        let declaration_expression_id =
-            if let Some((parent_id, parent_type)) = f.context().parent(node_id) {
-                if parent_type == NodeType::Expression {
-                    let expression_id = LocalNodeId::<Expression>::new(parent_id);
-                    match f.context().tree.get(expression_id) {
-                        Expression::Declaration(parent_declaration_id)
-                            if *parent_declaration_id == node_id =>
-                        {
-                            Some(expression_id)
-                        }
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
+        let declaration_expression_id = declaration_expression_id(f.context(), node_id);
         write!(
             f,
             [crate::format::annotation::prefix_annotations(

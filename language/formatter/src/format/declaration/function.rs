@@ -10,7 +10,7 @@ use crate::format::declaration::signature::{
     write_signature_dynamic_parameter_list, write_static_parameter_list,
 };
 use crate::format::declaration::statement::format_block;
-use crate::format::operator::write_expression_with_inline_prefix_annotations;
+use crate::format::operator::write_type_expression_with_inline_prefix_annotations;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, Expression, FunctionCardinality, FunctionKind,
@@ -87,19 +87,14 @@ fn lambda_declaration_is_statement_position(
     }
     let declaration_expression_id = LocalNodeId::<Expression>::new(declaration_expression_id);
 
-    let Some((parent_id, parent_type)) = context.parent(declaration_expression_id) else {
+    let Some((_, parent_type)) = context.parent(declaration_expression_id) else {
         return false;
     };
     if parent_type == NodeType::Block {
         return true;
     }
 
-    if parent_type != NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    parent_expression_id.id == declaration_expression_id.id
+    false
 }
 
 /// Return whether one lambda declaration is nested under a call argument lambda chain.
@@ -391,10 +386,10 @@ pub(crate) fn format_function_declaration<'ast>(
         if signature.kind == FunctionKind::Lambda && body.is_none() {
             write_lambda_arrow_with_infix_annotations(f, node_id)?;
             write!(f, [space()])?;
-            write_expression_with_inline_prefix_annotations(f, return_type)?;
+            write_type_expression_with_inline_prefix_annotations(f, return_type)?;
         } else {
             write!(f, [token(":"), space()])?;
-            write_expression_with_inline_prefix_annotations(f, return_type)?;
+            write_type_expression_with_inline_prefix_annotations(f, return_type)?;
         }
     }
 

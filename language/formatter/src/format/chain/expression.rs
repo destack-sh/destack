@@ -2,7 +2,8 @@ use super::member::member_intervening_comment_nodes;
 use super::{
     ChainExpression, ChainExpressionBase, ChainExpressionBaseHead, assignment_like_parent,
     build_member_chain_parts, chain_base_trailing_node_id,
-    chain_instantiation_prefix_wrap_body_ops, chain_operation_is_index, chain_should_break,
+    chain_instantiation_prefix_wrap_body_ops, chain_operation_is_call_like,
+    chain_operation_is_index, chain_operation_node_id, chain_should_break,
     expression_has_ternary_ancestor, first_grouped_line_operation, is_nested_lambda_expression,
     member_is_private_hash, transparent_inner_expression,
 };
@@ -219,16 +220,6 @@ pub(crate) fn chain_node_has_forcing_annotation(
     is_breaking_scan: bool,
 ) -> bool {
     let is_chain_link = crate::format::operator::is_chain_expression(context.tree.get(node_id));
-    let is_statement_wrapped_chain_link = is_chain_link
-        && context
-            .parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Expression {
-                    return false;
-                }
-
-                LocalNodeId::<Expression>::new(parent_id).id == node_id.id
-            });
     let has_optional_tail_boundary_comment = is_breaking_scan
         && matches!(
             context.tree.get(node_id),
@@ -289,15 +280,6 @@ pub(crate) fn chain_node_has_forcing_annotation(
         }
 
         if !is_chain_link
-            && matches!(
-                position,
-                AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
-            )
-        {
-            return false;
-        }
-
-        if is_statement_wrapped_chain_link
             && matches!(
                 position,
                 AnnotationPosition::LinePrefix | AnnotationPosition::BlockPrefix
@@ -473,19 +455,15 @@ pub(crate) fn format_expression_chain<'ast>(
 
         let skip_first_soft_break_for_conditional_head =
             expression_has_ternary_ancestor(f.context(), node_id)
-                && base.body.last().is_some_and(|operation| {
-                    matches!(
-                        operation,
-                        ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
-                    )
-                })
+                && base.body.last().is_some_and(chain_operation_is_call_like)
                 && lines.first().is_some_and(|line| {
                     matches!(
                         line.as_slice(),
                         [
                             ChainExpression::Member { .. },
-                            ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+                            operation
                         ]
+                        if chain_operation_is_call_like(operation)
                     )
                 });
         let format_lines = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -495,14 +473,7 @@ pub(crate) fn format_expression_chain<'ast>(
                 let should_insert_break = !should_skip_first_break
                     && (line_index == 0
                         || !line.first().is_some_and(|operation| {
-                            let node_id = match operation {
-                                ChainExpression::Member { node_id, .. }
-                                | ChainExpression::Call { node_id, .. }
-                                | ChainExpression::Index { node_id, .. }
-                                | ChainExpression::Instantiation { node_id, .. }
-                                | ChainExpression::Maybe { node_id, .. }
-                                | ChainExpression::Must { node_id, .. } => *node_id,
-                            };
+                            let node_id = chain_operation_node_id(operation);
 
                             f.context()
                                 .annotation_ids(node_id)
