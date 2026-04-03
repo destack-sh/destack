@@ -216,8 +216,7 @@ fn super_type_clause_prefers_group_mode(
     }
 
     let type_id = match context.tree.get(type_id) {
-        Expression::Statement(inner_type_id)
-        | Expression::Parenthesized {
+        Expression::Parenthesized {
             expression: inner_type_id,
         } => *inner_type_id,
         _ => type_id,
@@ -225,7 +224,7 @@ fn super_type_clause_prefers_group_mode(
 
     matches!(
         context.tree.get(type_id),
-        Expression::Path { path, .. } if path.segments.len() > 1
+        Expression::QualifiedReference { path, .. } if path.segments.len() > 1
     ) || matches!(
         context.tree.get(type_id),
         Expression::Member { .. } | Expression::PrivateMember { .. }

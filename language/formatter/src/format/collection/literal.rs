@@ -360,7 +360,8 @@ fn template_argument_should_indent_fit_layout(
             | Expression::If { .. }
             | Expression::TypeBinary { .. }
             | Expression::Binary { .. }
-            | Expression::Path { .. }
+            | Expression::Identifier { .. }
+            | Expression::QualifiedReference { .. }
     )
 }
 
@@ -388,9 +389,6 @@ fn unwrap_template_expression(
 
     loop {
         match context.tree.get(current) {
-            Expression::Statement(inner_id) => {
-                current = *inner_id;
-            }
             Expression::Parenthesized { expression } => {
                 current = *expression;
             }

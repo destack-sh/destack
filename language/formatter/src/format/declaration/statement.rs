@@ -83,7 +83,7 @@ pub(crate) fn block_trailing_comment_nodes(
         return Vec::new();
     };
 
-    let gap_start = if let Some(last_expression_id) = block.expressions.last().copied() {
+    let gap_start = if let Some(last_expression_id) = block.last_expression() {
         context.span(last_expression_id).end
     } else if let Some(open_brace_token) = context.first_non_trivia_token_in_span(block_span) {
         open_brace_token.span.end
@@ -151,12 +151,12 @@ pub(crate) fn should_inline_block<'ast>(
     let span = f.context().span(block_id);
 
     // can only inline if there is at most one expression
-    if block.expressions.len() > 1
+    if block.len() > 1
         || f.context().has_infix_annotation(block_id)
         || block_has_raw_internal_comments(f.context(), block_id)
     {
         return false;
-    } else if block.expressions.is_empty() {
+    } else if block.is_empty() {
         // keep empty control flow blocks expanded
         if empty_block_prefers_multiline(f.context(), block_id) {
             return false;
@@ -172,11 +172,10 @@ pub(crate) fn should_inline_block<'ast>(
 
     // check whether the block is inlinable based on its contents
     // if any expression is not inline, then the entire block shouldn't be
-    let is_body_inlinable = block.expressions.is_empty()
+    let is_body_inlinable = block.is_empty()
         || block
-            .expressions
-            .iter()
-            .all(|expr_id| f.context().node(*expr_id).is_narrow());
+            .iter_expressions()
+            .all(|expr_id| f.context().node(expr_id).is_narrow());
 
     // container (default to self, mostly for testing)
     let (mut container_node_id, mut container_node_type) = f

@@ -227,10 +227,7 @@ pub(crate) fn chain_node_has_forcing_annotation(
                     return false;
                 }
 
-                matches!(
-                    context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                    Expression::Statement(inner_id) if inner_id.id == node_id.id
-                )
+                LocalNodeId::<Expression>::new(parent_id).id == node_id.id
             });
     let has_optional_tail_boundary_comment = is_breaking_scan
         && matches!(

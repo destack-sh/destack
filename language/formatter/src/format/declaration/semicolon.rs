@@ -8,11 +8,7 @@ pub(crate) fn expression_needs_statement_terminator(
     expression: &Expression,
     is_expression_context_tail: bool,
 ) -> bool {
-    if is_expression_context_tail {
-        return false;
-    }
-
-    matches!(
+    let always_needs_statement_terminator = matches!(
         expression,
         Expression::Import { .. } | Expression::Let { .. } | Expression::Using { .. }
     ) || matches!(
@@ -33,9 +29,18 @@ pub(crate) fn expression_needs_statement_terminator(
                 }
                 if descriptor.name.is_none() && signature.kind == FunctionKind::Lambda
             )
-    ) || (!matches!(expression, Expression::Statement(_))
-        && !matches!(expression, Expression::Stub | Expression::Error)
-        && !expression.ends_statement_on_newline())
+    );
+
+    if always_needs_statement_terminator {
+        return true;
+    }
+
+    if is_expression_context_tail {
+        return false;
+    }
+
+    !matches!(expression, Expression::Stub | Expression::Error)
+        && !expression.ends_statement_on_newline()
 }
 
 /// Return whether one statement wrapper should keep its trailing semicolon.
@@ -44,10 +49,6 @@ pub(crate) fn statement_wrapper_needs_semicolon(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression = context.tree.get(expression_id);
-    if let Expression::Statement(inner_expression_id) = expression {
-        return statement_wrapper_needs_semicolon(context, *inner_expression_id);
-    }
-
     if matches!(
         expression,
         Expression::Declaration(_) | Expression::Block(_)

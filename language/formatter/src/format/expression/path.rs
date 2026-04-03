@@ -88,7 +88,7 @@ pub(crate) fn primary_expression_skips_boundary_annotations(
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> bool {
-    let Expression::Path { path, .. } = expression else {
+    let Expression::QualifiedReference { path, .. } = expression else {
         return false;
     };
 

@@ -66,9 +66,7 @@ pub(crate) fn ternary_requires_terminator(
 
     if parent_type == NodeType::Expression {
         let parent_id = LocalNodeId::<Expression>::new(parent_id);
-        if let Expression::Statement(inner_id) = context.tree.get(parent_id)
-            && inner_id.id == node_id.id
-        {
+        if parent_id.id == node_id.id {
             return false;
         }
     }

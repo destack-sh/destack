@@ -420,7 +420,8 @@ fn redundant_parenthesized_closure_cast_operand_can_drop(
 
     matches!(
         context.tree.get(inner_expression_id),
-        Expression::Path { .. }
+        Expression::Identifier { .. }
+            | Expression::QualifiedReference { .. }
             | Expression::Member { .. }
             | Expression::PrivateMember { .. }
             | Expression::ScalarLiteral(_)

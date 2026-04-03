@@ -15,6 +15,7 @@ pub(crate) use self::declaration::{
 pub(crate) use self::semicolon::{
     expression_needs_statement_terminator, statement_wrapper_needs_semicolon,
 };
+pub(crate) use self::sequence::expression_is_in_statement_position;
 pub(crate) use self::signature::{
     format_binding_modifiers_postfix_maybe, format_binding_modifiers_prefix_maybe,
 };

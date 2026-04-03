@@ -5,20 +5,13 @@ use super::control::{
     format_try_expression, format_while_expression, format_yield_expression,
     is_empty_statement_block,
 };
-use super::format_expression;
 use super::ternary::format_ternary;
-use crate::format::annotation::write_annotation_sequence_without_trailing_break;
 use crate::format::declaration::dependency::format_dependency_statement_expression;
 use crate::format::declaration::{
     format_let_statement_expression, format_using_statement_expression,
-    statement_wrapper_needs_semicolon,
 };
-use crate::format::directive::node_has_ignore_directive;
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
-use destack_ast::{
-    AnnotationPosition, Doc, DocumentationStyle, Expression, FunctionKind, IfKind, LocalNodeId,
-    TypeBinaryOperator, TypeUnaryOperator,
-};
+use crate::{DestackFormatContext, DestackFormatter};
+use destack_ast::{Expression, FunctionKind, IfKind, LocalNodeId, TypeBinaryOperator};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -101,183 +94,6 @@ pub(crate) fn write_statement_expression_trailing_annotations<'ast>(
     )
 }
 
-/// Return whether one expression has a multiline block postfix annotation.
-fn expression_has_multiline_block_postfix_annotation(
-    ctx: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if !ctx.has_postfix_annotation(expression_id) {
-        return false;
-    }
-
-    ctx.annotation_ids(expression_id)
-        .iter()
-        .copied()
-        .any(|annotation_id| {
-            let Annotation::Doc { node, position } = ctx.annotation(annotation_id) else {
-                return false;
-            };
-            if !matches!(
-                position,
-                AnnotationPosition::LinePostfix
-                    | AnnotationPosition::LinePostfixBoundary
-                    | AnnotationPosition::BlockPostfix
-            ) {
-                return false;
-            }
-
-            let doc = ctx.tree.get::<Doc>(node);
-            if doc.style != DocumentationStyle::Star {
-                return false;
-            }
-
-            ctx.has_newline(ctx.annotation_span(annotation_id))
-        })
-}
-
-/// Return whether one statement wrapper should delay semicolon emission to after postfix docs.
-fn statement_wrapper_delays_semicolon_for_multiline_as_const_postfix(
-    ctx: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    expression: &Expression,
-    needs_semicolon: bool,
-) -> bool {
-    needs_semicolon
-        && matches!(
-            expression,
-            Expression::TypeUnary {
-                operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
-                ..
-            }
-        )
-        && expression_has_multiline_block_postfix_annotation(ctx, node_id)
-}
-
-/// Return whether wrapper annotation emission should use postfix-only output.
-fn statement_wrapper_uses_postfix_only_annotations(
-    ctx: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    expression: &Expression,
-) -> bool {
-    if matches!(
-        expression,
-        Expression::TypeUnary {
-            operator: TypeUnaryOperator::AsConst | TypeUnaryOperator::AsComptime,
-            ..
-        }
-    ) {
-        return true;
-    }
-
-    let call_or_new_handles_empty_infix = matches!(
-        expression,
-        Expression::Call {
-            dynamic_arguments,
-            ..
-        }
-        | Expression::New {
-            dynamic_arguments,
-            ..
-        } if dynamic_arguments.is_empty() && ctx.has_infix_annotation(node_id)
-    );
-    if call_or_new_handles_empty_infix {
-        return true;
-    }
-
-    ctx.has_infix_annotation(node_id)
-        && (matches!(
-            expression,
-            Expression::ObjectExpression { properties, .. } if properties.is_empty()
-        ) || matches!(
-            expression,
-            Expression::ArrayExpression { elements } if elements.is_empty()
-        ))
-}
-
-/// Format one statement wrapper inner expression with an optional trailing semicolon.
-fn format_statement_wrapped_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    needs_semicolon: bool,
-) -> FormatResult<()> {
-    let expression = f.context().tree.get(node_id);
-    let is_ignored = node_has_ignore_directive(f.context(), node_id);
-
-    // prefix annotations and core expression
-    write!(
-        f,
-        [crate::format::annotation::prefix_annotations(
-            f.context(),
-            node_id
-        )]
-    )?;
-    format_expression(f, node_id, expression, is_ignored)?;
-
-    let semicolon_after_multiline_as_const_postfix =
-        statement_wrapper_delays_semicolon_for_multiline_as_const_postfix(
-            f.context(),
-            node_id,
-            expression,
-            needs_semicolon,
-        );
-
-    // statement terminator
-    if needs_semicolon && !semicolon_after_multiline_as_const_postfix {
-        write!(f, [token(";")])?;
-    }
-
-    // boundary annotations
-    write!(
-        f,
-        [crate::format::annotation::line_postfix_boundary_annotations(f.context(), node_id)]
-    )?;
-
-    // non-boundary annotations
-    let expression_handles_its_own_edge_annotations =
-        statement_expression_owns_trailing_annotations(expression);
-    let uses_postfix_only_annotations =
-        statement_wrapper_uses_postfix_only_annotations(f.context(), node_id, expression);
-    if !expression_handles_its_own_edge_annotations {
-        if semicolon_after_multiline_as_const_postfix && uses_postfix_only_annotations {
-            let mut items = Vec::new();
-            for annotation_id in f.context().annotation_ids(node_id).iter().copied() {
-                if matches!(
-                    f.context().annotation(annotation_id).position(),
-                    AnnotationPosition::BlockPostfix | AnnotationPosition::LinePostfix
-                ) {
-                    items.push(annotation_id);
-                }
-            }
-            write_annotation_sequence_without_trailing_break(f, &items)?;
-        } else if uses_postfix_only_annotations {
-            write!(
-                f,
-                [
-                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                        f.context(),
-                        node_id
-                    )
-                ]
-            )?;
-        } else {
-            write!(
-                f,
-                [crate::format::annotation::infix_or_postfix_annotations_without_line_postfix_boundary(
-                    f.context(),
-                    node_id
-                )]
-            )?;
-        }
-    }
-
-    // delayed semicolon for multiline `as const` postfix comments
-    if semicolon_after_multiline_as_const_postfix {
-        write!(f, [token(";")])?;
-    }
-
-    Ok(())
-}
-
 /// Format statement-like expression variants.
 pub(crate) fn format_statement_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -290,12 +106,6 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // block
         Expression::Block(node) => node.format(f)?,
-
-        // statement
-        Expression::Statement(node) => {
-            let needs_semicolon = statement_wrapper_needs_semicolon(f.context(), *node);
-            format_statement_wrapped_expression(f, *node, needs_semicolon)?;
-        }
 
         // labelled statement
         Expression::Labelled { label, body } => {
@@ -425,12 +235,12 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // break
         Expression::Break { label, value } => {
-            format_break_expression(f, label, value)?;
+            format_break_expression(f, node_id, label, value)?;
         }
 
         // continue
         Expression::Continue { label } => {
-            format_continue_expression(f, label)?;
+            format_continue_expression(f, node_id, label)?;
         }
 
         // yield
@@ -440,7 +250,7 @@ pub(crate) fn format_statement_expression<'ast>(
 
         // throw
         Expression::Throw { value } => {
-            format_throw_expression(f, *value)?;
+            format_throw_expression(f, node_id, *value)?;
         }
 
         // return
