@@ -3671,6 +3671,14 @@ impl Compiler {
                 })?;
             let value = match data.as_ref() {
                 Data::Json(value) => value,
+                Data::Html(_) | Data::Css(_) => {
+                    return Err(AnalyzeError::Internal {
+                        message: format!(
+                            "expected json data payload for module {:?}",
+                            target_module.id
+                        ),
+                    });
+                }
             };
 
             // infer structural type from JSON value

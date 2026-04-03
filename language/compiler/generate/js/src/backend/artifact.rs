@@ -191,15 +191,12 @@ impl<'a> ScriptArtifactGenerator<'a> {
             });
         }
 
-        // structured data modules
+        // json data modules
         if module.loader.is_data() {
-            let Some(value) = data else {
+            let Some(Data::Json(value)) = data else {
                 return Err(CodegenJsError::Internal {
-                    message: format!("missing data payload for module '{}'", module.uri),
+                    message: format!("expected json data payload for module '{}'", module.uri),
                 });
-            };
-            let value = match value {
-                Data::Json(value) => value,
             };
 
             let expression_id = builder.insert_json_expression(value)?;

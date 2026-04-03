@@ -3,8 +3,10 @@ use std::sync::Arc;
 use crate::timing::tags;
 use crate::{Compiler, CompilerContext, ImportError, ImportResult};
 
-use destack_artifact::{ArtifactKey, ArtifactStamp, Ast, Data, Loader};
+use destack_artifact::{ArtifactKey, ArtifactStamp, Ast, Css, Data, Html, Loader};
 use destack_core::StringPool;
+use destack_css::parse_css;
+use destack_html::parse_html;
 use destack_parser::{Parser, ParserSettings};
 use destack_source::{File, FileContent, FileType, LanguageType, ModuleId, Span};
 
@@ -96,8 +98,11 @@ impl Compiler {
             return Ok(());
         }
 
-        // restore data modules only when both the anchor AST and parsed data exist
-        if matches!(loader, Loader::Json | Loader::Toml | Loader::Yaml) {
+        // restore structured data modules only when both the anchor AST and parsed data exist
+        if matches!(
+            file.ty,
+            FileType::Html | FileType::Css | FileType::Json | FileType::Toml | FileType::Yaml
+        ) {
             let data_artifact_key = ArtifactKey::data(module_id);
             let data_artifact_stamp = context.artifact_stamp(&data_artifact_key);
             let restored_ast = self
@@ -140,18 +145,22 @@ impl Compiler {
         }
 
         // dispatch to appropriate loader
-        match loader {
-            Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
-                self.import_code_module_parse(module_id, file, package_id, context)
-            }
-            Loader::Json => self.import_json_module_parse(module_id, file, context),
-            Loader::Toml => self.import_toml_module_parse(module_id, file, context),
-            Loader::Yaml => self.import_yaml_module_parse(module_id, file, context),
-            Loader::Text => self.import_text_module_parse(module_id, file, context),
-            Loader::Base64 => self.import_base64_module_parse(module_id, file, context),
-            Loader::Binary | Loader::File => {
-                self.import_binary_module_parse(module_id, file, context)
-            }
+        match file.ty {
+            FileType::Html => self.import_html_module_parse(module_id, file, context),
+            FileType::Css => self.import_css_module_parse(module_id, file, context),
+            _ => match loader {
+                Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
+                    self.import_code_module_parse(module_id, file, package_id, context)
+                }
+                Loader::Json => self.import_json_module_parse(module_id, file, context),
+                Loader::Toml => self.import_toml_module_parse(module_id, file, context),
+                Loader::Yaml => self.import_yaml_module_parse(module_id, file, context),
+                Loader::Text => self.import_text_module_parse(module_id, file, context),
+                Loader::Base64 => self.import_base64_module_parse(module_id, file, context),
+                Loader::Binary | Loader::File => {
+                    self.import_binary_module_parse(module_id, file, context)
+                }
+            },
         }
     }
 
@@ -268,6 +277,65 @@ impl Compiler {
         context.store_artifact(&artifact_key, &data, |compiler, _artifact_stamp, data| {
             compiler.store_data_image(context.revision(), module_id, file, loader, data)
         });
+    }
+
+    /// Parse an HTML module.
+    fn import_html_module_parse(
+        &self,
+        module_id: ModuleId,
+        file: Arc<File>,
+        context: &CompilerContext<'_>,
+    ) -> ImportResult<()> {
+        let module = context.module(module_id);
+        let source = file.text().to_string();
+        let (tree, document) = parse_html(file.as_ref(), &source);
+
+        let mut ast = Ast::new(module_id);
+        ast.ensure_anchor_expression(file.id);
+
+        self.commit_ast(module_id, file.as_ref(), None, ast, context);
+        self.commit_data(
+            module_id,
+            file.as_ref(),
+            module.loader,
+            Data::Html(Html { tree, document }),
+            context,
+        );
+
+        tracing::trace!(?module_id, "import.module.parse.html");
+        Ok(())
+    }
+
+    /// Parse a CSS module.
+    fn import_css_module_parse(
+        &self,
+        module_id: ModuleId,
+        file: Arc<File>,
+        context: &CompilerContext<'_>,
+    ) -> ImportResult<()> {
+        let module = context.module(module_id);
+        let source = file.text().to_string();
+        let (tree, stylesheet) =
+            parse_css(file.as_ref(), &source).map_err(|error| ImportError::DataParseError {
+                span: error.span,
+                file_type: FileType::Css,
+                message: error.message,
+            })?;
+
+        let mut ast = Ast::new(module_id);
+        ast.ensure_anchor_expression(file.id);
+
+        self.commit_ast(module_id, file.as_ref(), None, ast, context);
+        self.commit_data(
+            module_id,
+            file.as_ref(),
+            module.loader,
+            Data::Css(Css { tree, stylesheet }),
+            context,
+        );
+
+        tracing::trace!(?module_id, "import.module.parse.css");
+        Ok(())
     }
 
     /// Parse a code module (Destack, TypeScript, JavaScript).

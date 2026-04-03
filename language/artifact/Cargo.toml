@@ -20,7 +20,9 @@ destack_ast = { workspace = true }
 destack_artifact_macros = { workspace = true }
 destack_builtin = { workspace = true }
 destack_core = { workspace = true }
+destack_css = { workspace = true }
 destack_dir = { workspace = true }
+destack_html = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
