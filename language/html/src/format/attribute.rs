@@ -12,9 +12,7 @@ pub(crate) fn write_attribute(
     attribute: &Attribute,
     f: &mut Formatter<'_, HtmlFormatContext>,
 ) -> FormatResult<()> {
-    let _ = tree;
-
-    write_authored_or_resolved_name(attribute.authored_name.as_deref(), &attribute.name, f)?;
+    write_authored_or_resolved_name(tree, attribute.authored_name, &attribute.name, f)?;
 
     if let Some(value) = &attribute.value {
         write_attribute_value(value, f)?;

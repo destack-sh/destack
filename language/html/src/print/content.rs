@@ -24,7 +24,7 @@ impl<'a> Printer<'a> {
             }
             Content::Instruction(instruction) => {
                 self.source.push_str("<?");
-                self.source.push_str(&instruction.target);
+                self.source.push_str(&self.tree.string(instruction.target));
 
                 if !instruction.contents.is_empty() {
                     self.source.push(' ');
@@ -44,7 +44,8 @@ impl<'a> Printer<'a> {
                 .content
                 .map(|content| self.tree.get(content).children.clone())
                 .unwrap_or_else(|| element.children.clone());
-            let is_raw_text = Self::is_raw_text_element_name(&element.name.local);
+            let element_name = self.tree.string(element.name.local);
+            let is_raw_text = Self::is_raw_text_element_name(element_name.as_ref());
 
             for child in &content {
                 self.print_content_with_mode(*child, is_raw_text);
@@ -95,7 +96,9 @@ impl<'a> Printer<'a> {
         self.source.push('>');
 
         // void elements
-        if Self::is_void_element_name(&element.name.local) {
+        let element_name = self.tree.string(element.name.local);
+
+        if Self::is_void_element_name(element_name.as_ref()) {
             return;
         }
 
@@ -103,7 +106,7 @@ impl<'a> Printer<'a> {
         for child in &content {
             self.print_content_with_mode(
                 *child,
-                Self::is_raw_text_element_name(&element.name.local),
+                Self::is_raw_text_element_name(element_name.as_ref()),
             );
         }
 

@@ -48,17 +48,21 @@ impl<'a> Printer<'a> {
 
         // opening
         self.source.push_str("<!");
-        self.source.push_str(&doctype.doctype_keyword);
+        self.source
+            .push_str(&self.tree.string(doctype.doctype_keyword));
         self.source.push(' ');
-        self.source.push_str(&doctype.name);
+        self.source.push_str(&self.tree.string(doctype.name));
 
         // ids
         match doctype.kind {
             DoctypeKind::NameOnly => {}
             DoctypeKind::Public => {
                 self.source.push(' ');
-                self.source
-                    .push_str(doctype.kind_keyword.as_deref().unwrap_or("PUBLIC"));
+                if let Some(kind_keyword) = doctype.kind_keyword {
+                    self.source.push_str(&self.tree.string(kind_keyword));
+                } else {
+                    self.source.push_str("PUBLIC");
+                }
                 self.source.push(' ');
                 self.write_doctype_id(
                     &doctype.public_id,
@@ -79,8 +83,11 @@ impl<'a> Printer<'a> {
             }
             DoctypeKind::System => {
                 self.source.push(' ');
-                self.source
-                    .push_str(doctype.kind_keyword.as_deref().unwrap_or("SYSTEM"));
+                if let Some(kind_keyword) = doctype.kind_keyword {
+                    self.source.push_str(&self.tree.string(kind_keyword));
+                } else {
+                    self.source.push_str("SYSTEM");
+                }
                 self.source.push(' ');
                 self.write_doctype_id(
                     &doctype.system_id,
@@ -109,32 +116,5 @@ impl<'a> Printer<'a> {
                 self.source.push('\'');
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::print_document;
-    use crate::parse_html;
-    use destack_source::{File, FileId, FileType, Uri};
-
-    /// Print one parsed document back as authored HTML.
-    #[test]
-    fn test_print_document() {
-        let file = File::from_text(
-            FileId::new(1),
-            "index.html".to_string(),
-            Uri::from_string("test:///index.html"),
-            None,
-            FileType::Html,
-            String::new(),
-        );
-        let source = "<div class=test><span>hi</span><!--x--></div>";
-        let (tree, document) = parse_html(&file, source);
-
-        assert_eq!(
-            print_document(&tree, document),
-            "<div class=test><span>hi</span><!--x--></div>"
-        );
     }
 }

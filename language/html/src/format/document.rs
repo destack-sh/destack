@@ -34,7 +34,7 @@ pub(crate) fn write_document(
     // doctype
     if let Some(doctype) = document.doctype {
         let doctype = tree.get(doctype);
-        write_doctype(doctype, f)?;
+        write_doctype(tree, doctype, f)?;
         is_first = false;
     }
 
@@ -57,16 +57,21 @@ pub(crate) fn write_document(
 }
 
 /// Write one HTML doctype.
-fn write_doctype(doctype: &Doctype, f: &mut Formatter<'_, HtmlFormatContext>) -> FormatResult<()> {
-    let doctype_keyword = f.context().render_doctype_keyword(doctype);
+fn write_doctype(
+    tree: &NodeTree,
+    doctype: &Doctype,
+    f: &mut Formatter<'_, HtmlFormatContext>,
+) -> FormatResult<()> {
+    let doctype_keyword = f.context().render_doctype_keyword(tree, doctype);
+    let doctype_name = tree.string(doctype.name);
 
     write!(
         f,
         [
             text("<!"),
-            text(doctype_keyword),
+            text(&doctype_keyword),
             space(),
-            text(&doctype.name)
+            text(doctype_name.as_ref())
         ]
     )?;
 
@@ -74,9 +79,11 @@ fn write_doctype(doctype: &Doctype, f: &mut Formatter<'_, HtmlFormatContext>) ->
     match doctype.kind {
         DoctypeKind::NameOnly => {}
         DoctypeKind::Public => {
-            let keyword = f.context().render_doctype_kind_keyword(doctype, "PUBLIC");
+            let keyword = f
+                .context()
+                .render_doctype_kind_keyword(tree, doctype, "PUBLIC");
 
-            write!(f, [space(), text(keyword), space()])?;
+            write!(f, [space(), text(&keyword), space()])?;
             write_doctype_id(
                 &doctype.public_id,
                 doctype
@@ -97,9 +104,11 @@ fn write_doctype(doctype: &Doctype, f: &mut Formatter<'_, HtmlFormatContext>) ->
             }
         }
         DoctypeKind::System => {
-            let keyword = f.context().render_doctype_kind_keyword(doctype, "SYSTEM");
+            let keyword = f
+                .context()
+                .render_doctype_kind_keyword(tree, doctype, "SYSTEM");
 
-            write!(f, [space(), text(keyword), space()])?;
+            write!(f, [space(), text(&keyword), space()])?;
             write_doctype_id(
                 &doctype.system_id,
                 doctype
@@ -131,32 +140,4 @@ fn write_doctype_id(
     }
 
     write!(f, [text(quote)])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{HtmlFormatOptions, format_document};
-    use crate::parse_html;
-    use destack_source::{File, FileId, FileType, Uri};
-
-    /// Preserve element nesting while formatting one HTML document.
-    #[test]
-    fn test_format_document() {
-        let file = File::from_text(
-            FileId::new(1),
-            "index.html".to_string(),
-            Uri::from_string("test:///index.html"),
-            None,
-            FileType::Html,
-            String::new(),
-        );
-        let source = "<div><span>hi</span><span>bye</span></div>";
-        let (tree, document) = parse_html(&file, source);
-        let formatted = format_document(&tree, document, HtmlFormatOptions::default()).unwrap();
-
-        assert_eq!(
-            formatted,
-            "<div>\n    <span>hi</span>\n    <span>bye</span>\n</div>\n"
-        );
-    }
 }

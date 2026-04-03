@@ -3,12 +3,13 @@ use std::cell::RefCell;
 
 use crate::lex::{
     Attribute as HtmlAttribute, ExpandedName, HtmlString, LocalName, Namespace as LexNamespace,
-    QualifiedName,
+    QualifiedName, local_name,
 };
 use crate::{
-    Attribute, AttributeValue, AttributeValueForm, Comment, Content, Doctype, DoctypeKind,
-    DoctypeQuoteStyle, Document, Element, Fragment, LocalNodeId, Name, Namespace as HtmlNamespace,
-    NodeSpanKind, NodeTree, SelfClosingStyle, Text,
+    Attribute, AttributeResource, AttributeValue, AttributeValueForm, Comment, Content, Doctype,
+    DoctypeKind, DoctypeQuoteStyle, Document, Element, Fragment, HtmlResource, HtmlResourceKind,
+    LocalNodeId, Name, Namespace as HtmlNamespace, NodeSpanKind, NodeTree, SelfClosingStyle,
+    SourceSetItem, SourceSetResource, Text,
 };
 use destack_source::{File, Span};
 
@@ -99,7 +100,7 @@ struct BuilderInner<'a> {
 
 /// One direct HTML builder over the local parser.
 #[derive(Debug)]
-pub(super) struct HtmlBuilder<'a> {
+pub(crate) struct HtmlBuilder<'a> {
     /// The shared builder state.
     inner: RefCell<BuilderInner<'a>>,
 }
@@ -126,7 +127,7 @@ impl ElementName {
 
 impl<'a> BuilderInner<'a> {
     /// Create one fresh builder state.
-    fn new(file: &'a File, source: &'a str) -> Self {
+    pub(crate) fn new(file: &'a File, source: &'a str) -> Self {
         let mut tree = NodeTree::new();
         let document = tree.insert(
             Document {
@@ -423,20 +424,27 @@ impl<'a> BuilderInner<'a> {
                 let Some(matched_doctype) = self.cursor.match_doctype() else {
                     return;
                 };
+                let resolved_name = (!matched_doctype.name.is_empty())
+                    .then(|| self.tree.intern(&matched_doctype.name));
+                let doctype_keyword = self.tree.intern(&matched_doctype.doctype_keyword);
+                let kind_keyword = matched_doctype
+                    .kind_keyword
+                    .as_deref()
+                    .map(|keyword| self.tree.intern(keyword));
                 let doctype_node = self.tree.get_mut(doctype);
 
                 doctype_node.name = if matched_doctype.name.is_empty() {
                     doctype_node.name.clone()
                 } else {
-                    matched_doctype.name
+                    resolved_name.expect("expected resolved doctype name")
                 };
-                doctype_node.doctype_keyword = matched_doctype.doctype_keyword;
+                doctype_node.doctype_keyword = doctype_keyword;
                 doctype_node.kind = match matched_doctype.kind {
                     RawHtmlDoctypeKind::NameOnly => DoctypeKind::NameOnly,
                     RawHtmlDoctypeKind::Public => DoctypeKind::Public,
                     RawHtmlDoctypeKind::System => DoctypeKind::System,
                 };
-                doctype_node.kind_keyword = matched_doctype.kind_keyword;
+                doctype_node.kind_keyword = kind_keyword;
                 doctype_node.public_id_quote_style = matched_doctype
                     .public_id_quote_style
                     .map(Self::doctype_quote_style);
@@ -520,7 +528,8 @@ impl<'a> BuilderInner<'a> {
 
             // element
             BuilderNodeKind::Element(element_handle) => {
-                let matched_start_tag = self.cursor.match_start_tag(&element_handle.name.local);
+                let element_local_name = self.tree.string(element_handle.name.local).to_string();
+                let matched_start_tag = self.cursor.match_start_tag(&element_local_name);
 
                 let start_tag_span = matched_start_tag
                     .as_ref()
@@ -537,8 +546,8 @@ impl<'a> BuilderInner<'a> {
 
                 self.attach_attributes(&element_handle, source_attributes);
 
-                let child_nodes = if Self::is_raw_text_element_name(&element_handle.name.local) {
-                    self.attach_children(handle, Some(&element_handle.name.local))
+                let child_nodes = if Self::is_raw_text_element_name(&element_local_name) {
+                    self.attach_children(handle, Some(&element_local_name))
                 } else {
                     self.attach_children(handle, None)
                 };
@@ -546,15 +555,15 @@ impl<'a> BuilderInner<'a> {
                 let is_self_closing = matched_start_tag
                     .as_ref()
                     .is_some_and(|tag| tag.is_self_closing);
-                let is_void = Self::is_void_element_name(&element_handle.name.local);
+                let is_void = Self::is_void_element_name(&element_local_name);
                 let mut has_authored_end_tag = false;
                 let mut authored_end_tag_name = None;
                 let element_end = if !is_self_closing && !is_void {
-                    let end_tag = self.cursor.advance_past_end_tag(&element_handle.name.local);
+                    let end_tag = self.cursor.advance_past_end_tag(&element_local_name);
                     has_authored_end_tag = end_tag.is_some();
                     authored_end_tag_name = end_tag
                         .as_ref()
-                        .map(|tag| self.cursor.slice(tag.name_span).to_string());
+                        .map(|tag| self.tree.intern(self.cursor.slice(tag.name_span)));
 
                     // template content
                     if let Some(fragment_handle) = element_handle.template_contents
@@ -581,19 +590,24 @@ impl<'a> BuilderInner<'a> {
                 };
 
                 let (flattened_children, template_children) = {
+                    let authored_start_tag_name = matched_start_tag
+                        .as_ref()
+                        .map(|tag| self.tree.intern(&tag.name));
+
+                    let self_closing_style = matched_start_tag
+                        .as_ref()
+                        .and_then(|tag| tag.self_closing_style)
+                        .map(Self::self_closing_style);
+
                     let Content::Element(element) = self.tree.get_mut(element_handle.node) else {
                         return;
                     };
 
-                    element.authored_start_tag_name =
-                        matched_start_tag.as_ref().map(|tag| tag.name.clone());
+                    element.authored_start_tag_name = authored_start_tag_name;
                     element.has_authored_end_tag = has_authored_end_tag;
                     element.authored_end_tag_name = authored_end_tag_name;
                     element.is_self_closing = is_self_closing;
-                    element.self_closing_style = matched_start_tag
-                        .as_ref()
-                        .and_then(|tag| tag.self_closing_style)
-                        .map(Self::self_closing_style);
+                    element.self_closing_style = self_closing_style;
                     element.children = child_nodes;
 
                     (element.children.clone(), element.content)
@@ -643,7 +657,9 @@ impl<'a> BuilderInner<'a> {
             let Some(source_attribute) = source_attributes.get(index).copied() else {
                 continue;
             };
-            let authored_name = self.cursor.slice(source_attribute.name_span).to_string();
+            let authored_name = self
+                .tree
+                .intern(self.cursor.slice(source_attribute.name_span));
             let value = match (
                 source_attribute.value_form,
                 source_attribute.value_span,
@@ -652,6 +668,7 @@ impl<'a> BuilderInner<'a> {
                 (Some(form), Some(_), Some(value)) => Some(AttributeValue {
                     value: value.value,
                     form: Self::attribute_value_form(form),
+                    resource: value.resource,
                 }),
                 _ => None,
             };
@@ -672,11 +689,14 @@ impl<'a> BuilderInner<'a> {
     }
 
     /// Lower one parsed qualified name into one owned HTML name.
-    fn lower_qualified_name(name: &QualifiedName) -> Name {
+    fn lower_qualified_name(tree: &NodeTree, name: &QualifiedName) -> Name {
         Name {
-            prefix: name.prefix.as_ref().map(ToString::to_string),
+            prefix: name
+                .prefix
+                .as_ref()
+                .map(|prefix| tree.intern(&prefix.to_string())),
             namespace: Self::lower_namespace_uri(&name.ns.to_owned_string()),
-            local: name.local.to_string(),
+            local: tree.intern(&name.local.to_string()),
         }
     }
 
@@ -697,23 +717,23 @@ impl<'a> BuilderInner<'a> {
     fn lower_attributes(
         tree: &mut NodeTree,
         file_id: destack_source::FileId,
+        element_name: &Name,
         raw_attributes: &[HtmlAttribute],
     ) -> Vec<LocalNodeId<Attribute>> {
         raw_attributes
             .iter()
             .map(|attribute| {
-                let value = if attribute.value.is_empty() {
-                    None
-                } else {
-                    Some(AttributeValue {
-                        value: attribute.value.to_string(),
-                        form: AttributeValueForm::DoubleQuoted,
-                    })
-                };
+                let value = Self::lower_raw_attribute_value(
+                    tree,
+                    element_name,
+                    raw_attributes,
+                    attribute,
+                    AttributeValueForm::DoubleQuoted,
+                );
 
                 tree.insert(
                     Attribute {
-                        name: Self::lower_qualified_name(&attribute.name),
+                        name: Self::lower_qualified_name(tree, &attribute.name),
                         authored_name: None,
                         value,
                     },
@@ -721,6 +741,223 @@ impl<'a> BuilderInner<'a> {
                 )
             })
             .collect()
+    }
+
+    /// Lower one raw attribute value into one owned attribute value.
+    fn lower_raw_attribute_value(
+        tree: &NodeTree,
+        element_name: &Name,
+        attributes: &[HtmlAttribute],
+        attribute: &HtmlAttribute,
+        form: AttributeValueForm,
+    ) -> Option<AttributeValue> {
+        if attribute.value.is_empty() {
+            return None;
+        }
+
+        let resource = Self::lower_attribute_resource(tree, element_name, attributes, attribute);
+
+        Some(AttributeValue {
+            value: attribute.value.to_string(),
+            form,
+            resource,
+        })
+    }
+
+    /// Lower one raw attribute resource payload when this value owns one.
+    fn lower_attribute_resource(
+        tree: &NodeTree,
+        element_name: &Name,
+        attributes: &[HtmlAttribute],
+        attribute: &HtmlAttribute,
+    ) -> Option<AttributeResource> {
+        let specifier = attribute.value.as_ref();
+
+        if let Some(kind) =
+            Self::resource_kind_for_attribute(tree, element_name, attributes, attribute.name.local)
+        {
+            return Some(AttributeResource::Resource(HtmlResource::new(
+                kind, specifier,
+            )));
+        }
+
+        if Self::is_source_set_attribute(tree, element_name, attribute.name.local) {
+            return Some(AttributeResource::SourceSet(SourceSetResource {
+                items: parse_source_set_items(specifier),
+            }));
+        }
+
+        None
+    }
+
+    /// Return the single-value resource role for one raw attribute when it owns one.
+    fn resource_kind_for_attribute(
+        tree: &NodeTree,
+        element_name: &Name,
+        attributes: &[HtmlAttribute],
+        attribute_name: LocalName,
+    ) -> Option<HtmlResourceKind> {
+        if Self::is_script_src_attribute(tree, element_name, attribute_name) {
+            return Some(HtmlResourceKind::ModuleScript);
+        }
+
+        if let Some(kind) = Self::link_resource_kind(tree, element_name, attributes, attribute_name)
+        {
+            return Some(kind);
+        }
+
+        if is_asset_attribute_name(tree, element_name, attribute_name) {
+            return Some(HtmlResourceKind::Asset);
+        }
+
+        None
+    }
+
+    /// Return whether one raw attribute is the `src` of one script element.
+    fn is_script_src_attribute(
+        tree: &NodeTree,
+        element_name: &Name,
+        attribute_name: LocalName,
+    ) -> bool {
+        element_name.local_eq(&tree.strings, "script") && attribute_name == local_name!("src")
+    }
+
+    /// Return the resource role for one link `href` attribute when it owns one.
+    fn link_resource_kind(
+        tree: &NodeTree,
+        element_name: &Name,
+        attributes: &[HtmlAttribute],
+        attribute_name: LocalName,
+    ) -> Option<HtmlResourceKind> {
+        if !element_name.local_eq(&tree.strings, "link") || attribute_name != local_name!("href") {
+            return None;
+        }
+
+        if Self::is_modulepreload_reference(attributes) {
+            return Some(HtmlResourceKind::ModuleScript);
+        }
+
+        if Self::is_stylesheet_reference(attributes) {
+            return Some(HtmlResourceKind::Stylesheet);
+        }
+
+        if Self::is_link_asset_reference(attributes) {
+            return Some(HtmlResourceKind::Asset);
+        }
+
+        None
+    }
+
+    /// Return one raw attribute value by local name.
+    fn raw_attribute_value_by_name(
+        attributes: &[HtmlAttribute],
+        local_name: LocalName,
+    ) -> Option<HtmlString> {
+        attributes
+            .iter()
+            .find(|attribute| attribute.name.local == local_name)
+            .map(|attribute| attribute.value.clone())
+    }
+
+    /// Return whether one rel value contains `stylesheet`.
+    fn is_stylesheet_relation(value: &str) -> bool {
+        value
+            .split_ascii_whitespace()
+            .any(|token| token.eq_ignore_ascii_case("stylesheet"))
+    }
+
+    /// Return whether one rel value contains `modulepreload`.
+    fn is_modulepreload_relation(value: &str) -> bool {
+        value
+            .split_ascii_whitespace()
+            .any(|token| token.eq_ignore_ascii_case("modulepreload"))
+    }
+
+    /// Return whether one link element participates in the modulepreload lane.
+    fn is_modulepreload_reference(attributes: &[HtmlAttribute]) -> bool {
+        Self::raw_attribute_value_by_name(attributes, local_name!("rel"))
+            .is_some_and(|value| Self::is_modulepreload_relation(value.as_ref()))
+    }
+
+    /// Return whether one rel value contains `preload`.
+    fn is_preload_relation(value: &str) -> bool {
+        value
+            .split_ascii_whitespace()
+            .any(|token| token.eq_ignore_ascii_case("preload"))
+    }
+
+    /// Return whether one rel value contains `manifest`.
+    fn is_manifest_relation(value: &str) -> bool {
+        value
+            .split_ascii_whitespace()
+            .any(|token| token.eq_ignore_ascii_case("manifest"))
+    }
+
+    /// Return whether one rel value contains one icon-like token.
+    fn is_icon_relation(value: &str) -> bool {
+        value.split_ascii_whitespace().any(|token| {
+            token.eq_ignore_ascii_case("icon")
+                || token.eq_ignore_ascii_case("apple-touch-icon")
+                || token.eq_ignore_ascii_case("mask-icon")
+        })
+    }
+
+    /// Return whether one link element participates in the stylesheet lane.
+    fn is_stylesheet_reference(attributes: &[HtmlAttribute]) -> bool {
+        let relation = Self::raw_attribute_value_by_name(attributes, local_name!("rel"));
+
+        if relation
+            .as_ref()
+            .is_some_and(|value| Self::is_stylesheet_relation(value.as_ref()))
+        {
+            return true;
+        }
+
+        Self::is_preload_style_reference(attributes)
+    }
+
+    /// Return whether one link element participates in the asset lane.
+    fn is_link_asset_reference(attributes: &[HtmlAttribute]) -> bool {
+        let relation = Self::raw_attribute_value_by_name(attributes, local_name!("rel"));
+
+        if relation.as_ref().is_some_and(|value| {
+            Self::is_manifest_relation(value.as_ref()) || Self::is_icon_relation(value.as_ref())
+        }) {
+            return true;
+        }
+
+        if !relation
+            .as_ref()
+            .is_some_and(|value| Self::is_preload_relation(value.as_ref()))
+        {
+            return false;
+        }
+
+        !Self::is_preload_style_reference(attributes)
+    }
+
+    /// Return whether one preload link targets stylesheet loading.
+    fn is_preload_style_reference(attributes: &[HtmlAttribute]) -> bool {
+        let relation = Self::raw_attribute_value_by_name(attributes, local_name!("rel"));
+
+        if !relation
+            .as_ref()
+            .is_some_and(|value| Self::is_preload_relation(value.as_ref()))
+        {
+            return false;
+        }
+
+        Self::raw_attribute_value_by_name(attributes, local_name!("as"))
+            .is_some_and(|value| value.as_ref().eq_ignore_ascii_case("style"))
+    }
+
+    /// Return whether one raw attribute is `srcset`-style for one element.
+    fn is_source_set_attribute(
+        tree: &NodeTree,
+        element_name: &Name,
+        attribute_name: LocalName,
+    ) -> bool {
+        is_source_set_attribute_name(tree, element_name, attribute_name)
     }
 
     /// Convert one raw authored attribute value form.
@@ -780,7 +1017,7 @@ impl<'a> BuilderInner<'a> {
 
 impl<'a> HtmlBuilder<'a> {
     /// Create one direct HTML builder.
-    pub(super) fn new(file: &'a File, source: &'a str) -> Self {
+    pub(crate) fn new(file: &'a File, source: &'a str) -> Self {
         Self {
             inner: RefCell::new(BuilderInner::new(file, source)),
         }
@@ -843,8 +1080,9 @@ impl<'a> HtmlBuilder<'a> {
     ) -> Handle {
         let mut state = self.inner.borrow_mut();
         let file_id = state.cursor.file_id();
-        let name_node = BuilderInner::lower_qualified_name(&name);
-        let attributes = BuilderInner::lower_attributes(&mut state.tree, file_id, &attrs);
+        let name_node = BuilderInner::lower_qualified_name(&state.tree, &name);
+        let attributes =
+            BuilderInner::lower_attributes(&mut state.tree, file_id, &name_node, &attrs);
         let empty_span = state.cursor.empty_span();
         let template_contents = if flags.template {
             let fragment = state.tree.insert(
@@ -954,10 +1192,13 @@ impl<'a> HtmlBuilder<'a> {
         } else {
             DoctypeKind::NameOnly
         };
+        let doctype_name = name.to_string();
+        let doctype_name = state.tree.intern(&doctype_name);
+        let doctype_keyword = state.tree.intern("doctype");
         let doctype = state.tree.insert(
             Doctype {
-                name: name.to_string(),
-                doctype_keyword: "doctype".to_string(),
+                name: doctype_name,
+                doctype_keyword,
                 kind,
                 kind_keyword: None,
                 public_id: public_id.to_string(),
@@ -1047,15 +1288,15 @@ impl<'a> HtmlBuilder<'a> {
             return;
         };
         let empty_span = state.cursor.empty_span();
-        let existing_attributes = match state.tree.get(element_handle.node) {
-            Content::Element(element) => element.attributes.clone(),
+        let (element_name, existing_attributes) = match state.tree.get(element_handle.node) {
+            Content::Element(element) => (element.name.clone(), element.attributes.clone()),
             _ => return,
         };
         let mut missing_attributes = Vec::new();
 
         // missing attrs
-        for attribute in attrs {
-            let name = BuilderInner::lower_qualified_name(&attribute.name);
+        for attribute in &attrs {
+            let name = BuilderInner::lower_qualified_name(&state.tree, &attribute.name);
             let is_missing = existing_attributes
                 .iter()
                 .all(|current| state.tree.get(*current).name != name);
@@ -1064,14 +1305,13 @@ impl<'a> HtmlBuilder<'a> {
                 continue;
             }
 
-            let value = if attribute.value.is_empty() {
-                None
-            } else {
-                Some(AttributeValue {
-                    value: attribute.value.to_string(),
-                    form: AttributeValueForm::DoubleQuoted,
-                })
-            };
+            let value = BuilderInner::lower_raw_attribute_value(
+                &state.tree,
+                &element_name,
+                &attrs,
+                &attribute,
+                AttributeValueForm::DoubleQuoted,
+            );
             let attribute_id = state.tree.insert(
                 Attribute {
                     name,
@@ -1084,12 +1324,14 @@ impl<'a> HtmlBuilder<'a> {
             missing_attributes.push(attribute_id);
         }
 
-        let Content::Element(element) = state.tree.get_mut(element_handle.node) else {
-            return;
-        };
+        {
+            let Content::Element(element) = state.tree.get_mut(element_handle.node) else {
+                return;
+            };
 
-        for attribute in missing_attributes {
-            element.attributes.push(attribute);
+            for attribute in missing_attributes {
+                element.attributes.push(attribute);
+            }
         }
     }
 
@@ -1152,7 +1394,10 @@ impl<'a> HtmlBuilder<'a> {
                         return None;
                     };
 
-                    (element.name.local == "selectedcontent").then_some(Handle { index })
+                    element
+                        .name
+                        .local_eq(&state.tree.strings, "selectedcontent")
+                        .then_some(Handle { index })
                 })
         else {
             return;
@@ -1234,7 +1479,8 @@ impl BuilderInner<'_> {
     /// Serialize one doctype node in html5lib tree form.
     fn write_doctype(&self, output: &mut String, doctype_id: LocalNodeId<Doctype>) {
         let doctype = self.tree.get(doctype_id);
-        let mut line = format!("<!DOCTYPE {}", doctype.name);
+        let doctype_name = self.tree.string(doctype.name);
+        let mut line = format!("<!DOCTYPE {}", doctype_name.as_ref());
 
         // public and system ids
         if !doctype.public_id.is_empty() || !doctype.system_id.is_empty() {
@@ -1244,9 +1490,7 @@ impl BuilderInner<'_> {
             ));
         }
 
-        // closing delimiter
         line.push('>');
-
         self.push_tree_line(output, 1, &line);
     }
 
@@ -1266,7 +1510,7 @@ impl BuilderInner<'_> {
             line.push(' ');
         }
 
-        line.push_str(&element.name.local);
+        line.push_str(self.tree.string(element.name.local).as_ref());
         line.push('>');
         self.push_tree_line(output, indent, &line);
 
@@ -1280,9 +1524,13 @@ impl BuilderInner<'_> {
             let left = self.tree.get(*left);
             let right = self.tree.get(*right);
 
-            left.name.local.cmp(&right.name.local).then_with(|| {
-                format!("{:?}", left.name.namespace).cmp(&format!("{:?}", right.name.namespace))
-            })
+            self.tree
+                .string(left.name.local)
+                .as_ref()
+                .cmp(self.tree.string(right.name.local).as_ref())
+                .then_with(|| {
+                    format!("{:?}", left.name.namespace).cmp(&format!("{:?}", right.name.namespace))
+                })
         });
 
         for attribute in attributes {
@@ -1325,7 +1573,7 @@ impl BuilderInner<'_> {
             line.push(' ');
         }
 
-        line.push_str(&attribute.name.local);
+        line.push_str(self.tree.string(attribute.name.local).as_ref());
         line.push_str("=\"");
         line.push_str(value);
         line.push('"');
@@ -1378,7 +1626,7 @@ impl BuilderInner<'_> {
                     line.push(' ');
                 }
 
-                line.push_str(&element.name.local);
+                line.push_str(self.tree.string(element.name.local).as_ref());
                 line.push('>');
                 self.push_tree_line(output, indent, &line);
 
@@ -1387,10 +1635,14 @@ impl BuilderInner<'_> {
                     let left = self.tree.get(*left);
                     let right = self.tree.get(*right);
 
-                    left.name.local.cmp(&right.name.local).then_with(|| {
-                        format!("{:?}", left.name.namespace)
-                            .cmp(&format!("{:?}", right.name.namespace))
-                    })
+                    self.tree
+                        .string(left.name.local)
+                        .as_ref()
+                        .cmp(self.tree.string(right.name.local).as_ref())
+                        .then_with(|| {
+                            format!("{:?}", left.name.namespace)
+                                .cmp(&format!("{:?}", right.name.namespace))
+                        })
                 });
 
                 for attribute in attributes {
@@ -1442,4 +1694,69 @@ impl BuilderInner<'_> {
             _ => None,
         }
     }
+}
+
+/// Return whether one attribute name is asset-bearing for one element.
+fn is_asset_attribute_name(
+    tree: &NodeTree,
+    element_name: &Name,
+    attribute_name: LocalName,
+) -> bool {
+    (element_name.local_eq(&tree.strings, "img") && attribute_name == local_name!("src"))
+        || (element_name.local_eq(&tree.strings, "source") && attribute_name == local_name!("src"))
+        || (element_name.local_eq(&tree.strings, "video")
+            && matches!(attribute_name, name if name == local_name!("src") || name == local_name!("poster")))
+        || (element_name.local_eq(&tree.strings, "audio") && attribute_name == local_name!("src"))
+        || (element_name.local_eq(&tree.strings, "object") && attribute_name == local_name!("data"))
+        || (element_name.local_eq(&tree.strings, "embed") && attribute_name == local_name!("src"))
+        || (element_name.local_eq(&tree.strings, "image") && attribute_name == local_name!("href"))
+        || (element_name.local_eq(&tree.strings, "use") && attribute_name == local_name!("href"))
+}
+
+/// Return whether one attribute name is `srcset`-style for one element.
+fn is_source_set_attribute_name(
+    tree: &NodeTree,
+    element_name: &Name,
+    attribute_name: LocalName,
+) -> bool {
+    ((element_name.local_eq(&tree.strings, "img")
+        || element_name.local_eq(&tree.strings, "source"))
+        && attribute_name == local_name!("srcset"))
+        || (element_name.local_eq(&tree.strings, "link") && attribute_name.eq_str("imagesrcset"))
+}
+
+/// Parse one `srcset`-style attribute value.
+fn parse_source_set_items(value: &str) -> Vec<SourceSetItem> {
+    let mut items = Vec::new();
+
+    for candidate in value.split(',') {
+        let candidate_trimmed_start = candidate
+            .char_indices()
+            .find(|(_, character)| !character.is_whitespace())
+            .map(|(index, _)| index)
+            .unwrap_or(candidate.len());
+        let candidate_trimmed_end = candidate
+            .char_indices()
+            .rev()
+            .find(|(_, character)| !character.is_whitespace())
+            .map(|(index, character)| index + character.len_utf8())
+            .unwrap_or(candidate_trimmed_start);
+        let candidate = &candidate[candidate_trimmed_start..candidate_trimmed_end];
+
+        if candidate.is_empty() {
+            continue;
+        }
+
+        let descriptor_start = candidate
+            .char_indices()
+            .find(|(_, character)| character.is_whitespace())
+            .map(|(index, _)| index)
+            .unwrap_or(candidate.len());
+        let url = candidate[..descriptor_start].trim();
+        let descriptor = candidate[descriptor_start..].to_string();
+
+        items.push(SourceSetItem::new(url, &descriptor));
+    }
+
+    items
 }

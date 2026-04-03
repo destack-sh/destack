@@ -22,7 +22,9 @@ pub(crate) fn write_content(
             write!(f, [text("<!--"), text(&comment.value), text("-->")])
         }
         Content::Instruction(instruction) => {
-            write!(f, [text("<?"), text(&instruction.target)])?;
+            let target = tree.string(instruction.target);
+
+            write!(f, [text("<?"), text(target.as_ref())])?;
 
             if instruction.contents.is_empty() {
                 write!(f, [text("?>")])
@@ -45,7 +47,8 @@ pub(crate) fn write_element(
             .content
             .map(|content| tree.get(content).children.clone())
             .unwrap_or_else(|| element.children.clone());
-        let is_raw_text = Printer::is_raw_text_element_name(&element.name.local);
+        let element_name = tree.string(element.name.local);
+        let is_raw_text = Printer::is_raw_text_element_name(element_name.as_ref());
 
         for child in &content {
             write_content(tree, *child, is_raw_text, f)?;
@@ -59,11 +62,13 @@ pub(crate) fn write_element(
         .content
         .map(|content| tree.get(content).children.clone())
         .unwrap_or_else(|| element.children.clone());
-    let is_raw_text = Printer::is_raw_text_element_name(&element.name.local);
+    let element_name = tree.string(element.name.local);
+    let is_raw_text = Printer::is_raw_text_element_name(element_name.as_ref());
 
     // opening tag
     write!(f, [text("<")])?;
     write_authored_or_resolved_name(
+        tree,
         f.context().element_start_tag_name(element),
         &element.name,
         f,
@@ -87,7 +92,7 @@ pub(crate) fn write_element(
     write!(f, [text(">")])?;
 
     // void elements
-    if Printer::is_void_element_name(&element.name.local) {
+    if Printer::is_void_element_name(element_name.as_ref()) {
         return Ok(());
     }
 
@@ -96,6 +101,7 @@ pub(crate) fn write_element(
         if element.has_authored_end_tag {
             write!(f, [text("</")])?;
             write_authored_or_resolved_name(
+                tree,
                 f.context().element_end_tag_name(element),
                 &element.name,
                 f,
@@ -115,6 +121,7 @@ pub(crate) fn write_element(
         if element.has_authored_end_tag {
             write!(f, [text("</")])?;
             write_authored_or_resolved_name(
+                tree,
                 f.context().element_end_tag_name(element),
                 &element.name,
                 f,
@@ -141,6 +148,7 @@ pub(crate) fn write_element(
     if element.has_authored_end_tag {
         write!(f, [hard_line_break(), text("</")])?;
         write_authored_or_resolved_name(
+            tree,
             f.context().element_end_tag_name(element),
             &element.name,
             f,
