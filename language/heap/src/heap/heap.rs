@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::error::Error;
 use std::fmt;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
@@ -49,7 +49,7 @@ pub struct Heap {
     /// Exact hard limits for this heap.
     limits: HeapLimits,
     /// The previous immutable heap image reused as the next capture base.
-    base_image: Option<Rc<HeapImage>>,
+    base_image: Option<Arc<HeapImage>>,
 }
 
 /// One agent-local execution memory view across local and shared memory.
@@ -105,7 +105,7 @@ impl Heap {
             raw: RawSpace::from_image(&image.raw),
             layout,
             limits: HeapLimits::default(),
-            base_image: Some(Rc::new(image.clone())),
+            base_image: Some(Arc::new(image.clone())),
         }
     }
 
@@ -734,7 +734,7 @@ impl Heap {
         let managed = self.managed.image(base_managed)?;
         let raw = self.raw.image(base_raw);
         let image = HeapImage { managed, raw };
-        self.base_image = Some(Rc::new(image.clone()));
+        self.base_image = Some(Arc::new(image.clone()));
         Ok(image)
     }
 

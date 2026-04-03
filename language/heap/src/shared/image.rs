@@ -1,5 +1,4 @@
 use std::mem::size_of;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -7,9 +6,6 @@ use serde::{Deserialize, Serialize};
 use super::super::SharedSpace;
 use super::region::SharedRegion;
 use crate::heap::ImageAccounting;
-
-/// Approximate control-block bytes for one rc allocation.
-const RC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
 
 /// Approximate control-block bytes for one arc allocation.
 const ARC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
@@ -50,7 +46,7 @@ pub struct SharedRegionImage {
     /// The page width used by this region.
     pub page_bytes: usize,
     /// The immutable chunk leaves captured for this region id.
-    pub(crate) chunks: Vec<Rc<[u8]>>,
+    pub(crate) chunks: Vec<Arc<[u8]>>,
 }
 
 impl SharedRegionImage {
@@ -64,7 +60,7 @@ impl SharedRegionImage {
                 .chunks
                 .iter()
                 .zip(other.chunks.iter())
-                .all(|(left, right)| Rc::ptr_eq(left, right))
+                .all(|(left, right)| Arc::ptr_eq(left, right))
     }
 
     /// Flatten this region image into one contiguous byte vector.
@@ -82,10 +78,10 @@ impl SharedRegionImage {
     /// Return the exact owned bytes for this durable region image.
     pub fn image_bytes(&self) -> usize {
         let mut image_bytes = size_of::<Self>();
-        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+        image_bytes += self.chunks.len() * size_of::<Arc<[u8]>>();
 
         for chunk in self.chunks.iter() {
-            image_bytes += RC_CONTROL_BLOCK_BYTES + chunk.len();
+            image_bytes += ARC_CONTROL_BLOCK_BYTES + chunk.len();
         }
 
         image_bytes
@@ -94,10 +90,10 @@ impl SharedRegionImage {
     /// Account this region image into deduplicated retained-image bytes.
     pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
         let mut image_bytes = size_of::<Self>();
-        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+        image_bytes += self.chunks.len() * size_of::<Arc<[u8]>>();
 
         for chunk in self.chunks.iter() {
-            image_bytes += accounting.account_rc_bytes(chunk);
+            image_bytes += accounting.account_arc_bytes(chunk);
         }
 
         image_bytes
@@ -139,7 +135,7 @@ impl SharedImage {
                 chunks: region
                     .bytes
                     .chunks(snapshot.page_bytes)
-                    .map(|chunk| Rc::from(chunk.to_vec().into_boxed_slice()))
+                    .map(|chunk| Arc::from(chunk.to_vec().into_boxed_slice()))
                     .collect::<Vec<_>>(),
             })
             .collect::<Vec<_>>();

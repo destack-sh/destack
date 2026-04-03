@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::mem::size_of;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use destack_mir::LayoutId;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub struct ManagedLargeAllocationImage {
     /// The page width used by this large allocation.
     pub page_bytes: usize,
     /// The immutable large-allocation chunks.
-    pub(crate) chunks: Vec<Rc<[u8]>>,
+    pub(crate) chunks: Vec<Arc<[u8]>>,
     /// The interned reference map for this large allocation.
     pub trace_id: ReferenceMapId,
     /// The durable layout id for this large allocation, if any.
@@ -39,13 +39,13 @@ impl ManagedLargeAllocationImage {
                 .chunks
                 .iter()
                 .zip(other.chunks.iter())
-                .all(|(left, right)| Rc::ptr_eq(left, right))
+                .all(|(left, right)| Arc::ptr_eq(left, right))
     }
 
     /// Return the exact owned bytes for this durable large-allocation image.
     pub fn image_bytes(&self) -> usize {
         let mut image_bytes = size_of::<Self>();
-        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+        image_bytes += self.chunks.len() * size_of::<Arc<[u8]>>();
 
         for chunk in self.chunks.iter() {
             image_bytes += chunk.len();
@@ -57,10 +57,10 @@ impl ManagedLargeAllocationImage {
     /// Account this large-allocation image into deduplicated retained-image bytes.
     pub fn retained_image_bytes(&self, accounting: &mut ImageAccounting) -> usize {
         let mut image_bytes = size_of::<Self>();
-        image_bytes += self.chunks.len() * size_of::<Rc<[u8]>>();
+        image_bytes += self.chunks.len() * size_of::<Arc<[u8]>>();
 
         for chunk in self.chunks.iter() {
-            image_bytes += accounting.account_rc_bytes(chunk);
+            image_bytes += accounting.account_arc_bytes(chunk);
         }
 
         image_bytes

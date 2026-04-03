@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::mem::size_of;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use destack_mir::LayoutId;
@@ -38,7 +37,7 @@ pub struct ManagedSpanImage {
     /// The fixed byte width for every page in this span image.
     pub page_bytes: usize,
     /// The packed slot payload pages.
-    pub pages: Arc<[Rc<[u8]>]>,
+    pub pages: Arc<[Arc<[u8]>]>,
     /// The occupied slots in this span.
     pub occupied: Bitmap,
     /// The trace metadata for this span.
@@ -63,7 +62,7 @@ impl ManagedSpanImage {
                 .pages
                 .iter()
                 .zip(other.pages.iter())
-                .all(|(left, right)| Rc::ptr_eq(left, right))
+                .all(|(left, right)| Arc::ptr_eq(left, right))
             && self.occupied == other.occupied
             && Self::shares_trace_storage(&self.trace_metadata, &other.trace_metadata)
             && Self::shares_layout_storage(&self.layout_metadata, &other.layout_metadata)
@@ -98,7 +97,7 @@ impl ManagedSpanImage {
     /// Return the exact owned bytes for this durable span image.
     pub fn image_bytes(&self) -> usize {
         let mut image_bytes = size_of::<Self>();
-        image_bytes += self.pages.len() * size_of::<Rc<[u8]>>();
+        image_bytes += self.pages.len() * size_of::<Arc<[u8]>>();
 
         for page in self.pages.iter() {
             image_bytes += page.len();
@@ -125,7 +124,7 @@ impl ManagedSpanImage {
         image_bytes += accounting.account_arc_page_table(&self.pages);
 
         for page in self.pages.iter() {
-            image_bytes += accounting.account_rc_bytes(page);
+            image_bytes += accounting.account_arc_bytes(page);
         }
 
         image_bytes += self.occupied.retained_bytes();
@@ -748,7 +747,7 @@ impl ManagedSpan {
                 size_class: 0,
                 slot_count: 0,
                 page_bytes: page_arena.page_bytes(),
-                pages: Arc::from(Vec::<Rc<[u8]>>::new()),
+                pages: Arc::from(Vec::<Arc<[u8]>>::new()),
                 occupied: Bitmap::with_capacity(0),
                 trace_metadata: SpanTraceImage::Monomorphic(0),
                 layout_metadata: SpanLayoutImage::Monomorphic(StoredLayoutId::none()),

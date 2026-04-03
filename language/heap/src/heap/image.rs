@@ -1,25 +1,21 @@
 use std::collections::HashSet;
 use std::mem::size_of;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::managed::{GcState, ManagedImage, ManagedSpaceSnapshot, ManagedSpanImage};
 use crate::raw::{RawImage, RawSpaceSnapshot, RawSpanImage};
-/// Approximate control-block bytes for one rc allocation.
-const RC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
-
 /// Approximate control-block bytes for one arc allocation.
 const ARC_CONTROL_BLOCK_BYTES: usize = size_of::<usize>() * 2;
 
 /// Deduplicated retained bytes for shared immutable heap-image storage.
 #[derive(Debug, Default)]
 pub struct ImageAccounting {
-    /// The unique `Rc<[u8]>` leaves accounted so far.
-    rc_bytes: HashSet<(*const u8, usize)>,
-    /// The unique `Arc<[Rc<[u8]>]>` page tables accounted so far.
-    arc_page_tables: HashSet<(*const Rc<[u8]>, usize)>,
+    /// The unique `Arc<[u8]>` leaves accounted so far.
+    arc_bytes: HashSet<(*const u8, usize)>,
+    /// The unique `Arc<[Arc<[u8]>]>` page tables accounted so far.
+    arc_page_tables: HashSet<(*const Arc<[u8]>, usize)>,
     /// The unique `Arc<[u16]>` slices accounted so far.
     arc_u16_slices: HashSet<(*const u16, usize)>,
     /// The unique `Arc<[u32]>` slices accounted so far.
@@ -41,22 +37,22 @@ impl ImageAccounting {
     }
 
     /// Account one shared immutable byte leaf once.
-    pub(crate) fn account_rc_bytes(&mut self, bytes: &Rc<[u8]>) -> usize {
+    pub(crate) fn account_arc_bytes(&mut self, bytes: &Arc<[u8]>) -> usize {
         let len = bytes.len();
         if len == 0 {
             return 0;
         }
 
         let key = (bytes.as_ptr(), len);
-        if self.rc_bytes.insert(key) {
-            RC_CONTROL_BLOCK_BYTES + len
+        if self.arc_bytes.insert(key) {
+            ARC_CONTROL_BLOCK_BYTES + len
         } else {
             0
         }
     }
 
     /// Account one shared page-table allocation once.
-    pub(crate) fn account_arc_page_table(&mut self, pages: &Arc<[Rc<[u8]>]>) -> usize {
+    pub(crate) fn account_arc_page_table(&mut self, pages: &Arc<[Arc<[u8]>]>) -> usize {
         let len = pages.len();
         if len == 0 {
             return 0;
@@ -64,7 +60,7 @@ impl ImageAccounting {
 
         let key = (pages.as_ptr(), len);
         if self.arc_page_tables.insert(key) {
-            ARC_CONTROL_BLOCK_BYTES + len * size_of::<Rc<[u8]>>()
+            ARC_CONTROL_BLOCK_BYTES + len * size_of::<Arc<[u8]>>()
         } else {
             0
         }

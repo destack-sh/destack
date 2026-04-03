@@ -1,6 +1,6 @@
 use std::mem::{MaybeUninit, size_of};
-use std::rc::Rc;
 use std::slice;
+use std::sync::Arc;
 
 #[cfg(not(unix))]
 use std::alloc::{Layout, alloc_zeroed, dealloc};
@@ -25,7 +25,7 @@ impl PageId {
 }
 
 /// One immutable shared page image.
-pub type PageImage = Rc<[u8]>;
+pub type PageImage = Arc<[u8]>;
 
 /// One stable local page location inside one arena block.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -169,6 +169,9 @@ impl Drop for PageBlock {
         free_page_block_bytes(self.bytes, self.byte_len);
     }
 }
+
+// safety: page blocks own their backing bytes exclusively and only expose them through borrows
+unsafe impl Send for PageBlock {}
 
 /// One owned arena of fixed-width local pages.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -323,7 +326,7 @@ impl PageArena {
 
     /// Return one immutable image for the given local page.
     pub fn image(&self, page_id: PageId) -> Option<PageImage> {
-        Some(Rc::from(self.page(page_id)?.to_vec().into_boxed_slice()))
+        Some(Arc::from(self.page(page_id)?.to_vec().into_boxed_slice()))
     }
 
     /// Allocate one local page slice initialized from the given bytes.
