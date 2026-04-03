@@ -84,14 +84,14 @@ impl Compiler {
 
         let parent_type = ast.tree.get_node_type(parent_id);
 
-        // expression parents use explicit statement wrappers
+        // expression parents are usually value-position containers
         if parent_type == ast::NodeType::Expression {
             let parent_expression = ast
                 .tree
                 .get(ast::LocalNodeId::<ast::Expression>::new(parent_id));
 
-            // explicit statement wrappers stay statement declarations
-            if matches!(parent_expression, ast::Expression::Statement(_)) {
+            // labelled bodies stay statement declarations
+            if matches!(parent_expression, ast::Expression::Labelled { .. }) {
                 return true;
             }
 
@@ -178,26 +178,6 @@ impl Compiler {
                     declaration: declaration_id,
                 }
             }
-            ast::Expression::Statement(inner_expression_id) => {
-                let inner_expression_id = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *inner_expression_id,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                Expression::Statement {
-                    statement: inner_expression_id,
-                }
-            }
-
             ast::Expression::Labelled { label, body } => {
                 let label = self
                     .program

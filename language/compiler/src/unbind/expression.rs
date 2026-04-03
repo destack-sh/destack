@@ -31,13 +31,17 @@ impl Compiler {
                 }
 
                 dir::Expression::Block { block } => {
-                    let block = self.unbind_block(module, *block, tree, symbols, ast_tree, ast_strings, context);
+                    let block = self.unbind_block(
+                        module,
+                        *block,
+                        ast::BlockContext::Expression,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     ast::Expression::Block(block)
-                }
-
-                dir::Expression::Statement { statement } => {
-                    let statement = self.unbind_expression(module, *statement, tree, symbols, ast_tree, ast_strings, context);
-                    ast::Expression::Statement(statement)
                 }
 
                 dir::Expression::Labelled { label, body, .. } => {
@@ -896,7 +900,16 @@ impl Compiler {
                 }
 
                 dir::Expression::Loop { kind, condition, body, .. } => {
-                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
+                    let body = self.unbind_block(
+                        module,
+                        *body,
+                        ast::BlockContext::Statement,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     match kind {
                         dir::LoopKind::NoTest => ast::Expression::Loop { body },
                         dir::LoopKind::PreTest => {
@@ -966,7 +979,16 @@ impl Compiler {
                         }
                     };
                     let iterator = self.unbind_expression(module, *iterator, tree, symbols, ast_tree, ast_strings, context);
-                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
+                    let body = self.unbind_block(
+                        module,
+                        *body,
+                        ast::BlockContext::Statement,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     ast::Expression::ForEach {
                         asynchrony,
                         kind,
@@ -986,7 +1008,16 @@ impl Compiler {
                     let increment = increment.map(|i| {
                         self.unbind_expression(module, i, tree, symbols, ast_tree, ast_strings, context)
                     });
-                    let body = self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
+                    let body = self.unbind_block(
+                        module,
+                        *body,
+                        ast::BlockContext::Statement,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     ast::Expression::For { initialization, condition, increment, body }
                 }
 
@@ -1014,7 +1045,16 @@ impl Compiler {
                     };
                     let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
                     let cases = cases.iter().map(|case| {
-                        self.unbind_match_case(module, *case, tree, symbols, ast_tree, ast_strings, context)
+                        self.unbind_match_case(
+                            module,
+                            *case,
+                            kind,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        )
                     }).collect();
                     ast::Expression::Match { kind, value, cases }
                 }

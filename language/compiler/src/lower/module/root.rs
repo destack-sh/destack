@@ -21,10 +21,6 @@ impl ModuleLowerer<'_> {
                 let declaration = self.dir_tree.get(declaration_id);
                 self.lower_declaration(declaration_id, declaration)
             }
-            Expression::Statement { statement } => {
-                // unwrap statement wrappers and process the inner expression
-                self.lower_root_expression(*statement)
-            }
             Expression::Let {
                 mutability,
                 declarators,

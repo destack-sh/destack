@@ -117,9 +117,8 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<LocalNodeId<Block>> {
         let block = self.dir_tree.get(block_id);
         let statements = block
-            .expressions
-            .iter()
-            .map(|statement| self.lower_expression_as_statement(*statement))
+            .iter_expressions()
+            .map(|statement| self.lower_expression_as_statement(statement))
             .collect::<Result<Vec<_>, CodegenJsError>>()?;
         let block = Block { statements };
         Ok(self

@@ -40,8 +40,8 @@ impl Compiler {
             (scope_id, LocalScopeMark::end()),
             parent_id,
         );
-        let expressions = ast_block
-            .expressions
+        let leading_expressions = ast_block
+            .leading_expressions
             .iter()
             .map(|expression| {
                 self.bind_expression(
@@ -60,10 +60,27 @@ impl Compiler {
                 )
             })
             .collect();
+        let tail_expression = ast_block.tail_expression.map(|expression| {
+            self.bind_expression(
+                module,
+                ast,
+                namespace_scope,
+                global_augmentation_scope,
+                module_bindings,
+                (scope_id, symbols.get_scope_mark(scope_id)),
+                expression,
+                Some(block_id),
+                tree,
+                symbols,
+                types,
+                SymbolSpaceOrder::ValueThenType,
+            )
+        });
         let block_id = tree.insert(
             block_id,
             Block {
-                expressions,
+                leading_expressions,
+                tail_expression,
                 scope: scope_id,
             },
         );

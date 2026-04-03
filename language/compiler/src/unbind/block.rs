@@ -13,6 +13,7 @@ impl Compiler {
         &self,
         module: &Module,
         block_id: dir::LocalNodeId<dir::Block>,
+        block_context: ast::BlockContext,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
@@ -21,8 +22,8 @@ impl Compiler {
     ) -> ast::LocalNodeId<ast::Block> {
         let block = tree.get(block_id);
         let span = self.unbind_span(module, block_id.into());
-        let expressions = block
-            .expressions
+        let leading_expressions = block
+            .leading_expressions
             .iter()
             .map(|expression| {
                 self.unbind_expression(
@@ -36,10 +37,22 @@ impl Compiler {
                 )
             })
             .collect();
+        let tail_expression = block.tail_expression.map(|expression| {
+            self.unbind_expression(
+                module,
+                expression,
+                tree,
+                symbols,
+                ast_tree,
+                ast_strings,
+                context,
+            )
+        });
         let ast_block = ast::Block {
-            context: ast::BlockContext::Expression,
+            context: block_context,
             format: ast::BlockFormat::Explicit,
-            expressions,
+            leading_expressions,
+            tail_expression,
         };
         let ast_block_id = ast_tree.insert(ast_block, span);
         context.map(block_id.into_any(), ast_block_id.into_any());

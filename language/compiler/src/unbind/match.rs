@@ -55,6 +55,7 @@ impl Compiler {
         &self,
         module: &Module,
         case_id: dir::LocalNodeId<dir::MatchCase>,
+        match_kind: ast::MatchKind,
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
         ast_tree: &mut ast::NodeTree,
@@ -95,8 +96,20 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let body =
-                    self.unbind_block(module, *body, tree, symbols, ast_tree, ast_strings, context);
+                let body_context = match match_kind {
+                    ast::MatchKind::Match => ast::BlockContext::Expression,
+                    ast::MatchKind::Switch => ast::BlockContext::Statement,
+                };
+                let body = self.unbind_block(
+                    module,
+                    *body,
+                    body_context,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
                 ast::MatchCase::Block { selector, body }
             }
         };
