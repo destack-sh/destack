@@ -1,7 +1,7 @@
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, Transfer};
 use crate::interpreter::{ExecutionOutcome, ExecutionYield, Interpreter, YieldState};
-use crate::isolate::{ExternalFn, ExternalFnPtr, SchemaRegistry, StringInterner};
+use crate::isolate::{ExternalFn, SchemaRegistry, StringInterner};
 use crate::options::IsolateOptions;
 use destack_engine as engine;
 use destack_heap::Value;
@@ -81,7 +81,6 @@ impl Interpreter {
         schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         current_func: &crate::executable::Function,
         transfer: Transfer,
@@ -108,7 +107,6 @@ impl Interpreter {
                     schema,
                     string_interner,
                     externals,
-                    externals_by_id,
                     memory,
                     current_func,
                     function,
@@ -136,7 +134,6 @@ impl Interpreter {
                     schema,
                     string_interner,
                     externals,
-                    externals_by_id,
                     memory,
                     current_func,
                     function,
@@ -159,7 +156,6 @@ impl Interpreter {
                 executable,
                 schema,
                 externals,
-                externals_by_id,
                 string_interner,
                 memory,
                 current_func,

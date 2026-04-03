@@ -942,7 +942,7 @@ pub(crate) fn step_managed_alloc(
 
     // allocate managed storage
     let handle = {
-        let heap = state.heap();
+        let heap = state.heap_mut();
         if heap.managed_allocation_count() >= max_managed_allocations {
             return Transfer::Error(Error::AllocationFailed);
         }
@@ -1027,7 +1027,7 @@ pub(crate) fn step_managed_alloc_array(
             Err(_) => return Transfer::Error(Error::AllocationFailed),
         };
 
-        let heap = state.heap();
+        let heap = state.heap_mut();
         if heap.managed_allocation_count() >= max_managed_allocations {
             return Transfer::Error(Error::AllocationFailed);
         }
@@ -1095,7 +1095,7 @@ pub(crate) fn step_raw_alloc(
 
     // allocate raw heap bytes
     let ptr = {
-        let heap = state.heap();
+        let heap = state.heap_mut();
         if heap.raw_allocation_count() >= max_raw_allocations {
             return Transfer::Error(Error::AllocationFailed);
         }
@@ -1139,7 +1139,7 @@ pub(crate) fn step_raw_free(
     // accept raw pointer values
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
-        let heap = state.heap();
+        let heap = state.heap_mut();
         if !heap.free_raw(p) {
             return Transfer::Error(Error::InvalidManagedReference);
         }
@@ -1174,7 +1174,7 @@ pub(crate) fn step_raw_drop(
     // accept raw pointer values - deallocate like raw_free
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
-        let heap = state.heap();
+        let heap = state.heap_mut();
         if !heap.free_raw(p) {
             return Transfer::Error(Error::InvalidManagedReference);
         }

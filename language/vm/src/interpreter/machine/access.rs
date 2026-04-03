@@ -65,7 +65,6 @@ pub(crate) fn decode_pointer_bits(raw: u64, target_type: &mir::Type) -> Value {
             ..
         } => {
             let meta = ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable);
-
             match (*kind, *address_space) {
                 (mir::ReferenceKind::Managed, _) => {
                     Value::managed_reference_with_meta(ManagedReference::from_bits(raw), meta)
@@ -249,7 +248,7 @@ pub(crate) fn load_from_managed_reference_typed(
     }
 
     // require one live managed allocation
-    let heap = state.heap_ref();
+    let heap = state.heap();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
@@ -364,7 +363,7 @@ pub(crate) fn store_to_managed_reference_typed(
     }
 
     {
-        let heap = state.heap_ref();
+        let heap = state.heap();
         if !heap.is_managed_allocated(handle) {
             return Err(Error::InvalidManagedReference);
         }
@@ -379,7 +378,7 @@ pub(crate) fn store_to_managed_reference_typed(
         }
 
         let byte_len = state
-            .heap_ref()
+            .heap()
             .managed_byte_len(handle)
             .ok_or(Error::InvalidManagedReference)?;
         let start = 0usize;
@@ -393,7 +392,7 @@ pub(crate) fn store_to_managed_reference_typed(
         }
 
         if !state
-            .heap()
+            .heap_mut()
             .set_managed_bytes(handle, start, source_bytes.as_ref())
         {
             return Err(Error::InvalidFieldAccess {
@@ -407,7 +406,7 @@ pub(crate) fn store_to_managed_reference_typed(
 
     let bytes = encode_storage_value(state, access.value_type, val)?;
     let byte_len = state
-        .heap_ref()
+        .heap()
         .managed_byte_len(handle)
         .ok_or(Error::InvalidManagedReference)?;
     let start = 0usize;
@@ -420,7 +419,7 @@ pub(crate) fn store_to_managed_reference_typed(
         });
     }
 
-    if !state.heap().set_managed_bytes(handle, start, &bytes) {
+    if !state.heap_mut().set_managed_bytes(handle, start, &bytes) {
         return Err(Error::InvalidFieldAccess {
             index: start as u32,
             field_count: byte_len,
@@ -596,7 +595,7 @@ pub(crate) fn field_addr_managed(
     // validate field index when known
     check_field_index(state, index, field_count)?;
 
-    let heap = state.heap_ref();
+    let heap = state.heap();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
@@ -791,7 +790,7 @@ pub(crate) fn element_addr_managed(
     // validate array index when known
     check_array_index(state, index, array_length)?;
 
-    let heap = state.heap_ref();
+    let heap = state.heap();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
@@ -962,7 +961,7 @@ pub(crate) fn load_field_managed(
     }
 
     // require one live managed allocation
-    let heap = state.heap_ref();
+    let heap = state.heap();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
@@ -1022,7 +1021,7 @@ pub(crate) fn store_field_managed(
     }
 
     // require one live managed allocation
-    let heap = state.heap_ref();
+    let heap = state.heap();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
@@ -1038,7 +1037,7 @@ pub(crate) fn store_field_managed(
     // encode the field payload into the managed byte storage
     let bytes = encode_storage_value(state, field.value_type, value)?;
     let byte_len = state
-        .heap_ref()
+        .heap()
         .managed_byte_len(handle)
         .ok_or(Error::InvalidManagedReference)?;
     let start = field.byte_offset;
@@ -1057,7 +1056,7 @@ pub(crate) fn store_field_managed(
     }
 
     // write the encoded field bytes
-    if !state.heap().set_managed_bytes(handle, start, &bytes) {
+    if !state.heap_mut().set_managed_bytes(handle, start, &bytes) {
         return Err(Error::InvalidFieldAccess {
             index,
             field_count: byte_len,
@@ -1428,7 +1427,7 @@ pub(crate) fn load_element_managed(
     }
 
     // require one live managed allocation
-    let heap = state.heap_ref();
+    let heap = state.heap();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
@@ -1495,7 +1494,7 @@ pub(crate) fn store_element_managed(
     }
 
     // require one live managed allocation
-    let heap = state.heap_ref();
+    let heap = state.heap();
     if !heap.is_managed_allocated(handle) {
         return Err(Error::InvalidManagedReference);
     }
@@ -1518,7 +1517,7 @@ pub(crate) fn store_element_managed(
         })?;
     let bytes = encode_storage_value(state, element.value_type, value)?;
     let allocation_len = state
-        .heap_ref()
+        .heap()
         .managed_byte_len(handle)
         .ok_or(Error::InvalidManagedReference)?;
     let start = element_offset;
@@ -1537,7 +1536,7 @@ pub(crate) fn store_element_managed(
     }
 
     // write the encoded element bytes
-    if !state.heap().set_managed_bytes(handle, start, &bytes) {
+    if !state.heap_mut().set_managed_bytes(handle, start, &bytes) {
         return Err(Error::InvalidArrayAccess {
             index,
             length: allocation_len as u64,
@@ -1966,7 +1965,7 @@ fn duplicate_composite_value_to_stack(
             let handle = value.as_managed_reference().unwrap();
             let storage_type = managed_storage_type(state, handle)?;
             let bytes = state
-                .heap_ref()
+                .heap()
                 .managed_bytes(handle)
                 .ok_or(Error::InvalidManagedReference)?
                 .into_owned();
@@ -2023,7 +2022,7 @@ fn load_heap_slot(
     }
 
     // decode the typed component payload
-    let heap = state.heap_ref();
+    let heap = state.heap();
     let aggregate_type = managed_storage_type(state, handle)?;
     let component = state.storage_component_layout(
         aggregate_type,
@@ -2085,7 +2084,7 @@ fn store_heap_slot(
     )?;
     let bytes = encode_storage_value(state, component.ty, value)?;
     let allocation_len = state
-        .heap_ref()
+        .heap()
         .managed_byte_len(handle)
         .ok_or(Error::InvalidManagedReference)?;
     let start = component.offset;
@@ -2104,7 +2103,7 @@ fn store_heap_slot(
     }
 
     // write the encoded component bytes
-    if !state.heap().set_managed_bytes(handle, start, &bytes) {
+    if !state.heap_mut().set_managed_bytes(handle, start, &bytes) {
         return Err(Error::InvalidFieldAccess {
             index: slot_index as u32,
             field_count: allocation_len,
@@ -2186,7 +2185,7 @@ fn get_heap_field(
     }
 
     // decode the typed field payload
-    let heap = state.heap_ref();
+    let heap = state.heap();
     let aggregate_type = managed_storage_type(state, handle)?;
     let field = state.storage_component_layout(aggregate_type, index)?;
     let owned_window = {
@@ -2299,7 +2298,7 @@ fn get_heap_element(
     }
 
     // decode the typed element payload
-    let heap = state.heap_ref();
+    let heap = state.heap();
     let aggregate_type = managed_storage_type(state, handle)?;
     let layout = state.layout(aggregate_type)?;
     let element = layout.element().ok_or(Error::TypeMismatch {

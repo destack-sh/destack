@@ -1,5 +1,4 @@
 use destack_mir as mir;
-use std::cell::Cell;
 
 use destack_heap::{ManagedReference, RawPointer, SharedPointer, Value};
 
@@ -535,8 +534,6 @@ impl<'a> BlockLowerer<'a> {
                         callee: *callee,
                         signature: *signature,
                         arguments: args,
-                        cached_function: Cell::new(None),
-                        cached_target: Cell::new(None),
                     },
                 }
             }

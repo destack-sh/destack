@@ -1239,7 +1239,7 @@ impl StepState<'_, '_> {
         let byte_len =
             access::raw_type_size(tree, raw_pointee).map_err(|error| self.make_error(error))?;
         let bytes = self
-            .heap_ref()
+            .heap()
             .raw_bytes(raw_pointer)
             .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
         let byte_offset = raw_pointer.byte_offset();
@@ -1287,7 +1287,7 @@ impl StepState<'_, '_> {
         let bytes = access::encode_raw_value(tree, raw_pointee, value)
             .map_err(|error| self.make_error(error))?;
         let byte_len = self
-            .heap_ref()
+            .heap()
             .raw_byte_len(raw_pointer)
             .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
         let byte_offset = raw_pointer.byte_offset();
@@ -1307,7 +1307,7 @@ impl StepState<'_, '_> {
 
         for (index, byte) in bytes.into_iter().enumerate() {
             if !self
-                .heap()
+                .heap_mut()
                 .set_raw_byte(raw_pointer, byte_offset + index, byte)
             {
                 return Err(self.make_error(Error::InvalidFieldAccess {
@@ -1340,7 +1340,7 @@ impl StepState<'_, '_> {
                 })?;
 
                 let byte_len = self
-                    .heap_ref()
+                    .heap()
                     .raw_byte_len(raw_ptr)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
                 if byte_len == 0 && slot_index == 0 {
@@ -1353,7 +1353,7 @@ impl StepState<'_, '_> {
                     }));
                 }
                 let byte = self
-                    .heap_ref()
+                    .heap()
                     .raw_byte_at(raw_ptr, slot_index)
                     .expect("validated raw byte slot should exist");
                 Ok(Value::uint(byte as u64, 8))
@@ -1441,7 +1441,7 @@ impl StepState<'_, '_> {
                     }));
                 };
                 let byte_len = self
-                    .heap_ref()
+                    .heap()
                     .raw_byte_len(raw_ptr)
                     .ok_or_else(|| self.make_error(Error::InvalidManagedReference))?;
 
@@ -1451,7 +1451,7 @@ impl StepState<'_, '_> {
                         field_count: byte_len,
                     }));
                 }
-                if !self.heap().set_raw_byte(raw_ptr, slot_index, byte) {
+                if !self.heap_mut().set_raw_byte(raw_ptr, slot_index, byte) {
                     return Err(self.make_error(Error::InvalidFieldAccess {
                         index: slot_index as u32,
                         field_count: byte_len,

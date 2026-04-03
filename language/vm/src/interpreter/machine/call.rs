@@ -367,7 +367,7 @@ fn try_step_direct_lowered_call(
     let caller = unsafe { &*caller_ptr };
 
     let new_frame_index = state.engine.call_stack.len();
-    let heap_ptr = state.heap_ref() as *const destack_heap::Heap;
+    let heap_ptr = state.heap() as *const destack_heap::Heap;
     let frames_ptr = state.engine.call_stack.as_ptr();
     let frames_len = state.engine.call_stack.len();
     if let Err(error) = copy_values_with_plan_typed(
@@ -734,8 +734,6 @@ pub(crate) fn step_call_indirect(
         callee,
         signature,
         arguments,
-        cached_function,
-        cached_target,
     } = &block[pc].data
     else {
         unreachable!()
@@ -751,22 +749,7 @@ pub(crate) fn step_call_indirect(
     };
     let function = function_id.id;
 
-    // reuse cached call target when possible
-    if cached_function.get() == Some(function)
-        && let Some(cached_target) = cached_target.get()
-    {
-        return Transfer::Call {
-            function,
-            target: cached_target,
-            destination: *dest,
-            arguments: *arguments,
-            env,
-            copies: None,
-            resume_pc: pc + 1,
-        };
-    }
-
-    // resolve the semantic call target and update the cache
+    // resolve the semantic call target directly
     let resolved_target = match state.functions().resolve(function_id) {
         Some(target) => target,
         None => {
@@ -775,8 +758,6 @@ pub(crate) fn step_call_indirect(
             });
         }
     };
-    cached_function.set(Some(function));
-    cached_target.set(Some(resolved_target));
 
     // return control to trampoline
     Transfer::Call {
@@ -804,8 +785,6 @@ pub(crate) fn step_call_indirect_branch(
         arguments,
         normal_resume_point,
         unwind_resume_point,
-        cached_function,
-        cached_target,
     } = &block[pc].data
     else {
         unreachable!()
@@ -816,29 +795,13 @@ pub(crate) fn step_call_indirect_branch(
         Ok(resolved) => resolved,
         Err(error) => return Transfer::Error(error),
     };
-    let function = function_id.id;
-
-    let resolved_target = if cached_function.get() == Some(function) {
-        match cached_target.get() {
-            Some(target) => target,
-            None => {
-                return Transfer::Error(Error::UndefinedFunction {
-                    function: function_id,
-                });
-            }
+    let resolved_target = match state.functions().resolve(function_id) {
+        Some(target) => target,
+        None => {
+            return Transfer::Error(Error::UndefinedFunction {
+                function: function_id,
+            });
         }
-    } else {
-        let target = match state.functions().resolve(function_id) {
-            Some(target) => target,
-            None => {
-                return Transfer::Error(Error::UndefinedFunction {
-                    function: function_id,
-                });
-            }
-        };
-        cached_function.set(Some(function));
-        cached_target.set(Some(target));
-        target
     };
 
     call_branch_with_target(
@@ -975,7 +938,7 @@ pub(crate) fn step_tail_call(
 
         match collect_transferred_values_from_copies(
             state.executable,
-            state.heap_ref(),
+            state.heap(),
             state.engine.call_stack.as_slice(),
             &state.engine.value_stack,
             caller,
@@ -1035,7 +998,7 @@ pub(crate) fn step_tail_call_self(
 
         match collect_transferred_values_range(
             state.executable,
-            state.heap_ref(),
+            state.heap(),
             state.engine.call_stack.as_slice(),
             &state.engine.value_stack,
             caller,
@@ -1197,8 +1160,6 @@ pub(crate) fn step_tail_call_indirect(
         callee,
         signature,
         arguments,
-        cached_function,
-        cached_ptr,
     } = &block[pc].data
     else {
         unreachable!()
@@ -1213,55 +1174,6 @@ pub(crate) fn step_tail_call_indirect(
         Err(error) => return Transfer::Error(error),
     };
     let function = function_id.id;
-
-    // resolve callee id
-    // reuse cached callee pointer when possible
-    if cached_function.get() == Some(function) {
-        if let Some(callee_ptr) = cached_ptr.get() {
-            let callee = unsafe { callee_ptr.as_ref() };
-            let caller = match state.frame_by_index(state.frame_index) {
-                Ok(frame) => frame,
-                Err(error) => return Transfer::Error(error),
-            };
-            let caller_function = unsafe { caller.function_ptr.as_ref() };
-            let argument_values = match collect_transferred_values_range(
-                state.executable,
-                state.heap_ref(),
-                state.engine.call_stack.as_slice(),
-                &state.engine.value_stack,
-                caller,
-                caller_function.argument_pool.as_slice(),
-                *arguments,
-            ) {
-                Ok(arguments) => arguments,
-                Err(error) => return Transfer::Error(error),
-            };
-            if let Err(error) = enter_tail_call(state, function_id, callee, &argument_values, env) {
-                return Transfer::Error(error);
-            }
-            let entry_block_ptr = state.current_frame_mut().block_ptr;
-            let entry_block = unsafe { entry_block_ptr.as_ref() };
-            let entry_instructions = entry_block.instructions.as_slice();
-            become step_instruction(state, entry_instructions, 0)
-        }
-
-        let target = match state.functions().resolve(function_id) {
-            Some(target) => target,
-            None => {
-                return Transfer::Error(Error::UndefinedFunction {
-                    function: function_id,
-                });
-            }
-        };
-
-        return Transfer::TailCall {
-            function,
-            target,
-            arguments: *arguments,
-            env,
-            copies: None,
-        };
-    }
 
     // resolve the semantic call target
     let target = match state.functions().resolve(function_id) {
@@ -1279,8 +1191,6 @@ pub(crate) fn step_tail_call_indirect(
         CallTarget::Import => None,
     };
     let Some(resolved_index) = resolved_index else {
-        cached_function.set(Some(function));
-        cached_ptr.set(None);
         return Transfer::TailCall {
             function,
             target,
@@ -1290,8 +1200,6 @@ pub(crate) fn step_tail_call_indirect(
         };
     };
     let Some(callee_ptr) = state.functions().get_ptr_by_index(resolved_index) else {
-        cached_function.set(Some(function));
-        cached_ptr.set(None);
         return Transfer::TailCall {
             function,
             target,
@@ -1300,8 +1208,6 @@ pub(crate) fn step_tail_call_indirect(
             copies: None,
         };
     };
-    cached_function.set(Some(function));
-    cached_ptr.set(Some(callee_ptr));
     let callee = unsafe { callee_ptr.as_ref() };
 
     // collect argument values
@@ -1312,7 +1218,7 @@ pub(crate) fn step_tail_call_indirect(
     let caller_function = unsafe { caller.function_ptr.as_ref() };
     let argument_values = match collect_transferred_values_range(
         state.executable,
-        state.heap_ref(),
+        state.heap(),
         state.engine.call_stack.as_slice(),
         &state.engine.value_stack,
         caller,

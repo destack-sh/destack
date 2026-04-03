@@ -3,6 +3,7 @@ use std::fmt;
 use destack_mir as mir;
 
 use super::{Frame, Interpreter};
+use crate::FrameInfo;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{
     ArgumentRange, ComponentLayout, Executable, Function, FunctionTable, Instruction, Layout,
@@ -254,7 +255,7 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
                 .map(|frame| {
                     let func = self.executable.tree.get(frame.function);
                     let name = self.executable.strings.get(func.name).to_string();
-                    crate::diagnostic::FrameInfo {
+                    FrameInfo {
                         function: frame.function,
                         block: frame.current_block,
                         function_name: Some(name),
@@ -304,13 +305,13 @@ impl<'ctx, 'iso> StepState<'ctx, 'iso> {
 
     /// Borrow the heap for the current block.
     #[inline]
-    pub(crate) fn heap(&mut self) -> &mut Heap {
+    pub(crate) fn heap_mut(&mut self) -> &mut Heap {
         self.memory.heap()
     }
 
     /// Borrow the heap immutably for the current block.
     #[inline]
-    pub(crate) fn heap_ref(&self) -> &Heap {
+    pub(crate) fn heap(&self) -> &Heap {
         self.memory.heap_ref()
     }
 

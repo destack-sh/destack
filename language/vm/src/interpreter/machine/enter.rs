@@ -13,9 +13,7 @@ use super::bind::{
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{ArgumentRange, CallTarget, CopyRange, Executable, is_invalid_value};
 use crate::interpreter::{ExecutionOutcome, Interpreter};
-use crate::isolate::{
-    ExternalCallContext, ExternalFn, ExternalFnPtr, SchemaRegistry, StringInterner,
-};
+use crate::isolate::{ExternalCallContext, ExternalFn, SchemaRegistry, StringInterner};
 use crate::options::IsolateOptions;
 
 /// The resolved lowered callee entry for one call.
@@ -67,12 +65,11 @@ impl Interpreter {
         function_id: mir::LocalNodeId<mir::Function>,
         string_interner: &mut StringInterner,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         arguments: &[TransferredValue],
     ) -> RuntimeResult<Value> {
         // resolve the external handler first
-        let handler = self.external_for_id(executable, externals, externals_by_id, function_id)?;
+        let handler = self.external_for_id(executable, externals, function_id)?;
 
         // externalize argument values before crossing the runtime boundary
         let arguments = arguments
@@ -88,7 +85,7 @@ impl Interpreter {
         let result = {
             let memory = memory.reborrow();
             let mut context = ExternalCallContext::new(executable, schema, string_interner, memory);
-            (unsafe { handler.as_ref() })(&mut context, &arguments)
+            handler(&mut context, &arguments)
         }
         .map_err(|error| self.make_error(executable, error))?;
 
@@ -299,7 +296,6 @@ impl Interpreter {
         schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         current_func: &crate::executable::Function,
         function: u32,
@@ -351,7 +347,6 @@ impl Interpreter {
                 function_id,
                 string_interner,
                 externals,
-                externals_by_id,
                 memory,
                 &arguments,
             )?;
@@ -404,7 +399,6 @@ impl Interpreter {
         schema: &SchemaRegistry,
         string_interner: &mut StringInterner,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         memory: &mut destack_heap::MemoryContext<'_>,
         current_func: &crate::executable::Function,
         function: u32,
@@ -443,7 +437,6 @@ impl Interpreter {
                 function_id,
                 string_interner,
                 externals,
-                externals_by_id,
                 memory,
                 &arguments,
             )?;
@@ -488,7 +481,6 @@ impl Interpreter {
         executable: &Executable,
         schema: &SchemaRegistry,
         externals: &std::collections::HashMap<String, ExternalFn>,
-        externals_by_id: &mut Vec<Option<ExternalFnPtr>>,
         string_interner: &mut StringInterner,
         memory: &mut destack_heap::MemoryContext<'_>,
         current_func: &crate::executable::Function,
@@ -537,7 +529,6 @@ impl Interpreter {
                 function_id,
                 string_interner,
                 externals,
-                externals_by_id,
                 memory,
                 &argument_values,
             )?;

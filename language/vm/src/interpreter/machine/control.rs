@@ -852,10 +852,7 @@ pub(crate) fn step_trap(
             }
 
             let payload = state.get(*payload);
-            let message = match state
-                .string_interner
-                .string_value(state.heap_ref(), payload)
-            {
+            let message = match state.string_interner.string_value(state.heap(), payload) {
                 Ok(message) => message,
                 Err(error) => return Transfer::Error(error),
             };

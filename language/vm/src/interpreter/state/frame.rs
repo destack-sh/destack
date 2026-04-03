@@ -44,6 +44,10 @@ pub struct Frame {
     pub(crate) environment: Value,
 }
 
+// the raw function and block pointers always point into immutable executable storage
+// that stays alive for the duration of the owning isolate
+unsafe impl Send for Frame {}
+
 impl Frame {
     /// Create a new frame for a function.
     #[allow(clippy::too_many_arguments)]
