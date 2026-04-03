@@ -297,8 +297,8 @@ impl Compiler {
             // associate the inferred type with the default symbol
             types.set_value_type(default_symbol.into_global(module_id), inferred_type);
         }
-        // otherwise text modules are always string
-        else if module.loader.is_text() {
+        // otherwise text and file modules are always string
+        else if module.loader.is_text() || module.loader.is_file() {
             let string_type = types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
