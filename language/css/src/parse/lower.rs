@@ -3,19 +3,20 @@ use crate::{
     ContainerRule, CounterStyleName, CounterStyleRule, CustomMediaName, CustomMediaRule,
     CustomPropertyName, CustomRule, Declaration, DeclarationBlock, DeclarationValue, FontFaceRule,
     FontFeatureDeclaration, FontFeatureFamilyName, FontFeatureSubrule, FontFeatureSubruleKind,
-    FontFeatureValuesRule, FontPaletteName, FontPaletteValuesRule, IgnoredRule, ImportLayer,
-    ImportRule, KeyframeRule, KeyframeSelector, KeyframeSelectorList, KeyframesName, KeyframesRule,
-    LayerBlockRule, LayerNameList, LayerStatementRule, LocalName, LocalNodeId, MediaRule,
-    MozDocumentRule, NamespacePrefix, NamespaceRule, NamespaceUrl, NestedDeclarationsRule,
-    NestingRule, Node, NodeSpanType, NodeTree, NodeTreeImpl, NthOfSelector, NthSelector,
-    NthSelectorKind, Number, PageMarginBox, PageMarginRule, PagePseudoClass, PageRule,
+    FontFeatureValuesRule, FontPaletteName, FontPaletteValuesRule, Function, IgnoredRule,
+    ImportLayer, ImportRule, KeyframeRule, KeyframeSelector, KeyframeSelectorList, KeyframesName,
+    KeyframesRule, LayerBlockRule, LayerNameList, LayerStatementRule, LocalName, LocalNodeId,
+    MediaRule, MozDocumentRule, NamespacePrefix, NamespaceRule, NamespaceUrl,
+    NestedDeclarationsRule, NestingRule, Node, NodeSpanType, NodeTree, NodeTreeImpl, NthOfSelector,
+    NthSelector, NthSelectorKind, Number, PageMarginBox, PageMarginRule, PagePseudoClass, PageRule,
     PageSelector, PageSelectorList, PropertyName, PropertyRule, PropertySyntax,
     PropertySyntaxComponent, PropertySyntaxComponentKind, PropertySyntaxMultiplier, PseudoArgument,
     PseudoClass, PseudoElement, Rule, ScopeRule, Selector, SelectorComponent, SelectorList,
     SimpleSelector, StartingStyleRule, StyleRule, Stylesheet, SupportsRule, Symbol,
     TimelineRangeName, TimelineRangePercentage, Token, UnknownRule, VendorPrefix,
-    ViewTransitionRule, ViewportRule,
+    ViewTransitionPartArgument, ViewTransitionRule, ViewportRule,
 };
+use destack_core::StringId;
 use destack_source::{File, Span};
 
 use super::parse::Parser;
@@ -29,6 +30,8 @@ pub(crate) struct Lowerer<'a> {
     source: &'a str,
     /// The output CSS tree.
     tree: NodeTree,
+    /// The next stable resource id.
+    next_resource_id: u32,
 }
 
 impl<'a> Lowerer<'a> {
@@ -38,6 +41,7 @@ impl<'a> Lowerer<'a> {
             file,
             source,
             tree: NodeTree::new(),
+            next_resource_id: 0,
         }
     }
 
@@ -72,6 +76,26 @@ impl<'a> Lowerer<'a> {
     /// Return one default span for inner CSS syntax nodes.
     fn inner_span(&self) -> Span {
         Span::empty(self.file.id)
+    }
+
+    /// Intern one pooled css string into the output tree.
+    pub(crate) fn intern_string(&self, value: &str) -> StringId {
+        self.tree.intern(value)
+    }
+
+    /// Parse one canonical component value list into this tree's string space.
+    pub(crate) fn parse_component_value_list_source(&mut self, source: &str) -> ComponentValueList {
+        let strings = &self.tree.strings;
+        let next_resource_id = &mut self.next_resource_id;
+
+        Parser::parse_component_value_list_with_pool(strings, next_resource_id, source)
+    }
+
+    /// Allocate one stable resource id.
+    pub(crate) fn allocate_resource_id(&mut self) -> u32 {
+        let resource_id = self.next_resource_id;
+        self.next_resource_id += 1;
+        resource_id
     }
 
     /// Insert one inner CSS node.
@@ -135,24 +159,33 @@ impl<'a> Lowerer<'a> {
             }),
             lightning::CssRule::Page(rule) => Rule::Page(PageRule {
                 selectors: self.lower_page_selector_list(&rule.selectors),
-                declarations: self
-                    .lower_authored_declaration_count(rule.declarations.len(), span)
-                    .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
+                declarations: self.lower_authored_declaration_block(span).or_else(|| {
+                    span.is_empty()
+                        .then(|| self.lower_declaration_block(&rule.declarations, span))
+                        .flatten()
+                }),
                 page_margin_rules: self.lower_page_margin_rules(rule.rules, span),
             }),
             lightning::CssRule::FontFace(rule) => Rule::FontFace(FontFaceRule {
-                declarations: self
-                    .lower_authored_declaration_count(rule.properties.len(), span)
-                    .or_else(|| self.lower_font_face_declaration_block(&rule.properties, span)),
+                declarations: self.lower_authored_declaration_block(span).or_else(|| {
+                    span.is_empty()
+                        .then(|| self.lower_font_face_declaration_block(&rule.properties, span))
+                        .flatten()
+                }),
             }),
             lightning::CssRule::FontPaletteValues(rule) => {
                 Rule::FontPaletteValues(FontPaletteValuesRule {
                     name: self.lower_font_palette_name(rule.name.as_ref()),
-                    declarations: self
-                        .lower_authored_declaration_count(rule.properties.len(), span)
-                        .or_else(|| {
-                            self.lower_font_palette_values_declaration_block(&rule.properties, span)
-                        }),
+                    declarations: self.lower_authored_declaration_block(span).or_else(|| {
+                        span.is_empty()
+                            .then(|| {
+                                self.lower_font_palette_values_declaration_block(
+                                    &rule.properties,
+                                    span,
+                                )
+                            })
+                            .flatten()
+                    }),
                 })
             }
             lightning::CssRule::FontFeatureValues(rule) => {
@@ -203,9 +236,11 @@ impl<'a> Lowerer<'a> {
             }
             lightning::CssRule::CounterStyle(rule) => Rule::CounterStyle(CounterStyleRule {
                 name: self.lower_counter_style_name(rule.name.as_ref()),
-                declarations: self
-                    .lower_authored_declaration_block(&rule.declarations, span)
-                    .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
+                declarations: self.lower_authored_declaration_block(span).or_else(|| {
+                    span.is_empty()
+                        .then(|| self.lower_declaration_block(&rule.declarations, span))
+                        .flatten()
+                }),
             }),
             lightning::CssRule::Namespace(rule) => Rule::Namespace(NamespaceRule {
                 prefix: rule
@@ -221,16 +256,20 @@ impl<'a> Lowerer<'a> {
             }),
             lightning::CssRule::NestedDeclarations(rule) => {
                 Rule::NestedDeclarations(NestedDeclarationsRule {
-                    declarations: self
-                        .lower_authored_declaration_block(&rule.declarations, span)
-                        .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
+                    declarations: self.lower_authored_declaration_block(span).or_else(|| {
+                        span.is_empty()
+                            .then(|| self.lower_declaration_block(&rule.declarations, span))
+                            .flatten()
+                    }),
                 })
             }
             lightning::CssRule::Viewport(rule) => Rule::Viewport(ViewportRule {
                 vendor_prefix: self.lower_vendor_prefix(rule.vendor_prefix),
-                declarations: self
-                    .lower_authored_declaration_block(&rule.declarations, span)
-                    .or_else(|| self.lower_declaration_block(&rule.declarations, span)),
+                declarations: self.lower_authored_declaration_block(span).or_else(|| {
+                    span.is_empty()
+                        .then(|| self.lower_declaration_block(&rule.declarations, span))
+                        .flatten()
+                }),
             }),
             lightning::CssRule::CustomMedia(rule) => Rule::CustomMedia(CustomMediaRule {
                 name: self.lower_custom_media_name(rule.name.as_ref()),
@@ -247,10 +286,11 @@ impl<'a> Lowerer<'a> {
                 name: self.lower_custom_property_name(rule.name.as_ref()),
                 syntax: self.lower_property_syntax(&rule.syntax),
                 inherits: rule.inherits,
-                initial_value: rule
-                    .initial_value
-                    .as_ref()
-                    .map(|value| self.lower_declaration_value_source(&self.serialize_value(value))),
+                initial_value: self.lower_property_rule_initial_value(span).or_else(|| {
+                    rule.initial_value.as_ref().map(|value| DeclarationValue {
+                        components: self.lower_parsed_component(value),
+                    })
+                }),
             }),
             lightning::CssRule::Keyframes(rule) => Rule::Keyframes(KeyframesRule {
                 name: self.lower_keyframes_name(&rule.name),
@@ -258,11 +298,13 @@ impl<'a> Lowerer<'a> {
                 rules: self.lower_keyframe_rules(rule.keyframes, span),
             }),
             lightning::CssRule::ViewTransition(rule) => Rule::ViewTransition(ViewTransitionRule {
-                declarations: self
-                    .lower_authored_declaration_count(rule.properties.len(), span)
-                    .or_else(|| {
-                        self.lower_view_transition_declaration_block(&rule.properties, span)
-                    }),
+                declarations: self.lower_authored_declaration_block(span).or_else(|| {
+                    span.is_empty()
+                        .then(|| {
+                            self.lower_view_transition_declaration_block(&rule.properties, span)
+                        })
+                        .flatten()
+                }),
             }),
             lightning::CssRule::Unknown(rule) => Rule::Unknown(UnknownRule {
                 name: rule.name.to_string(),
@@ -273,9 +315,17 @@ impl<'a> Lowerer<'a> {
                     .map(|block| self.lower_component_value_token_list(block)),
             }),
             lightning::CssRule::Custom(rule) => Rule::Custom(CustomRule {
-                components: self.lower_component_value_list_source(
-                    &self.serialize_rule(&lightning::CssRule::Custom(rule)),
-                ),
+                components: if span.is_empty() {
+                    self.lower_component_value_list_source(
+                        &self.serialize_rule(&lightning::CssRule::Custom(rule)),
+                    )
+                } else {
+                    {
+                        let source = self.source_slice(span).to_string();
+
+                        self.lower_component_value_list_source(&source)
+                    }
+                },
             }),
             lightning::CssRule::Ignored => Rule::Ignored(IgnoredRule {}),
         };
@@ -338,17 +388,73 @@ impl<'a> Lowerer<'a> {
         rules: Vec<lightning::Keyframe<'a>>,
         span: Span,
     ) -> Vec<LocalNodeId<Rule>> {
+        let Some((body_start, body_end)) = self.rule_block_body_range(span) else {
+            return rules
+                .into_iter()
+                .map(|rule| {
+                    let declarations = self.lower_declaration_block(&rule.declarations, span);
+
+                    self.tree.insert(
+                        Rule::Keyframe(KeyframeRule {
+                            selectors: self.lower_keyframe_selector_list(&rule.selectors),
+                            declarations,
+                        }),
+                        span,
+                    )
+                })
+                .collect();
+        };
+        let authored_keyframes = Parser::parse_keyframe_block(&self.source[body_start..body_end]);
+
+        if authored_keyframes.len() != rules.len() {
+            return rules
+                .into_iter()
+                .map(|rule| {
+                    let declarations = self.lower_declaration_block(&rule.declarations, span);
+
+                    self.tree.insert(
+                        Rule::Keyframe(KeyframeRule {
+                            selectors: self.lower_keyframe_selector_list(&rule.selectors),
+                            declarations,
+                        }),
+                        span,
+                    )
+                })
+                .collect();
+        }
+
         rules
             .into_iter()
-            .map(|rule| {
-                let declarations = self.lower_declaration_block(&rule.declarations, span);
+            .zip(authored_keyframes)
+            .map(|(rule, authored_keyframe)| {
+                let keyframe_span = Span::new(
+                    self.file.id,
+                    (body_start + authored_keyframe.rule_start) as u32,
+                    (body_start + authored_keyframe.rule_end) as u32,
+                );
+                let selectors =
+                    self.lower_keyframe_selector_list_source(authored_keyframe.selector);
+                let declarations = self
+                    .lower_authored_declaration_body(
+                        body_start + authored_keyframe.body_start,
+                        authored_keyframe.body,
+                        keyframe_span,
+                    )
+                    .or_else(|| {
+                        keyframe_span
+                            .is_empty()
+                            .then(|| {
+                                self.lower_declaration_block(&rule.declarations, keyframe_span)
+                            })
+                            .flatten()
+                    });
 
                 self.tree.insert(
                     Rule::Keyframe(KeyframeRule {
-                        selectors: self.lower_keyframe_selector_list(&rule.selectors),
+                        selectors,
                         declarations,
                     }),
-                    span,
+                    keyframe_span,
                 )
             })
             .collect()
@@ -364,9 +470,11 @@ impl<'a> Lowerer<'a> {
             .into_iter()
             .map(|rule| {
                 let span = self.span_for_location(rule.loc);
-                let declarations = self
-                    .lower_authored_declaration_count(rule.declarations.len(), span)
-                    .or_else(|| self.lower_declaration_block(&rule.declarations, fallback_span));
+                let declarations = self.lower_authored_declaration_block(span).or_else(|| {
+                    span.is_empty()
+                        .then(|| self.lower_declaration_block(&rule.declarations, fallback_span))
+                        .flatten()
+                });
 
                 self.tree.insert(
                     PageMarginRule {
@@ -390,7 +498,11 @@ impl<'a> Lowerer<'a> {
         // authored source order
         for index in 0..rule.declarations.len() {
             let Some(declaration) = self.lower_style_declaration(rule, index, span) else {
-                return self.lower_declaration_block(&rule.declarations, span);
+                return self.lower_authored_declaration_block(span).or_else(|| {
+                    span.is_empty()
+                        .then(|| self.lower_declaration_block(&rule.declarations, span))
+                        .flatten()
+                });
             };
 
             declarations.push(declaration);
@@ -434,25 +546,21 @@ impl<'a> Lowerer<'a> {
     /// Lower one authored declaration block from one braced rule span.
     fn lower_authored_declaration_block(
         &mut self,
-        declarations: &lightning::DeclarationBlock<'a>,
-        rule_span: Span,
-    ) -> Option<LocalNodeId<DeclarationBlock>> {
-        self.lower_authored_declaration_count(declarations.len(), rule_span)
-    }
-
-    /// Lower one authored declaration block from one declaration count and one rule span.
-    fn lower_authored_declaration_count(
-        &mut self,
-        declaration_count: usize,
         rule_span: Span,
     ) -> Option<LocalNodeId<DeclarationBlock>> {
         let (body_start, body_end) = self.rule_block_body_range(rule_span)?;
         let body_source = &self.source[body_start..body_end];
-        let authored_declarations = Parser::parse_declaration_block(body_source);
+        self.lower_authored_declaration_body(body_start, body_source, rule_span)
+    }
 
-        if authored_declarations.len() != declaration_count {
-            return None;
-        }
+    /// Lower one authored declaration block from one block body source slice.
+    fn lower_authored_declaration_body(
+        &mut self,
+        body_start: usize,
+        body_source: &str,
+        fallback_span: Span,
+    ) -> Option<LocalNodeId<DeclarationBlock>> {
+        let authored_declarations = Parser::parse_declaration_block(body_source);
 
         let declarations = authored_declarations
             .into_iter()
@@ -473,7 +581,7 @@ impl<'a> Lowerer<'a> {
                     declaration.name,
                     value_span,
                     declaration.value,
-                    rule_span,
+                    fallback_span,
                 )
             })
             .collect::<Vec<_>>();
@@ -484,7 +592,7 @@ impl<'a> Lowerer<'a> {
 
         Some(
             self.tree
-                .insert(DeclarationBlock { declarations }, rule_span),
+                .insert(DeclarationBlock { declarations }, fallback_span),
         )
     }
 
@@ -530,8 +638,9 @@ impl<'a> Lowerer<'a> {
         let declarations = declarations
             .iter()
             .map(|(property, is_important)| {
-                self.tree
-                    .insert(self.lower_declaration(property, is_important), span)
+                let declaration = self.lower_declaration(property, is_important);
+
+                self.tree.insert(declaration, span)
             })
             .collect::<Vec<_>>();
 
@@ -564,6 +673,7 @@ impl<'a> Lowerer<'a> {
     fn lower_import_rule(&mut self, rule: lightning::ImportRule<'a>) -> ImportRule {
         ImportRule {
             url: rule.url.to_string(),
+            resource: Some(self.build_import_resource(rule.url.as_ref())),
             layer: rule.layer.map(|layer| ImportLayer {
                 name: layer.map(|name| self.lower_layer_name(&name)),
             }),
@@ -578,7 +688,7 @@ impl<'a> Lowerer<'a> {
 
     /// Lower one declaration.
     fn lower_declaration(
-        &self,
+        &mut self,
         property: &lightning::Property<'a>,
         is_important: bool,
     ) -> Declaration {
@@ -605,32 +715,45 @@ impl<'a> Lowerer<'a> {
 
     /// Lower one `@font-face` property into one declaration.
     fn lower_font_face_property_declaration(
-        &self,
+        &mut self,
         property: &lightning::FontFaceProperty<'a>,
     ) -> Declaration {
         match property {
             lightning::FontFaceProperty::Source(value) => {
-                self.lower_raw_declaration("src", self.lower_css_list(value))
+                let value = self.lower_font_source_list(value);
+
+                self.lower_raw_declaration("src", value)
             }
             lightning::FontFaceProperty::FontFamily(value) => {
-                self.lower_raw_declaration("font-family", self.lower_css_value(value))
+                let value = self.lower_font_family_declaration_value(value);
+
+                self.lower_raw_declaration("font-family", value)
             }
             lightning::FontFaceProperty::FontStyle(value) => {
-                self.lower_raw_declaration("font-style", self.lower_css_value(value))
+                let value = self.lower_font_face_style_range(value);
+
+                self.lower_raw_declaration("font-style", value)
             }
             lightning::FontFaceProperty::FontWeight(value) => {
-                self.lower_raw_declaration("font-weight", self.lower_css_value(value))
+                let value = self.lower_font_weight_range(value);
+
+                self.lower_raw_declaration("font-weight", value)
             }
             lightning::FontFaceProperty::FontStretch(value) => {
-                self.lower_raw_declaration("font-stretch", self.lower_css_value(value))
+                let value = self.lower_font_stretch_range(value);
+
+                self.lower_raw_declaration("font-stretch", value)
             }
             lightning::FontFaceProperty::UnicodeRange(value) => {
-                self.lower_raw_declaration("unicode-range", self.lower_css_list(value))
+                let value = self.lower_unicode_range_list(value);
+
+                self.lower_raw_declaration("unicode-range", value)
             }
-            lightning::FontFaceProperty::Custom(custom) => self.lower_custom_property_declaration(
-                &custom.name,
-                self.lower_component_value_token_list(&custom.value),
-            ),
+            lightning::FontFaceProperty::Custom(custom) => {
+                let value = self.lower_component_value_token_list(&custom.value);
+
+                self.lower_custom_property_declaration(&custom.name, value)
+            }
         }
     }
 
@@ -650,24 +773,30 @@ impl<'a> Lowerer<'a> {
 
     /// Lower one `@font-palette-values` property into one declaration.
     fn lower_font_palette_values_property_declaration(
-        &self,
+        &mut self,
         property: &lightning::FontPaletteValuesProperty<'a>,
     ) -> Declaration {
         match property {
             lightning::FontPaletteValuesProperty::FontFamily(value) => {
-                self.lower_raw_declaration("font-family", self.lower_css_value(value))
+                let value = self.lower_font_family_declaration_value(value);
+
+                self.lower_raw_declaration("font-family", value)
             }
             lightning::FontPaletteValuesProperty::BasePalette(value) => {
-                self.lower_raw_declaration("base-palette", self.lower_css_value(value))
+                let value = self.lower_base_palette_declaration_value(value);
+
+                self.lower_raw_declaration("base-palette", value)
             }
             lightning::FontPaletteValuesProperty::OverrideColors(value) => {
-                self.lower_raw_declaration("override-colors", self.lower_css_list(value))
+                let value = self.lower_serialized_declaration_value_list(value);
+
+                self.lower_raw_declaration("override-colors", value)
             }
-            lightning::FontPaletteValuesProperty::Custom(custom) => self
-                .lower_custom_property_declaration(
-                    &custom.name,
-                    self.lower_component_value_token_list(&custom.value),
-                ),
+            lightning::FontPaletteValuesProperty::Custom(custom) => {
+                let value = self.lower_component_value_token_list(&custom.value);
+
+                self.lower_custom_property_declaration(&custom.name, value)
+            }
         }
     }
 
@@ -687,21 +816,25 @@ impl<'a> Lowerer<'a> {
 
     /// Lower one `@view-transition` property into one declaration.
     fn lower_view_transition_property_declaration(
-        &self,
+        &mut self,
         property: &lightning::ViewTransitionProperty<'a>,
     ) -> Declaration {
         match property {
             lightning::ViewTransitionProperty::Navigation(value) => {
-                self.lower_raw_declaration("navigation", self.lower_css_value(value))
+                let value = self.lower_navigation_declaration_value(value);
+
+                self.lower_raw_declaration("navigation", value)
             }
             lightning::ViewTransitionProperty::Types(value) => {
-                self.lower_raw_declaration("types", self.lower_css_value(value))
+                let value = self.lower_none_or_custom_ident_list(value);
+
+                self.lower_raw_declaration("types", value)
             }
-            lightning::ViewTransitionProperty::Custom(custom) => self
-                .lower_custom_property_declaration(
-                    &custom.name,
-                    self.lower_component_value_token_list(&custom.value),
-                ),
+            lightning::ViewTransitionProperty::Custom(custom) => {
+                let value = self.lower_component_value_token_list(&custom.value);
+
+                self.lower_custom_property_declaration(&custom.name, value)
+            }
         }
     }
 
@@ -727,15 +860,11 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    /// Lower one printable CSS value into one declaration value.
-    fn lower_css_value<T: lightning::ToCss>(&self, value: &T) -> DeclarationValue {
-        DeclarationValue {
-            components: self.lower_component_value_css_list(value),
-        }
-    }
-
-    /// Lower one printable CSS list into one declaration value.
-    fn lower_css_list<T: lightning::ToCss>(&self, values: &[T]) -> DeclarationValue {
+    /// Lower one serialized CSS list into one declaration value.
+    fn lower_serialized_declaration_value_list<T: lightning::ToCss>(
+        &mut self,
+        values: &[T],
+    ) -> DeclarationValue {
         let mut components = Vec::new();
 
         for (index, value) in values.iter().enumerate() {
@@ -744,12 +873,461 @@ impl<'a> Lowerer<'a> {
                 components.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
             }
 
-            components.extend(self.lower_component_value_css_list(value).values);
+            components.extend(
+                self.lower_component_value_list_source(&self.serialize_value(value))
+                    .values,
+            );
         }
 
         DeclarationValue {
             components: ComponentValueList { values: components },
         }
+    }
+
+    /// Lower one `@font-face` source list into one declaration value.
+    fn lower_font_source_list(&mut self, values: &[lightning::FontSource<'_>]) -> DeclarationValue {
+        let mut components = Vec::new();
+
+        for (index, value) in values.iter().enumerate() {
+            if index > 0 {
+                components.push(ComponentValue::Token(Token::Symbol(Symbol::Comma)));
+                components.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+            }
+
+            components.extend(self.lower_font_source(value));
+        }
+
+        DeclarationValue {
+            components: ComponentValueList { values: components },
+        }
+    }
+
+    /// Lower one `@font-face` source into component values.
+    fn lower_font_source(&mut self, value: &lightning::FontSource<'_>) -> Vec<ComponentValue> {
+        match value {
+            lightning::FontSource::Url(value) => {
+                let mut values = vec![ComponentValue::Function(
+                    self.lower_url_function(value.url.url.as_ref()),
+                )];
+
+                if let Some(format) = &value.format {
+                    values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+                    values.push(ComponentValue::Function(Function {
+                        name: self.intern_string("format"),
+                        url_resource: None,
+                        arguments: ComponentValueList {
+                            values: vec![ComponentValue::Token(Token::String(
+                                self.font_format_name(format).to_string(),
+                            ))],
+                        },
+                    }));
+                }
+
+                if !value.tech.is_empty() {
+                    let arguments = value
+                        .tech
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(index, technology)| {
+                            let mut values = Vec::new();
+
+                            if index > 0 {
+                                values.push(ComponentValue::Token(Token::Symbol(Symbol::Comma)));
+                                values.push(ComponentValue::Token(Token::WhiteSpace(
+                                    " ".to_string(),
+                                )));
+                            }
+
+                            values.push(ComponentValue::Token(Token::Ident(
+                                self.intern_string(self.font_technology_name(technology)),
+                            )));
+
+                            values
+                        })
+                        .collect();
+
+                    values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+                    values.push(ComponentValue::Function(Function {
+                        name: self.intern_string("tech"),
+                        url_resource: None,
+                        arguments: ComponentValueList { values: arguments },
+                    }));
+                }
+
+                values
+            }
+            lightning::FontSource::Local(value) => vec![ComponentValue::Function(Function {
+                name: self.intern_string("local"),
+                url_resource: None,
+                arguments: self.lower_font_family_components(value),
+            })],
+        }
+    }
+
+    /// Lower one font family into one declaration value.
+    fn lower_font_family_declaration_value(
+        &mut self,
+        value: &lightning::FontFamily<'_>,
+    ) -> DeclarationValue {
+        DeclarationValue {
+            components: self.lower_font_family_components(value),
+        }
+    }
+
+    /// Lower one font family into one component value list.
+    fn lower_font_family_components(
+        &mut self,
+        value: &lightning::FontFamily<'_>,
+    ) -> ComponentValueList {
+        match value {
+            lightning::FontFamily::Generic(value) => ComponentValueList {
+                values: vec![ComponentValue::Token(Token::Ident(
+                    self.intern_string(self.generic_font_family_name(value)),
+                ))],
+            },
+            lightning::FontFamily::FamilyName(_) => {
+                self.lower_serialized_component_value_list(value)
+            }
+        }
+    }
+
+    /// Lower one `@font-face` font style range into one declaration value.
+    fn lower_font_face_style_range(
+        &mut self,
+        value: &lightning::FontFaceStyle,
+    ) -> DeclarationValue {
+        let values = match value {
+            lightning::FontFaceStyle::Normal => {
+                vec![ComponentValue::Token(Token::Ident(
+                    self.intern_string("normal"),
+                ))]
+            }
+            lightning::FontFaceStyle::Italic => {
+                vec![ComponentValue::Token(Token::Ident(
+                    self.intern_string("italic"),
+                ))]
+            }
+            lightning::FontFaceStyle::Oblique(angles) => {
+                let mut values = vec![ComponentValue::Token(Token::Ident(
+                    self.intern_string("oblique"),
+                ))];
+
+                if angles.0 != lightning::Angle::Deg(14.0)
+                    || angles.1 != lightning::Angle::Deg(14.0)
+                {
+                    values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+                    values.push(self.lower_angle_value(&angles.0));
+
+                    if angles.1 != angles.0 {
+                        values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+                        values.push(self.lower_angle_value(&angles.1));
+                    }
+                }
+
+                values
+            }
+        };
+
+        DeclarationValue {
+            components: ComponentValueList { values },
+        }
+    }
+
+    /// Lower one `@font-face` font weight range into one declaration value.
+    fn lower_font_weight_range(
+        &mut self,
+        value: &lightning::Size2D<lightning::FontWeight>,
+    ) -> DeclarationValue {
+        let mut values = vec![self.lower_font_weight_value(&value.0)];
+
+        if value.1 != value.0 {
+            values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+            values.push(self.lower_font_weight_value(&value.1));
+        }
+
+        DeclarationValue {
+            components: ComponentValueList { values },
+        }
+    }
+
+    /// Lower one font weight into one component value.
+    fn lower_font_weight_value(&self, value: &lightning::FontWeight) -> ComponentValue {
+        match value {
+            lightning::FontWeight::Absolute(value) => self.lower_absolute_font_weight(value),
+            lightning::FontWeight::Bolder => {
+                ComponentValue::Token(Token::Ident(self.intern_string("bolder")))
+            }
+            lightning::FontWeight::Lighter => {
+                ComponentValue::Token(Token::Ident(self.intern_string("lighter")))
+            }
+        }
+    }
+
+    /// Lower one absolute font weight into one component value.
+    fn lower_absolute_font_weight(&self, value: &lightning::AbsoluteFontWeight) -> ComponentValue {
+        match value {
+            lightning::AbsoluteFontWeight::Weight(value) => {
+                ComponentValue::Token(Token::Number(Number {
+                    has_sign: value.is_sign_negative(),
+                    value: *value,
+                    integer_value: (value.fract() == 0.0).then_some(*value as i32),
+                }))
+            }
+            lightning::AbsoluteFontWeight::Normal => {
+                ComponentValue::Token(Token::Ident(self.intern_string("normal")))
+            }
+            lightning::AbsoluteFontWeight::Bold => {
+                ComponentValue::Token(Token::Ident(self.intern_string("bold")))
+            }
+        }
+    }
+
+    /// Lower one `@font-face` font stretch range into one declaration value.
+    fn lower_font_stretch_range(
+        &mut self,
+        value: &lightning::Size2D<lightning::FontStretch>,
+    ) -> DeclarationValue {
+        let mut values = vec![self.lower_font_stretch_value(&value.0)];
+
+        if value.1 != value.0 {
+            values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+            values.push(self.lower_font_stretch_value(&value.1));
+        }
+
+        DeclarationValue {
+            components: ComponentValueList { values },
+        }
+    }
+
+    /// Lower one font stretch into one component value.
+    fn lower_font_stretch_value(&self, value: &lightning::FontStretch) -> ComponentValue {
+        match value {
+            lightning::FontStretch::Keyword(value) => ComponentValue::Token(Token::Ident(
+                self.intern_string(self.font_stretch_keyword_name(value)),
+            )),
+            lightning::FontStretch::Percentage(value) => self.lower_percentage_component(value),
+        }
+    }
+
+    /// Lower one base palette into one declaration value.
+    fn lower_base_palette_declaration_value(
+        &self,
+        value: &lightning::BasePalette,
+    ) -> DeclarationValue {
+        let value = match value {
+            lightning::BasePalette::Light => {
+                ComponentValue::Token(Token::Ident(self.intern_string("light")))
+            }
+            lightning::BasePalette::Dark => {
+                ComponentValue::Token(Token::Ident(self.intern_string("dark")))
+            }
+            lightning::BasePalette::Integer(value) => {
+                ComponentValue::Token(Token::Number(Number {
+                    has_sign: false,
+                    value: *value as f32,
+                    integer_value: Some(*value as i32),
+                }))
+            }
+        };
+
+        DeclarationValue {
+            components: ComponentValueList {
+                values: vec![value],
+            },
+        }
+    }
+
+    /// Lower one navigation descriptor into one declaration value.
+    fn lower_navigation_declaration_value(
+        &self,
+        value: &lightning::Navigation,
+    ) -> DeclarationValue {
+        let value = match value {
+            lightning::Navigation::None => "none",
+            lightning::Navigation::Auto => "auto",
+        };
+
+        DeclarationValue {
+            components: ComponentValueList {
+                values: vec![ComponentValue::Token(Token::Ident(
+                    self.intern_string(value),
+                ))],
+            },
+        }
+    }
+
+    /// Lower one unicode range list into one declaration value.
+    fn lower_unicode_range_list(&self, values: &[lightning::UnicodeRange]) -> DeclarationValue {
+        let mut components = Vec::new();
+
+        for (index, value) in values.iter().enumerate() {
+            if index > 0 {
+                components.push(ComponentValue::Token(Token::Symbol(Symbol::Comma)));
+                components.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+            }
+
+            components.push(ComponentValue::Token(Token::Ident(
+                self.intern_string(&self.unicode_range_source(value)),
+            )));
+        }
+
+        DeclarationValue {
+            components: ComponentValueList { values: components },
+        }
+    }
+
+    /// Lower one percentage into one component value.
+    fn lower_percentage_component(&self, value: &lightning::Percentage) -> ComponentValue {
+        ComponentValue::Token(Token::Percentage(self.lower_percentage_number(value.0)))
+    }
+
+    /// Return the canonical name of one generic font family.
+    fn generic_font_family_name(&self, value: &lightning::GenericFontFamily) -> &'static str {
+        match value {
+            lightning::GenericFontFamily::Serif => "serif",
+            lightning::GenericFontFamily::SansSerif => "sans-serif",
+            lightning::GenericFontFamily::Cursive => "cursive",
+            lightning::GenericFontFamily::Fantasy => "fantasy",
+            lightning::GenericFontFamily::Monospace => "monospace",
+            lightning::GenericFontFamily::SystemUI => "system-ui",
+            lightning::GenericFontFamily::Emoji => "emoji",
+            lightning::GenericFontFamily::Math => "math",
+            lightning::GenericFontFamily::FangSong => "fangsong",
+            lightning::GenericFontFamily::UISerif => "ui-serif",
+            lightning::GenericFontFamily::UISansSerif => "ui-sans-serif",
+            lightning::GenericFontFamily::UIMonospace => "ui-monospace",
+            lightning::GenericFontFamily::UIRounded => "ui-rounded",
+            lightning::GenericFontFamily::Initial => "initial",
+            lightning::GenericFontFamily::Inherit => "inherit",
+            lightning::GenericFontFamily::Unset => "unset",
+            lightning::GenericFontFamily::Default => "default",
+            lightning::GenericFontFamily::Revert => "revert",
+            lightning::GenericFontFamily::RevertLayer => "revert-layer",
+        }
+    }
+
+    /// Return the canonical name of one font format.
+    fn font_format_name(&self, value: &lightning::FontFormat<'_>) -> String {
+        match value {
+            lightning::FontFormat::WOFF => "woff".to_string(),
+            lightning::FontFormat::WOFF2 => "woff2".to_string(),
+            lightning::FontFormat::TrueType => "truetype".to_string(),
+            lightning::FontFormat::OpenType => "opentype".to_string(),
+            lightning::FontFormat::EmbeddedOpenType => "embedded-opentype".to_string(),
+            lightning::FontFormat::Collection => "collection".to_string(),
+            lightning::FontFormat::SVG => "svg".to_string(),
+            lightning::FontFormat::String(value) => value.as_ref().to_string(),
+        }
+    }
+
+    /// Return the canonical name of one font technology.
+    fn font_technology_name(&self, value: &lightning::FontTechnology) -> &'static str {
+        match value {
+            lightning::FontTechnology::FeaturesOpentype => "features-opentype",
+            lightning::FontTechnology::FeaturesAat => "features-aat",
+            lightning::FontTechnology::FeaturesGraphite => "features-graphite",
+            lightning::FontTechnology::ColorCOLRv0 => "color-colrv0",
+            lightning::FontTechnology::ColorCOLRv1 => "color-colrv1",
+            lightning::FontTechnology::ColorSVG => "color-svg",
+            lightning::FontTechnology::ColorSbix => "color-sbix",
+            lightning::FontTechnology::ColorCBDT => "color-cbdt",
+            lightning::FontTechnology::Variations => "variations",
+            lightning::FontTechnology::Palettes => "palettes",
+            lightning::FontTechnology::Incremental => "incremental",
+        }
+    }
+
+    /// Return the canonical name of one font stretch keyword.
+    fn font_stretch_keyword_name(&self, value: &lightning::FontStretchKeyword) -> &'static str {
+        match value {
+            lightning::FontStretchKeyword::UltraCondensed => "ultra-condensed",
+            lightning::FontStretchKeyword::ExtraCondensed => "extra-condensed",
+            lightning::FontStretchKeyword::Condensed => "condensed",
+            lightning::FontStretchKeyword::SemiCondensed => "semi-condensed",
+            lightning::FontStretchKeyword::Normal => "normal",
+            lightning::FontStretchKeyword::SemiExpanded => "semi-expanded",
+            lightning::FontStretchKeyword::Expanded => "expanded",
+            lightning::FontStretchKeyword::ExtraExpanded => "extra-expanded",
+            lightning::FontStretchKeyword::UltraExpanded => "ultra-expanded",
+        }
+    }
+
+    /// Return the canonical source of one unicode range.
+    fn unicode_range_source(&self, value: &lightning::UnicodeRange) -> String {
+        if value.start != value.end {
+            let mut shift = 24;
+            let mut mask = 0xf << shift;
+
+            while shift > 0 {
+                let start_digit = value.start & mask;
+                let end_digit = value.end & mask;
+
+                if start_digit != end_digit {
+                    break;
+                }
+
+                mask >>= 4;
+                shift -= 4;
+            }
+
+            shift += 4;
+
+            let remainder_mask = (1 << shift) - 1;
+            let start_remainder = value.start & remainder_mask;
+            let end_remainder = value.end & remainder_mask;
+
+            if start_remainder == 0 && end_remainder == remainder_mask {
+                let prefix = (value.start & !remainder_mask) >> shift;
+                let mut source = if prefix == 0 {
+                    "U+".to_string()
+                } else {
+                    format!("U+{prefix:X}")
+                };
+
+                for _ in 0..(shift / 4) {
+                    source.push('?');
+                }
+
+                return source;
+            }
+        }
+
+        if value.start == value.end {
+            return format!("U+{:X}", value.start);
+        }
+
+        format!("U+{:X}-{:X}", value.start, value.end)
+    }
+
+    /// Lower one `none | <custom-ident>+` list into one declaration value.
+    fn lower_none_or_custom_ident_list(
+        &mut self,
+        values: &lightning::NoneOrCustomIdentList<'_>,
+    ) -> DeclarationValue {
+        let values = match values {
+            lightning::NoneOrCustomIdentList::None => vec![ComponentValue::Token(Token::Ident(
+                self.intern_string("none"),
+            ))],
+            lightning::NoneOrCustomIdentList::Idents(values) => {
+                self.lower_custom_ident_list_argument(values, false).values
+            }
+        };
+
+        DeclarationValue {
+            components: ComponentValueList { values },
+        }
+    }
+
+    /// Lower one authored `@property` initial value from source.
+    fn lower_property_rule_initial_value(&mut self, rule_span: Span) -> Option<DeclarationValue> {
+        let (body_start, body_end) = self.rule_block_body_range(rule_span)?;
+        let body_source = &self.source[body_start..body_end];
+        let declaration = Parser::parse_declaration_block(body_source)
+            .into_iter()
+            .find(|declaration| declaration.name.eq_ignore_ascii_case("initial-value"))?;
+        let (value, _) = self.lower_declaration_value_authored_source(declaration.value);
+
+        Some(value)
     }
 
     /// Lower one Lightning selector list into one owned selector list.
@@ -790,6 +1368,41 @@ impl<'a> Lowerer<'a> {
                 .map(|selector| self.lower_keyframe_selector(selector))
                 .collect(),
         }
+    }
+
+    /// Lower one authored keyframe selector list source.
+    fn lower_keyframe_selector_list_source(&self, source: &str) -> KeyframeSelectorList {
+        KeyframeSelectorList {
+            selectors: source
+                .split(',')
+                .map(|selector| self.lower_keyframe_selector_source(selector.trim()))
+                .collect(),
+        }
+    }
+
+    /// Lower one authored keyframe selector source.
+    fn lower_keyframe_selector_source(&self, source: &str) -> KeyframeSelector {
+        if source.eq_ignore_ascii_case("from") {
+            return KeyframeSelector::From;
+        }
+
+        if source.eq_ignore_ascii_case("to") {
+            return KeyframeSelector::To;
+        }
+
+        if source.ends_with('%') && !source.contains(char::is_whitespace) {
+            let value = source[..source.len() - 1]
+                .parse::<f32>()
+                .unwrap_or_else(|error| {
+                    panic!("failed to parse keyframe percentage {source}: {error}")
+                });
+
+            return KeyframeSelector::Percentage(self.lower_percentage_number(value / 100.0));
+        }
+
+        KeyframeSelector::TimelineRangePercentage(
+            self.lower_timeline_range_percentage_source(source),
+        )
     }
 
     /// Lower one Lightning selector into one owned selector.
@@ -1022,22 +1635,29 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Lower one declaration value source into one owned declaration value.
-    pub(crate) fn lower_declaration_value_source(&self, source: &str) -> DeclarationValue {
+    pub(crate) fn lower_declaration_value_source(&mut self, source: &str) -> DeclarationValue {
         DeclarationValue {
             components: self.lower_component_value_list_source(source),
         }
     }
 
     /// Lower one authored declaration value source and split one trailing `!important`.
-    fn lower_declaration_value_authored_source(&self, source: &str) -> (DeclarationValue, bool) {
-        let (components, is_important) = Parser::parse_declaration_value(source);
+    fn lower_declaration_value_authored_source(
+        &mut self,
+        source: &str,
+    ) -> (DeclarationValue, bool) {
+        let (components, is_important) = Parser::parse_declaration_value_with_pool(
+            &self.tree.strings,
+            &mut self.next_resource_id,
+            source,
+        );
 
         (DeclarationValue { components }, is_important)
     }
 
     /// Lower one Lightning property value into one owned declaration value.
     pub(crate) fn lower_declaration_value_property(
-        &self,
+        &mut self,
         property: &lightning::Property<'_>,
     ) -> DeclarationValue {
         match property {
@@ -1186,7 +1806,9 @@ impl<'a> Lowerer<'a> {
         // selector form
         match component {
             lightning::SelectorComponent::AttributeInNoNamespaceExists { local_name, .. } => {
-                values.push(ComponentValue::Token(Token::Ident(local_name.to_string())));
+                values.push(ComponentValue::Token(Token::Ident(
+                    self.tree.intern(local_name),
+                )));
             }
             lightning::SelectorComponent::AttributeInNoNamespace {
                 local_name,
@@ -1195,7 +1817,9 @@ impl<'a> Lowerer<'a> {
                 case_sensitivity,
                 ..
             } => {
-                values.push(ComponentValue::Token(Token::Ident(local_name.to_string())));
+                values.push(ComponentValue::Token(Token::Ident(
+                    self.tree.intern(local_name),
+                )));
                 values.push(ComponentValue::Token(
                     self.lower_attribute_operator(*operator),
                 ));
@@ -1211,7 +1835,7 @@ impl<'a> Lowerer<'a> {
                 }
 
                 values.push(ComponentValue::Token(Token::Ident(
-                    attribute.local_name.to_string(),
+                    self.tree.intern(attribute.local_name.as_ref()),
                 )));
 
                 // operation
@@ -1281,7 +1905,9 @@ impl<'a> Lowerer<'a> {
                 values.push(ComponentValue::Token(Token::Delimiter('|')));
             }
             parcel::NamespaceConstraint::Specific((prefix, _)) => {
-                values.push(ComponentValue::Token(Token::Ident(prefix.to_string())));
+                values.push(ComponentValue::Token(Token::Ident(
+                    self.tree.intern(prefix),
+                )));
                 values.push(ComponentValue::Token(Token::Delimiter('|')));
             }
         }
@@ -1298,11 +1924,11 @@ impl<'a> Lowerer<'a> {
             | parcel::ParsedCaseSensitivity::AsciiCaseInsensitiveIfInHtmlElementInHtmlDocument => {}
             parcel::ParsedCaseSensitivity::AsciiCaseInsensitive => {
                 values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
-                values.push(ComponentValue::Token(Token::Ident("i".to_string())));
+                values.push(ComponentValue::Token(Token::Ident(self.tree.intern("i"))));
             }
             parcel::ParsedCaseSensitivity::ExplicitCaseSensitive => {
                 values.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
-                values.push(ComponentValue::Token(Token::Ident("s".to_string())));
+                values.push(ComponentValue::Token(Token::Ident(self.tree.intern("s"))));
             }
         }
     }
@@ -1442,12 +2068,14 @@ impl<'a> Lowerer<'a> {
                 name: name.to_string(),
                 arguments: None,
             },
-            lightning::PseudoClass::CustomFunction { name, arguments } => PseudoClass {
-                name: name.to_string(),
-                arguments: Some(self.lower_component_pseudo_argument(
-                    self.lower_component_value_token_list(arguments),
-                )),
-            },
+            lightning::PseudoClass::CustomFunction { name, arguments } => {
+                let arguments = self.lower_component_value_token_list(arguments);
+
+                PseudoClass {
+                    name: name.to_string(),
+                    arguments: Some(self.lower_component_pseudo_argument(arguments)),
+                }
+            }
         }
     }
 
@@ -1520,30 +2148,38 @@ impl<'a> Lowerer<'a> {
             lightning::PseudoElement::ViewTransition => {
                 self.lower_simple_pseudo_element("view-transition")
             }
-            lightning::PseudoElement::ViewTransitionGroup { part } => PseudoElement {
-                name: "view-transition-group".to_string(),
-                arguments: Some(self.lower_component_pseudo_argument(
-                    self.lower_view_transition_part_argument(part),
-                )),
-            },
-            lightning::PseudoElement::ViewTransitionImagePair { part } => PseudoElement {
-                name: "view-transition-image-pair".to_string(),
-                arguments: Some(self.lower_component_pseudo_argument(
-                    self.lower_view_transition_part_argument(part),
-                )),
-            },
-            lightning::PseudoElement::ViewTransitionOld { part } => PseudoElement {
-                name: "view-transition-old".to_string(),
-                arguments: Some(self.lower_component_pseudo_argument(
-                    self.lower_view_transition_part_argument(part),
-                )),
-            },
-            lightning::PseudoElement::ViewTransitionNew { part } => PseudoElement {
-                name: "view-transition-new".to_string(),
-                arguments: Some(self.lower_component_pseudo_argument(
-                    self.lower_view_transition_part_argument(part),
-                )),
-            },
+            lightning::PseudoElement::ViewTransitionGroup { part } => {
+                let arguments = self.lower_view_transition_part_argument(part);
+
+                PseudoElement {
+                    name: "view-transition-group".to_string(),
+                    arguments: Some(self.lower_view_transition_pseudo_argument(arguments)),
+                }
+            }
+            lightning::PseudoElement::ViewTransitionImagePair { part } => {
+                let arguments = self.lower_view_transition_part_argument(part);
+
+                PseudoElement {
+                    name: "view-transition-image-pair".to_string(),
+                    arguments: Some(self.lower_view_transition_pseudo_argument(arguments)),
+                }
+            }
+            lightning::PseudoElement::ViewTransitionOld { part } => {
+                let arguments = self.lower_view_transition_part_argument(part);
+
+                PseudoElement {
+                    name: "view-transition-old".to_string(),
+                    arguments: Some(self.lower_view_transition_pseudo_argument(arguments)),
+                }
+            }
+            lightning::PseudoElement::ViewTransitionNew { part } => {
+                let arguments = self.lower_view_transition_part_argument(part);
+
+                PseudoElement {
+                    name: "view-transition-new".to_string(),
+                    arguments: Some(self.lower_view_transition_pseudo_argument(arguments)),
+                }
+            }
             lightning::PseudoElement::PickerFunction { identifier } => PseudoElement {
                 name: "picker".to_string(),
                 arguments: Some(self.lower_component_pseudo_argument(
@@ -1562,12 +2198,14 @@ impl<'a> Lowerer<'a> {
                 name: name.to_string(),
                 arguments: None,
             },
-            lightning::PseudoElement::CustomFunction { name, arguments } => PseudoElement {
-                name: name.to_string(),
-                arguments: Some(self.lower_component_pseudo_argument(
-                    self.lower_component_value_token_list(arguments),
-                )),
-            },
+            lightning::PseudoElement::CustomFunction { name, arguments } => {
+                let arguments = self.lower_component_value_token_list(arguments);
+
+                PseudoElement {
+                    name: name.to_string(),
+                    arguments: Some(self.lower_component_pseudo_argument(arguments)),
+                }
+            }
         }
     }
 
@@ -1590,7 +2228,9 @@ impl<'a> Lowerer<'a> {
     /// Lower one identifier argument into component values.
     fn lower_identifier_argument(&self, identifier: &str) -> ComponentValueList {
         ComponentValueList {
-            values: vec![ComponentValue::Token(Token::Ident(identifier.to_string()))],
+            values: vec![ComponentValue::Token(Token::Ident(
+                self.tree.intern(identifier),
+            ))],
         }
     }
 
@@ -1612,7 +2252,7 @@ impl<'a> Lowerer<'a> {
             }
 
             values.push(ComponentValue::Token(Token::Ident(
-                identifier.as_ref().to_string(),
+                self.tree.intern(identifier.as_ref()),
             )));
         }
 
@@ -1635,12 +2275,12 @@ impl<'a> Lowerer<'a> {
 
     /// Lower one view-transition part selector argument into component values.
     fn lower_view_transition_part_argument(
-        &self,
+        &mut self,
         part: &lightning::ViewTransitionPartSelector<'_>,
-    ) -> ComponentValueList {
+    ) -> ViewTransitionPartArgument {
         let source = self.serialize_value(part);
 
-        self.lower_component_value_list_source(&source)
+        self.parse_view_transition_part_argument(&source)
     }
 
     /// Wrap one generic pseudo argument payload.
@@ -1648,9 +2288,62 @@ impl<'a> Lowerer<'a> {
         PseudoArgument::Components(arguments)
     }
 
+    /// Wrap one view-transition part selector argument.
+    fn lower_view_transition_pseudo_argument(
+        &self,
+        argument: ViewTransitionPartArgument,
+    ) -> PseudoArgument {
+        PseudoArgument::ViewTransitionPart(argument)
+    }
+
     /// Lower one selector argument into component values.
     fn lower_selector_argument(&mut self, selector: &lightning::Selector<'_>) -> PseudoArgument {
         PseudoArgument::Selector(self.lower_selector(selector))
+    }
+
+    /// Parse one serialized view-transition part selector argument.
+    fn parse_view_transition_part_argument(&self, source: &str) -> ViewTransitionPartArgument {
+        let bytes = source.as_bytes();
+        let mut index = 0;
+
+        let name = if index < bytes.len() && bytes[index] != b'.' {
+            let start = index;
+
+            while index < bytes.len() && bytes[index] != b'.' {
+                index += 1;
+            }
+
+            Some(source[start..index].to_string())
+        } else {
+            None
+        };
+
+        let mut classes = Vec::new();
+
+        while index < bytes.len() {
+            if bytes[index] != b'.' {
+                panic!("invalid view-transition part selector: {source}");
+            }
+
+            index += 1;
+            let start = index;
+
+            while index < bytes.len() && bytes[index] != b'.' {
+                index += 1;
+            }
+
+            if start == index {
+                panic!("empty view-transition class in {source}");
+            }
+
+            classes.push(source[start..index].to_string());
+        }
+
+        if name.is_none() && classes.is_empty() {
+            panic!("empty view-transition part selector: {source}");
+        }
+
+        ViewTransitionPartArgument { name, classes }
     }
 
     /// Lower one nth selector source and affine data.
@@ -1679,7 +2372,7 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Lower one numeric percentage payload.
-    fn lower_percentage_number(&self, value: f32) -> Number {
+    pub(crate) fn lower_percentage_number(&self, value: f32) -> Number {
         let integer_value = (value.fract() == 0.0).then_some(value as i32);
 
         Number {
