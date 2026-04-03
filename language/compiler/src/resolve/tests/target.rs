@@ -1,5 +1,5 @@
 use crate::TestProgram;
-use destack_artifact::{DirPrepared, EmitFormat, ImportedModuleTable, Runtime};
+use destack_artifact::{DirPrepared, EmitFormat, ImportEdgeKind, ImportedModuleTable, Runtime};
 use destack_dir::{DependencyKind, DependencySource, Expression, ModuleTarget, StaticKey};
 use destack_source::DiagnosticSeverity;
 use std::time::Duration;
@@ -1372,11 +1372,11 @@ export * from "react";
     test.compile_check_clean();
 
     let dir = test.dir_resolved(main_module_id);
+    let cache_key = (Some(main_module_id), target, ImportEdgeKind::Import, None);
     let imported = dir
         .imported_modules
-        .values()
-        .next()
-        .unwrap_or_else(|| panic!("expected one imported module entry"));
+        .get(&cache_key)
+        .unwrap_or_else(|| panic!("expected cached import entry for react"));
 
     assert_eq!(
         imported.value,
@@ -1417,11 +1417,16 @@ useValue;
 
     // imported module cache
     let dir = test.dir_resolved(main_module_id);
+    let cache_key = (
+        Some(main_module_id),
+        test.program.strings.intern("react"),
+        ImportEdgeKind::Import,
+        None,
+    );
     let imported = dir
         .imported_modules
-        .values()
-        .next()
-        .unwrap_or_else(|| panic!("expected one imported module entry"));
+        .get(&cache_key)
+        .unwrap_or_else(|| panic!("expected cached import entry for react"));
 
     assert_eq!(
         imported.value,

@@ -1,5 +1,160 @@
 use super::*;
 
+/// Preserve function body and branch value tails from declared into analyzed DIR.
+#[test]
+fn test_preserve_function_if_block_value_tails_into_analyze() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function choose(flag: boolean, a: int32, b: int32): int32 {
+    if (flag) { a } else { b }
+}
+"#,
+    );
+
+    // check the parsed ast shape first
+    test.compiler
+        .run_to_completion(|compiler| compiler.process_ast(module_id))
+        .unwrap_or_else(|error| panic!("failed to parse module {module_id:?}: {error:?}"));
+    let ast = test
+        .compiler
+        .artifacts
+        .ast(module_id)
+        .expect("expected ast artifact");
+    assert_choose_body_if_tails_in_ast_tree(&ast.tree, &ast.roots);
+
+    // check the imported artifacts before analysis
+    test.import_module(module_id);
+    test.compile();
+    let base = test.dir_base(module_id);
+    assert_choose_body_if_tails_in_tree(base.tree.as_ref(), base.roots.as_ref());
+
+    test.resolve_module(module_id);
+    test.compile();
+    let resolved = test.dir_resolved(module_id);
+    assert_choose_body_if_tails_in_tree(resolved.tree.as_ref(), resolved.roots.as_ref());
+
+    // check the declared tree shape next
+    test.declare_module(module_id);
+    let declared_view = test.declared_view(module_id);
+    assert_choose_body_if_tails(&declared_view);
+
+    // drive analysis without requiring clean diagnostics
+    test.analyze_module(module_id);
+    test.compile();
+    let analyzed_view = test.view(module_id);
+    assert_choose_body_if_tails(&analyzed_view);
+}
+
+// function body and branch tails
+fn assert_choose_body_if_tails(view: &TestModuleView<'_>) {
+    assert_choose_body_if_tails_in_tree(view.tree(), view.roots());
+}
+
+// function body and branch tails in one ast tree
+fn assert_choose_body_if_tails_in_ast_tree(
+    tree: &destack_ast::NodeTree,
+    roots: &[destack_ast::LocalNodeId<destack_ast::Expression>],
+) {
+    let root_id = roots
+        .first()
+        .copied()
+        .expect("expected one root expression");
+    let destack_ast::Expression::Declaration(declaration_id) = tree.get(root_id) else {
+        panic!("expected function declaration root");
+    };
+    let destack_ast::Declaration::Function {
+        body: Some(body_id),
+        ..
+    } = tree.get(*declaration_id)
+    else {
+        panic!("expected function body");
+    };
+    let destack_ast::Expression::Block(block_id) = tree.get(*body_id) else {
+        panic!("expected function body block");
+    };
+    let block = tree.get(*block_id);
+
+    assert!(block.leading_expressions.is_empty());
+
+    let tail_expression_id = block.tail_expression.expect("expected function body tail");
+    let destack_ast::Expression::If {
+        then_expression,
+        else_expression: Some(else_expression),
+        ..
+    } = tree.get(tail_expression_id)
+    else {
+        panic!("expected tail if expression");
+    };
+
+    let destack_ast::Expression::Block(then_block_id) = tree.get(*then_expression) else {
+        panic!("expected then block");
+    };
+    let then_block = tree.get(*then_block_id);
+    assert!(then_block.leading_expressions.is_empty());
+    assert!(then_block.tail_expression.is_some());
+
+    let destack_ast::Expression::Block(else_block_id) = tree.get(*else_expression) else {
+        panic!("expected else block");
+    };
+    let else_block = tree.get(*else_block_id);
+    assert!(else_block.leading_expressions.is_empty());
+    assert!(else_block.tail_expression.is_some());
+}
+
+// function body and branch tails in one dir tree
+fn assert_choose_body_if_tails_in_tree(tree: &NodeTree, roots: &[LocalNodeId<Expression>]) {
+    let root_id = root_expression_id(roots, tree, 0);
+    let Expression::Declaration { declaration } = tree.get(root_id) else {
+        panic!("expected function declaration root");
+    };
+    let Declaration::Function {
+        body: Some(body_id),
+        ..
+    } = tree.get(*declaration)
+    else {
+        panic!("expected function body");
+    };
+    let Expression::Block { block } = tree.get(*body_id) else {
+        panic!("expected function body block");
+    };
+    let block = tree.get(*block);
+
+    assert!(block.leading_expressions.is_empty());
+
+    let tail_expression_id = block.tail_expression.expect("expected function body tail");
+    let Expression::If {
+        then_expression,
+        else_expression: Some(else_expression),
+        ..
+    } = tree.get(tail_expression_id)
+    else {
+        panic!("expected tail if expression");
+    };
+
+    let Expression::Block {
+        block: then_block_id,
+    } = tree.get(*then_expression)
+    else {
+        panic!("expected then block");
+    };
+    let then_block = tree.get(*then_block_id);
+    assert!(then_block.leading_expressions.is_empty());
+    assert!(then_block.tail_expression.is_some());
+
+    let Expression::Block {
+        block: else_block_id,
+    } = tree.get(*else_expression)
+    else {
+        panic!("expected else block");
+    };
+    let else_block = tree.get(*else_block_id);
+    assert!(else_block.leading_expressions.is_empty());
+    assert!(else_block.tail_expression.is_some());
+}
+
 /// Build a flow graph with true and false branches for if expressions.
 #[test]
 fn test_build_flow_graph_if_expression() {
@@ -22,10 +177,6 @@ fn test_build_flow_graph_if_expression() {
         .iter()
         .find_map(|root_id| match view.tree().get(*root_id) {
             Expression::If { .. } => Some(*root_id),
-            Expression::Statement { statement } => match view.tree().get(*statement) {
-                Expression::If { .. } => Some(*statement),
-                _ => None,
-            },
             _ => None,
         })
         .expect("expected if expression");
@@ -88,10 +239,6 @@ fn test_build_flow_graph_short_circuit_guard() {
         .iter()
         .find_map(|root_id| match tree.get(*root_id) {
             Expression::If { .. } => Some(*root_id),
-            Expression::Statement { statement } => match tree.get(*statement) {
-                Expression::If { .. } => Some(*statement),
-                _ => None,
-            },
             _ => None,
         })
         .expect("expected if expression");
@@ -224,15 +371,6 @@ fn test_build_flow_graph_for_loop() {
                 } => Some(*body),
                 _ => None,
             },
-            Expression::Statement { statement } => match view.tree().get(*statement) {
-                Expression::Declaration { declaration } => match view.tree().get(*declaration) {
-                    Declaration::Function {
-                        body: Some(body), ..
-                    } => Some(*body),
-                    _ => None,
-                },
-                _ => None,
-            },
             _ => None,
         })
         .expect("expected function body");
@@ -339,10 +477,16 @@ fn test_analyze_flow_helpers_converge_for_loop_and_union_narrowing() {
 
     // load typed module data
     let view = test.view(module_id);
+    let body_str_symbol = test.expect_nth_function_symbol(module_id, 2);
     let request_body_symbol = test.resolve_to_symbol("test.ts", "requestBody").unwrap();
     let redirect_allowed_symbol = test
         .resolve_to_symbol("test.ts", "redirectAllowed")
         .unwrap();
+
+    let _body_str_type_id = view
+        .types()
+        .get_value_type_id(body_str_symbol)
+        .expect("expected bodyStr type");
 
     // request body stays string after union narrowing
     let request_body_type = view.types().get_value_type(request_body_symbol).unwrap();
@@ -362,6 +506,43 @@ fn test_analyze_flow_helpers_converge_for_loop_and_union_narrowing() {
         *redirect_allowed_type,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+        }
+    );
+}
+
+/// Collapse string literal returns under a string return family.
+#[test]
+fn test_analyze_return_convergence_drops_string_literal_under_string() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ts",
+        r#"
+        function collapse(value: string, flag: boolean) {
+            if (flag) {
+                return value;
+            }
+
+            return "";
+        }
+
+        const collapsed = collapse("draft", true);
+        "#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+    let collapsed_symbol = test.resolve_to_symbol("test.ts", "collapsed").unwrap();
+
+    // collapse the literal branch under string
+    let collapsed_type = view.types().get_value_type(collapsed_symbol).unwrap();
+    assert_eq!(
+        *collapsed_type,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::String)
         }
     );
 }

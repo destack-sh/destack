@@ -216,8 +216,14 @@ impl Compiler {
         ctx: &mut TypeContext<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        let expression = ctx.tree.get(expression_id);
+
         // resolve direct symbol links through canonical declaration ownership
-        if let Some(target_symbol) = ctx.tree.get(expression_id).target_symbol() {
+        let target_symbol = match expression {
+            Expression::Instantiation { left, .. } => ctx.tree.get(*left).target_symbol(),
+            _ => expression.target_symbol(),
+        };
+        if let Some(target_symbol) = target_symbol {
             let mut target_symbol = self.canonical_symbol_id(
                 ctx.module_symbol_view(),
                 target_symbol,

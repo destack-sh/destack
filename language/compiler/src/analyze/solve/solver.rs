@@ -553,11 +553,12 @@ impl Compiler {
 
         // turn into union / intersection
         let source_type_id = elements[0];
-        let ty = match kind {
-            JoinKind::Union => Type::Union { elements },
-            JoinKind::Intersection => Type::Intersection { elements },
-        };
-        types.insert_type_from_type(ty, source_type_id)
+        match kind {
+            JoinKind::Union => self.union_type_from_list(elements, source_type_id, types),
+            JoinKind::Intersection => {
+                self.intersection_type_from_list(elements, source_type_id, types)
+            }
+        }
     }
 
     /// Extract an inference variable id for a type.

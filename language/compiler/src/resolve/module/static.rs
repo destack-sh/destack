@@ -20,6 +20,8 @@ enum StaticIfValue {
     Null,
     /// The undefined literal value.
     Undefined,
+    /// The `import` keyword root before `.meta`.
+    ImportKeyword,
     /// The import.meta object.
     ImportMeta,
     /// The import.meta.env object.
@@ -187,7 +189,7 @@ impl Compiler {
             let block = tree.get(block_id);
 
             // record each block expression id
-            for expression_id in block.expressions.iter().copied() {
+            for expression_id in block.iter_expressions() {
                 allowed_expressions.insert(expression_id.id);
             }
         }
@@ -267,11 +269,12 @@ impl Compiler {
         // filter block expressions by gating and declaration activity
         let block_ids: Vec<_> = tree.iter_node_ids_of_type::<Block>();
         for block_id in block_ids {
-            // rebuild the block expression list
-            let expression_ids = tree.get(block_id).expressions.clone();
-            let mut kept = Vec::with_capacity(expression_ids.len());
+            // rebuild the leading and tail expressions without collapsing block values
+            let block = tree.get(block_id).clone();
+            let mut kept_leading = Vec::with_capacity(block.leading_expressions.len());
+            let mut kept_tail = block.tail_expression;
 
-            for expression_id in expression_ids {
+            for expression_id in block.leading_expressions {
                 // skip expressions gated out explicitly
                 if removed_expressions.contains(&expression_id.id) {
                     continue;
@@ -285,10 +288,25 @@ impl Compiler {
                     }
                 }
 
-                kept.push(expression_id);
+                kept_leading.push(expression_id);
             }
 
-            tree.get_mut(block_id).expressions = kept;
+            // preserve the original tail only when it remains active
+            if let Some(tail_expression_id) = block.tail_expression {
+                if removed_expressions.contains(&tail_expression_id.id) {
+                    kept_tail = None;
+                } else if let Expression::Declaration { declaration } = tree.get(tail_expression_id)
+                {
+                    let declaration = tree.get(*declaration);
+                    if symbols.get_active_symbol(declaration.symbol()).is_none() {
+                        kept_tail = None;
+                    }
+                }
+            }
+
+            let block = tree.get_mut(block_id);
+            block.leading_expressions = kept_leading;
+            block.tail_expression = kept_tail;
         }
 
         // skip resolving static if annotations in later passes
@@ -333,10 +351,11 @@ impl Compiler {
                 | destack_dir::NodeType::EnumField => {}
                 destack_dir::NodeType::Expression => {
                     let expression_id = LocalNodeId::<Expression>::new(parent_id.id);
-                    if !matches!(
-                        tree.get(expression_id),
-                        Expression::Statement { .. } | Expression::Declaration { .. }
-                    ) {
+                    let is_statement_position =
+                        tree.expression_is_in_statement_position(expression_id);
+                    if !is_statement_position
+                        && !matches!(tree.get(expression_id), Expression::Declaration { .. })
+                    {
                         return Err(self.invalid_static_if(
                             module_id,
                             profile_id,
@@ -941,6 +960,19 @@ impl Compiler {
     ) -> ResolveResult<StaticIfValue> {
         // dispatch member access by value
         match value {
+            StaticIfValue::ImportKeyword => {
+                let meta_name = self.program.strings.intern("meta");
+                if name == meta_name {
+                    Ok(StaticIfValue::ImportMeta)
+                } else {
+                    Err(self.invalid_static_if(
+                        module_id,
+                        profile_id,
+                        node_id,
+                        "static if only allows import.meta paths",
+                    ))
+                }
+            }
             StaticIfValue::ImportMeta => {
                 self.import_meta_member(module_id, profile_id, node_id, name, import_meta)
             }
@@ -1001,8 +1033,25 @@ impl Compiler {
         path: &destack_dir::Path,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
-        // validate the import.meta prefix
+        let undefined_name = self.program.strings.intern("undefined");
+        let null_name = self.program.strings.intern("null");
         let import_name = self.program.strings.intern("import");
+
+        // keep single-segment intrinsic values available in static conditions
+        if path.segments.len() == 1 {
+            let segment = path.segments[0];
+            if segment == undefined_name {
+                return Ok(StaticIfValue::Undefined);
+            }
+            if segment == null_name {
+                return Ok(StaticIfValue::Null);
+            }
+            if segment == import_name {
+                return Ok(StaticIfValue::ImportKeyword);
+            }
+        }
+
+        // validate the import.meta prefix
         let meta_name = self.program.strings.intern("meta");
         if path.segments.len() < 2
             || path.segments[0] != import_name

@@ -1097,7 +1097,7 @@ impl Compiler {
     ) -> ElaborateResult<()> {
         // resolve the last expression type or default to void
         let block = tree.get(block_id);
-        let block_type_id = if let Some(last_expression_id) = block.expressions.last() {
+        let block_type_id = if let Some(last_expression_id) = block.last_expression() {
             types
                 .get_declared_or_inferred_type_id(last_expression_id.into_global_any(module_id))
                 .ok_or_else(|| ElaborateError::UnsupportedConstruct {
@@ -2022,6 +2022,30 @@ impl Compiler {
             }
         }
 
+        let filtered =
+            self.collapse_exhaustive_simple_literal_union_members(filtered, source_type_id, types);
+
+        // drop literal members that are already covered by one simple primitive
+        let mut simplified = Vec::new();
+        for element_id in filtered {
+            if self.union_element_is_subsumed_by_simple_primitive_member(
+                element_id,
+                &simplified,
+                types,
+            ) {
+                continue;
+            }
+
+            simplified.retain(|existing| {
+                !self.union_element_is_subsumed_by_simple_primitive_member(
+                    *existing,
+                    &[element_id],
+                    types,
+                )
+            });
+            simplified.push(element_id);
+        }
+
         // honor dominating any or unknown
         if let Some(any_type) = any_type {
             return any_type;
@@ -2031,7 +2055,7 @@ impl Compiler {
         }
 
         // fall back to never when the union is empty
-        if filtered.is_empty() {
+        if simplified.is_empty() {
             return never_type.unwrap_or_else(|| {
                 types.insert_type_from_any(
                     Type::TypeLiteral {
@@ -2043,13 +2067,117 @@ impl Compiler {
         }
 
         // avoid rebuilding when a single element remains
-        if filtered.len() == 1 {
-            return filtered[0];
+        if simplified.len() == 1 {
+            return simplified[0];
         }
 
         // construct the union type
-        let union = Type::Union { elements: filtered };
+        let union = Type::Union {
+            elements: simplified,
+        };
         types.insert_type_from_any(union, types.get_type_source(source_type_id))
+    }
+
+    /// Return whether one union member is covered by one simple primitive member.
+    pub(crate) fn union_element_is_subsumed_by_simple_primitive_member(
+        &self,
+        element_id: LocalTypeId,
+        members: &[LocalTypeId],
+        types: &TypeTable,
+    ) -> bool {
+        let Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(literal),
+        } = types.get_type(element_id)
+        else {
+            return false;
+        };
+
+        members.iter().copied().any(|member_id| {
+            matches!(
+                types.get_type(member_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(primitive),
+                } if self.scalar_literal_is_covered_by_primitive_member(literal, *primitive)
+            )
+        })
+    }
+
+    /// Collapse exhaustive finite literal unions to one primitive member.
+    pub(crate) fn collapse_exhaustive_simple_literal_union_members(
+        &self,
+        elements: Vec<LocalTypeId>,
+        source_type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> Vec<LocalTypeId> {
+        let mut has_boolean_primitive = false;
+        let mut has_true_literal = false;
+        let mut has_false_literal = false;
+
+        for element_id in &elements {
+            match types.get_type(*element_id) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                } => has_boolean_primitive = true,
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true)),
+                } => has_true_literal = true,
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(false)),
+                } => has_false_literal = true,
+                _ => {}
+            }
+        }
+
+        if has_boolean_primitive || !has_true_literal || !has_false_literal {
+            return elements;
+        }
+
+        let boolean_type_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            },
+            types.get_type_source(source_type_id),
+        );
+
+        let mut collapsed = Vec::with_capacity(elements.len().saturating_sub(1));
+        let mut inserted_boolean = false;
+
+        for element_id in elements {
+            match types.get_type(element_id) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(_)),
+                } => {
+                    if !inserted_boolean {
+                        collapsed.push(boolean_type_id);
+                        inserted_boolean = true;
+                    }
+                }
+                _ => collapsed.push(element_id),
+            }
+        }
+
+        collapsed
+    }
+
+    /// Return whether one scalar literal is covered by one primitive member.
+    fn scalar_literal_is_covered_by_primitive_member(
+        &self,
+        literal: &ScalarLiteral,
+        primitive: PrimitiveType,
+    ) -> bool {
+        match literal {
+            // these literal families do not need module specific widening rules
+            ScalarLiteral::Boolean(_) => primitive == PrimitiveType::Boolean,
+            ScalarLiteral::Bigint(_) => primitive == PrimitiveType::Bigint,
+            ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. } => {
+                primitive == PrimitiveType::String
+            }
+
+            // numeric literals depend on language and context
+            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Character(_) => {
+                false
+            }
+        }
     }
 
     /// Build an intersection type from a list of elements.

@@ -154,6 +154,78 @@ impl Compiler {
                     ))
                 }
             }
+            Type::Union { elements } => {
+                let mut resolved_elements = Vec::with_capacity(elements.len());
+                let mut resolved_static_arguments = Vec::new();
+                let mut resolved_static_parameter_symbols = Vec::new();
+
+                for element_id in elements {
+                    let (
+                        resolved_element_id,
+                        element_static_arguments,
+                        element_static_parameter_symbols,
+                    ) = self.apply_member_static_arguments(
+                        &mut ctx.reborrow(),
+                        expression_id,
+                        member_symbol,
+                        element_id,
+                        static_argument_ids,
+                        substitutions,
+                    )?;
+
+                    if resolved_static_arguments.is_empty() {
+                        resolved_static_arguments = element_static_arguments;
+                        resolved_static_parameter_symbols = element_static_parameter_symbols;
+                    }
+
+                    resolved_elements.push(resolved_element_id);
+                }
+
+                let resolved_union_ty_id =
+                    self.union_type_from_list(resolved_elements, member_ty_id, ctx.types);
+
+                Ok((
+                    resolved_union_ty_id,
+                    resolved_static_arguments,
+                    resolved_static_parameter_symbols,
+                ))
+            }
+            Type::Intersection { elements } => {
+                let mut resolved_elements = Vec::with_capacity(elements.len());
+                let mut resolved_static_arguments = Vec::new();
+                let mut resolved_static_parameter_symbols = Vec::new();
+
+                for element_id in elements {
+                    let (
+                        resolved_element_id,
+                        element_static_arguments,
+                        element_static_parameter_symbols,
+                    ) = self.apply_member_static_arguments(
+                        &mut ctx.reborrow(),
+                        expression_id,
+                        member_symbol,
+                        element_id,
+                        static_argument_ids,
+                        substitutions,
+                    )?;
+
+                    if resolved_static_arguments.is_empty() {
+                        resolved_static_arguments = element_static_arguments;
+                        resolved_static_parameter_symbols = element_static_parameter_symbols;
+                    }
+
+                    resolved_elements.push(resolved_element_id);
+                }
+
+                let resolved_intersection_ty_id =
+                    self.intersection_type_from_list(resolved_elements, member_ty_id, ctx.types);
+
+                Ok((
+                    resolved_intersection_ty_id,
+                    resolved_static_arguments,
+                    resolved_static_parameter_symbols,
+                ))
+            }
             _ => {
                 self.error_invalid_member_static_arguments(ctx.module, ctx.profile, expression_id);
                 Ok((member_ty_id, Vec::new(), Vec::new()))
