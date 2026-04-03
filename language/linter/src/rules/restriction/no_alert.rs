@@ -76,9 +76,9 @@ struct NoAlertVisitor<'a, 'b> {
 impl<'a, 'b> NoAlertVisitor<'a, 'b> {
     /// Build a visitor for no-alert checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let alert_name = ctx.program.strings.intern("alert");
-        let confirm_name = ctx.program.strings.intern("confirm");
-        let prompt_name = ctx.program.strings.intern("prompt");
+        let alert_name = ctx.repository.strings.intern("alert");
+        let confirm_name = ctx.repository.strings.intern("confirm");
+        let prompt_name = ctx.repository.strings.intern("prompt");
         let alert_symbol = ctx.get_declared_library_symbol(alert_name);
         let confirm_symbol = ctx.get_declared_library_symbol(confirm_name);
         let prompt_symbol = ctx.get_declared_library_symbol(prompt_name);

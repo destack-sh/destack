@@ -22,11 +22,14 @@ interface LintRule {
     meta(): LintMeta
     checkModuleAst(severity: LintSeverity, ctx: LintModuleAstContext): void
     checkModuleDir(severity: LintSeverity, ctx: LintModuleDirContext): void
-    // ...
+    checkPackageDir(ctx: LintPackageDirContext): void
+    checkWorkspaceAst(ctx: LintWorkspaceAstContext): void
+    checkWorkspaceDir(ctx: LintWorkspaceDirContext): void
 }
 ```
 
-The `LintRunner` orchestrates execution, filtering rules by their level (AST/DIR/MIR) and checking configuration.
+Rules run at semantic scopes: `Module`, `Package`, or `Workspace`.
+The runner chooses a concrete revision, then executes rules at the appropriate scope and IR level.
 Rules can provide automatic fixes, which the runner collects alongside diagnostics.
 
 Rules are declared using the `declare_lint!` macro, which generates the boilerplate:

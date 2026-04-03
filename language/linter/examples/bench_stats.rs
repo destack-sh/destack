@@ -9,7 +9,7 @@ use clap::{Parser, ValueEnum};
 use destack_artifact::{ArtifactKey, CacheStore, MemoryCacheStore};
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_source::{MemoryFileSystem, ModuleId};
-use destack_workspace::{LintPreset, LinterOptions, Program, Session};
+use destack_workspace::{LintPreset, LinterOptions, Ref, Repository, Revision};
 
 use destack_linter::{LintLevel, LintPerformanceReport, LintRunner};
 
@@ -106,10 +106,12 @@ fn main() {
         std::process::exit(2);
     }
 
-    let (session, program, compiler) = create_program(args.workers);
-    let profile_id = ensure_profile_for_libs(&program, &args.libs);
-    let modules = load_modules_for_libs(&session, &program, profile_id, &args.libs);
-    let line_stats = compute_line_stats(&program, &modules);
+    let (repository, compiler) = create_program(args.workers);
+    let revision = current_revision(&repository);
+    let profile = ensure_profile_for_libs(&repository, revision, &args.libs);
+    let profile_id = profile.id();
+    let modules = load_modules_for_libs(&repository, &profile, &args.libs);
+    let line_stats = compute_line_stats(&repository, revision, &modules);
 
     run_import_phase(&compiler, &modules);
     run_resolve_phase(&compiler, profile_id);
@@ -129,10 +131,10 @@ fn main() {
     let lint_start = Instant::now();
     let (diagnostic_count, performance) = run_lint_phase(
         &runner,
-        program.clone(),
-        compiler.artifacts.clone(),
+        repository.clone(),
+        revision,
         &modules,
-        profile_id,
+        profile.clone(),
         &lint_options,
         !args.no_ast,
         !args.no_dir,
@@ -156,8 +158,17 @@ fn main() {
     }
 }
 
+/// Return the current published workspace revision.
+fn current_revision(repository: &Repository) -> Revision {
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+
+    repository
+        .current(&reference)
+        .expect("workspace revision should be tracked")
+}
+
 /// Create an in memory compiler program for benchmarking.
-fn create_program(workers: u16) -> (Arc<Session>, Arc<Program>, Arc<Compiler>) {
+fn create_program(workers: u16) -> (Arc<Repository>, Arc<Compiler>) {
     let root_directory = current_dir().unwrap_or_else(|error| {
         panic!("failed to read current directory: {error}");
     });
@@ -167,15 +178,13 @@ fn create_program(workers: u16) -> (Arc<Session>, Arc<Program>, Arc<Compiler>) {
         .unwrap_or_else(|_| panic!("failed to add package.json to memory file system"));
 
     let cache_store: Arc<dyn CacheStore> = Arc::new(MemoryCacheStore::new());
-    let session = Arc::new(
-        Session::new(root_directory.clone())
-            .with_fs(fs)
+    let repository = Arc::new(
+        Repository::open_root_from_fs(root_directory.clone(), fs)
+            .expect("failed to import repository from bench file system")
             .with_cache_store(cache_store),
     );
-    let program = session.add_root(root_directory);
     let compiler = Arc::new(Compiler::new(
-        session.clone(),
-        program.clone(),
+        repository.clone(),
         CompilerOptions {
             workers,
             inject_prelude: true,
@@ -184,31 +193,33 @@ fn create_program(workers: u16) -> (Arc<Session>, Arc<Program>, Arc<Compiler>) {
         },
     ));
 
-    (session, program, compiler)
+    (repository, compiler)
 }
 
 /// Ensure a profile with the requested lib set exists.
-fn ensure_profile_for_libs(program: &Program, libs: &[String]) -> destack_workspace::ProfileId {
-    let default_profile =
-        program.profile(program.default_profile_id_for_module(program.root_module_id));
-    let mut key = default_profile.key;
+fn ensure_profile_for_libs(
+    repository: &Repository,
+    revision: Revision,
+    libs: &[String],
+) -> destack_workspace::Profile {
+    let default_profile = repository
+        .default_profile_for_module(revision, repository.root_module_id())
+        .unwrap_or_else(|error| panic!("missing default profile for root module: {error}"));
+    let mut key = default_profile.key.clone();
     key.lib = libs.to_vec();
-    program.profiles.get_or_create(key)
+    destack_workspace::Profile::from_key(key)
 }
 
 /// Load builtin lib modules for benchmarking.
 fn load_modules_for_libs(
-    session: &Session,
-    program: &Program,
-    profile_id: destack_workspace::ProfileId,
+    repository: &Repository,
+    profile: &destack_workspace::Profile,
     libs: &[String],
 ) -> Vec<ModuleId> {
-    let profile = program.profile(profile_id);
-
     let mut modules = Vec::new();
     for lib in libs {
-        let loaded = session
-            .load_library(lib, &profile.key)
+        let loaded = repository
+            .load_builtin_library(lib, &profile.key)
             .unwrap_or_else(|| panic!("unknown builtin lib '{lib}'"));
         modules.extend(loaded);
     }
@@ -220,14 +231,26 @@ fn load_modules_for_libs(
 }
 
 /// Compute line metrics for loaded modules.
-fn compute_line_stats(program: &Program, modules: &[ModuleId]) -> LineStats {
+fn compute_line_stats(
+    repository: &Repository,
+    revision: Revision,
+    modules: &[ModuleId],
+) -> LineStats {
     let mut total_lines = 0usize;
     let mut min_lines = usize::MAX;
     let mut max_lines = 0usize;
 
     for module_id in modules {
-        let file_id = program.modules.get(*module_id).file_id;
-        let file = program.files.get(file_id);
+        let module = repository
+            .module(revision, *module_id)
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| panic!("missing module snapshot for {module_id:?}"));
+        let file = repository
+            .file(revision, module.file_id)
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| panic!("missing file snapshot for {:?}", module.file_id));
         let module_lines = file.line_count() as usize;
         total_lines += module_lines;
         min_lines = min_lines.min(module_lines);
@@ -251,8 +274,10 @@ fn compute_line_stats(program: &Program, modules: &[ModuleId]) -> LineStats {
 
 /// Run import tasks for modules and return the duration.
 fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
+    let revision = current_revision(&compiler.repository);
+
     for module_id in modules {
-        compiler.enqueue(ArtifactKey::DirBase { module: *module_id });
+        compiler.enqueue(revision, ArtifactKey::DirBase { module: *module_id });
     }
 
     let start = Instant::now();
@@ -262,9 +287,14 @@ fn run_import_phase(compiler: &Compiler, modules: &[ModuleId]) -> Duration {
 
 /// Run builtin and lib resolve tasks and return the duration.
 fn run_resolve_phase(compiler: &Compiler, profile_id: destack_workspace::ProfileId) -> Duration {
-    compiler.enqueue(ArtifactKey::LibraryEnvironment {
-        profile: profile_id,
-    });
+    let revision = current_revision(&compiler.repository);
+
+    compiler.enqueue(
+        revision,
+        ArtifactKey::LibraryEnvironment {
+            profile: profile_id,
+        },
+    );
 
     let start = Instant::now();
     compiler.compile();
@@ -277,11 +307,16 @@ fn run_analyze_phase(
     modules: &[ModuleId],
     profile_id: destack_workspace::ProfileId,
 ) -> Duration {
+    let revision = current_revision(&compiler.repository);
+
     for module_id in modules {
-        compiler.enqueue(ArtifactKey::DirAnalyzed {
-            module: *module_id,
-            profile: profile_id,
-        });
+        compiler.enqueue(
+            revision,
+            ArtifactKey::DirAnalyzed {
+                module: *module_id,
+                profile: profile_id,
+            },
+        );
     }
 
     let start = Instant::now();
@@ -292,26 +327,33 @@ fn run_analyze_phase(
 /// Run linting for selected levels and return diagnostics plus metrics.
 fn run_lint_phase(
     runner: &LintRunner,
-    program: Arc<Program>,
-    artifacts: Arc<destack_artifact::ArtifactStore>,
+    repository: Arc<Repository>,
+    revision: Revision,
     modules: &[ModuleId],
-    profile_id: destack_workspace::ProfileId,
+    profile: destack_workspace::Profile,
     options: &LinterOptions,
     include_ast: bool,
     include_dir: bool,
 ) -> (usize, LintPerformanceReport) {
     let mut diagnostics = 0;
     let mut performance = LintPerformanceReport::default();
+    let package_ids = repository
+        .workspace_package_ids(revision)
+        .unwrap_or_else(|error| panic!("failed to load package ids: {error}"));
 
     // module scope runs
     for module_id in modules {
-        let module = program.modules.get(*module_id);
+        let module = repository
+            .module(revision, *module_id)
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| panic!("missing module snapshot for {module_id:?}"));
         if include_ast {
             let report = runner.lint_module_profiled(
-                program.clone(),
-                artifacts.clone(),
+                repository.clone(),
+                revision,
                 module.clone(),
-                profile_id,
+                profile.clone(),
                 options,
                 LintLevel::Ast,
             );
@@ -321,10 +363,10 @@ fn run_lint_phase(
 
         if include_dir {
             let report = runner.lint_module_profiled(
-                program.clone(),
-                artifacts.clone(),
+                repository.clone(),
+                revision,
                 module.clone(),
-                profile_id,
+                profile.clone(),
                 options,
                 LintLevel::Dir,
             );
@@ -333,16 +375,46 @@ fn run_lint_phase(
         }
     }
 
-    // program scope ast run
+    // package scope ast run
     if include_ast {
-        let report = runner.lint_program_ast_profiled(program.clone(), artifacts.clone(), options);
+        for package_id in &package_ids {
+            let report = runner.lint_package_ast_profiled(
+                repository.clone(),
+                revision,
+                *package_id,
+                options,
+            );
+            diagnostics += report.diagnostics.len();
+            performance.merge(&report.performance);
+        }
+    }
+
+    // workspace scope ast run
+    if include_ast {
+        let report = runner.lint_workspace_ast_profiled(repository.clone(), revision, options);
         diagnostics += report.diagnostics.len();
         performance.merge(&report.performance);
     }
 
-    // program scope dir run
+    // package scope dir run
     if include_dir {
-        let report = runner.lint_program_dir_profiled(program, artifacts, profile_id, options);
+        for package_id in &package_ids {
+            let report = runner.lint_package_dir_profiled(
+                repository.clone(),
+                revision,
+                *package_id,
+                profile.id(),
+                options,
+            );
+            diagnostics += report.diagnostics.len();
+            performance.merge(&report.performance);
+        }
+    }
+
+    // workspace scope dir run
+    if include_dir {
+        let report =
+            runner.lint_workspace_dir_profiled(repository, revision, profile.id(), options);
         diagnostics += report.diagnostics.len();
         performance.merge(&report.performance);
     }

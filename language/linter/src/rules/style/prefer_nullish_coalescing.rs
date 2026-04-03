@@ -646,7 +646,7 @@ fn left_side_prefers_nullish(
     }
 
     // reject candidates where non-nullish falsy values are possible
-    if has_non_nullish_falsy_type(ctx.types, &ctx.program.strings, type_id) {
+    if has_non_nullish_falsy_type(ctx.types, &ctx.repository.strings, type_id) {
         return false;
     }
 

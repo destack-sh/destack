@@ -81,10 +81,10 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let function_symbol = ctx.well_known_symbol(WellKnownSymbol::Function);
         let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
-        let function_name = ctx.program.strings.intern("Function");
-        let set_timeout_name = ctx.program.strings.intern("setTimeout");
-        let set_interval_name = ctx.program.strings.intern("setInterval");
-        let set_immediate_name = ctx.program.strings.intern("setImmediate");
+        let function_name = ctx.repository.strings.intern("Function");
+        let set_timeout_name = ctx.repository.strings.intern("setTimeout");
+        let set_interval_name = ctx.repository.strings.intern("setInterval");
+        let set_immediate_name = ctx.repository.strings.intern("setImmediate");
         let set_timeout_symbol = ctx.get_declared_library_symbol(set_timeout_name);
         let set_interval_symbol = ctx.get_declared_library_symbol(set_interval_name);
         let set_immediate_symbol = ctx.get_declared_library_symbol(set_immediate_name);
@@ -258,8 +258,8 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         }
 
         expression_type_or_call_return_type_map(
-            self.ctx.program.as_ref(),
-            self.ctx.artifacts.as_ref(),
+            self.ctx.repository.as_ref(),
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

@@ -126,8 +126,7 @@ fn compiler_redeclaration_errors_enabled(ctx: &LintModuleDirContext<'_>) -> bool
     }
 
     // destack mode follows the active profile flag
-    let profile = ctx.program.profile(ctx.profile_id);
-    profile.key.flags.no_redeclared_locals
+    ctx.profile.key.flags.no_redeclared_locals
 }
 
 /// Return true when this symbol can participate in no-shadow checks.
@@ -213,7 +212,7 @@ fn find_shadowed_ancestor<'a>(
 /// Return the user-facing symbol name text.
 fn symbol_name_text(ctx: &LintModuleDirContext<'_>, symbol: &dir::Symbol) -> Option<String> {
     let name = symbol.name()?;
-    Some(ctx.program.strings.get(name).to_string())
+    Some(ctx.repository.strings.get(name).to_string())
 }
 
 /// Resolve severity and span for the symbol primary declaration.

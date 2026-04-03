@@ -603,7 +603,7 @@ fn import_item_name(
     if let Some(symbol_id) = item.symbol()
         && let Some(name_id) = ctx.symbols.get_symbol(symbol_id).name()
     {
-        return ctx.program.strings.get(name_id).to_string();
+        return ctx.repository.strings.get(name_id).to_string();
     }
 
     ctx.get_span_text(ctx.get_span(item_id)).trim().to_string()

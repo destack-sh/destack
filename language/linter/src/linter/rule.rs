@@ -2,7 +2,10 @@ use destack_dir::WellKnownSymbol;
 use destack_source::{DiagnosticSeverity, FileType};
 use destack_workspace::{LintCategory, LintSeverity};
 
-use super::{LintAstContext, LintModuleDirContext, LintProgramAstContext, LintProgramDirContext};
+use super::{
+    LintAstContext, LintModuleDirContext, LintPackageAstContext, LintPackageDirContext,
+    LintWorkspaceAstContext, LintWorkspaceDirContext,
+};
 
 /// The IR level at which a lint operates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -20,8 +23,10 @@ pub enum LintLevel {
 pub enum LintScope {
     /// Operates on a single module.
     Module,
-    /// Operates on the entire program (cross-module analysis).
-    Program,
+    /// Operates on a single package.
+    Package,
+    /// Operates on the active workspace.
+    Workspace,
 }
 
 /// A symbol requirement for running a lint.
@@ -163,11 +168,17 @@ pub trait LintRule: Send + Sync {
     /// Check a module at DIR level (typed IR with symbols and types).
     fn check_module_dir<'a>(&self, _severity: LintSeverity, _ctx: &mut LintModuleDirContext<'a>) {}
 
-    /// Check the entire program at AST level (cross-module syntax analysis).
-    fn check_program_ast(&self, _ctx: &mut LintProgramAstContext) {}
+    /// Check one package at AST level (cross-module syntax analysis).
+    fn check_package_ast(&self, _ctx: &mut LintPackageAstContext) {}
 
-    /// Check the entire program at DIR level (cross-module typed analysis).
-    fn check_program_dir(&self, _ctx: &mut LintProgramDirContext) {}
+    /// Check one package at DIR level (cross-module typed analysis).
+    fn check_package_dir(&self, _ctx: &mut LintPackageDirContext) {}
+
+    /// Check one workspace at AST level (cross-package syntax analysis).
+    fn check_workspace_ast(&self, _ctx: &mut LintWorkspaceAstContext) {}
+
+    /// Check one workspace at DIR level (cross-package typed analysis).
+    fn check_workspace_dir(&self, _ctx: &mut LintWorkspaceDirContext) {}
 }
 
 /// A boxed lint rule for dynamic dispatch.

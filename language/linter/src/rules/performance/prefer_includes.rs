@@ -113,10 +113,10 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
-        let index_of_name = ctx.program.strings.intern("indexOf");
-        let last_index_of_name = ctx.program.strings.intern("lastIndexOf");
-        let includes_name = ctx.program.strings.intern("includes");
-        let test_name = ctx.program.strings.intern("test");
+        let index_of_name = ctx.repository.strings.intern("indexOf");
+        let last_index_of_name = ctx.repository.strings.intern("lastIndexOf");
+        let includes_name = ctx.repository.strings.intern("includes");
+        let test_name = ctx.repository.strings.intern("test");
 
         Self {
             ctx,
@@ -440,7 +440,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         // preserve search argument source text
         let search_span = self.ctx.get_span(includes_match.candidate.search_id);
         let search_text = self.ctx.get_span_text(search_span);
-        let includes_name = self.ctx.program.strings.get(self.includes_name);
+        let includes_name = self.ctx.repository.strings.get(self.includes_name);
         let includes_call = format!("{receiver_text}.{}({search_text})", includes_name.as_ref());
         let replacement = match includes_match.check {
             IncludesCheck::AnyMatch => includes_call,
@@ -494,14 +494,14 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
 
         // reject all regex flags for this conservative rewrite
         if let Some(flags_id) = flags {
-            let flags_text = self.ctx.program.strings.get(flags_id);
+            let flags_text = self.ctx.repository.strings.get(flags_id);
             if !flags_text.is_empty() {
                 return None;
             }
         }
 
         // require a plain literal body without regex operators
-        let pattern_text = self.ctx.program.strings.get(content);
+        let pattern_text = self.ctx.repository.strings.get(content);
         plain_regex_substring(pattern_text.as_ref())
     }
 

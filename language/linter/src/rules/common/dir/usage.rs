@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 
-use destack_artifact::ArtifactStore;
 use destack_dir as dir;
 use destack_dir::{NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{ProfileId, Repository, Revision};
 
 use super::{
     expression_assignment_target, expression_candidate_symbols, expression_is_standalone_statement,
@@ -177,8 +176,8 @@ pub fn collect_module_resolved_read_symbol_usage(
 /// Collect assigned symbols for assignment-like expressions in one module.
 #[allow(clippy::too_many_arguments)]
 pub fn collect_assigned_symbol_usage(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -205,8 +204,8 @@ pub fn collect_assigned_symbol_usage(
 
         let assigned_expression = tree.get(assigned_expression_id);
         let candidate_symbols = expression_candidate_symbols(
-            program,
-            artifacts,
+            repository,
+            revision,
             profile_id,
             module_id,
             symbols,

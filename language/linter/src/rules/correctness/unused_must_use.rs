@@ -85,8 +85,8 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         let expression = self.ctx.tree.get(expression_id);
 
         let has_must_use = expression_has_decorator(
-            &self.ctx.program,
-            &self.ctx.artifacts,
+            &self.ctx.repository,
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -139,8 +139,8 @@ fn call_like_callee_has_must_use(
     let callee_expression = ctx.tree.get(callee_id);
 
     expression_has_decorator(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

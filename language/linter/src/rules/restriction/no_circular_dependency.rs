@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
-use crate::{LintDiagnostic, LintProgramDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintPackageDirContext, LintRule, declare_lint};
 use destack_artifact::DirResolved;
 use destack_source::{FileType, ModuleId, Span};
 
@@ -14,7 +14,7 @@ declare_lint! {
         code = "LR005",
         category = Restriction,
         level = Dir,
-        scope = Program,
+        scope = Package,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -30,7 +30,7 @@ impl LintRule for NoCircularDependency {
         NoCircularDependency::meta()
     }
 
-    fn check_program_dir(&self, ctx: &mut LintProgramDirContext) {
+    fn check_package_dir(&self, ctx: &mut LintPackageDirContext) {
         // resolve lint metadata
         let meta = self.meta();
         let severity = ctx.get_severity(meta);
@@ -96,10 +96,12 @@ fn build_cycle_diagnostic(
     cycle_path_note: Option<&str>,
     severity: destack_workspace::LintSeverity,
     rule_id: &str,
-    ctx: &LintProgramDirContext,
+    ctx: &LintPackageDirContext,
 ) -> LintDiagnostic {
-    let module_ref = ctx.program.modules.get(module_id);
-    let module = module_ref.as_ref();
+    let module = ctx
+        .repository_module(module_id)
+        .unwrap_or_else(|| panic!("missing module snapshot for {module_id:?}"));
+    let module = module.as_ref();
 
     let mut diagnostic = LintDiagnostic::new(
         NO_CIRCULAR_DEPENDENCY.id,
@@ -121,16 +123,21 @@ fn build_cycle_diagnostic(
 }
 
 /// Return eligible module ids for cycle checks.
-fn collect_eligible_modules(ctx: &LintProgramDirContext) -> HashSet<ModuleId> {
+fn collect_eligible_modules(ctx: &LintPackageDirContext) -> HashSet<ModuleId> {
     let mut modules = HashSet::new();
 
-    for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.as_ref();
+    for module_id in ctx.package_module_ids() {
+        let Some(module) = ctx.repository_module(module_id) else {
+            continue;
+        };
+        let module = module.as_ref();
         if !module.is_user() {
             continue;
         }
 
-        let file = ctx.program.files.get(module.file_id);
+        let Some(file) = ctx.repository_file(module.file_id) else {
+            continue;
+        };
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
@@ -143,15 +150,19 @@ fn collect_eligible_modules(ctx: &LintProgramDirContext) -> HashSet<ModuleId> {
 
 /// Collect display names for eligible modules.
 fn collect_module_display_names(
-    ctx: &LintProgramDirContext,
+    ctx: &LintPackageDirContext,
     module_ids: &HashSet<ModuleId>,
 ) -> HashMap<ModuleId, String> {
     let mut names = HashMap::new();
 
     for module_id in module_ids {
-        let module_ref = ctx.program.modules.get(*module_id);
-        let module = module_ref.as_ref();
-        let file = ctx.program.files.get(module.file_id);
+        let Some(module) = ctx.repository_module(*module_id) else {
+            continue;
+        };
+        let module = module.as_ref();
+        let Some(file) = ctx.repository_file(module.file_id) else {
+            continue;
+        };
         names.insert(*module_id, file.name.clone());
     }
 
@@ -186,7 +197,7 @@ fn format_cycle_path_note(
 }
 
 /// Return true when the file should be skipped for declaration filtering.
-fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintPackageDirContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }
@@ -199,11 +210,11 @@ fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool
 
 /// Build a dependency adjacency filtered to eligible modules.
 fn build_adjacency(
-    ctx: &LintProgramDirContext,
+    ctx: &LintPackageDirContext,
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashMap<ModuleId, Vec<ModuleId>> {
     let mut adjacency = HashMap::new();
-    let graph = ctx.artifacts.module_graph(ctx.profile_id);
+    let graph = ctx.module_graph();
 
     let mut module_ids = eligible_modules.iter().copied().collect::<Vec<_>>();
     module_ids.sort_unstable();
@@ -216,7 +227,7 @@ fn build_adjacency(
             .unwrap_or_default();
 
         // augment with resolved module edges so binding targets stay visible
-        if let Some(resolved) = ctx.artifacts.dir_resolved(module_id, ctx.profile_id) {
+        if let Some(resolved) = ctx.resolved_dir(module_id) {
             collect_resolved_module_dependencies(&resolved, &mut dependencies);
         }
 
@@ -284,14 +295,14 @@ mod tests {
     use super::*;
     use crate::linter::TestProgram;
 
-    /// Add modules, run analysis, and lint the program at DIR level.
-    fn lint_program_with_modules(
+    /// Add modules, run analysis, and lint the package at DIR level.
+    fn lint_package_with_modules(
         modules: &[(&str, &str)],
         configure: impl FnOnce(&mut destack_workspace::LinterOptions),
     ) -> (TestProgram, Vec<LintDiagnostic>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoCircularDependency)])
             .with_options(configure);
-        let diagnostics = test.lint_program_dir_with_modules(modules);
+        let diagnostics = test.lint_package_dir_with_modules(modules);
         (test, diagnostics)
     }
 
@@ -306,7 +317,7 @@ mod tests {
     /// Report import cycles across modules.
     #[test]
     fn test_reports_circular_dependency() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/a.ds",
@@ -334,7 +345,7 @@ export let B = A;
     /// Allow modules without import cycles.
     #[test]
     fn test_allows_acyclic_dependencies() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/acyclic_a.ds",
@@ -359,7 +370,7 @@ export let B = 1;
     /// Report cycles with three modules.
     #[test]
     fn test_reports_three_module_cycle() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/three_a.ds",
@@ -394,7 +405,7 @@ export let C = A;
     /// Report disjoint cycle components independently.
     #[test]
     fn test_reports_disjoint_cycles() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/disjoint_a.ds",
@@ -436,7 +447,7 @@ export let D = C;
     /// Report direct self import cycles.
     #[test]
     fn test_reports_self_import_cycle() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[(
                 "no_circular_dependency/self_cycle.ds",
                 r#"
@@ -455,7 +466,7 @@ export let value = 1;
     /// Skip declaration files by default.
     #[test]
     fn test_skips_declaration_files_by_default() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/decl_a.d.ds",
@@ -484,7 +495,7 @@ export type B = { a: A };
     #[test]
     #[ignore = "compiler artifacts do not materialize declaration-only type import edges yet"]
     fn test_reports_pure_declaration_cycles_when_enabled() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/decl_enabled_a.d.ds",
@@ -516,7 +527,7 @@ export type B = { a: A };
     /// Report only modules that are members of a cycle.
     #[test]
     fn test_reports_only_cycle_members_in_mixed_graph() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/mixed_a.ds",
@@ -562,7 +573,7 @@ export let E = D;
 
         let mut file_names = circular
             .iter()
-            .map(|diagnostic| test.program.files.get(diagnostic.file_id).name.clone())
+            .map(|diagnostic| test.repository_file(diagnostic.file_id).name.clone())
             .collect::<Vec<_>>();
         file_names.sort();
         assert_eq!(
@@ -578,7 +589,7 @@ export let E = D;
     /// Emit deterministic sorted cycle member notes.
     #[test]
     fn test_emits_sorted_cycle_member_note() {
-        let (_test, result) = lint_program_with_modules(
+        let (_test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/note_b.ds",
@@ -615,7 +626,7 @@ export let A = B;
     /// Skip mixed declaration cycles by default.
     #[test]
     fn test_skips_mixed_declaration_cycle_by_default() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/mixed_decl_a.ds",
@@ -643,7 +654,7 @@ export type B = { a: A };
     /// Report mixed declaration cycles when declarations are included.
     #[test]
     fn test_reports_mixed_declaration_cycle_when_enabled() {
-        let (test, result) = lint_program_with_modules(
+        let (test, result) = lint_package_with_modules(
             &[
                 (
                     "no_circular_dependency/mixed_decl_enabled_a.ds",

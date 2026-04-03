@@ -82,8 +82,8 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-filter checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let for_each_name = ctx.program.strings.intern("forEach");
-        let push_name = ctx.program.strings.intern("push");
+        let for_each_name = ctx.repository.strings.intern("forEach");
+        let push_name = ctx.repository.strings.intern("push");
 
         Self {
             ctx,
@@ -469,7 +469,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
             .ctx
             .get_span_text(self.ctx.get_span(pattern.condition_expression_id))
             .to_string();
-        let parameter_name = self.ctx.program.strings.get(pattern.parameter_name);
+        let parameter_name = self.ctx.repository.strings.get(pattern.parameter_name);
         let replacement = format!(
             "{receiver}.filter(({parameter}) => {condition})",
             receiver = receiver_text,
@@ -481,7 +481,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let mut edit_builder = self.ctx.edit_builder();
         edit_builder =
             edit_builder.replace(self.ctx.get_span(declaration.initializer_id), replacement);
-        let file = self.ctx.program.files.get(self.ctx.module.file_id);
+        let file = self.ctx.file.as_ref();
         let source = file.text();
         let statement_span = self.ctx.get_span(statement_id);
         let statement_span = expand_span_to_statement_terminator(source, statement_span);

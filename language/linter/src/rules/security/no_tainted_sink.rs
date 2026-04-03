@@ -83,8 +83,8 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
     ) {
         let callee = self.ctx.tree.get(callee_id);
         let sink_labels = expression_sink_taint_labels(
-            self.ctx.program.as_ref(),
-            self.ctx.artifacts.as_ref(),
+            self.ctx.repository.as_ref(),
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -100,7 +100,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             let argument = self.ctx.tree.get(argument_id);
             let source_id = argument.value();
             let source_labels = self.expression_taint_labels(source_id);
-            if !source_labels.matches_sink(&sink_labels, self.ctx.program.as_ref()) {
+            if !source_labels.matches_sink(&sink_labels, self.ctx.repository.as_ref()) {
                 continue;
             }
 
@@ -116,8 +116,8 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
     ) {
         let left_expression = self.ctx.tree.get(left);
         let sink_labels = expression_sink_taint_labels(
-            self.ctx.program.as_ref(),
-            self.ctx.artifacts.as_ref(),
+            self.ctx.repository.as_ref(),
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -130,7 +130,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         }
 
         let source_labels = self.expression_taint_labels(right);
-        if !source_labels.matches_sink(&sink_labels, self.ctx.program.as_ref()) {
+        if !source_labels.matches_sink(&sink_labels, self.ctx.repository.as_ref()) {
             return;
         }
 
@@ -143,8 +143,8 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> TaintLabels {
         let mut taint = TaintAnalysis::new(
-            self.ctx.program.as_ref(),
-            self.ctx.artifacts.as_ref(),
+            self.ctx.repository.as_ref(),
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

@@ -185,8 +185,8 @@ fn key_expression_kind(
 
     // resolve and classify expression types through a single DIR lookup
     expression_type_map(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,

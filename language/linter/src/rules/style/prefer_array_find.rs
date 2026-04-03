@@ -80,10 +80,10 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-find checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let filter_name = ctx.program.strings.intern("filter");
-        let shift_name = ctx.program.strings.intern("shift");
-        let at_name = ctx.program.strings.intern("at");
-        let pop_name = ctx.program.strings.intern("pop");
+        let filter_name = ctx.repository.strings.intern("filter");
+        let shift_name = ctx.repository.strings.intern("shift");
+        let at_name = ctx.repository.strings.intern("at");
+        let pop_name = ctx.repository.strings.intern("pop");
 
         Self {
             ctx,

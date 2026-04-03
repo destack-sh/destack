@@ -75,7 +75,7 @@ struct PreferArrayLiteralVisitor<'a, 'b> {
 impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
     /// Build a visitor for prefer-array-literal checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let push_name = ctx.program.strings.intern("push");
+        let push_name = ctx.repository.strings.intern("push");
 
         Self {
             ctx,
@@ -321,7 +321,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         let array_literal = format!("[{}]", literal_elements.join(", "));
         let mut edit_builder = self.ctx.edit_builder();
         edit_builder = edit_builder.replace(self.ctx.get_span(decl.initializer_id), array_literal);
-        let file = self.ctx.program.files.get(self.ctx.module.file_id);
+        let file = self.ctx.file.as_ref();
         let source = file.text();
         for push_statement_id in push_statement_ids {
             let statement_span = self.ctx.get_span(push_statement_id);

@@ -216,8 +216,8 @@ fn expression_is_void_or_never_type(
     }
 
     expression_type_map(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
@@ -236,8 +236,8 @@ fn symbol_is_map(
     map_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
     symbol_matches_any_or_canonical(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

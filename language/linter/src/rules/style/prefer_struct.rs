@@ -305,7 +305,7 @@ class Empty {}
         let result = test.lint_dir(
             "prefer_struct/test_fix_converts_private_field_class.ds",
             r#"
-class Session {
+class Repository {
     private token: string = ""
 }
 "#,
@@ -315,7 +315,7 @@ class Session {
             .assert_lint("prefer-struct")
             .assert_unsafe_fixed(
                 r#"
-struct Session {
+struct Repository {
     private token: string = "";
 }
 "#,

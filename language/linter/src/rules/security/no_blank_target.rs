@@ -157,9 +157,7 @@ fn checked_target_attribute_name(
     ctx: &LintAstContext<'_>,
     left: Option<ast::LocalNodeId<Expression>>,
 ) -> Option<&'static str> {
-    let Some(left_id) = left else {
-        return None;
-    };
+    let left_id = left?;
 
     // check for simple path like `a`
     let Some(path_segments) = expression_path_segments(ctx.tree, left_id) else {

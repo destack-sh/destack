@@ -71,9 +71,9 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             .get_type_symbol(WellKnownSymbol::Promise)
             .unwrap_or_else(|| ctx.well_known_symbol(WellKnownSymbol::Promise));
         let ignore_void = ctx.options.correctness.no_floating_promises_ignore_void;
-        let then_name = ctx.program.strings.intern("then");
-        let catch_name = ctx.program.strings.intern("catch");
-        let finally_name = ctx.program.strings.intern("finally");
+        let then_name = ctx.repository.strings.intern("then");
+        let catch_name = ctx.repository.strings.intern("catch");
+        let finally_name = ctx.repository.strings.intern("finally");
 
         Self {
             ctx,

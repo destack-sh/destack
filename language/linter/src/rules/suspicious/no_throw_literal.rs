@@ -102,7 +102,7 @@ fn thrown_expression_is_undefined_identifier(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let undefined_name = ctx.program.strings.intern("undefined");
+    let undefined_name = ctx.repository.strings.intern("undefined");
     let expression = ctx.tree.get(expression_id);
 
     match expression {

@@ -1,7 +1,7 @@
-use destack_artifact::{ArtifactStore, WellKnownSymbols};
+use destack_artifact::WellKnownSymbols;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{ProfileId, Repository, Revision};
 
 /// Symbol type id tied to the module that owns its type table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,8 +14,8 @@ pub struct SymbolValueTypeId {
 
 /// Return canonical candidate symbols for an expression usage site.
 pub fn expression_candidate_symbols(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -43,8 +43,8 @@ pub fn expression_candidate_symbols(
     let mut canonical_symbols = Vec::new();
     for symbol_id in symbols {
         let canonical_symbol_id = canonical_symbol_for(
-            program,
-            artifacts,
+            repository,
+            revision,
             profile_id,
             local_module_id,
             local_symbols,
@@ -60,8 +60,8 @@ pub fn expression_candidate_symbols(
 /// Map decorators found on expression candidate symbols.
 #[allow(clippy::too_many_arguments)]
 pub fn expression_decorator_map<T>(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -71,8 +71,8 @@ pub fn expression_decorator_map<T>(
     mut map: impl FnMut(&dir::SymbolDecorators) -> Option<T>,
 ) -> Option<T> {
     let symbols = expression_candidate_symbols(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -83,8 +83,8 @@ pub fn expression_decorator_map<T>(
 
     for symbol_id in symbols {
         let Some(decorators) = symbol_decorators_for(
-            program,
-            artifacts,
+            repository,
+            revision,
             profile_id,
             local_module_id,
             local_symbols,
@@ -104,8 +104,8 @@ pub fn expression_decorator_map<T>(
 /// Return true when an expression candidate symbol matches one decorator predicate.
 #[allow(clippy::too_many_arguments)]
 pub fn expression_has_decorator(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -115,8 +115,8 @@ pub fn expression_has_decorator(
     mut predicate: impl FnMut(&dir::SymbolDecorators) -> bool,
 ) -> bool {
     expression_decorator_map(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -170,8 +170,8 @@ pub fn well_known_symbol_candidates(
 
 /// Read one symbol entry from local or remote module tables.
 pub fn symbol_for(
-    _program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -181,22 +181,22 @@ pub fn symbol_for(
         return Some(local_symbols.get_symbol(symbol_id.local_id).clone());
     }
 
-    let dir = artifacts.dir_analyzed(symbol_id.module_id, profile_id)?;
+    let dir = repository.dir_analyzed(revision, symbol_id.module_id, profile_id)?;
     Some(dir.symbols.get_symbol(symbol_id.local_id).clone())
 }
 
 /// Resolve the canonical target symbol when available.
 pub fn canonical_symbol_for(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalSymbolId> {
     let symbol = symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -213,8 +213,8 @@ pub fn canonical_symbol_for(
 
 /// Return true when one symbol matches an expected symbol directly or canonically.
 pub fn symbol_matches_or_canonical(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -226,8 +226,8 @@ pub fn symbol_matches_or_canonical(
     }
 
     canonical_symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -238,8 +238,8 @@ pub fn symbol_matches_or_canonical(
 
 /// Return true when one symbol matches any candidate symbol directly or canonically.
 pub fn symbol_matches_any_or_canonical(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -251,8 +251,8 @@ pub fn symbol_matches_any_or_canonical(
     }
 
     canonical_symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -263,24 +263,24 @@ pub fn symbol_matches_any_or_canonical(
 
 /// Read decorators for a symbol after canonicalization.
 pub fn symbol_decorators_for(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::SymbolDecorators> {
     let symbol_id = canonical_symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
         symbol_id,
     )?;
     let symbol = symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -291,24 +291,24 @@ pub fn symbol_decorators_for(
 
 /// Read the primary declaration id for a symbol after canonicalization.
 pub fn symbol_primary_declaration_for(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalNodeIdAny> {
     let symbol_id = canonical_symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
         symbol_id,
     )?;
     let symbol = symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -319,8 +319,8 @@ pub fn symbol_primary_declaration_for(
 
 /// Resolve one local initializer expression for a symbol when available.
 pub fn symbol_initializer_expression(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -329,8 +329,8 @@ pub fn symbol_initializer_expression(
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // resolve the primary declaration for this symbol
     let declaration_id = symbol_primary_declaration_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -440,8 +440,8 @@ fn enclosing_declarator(
 
 /// Read the value type id for a symbol after canonicalization.
 pub fn symbol_value_type_id_for(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -449,8 +449,8 @@ pub fn symbol_value_type_id_for(
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<SymbolValueTypeId> {
     let symbol_id = canonical_symbol_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -465,7 +465,7 @@ pub fn symbol_value_type_id_for(
         });
     }
 
-    let dir = artifacts.dir_analyzed(symbol_id.module_id, profile_id)?;
+    let dir = repository.dir_analyzed(revision, symbol_id.module_id, profile_id)?;
     let type_id = dir.types.get_value_type_id(symbol_id)?;
     Some(SymbolValueTypeId {
         module_id: symbol_id.module_id,
@@ -475,8 +475,8 @@ pub fn symbol_value_type_id_for(
 
 /// Map one symbol value type from local or remote type tables.
 pub fn symbol_value_type_map_for<T>(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -485,8 +485,8 @@ pub fn symbol_value_type_map_for<T>(
     map: impl FnOnce(&dir::TypeTable, dir::LocalTypeId) -> T,
 ) -> Option<T> {
     let symbol_type_id = symbol_value_type_id_for(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         local_module_id,
         local_symbols,
@@ -498,7 +498,7 @@ pub fn symbol_value_type_map_for<T>(
         return Some(map(local_types, symbol_type_id.type_id));
     }
 
-    let dir = artifacts.dir_analyzed(symbol_type_id.module_id, profile_id)?;
+    let dir = repository.dir_analyzed(revision, symbol_type_id.module_id, profile_id)?;
     Some(map(&dir.types, symbol_type_id.type_id))
 }
 

@@ -70,10 +70,10 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
 
         // intern commonly used names
-        let slice_name = ctx.program.strings.intern("slice");
-        let ends_with_name = ctx.program.strings.intern("endsWith");
-        let length_name = ctx.program.strings.intern("length");
-        let test_name = ctx.program.strings.intern("test");
+        let slice_name = ctx.repository.strings.intern("slice");
+        let ends_with_name = ctx.repository.strings.intern("endsWith");
+        let length_name = ctx.repository.strings.intern("length");
+        let test_name = ctx.repository.strings.intern("test");
 
         // prepare visitor state
         Self {
@@ -377,7 +377,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let receiver_text = strip_dot_member_suffix(member_text, "slice")?;
         let suffix_span = self.ctx.get_span(ends_with_match.suffix_id);
         let suffix_text = self.ctx.get_span_text(suffix_span);
-        let method_name = self.ctx.program.strings.get(self.ends_with_name);
+        let method_name = self.ctx.repository.strings.get(self.ends_with_name);
         let replacement = format!("{receiver_text}.{}({suffix_text})", method_name.as_ref());
 
         // replace the full comparison expression
@@ -398,9 +398,9 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
     ) -> Option<String> {
         let (pattern_id, flags_id) = expression_regex_literal(self.ctx.tree, expression_id)?;
 
-        let pattern = self.ctx.program.strings.get(pattern_id);
+        let pattern = self.ctx.repository.strings.get(pattern_id);
         let flags = flags_id
-            .map(|flags_id| self.ctx.program.strings.get(flags_id).to_string())
+            .map(|flags_id| self.ctx.repository.strings.get(flags_id).to_string())
             .unwrap_or_default();
         regex_suffix_literal(pattern.as_ref(), &flags)
     }
@@ -419,7 +419,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         }
 
         let quoted_suffix = single_quoted_string_literal(suffix_text);
-        let method_name = self.ctx.program.strings.get(self.ends_with_name);
+        let method_name = self.ctx.repository.strings.get(self.ends_with_name);
         let replacement = format!(
             "({argument_text}).{}({quoted_suffix})",
             method_name.as_ref()
@@ -485,7 +485,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         };
 
         Some(string_literal_utf16_length(
-            &self.ctx.program.strings,
+            &self.ctx.repository.strings,
             *value,
         ))
     }

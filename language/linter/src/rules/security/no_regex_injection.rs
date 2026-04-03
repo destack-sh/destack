@@ -62,7 +62,7 @@ struct NoRegexInjectionVisitor<'a, 'b> {
 impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Build a new visitor.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let regexp_name = ctx.program.strings.intern("RegExp");
+        let regexp_name = ctx.repository.strings.intern("RegExp");
         let regexp_symbol = ctx.declared_library_symbol(regexp_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
@@ -178,8 +178,8 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Return true when an expression is tainted.
     fn expression_is_tainted(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let mut taint = TaintAnalysis::new(
-            self.ctx.program.as_ref(),
-            self.ctx.artifacts.as_ref(),
+            self.ctx.repository.as_ref(),
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

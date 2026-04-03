@@ -98,8 +98,8 @@ fn expression_allows_template_interpolation(
 
     // use DIR expression types as the source of truth
     expression_type_or_call_return_type_map(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,

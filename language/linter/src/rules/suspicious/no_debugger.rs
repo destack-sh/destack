@@ -8,7 +8,7 @@ declare_lint! {
     /// Disallow debugger statements in production code.
     ///
     /// Debugger statements should not be committed to production code
-    /// as they can cause the program to pause unexpectedly.
+    /// as they can cause the repository to pause unexpectedly.
     #[lint(
         id = "no-debugger",
         code = "LU008",
