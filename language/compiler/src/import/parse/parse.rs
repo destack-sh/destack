@@ -382,7 +382,13 @@ impl Compiler {
         ast.ensure_anchor_expression(file.id);
 
         self.commit_ast(module_id, file.as_ref(), None, ast, context);
-        self.commit_data(module_id, file.as_ref(), Loader::Json, Data::Json(value), context);
+        self.commit_data(
+            module_id,
+            file.as_ref(),
+            Loader::Json,
+            Data::Json(value),
+            context,
+        );
 
         tracing::trace!(?module_id, "import.module.parse.json");
         Ok(())
@@ -406,7 +412,13 @@ impl Compiler {
         ast.ensure_anchor_expression(file.id);
 
         self.commit_ast(module_id, file.as_ref(), None, ast, context);
-        self.commit_data(module_id, file.as_ref(), Loader::Toml, Data::Json(value), context);
+        self.commit_data(
+            module_id,
+            file.as_ref(),
+            Loader::Toml,
+            Data::Json(value),
+            context,
+        );
 
         tracing::trace!(?module_id, "import.module.parse.toml");
         Ok(())
@@ -430,7 +442,13 @@ impl Compiler {
         ast.ensure_anchor_expression(file.id);
 
         self.commit_ast(module_id, file.as_ref(), None, ast, context);
-        self.commit_data(module_id, file.as_ref(), Loader::Yaml, Data::Json(value), context);
+        self.commit_data(
+            module_id,
+            file.as_ref(),
+            Loader::Yaml,
+            Data::Json(value),
+            context,
+        );
 
         tracing::trace!(?module_id, "import.module.parse.yaml");
         Ok(())

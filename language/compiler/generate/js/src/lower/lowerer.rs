@@ -94,7 +94,7 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Return whether the active target externalizes a dependency specifier.
     pub(crate) fn target_externalizes_dependency_specifier(&self, specifier: &str) -> bool {
-        let dependency = &self.target.bundle.dependencies;
+        let dependency = &self.target.bundle_dependencies;
 
         dependency
             .external

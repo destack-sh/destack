@@ -9,3 +9,4 @@ Refresh the html5lib corpus with:
 ```
 
 The custom regression fixtures under `tokenizer/` are local and are not overwritten by that fetch script.
+The `tree-construction/scripted/` subtree is intentionally pruned because those cases require script execution rather than parser-only tree construction.

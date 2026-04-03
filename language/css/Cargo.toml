@@ -21,7 +21,6 @@ destack_source = { workspace = true }
 cssparser = { workspace = true }
 lightningcss = { workspace = true, features = ["serde", "into_owned"] }
 parcel_selectors = { workspace = true }
-selector_cssparser = { package = "cssparser", version = "0.33.0" }
 serde = { workspace = true, features = ["derive"] }
 
 [lints]

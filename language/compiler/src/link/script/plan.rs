@@ -107,7 +107,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module_set: &ScriptModuleSet,
     ) -> LinkResult<ScriptOutputGraph> {
-        match self.target.bundle.assembly {
+        match self.target.assembly {
             BundleMode::SingleFile => self.build_single_file_script_output_graph(module_set),
             BundleMode::Chunked => self.build_chunked_script_output_graph(module_set),
             BundleMode::PreserveModules => self.build_preserve_script_output_graph(module_set),
@@ -282,7 +282,7 @@ impl<'a> ScriptLinker<'a> {
             .collect::<IndexMap<_, _>>();
         let mut manual_output_names = IndexMap::new();
 
-        for (output_name, module_paths) in &self.target.bundle.manual_chunks {
+        for (output_name, module_paths) in &self.target.manual_chunks {
             for module_path in module_paths {
                 let Some((module_id, _)) = linked_module_paths
                     .iter()

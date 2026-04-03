@@ -8,11 +8,11 @@ use super::callbacks::{
     AndroidHostBluetoothGattUnsubscribeCallback, AndroidHostBluetoothGattWriteCallback,
     AndroidHostBluetoothGattWriteDescriptorCallback, AndroidHostBluetoothOpenCallback,
     AndroidHostBluetoothPairCallback, AndroidHostBluetoothReadRssiCallback,
-    AndroidHostBluetoothSessionReadEventCallback,
-    AndroidHostBluetoothSessionTryReadEventCallback, AndroidHostBluetoothScanCloseCallback,
-    AndroidHostBluetoothScanOpenCallback, AndroidHostBluetoothScanReadCallback,
-    AndroidHostBluetoothScanReadEventCallback, AndroidHostBluetoothScanTryReadCallback,
-    AndroidHostBluetoothScanTryReadEventCallback, AndroidHostBluetoothUnpairCallback,
+    AndroidHostBluetoothScanCloseCallback, AndroidHostBluetoothScanOpenCallback,
+    AndroidHostBluetoothScanReadCallback, AndroidHostBluetoothScanReadEventCallback,
+    AndroidHostBluetoothScanTryReadCallback, AndroidHostBluetoothScanTryReadEventCallback,
+    AndroidHostBluetoothSessionReadEventCallback, AndroidHostBluetoothSessionTryReadEventCallback,
+    AndroidHostBluetoothUnpairCallback,
 };
 
 /// Fixed-size Android Bluetooth adapter descriptor header.

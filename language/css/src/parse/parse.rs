@@ -4,7 +4,6 @@ use crate::{
 };
 use cssparser::{Parser as CssParser, ParserInput};
 use destack_source::{File, Span};
-use selector_cssparser::{Parser as SelectorCssParser, ParserInput as SelectorParserInput};
 
 use super::lightning;
 use super::lower::Lowerer;
@@ -90,8 +89,8 @@ impl<'a> Parser<'a> {
 
     /// Parse one canonical selector list from source.
     pub(crate) fn parse_selector_list_source(source: &'a str) -> lightning::SelectorList<'a> {
-        let mut input = SelectorParserInput::new(source);
-        let mut parser = SelectorCssParser::new(&mut input);
+        let mut input = ParserInput::new(source);
+        let mut parser = CssParser::new(&mut input);
 
         lightning::ParseWithOptions::parse_with_options(
             &mut parser,

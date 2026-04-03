@@ -140,7 +140,7 @@ impl ScriptOutputLayout {
         name: &str,
     ) -> String {
         output_layout.render_output_file_name(
-            target.bundle.output.entry_file_names.as_deref(),
+            target.bundle_output.entry_file_names.as_deref(),
             name,
             "js",
         )
@@ -153,7 +153,7 @@ impl ScriptOutputLayout {
         name: &str,
     ) -> String {
         output_layout.render_output_file_name(
-            target.bundle.output.chunk_file_names.as_deref(),
+            target.bundle_output.chunk_file_names.as_deref(),
             name,
             "js",
         )

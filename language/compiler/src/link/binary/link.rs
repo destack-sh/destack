@@ -25,7 +25,7 @@ impl<'a> BinaryLinker<'a> {
         let mut output = self.build_package_output(files);
 
         // optional manifest
-        if self.target.bundle.output.manifest {
+        if self.target.bundle_output.manifest {
             let manifest = self.build_manifest(&output);
 
             self.compiler.append_manifest_output(
@@ -144,7 +144,7 @@ impl<'a> BinaryLinker<'a> {
 
         PackageOutput::new(
             self.target.emit,
-            Compiler::package_assembly(self.target.bundle.assembly),
+            Compiler::package_assembly(self.target.assembly),
             outputs,
         )
     }

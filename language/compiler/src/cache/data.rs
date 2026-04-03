@@ -28,7 +28,10 @@ impl DataImageContext {
         hasher.hash_value(&self.file_type);
         hasher.hash_value(&self.loader);
 
-        ArtifactImageHeader::new(ArtifactImageKey::Data { module: module_id }, hasher.finish())
+        ArtifactImageHeader::new(
+            ArtifactImageKey::Data { module: module_id },
+            hasher.finish(),
+        )
     }
 }
 

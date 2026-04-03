@@ -13,6 +13,11 @@ pub trait Suite: Send + Sync {
         "tests"
     }
 
+    /// Return whether this suite can execute cases in parallel.
+    fn runs_in_parallel(&self) -> bool {
+        true
+    }
+
     /// Discover all cases in this suite.
     fn discover(&self, options: &RunOptions) -> Vec<Case>;
 
