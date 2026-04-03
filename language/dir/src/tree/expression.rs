@@ -24,9 +24,6 @@ pub enum Expression {
     /// Block of "statements" (inside `{}` usually).
     Block { block: LocalNodeId<Block> },
 
-    /// Statement expression (explicit statement with a `;` terminator).
-    Statement { statement: LocalNodeId<Expression> },
-
     /// Labelled statement (like `label: stmt` in JavaScript).
     Labelled {
         label: StringId,
@@ -470,7 +467,6 @@ impl Expression {
             Expression::ExportNamespace { .. } => "export namespace",
 
             Expression::Block { .. } => "block",
-            Expression::Statement { .. } => "statement",
             Expression::Labelled { .. } => "labelled",
 
             Expression::Let { .. } => "let",
