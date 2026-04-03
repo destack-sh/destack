@@ -625,6 +625,36 @@ impl<'a> DestackFormatContext<'a> {
         self.nth_non_trivia_token_in_span(span, 0)
     }
 
+    /// Return the first non-trivia token index that intersects one span.
+    pub fn first_non_trivia_token_index_in_span(&self, span: Span) -> Option<u32> {
+        let mut index = self
+            .tokens
+            .partition_point(|token| token.span.end <= span.start);
+
+        while let Some(token) = self.tokens.get(index).copied() {
+            if token.span.start >= span.end {
+                break;
+            }
+
+            if matches!(
+                token.token.ty,
+                TokenType::Whitespace
+                    | TokenType::Newline
+                    | TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            ) {
+                index += 1;
+                continue;
+            }
+
+            return Some(index as u32);
+        }
+
+        None
+    }
+
     /// Return the Nth non-trivia token that intersects one span.
     pub fn nth_non_trivia_token_in_span(&self, span: Span, nth: usize) -> Option<TokenSpan> {
         let mut index = self
@@ -889,6 +919,7 @@ impl<'a> DestackFormatContext<'a> {
             .iter()
             .copied()
             .take_while(|comment_trivia| comment_trivia.span.end <= pos)
+            .filter(|comment_trivia| !self.is_comment_owned(comment_trivia.comment))
             .map(|comment_trivia| comment_trivia.comment)
             .collect()
     }
@@ -931,6 +962,7 @@ impl<'a> DestackFormatContext<'a> {
             .copied()
             .skip_while(|comment_trivia| comment_trivia.span.end < start)
             .take_while(|comment_trivia| comment_trivia.span.end <= end)
+            .filter(|comment_trivia| !self.is_comment_owned(comment_trivia.comment))
             .map(|comment_trivia| comment_trivia.comment)
             .collect()
     }
@@ -972,6 +1004,11 @@ impl<'a> DestackFormatContext<'a> {
             if self
                 .file_range_bytes_match(start, comment_trivia.span.start, |byte| byte != character)
             {
+                if self.is_comment_owned(comment_trivia.comment) {
+                    start = comment_trivia.span.end;
+                    continue;
+                }
+
                 comment_nodes.push(comment_trivia.comment);
                 start = comment_trivia.span.end;
                 continue;
@@ -1026,6 +1063,11 @@ impl<'a> DestackFormatContext<'a> {
                 matches!(byte, b'\t' | b' ' | b'=' | b':' | b';')
             }) {
                 break;
+            }
+
+            if self.is_comment_owned(comment_trivia.comment) {
+                pos = comment_trivia.span.end;
+                continue;
             }
 
             comment_nodes.push(comment_trivia.comment);

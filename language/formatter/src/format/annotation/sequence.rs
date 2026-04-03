@@ -6,6 +6,7 @@ use destack_ast::{
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::{format_with, *};
 use destack_fir::write;
+use rustc_hash::FxHashSet;
 
 /// One source-ordered prefix item.
 #[derive(Debug, Copy, Clone)]
@@ -159,8 +160,102 @@ where
         })
 }
 
-/// Push targeted prefix comments for one node.
-fn push_targeted_prefix_comment_items<'ast, T>(
+/// Return token-after indexes that count as one node prefix seam.
+fn prefix_comment_token_after_indexes<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> FxHashSet<u32>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let mut token_after_indexes = FxHashSet::default();
+
+    if let Some(token_index) = context.first_non_trivia_token_index_in_span(context.span(node_id)) {
+        token_after_indexes.insert(token_index);
+    }
+
+    for annotation_id in context.annotation_ids(node_id).iter().copied() {
+        if !matches!(
+            context.annotation(annotation_id).position(),
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        ) {
+            continue;
+        }
+
+        if let Some(token_index) =
+            context.first_non_trivia_token_index_in_span(context.annotation_span(annotation_id))
+        {
+            token_after_indexes.insert(token_index);
+        }
+    }
+
+    token_after_indexes
+}
+
+/// Return whether one node is the outermost owner for one leading token.
+fn node_owns_raw_prefix_comments<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> bool
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    let Some(token_index) = context.first_non_trivia_token_index_in_span(context.span(node_id))
+    else {
+        return false;
+    };
+
+    let mut current_id = node_id.id;
+    while let Some(parent_id) = context.parents.get_by_id(current_id) {
+        let parent_span = context.tree.get_span_by_id(parent_id);
+        if context.first_non_trivia_token_index_in_span(parent_span) == Some(token_index) {
+            return false;
+        }
+
+        current_id = parent_id;
+    }
+
+    true
+}
+
+/// Return raw prefix comments for one node in source order.
+pub(crate) fn raw_prefix_comment_nodes<'ast, T>(
+    context: &DestackFormatContext<'ast>,
+    node_id: LocalNodeId<T>,
+) -> Vec<LocalNodeId<Comment>>
+where
+    T: Node + Clone + 'ast,
+    NodeTree: NodeTreeImpl<T>,
+{
+    if !node_owns_raw_prefix_comments(context, node_id) {
+        return Vec::new();
+    }
+
+    let token_after_indexes = prefix_comment_token_after_indexes(context, node_id);
+    if token_after_indexes.is_empty() {
+        return Vec::new();
+    }
+
+    let mut comment_ids = Vec::new();
+    for trivia in context.tree.comment_trivia().iter().copied() {
+        if !token_after_indexes.contains(&trivia.boundary.token_after) {
+            continue;
+        }
+
+        if context.is_comment_owned(trivia.comment) {
+            continue;
+        }
+
+        comment_ids.push(trivia.comment);
+    }
+
+    comment_ids
+}
+
+/// Push raw prefix comments for one node.
+fn push_prefix_comment_items<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     items: &mut Vec<PrefixSequenceItem>,
@@ -169,21 +264,10 @@ fn push_targeted_prefix_comment_items<'ast, T>(
     T: Node + Clone + 'ast,
     NodeTree: NodeTreeImpl<T>,
 {
-    for trivia in context.tree.comment_trivia().iter().copied() {
-        if trivia.target_node != Some(node_id.id) {
-            continue;
-        }
-
-        if !matches!(
-            trivia.position,
-            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-        ) {
-            continue;
-        }
-
-        let comment_span = trivia.span;
+    for comment_id in raw_prefix_comment_nodes(context, node_id) {
+        let comment_span = context.tree.get_span(comment_id);
         if include_comment(comment_span) {
-            items.push(PrefixSequenceItem::Comment(trivia.comment));
+            items.push(PrefixSequenceItem::Comment(comment_id));
         }
     }
 }
@@ -303,7 +387,7 @@ where
     NodeTree: NodeTreeImpl<T>,
 {
     let mut items = Vec::new();
-    push_targeted_prefix_comment_items(context, node_id, &mut items, |_| true);
+    push_prefix_comment_items(context, node_id, &mut items, |_| true);
 
     for annotation_id in context.annotation_ids(node_id).iter().copied() {
         if matches!(
@@ -345,7 +429,7 @@ where
 {
     let mut items = Vec::new();
     let first_decorator_start = first_decorator_span_start(context, node_id);
-    push_targeted_prefix_comment_items(context, node_id, &mut items, |comment_span| {
+    push_prefix_comment_items(context, node_id, &mut items, |comment_span| {
         first_decorator_start.is_some_and(|decorator_start| comment_span.end <= decorator_start)
     });
 
@@ -392,7 +476,7 @@ where
 {
     let mut items = Vec::new();
     let first_decorator_start = first_decorator_span_start(context, node_id);
-    push_targeted_prefix_comment_items(context, node_id, &mut items, |comment_span| {
+    push_prefix_comment_items(context, node_id, &mut items, |comment_span| {
         first_decorator_start.is_some_and(|decorator_start| comment_span.start >= decorator_start)
     });
 

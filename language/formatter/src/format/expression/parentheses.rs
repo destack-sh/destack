@@ -175,6 +175,10 @@ pub(crate) fn parenthesized_leading_inner_comments(
             continue;
         }
 
+        if context.is_comment_owned(comment_trivia.comment) {
+            continue;
+        }
+
         comments.push((comment_trivia.span.start, comment_trivia.comment));
     }
 
@@ -292,7 +296,7 @@ fn parenthesized_has_leading_inner_pattern(
     }
 
     !context
-        .comments_in_range(leading_span.start, leading_span.end)
+        .comment_nodes_in_range(leading_span.start, leading_span.end)
         .is_empty()
 }
 
@@ -486,8 +490,7 @@ pub(crate) fn should_drop_parenthesized_expression_wrapper(
         return false;
     }
 
-    let is_statement_wrapper =
-        matches!(parent_expression, Expression::Statement(inner_id) if inner_id.id == node_id.id);
+    let is_statement_wrapper = parent_expression_id.id == node_id.id;
     if is_statement_wrapper {
         return statement_drops_parenthesized_expression_wrapper(
             context,
@@ -543,15 +546,12 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
     }
     // preserved wrapper
     else {
-        let suppress_leading_inner_comments = f
-            .context()
-            .is_parenthesized_leading_comment_node_suppressed(node_id);
-        let has_parenthesized_leading_inner_trivia = !suppress_leading_inner_comments
-            && parenthesized_has_leading_inner_trivia(f.context(), node_id, expression_id);
-        let has_parenthesized_leading_inner_comments = !suppress_leading_inner_comments
-            && parenthesized_has_leading_inner_comments(f.context(), node_id, expression_id);
-        let has_parenthesized_leading_inner_newline = !suppress_leading_inner_comments
-            && parenthesized_has_leading_inner_newline(f.context(), node_id, expression_id);
+        let has_parenthesized_leading_inner_trivia =
+            parenthesized_has_leading_inner_trivia(f.context(), node_id, expression_id);
+        let has_parenthesized_leading_inner_comments =
+            parenthesized_has_leading_inner_comments(f.context(), node_id, expression_id);
+        let has_parenthesized_leading_inner_newline =
+            parenthesized_has_leading_inner_newline(f.context(), node_id, expression_id);
         let has_inner_decorator_prefix_annotation = {
             let expression_has_decorator =
                 f.context()
@@ -646,8 +646,7 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                 }
 
                 let next_id = match f.context().tree.get(current_id) {
-                    Expression::Statement(expression)
-                    | Expression::Parenthesized { expression } => Some(*expression),
+                    Expression::Parenthesized { expression } => Some(*expression),
                     Expression::Binary { left, .. } | Expression::TypeBinary { left, .. } => {
                         Some(*left)
                     }
@@ -818,7 +817,13 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                     write!(f, [*comment_id, hard_line_break()])?;
                 }
 
-                write!(f, [group(expression).should_expand(true)])
+                f.context()
+                    .push_owned_comment_nodes(&leading_inner_comments);
+                let result = write!(f, [group(expression).should_expand(true)]);
+                f.context()
+                    .pop_owned_comment_nodes(leading_inner_comments.len());
+
+                result
             });
             write!(
                 f,

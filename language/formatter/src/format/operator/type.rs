@@ -2,7 +2,9 @@ use super::union::{
     binary_like_is_type_union, flatten_binary_like_operands, flatten_type_binary_expression,
     format_inline_type_union_layout, transparent_type_binary_root_expression,
 };
-use crate::format::annotation::write_inline_prefix_annotations as write_annotation_prefix_sequence;
+use crate::format::annotation::{
+    raw_prefix_comment_nodes, write_inline_prefix_annotations as write_annotation_prefix_sequence,
+};
 use crate::format::chain::{
     should_expand_static_argument_list, static_argument_list_is_hug_safe,
     transparent_inner_expression,
@@ -128,7 +130,12 @@ pub(crate) fn leading_raw_type_position_comment_nodes(
         return Vec::new();
     }
 
-    context.comment_nodes_in_range(previous_owner_start, expression_span.start)
+    let mut comment_ids =
+        context.comment_nodes_in_range(previous_owner_start, expression_span.start);
+    let prefix_comment_ids = raw_prefix_comment_nodes(context, expression_id);
+    comment_ids.retain(|comment_id| !prefix_comment_ids.contains(comment_id));
+
+    comment_ids
 }
 
 /// Write raw source comments that precede one type-position expression.
@@ -346,6 +353,9 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
             .all(|comment_id| !type_position_comment_requires_break_after(f.context(), comment_id));
 
     let write_expression_body = |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
+        let should_skip_generic_prefix_owner =
+            expression_is_type_union_root && leading_separator_token_type.is_none();
+
         // leading separator
         if let Some(leading_separator_token_type) = leading_separator_token_type {
             // inline prefix comments stay with the separator
@@ -379,15 +389,17 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
 
             if suppress_leading_raw_comment_owner {
                 f.context()
-                    .push_suppressed_type_position_leading_comment_node(expression_id);
+                    .push_owned_comment_nodes(&leading_raw_comment_ids);
             }
 
-            write_expression_without_prefix_annotations(f, expression_id)?;
+            let result = write_expression_without_prefix_annotations(f, expression_id);
 
             if suppress_leading_raw_comment_owner {
                 f.context()
-                    .pop_suppressed_type_position_leading_comment_node();
+                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
             }
+
+            result?;
 
             return Ok(());
         }
@@ -396,16 +408,21 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
         if !has_inline_non_slash_prefix_annotations {
             if suppress_leading_raw_comment_owner {
                 f.context()
-                    .push_suppressed_type_position_leading_comment_node(expression_id);
+                    .push_owned_comment_nodes(&leading_raw_comment_ids);
             }
 
-            write!(f, [expression_id])?;
+            let result = if should_skip_generic_prefix_owner {
+                write_expression_without_prefix_annotations(f, expression_id)
+            } else {
+                write!(f, [expression_id])
+            };
 
             if suppress_leading_raw_comment_owner {
                 f.context()
-                    .pop_suppressed_type_position_leading_comment_node();
+                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
             }
 
+            result?;
             return Ok(());
         }
 
@@ -414,14 +431,14 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
         write!(f, [space()])?;
         if suppress_leading_raw_comment_owner {
             f.context()
-                .push_suppressed_type_position_leading_comment_node(expression_id);
+                .push_owned_comment_nodes(&leading_raw_comment_ids);
         }
 
         let result = write_expression_without_prefix_annotations(f, expression_id);
 
         if suppress_leading_raw_comment_owner {
             f.context()
-                .pop_suppressed_type_position_leading_comment_node();
+                .pop_owned_comment_nodes(leading_raw_comment_ids.len());
         }
 
         result
@@ -462,9 +479,6 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
 
     // inline raw type-position comments
     if suppress_leading_raw_comment_owner {
-        let write_raw_comments = format_with(|f| {
-            write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)
-        });
         let union_root_id = transparent_type_binary_root_expression(
             f.context(),
             expression_id,
@@ -481,23 +495,41 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
                 BinaryOperator::ElementwiseOr,
             );
             let write_inline_union = format_with(|f| {
-                write!(f, [write_raw_comments])?;
-                format_inline_type_union_layout(f, &operands)
+                write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
+                f.context()
+                    .push_owned_comment_nodes(&leading_raw_comment_ids);
+                let result = format_inline_type_union_layout(f, &operands);
+                f.context()
+                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
+                result
             });
-            let write_body = format_with(write_expression_body);
+            let write_body = format_with(|f| {
+                write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
+                f.context()
+                    .push_owned_comment_nodes(&leading_raw_comment_ids);
+                let result = write_expression_body(f);
+                f.context()
+                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
+                result
+            });
 
             write!(
                 f,
-                [destack_fir::best_fitting![
-                    write_inline_union,
-                    format_args![write_raw_comments, write_body]
-                ]
-                .with_mode(destack_fir::format::BestFittingMode::AllLines)]
+                [destack_fir::best_fitting![write_inline_union, write_body]
+                    .with_mode(destack_fir::format::BestFittingMode::AllLines)]
             )?;
             return Ok(());
         }
 
-        let write_body = format_with(write_expression_body);
+        let write_body = format_with(|f| {
+            write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
+            f.context()
+                .push_owned_comment_nodes(&leading_raw_comment_ids);
+            let result = write_expression_body(f);
+            f.context()
+                .pop_owned_comment_nodes(leading_raw_comment_ids.len());
+            result
+        });
         let interned_body = f.intern(&write_body)?;
         let write_flat_body = format_with(move |f| {
             if let Some(interned_body) = &interned_body {
@@ -510,11 +542,8 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
 
         write!(
             f,
-            [destack_fir::best_fitting![
-                format_args![write_raw_comments, write_flat_body],
-                format_args![write_raw_comments, write_body]
-            ]
-            .with_mode(destack_fir::format::BestFittingMode::AllLines)]
+            [destack_fir::best_fitting![write_flat_body, write_body]
+                .with_mode(destack_fir::format::BestFittingMode::AllLines)]
         )?;
         return Ok(());
     }
@@ -522,6 +551,12 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
     // breaking raw type-position comments
     if !leading_raw_comment_ids.is_empty() {
         write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
+        f.context()
+            .push_owned_comment_nodes(&leading_raw_comment_ids);
+        let result = write_expression_body(f);
+        f.context()
+            .pop_owned_comment_nodes(leading_raw_comment_ids.len());
+        return result;
     }
 
     write_expression_body(f)
@@ -990,7 +1025,7 @@ pub(crate) fn expression_static_arguments(
     expression: &Expression,
 ) -> Option<&[LocalNodeId<Argument>]> {
     match expression {
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         }
         | Expression::Member {
@@ -1023,7 +1058,7 @@ pub(crate) fn expression_has_static_type_arguments(
     let expression_id = transparent_inner_expression(context, expression_id);
 
     match context.tree.get(expression_id) {
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments
             .as_ref()
@@ -1062,7 +1097,7 @@ pub(crate) fn expression_has_static_type_arguments(
             left,
             static_arguments,
         } => !static_arguments.is_empty() || expression_has_static_type_arguments(context, *left),
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             expression_has_static_type_arguments(context, *expression)
         }
         _ => false,

@@ -12,6 +12,7 @@ use crate::format::declaration::statement::format_block;
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
 use crate::format::expression::{
     is_complex_expression, is_expression_breakable, is_trivial_expression,
+    write_expression_without_prefix_annotations,
 };
 use crate::format::operator::{
     write_colon_prefixed_type_annotation, write_expression_with_inline_prefix_annotations,
@@ -293,7 +294,7 @@ fn expression_contains_type_binary(
                 pending.push(*left);
                 pending.push(*right);
             }
-            Expression::Path {
+            Expression::QualifiedReference {
                 static_arguments: Some(static_arguments),
                 ..
             }
@@ -327,7 +328,7 @@ fn expression_contains_type_binary(
                 pending.push(*then_type);
                 pending.push(*else_type);
             }
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            Expression::Parenthesized { expression } => {
                 pending.push(*expression);
             }
             _ => {}
@@ -364,7 +365,7 @@ fn field_expression_has_static_arguments(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments
             .as_deref()
@@ -399,7 +400,7 @@ fn field_expression_has_static_arguments(
             left,
             static_arguments,
         } => field_expression_has_static_arguments(context, *left) || !static_arguments.is_empty(),
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             field_expression_has_static_arguments(context, *expression)
         }
         _ => false,
@@ -433,7 +434,7 @@ fn field_expression_has_nested_call_chain(
             | Expression::Must { left, .. } => {
                 current_id = *left;
             }
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            Expression::Parenthesized { expression } => {
                 current_id = *expression;
             }
             _ => return false,
@@ -493,7 +494,7 @@ fn field_expression_has_complex_nested_static_arguments(
 ) -> bool {
     match context.tree.get(expression_id) {
         Expression::ObjectExpression { .. } | Expression::TypeMapped { .. } => true,
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments.as_deref().is_some_and(|arguments| {
             field_static_argument_list_has_block_expressions(context, arguments)
@@ -533,7 +534,7 @@ fn field_expression_has_complex_nested_static_arguments(
             field_expression_has_complex_nested_static_arguments(context, *left)
                 || field_static_argument_list_has_block_expressions(context, static_arguments)
         }
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             field_expression_has_complex_nested_static_arguments(context, *expression)
         }
         _ => false,
@@ -743,7 +744,9 @@ where
 
     // body
     if let Some(body) = body {
-        let wrote_block_seam_comments = write_method_block_seam_comments(f, body)?;
+        let is_block_body = matches!(f.context().node::<Expression>(body), Expression::Block(..));
+        let block_seam_comment_nodes = write_method_block_seam_comments(f, body)?;
+        let wrote_block_seam_comments = !block_seam_comment_nodes.is_empty();
 
         // signature seam comments
         write!(
@@ -801,9 +804,28 @@ where
         }
 
         if has_signature_line_boundary_annotation {
-            write!(f, [hard_line_break(), body])?;
+            write!(f, [hard_line_break()])?;
+            if is_block_body {
+                f.context()
+                    .push_owned_comment_nodes(&block_seam_comment_nodes);
+                let result = write_expression_without_prefix_annotations(f, body);
+                f.context()
+                    .pop_owned_comment_nodes(block_seam_comment_nodes.len());
+                result?;
+            } else {
+                write!(f, [body])?;
+            }
         } else if wrote_block_seam_comments {
-            write!(f, [body])?;
+            if is_block_body {
+                f.context()
+                    .push_owned_comment_nodes(&block_seam_comment_nodes);
+                let result = write_expression_without_prefix_annotations(f, body);
+                f.context()
+                    .pop_owned_comment_nodes(block_seam_comment_nodes.len());
+                result?;
+            } else {
+                write!(f, [body])?;
+            }
         } else if signature_should_elide_space_before_body(f.context(), signature.return_type) {
             write!(f, [body])?;
         } else {
@@ -818,13 +840,6 @@ where
                 }
             };
             if let Some(block_id) = body_block_id {
-                write!(
-                    f,
-                    [crate::format::annotation::prefix_annotations::<Expression>(
-                        f.context(),
-                        body
-                    )]
-                )?;
                 format_block(f, block_id)?;
                 write!(
                     f,
@@ -845,13 +860,13 @@ where
 fn write_method_block_seam_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     body_id: LocalNodeId<Expression>,
-) -> FormatResult<bool> {
+) -> FormatResult<Vec<LocalNodeId<Comment>>> {
     let body_span = f.context().span(body_id);
     let Some(previous_token) = f.context().previous_non_trivia_token_before_span(body_span) else {
-        return Ok(false);
+        return Ok(Vec::new());
     };
     if previous_token.span.file != body_span.file || previous_token.span.end >= body_span.start {
-        return Ok(false);
+        return Ok(Vec::new());
     }
 
     let block_comment_nodes: Vec<_> = f
@@ -864,7 +879,7 @@ fn write_method_block_seam_comments<'ast>(
         })
         .collect();
     if block_comment_nodes.is_empty() {
-        return Ok(false);
+        return Ok(Vec::new());
     }
 
     write!(f, [space()])?;
@@ -883,7 +898,7 @@ fn write_method_block_seam_comments<'ast>(
         }
     }
 
-    Ok(true)
+    Ok(block_comment_nodes)
 }
 
 /// Format one node with shared directive handling and trailing annotation ownership.

@@ -13,7 +13,7 @@ use crate::format::expression::{
     expression_has_leading_prefix_comment, should_drop_parenthesized_expression_wrapper,
     write_expression_without_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{Annotation, DestackFormatContext, DestackFormatter};
 use destack_ast::{
     AnnotationPosition, BinaryOperator, Comment, CommentStyle, Declaration, Expression,
     LocalNodeId, NodeType, TokenType, TypeBinaryOperator, TypeLiteral,
@@ -224,7 +224,6 @@ fn transparent_type_binary_chain_inner_expression(
     operator: BinaryOperator,
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(node_id) {
-        Expression::Statement(inner_expression_id) => Some(*inner_expression_id),
         Expression::Parenthesized {
             expression: inner_expression_id,
         } => Some(*inner_expression_id),
@@ -284,6 +283,13 @@ pub(crate) fn operator_expression_owns_prefix_annotations(
     expression: &Expression,
     is_ignored: bool,
 ) -> bool {
+    let expression_is_type_union = matches!(
+        expression,
+        Expression::Binary {
+            operator: BinaryOperator::ElementwiseOr,
+            ..
+        } if binary_like_is_type_union(context, expression_id, BinaryOperator::ElementwiseOr)
+    );
     let parenthesized_delegates_union_prefix_annotations = if !is_ignored {
         match expression {
             Expression::Parenthesized {
@@ -313,13 +319,7 @@ pub(crate) fn operator_expression_owns_prefix_annotations(
         false
     };
 
-    matches!(
-        expression,
-        Expression::Binary {
-            operator: BinaryOperator::ElementwiseOr,
-            ..
-        } if union_owns_prefix_annotations(context, expression_id) && !is_ignored
-    ) || parenthesized_delegates_union_prefix_annotations
+    (!is_ignored && expression_is_type_union) || parenthesized_delegates_union_prefix_annotations
 }
 
 impl LeadingCommentsInfo {
@@ -402,10 +402,6 @@ fn type_union_leading_comment_nodes(
     node_id: LocalNodeId<Expression>,
     operands: &SmallVec<[(Option<BinaryOperator>, LocalNodeId<Expression>); 8]>,
 ) -> Vec<LocalNodeId<Comment>> {
-    if context.is_type_position_leading_comment_node_suppressed(node_id) {
-        return Vec::new();
-    }
-
     let Some(first_operand) = operands.first() else {
         return Vec::new();
     };
@@ -567,7 +563,7 @@ fn type_union_leading_shell_prefix_annotations(
     context: &DestackFormatContext<'_>,
     union_expression_id: LocalNodeId<Expression>,
     operand_expression_id: LocalNodeId<Expression>,
-) -> Vec<LocalNodeId<crate::Annotation>> {
+) -> Vec<LocalNodeId<Annotation>> {
     let mut owner_ids = collect_transparent_type_binary_root_owner_ids(
         context,
         union_expression_id,
@@ -585,10 +581,6 @@ fn type_union_leading_shell_prefix_annotations(
         .into_iter()
         .flat_map(|owner_id| context.annotation_ids(owner_id).iter().copied())
         .filter(|annotation_id| {
-            let previous_token_type = context
-                .annotation_previous_non_whitespace_token(*annotation_id)
-                .map(|token| token.token.ty);
-
             matches!(
                 context.annotation(*annotation_id).position(),
                 AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
@@ -598,7 +590,46 @@ fn type_union_leading_shell_prefix_annotations(
                     context.annotation_next_non_whitespace_token_type(*annotation_id)
                         == Some(token_type)
                 }))
-                && previous_token_type != Some(TokenType::ElementwiseOr)
+                && context
+                    .span_str(context.annotation_span(*annotation_id))
+                    .trim_start()
+                    .starts_with("/**")
+        })
+        .collect()
+}
+
+/// Collect prefix annotations that belong to one operand separator seam.
+fn type_union_operand_separator_prefix_annotations(
+    context: &DestackFormatContext<'_>,
+    operand_expression_id: LocalNodeId<Expression>,
+) -> Vec<LocalNodeId<Annotation>> {
+    let mut owner_ids = collect_transparent_type_binary_root_owner_ids(
+        context,
+        operand_expression_id,
+        BinaryOperator::ElementwiseOr,
+    );
+    if !owner_ids.contains(&operand_expression_id) {
+        owner_ids.push(operand_expression_id);
+    }
+
+    let first_operand_token_type = context
+        .first_non_trivia_token_in_span(context.span(operand_expression_id))
+        .map(|token| token.token.ty);
+
+    owner_ids
+        .into_iter()
+        .flat_map(|owner_id| context.annotation_ids(owner_id).iter().copied())
+        .filter(|annotation_id| {
+            matches!(
+                context.annotation(*annotation_id).position(),
+                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+            ) && context
+                .annotation_previous_non_whitespace_token(*annotation_id)
+                .is_some_and(|token| token.token.ty == TokenType::ElementwiseOr)
+                && first_operand_token_type.is_some_and(|token_type| {
+                    context.annotation_next_non_whitespace_token_type(*annotation_id)
+                        == Some(token_type)
+                })
                 && context
                     .span_str(context.annotation_span(*annotation_id))
                     .trim_start()
@@ -615,9 +646,7 @@ fn leftmost_union_terminal_expression(
     let mut current_id = node_id;
     loop {
         current_id = match context.tree.get(current_id) {
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-                *expression
-            }
+            Expression::Parenthesized { expression } => *expression,
             Expression::Binary {
                 operator: BinaryOperator::ElementwiseOr,
                 left,
@@ -642,7 +671,9 @@ fn expression_is_hug_object_like_union_operand(
     is_object_like_type_expression(context, expression_id)
         || matches!(
             context.tree.get(expression_id),
-            Expression::Path { .. } | Expression::TypeLiteral(TypeLiteral::Object)
+            Expression::Identifier { .. }
+                | Expression::QualifiedReference { .. }
+                | Expression::TypeLiteral(TypeLiteral::Object)
         )
 }
 
@@ -681,11 +712,6 @@ fn union_is_type_declaration_value(
 
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
         match context.tree.get(parent_expression_id) {
-            Expression::Statement(inner_expression_id)
-                if *inner_expression_id == current_expression_id =>
-            {
-                current_expression_id = parent_expression_id;
-            }
             Expression::Parenthesized {
                 expression: inner_expression_id,
             } if *inner_expression_id == current_expression_id => {
@@ -731,12 +757,6 @@ fn transparent_type_binary_chain_owner(
 
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
         match context.tree.get(parent_expression_id) {
-            Expression::Statement(inner_expression_id)
-                if *inner_expression_id == current_expression_id =>
-            {
-                owner_id = parent_expression_id;
-                current_expression_id = parent_expression_id;
-            }
             Expression::Parenthesized {
                 expression: inner_expression_id,
             } if *inner_expression_id == current_expression_id => {
@@ -983,9 +1003,6 @@ fn union_is_parenthesized_cast_or_satisfies_rhs(
                 saw_parenthesized_wrapper = true;
                 current_id = parent_expression_id;
             }
-            Expression::Statement(expression) if *expression == current_id => {
-                current_id = parent_expression_id;
-            }
             Expression::TypeBinary {
                 operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
                 right,
@@ -1009,13 +1026,19 @@ fn write_type_union_operand_after_separator<'ast>(
 ) -> FormatResult<()> {
     let separator_comments =
         type_union_operand_separator_comments(f.context(), operand_expression_id);
+    let separator_prefix_annotation_ids =
+        type_union_operand_separator_prefix_annotations(f.context(), operand_expression_id);
     let has_separator_comments = !separator_comments.is_empty();
-    let operand_has_own_line_prefix_annotation =
-        expression_has_own_line_prefix(f.context(), operand_expression_id);
+    let has_separator_prefix_annotations = !separator_prefix_annotation_ids.is_empty();
+    let suppress_operand_prefix =
+        suppress_prefix_annotations || has_separator_comments || has_separator_prefix_annotations;
+    let operand_has_own_line_prefix_annotation = !suppress_operand_prefix
+        && expression_has_own_line_prefix(f.context(), operand_expression_id);
     let operand_is_object_like =
         expression_is_hug_object_like_union_operand(f.context(), operand_expression_id);
     let blocks_object_alignment = has_separator_comments
-        || (!suppress_prefix_annotations && operand_has_own_line_prefix_annotation);
+        || has_separator_prefix_annotations
+        || operand_has_own_line_prefix_annotation;
     let format_operand = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         if has_separator_comments {
             for (comment_index, comment_id) in separator_comments.iter().enumerate() {
@@ -1037,7 +1060,11 @@ fn write_type_union_operand_after_separator<'ast>(
                 }
             }
 
-            if suppress_prefix_annotations {
+            if has_separator_prefix_annotations {
+                write_union_leading_prefix_annotations(f, &separator_prefix_annotation_ids)?;
+            }
+
+            if suppress_operand_prefix {
                 write_expression_without_prefix_annotations(f, operand_expression_id)
             } else {
                 format_binary_operand_with_grouping_parentheses(
@@ -1046,9 +1073,12 @@ fn write_type_union_operand_after_separator<'ast>(
                     operand_expression_id,
                 )
             }
+        } else if has_separator_prefix_annotations {
+            write_union_leading_prefix_annotations(f, &separator_prefix_annotation_ids)?;
+            write_expression_without_prefix_annotations(f, operand_expression_id)
         } else if operand_has_own_line_prefix_annotation && !suppress_prefix_annotations {
             write!(f, [operand_expression_id])
-        } else if suppress_prefix_annotations {
+        } else if suppress_operand_prefix {
             write_expression_without_prefix_annotations(f, operand_expression_id)
         } else {
             format_binary_operand_with_grouping_parentheses(
@@ -1575,9 +1605,12 @@ fn type_union_operand_separator_token_span(
     operand_expression_id: LocalNodeId<Expression>,
 ) -> Option<destack_source::Span> {
     let operand_span = context.span(operand_expression_id);
+    let operand_token_start = context
+        .first_non_trivia_token_in_span(operand_span)
+        .map_or(operand_span.start, |token| token.span.start);
     let mut token_index = context
         .tokens
-        .partition_point(|token| token.span.end <= operand_span.start);
+        .partition_point(|token| token.span.end <= operand_token_start);
 
     while token_index > 0 {
         token_index -= 1;
