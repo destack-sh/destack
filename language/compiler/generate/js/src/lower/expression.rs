@@ -815,6 +815,18 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
+            dir::Expression::This => {
+                let expression = js::Expression::This;
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
+            dir::Expression::Super => {
+                let expression = js::Expression::Super;
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
             dir::Expression::PrivateIdentifier { name } => {
                 let name = self.strings.intern_from(self.source_strings, *name);
                 let expression = js::Expression::PrivateIdentifier { name };
