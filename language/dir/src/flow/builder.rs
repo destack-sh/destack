@@ -225,9 +225,6 @@ impl<'tree> FlowGraphBuilder<'tree> {
         // dispatch based on expression kind
         match expression {
             Expression::Block { block } => self.build_block(*block, current_block_id),
-            Expression::Statement { statement } => {
-                self.build_expression(*statement, current_block_id)
-            }
             Expression::Labelled { body, symbol, .. } => {
                 self.build_labelled_expression(*symbol, *body, current_block_id)
             }
@@ -405,7 +402,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
     ) -> Option<FlowBlockId> {
         self.record_node(current_block_id, block_id.into_any());
         let block = self.tree.get(block_id);
-        self.build_expression_sequence(&block.expressions, current_block_id)
+        let expression_ids = block.iter_expressions().collect::<Vec<_>>();
+        self.build_expression_sequence(&expression_ids, current_block_id)
     }
 
     /// Build a sequence of expressions.
@@ -1805,7 +1803,6 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 Some(current_block_id)
             }
             Expression::Block { .. }
-            | Expression::Statement { .. }
             | Expression::Labelled { .. }
             | Expression::If { .. }
             | Expression::Loop { .. }

@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, EnumField,
-    Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member, Node,
-    NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
+    Expression, FunctionMode, IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter,
+    Pattern, PatternField, Property, WhereClause,
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
@@ -177,6 +178,18 @@ impl NodeTree {
         LocalNodeId::new(node_id.id)
     }
 
+    /// Fill in one reserved slot and make the inserted node own its reused direct children.
+    pub fn insert_as_owner<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: NodeTreeImpl<T>,
+    {
+        let node_id = self.insert(node_id, node);
+        self.adopt_direct_children(LocalNodeIdAny::new(node_id.id, T::TYPE));
+
+        node_id
+    }
+
     /// Add an alias node for a lowered AST id.
     pub fn alias_from_source<T>(&mut self, ast_id: u32, alias: LocalNodeId<T>)
     where
@@ -264,11 +277,36 @@ impl NodeTree {
         let preserved_id = self.reserve_from(T::TYPE, id.into_any(), scope, None);
         let preserved_id: LocalNodeId<T> = self.insert(preserved_id, original);
 
+        // preserved originals exist for alias lookup, not active tree traversal
+        self.mark_inactive(preserved_id.into_any());
+
         // replace in-place
         *self.get_mut(id) = replacement;
 
+        // keep reused child ids attached to the replacement
+        self.adopt_direct_children(id.into_any());
+
         // alias for reverse lookup (id -> preserved)
         self.alias_from(id.id, preserved_id);
+
+        preserved_id
+    }
+
+    /// Replace one node with the payload of another node and detach the source root.
+    pub fn replace_from<T>(
+        &mut self,
+        id: LocalNodeId<T>,
+        source_id: LocalNodeId<T>,
+    ) -> LocalNodeId<T>
+    where
+        T: Node + Clone,
+        Self: NodeTreeImpl<T>,
+    {
+        let replacement = self.get(source_id).clone();
+        let preserved_id = self.replace(id, replacement);
+
+        // the source root is no longer structurally active after its payload moves
+        self.mark_inactive(source_id.into_any());
 
         preserved_id
     }
@@ -334,6 +372,628 @@ impl NodeTree {
         parent_id.map(|parent_id| {
             LocalNodeIdAny::new(parent_id, self.node_type_by_node_id[parent_id as usize])
         })
+    }
+
+    /// Walk one node by its erased local id.
+    fn walk_node<V: NodeVisitor + ?Sized>(&self, visitor: &mut V, node_id: LocalNodeIdAny) {
+        match node_id.ty {
+            NodeType::Expression => {
+                let typed_id = LocalNodeId::<Expression>::new(node_id.id);
+                visitor.visit_expression(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Block => {
+                let typed_id = LocalNodeId::<Block>::new(node_id.id);
+                visitor.visit_block(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Declaration => {
+                let typed_id = LocalNodeId::<Declaration>::new(node_id.id);
+                visitor.visit_declaration(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Declarator => {
+                let typed_id = LocalNodeId::<Declarator>::new(node_id.id);
+                visitor.visit_declarator(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Property => {
+                let typed_id = LocalNodeId::<Property>::new(node_id.id);
+                visitor.visit_property(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Member => {
+                let typed_id = LocalNodeId::<Member>::new(node_id.id);
+                visitor.visit_member(self, typed_id, self.get(typed_id));
+            }
+            NodeType::EnumField => {
+                let typed_id = LocalNodeId::<EnumField>::new(node_id.id);
+                visitor.visit_enum_field(self, typed_id, self.get(typed_id));
+            }
+            NodeType::WhereClause => {
+                let typed_id = LocalNodeId::<WhereClause>::new(node_id.id);
+                visitor.visit_where_clause(self, typed_id, self.get(typed_id));
+            }
+            NodeType::DependencyItem => {
+                let typed_id = LocalNodeId::<DependencyItem>::new(node_id.id);
+                visitor.visit_dependency_item(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Parameter => {
+                let typed_id = LocalNodeId::<Parameter>::new(node_id.id);
+                visitor.visit_parameter(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Argument => {
+                let typed_id = LocalNodeId::<Argument>::new(node_id.id);
+                visitor.visit_argument(self, typed_id, self.get(typed_id));
+            }
+            NodeType::MatchCase => {
+                let typed_id = LocalNodeId::<MatchCase>::new(node_id.id);
+                visitor.visit_match_case(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Pattern => {
+                let typed_id = LocalNodeId::<Pattern>::new(node_id.id);
+                visitor.visit_pattern(self, typed_id, self.get(typed_id));
+            }
+            NodeType::PatternField => {
+                let typed_id = LocalNodeId::<PatternField>::new(node_id.id);
+                visitor.visit_pattern_field(self, typed_id, self.get(typed_id));
+            }
+            NodeType::Annotation => {
+                let typed_id = LocalNodeId::<Annotation>::new(node_id.id);
+                visitor.visit_annotation(self, typed_id, self.get(typed_id));
+            }
+        }
+    }
+
+    /// Make one node the owner of its reused direct children.
+    fn adopt_direct_children(&mut self, root_id: LocalNodeIdAny) {
+        struct DirectChildCollector {
+            options: NodeVisitorOptions,
+            parent_stack: Vec<LocalNodeIdAny>,
+            children: Vec<LocalNodeIdAny>,
+        }
+
+        impl NodeVisitor for DirectChildCollector {
+            fn options(&self) -> &NodeVisitorOptions {
+                &self.options
+            }
+
+            fn visit_expression(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Expression>,
+                expression: &Expression,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_expression(self, tree, id, expression);
+                self.parent_stack.pop();
+            }
+
+            fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
+                self.push_node(id.into_any());
+                crate::walk_block(self, tree, id, block);
+                self.parent_stack.pop();
+            }
+
+            fn visit_declaration(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Declaration>,
+                declaration: &Declaration,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_declaration(self, tree, id, declaration);
+                self.parent_stack.pop();
+            }
+
+            fn visit_declarator(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Declarator>,
+                declarator: &Declarator,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_declarator(self, tree, id, declarator);
+                self.parent_stack.pop();
+            }
+
+            fn visit_property(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Property>,
+                property: &Property,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_property(self, tree, id, property);
+                self.parent_stack.pop();
+            }
+
+            fn visit_member(&mut self, tree: &NodeTree, id: LocalNodeId<Member>, member: &Member) {
+                self.push_node(id.into_any());
+                crate::walk_member(self, tree, id, member);
+                self.parent_stack.pop();
+            }
+
+            fn visit_enum_field(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<EnumField>,
+                enum_field: &EnumField,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_enum_field(self, tree, id, enum_field);
+                self.parent_stack.pop();
+            }
+
+            fn visit_where_clause(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<WhereClause>,
+                where_clause: &WhereClause,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_where_clause(self, tree, id, where_clause);
+                self.parent_stack.pop();
+            }
+
+            fn visit_dependency_item(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<DependencyItem>,
+                dependency_item: &DependencyItem,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_dependency_item(self, tree, id, dependency_item);
+                self.parent_stack.pop();
+            }
+
+            fn visit_parameter(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Parameter>,
+                parameter: &Parameter,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_parameter(self, tree, id, parameter);
+                self.parent_stack.pop();
+            }
+
+            fn visit_argument(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Argument>,
+                argument: &Argument,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_argument(self, tree, id, argument);
+                self.parent_stack.pop();
+            }
+
+            fn visit_match_case(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<MatchCase>,
+                match_case: &MatchCase,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_match_case(self, tree, id, match_case);
+                self.parent_stack.pop();
+            }
+
+            fn visit_pattern(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Pattern>,
+                pattern: &Pattern,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_pattern(self, tree, id, pattern);
+                self.parent_stack.pop();
+            }
+
+            fn visit_pattern_field(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<PatternField>,
+                pattern_field: &PatternField,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_pattern_field(self, tree, id, pattern_field);
+                self.parent_stack.pop();
+            }
+
+            fn visit_annotation(
+                &mut self,
+                tree: &NodeTree,
+                id: LocalNodeId<Annotation>,
+                annotation: &Annotation,
+            ) {
+                self.push_node(id.into_any());
+                crate::walk_annotation(self, tree, id, annotation);
+                self.parent_stack.pop();
+            }
+        }
+
+        impl DirectChildCollector {
+            fn push_node(&mut self, node_id: LocalNodeIdAny) {
+                if self.parent_stack.len() == 1 {
+                    self.children.push(node_id);
+                }
+
+                self.parent_stack.push(node_id);
+            }
+        }
+
+        let children = {
+            let mut collector = DirectChildCollector {
+                options: NodeVisitorOptions::default(),
+                parent_stack: Vec::new(),
+                children: Vec::new(),
+            };
+
+            self.walk_node(&mut collector, root_id);
+            collector.children
+        };
+
+        for child_id in children {
+            self.set_parent(child_id, Some(root_id));
+        }
+    }
+
+    /// Set the parent node id for one node.
+    #[inline]
+    fn set_parent(&mut self, node_id: LocalNodeIdAny, parent_id: Option<LocalNodeIdAny>) {
+        if let Some(parent_slot) = self.parent_id_by_node_id.get_mut(node_id.id as usize) {
+            *parent_slot = parent_id.map(|parent_id| parent_id.id);
+        }
+    }
+
+    /// Assert that walked child ownership matches cached parent links.
+    #[cfg(debug_assertions)]
+    pub fn debug_assert_valid_parents(&self) {
+        fn node_summary(tree: &NodeTree, node_id: LocalNodeIdAny) -> String {
+            match node_id.ty {
+                NodeType::Expression => {
+                    let node_id = LocalNodeId::<Expression>::new(node_id.id);
+                    format!("{:?}", tree.get(node_id))
+                }
+                NodeType::Block => {
+                    let node_id = LocalNodeId::<Block>::new(node_id.id);
+                    format!("{:?}", tree.get(node_id))
+                }
+                _ => format!("{:?}", node_id.ty),
+            }
+        }
+
+        struct DebugParentValidator {
+            options: NodeVisitorOptions,
+            parent_stack: Vec<LocalNodeIdAny>,
+            root_id: Option<LocalNodeIdAny>,
+        }
+
+        impl DebugParentValidator {
+            fn push_node(&mut self, tree: &NodeTree, node_id: LocalNodeIdAny) {
+                if let Some(expected_parent) = self.parent_stack.last().copied() {
+                    let actual_parent = tree.get_parent(node_id.id);
+                    assert_eq!(
+                        actual_parent,
+                        Some(expected_parent),
+                        "DIR parent mismatch: node {node_id:?} {}, expected parent {expected_parent:?} {}, actual parent {actual_parent:?} {}, root {:?}",
+                        node_summary(tree, node_id),
+                        node_summary(tree, expected_parent),
+                        actual_parent
+                            .map(|parent_id| node_summary(tree, parent_id))
+                            .unwrap_or_else(|| "None".to_string()),
+                        self.root_id,
+                    );
+                } else {
+                    self.root_id = Some(node_id);
+                }
+
+                self.parent_stack.push(node_id);
+            }
+
+            fn pop_node(&mut self) {
+                self.parent_stack.pop();
+
+                if self.parent_stack.is_empty() {
+                    self.root_id = None;
+                }
+            }
+        }
+
+        macro_rules! validate_visit {
+            ($method:ident, $ty:ty, $node_type:expr, $walk:path) => {
+                fn $method(&mut self, tree: &NodeTree, id: LocalNodeId<$ty>, node: &$ty) {
+                    self.push_node(tree, id.into_any());
+                    $walk(self, tree, id, node);
+                    self.pop_node();
+                }
+            };
+        }
+
+        impl NodeVisitor for DebugParentValidator {
+            fn options(&self) -> &NodeVisitorOptions {
+                &self.options
+            }
+
+            validate_visit!(
+                visit_expression,
+                Expression,
+                NodeType::Expression,
+                crate::walk_expression
+            );
+            validate_visit!(visit_block, Block, NodeType::Block, crate::walk_block);
+            validate_visit!(
+                visit_declaration,
+                Declaration,
+                NodeType::Declaration,
+                crate::walk_declaration
+            );
+            validate_visit!(
+                visit_declarator,
+                Declarator,
+                NodeType::Declarator,
+                crate::walk_declarator
+            );
+            validate_visit!(
+                visit_property,
+                Property,
+                NodeType::Property,
+                crate::walk_property
+            );
+            validate_visit!(visit_member, Member, NodeType::Member, crate::walk_member);
+            validate_visit!(
+                visit_enum_field,
+                EnumField,
+                NodeType::EnumField,
+                crate::walk_enum_field
+            );
+            validate_visit!(
+                visit_where_clause,
+                WhereClause,
+                NodeType::WhereClause,
+                crate::walk_where_clause
+            );
+            validate_visit!(
+                visit_dependency_item,
+                DependencyItem,
+                NodeType::DependencyItem,
+                crate::walk_dependency_item
+            );
+            validate_visit!(
+                visit_parameter,
+                Parameter,
+                NodeType::Parameter,
+                crate::walk_parameter
+            );
+            validate_visit!(
+                visit_argument,
+                Argument,
+                NodeType::Argument,
+                crate::walk_argument
+            );
+            validate_visit!(
+                visit_match_case,
+                MatchCase,
+                NodeType::MatchCase,
+                crate::walk_match_case
+            );
+            validate_visit!(
+                visit_pattern,
+                Pattern,
+                NodeType::Pattern,
+                crate::walk_pattern
+            );
+            validate_visit!(
+                visit_pattern_field,
+                PatternField,
+                NodeType::PatternField,
+                crate::walk_pattern_field
+            );
+            validate_visit!(
+                visit_annotation,
+                Annotation,
+                NodeType::Annotation,
+                crate::walk_annotation
+            );
+        }
+
+        let preserved_alias_targets: HashSet<u32> =
+            self.alias_node_id_by_node_id.values().copied().collect();
+
+        let mut validator = DebugParentValidator {
+            options: NodeVisitorOptions::default(),
+            parent_stack: Vec::new(),
+            root_id: None,
+        };
+
+        for node_id in self.iter_node_ids() {
+            if self.is_inactive(node_id.id) || preserved_alias_targets.contains(&node_id.id) {
+                continue;
+            }
+
+            if self.get_parent_id(node_id.id).is_some() {
+                continue;
+            }
+
+            if !matches!(node_id.ty, NodeType::Declaration | NodeType::DependencyItem) {
+                continue;
+            }
+
+            self.walk_node(&mut validator, node_id);
+        }
+    }
+
+    /// Return whether one expression is in statement position.
+    pub fn expression_is_in_statement_position(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let Some(parent_id) = self.get_parent(expression_id.id) else {
+            return true;
+        };
+
+        match parent_id.ty {
+            NodeType::Expression => self
+                .expression_is_in_statement_position_inside_parent_expression(
+                    LocalNodeId::new(parent_id.id),
+                    expression_id,
+                ),
+            NodeType::Block => self.expression_is_in_statement_position_inside_parent_block(
+                LocalNodeId::new(parent_id.id),
+                expression_id,
+            ),
+            NodeType::Declaration => self
+                .expression_is_in_statement_position_inside_parent_declaration(
+                    LocalNodeId::new(parent_id.id),
+                    expression_id,
+                ),
+            NodeType::Member => self.expression_is_in_statement_position_inside_parent_member(
+                LocalNodeId::new(parent_id.id),
+                expression_id,
+            ),
+            NodeType::Property => self.expression_is_in_statement_position_inside_parent_property(
+                LocalNodeId::new(parent_id.id),
+                expression_id,
+            ),
+            _ => false,
+        }
+    }
+
+    /// Return whether one expression inherits statement position through a parent expression.
+    fn expression_is_in_statement_position_inside_parent_expression(
+        &self,
+        parent_expression_id: LocalNodeId<Expression>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let parent_expression = self.get(parent_expression_id);
+
+        let should_inherit_parent_position = match parent_expression {
+            // `if let` and `if comptime` branches preserve block values
+            Expression::If {
+                condition,
+                then_expression,
+                else_expression,
+                ..
+            } => {
+                let branch_inherits_statement_position =
+                    self.if_condition_inherits_statement_position(condition);
+
+                branch_inherits_statement_position
+                    && (then_expression.id == expression_id.id
+                        || else_expression
+                            .as_ref()
+                            .is_some_and(|else_expression| else_expression.id == expression_id.id))
+            }
+
+            // these bodies inherit statement position from the parent shell
+            Expression::Try {
+                try_expression,
+                catch_expression,
+                finally_expression,
+                ..
+            } => {
+                try_expression.id == expression_id.id
+                    || catch_expression
+                        .as_ref()
+                        .is_some_and(|catch_expression| catch_expression.id == expression_id.id)
+                    || finally_expression
+                        .as_ref()
+                        .is_some_and(|finally_expression| finally_expression.id == expression_id.id)
+            }
+            Expression::Labelled { body, .. } => body.id == expression_id.id,
+
+            // everything else is operand position
+            _ => false,
+        };
+
+        should_inherit_parent_position
+            && self.expression_is_in_statement_position(parent_expression_id)
+    }
+
+    /// Return whether one expression is statement-position inside one parent block.
+    fn expression_is_in_statement_position_inside_parent_block(
+        &self,
+        parent_block_id: LocalNodeId<Block>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let parent_block = self.get(parent_block_id);
+
+        parent_block.leading_expressions.contains(&expression_id)
+    }
+
+    /// Return whether one expression is statement-position inside one parent declaration.
+    fn expression_is_in_statement_position_inside_parent_declaration(
+        &self,
+        parent_declaration_id: LocalNodeId<Declaration>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let parent_declaration = self.get(parent_declaration_id);
+
+        match parent_declaration {
+            // module style declaration bodies host statement sequences
+            Declaration::Function {
+                body, signature, ..
+            } => body.as_ref().is_some_and(|body_expression_id| {
+                body_expression_id.id == expression_id.id
+                    && self.function_body_is_statement_position(signature.mode)
+            }),
+            Declaration::Global { expressions, .. }
+            | Declaration::Namespace { expressions, .. } => expressions.contains(&expression_id),
+
+            // everything else treats child expressions as operands
+            _ => false,
+        }
+    }
+
+    /// Return whether one expression is statement-position inside one parent member.
+    fn expression_is_in_statement_position_inside_parent_member(
+        &self,
+        parent_member_id: LocalNodeId<Member>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let parent_member = self.get(parent_member_id);
+
+        match parent_member {
+            Member::Method { body, .. } => body
+                .as_ref()
+                .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
+            Member::StaticBlock { body, .. } | Member::ComptimeBlock { body, .. } => {
+                body.id == expression_id.id
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether one expression is statement-position inside one parent property.
+    fn expression_is_in_statement_position_inside_parent_property(
+        &self,
+        parent_property_id: LocalNodeId<Property>,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let parent_property = self.get(parent_property_id);
+
+        match parent_property {
+            Property::Method { body, .. } => body
+                .as_ref()
+                .is_some_and(|body_expression_id| body_expression_id.id == expression_id.id),
+            _ => false,
+        }
+    }
+
+    /// Return whether one `if` branch should inherit statement position.
+    fn if_condition_inherits_statement_position(&self, condition: &IfCondition) -> bool {
+        match condition {
+            IfCondition::Let { .. } => false,
+            IfCondition::Expression { condition } => {
+                !matches!(self.get(*condition), Expression::Comptime { .. })
+            }
+        }
+    }
+
+    /// Return whether one function body should behave as statement-position.
+    fn function_body_is_statement_position(&self, mode: Option<FunctionMode>) -> bool {
+        if matches!(mode, Some(FunctionMode::Constructor | FunctionMode::Setter)) {
+            return true;
+        }
+
+        true
     }
 
     /// Get the AST id of a node by its DIR node id.
