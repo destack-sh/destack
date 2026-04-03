@@ -799,7 +799,7 @@ pub(crate) enum ProcessHarnessHandle {
 
 impl ProcessHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(ProcessHarnessContext<'call>) -> R,
     {
@@ -827,7 +827,7 @@ impl ProcessHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(ProcessHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -839,12 +839,12 @@ impl ProcessHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&ProcessHarnessHandle),
+    F: FnMut(&mut ProcessHarnessHandle),
 {
-    let native = ProcessHarnessHandle::Native(NativeProcessHarness::new());
-    callback(&native);
-    let vm = ProcessHarnessHandle::Vm(VmProcessHarness::new());
-    callback(&vm);
+    let mut native = ProcessHarnessHandle::Native(NativeProcessHarness::new());
+    callback(&mut native);
+    let mut vm = ProcessHarnessHandle::Vm(VmProcessHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

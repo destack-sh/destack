@@ -17,8 +17,7 @@ use crate::runtime::engine::EngineImage;
 use crate::runtime::scheduler::EventLoopSnapshot;
 use crate::runtime::trace::{Outcome, TraceRecord};
 use crate::runtime::world::{
-    Image, ObservationCategory, ObservationRecord as ObservationLogEntry, Revision, World,
-    WorldEdge, WorldEntity,
+    Image, ObservationCategory, ObservationRecord, Revision, World, WorldEdge, WorldEntity,
 };
 use postcard::to_allocvec;
 
@@ -86,7 +85,6 @@ impl RuntimeDescriptorCodec {
     pub(crate) fn world_view_entry(entry: WorldViewEntry) -> PinnedWorldView {
         PinnedWorldView {
             world_handle: RuntimeHandleCodec::encode_world_handle(entry.world_handle_id),
-            world: entry.world,
             labels: entry.labels.labels,
             revision: entry.revision,
             image: entry.image,
@@ -330,7 +328,7 @@ impl RuntimeDescriptorCodec {
         })?;
 
         Ok(HeapDescriptor {
-            heap_bytes: agent.heap_image.local_allocation_bytes(),
+            heap_bytes: agent.heap_image.local_allocated_bytes(),
             page_count,
             shared_page_count,
             gc_cycles: agent.heap_image.managed_gc_state().cycles,
@@ -410,23 +408,10 @@ impl RuntimeDescriptorCodec {
     }
 
     /// Build one owned image descriptor from runtime state.
-    pub(crate) fn image_descriptor(world: &World, image: &Image) -> RuntimeResult<ImageDescriptor> {
-        let revision_id = world
-            .revision_ids()
-            .into_iter()
-            .find_map(|revision_id| {
-                world
-                    .revision_info(revision_id)
-                    .ok()
-                    .filter(|revision| revision.image_id == image.id)
-                    .map(|_| revision_id)
-            })
-            .ok_or_else(|| {
-                RuntimeError::InconsistentImage {
-                    detail: format!("image {} is not linked to one revision", image.id.get()),
-                }
-                .boxed()
-            })?;
+    pub(crate) fn image_descriptor(
+        revision_id: runtime::world::RevisionId,
+        image: &Image,
+    ) -> RuntimeResult<ImageDescriptor> {
         let (shared_bytes, _) = World::image_size_and_hash(image)?;
 
         Ok(ImageDescriptor {
@@ -523,7 +508,7 @@ impl RuntimeDescriptorCodec {
 
     /// Build owned observation records from world observation events.
     pub(crate) fn observation_records(
-        records: Vec<ObservationLogEntry>,
+        records: Vec<ObservationRecord>,
     ) -> RuntimeResult<Vec<ObservationRecordValue>> {
         records
             .into_iter()

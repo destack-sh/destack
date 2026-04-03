@@ -15,7 +15,7 @@ use crate::platform::display::unix::appkit::model::{AppKitWindowHostState, Monit
 use crate::platform::display::unix::appkit::window;
 use crate::platform::resource::InputTextSessionHandle;
 use crate::platform::{ResourceTable, core as core_platform, resource};
-use crate::runtime::world::World;
+use crate::runtime::world::WorldRef;
 use crate::runtime::{
     BindingCallContext, RuntimeEventLog, RuntimeSnapshotCache, RuntimeStreamRegistry,
 };
@@ -60,7 +60,7 @@ unsafe impl Sync for AppKitResourceTableRef {}
 
 /// Callback-safe reference to the owning runtime world.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct AppKitWorldRef(*const World);
+pub(crate) struct AppKitWorldRef(*const WorldRef);
 
 unsafe impl Send for AppKitWorldRef {}
 unsafe impl Sync for AppKitWorldRef {}
@@ -263,7 +263,7 @@ impl AppKitRuntimeState {
     }
 
     /// Borrow the runtime world captured by this runtime.
-    pub(crate) fn world(&self) -> &World {
+    pub(crate) fn world(&self) -> &WorldRef {
         // safety: the world outlives the runtime state for the lifetime of the agent
         unsafe { &*self.world.0 }
     }

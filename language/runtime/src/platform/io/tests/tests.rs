@@ -450,7 +450,7 @@ pub(crate) enum IoHarnessHandle {
 
 /// Return whether the VM exposes the io binding surface yet.
 fn vm_io_bindings_are_available() -> bool {
-    let harness = IoHarnessHandle::Vm(VmIoHarness::new());
+    let mut harness = IoHarnessHandle::Vm(VmIoHarness::new());
 
     harness
         .with_context(|mut context| -> RuntimeResult<bool> {
@@ -473,7 +473,7 @@ fn vm_io_bindings_are_available() -> bool {
 
 impl IoHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(IoHarnessContext<'call>) -> R,
     {
@@ -501,7 +501,7 @@ impl IoHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(IoHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -513,15 +513,15 @@ impl IoHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&IoHarnessHandle),
+    F: FnMut(&mut IoHarnessHandle),
 {
-    let native = IoHarnessHandle::Native(NativeIoHarness::new());
-    callback(&native);
+    let mut native = IoHarnessHandle::Native(NativeIoHarness::new());
+    callback(&mut native);
 
     // skip the vm lane until platform.io is actually implemented there
     if vm_io_bindings_are_available() {
-        let vm = IoHarnessHandle::Vm(VmIoHarness::new());
-        callback(&vm);
+        let mut vm = IoHarnessHandle::Vm(VmIoHarness::new());
+        callback(&mut vm);
     }
 }
 
@@ -1302,7 +1302,7 @@ fn test_io_event_attach_accepts_known_target() {
 #[test]
 fn test_io_event_attachment_state_is_runtime_scoped() {
     // native runtime pair
-    let native_first = IoHarnessHandle::Native(NativeIoHarness::new());
+    let mut native_first = IoHarnessHandle::Native(NativeIoHarness::new());
     native_first
         .with_context(|mut context| -> RuntimeResult<()> {
             let token = context.destack_io_event_open(0)?;
@@ -1313,7 +1313,7 @@ fn test_io_event_attachment_state_is_runtime_scoped() {
         })
         .expect("first native runtime setup should succeed");
 
-    let native_second = IoHarnessHandle::Native(NativeIoHarness::new());
+    let mut native_second = IoHarnessHandle::Native(NativeIoHarness::new());
     native_second
         .with_context(|mut context| -> RuntimeResult<()> {
             let token = context.destack_io_event_open(0)?;
@@ -1332,7 +1332,7 @@ fn test_io_event_attachment_state_is_runtime_scoped() {
 
     // vm runtime pair
     if vm_io_bindings_are_available() {
-        let vm_first = IoHarnessHandle::Vm(VmIoHarness::new());
+        let mut vm_first = IoHarnessHandle::Vm(VmIoHarness::new());
         vm_first
             .with_context(|mut context| -> RuntimeResult<()> {
                 let token = context.destack_io_event_open(0)?;
@@ -1343,7 +1343,7 @@ fn test_io_event_attachment_state_is_runtime_scoped() {
             })
             .expect("first vm runtime setup should succeed");
 
-        let vm_second = IoHarnessHandle::Vm(VmIoHarness::new());
+        let mut vm_second = IoHarnessHandle::Vm(VmIoHarness::new());
         vm_second
             .with_context(|mut context| -> RuntimeResult<()> {
                 let token = context.destack_io_event_open(0)?;

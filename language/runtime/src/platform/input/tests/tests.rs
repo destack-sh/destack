@@ -69,7 +69,7 @@ pub(crate) enum InputHarnessHandle {
 
 impl InputHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(InputHarnessContext<'call>) -> R,
     {
@@ -97,7 +97,7 @@ impl InputHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(InputHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -109,12 +109,12 @@ impl InputHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&InputHarnessHandle),
+    F: FnMut(&mut InputHarnessHandle),
 {
-    let native = InputHarnessHandle::Native(NativeInputHarness::new());
-    callback(&native);
-    let vm = InputHarnessHandle::Vm(VmInputHarness::new());
-    callback(&vm);
+    let mut native = InputHarnessHandle::Native(NativeInputHarness::new());
+    callback(&mut native);
+    let mut vm = InputHarnessHandle::Vm(VmInputHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

@@ -86,7 +86,7 @@ pub(crate) enum CryptoHarnessHandle {
 
 impl CryptoHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(CryptoHarnessContext<'call>) -> R,
     {
@@ -116,7 +116,7 @@ impl CryptoHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(CryptoHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -129,7 +129,7 @@ impl CryptoHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&CryptoHarnessHandle),
+    F: FnMut(&mut CryptoHarnessHandle),
 {
     // serialize crypto test harness runs to avoid host keychain contention
     let _lock_guard = CRYPTO_TEST_LOCK
@@ -137,12 +137,12 @@ where
         .expect("crypto test lock should not be poisoned");
 
     // execute callback against native bindings
-    let native = CryptoHarnessHandle::Native(NativeCryptoHarness::new());
-    callback(&native);
+    let mut native = CryptoHarnessHandle::Native(NativeCryptoHarness::new());
+    callback(&mut native);
 
     // execute callback against vm bindings
-    let vm = CryptoHarnessHandle::Vm(VmCryptoHarness::new());
-    callback(&vm);
+    let mut vm = CryptoHarnessHandle::Vm(VmCryptoHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

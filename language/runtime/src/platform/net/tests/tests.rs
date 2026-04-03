@@ -15,11 +15,11 @@ use crate::platform::abi::NativeSlice;
 use crate::platform::fs::{
     OsPath, OsPathBytesVm, OsPathUtf16Vm, OsPathVm, PathBytesAbi, PathUtf16Abi,
 };
-use crate::platform::resource::SocketHandle;
+use crate::platform::resource::{ListenerHandle, ResourceKind, SocketHandle};
 use crate::platform::{
     NativeArray, PlatformError, VmArray, VmSlice, VmValueCodec, net as platform_net,
 };
-use crate::runtime::BindingCallContext;
+use crate::runtime::{Agent, BindingCallContext};
 #[cfg(windows)]
 pub(crate) use crate::tests::platform::assert_not_supported_result;
 pub(crate) use crate::tests::platform::{
@@ -34,12 +34,145 @@ use platform_net::{
 
 /// Network harness context used by tests.
 pub(crate) struct NetHarnessContext<'call> {
-    /// Runtime backing this harness.
-    pub(super) runtime: &'call TestRuntime,
     /// Runtime call context active for this operation.
     pub(super) call_context: &'call BindingCallContext,
     /// VM context when running VM bindings.
     pub(super) vm_context: Option<*mut ()>,
+}
+
+/// Read the port assigned to one listener handle.
+#[cfg(unix)]
+pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
+    let fd = agent
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Listener {
+                return None;
+            }
+            entry.fd()
+        })
+        .flatten()
+        .expect("listener handle must be valid");
+
+    let mut storage = std::mem::MaybeUninit::<libc::sockaddr_storage>::uninit();
+    let mut length = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
+    let result = unsafe { libc::getsockname(fd, storage.as_mut_ptr() as *mut _, &mut length) };
+    assert_eq!(result, 0, "getsockname failed");
+    let storage = unsafe { storage.assume_init() };
+
+    match storage.ss_family as libc::c_int {
+        libc::AF_INET => {
+            let address = unsafe { &*(std::ptr::addr_of!(storage) as *const libc::sockaddr_in) };
+            u16::from_be(address.sin_port)
+        }
+        libc::AF_INET6 => {
+            let address = unsafe { &*(std::ptr::addr_of!(storage) as *const libc::sockaddr_in6) };
+            u16::from_be(address.sin6_port)
+        }
+        _ => panic!("unsupported listener address family"),
+    }
+}
+
+/// Read the port assigned to one listener handle.
+#[cfg(windows)]
+pub(super) fn listener_port(agent: &Agent, handle: ListenerHandle) -> u16 {
+    use windows_sys::Win32::Networking::WinSock::{
+        AF_INET, AF_INET6, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6, SOCKADDR_STORAGE, SOCKET,
+        getsockname,
+    };
+
+    let socket = agent
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Listener {
+                return None;
+            }
+            entry.socket()
+        })
+        .flatten()
+        .expect("listener handle must be valid") as SOCKET;
+
+    let mut storage = std::mem::MaybeUninit::<SOCKADDR_STORAGE>::uninit();
+    let mut length = std::mem::size_of::<SOCKADDR_STORAGE>() as i32;
+    let result = unsafe { getsockname(socket, storage.as_mut_ptr() as *mut SOCKADDR, &mut length) };
+    assert_eq!(result, 0, "getsockname failed");
+    let storage = unsafe { storage.assume_init() };
+
+    match storage.ss_family as i32 {
+        value if value == AF_INET as i32 => {
+            let address = unsafe { &*(std::ptr::addr_of!(storage) as *const SOCKADDR_IN) };
+            u16::from_be(address.sin_port)
+        }
+        value if value == AF_INET6 as i32 => {
+            let address = unsafe { &*(std::ptr::addr_of!(storage) as *const SOCKADDR_IN6) };
+            u16::from_be(address.sin6_port)
+        }
+        _ => panic!("unsupported listener address family"),
+    }
+}
+
+/// Return whether one socket handle is in nonblocking mode.
+#[cfg(unix)]
+pub(super) fn socket_is_nonblocking(agent: &Agent, handle: SocketHandle) -> bool {
+    let fd = agent
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Socket {
+                return None;
+            }
+            entry.fd()
+        })
+        .flatten()
+        .expect("socket handle must be valid");
+
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    assert!(flags >= 0, "fcntl(F_GETFL) failed");
+
+    (flags & libc::O_NONBLOCK) != 0
+}
+
+/// Return whether one socket handle is close-on-exec or non-inheritable.
+#[cfg(unix)]
+pub(super) fn socket_is_close_on_exec(agent: &Agent, handle: SocketHandle) -> bool {
+    let fd = agent
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Socket {
+                return None;
+            }
+            entry.fd()
+        })
+        .flatten()
+        .expect("socket handle must be valid");
+
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    assert!(flags >= 0, "fcntl(F_GETFD) failed");
+
+    (flags & libc::FD_CLOEXEC) != 0
+}
+
+/// Return whether one socket handle is close-on-exec or non-inheritable.
+#[cfg(windows)]
+pub(super) fn socket_is_close_on_exec(agent: &Agent, handle: SocketHandle) -> bool {
+    use windows_sys::Win32::Foundation::{GetHandleInformation, HANDLE_FLAG_INHERIT};
+    use windows_sys::Win32::Networking::WinSock::SOCKET;
+
+    let socket = agent
+        .resources
+        .with_entry(handle.0, |entry| {
+            if entry.kind != ResourceKind::Socket {
+                return None;
+            }
+            entry.socket()
+        })
+        .flatten()
+        .expect("socket handle must be valid") as SOCKET;
+
+    let mut flags = 0u32;
+    let result = unsafe { GetHandleInformation(socket as isize, &mut flags) };
+    assert_ne!(result, 0, "GetHandleInformation failed");
+
+    (flags & HANDLE_FLAG_INHERIT) == 0
 }
 
 /// Native network harness backed by native bindings.
@@ -100,7 +233,7 @@ pub(crate) enum NetHarnessHandle {
 
 impl NetHarnessHandle {
     /// Run a native or VM call context around the callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(NetHarnessContext<'call>) -> R,
     {
@@ -108,7 +241,6 @@ impl NetHarnessHandle {
             NetHarnessHandle::Native(harness) => {
                 harness.runtime.with_native_call_context(|call_context| {
                     callback(NetHarnessContext {
-                        runtime: &harness.runtime,
                         call_context,
                         vm_context: None,
                     })
@@ -120,7 +252,6 @@ impl NetHarnessHandle {
                     .with_vm_call_context(|call_context, vm_context| {
                         let vm_context = vm_context as *mut vm::ExternalCallContext<'_> as *mut ();
                         callback(NetHarnessContext {
-                            runtime: &harness.runtime,
                             call_context,
                             vm_context: Some(vm_context),
                         })
@@ -130,7 +261,7 @@ impl NetHarnessHandle {
     }
 
     /// Run a test callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(NetHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -142,12 +273,12 @@ impl NetHarnessHandle {
 /// Run a test against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&NetHarnessHandle),
+    F: FnMut(&mut NetHarnessHandle),
 {
-    let native = NetHarnessHandle::Native(NativeNetHarness::new());
-    callback(&native);
-    let vm = NetHarnessHandle::Vm(VmNetHarness::new());
-    callback(&vm);
+    let mut native = NetHarnessHandle::Native(NativeNetHarness::new());
+    callback(&mut native);
+    let mut vm = NetHarnessHandle::Vm(VmNetHarness::new());
+    callback(&mut vm);
 }
 
 /// Run a test callback against both harness contexts.

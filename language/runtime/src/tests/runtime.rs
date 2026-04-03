@@ -16,18 +16,16 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::random::{
     RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
 };
-#[cfg(test)]
-use crate::platform::resource::SocketHandle;
-#[cfg(test)]
-use crate::platform::resource::{ListenerHandle, ResourceKind};
+use crate::runtime::bindings::BindingEngine;
 use crate::runtime::{
-    Agent, BindingCallContext, World, enter_binding_call_context, enter_current_agent_context,
+    Agent, BindingCallContext, World, WorldRef, enter_binding_call_context,
+    enter_current_agent_context,
 };
 
 /// Runtime harness for runtime tests.
 pub(crate) struct TestRuntime {
-    /// Shared world that owns the agent lifetime.
-    world: std::sync::Arc<World>,
+    /// World that owns the agent lifetime.
+    world: World,
     /// Agent under test.
     pub agent: Box<Agent>,
     /// Host under test.
@@ -109,7 +107,7 @@ impl TestRuntime {
         is_native_ingress_enabled: bool,
     ) -> Self {
         // build runtime state from explicit options
-        let world = World::from_options(&options).expect("runtime test world should build");
+        let mut world = World::from_options(&options).expect("runtime test world should build");
 
         // agent execution isolate
         let agent_tree = NodeTree::new();
@@ -117,8 +115,10 @@ impl TestRuntime {
         let agent_engine =
             vm::Isolate::build(agent_tree, agent_strings).expect("agent engine should build");
 
-        let mut agent = Agent::new_in_world(Vec::new(), &options, &world, Box::new(agent_engine))
-            .expect("runtime test agent should build");
+        let world_ref = world.world_ref();
+        let mut agent =
+            Agent::new_in_world(Vec::new(), &options, &world_ref, Box::new(agent_engine))
+                .expect("runtime test agent should build");
         let host = if is_native_ingress_enabled {
             HostSession::from_runtime_options(&options, agent.runtime_id)
         } else {
@@ -151,28 +151,31 @@ impl TestRuntime {
 
     /// Execute a native binding within a runtime call context.
     pub(crate) fn with_native_call_context<T>(
-        &self,
+        &mut self,
         run: impl FnOnce(&BindingCallContext) -> T,
     ) -> T {
+        let world = self.world_ref();
+
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
         let host = &self.host as *const HostSession;
-        let world = self.world.as_ref() as *const World;
+        let world_ptr = &world as *const _;
         let _agent_guard = enter_current_agent_context(
             runtime,
             event_loop,
             host,
-            world,
+            world_ptr,
             self.host.is_process_main_context(),
         );
 
         // enter a native call context for the binding
-        let call_context = BindingCallContext::new(
-            &self.agent,
-            self.agent.event_loop.as_ref(),
-            &self.host,
-            &self.world,
+        let call_context = BindingCallContext::from_raw(
+            self.agent.as_ref() as *const Agent,
+            self.agent.event_loop.as_ref() as *const _,
+            &self.host as *const HostSession,
+            &world as *const WorldRef,
+            BindingEngine::Native,
         );
         let _guard = enter_binding_call_context(&call_context);
 
@@ -190,19 +193,21 @@ impl TestRuntime {
 
     /// Execute a VM binding within a runtime call context.
     pub(crate) fn with_vm_call_context<T>(
-        &self,
+        &mut self,
         run: impl for<'ctx> FnOnce(&BindingCallContext, &mut vm::ExternalCallContext<'ctx>) -> T,
     ) -> T {
+        let world = self.world_ref();
+
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
         let host = &self.host as *const HostSession;
-        let world = self.world.as_ref() as *const World;
+        let world_ptr = &world as *const _;
         let _agent_guard = enter_current_agent_context(
             runtime,
             event_loop,
             host,
-            world,
+            world_ptr,
             self.host.is_process_main_context(),
         );
 
@@ -212,36 +217,46 @@ impl TestRuntime {
         let mut shared = self.vm_shared.borrow_mut();
         let mut memory = vm::MemoryContext::new(&mut heap, &mut shared);
         isolate.with_runtime_context(&mut memory, |context| {
-            let call_context = BindingCallContext::new(
-                &self.agent,
-                self.agent.event_loop.as_ref(),
-                &self.host,
-                &self.world,
+            let call_context = BindingCallContext::from_raw(
+                self.agent.as_ref() as *const Agent,
+                self.agent.event_loop.as_ref() as *const _,
+                &self.host as *const HostSession,
+                &world as *const WorldRef,
+                BindingEngine::Vm,
             );
             let _guard = enter_binding_call_context(&call_context);
             run(&call_context, context)
         })
     }
 
+    /// Borrow one execution view from the owned test world.
+    fn world_ref(&mut self) -> WorldRef {
+        self.world.world_ref()
+    }
+
     /// Execute the native random binding with deterministic runtime state.
     #[cfg(test)]
-    pub(crate) fn call_native_next_u64(&self) -> RuntimeResult<u64> {
-        self.with_native_call_context(|_| {
+    pub(crate) fn call_native_next_u64(&mut self) -> RuntimeResult<u64> {
+        let (status, out) = self.with_native_call_context(|_| {
             let mut out = 0u64;
             let status = unsafe { destack_random_stream_next_u64(&mut out) };
-            self.status_value(status, "random stream nextU64", out)
-        })
+            (status, out)
+        });
+
+        self.status_value(status, "random stream nextU64", out)
     }
 
     /// Execute the native stream binding with deterministic runtime state.
     #[cfg(test)]
-    pub(crate) fn call_native_next_u64_from(&self, stream: u64) -> RuntimeResult<u64> {
-        self.with_native_call_context(|_| {
+    pub(crate) fn call_native_next_u64_from(&mut self, stream: u64) -> RuntimeResult<u64> {
+        let (status, out) = self.with_native_call_context(|_| {
             let mut out = 0u64;
             let status =
                 unsafe { destack_random_stream_next_u64_from(&mut out, RandomStream(stream)) };
-            self.status_value(status, "random stream nextU64From", out)
-        })
+            (status, out)
+        });
+
+        self.status_value(status, "random stream nextU64From", out)
     }
 
     /// Convert a native status and value into a runtime result.
@@ -279,148 +294,6 @@ impl TestRuntime {
             });
 
         Err(error)
-    }
-
-    /// Read the port assigned to a listener handle.
-    #[cfg(unix)]
-    #[cfg(test)]
-    pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
-        let fd = self
-            .agent
-            .resources
-            .with_entry(handle.0, |entry| {
-                if entry.kind != ResourceKind::Listener {
-                    return None;
-                }
-                entry.fd()
-            })
-            .flatten()
-            .expect("listener handle must be valid");
-
-        let mut storage = std::mem::MaybeUninit::<libc::sockaddr_storage>::uninit();
-        let mut length = std::mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
-        let rc = unsafe { libc::getsockname(fd, storage.as_mut_ptr() as *mut _, &mut length) };
-        assert_eq!(rc, 0, "getsockname failed");
-        let storage = unsafe { storage.assume_init() };
-        match storage.ss_family as libc::c_int {
-            libc::AF_INET => {
-                let addr = unsafe { &*(std::ptr::addr_of!(storage) as *const libc::sockaddr_in) };
-                u16::from_be(addr.sin_port)
-            }
-            libc::AF_INET6 => {
-                let addr = unsafe { &*(std::ptr::addr_of!(storage) as *const libc::sockaddr_in6) };
-                u16::from_be(addr.sin6_port)
-            }
-            _ => panic!("unsupported listener address family"),
-        }
-    }
-
-    /// Return whether one socket handle is in nonblocking mode.
-    #[cfg(unix)]
-    #[cfg(test)]
-    pub(crate) fn socket_is_nonblocking(&self, handle: SocketHandle) -> bool {
-        let fd = self
-            .agent
-            .resources
-            .with_entry(handle.0, |entry| {
-                if entry.kind != ResourceKind::Socket {
-                    return None;
-                }
-                entry.fd()
-            })
-            .flatten()
-            .expect("socket handle must be valid");
-
-        let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
-        assert!(flags >= 0, "fcntl(F_GETFL) failed");
-
-        (flags & libc::O_NONBLOCK) != 0
-    }
-
-    /// Return whether one socket handle is close-on-exec.
-    #[cfg(unix)]
-    #[cfg(test)]
-    pub(crate) fn socket_is_close_on_exec(&self, handle: SocketHandle) -> bool {
-        let fd = self
-            .agent
-            .resources
-            .with_entry(handle.0, |entry| {
-                if entry.kind != ResourceKind::Socket {
-                    return None;
-                }
-                entry.fd()
-            })
-            .flatten()
-            .expect("socket handle must be valid");
-
-        let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
-        assert!(flags >= 0, "fcntl(F_GETFD) failed");
-
-        (flags & libc::FD_CLOEXEC) != 0
-    }
-
-    /// Read the port assigned to a listener handle.
-    #[cfg(windows)]
-    pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
-        use windows_sys::Win32::Networking::WinSock::{
-            AF_INET, AF_INET6, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6, SOCKADDR_STORAGE, SOCKET,
-            getsockname,
-        };
-
-        let socket = self
-            .agent
-            .resources
-            .with_entry(handle.0, |entry| {
-                if entry.kind != ResourceKind::Listener {
-                    return None;
-                }
-                entry.socket()
-            })
-            .flatten()
-            .expect("listener handle must be valid") as SOCKET;
-
-        let mut storage = std::mem::MaybeUninit::<SOCKADDR_STORAGE>::uninit();
-        let mut length = std::mem::size_of::<SOCKADDR_STORAGE>() as i32;
-        let rc = unsafe { getsockname(socket, storage.as_mut_ptr() as *mut SOCKADDR, &mut length) };
-        assert_eq!(rc, 0, "getsockname failed");
-        let storage = unsafe { storage.assume_init() };
-        match storage.ss_family as i32 {
-            value if value == AF_INET as i32 => {
-                let addr = unsafe { &*(std::ptr::addr_of!(storage) as *const SOCKADDR_IN) };
-                u16::from_be(addr.sin_port)
-            }
-            value if value == AF_INET6 as i32 => {
-                let addr = unsafe { &*(std::ptr::addr_of!(storage) as *const SOCKADDR_IN6) };
-                u16::from_be(addr.sin6_port)
-            }
-            _ => panic!("unsupported listener address family"),
-        }
-    }
-
-    /// Return whether one socket handle is close-on-exec or non-inheritable.
-    #[cfg(windows)]
-    #[cfg(test)]
-    pub(crate) fn socket_is_close_on_exec(&self, handle: SocketHandle) -> bool {
-        use windows_sys::Win32::Foundation::{GetHandleInformation, HANDLE_FLAG_INHERIT};
-        use windows_sys::Win32::Networking::WinSock::SOCKET;
-
-        let socket = self
-            .agent
-            .resources
-            .with_entry(handle.0, |entry| {
-                if entry.kind != ResourceKind::Socket {
-                    return None;
-                }
-                entry.socket()
-            })
-            .flatten()
-            .expect("socket handle must be valid") as SOCKET;
-
-        let mut flags = 0u32;
-        let rc = unsafe { GetHandleInformation(socket as isize, &mut flags) };
-        assert_ne!(rc, 0, "GetHandleInformation failed");
-
-        (flags & HANDLE_FLAG_INHERIT) == 0
     }
 }
 

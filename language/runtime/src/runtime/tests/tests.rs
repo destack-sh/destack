@@ -27,7 +27,7 @@ use crate::runtime::scheduler::{
 };
 use crate::runtime::time::{HostClockSource, Nanos};
 use crate::runtime::world::{Branch, CheckpointId, RevisionId, WorldEntityKindDefinition};
-use crate::runtime::{Agent, AgentId, DropCounts, RuntimeId, TickOutcome, World};
+use crate::runtime::{Agent, AgentId, DropCounts, RuntimeId, TickOutcome, World, WorldRef};
 
 /// Scripted host clock source for deterministic host-time runtime tests.
 #[derive(Debug, Default)]
@@ -431,8 +431,8 @@ impl AllocatingEngine {
 /// Test harness for agent scheduling tests.
 #[derive(Debug)]
 pub(super) struct TestRuntime {
-    /// Shared world that owns the agent lifetime.
-    world: Arc<World>,
+    /// Test world that owns the agent lifetime.
+    world: World,
     /// Wrapped agent under test.
     agent: Agent,
     /// Wrapped host under test.
@@ -442,17 +442,17 @@ pub(super) struct TestRuntime {
 /// Test harness for multi-agent runtime scheduler tests.
 #[derive(Debug)]
 pub(super) struct TestMultiAgentRuntime {
-    /// Shared world that owns the runtime lifetime.
-    world: Arc<World>,
+    /// Test world that owns the runtime lifetime.
+    world: World,
     /// Wrapped runtime identity under test.
     runtime_id: RuntimeId,
 }
 
 /// Test harness for world-level runtime and lineage tests.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(super) struct TestWorld {
     /// Wrapped world under test.
-    world: Arc<World>,
+    world: World,
 }
 
 /// Scripted poller for runtime ingress tests.
@@ -470,11 +470,11 @@ impl TestPoller {
 }
 
 impl TestWorld {
-    #[allow(clippy::arc_with_non_send_sync)]
     /// Create one world with default runtime options.
     pub(super) fn new() -> Self {
         Self {
-            world: Arc::new(World::default()),
+            world: World::from_options(&RuntimeOptions::default())
+                .expect("runtime test world should build"),
         }
     }
 
@@ -485,14 +485,19 @@ impl TestWorld {
         Self { world }
     }
 
-    /// Wrap one existing shared world.
-    pub(super) fn from_world(world: Arc<World>) -> Self {
+    /// Wrap one existing world.
+    pub(super) fn from_world(world: World) -> Self {
         Self { world }
     }
 
     /// Borrow the wrapped world.
-    pub(super) fn world(&self) -> Arc<World> {
-        Arc::clone(&self.world)
+    pub(super) fn world(&self) -> &World {
+        &self.world
+    }
+
+    /// Borrow the wrapped world mutably for test-only helpers.
+    pub(super) fn world_mut(&mut self) -> &mut World {
+        &mut self.world
     }
 
     /// Return the active branch metadata for the wrapped world.
@@ -510,135 +515,135 @@ impl TestWorld {
 
     /// Spawn one runtime with one explicit engine.
     pub(super) fn spawn_runtime(
-        &self,
+        &mut self,
         options: &RuntimeOptions,
         engine: impl Engine + 'static,
     ) -> RuntimeId {
-        self.world
+        self.world_mut()
             .spawn_runtime(Vec::new(), options, engine)
             .expect("runtime should spawn in world")
     }
 
     /// Spawn one VM-backed runtime.
-    pub(super) fn spawn_vm_runtime(&self, options: &RuntimeOptions) -> RuntimeId {
+    pub(super) fn spawn_vm_runtime(&mut self, options: &RuntimeOptions) -> RuntimeId {
         self.spawn_runtime(options, Self::vm_engine())
     }
 
     /// Return the primary agent id for one runtime.
     pub(super) fn primary_agent_id(&self, runtime_id: RuntimeId) -> AgentId {
         self.world
-            .with_runtime(runtime_id, |runtime| Ok(runtime.primary_agent_id()))
+            .runtime(runtime_id)
             .expect("runtime should exist")
+            .primary_agent_id()
     }
 
     /// Allocate one managed heap value in the primary agent VM isolate.
-    pub(super) fn allocate_vm_managed_value(&self, runtime_id: RuntimeId, value: heap::Value) {
-        self.world
-            .with_runtime_mut(runtime_id, |runtime| {
-                let agent_id = runtime.primary_agent_id();
-                let agent = runtime
-                    .agent_mut(agent_id)
-                    .expect("runtime should keep its primary agent");
-                let engine = &mut *agent.engine as &mut dyn std::any::Any;
-                let _isolate = engine
-                    .downcast_mut::<vm::Isolate>()
-                    .expect("agent should use a vm engine");
-                let bytes = value.to_byte_array();
-                let _ = agent
-                    .heap
-                    .allocate_managed_bytes(&bytes, heap::ReferenceMap::empty(), None)
-                    .expect("managed allocation should succeed");
-
-                Ok(())
-            })
-            .expect("vm heap mutation should succeed");
+    pub(super) fn allocate_vm_managed_value(&mut self, runtime_id: RuntimeId, value: heap::Value) {
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let agent_id = runtime.primary_agent_id();
+        let agent = runtime
+            .agent_mut(agent_id)
+            .expect("runtime should keep its primary agent");
+        let engine = &mut *agent.engine as &mut dyn std::any::Any;
+        let _isolate = engine
+            .downcast_mut::<vm::Isolate>()
+            .expect("agent should use a vm engine");
+        let bytes = value.to_byte_array();
+        let _ = agent
+            .heap
+            .allocate_managed_bytes(&bytes, heap::ReferenceMap::empty(), None)
+            .expect("managed allocation should succeed");
     }
 
     /// Allocate one managed heap value in the primary agent VM isolate.
-    pub(super) fn allocate_vm_heap_allocation(&self, runtime_id: RuntimeId) {
+    pub(super) fn allocate_vm_heap_allocation(&mut self, runtime_id: RuntimeId) {
         self.allocate_vm_managed_value(runtime_id, heap::Value::int32(7));
     }
 
     /// Return the managed heap allocation count for the primary agent VM isolate.
-    pub(super) fn vm_heap_allocation_count(&self, runtime_id: RuntimeId) -> usize {
-        self.world
-            .with_runtime_mut(runtime_id, |runtime| {
-                let agent_id = runtime.primary_agent_id();
-                let agent = runtime
-                    .agent_mut(agent_id)
-                    .expect("runtime should keep its primary agent");
+    pub(super) fn vm_heap_allocation_count(&mut self, runtime_id: RuntimeId) -> usize {
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let agent_id = runtime.primary_agent_id();
+        let agent = runtime
+            .agent_mut(agent_id)
+            .expect("runtime should keep its primary agent");
 
-                Ok(agent.heap.managed_allocation_count())
-            })
-            .expect("vm heap inspection should succeed")
+        agent.heap.managed_allocation_count()
     }
 
     /// Allocate one raw span in the primary agent heap.
     pub(super) fn allocate_vm_raw_bytes(
-        &self,
+        &mut self,
         runtime_id: RuntimeId,
         bytes: &[u8],
     ) -> heap::RawPointer {
-        self.world
-            .with_runtime_mut(runtime_id, |runtime| {
-                let agent_id = runtime.primary_agent_id();
-                let agent = runtime
-                    .agent_mut(agent_id)
-                    .expect("runtime should keep its primary agent");
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let agent_id = runtime.primary_agent_id();
+        let agent = runtime
+            .agent_mut(agent_id)
+            .expect("runtime should keep its primary agent");
 
-                let pointer = agent
-                    .heap
-                    .allocate_raw_bytes(bytes)
-                    .expect("raw heap allocation should succeed");
-
-                Ok(pointer)
-            })
+        agent
+            .heap
+            .allocate_raw_bytes(bytes)
             .expect("raw heap allocation should succeed")
     }
 
     /// Mutate one raw byte in the primary agent heap.
     pub(super) fn mutate_vm_raw_byte(
-        &self,
+        &mut self,
         runtime_id: RuntimeId,
         pointer: heap::RawPointer,
         index: usize,
         byte: u8,
     ) {
-        self.world
-            .with_runtime_mut(runtime_id, |runtime| {
-                let agent_id = runtime.primary_agent_id();
-                let agent = runtime
-                    .agent_mut(agent_id)
-                    .expect("runtime should keep its primary agent");
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let agent_id = runtime.primary_agent_id();
+        let agent = runtime
+            .agent_mut(agent_id)
+            .expect("runtime should keep its primary agent");
 
-                assert!(agent.heap.set_raw_byte(pointer, index, byte));
-                Ok(())
-            })
-            .expect("raw heap mutation should succeed");
+        assert!(agent.heap.set_raw_byte(pointer, index, byte));
     }
 
     /// Capture the primary agent heap image for one runtime.
-    pub(super) fn runtime_heap_image(&self, runtime_id: RuntimeId) -> heap::HeapImage {
-        self.world
-            .with_runtime_mut(runtime_id, |runtime| {
-                let agent_id = runtime.primary_agent_id();
-                let agent = runtime
-                    .agent_mut(agent_id)
-                    .expect("runtime should keep its primary agent");
+    pub(super) fn runtime_heap_image(&mut self, runtime_id: RuntimeId) -> heap::HeapImage {
+        let runtime = self
+            .world_mut()
+            .runtime_mut(runtime_id)
+            .expect("runtime should exist");
+        let agent_id = runtime.primary_agent_id();
+        let agent = runtime
+            .agent_mut(agent_id)
+            .expect("runtime should keep its primary agent");
 
-                agent.heap.image().map_err(|error| {
-                    crate::diagnostic::RuntimeError::Internal {
-                        message: format!("heap capture failed during world test: {error}"),
-                    }
-                    .boxed()
-                })
+        agent
+            .heap
+            .image()
+            .map_err(|error| {
+                crate::diagnostic::RuntimeError::Internal {
+                    message: format!("heap capture failed during world test: {error}"),
+                }
+                .boxed()
             })
             .expect("heap image capture should succeed")
     }
 
     /// Record one simple entity-kind topology mutation.
-    pub(super) fn record_world_entity_kind(&self, suffix: &str) {
-        self.world
+    pub(super) fn record_world_entity_kind(&mut self, suffix: &str) {
+        self.world_mut()
             .define_entity_kind(WorldEntityKindDefinition {
                 kind: format!("app.record.shared.{suffix}").into(),
                 labels: Default::default(),
@@ -648,21 +653,23 @@ impl TestWorld {
     }
 
     /// Commit one suspend revision for the wrapped world.
-    pub(super) fn suspend(&self) -> RevisionId {
-        self.world.suspend().expect("world suspend should succeed")
+    pub(super) fn suspend(&mut self) -> RevisionId {
+        self.world_mut()
+            .suspend()
+            .expect("world suspend should succeed")
     }
 
     /// Create one checkpoint on the wrapped world.
-    pub(super) fn checkpoint(&self, name: &str) -> CheckpointId {
-        self.world
+    pub(super) fn checkpoint(&mut self, name: &str) -> CheckpointId {
+        self.world_mut()
             .checkpoint(name)
             .expect("world checkpoint should succeed")
     }
 
     /// Fork one child world from one checkpoint.
-    pub(super) fn fork(&self, checkpoint_id: CheckpointId, name: &str) -> Self {
+    pub(super) fn fork(&mut self, checkpoint_id: CheckpointId, name: &str) -> Self {
         let world = self
-            .world
+            .world_mut()
             .fork(checkpoint_id, name)
             .expect("world fork should succeed");
 
@@ -802,6 +809,11 @@ impl TestRuntime {
             .expect("scheduler options should configure");
     }
 
+    /// Borrow one execution view from the wrapped world.
+    fn world_ref(&mut self) -> WorldRef {
+        self.world.world_ref()
+    }
+
     /// Return the exact live heap usage for this test agent.
     pub(super) fn heap_usage(&self) -> heap::HeapUsage {
         self.agent.heap.usage()
@@ -927,22 +939,28 @@ impl TestRuntime {
 
     /// Tick once and fail loudly on runtime errors.
     pub(super) fn tick(&mut self) -> bool {
+        let world = self.world_ref();
+
         self.agent
-            .tick(&self.world, &self.host)
+            .tick(&world, &self.host)
             .expect("tick should execute runtime work")
     }
 
     /// Tick until idle and fail loudly on runtime errors.
     pub(super) fn tick_until_idle(&mut self) {
+        let world = self.world_ref();
+
         self.agent
-            .tick_until_idle(&self.world, &self.host)
+            .tick_until_idle(&world, &self.host)
             .expect("tick until idle should complete");
     }
 
     /// Run one synthetic entrypoint and return the engine output.
     pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<ExecutionOutput> {
+        let world = self.world_ref();
+
         self.agent
-            .run_entrypoint(&self.world, &self.host, &Entry::new("test.entry"), &[])
+            .run_entrypoint(&world, &self.host, &Entry::new("test.entry"), &[])
     }
 
     /// Run until one task completes.
@@ -950,8 +968,10 @@ impl TestRuntime {
         &mut self,
         task_id: u64,
     ) -> RuntimeResult<ExecutionOutput> {
+        let world = self.world_ref();
+
         self.agent
-            .run_loop_until_task_complete(&self.world, &self.host, TaskId::new(task_id))
+            .run_loop_until_task_complete(&world, &self.host, TaskId::new(task_id))
     }
 
     /// Run until one task completes or one timeout elapses.
@@ -960,8 +980,10 @@ impl TestRuntime {
         task_id: u64,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<ExecutionOutput>> {
+        let world = self.world_ref();
+
         self.agent.run_loop_until_task_complete_with_timeout(
-            &self.world,
+            &world,
             &self.host,
             TaskId::new(task_id),
             timeout_nanos,
@@ -1010,19 +1032,16 @@ impl TestMultiAgentRuntime {
         options: &RuntimeOptions,
         engine: impl Engine + 'static,
     ) -> Self {
-        let world = World::from_options(options).expect("world should build");
+        let mut world = World::from_options(options).expect("world should build");
         let runtime_id = world
             .spawn_runtime(Vec::new(), options, engine)
             .expect("runtime should spawn");
         world
-            .with_runtime(runtime_id, |runtime| {
-                runtime
-                    .host()
-                    .poll_events(Some(0))
-                    .expect("host bootstrap events should drain");
-                Ok(())
-            })
-            .expect("runtime should exist");
+            .runtime(runtime_id)
+            .expect("runtime should exist")
+            .host()
+            .poll_events(Some(0))
+            .expect("host bootstrap events should drain");
 
         Self { world, runtime_id }
     }
@@ -1030,8 +1049,9 @@ impl TestMultiAgentRuntime {
     /// Return the primary agent id.
     pub(super) fn primary_agent_id(&self) -> AgentId {
         self.world
-            .with_runtime(self.runtime_id, |runtime| Ok(runtime.primary_agent_id()))
+            .runtime(self.runtime_id)
             .expect("runtime should exist")
+            .primary_agent_id()
     }
 
     /// Spawn one additional agent with one explicit engine and return its id.
@@ -1047,39 +1067,37 @@ impl TestMultiAgentRuntime {
         agent_id: AgentId,
         callback: impl FnOnce(&mut Agent) -> R,
     ) -> R {
-        self.world
-            .with_runtime_mut(self.runtime_id, |runtime| {
-                let agent = runtime
-                    .agent_mut(agent_id)
-                    .expect("agent should exist in runtime");
+        let runtime = self
+            .world
+            .runtime_mut(self.runtime_id)
+            .expect("runtime should exist");
+        let agent = runtime
+            .agent_mut(agent_id)
+            .expect("agent should exist in runtime");
 
-                Ok(callback(agent))
-            })
-            .expect("runtime should exist")
+        callback(agent)
     }
 
     /// Execute one runtime tick and fail loudly on runtime errors.
     pub(super) fn tick(&mut self) -> TickOutcome {
-        self.world
-            .tick_runtime(self.runtime_id)
-            .expect("runtime tick should succeed")
+        self.world.tick().expect("runtime tick should succeed")
     }
 
     /// Attach one explicit scripted poller.
     pub(super) fn set_poller(&mut self, poller: Box<dyn HostPoller>) {
-        self.world
-            .with_runtime_mut(self.runtime_id, |runtime| {
-                runtime.set_poller(poller);
-                Ok(())
-            })
+        let runtime = self
+            .world
+            .runtime_mut(self.runtime_id)
             .expect("runtime should exist");
+        runtime.set_poller(poller);
     }
 
     /// Return runtime-level drop accounting.
     pub(super) fn drop_counts(&self) -> DropCounts {
         self.world
-            .with_runtime(self.runtime_id, |runtime| Ok(runtime.drop_counts()))
+            .runtime(self.runtime_id)
             .expect("runtime should exist")
+            .drop_counts()
     }
 
     /// Return current world wall time in nanoseconds.
@@ -1087,9 +1105,14 @@ impl TestMultiAgentRuntime {
         self.world.wall_nanos()
     }
 
-    /// Borrow the shared world.
-    pub(crate) fn world(&self) -> Arc<World> {
-        self.world.clone()
+    /// Borrow the wrapped world.
+    pub(crate) fn world(&self) -> &World {
+        &self.world
+    }
+
+    /// Borrow the wrapped world mutably.
+    pub(crate) fn world_mut(&mut self) -> &mut World {
+        &mut self.world
     }
 
     /// Run one closure with one stored primary-agent engine by explicit type.
@@ -1105,19 +1128,20 @@ impl TestMultiAgentRuntime {
 
     /// Run one closure with one stored primary-agent engine by explicit type.
     pub(super) fn with_primary_engine<T: Engine, R>(&self, callback: impl FnOnce(&T) -> R) -> R {
-        self.world
-            .with_runtime(self.runtime_id, |runtime| {
-                let primary_agent_id = runtime.primary_agent_id();
-                let agent = runtime
-                    .agent(primary_agent_id)
-                    .expect("primary agent should exist");
-                let engine = agent.engine.as_ref() as &dyn std::any::Any;
-                let engine = engine
-                    .downcast_ref::<T>()
-                    .expect("agent engine should exist");
-                Ok(callback(engine))
-            })
-            .expect("runtime should exist")
+        let runtime = self
+            .world
+            .runtime(self.runtime_id)
+            .expect("runtime should exist");
+        let primary_agent_id = runtime.primary_agent_id();
+        let agent = runtime
+            .agent(primary_agent_id)
+            .expect("primary agent should exist");
+        let engine = agent.engine.as_ref() as &dyn std::any::Any;
+        let engine = engine
+            .downcast_ref::<T>()
+            .expect("agent engine should exist");
+
+        callback(engine)
     }
 
     /// Run one closure with one stored agent engine by explicit type.
@@ -1126,24 +1150,25 @@ impl TestMultiAgentRuntime {
         agent_id: AgentId,
         callback: impl FnOnce(&T) -> R,
     ) -> R {
-        self.world
-            .with_runtime(self.runtime_id, |runtime| {
-                let agent = runtime
-                    .agent(agent_id)
-                    .expect("agent should exist in runtime");
-                let engine = agent.engine.as_ref() as &dyn std::any::Any;
-                let engine = engine
-                    .downcast_ref::<T>()
-                    .expect("agent engine should exist");
-                Ok(callback(engine))
-            })
-            .expect("runtime should exist")
+        let runtime = self
+            .world
+            .runtime(self.runtime_id)
+            .expect("runtime should exist");
+        let agent = runtime
+            .agent(agent_id)
+            .expect("agent should exist in runtime");
+        let engine = agent.engine.as_ref() as &dyn std::any::Any;
+        let engine = engine
+            .downcast_ref::<T>()
+            .expect("agent engine should exist");
+
+        callback(engine)
     }
 }
 
 /// Build one agent configured for runtime tests.
 #[allow(dead_code)]
-fn agent_for_options(options: &RuntimeOptions) -> (Arc<World>, Agent, HostSession) {
+fn agent_for_options(options: &RuntimeOptions) -> (World, Agent, HostSession) {
     agent_for_options_with_engine(options, TestEngine::default())
 }
 
@@ -1152,7 +1177,7 @@ fn agent_for_options(options: &RuntimeOptions) -> (Arc<World>, Agent, HostSessio
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (Arc<World>, Agent, HostSession) {
+) -> (World, Agent, HostSession) {
     agent_for_options_with_engine_and_host_clock_source(
         options,
         TestEngine::default(),
@@ -1164,7 +1189,7 @@ fn agent_for_options_with_host_clock_source(
 fn agent_for_options_with_engine(
     options: &RuntimeOptions,
     engine: impl Engine + 'static,
-) -> (Arc<World>, Agent, HostSession) {
+) -> (World, Agent, HostSession) {
     agent_for_options_with_engine_and_host_clock_source(options, engine, None)
 }
 
@@ -1173,15 +1198,16 @@ fn agent_for_options_with_engine_and_host_clock_source(
     options: &RuntimeOptions,
     engine: impl Engine + 'static,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (Arc<World>, Agent, HostSession) {
-    let world = if let Some(host_clock_source) = host_clock_source.clone() {
+) -> (World, Agent, HostSession) {
+    let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
         World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
         World::from_options(options).expect("runtime test world should build")
     };
 
     // construct one runtime agent from explicit options
-    let mut agent = Agent::new_in_world(Vec::new(), options, &world, Box::new(engine))
+    let world_ref = world.world_ref();
+    let mut agent = Agent::new_in_world(Vec::new(), options, &world_ref, Box::new(engine))
         .expect("runtime test agent should build");
 
     // configure scheduler options for deterministic tests

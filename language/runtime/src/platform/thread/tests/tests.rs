@@ -149,7 +149,7 @@ impl ThreadHarnessHandle {
     }
 
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(ThreadHarnessContext<'call>) -> R,
     {
@@ -177,7 +177,7 @@ impl ThreadHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(ThreadHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -242,12 +242,12 @@ pub(crate) fn recv_wait_result(
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&ThreadHarnessHandle),
+    F: FnMut(&mut ThreadHarnessHandle),
 {
-    let native = ThreadHarnessHandle::Native(NativeThreadHarness::new());
-    callback(&native);
-    let vm = ThreadHarnessHandle::Vm(VmThreadHarness::new());
-    callback(&vm);
+    let mut native = ThreadHarnessHandle::Native(NativeThreadHarness::new());
+    callback(&mut native);
+    let mut vm = ThreadHarnessHandle::Vm(VmThreadHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

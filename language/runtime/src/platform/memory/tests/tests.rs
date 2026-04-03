@@ -63,7 +63,7 @@ pub(crate) enum MemoryHarnessHandle {
 
 impl MemoryHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(MemoryHarnessContext<'call>) -> R,
     {
@@ -92,7 +92,7 @@ impl MemoryHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(MemoryHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -105,15 +105,15 @@ impl MemoryHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&MemoryHarnessHandle),
+    F: FnMut(&mut MemoryHarnessHandle),
 {
     // execute callback against native harness
-    let native = MemoryHarnessHandle::Native(NativeMemoryHarness::new());
-    callback(&native);
+    let mut native = MemoryHarnessHandle::Native(NativeMemoryHarness::new());
+    callback(&mut native);
 
     // execute callback against vm harness
-    let vm = MemoryHarnessHandle::Vm(VmMemoryHarness::new());
-    callback(&vm);
+    let mut vm = MemoryHarnessHandle::Vm(VmMemoryHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

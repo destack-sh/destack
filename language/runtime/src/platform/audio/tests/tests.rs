@@ -63,7 +63,7 @@ pub(crate) enum AudioHarnessHandle {
 
 impl AudioHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(AudioHarnessContext<'call>) -> R,
     {
@@ -91,7 +91,7 @@ impl AudioHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(AudioHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -103,12 +103,12 @@ impl AudioHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&AudioHarnessHandle),
+    F: FnMut(&mut AudioHarnessHandle),
 {
-    let native = AudioHarnessHandle::Native(NativeAudioHarness::new());
-    callback(&native);
-    let vm = AudioHarnessHandle::Vm(VmAudioHarness::new());
-    callback(&vm);
+    let mut native = AudioHarnessHandle::Native(NativeAudioHarness::new());
+    callback(&mut native);
+    let mut vm = AudioHarnessHandle::Vm(VmAudioHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

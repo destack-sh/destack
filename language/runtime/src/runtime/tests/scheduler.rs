@@ -915,45 +915,31 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
 fn test_world_tick_drives_runtime() {
     // configure one explicit shared world and runtime
     let options = RuntimeOptions::default();
-    let world = World::from_options(&options).expect("world");
+    let mut world = World::from_options(&options).expect("world");
     let runtime_id = world
         .spawn_runtime(Vec::new(), &options, CompleteEngine::default())
         .expect("runtime should spawn");
-    let primary_agent_id = world
-        .with_runtime(runtime_id, |runtime| Ok(runtime.primary_agent_id()))
-        .expect("runtime should exist");
-
     // enqueue one native task on the primary agent
-    world
-        .with_runtime_mut(runtime_id, |runtime| {
-            let primary_agent_id = runtime.primary_agent_id();
-            let agent = runtime.agent_mut(primary_agent_id).expect("primary agent");
-            agent.event_loop.enqueue_task(Task {
-                id: TaskId::new(1),
-                runnable: LiveContinuation::Native(NativeContinuationHandle::new(
-                    continuation_handle(211),
-                )),
-                resume_value: heap::Value::VOID,
-                status: TaskStatus::Ready,
-                priority: 0,
-            });
-            Ok(())
-        })
-        .expect("task should enqueue");
+    let runtime = world.runtime_mut(runtime_id).expect("runtime should exist");
+    let primary_agent_id = runtime.primary_agent_id();
+    let agent = runtime.agent_mut(primary_agent_id).expect("primary agent");
+    agent.event_loop.enqueue_task(Task {
+        id: TaskId::new(1),
+        runnable: LiveContinuation::Native(NativeContinuationHandle::new(continuation_handle(211))),
+        resume_value: heap::Value::VOID,
+        status: TaskStatus::Ready,
+        priority: 0,
+    });
 
     // world tick should delegate through the runtime and execute the task
     assert_eq!(world.tick().expect("world tick"), TickOutcome::Progressed);
-    world
-        .with_runtime(runtime_id, |runtime| {
-            let agent = runtime.agent(primary_agent_id).expect("primary agent");
-            let engine = agent.engine.as_ref() as &dyn std::any::Any;
-            let engine = engine
-                .downcast_ref::<CompleteEngine>()
-                .expect("runtime engine should exist");
-            assert_eq!(engine.resume_calls, 1);
-            Ok(())
-        })
-        .expect("runtime should exist");
+    let runtime = world.runtime(runtime_id).expect("runtime should exist");
+    let agent = runtime.agent(primary_agent_id).expect("primary agent");
+    let engine = agent.engine.as_ref() as &dyn std::any::Any;
+    let engine = engine
+        .downcast_ref::<CompleteEngine>()
+        .expect("runtime engine should exist");
+    assert_eq!(engine.resume_calls, 1);
 }
 
 /// Dispatches equal-deadline timers in stable agent-id order.
@@ -1012,11 +998,11 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     };
     let runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, CompleteEngine::default());
-    runtime
-        .world()
-        .write_simulation()
-        .schedule_event(WorldInstant::new(7_500));
     let mut runtime = runtime;
+    runtime
+        .world_mut()
+        .simulation_mut()
+        .schedule_event(WorldInstant::new(7_500));
 
     // the first tick should advance world time to the simulated deadline
     let outcome = runtime.tick();
@@ -1024,7 +1010,7 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     assert_eq!(runtime.wall_nanos(), 7_500);
     assert_eq!(runtime.mono_nanos(), 7_500);
     let world = runtime.world();
-    let simulation = world.read_simulation();
+    let simulation = world.simulation();
     assert_eq!(simulation.ready_events().len(), 1);
     assert_eq!(simulation.ready_events()[0].at(), WorldInstant::new(7_500));
     runtime.with_primary_engine::<CompleteEngine, _>(|engine| {
@@ -1046,16 +1032,17 @@ fn test_virtual_sleep_binding_fails_loudly() {
         },
         ..RuntimeOptions::default()
     };
-    let world = World::from_options(&options).expect("world");
+    let mut world = World::from_options(&options).expect("world");
+    let world_ref = world.world_ref();
     let agent = Agent::new_in_world(
         Vec::new(),
         &options,
-        &world,
+        &world_ref,
         Box::new(TestEngine::default()),
     )
     .expect("agent should build");
     let host = HostSession::from_runtime_options(&options, agent.runtime_id);
-    let binding = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world);
+    let binding = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world_ref);
     let wall_before = binding.wall_nanos();
 
     // synchronous sleep must fail instead of advancing virtual time inline

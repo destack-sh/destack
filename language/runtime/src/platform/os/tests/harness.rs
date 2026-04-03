@@ -43,7 +43,7 @@ pub(crate) enum Harness {
 
 impl Harness {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(HarnessContext<'call>) -> R,
     {
@@ -86,7 +86,7 @@ fn os_test_runtime_with_options(configure: fn(&mut RuntimeOptions)) -> TestRunti
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&Harness),
+    F: FnMut(&mut Harness),
 {
     // serialize harness runtimes because host callback registries are process-global
     let _guard = OS_TEST_MUTEX
@@ -94,16 +94,16 @@ where
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    let native = Harness::Native(os_test_runtime());
-    callback(&native);
-    let vm = Harness::Vm(os_test_runtime());
-    callback(&vm);
+    let mut native = Harness::Native(os_test_runtime());
+    callback(&mut native);
+    let mut vm = Harness::Vm(os_test_runtime());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harnesses with custom runtime options.
 pub(crate) fn with_configured_harnesses<F>(configure: fn(&mut RuntimeOptions), mut callback: F)
 where
-    F: FnMut(&Harness),
+    F: FnMut(&mut Harness),
 {
     // serialize harness runtimes because host callback registries are process-global
     let _guard = OS_TEST_MUTEX
@@ -111,10 +111,10 @@ where
         .lock()
         .unwrap_or_else(|error| error.into_inner());
 
-    let native = Harness::Native(os_test_runtime_with_options(configure));
-    callback(&native);
-    let vm = Harness::Vm(os_test_runtime_with_options(configure));
-    callback(&vm);
+    let mut native = Harness::Native(os_test_runtime_with_options(configure));
+    callback(&mut native);
+    let mut vm = Harness::Vm(os_test_runtime_with_options(configure));
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

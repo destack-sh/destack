@@ -59,7 +59,7 @@ pub(crate) enum TlsHarnessHandle {
 
 impl TlsHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(TlsHarnessContext<'call>) -> R,
     {
@@ -87,7 +87,7 @@ impl TlsHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(TlsHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -99,12 +99,12 @@ impl TlsHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&TlsHarnessHandle),
+    F: FnMut(&mut TlsHarnessHandle),
 {
-    let native = TlsHarnessHandle::Native(NativeTlsHarness::new());
-    callback(&native);
-    let vm = TlsHarnessHandle::Vm(VmTlsHarness::new());
-    callback(&vm);
+    let mut native = TlsHarnessHandle::Native(NativeTlsHarness::new());
+    callback(&mut native);
+    let mut vm = TlsHarnessHandle::Vm(VmTlsHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

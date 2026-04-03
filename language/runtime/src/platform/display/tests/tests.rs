@@ -67,7 +67,7 @@ pub(crate) enum DisplayHarnessHandle {
 
 impl DisplayHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(DisplayHarnessContext<'call>) -> R,
     {
@@ -95,7 +95,7 @@ impl DisplayHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(DisplayHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -107,12 +107,12 @@ impl DisplayHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&DisplayHarnessHandle),
+    F: FnMut(&mut DisplayHarnessHandle),
 {
-    let native = DisplayHarnessHandle::Native(NativeDisplayHarness::new());
-    callback(&native);
-    let vm = DisplayHarnessHandle::Vm(VmDisplayHarness::new());
-    callback(&vm);
+    let mut native = DisplayHarnessHandle::Native(NativeDisplayHarness::new());
+    callback(&mut native);
+    let mut vm = DisplayHarnessHandle::Vm(VmDisplayHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

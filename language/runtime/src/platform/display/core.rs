@@ -8,7 +8,7 @@ use crate::platform::fs::{OsPath, core as fs_core};
 use crate::platform::resource::resolve::resolve_payload;
 use crate::platform::resource::{DisplayDragSessionHandle, ResourceEntry, ResourceKind};
 use crate::platform::{NativeAbiCodec, PlatformError, ResourceTable};
-use crate::runtime::{BindingCallContext, World};
+use crate::runtime::{BindingCallContext, WorldRef};
 
 const DISPLAY_DRAG_SESSION_READ_BYTES_OPERATION: &str = "destack.display.drag.sessionReadBytes";
 const DISPLAY_DRAG_SESSION_READ_PATH_OPERATION: &str = "destack.display.drag.sessionReadPath";
@@ -65,7 +65,7 @@ pub(crate) fn display_drag_operation_mask(
 /// Open one external drag session resource.
 pub(crate) fn open_external_drag_session(
     resource_table: &ResourceTable,
-    world: &World,
+    world: &WorldRef,
     allowed_operations: DisplayDragOperationMask,
     proposed_operation: Option<DisplayDragOperation>,
     position: Option<DisplayDragPosition>,
