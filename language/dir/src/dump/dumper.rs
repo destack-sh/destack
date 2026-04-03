@@ -1527,6 +1527,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Class {
                 descriptor,
+                self_symbol: _,
                 generics,
                 heritage,
                 members: _,
@@ -1574,6 +1575,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Declaration::Function {
                 descriptor,
+                self_symbol: _,
                 signature,
                 body: _,
                 scope,

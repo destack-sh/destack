@@ -102,6 +102,7 @@ pub enum Declaration {
     /// Class declaration with reference semantics.
     Class {
         descriptor: DeclarationDescriptor,
+        self_symbol: Option<LocalSymbolId>,
         generics: Generics,
         heritage: Heritage,
         scope: LocalScopeId,
@@ -129,6 +130,7 @@ pub enum Declaration {
     /// Function declaration. Nested declarations are lifted from the body.
     Function {
         descriptor: DeclarationDescriptor,
+        self_symbol: Option<LocalSymbolId>,
         signature: FunctionSignature,
         scope: LocalScopeId,
         body: Option<LocalNodeId<Expression>>,
@@ -188,6 +190,21 @@ impl Declaration {
     /// Get the symbol of the declaration.
     pub fn symbol(&self) -> LocalSymbolId {
         self.descriptor().symbol
+    }
+
+    /// Get the symbol that owns the declaration name when one exists.
+    pub fn name_symbol(&self) -> LocalSymbolId {
+        match self {
+            Declaration::Class {
+                self_symbol: Some(self_symbol),
+                ..
+            }
+            | Declaration::Function {
+                self_symbol: Some(self_symbol),
+                ..
+            } => *self_symbol,
+            _ => self.symbol(),
+        }
     }
 
     /// Get the scope of the declaration.
