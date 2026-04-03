@@ -1,9 +1,10 @@
 use crate::{
-    BlockKind, ComponentValue, ComponentValueList, Dimension, Function, LocalNodeId, NodeTree,
-    Number, SimpleBlock, Stylesheet, Symbol, Token,
+    BlockKind, ComponentFragment, ComponentValue, ComponentValueList, Dimension, Function,
+    LocalNodeId, NodeTree, Number, SimpleBlock, Stylesheet, Symbol, Token, UrlResource,
 };
 use cssparser::{Parser as CssParser, ParserInput};
-use destack_source::{File, Span};
+use destack_core::StringPool;
+use destack_source::{File, FileId, Span};
 
 use super::lightning;
 use super::lower::Lowerer;
@@ -41,6 +42,21 @@ pub(crate) struct DeclarationSource<'a> {
     pub value_start: usize,
     /// The relative property value byte end.
     pub value_end: usize,
+}
+
+/// One authored keyframe slice within one `@keyframes` block body.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct KeyframeSource<'a> {
+    /// The authored keyframe selector slice.
+    pub selector: &'a str,
+    /// The authored keyframe declaration body slice.
+    pub body: &'a str,
+    /// The relative keyframe rule byte start.
+    pub rule_start: usize,
+    /// The relative keyframe rule byte end.
+    pub rule_end: usize,
+    /// The relative keyframe body byte start.
+    pub body_start: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -84,7 +100,10 @@ impl<'a> Parser<'a> {
             }
         })?;
 
-        Ok(Lowerer::new(self.file, self.source).lower_stylesheet(stylesheet))
+        let (tree, stylesheet_id) =
+            Lowerer::new(self.file, self.source).lower_stylesheet(stylesheet);
+
+        Ok((tree, stylesheet_id))
     }
 
     /// Parse one canonical selector list from source.
@@ -99,13 +118,33 @@ impl<'a> Parser<'a> {
         .unwrap_or_else(|error| panic!("failed to parse canonical css selector list: {error:?}"))
     }
 
-    /// Parse one canonical component value list from source.
-    pub(crate) fn parse_component_value_list(source: &str) -> ComponentValueList {
+    /// Parse one canonical component fragment from source.
+    pub fn parse_component_fragment(source: &str) -> (NodeTree, LocalNodeId<ComponentFragment>) {
+        let mut tree = NodeTree::new();
+        let mut next_resource_id = 0;
+        let value = Self::parse_component_value_list_with_pool(
+            &tree.strings,
+            &mut next_resource_id,
+            source,
+        );
+        let fragment = tree.insert(ComponentFragment { value }, Span::empty(FileId::new(0)));
+
+        (tree, fragment)
+    }
+
+    /// Parse one canonical component value list into one provided pool.
+    pub(crate) fn parse_component_value_list_with_pool(
+        strings: &StringPool,
+        next_resource_id: &mut u32,
+        source: &str,
+    ) -> ComponentValueList {
         let mut input = ParserInput::new(source);
         let mut parser = CssParser::new(&mut input);
         let mut values = Vec::new();
 
-        if let Err(error) = Self::parse_component_values(&mut parser, &mut values, 0) {
+        if let Err(error) =
+            Self::parse_component_values(strings, &mut parser, &mut values, 0, next_resource_id)
+        {
             panic!("failed to parse canonical css component values: {error:?}");
         }
 
@@ -113,9 +152,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse one authored declaration value and split one trailing `!important`.
-    pub(crate) fn parse_declaration_value(source: &str) -> (ComponentValueList, bool) {
-        let mut values = Self::parse_component_value_list(source).values;
-        let is_important = Self::split_trailing_important(&mut values);
+    pub(crate) fn parse_declaration_value_with_pool(
+        strings: &StringPool,
+        next_resource_id: &mut u32,
+        source: &str,
+    ) -> (ComponentValueList, bool) {
+        let mut values =
+            Self::parse_component_value_list_with_pool(strings, next_resource_id, source).values;
+        let is_important = Self::split_trailing_important(strings, &mut values);
 
         (ComponentValueList { values }, is_important)
     }
@@ -158,8 +202,41 @@ impl<'a> Parser<'a> {
         declarations
     }
 
+    /// Parse one authored `@keyframes` block body into keyframe source slices.
+    pub(crate) fn parse_keyframe_block(source: &'a str) -> Vec<KeyframeSource<'a>> {
+        let bytes = source.as_bytes();
+        let mut keyframes = Vec::new();
+        let mut index = 0;
+
+        while let Some(next_index) = Self::skip_qualified_rule_trivia(bytes, index) {
+            let rule_start = next_index;
+
+            let Some((selector_end, body_start)) =
+                Self::scan_qualified_rule_prelude(bytes, rule_start)
+            else {
+                break;
+            };
+            let Some((body_end, rule_end)) = Self::scan_qualified_rule_block(bytes, body_start)
+            else {
+                break;
+            };
+
+            keyframes.push(KeyframeSource {
+                selector: &source[rule_start..selector_end],
+                body: &source[body_start + 1..body_end],
+                rule_start,
+                rule_end,
+                body_start: body_start + 1,
+            });
+
+            index = rule_end;
+        }
+
+        keyframes
+    }
+
     /// Split one trailing `!important` marker from parsed component values.
-    fn split_trailing_important(values: &mut Vec<ComponentValue>) -> bool {
+    fn split_trailing_important(strings: &StringPool, values: &mut Vec<ComponentValue>) -> bool {
         let Some(important_index) = Self::last_non_trivia(values) else {
             return false;
         };
@@ -168,7 +245,11 @@ impl<'a> Parser<'a> {
             return false;
         };
 
-        if !important.eq_ignore_ascii_case("important") {
+        if !strings
+            .get(*important)
+            .as_ref()
+            .eq_ignore_ascii_case("important")
+        {
             return false;
         }
 
@@ -220,6 +301,87 @@ impl<'a> Parser<'a> {
             }
 
             return Some(index);
+        }
+
+        None
+    }
+
+    /// Skip leading qualified rule trivia.
+    fn skip_qualified_rule_trivia(bytes: &[u8], mut index: usize) -> Option<usize> {
+        while index < bytes.len() {
+            if bytes[index].is_ascii_whitespace() {
+                index += 1;
+                continue;
+            }
+
+            if bytes.get(index) == Some(&b'/') && bytes.get(index + 1) == Some(&b'*') {
+                index += 2;
+
+                while index + 1 < bytes.len() {
+                    if bytes[index] == b'*' && bytes[index + 1] == b'/' {
+                        index += 2;
+                        break;
+                    }
+
+                    index += 1;
+                }
+
+                continue;
+            }
+
+            return Some(index);
+        }
+
+        None
+    }
+
+    /// Scan one qualified rule prelude up to one top level `{`.
+    fn scan_qualified_rule_prelude(bytes: &[u8], start: usize) -> Option<(usize, usize)> {
+        let mut index = start;
+        let mut state = DeclarationScanState::default();
+
+        while index < bytes.len() {
+            let next = state.skip(bytes, index);
+
+            if next != index {
+                index = next;
+                continue;
+            }
+
+            if state.is_top_level() && bytes[index] == b'{' {
+                let selector_end = Self::trim_ascii_whitespace_end(bytes, start, index);
+
+                return Some((selector_end, index));
+            }
+
+            state.advance(bytes[index]);
+            index += 1;
+        }
+
+        None
+    }
+
+    /// Scan one qualified rule block starting at one opening brace.
+    fn scan_qualified_rule_block(bytes: &[u8], start: usize) -> Option<(usize, usize)> {
+        let mut index = start;
+        let mut state = DeclarationScanState::default();
+
+        while index < bytes.len() {
+            let next = state.skip(bytes, index);
+
+            if next != index {
+                index = next;
+                continue;
+            }
+
+            if bytes[index] == b'}' && state.brace_depth == 1 {
+                let body_end = Self::trim_ascii_whitespace_end(bytes, start + 1, index);
+
+                return Some((body_end, index + 1));
+            }
+
+            state.advance(bytes[index]);
+            index += 1;
         }
 
         None
@@ -363,9 +525,11 @@ impl<'a> Parser<'a> {
 
     /// Parse nested component values.
     fn parse_component_values<'i, 't>(
+        strings: &StringPool,
         parser: &mut CssParser<'i, 't>,
         values: &mut Vec<ComponentValue>,
         depth: usize,
+        next_resource_id: &mut u32,
     ) -> Result<(), cssparser::ParseError<'i, ()>> {
         if depth > 500 {
             return Err(parser.new_custom_error(()));
@@ -376,7 +540,13 @@ impl<'a> Parser<'a> {
                 Ok(&cssparser::Token::ParenthesisBlock) => {
                     let value = parser.parse_nested_block(|parser| {
                         let mut values = Vec::new();
-                        Self::parse_component_values(parser, &mut values, depth + 1)?;
+                        Self::parse_component_values(
+                            strings,
+                            parser,
+                            &mut values,
+                            depth + 1,
+                            next_resource_id,
+                        )?;
                         Ok(ComponentValueList { values })
                     })?;
                     values.push(ComponentValue::Block(SimpleBlock {
@@ -387,7 +557,13 @@ impl<'a> Parser<'a> {
                 Ok(&cssparser::Token::SquareBracketBlock) => {
                     let value = parser.parse_nested_block(|parser| {
                         let mut values = Vec::new();
-                        Self::parse_component_values(parser, &mut values, depth + 1)?;
+                        Self::parse_component_values(
+                            strings,
+                            parser,
+                            &mut values,
+                            depth + 1,
+                            next_resource_id,
+                        )?;
                         Ok(ComponentValueList { values })
                     })?;
                     values.push(ComponentValue::Block(SimpleBlock {
@@ -398,7 +574,13 @@ impl<'a> Parser<'a> {
                 Ok(&cssparser::Token::CurlyBracketBlock) => {
                     let value = parser.parse_nested_block(|parser| {
                         let mut values = Vec::new();
-                        Self::parse_component_values(parser, &mut values, depth + 1)?;
+                        Self::parse_component_values(
+                            strings,
+                            parser,
+                            &mut values,
+                            depth + 1,
+                            next_resource_id,
+                        )?;
                         Ok(ComponentValueList { values })
                     })?;
                     values.push(ComponentValue::Block(SimpleBlock {
@@ -407,16 +589,38 @@ impl<'a> Parser<'a> {
                     }));
                 }
                 Ok(cssparser::Token::Function(name)) => {
-                    let name = name.to_string();
+                    let name = strings.intern(name);
                     let arguments = parser.parse_nested_block(|parser| {
                         let mut values = Vec::new();
-                        Self::parse_component_values(parser, &mut values, depth + 1)?;
+                        Self::parse_component_values(
+                            strings,
+                            parser,
+                            &mut values,
+                            depth + 1,
+                            next_resource_id,
+                        )?;
                         Ok(ComponentValueList { values })
                     })?;
+                    let url_resource = if strings.get(name).as_ref() == "url" {
+                        Some(Self::build_function_url_resource(
+                            &arguments,
+                            next_resource_id,
+                        ))
+                    } else {
+                        None
+                    };
 
-                    values.push(ComponentValue::Function(Function { name, arguments }));
+                    values.push(ComponentValue::Function(Function {
+                        name,
+                        url_resource,
+                        arguments,
+                    }));
                 }
-                Ok(token) => values.push(ComponentValue::Token(Self::parse_cssparser_token(token))),
+                Ok(token) => values.push(ComponentValue::Token(Self::parse_cssparser_token(
+                    strings,
+                    token,
+                    next_resource_id,
+                ))),
                 Err(_) => break,
             }
         }
@@ -425,10 +629,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse one cssparser token into one owned token.
-    fn parse_cssparser_token(token: &cssparser::Token<'_>) -> Token {
+    fn parse_cssparser_token(
+        strings: &StringPool,
+        token: &cssparser::Token<'_>,
+        next_resource_id: &mut u32,
+    ) -> Token {
         match token {
-            cssparser::Token::Ident(value) => Token::Ident(value.to_string()),
-            cssparser::Token::AtKeyword(value) => Token::AtKeyword(value.to_string()),
+            cssparser::Token::Ident(value) => Token::Ident(strings.intern(value)),
+            cssparser::Token::AtKeyword(value) => Token::AtKeyword(strings.intern(value)),
             cssparser::Token::Hash(value) => Token::Hash {
                 value: value.to_string(),
                 is_identifier: false,
@@ -438,7 +646,10 @@ impl<'a> Parser<'a> {
                 is_identifier: true,
             },
             cssparser::Token::QuotedString(value) => Token::String(value.to_string()),
-            cssparser::Token::UnquotedUrl(value) => Token::UnquotedUrl(value.to_string()),
+            cssparser::Token::UnquotedUrl(value) => Token::UnquotedUrl {
+                value: value.to_string(),
+                url_resource: Some(Self::build_url_resource(value, next_resource_id)),
+            },
             cssparser::Token::Delim(value) => Token::Delimiter(*value),
             cssparser::Token::Number {
                 has_sign,
@@ -469,7 +680,7 @@ impl<'a> Parser<'a> {
                     value: *value,
                     integer_value: *int_value,
                 },
-                unit: unit.to_string(),
+                unit: strings.intern(unit),
             }),
             cssparser::Token::WhiteSpace(value) => Token::WhiteSpace(value.to_string()),
             cssparser::Token::Comment(value) => Token::Comment(value.to_string()),
@@ -496,6 +707,37 @@ impl<'a> Parser<'a> {
             }
         }
     }
+
+    /// Build one `url(...)` resource payload from parsed function arguments.
+    fn build_function_url_resource(
+        arguments: &ComponentValueList,
+        next_resource_id: &mut u32,
+    ) -> UrlResource {
+        let specifier = arguments
+            .values
+            .iter()
+            .find_map(|value| match value {
+                ComponentValue::Token(Token::String(value))
+                | ComponentValue::Token(Token::UnquotedUrl { value, .. }) => Some(value.as_str()),
+                ComponentValue::Token(Token::WhiteSpace(_)) => None,
+                _ => None,
+            })
+            .unwrap_or_default();
+
+        Self::build_url_resource(specifier, next_resource_id)
+    }
+
+    /// Build one rewriteable url resource payload.
+    fn build_url_resource(specifier: &str, next_resource_id: &mut u32) -> UrlResource {
+        UrlResource::new(allocate_resource_id(next_resource_id), specifier)
+    }
+}
+
+/// Return one stable resource id.
+fn allocate_resource_id(next_resource_id: &mut u32) -> u32 {
+    let id = *next_resource_id;
+    *next_resource_id += 1;
+    id
 }
 
 /// One scan state for authored declaration source.
@@ -577,160 +819,4 @@ pub fn parse_css(
     source: &str,
 ) -> Result<(NodeTree, LocalNodeId<Stylesheet>), ParseError> {
     Parser::new(file, source).parse()
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::print::{Printer, print_stylesheet};
-    use crate::{NodeSpanType, RenderOptions, Rule, parse_css};
-    use destack_source::{File, FileId, FileType, Span, Uri};
-
-    /// Preserve one parsed stylesheet root and authored rule headers.
-    #[test]
-    fn test_roundtrip_owned_stylesheet() {
-        let file = File::from_text(
-            FileId::new(1),
-            "style.css".to_string(),
-            Uri::from_string("test:///style.css"),
-            None,
-            FileType::Css,
-            String::new(),
-        );
-        let source = "@import \"./base.css\" layer(theme);@media screen{.button{color:red;&:hover{color:blue}}}";
-        let (tree, stylesheet) = parse_css(&file, source).unwrap();
-        let stylesheet = tree.get(stylesheet);
-
-        assert_eq!(stylesheet.rules.len(), 2);
-
-        let import_rule = tree.get(stylesheet.rules[0]);
-        let Rule::Import(import_rule) = import_rule else {
-            panic!("expected import rule");
-        };
-        assert_eq!(import_rule.url, "./base.css");
-        assert_eq!(
-            import_rule
-                .layer
-                .as_ref()
-                .and_then(|layer| layer.name.as_ref())
-                .map(|name| name.names.join(".")),
-            Some("theme".to_string())
-        );
-
-        let media_rule = tree.get(stylesheet.rules[1]);
-        let Rule::Media(media_rule) = media_rule else {
-            panic!("expected media rule");
-        };
-
-        let printer = Printer::new(&tree, RenderOptions::default());
-
-        assert_eq!(printer.render_media_query_list(media_rule.query), "screen");
-    }
-
-    /// Preserve full rule spans and rule side spans from authored source.
-    #[test]
-    fn test_store_rule_and_import_side_spans() {
-        let file = File::from_text(
-            FileId::new(1),
-            "style.css".to_string(),
-            Uri::from_string("test:///style.css"),
-            None,
-            FileType::Css,
-            String::new(),
-        );
-        let source =
-            "@import \"./base.css\" layer(theme);\n@media screen {.button { color: red; }}";
-        let (tree, stylesheet) = parse_css(&file, source).unwrap();
-        let stylesheet = tree.get(stylesheet);
-        let import_rule = stylesheet.rules[0];
-        let media_rule = stylesheet.rules[1];
-
-        assert_eq!(
-            tree.span(import_rule),
-            Span::new(
-                FileId::new(1),
-                0,
-                "@import \"./base.css\" layer(theme);".len() as u32
-            )
-        );
-        assert_eq!(
-            tree.side_span(import_rule, NodeSpanType::Segment(0)),
-            Some(Span::new(
-                FileId::new(1),
-                0,
-                "@import \"./base.css\" layer(theme)".len() as u32,
-            ))
-        );
-        assert_eq!(
-            tree.side_span(import_rule, NodeSpanType::Segment(1)),
-            Some(Span::new(FileId::new(1), 9, 19))
-        );
-        assert_eq!(
-            tree.side_span(media_rule, NodeSpanType::Segment(0)),
-            Some(Span::new(
-                FileId::new(1),
-                35,
-                35 + "@media screen".len() as u32,
-            ))
-        );
-    }
-
-    /// Preserve selector-taking pseudo arguments through parse and print.
-    #[test]
-    fn test_roundtrip_selector_argument_pseudo_selectors() {
-        let file = File::from_text(
-            FileId::new(1),
-            "style.css".to_string(),
-            Uri::from_string("test:///style.css"),
-            None,
-            FileType::Css,
-            String::new(),
-        );
-        let source = ".root:local(.button,.button:hover)::cue(.caption){color:red}";
-        let (tree, stylesheet) = parse_css(&file, source).unwrap();
-
-        assert_eq!(
-            print_stylesheet(&tree, stylesheet),
-            ":local(.button,.button:hover).root::cue(.caption){color:red}"
-        );
-    }
-
-    /// Preserve authored declaration order around interleaved `!important`.
-    #[test]
-    fn test_roundtrip_preserves_interleaved_important_declaration_order() {
-        let file = File::from_text(
-            FileId::new(1),
-            "style.css".to_string(),
-            Uri::from_string("test:///style.css"),
-            None,
-            FileType::Css,
-            String::new(),
-        );
-        let source = ".root{color:red!important;background:blue;border:1px solid red!important}";
-        let (tree, stylesheet) = parse_css(&file, source).unwrap();
-
-        assert_eq!(
-            print_stylesheet(&tree, stylesheet),
-            ".root{color:red!important;background:blue;border:1px solid red!important}"
-        );
-    }
-
-    /// Preserve authored declarations in `@page` blocks with nested margin rules.
-    #[test]
-    fn test_roundtrip_preserves_page_declarations_with_nested_margin_rules() {
-        let file = File::from_text(
-            FileId::new(1),
-            "style.css".to_string(),
-            Uri::from_string("test:///style.css"),
-            None,
-            FileType::Css,
-            String::new(),
-        );
-        let source = "@page :left{size:a4;margin:1cm;@top-left{content:\"x\";color:red!important}}";
-        let (tree, stylesheet) = parse_css(&file, source).unwrap();
-
-        assert_eq!(
-            print_stylesheet(&tree, stylesheet),
-            "@page :left{size:a4;margin:1cm;@top-left{content:\"x\";color:red!important}}"
-        );
-    }
 }

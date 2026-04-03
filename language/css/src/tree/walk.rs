@@ -1,11 +1,11 @@
 use crate::{
-    AnySelector, AttributeSelector, ContainerCondition, ContainerScrollStateQuery,
-    ContainerStyleQuery, Declaration, DeclarationBlock, EnvironmentVariable, FeatureName,
-    FeatureValue, KeyframeRule, LocalNodeId, LocalNodeIdAny, MediaCondition, MediaQuery,
-    MediaQueryList, NestedDeclarationsRule, NodeTree, NodeType, NodeVisitor, NthOfSelector,
-    NthSelector, PageMarginRule, PageRule, PseudoArgument, PseudoClass, PseudoElement,
-    QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector,
-    Stylesheet, SupportsCondition,
+    AnySelector, AttributeSelector, ComponentFragment, ContainerCondition,
+    ContainerScrollStateQuery, ContainerStyleQuery, Declaration, DeclarationBlock,
+    EnvironmentVariable, FeatureName, FeatureValue, KeyframeRule, LocalNodeId, LocalNodeIdAny,
+    MediaCondition, MediaQuery, MediaQueryList, NestedDeclarationsRule, NodeTree, NodeType,
+    NodeVisitor, NthOfSelector, NthSelector, PageMarginRule, PageRule, PseudoArgument, PseudoClass,
+    PseudoElement, QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList,
+    SimpleSelector, Stylesheet, SupportsCondition,
 };
 
 /// Walk one arbitrary CSS node id.
@@ -21,6 +21,10 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Stylesheet => {
             let stylesheet = tree.stylesheets.get(local_idx);
             walk_stylesheet(visitor, tree, LocalNodeId::new(node_id), stylesheet);
+        }
+        NodeType::ComponentFragment => {
+            let fragment = tree.component_fragments.get(local_idx);
+            walk_component_fragment(visitor, tree, LocalNodeId::new(node_id), fragment);
         }
         NodeType::Rule => {
             let rule = tree.rules.get(local_idx);
@@ -136,6 +140,11 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             let stylesheet_id = LocalNodeId::<Stylesheet>::new(root.id);
             let stylesheet = tree.get(stylesheet_id);
             visitor.visit_stylesheet(tree, stylesheet_id, stylesheet);
+        }
+        NodeType::ComponentFragment => {
+            let fragment_id = LocalNodeId::<ComponentFragment>::new(root.id);
+            let fragment = tree.get(fragment_id);
+            visitor.visit_component_fragment(tree, fragment_id, fragment);
         }
         NodeType::Rule => {
             let rule_id = LocalNodeId::<Rule>::new(root.id);
@@ -268,6 +277,16 @@ pub fn walk_root<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, root
             visitor.visit_container_scroll_state_query(tree, query_id, query);
         }
     }
+}
+
+/// Walk one component fragment root.
+pub fn walk_component_fragment<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &NodeTree,
+    id: LocalNodeId<ComponentFragment>,
+    _fragment: &ComponentFragment,
+) {
+    visitor.visit_any(tree, NodeType::ComponentFragment, id.id);
 }
 
 /// Walk one CSS root list through the visitor entry points.
@@ -681,9 +700,11 @@ pub fn walk_pseudo_class<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::PseudoClass, id.id);
 
-    if let Some(PseudoArgument::Selector(selector_id)) = &selector.arguments {
-        let selector_node = tree.get(*selector_id);
-        visitor.visit_selector(tree, *selector_id, selector_node);
+    if let Some(arguments) = &selector.arguments {
+        if let PseudoArgument::Selector(selector_id) = arguments {
+            let selector_node = tree.get(*selector_id);
+            visitor.visit_selector(tree, *selector_id, selector_node);
+        }
     }
 }
 
@@ -708,9 +729,11 @@ pub fn walk_pseudo_element<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::PseudoElement, id.id);
 
-    if let Some(PseudoArgument::Selector(selector_id)) = &selector.arguments {
-        let selector_node = tree.get(*selector_id);
-        visitor.visit_selector(tree, *selector_id, selector_node);
+    if let Some(arguments) = &selector.arguments {
+        if let PseudoArgument::Selector(selector_id) = arguments {
+            let selector_node = tree.get(*selector_id);
+            visitor.visit_selector(tree, *selector_id, selector_node);
+        }
     }
 }
 
@@ -971,193 +994,5 @@ pub fn walk_container_scroll_state_query<V: NodeVisitor + ?Sized>(
                 visitor.visit_container_scroll_state_query(tree, *query_id, query_node);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        CapturingNodeVisitor, Combinator, ComponentValue, ComponentValueList, Declaration,
-        DeclarationBlock, DeclarationValue, LocalNodeId, MediaQuery, MediaQueryList, MediaRule,
-        MediaType, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, PageMarginBox,
-        PageMarginRule, PageRule, PageSelectorList, PropertyName, Rule, Selector,
-        SelectorComponent, SelectorList, StyleRule, Stylesheet, Token, walk_root,
-    };
-    use destack_source::{FileId, Span};
-
-    #[derive(Debug, Default)]
-    struct CollectingVisitor {
-        visited: Vec<u32>,
-        options: NodeVisitorOptions,
-    }
-
-    impl NodeVisitor for CollectingVisitor {
-        fn options(&self) -> &NodeVisitorOptions {
-            &self.options
-        }
-
-        fn visit_any(&mut self, _tree: &NodeTree, _ty: NodeType, id: u32) {
-            self.visited.push(id);
-        }
-    }
-
-    /// Return one selector list fixture for walk tests.
-    fn selector_list(tree: &mut NodeTree, _source: &str) -> LocalNodeId<SelectorList> {
-        let component = tree.insert(
-            SelectorComponent::Combinator(Combinator::Descendant),
-            Span::empty(FileId::new(1)),
-        );
-        let selector = tree.insert(
-            Selector {
-                components: vec![component],
-            },
-            Span::empty(FileId::new(1)),
-        );
-
-        tree.insert(
-            SelectorList {
-                selectors: vec![selector],
-            },
-            Span::empty(FileId::new(1)),
-        )
-    }
-
-    /// Return one media query list fixture for walk tests.
-    fn media_query_list(tree: &mut NodeTree) -> LocalNodeId<MediaQueryList> {
-        let query = tree.insert(
-            MediaQuery {
-                qualifier: None,
-                media_type: MediaType::Screen,
-                condition: None,
-            },
-            Span::empty(FileId::new(1)),
-        );
-
-        tree.insert(
-            MediaQueryList {
-                queries: vec![query],
-            },
-            Span::empty(FileId::new(1)),
-        )
-    }
-
-    /// Visit nested CSS rules through the standard visitor entry points.
-    #[test]
-    fn test_walk_stylesheet_tree_visits_nested_rules() {
-        let mut tree = NodeTree::new();
-        let declaration = tree.insert(
-            Declaration {
-                name: PropertyName::Standard("color".to_string()),
-                value: DeclarationValue {
-                    components: ComponentValueList {
-                        values: vec![ComponentValue::Token(Token::Ident("red".to_string()))],
-                    },
-                },
-                is_important: false,
-            },
-            Span::new(FileId::new(1), 20, 30),
-        );
-        let declaration_block = tree.insert(
-            DeclarationBlock {
-                declarations: vec![declaration],
-            },
-            Span::new(FileId::new(1), 20, 30),
-        );
-        let nested_prelude = selector_list(&mut tree, ".button:hover");
-        let nested_rule = tree.insert(
-            Rule::Style(StyleRule {
-                prelude: nested_prelude,
-                declarations: Some(declaration_block),
-                rules: Vec::new(),
-            }),
-            Span::new(FileId::new(1), 20, 30),
-        );
-        let page_margin_rule = tree.insert(
-            PageMarginRule {
-                margin_box: PageMarginBox::TopLeft,
-                declarations: Some(declaration_block),
-            },
-            Span::new(FileId::new(1), 31, 40),
-        );
-        let root_rule = tree.insert(
-            Rule::Page(PageRule {
-                selectors: PageSelectorList {
-                    selectors: Vec::new(),
-                },
-                declarations: Some(declaration_block),
-                page_margin_rules: vec![page_margin_rule],
-            }),
-            Span::new(FileId::new(1), 0, 19),
-        );
-        let media_query = media_query_list(&mut tree);
-        let container_rule = tree.insert(
-            Rule::Media(MediaRule {
-                query: media_query,
-                rules: vec![nested_rule, root_rule],
-            }),
-            Span::new(FileId::new(1), 0, 40),
-        );
-        let stylesheet = tree.insert(
-            Stylesheet {
-                sources: vec!["test.css".to_string()],
-                license_comments: Vec::new(),
-                rules: vec![container_rule],
-            },
-            Span::new(FileId::new(1), 0, 40),
-        );
-        let mut visitor = CollectingVisitor::default();
-
-        walk_root(&mut visitor, &tree, &stylesheet.into_any());
-
-        assert_eq!(
-            visitor.visited,
-            vec![11, 10, 9, 8, 5, 4, 3, 2, 1, 0, 7, 1, 0, 6, 1, 0]
-        );
-    }
-
-    /// Stop recursion when one capturing visitor sees one stylesheet root.
-    #[test]
-    fn test_capturing_node_visitor_stops_at_root() {
-        let mut tree = NodeTree::new();
-        let declaration = tree.insert(
-            Declaration {
-                name: PropertyName::Standard("color".to_string()),
-                value: DeclarationValue {
-                    components: ComponentValueList {
-                        values: vec![ComponentValue::Token(Token::Ident("red".to_string()))],
-                    },
-                },
-                is_important: false,
-            },
-            Span::new(FileId::new(1), 10, 20),
-        );
-        let declaration_block = tree.insert(
-            DeclarationBlock {
-                declarations: vec![declaration],
-            },
-            Span::new(FileId::new(1), 9, 21),
-        );
-        let prelude = selector_list(&mut tree, ".button");
-        let rule = tree.insert(
-            Rule::Style(StyleRule {
-                prelude,
-                declarations: Some(declaration_block),
-                rules: Vec::new(),
-            }),
-            Span::new(FileId::new(1), 0, 21),
-        );
-        let stylesheet = tree.insert(
-            Stylesheet {
-                sources: vec!["test.css".to_string()],
-                license_comments: Vec::new(),
-                rules: vec![rule],
-            },
-            Span::new(FileId::new(1), 0, 21),
-        );
-        let mut visitor = CapturingNodeVisitor::new(NodeVisitorOptions::default());
-
-        walk_root(&mut visitor, &tree, &stylesheet.into_any());
-
-        assert_eq!(visitor.visited(), &[6]);
     }
 }

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {
     Stylesheet,
+    ComponentFragment,
     Rule,
     PageMarginRule,
     DeclarationBlock,
@@ -41,6 +42,7 @@ impl NodeType {
     pub fn name(&self) -> &'static str {
         match self {
             NodeType::Stylesheet => "stylesheet",
+            NodeType::ComponentFragment => "component fragment",
             NodeType::Rule => "rule",
             NodeType::PageMarginRule => "page margin rule",
             NodeType::DeclarationBlock => "declaration block",
