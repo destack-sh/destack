@@ -559,6 +559,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::ImportMeta => {}
+        Expression::This => {}
+        Expression::Super => {}
         Expression::NewTarget => {}
         Expression::PrivateIdentifier { name: _ } => {}
         Expression::ScalarLiteral { value: _ } => {}
@@ -975,8 +977,8 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
             }
             walk_function_signature(visitor, tree, signature);
             if let Some(block) = body {
-                let body_expression = tree.get(*block);
-                visitor.visit_expression(tree, *block, body_expression);
+                let body_block = tree.get(*block);
+                visitor.visit_block(tree, *block, body_block);
             }
         }
         Property::Spread {
@@ -1028,13 +1030,13 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             }
             walk_function_signature(visitor, tree, signature);
             if let Some(block) = body {
-                let body_expression = tree.get(*block);
-                visitor.visit_expression(tree, *block, body_expression);
+                let body_block = tree.get(*block);
+                visitor.visit_block(tree, *block, body_block);
             }
         }
         Member::StaticBlock { body } => {
-            let body_expr = tree.get(*body);
-            visitor.visit_expression(tree, *body, body_expr);
+            let body_block = tree.get(*body);
+            visitor.visit_block(tree, *body, body_block);
         }
     }
 }

@@ -1,4 +1,6 @@
-use crate::{BindingModifier, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType};
+use crate::{
+    BindingModifier, Block, Expression, FunctionSignature, Key, LocalNodeId, Node, NodeType,
+};
 
 /// A Property is a property of an object literal (may be a field, method, or spread).
 #[derive(Debug, Clone, PartialEq)]
@@ -15,7 +17,7 @@ pub enum Property {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
-        body: Option<LocalNodeId<Expression>>,
+        body: Option<LocalNodeId<Block>>,
     },
     /// Spread property (like `...a`).
     Spread {
@@ -43,10 +45,10 @@ pub enum Member {
         modifiers: Option<BindingModifier>,
         key: Option<Key>,
         signature: FunctionSignature,
-        body: Option<LocalNodeId<Expression>>,
+        body: Option<LocalNodeId<Block>>,
     },
     /// Static initialization block (like `static { ... }`).
-    StaticBlock { body: LocalNodeId<Expression> },
+    StaticBlock { body: LocalNodeId<Block> },
 }
 
 impl Node for Member {
