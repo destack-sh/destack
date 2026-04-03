@@ -2,7 +2,7 @@ use destack_fir::format::{FormatContext, FormatOptions};
 use destack_fir::print::PrintOptions;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
-use crate::{Doctype, DoctypeQuoteStyle, Element, SelfClosingStyle};
+use crate::{Doctype, DoctypeQuoteStyle, Element, NodeTree, SelfClosingStyle, StringId};
 
 /// HTML format options.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -102,30 +102,33 @@ impl HtmlFormatContext {
     }
 
     /// Return one authored element start tag name.
-    pub(crate) fn element_start_tag_name<'a>(&self, element: &'a Element) -> Option<&'a str> {
-        element.authored_start_tag_name.as_deref()
+    pub(crate) fn element_start_tag_name(&self, element: &Element) -> Option<StringId> {
+        element.authored_start_tag_name
     }
 
     /// Return one authored element end tag name.
-    pub(crate) fn element_end_tag_name<'a>(&self, element: &'a Element) -> Option<&'a str> {
+    pub(crate) fn element_end_tag_name(&self, element: &Element) -> Option<StringId> {
         element
             .authored_end_tag_name
-            .as_deref()
-            .or(element.authored_start_tag_name.as_deref())
+            .or(element.authored_start_tag_name)
     }
 
     /// Render one authored doctype keyword.
-    pub(crate) fn render_doctype_keyword<'a>(&self, doctype: &'a Doctype) -> &'a str {
-        &doctype.doctype_keyword
+    pub(crate) fn render_doctype_keyword(&self, tree: &NodeTree, doctype: &Doctype) -> String {
+        tree.string(doctype.doctype_keyword).to_string()
     }
 
     /// Render one authored doctype kind keyword.
-    pub(crate) fn render_doctype_kind_keyword<'a>(
+    pub(crate) fn render_doctype_kind_keyword(
         &self,
-        doctype: &'a Doctype,
-        fallback: &'a str,
-    ) -> &'a str {
-        doctype.kind_keyword.as_deref().unwrap_or(fallback)
+        tree: &NodeTree,
+        doctype: &Doctype,
+        fallback: &str,
+    ) -> String {
+        doctype
+            .kind_keyword
+            .map(|keyword| tree.string(keyword).to_string())
+            .unwrap_or_else(|| fallback.to_string())
     }
 
     /// Render one authored doctype quote delimiter.

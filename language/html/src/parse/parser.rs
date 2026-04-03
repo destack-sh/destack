@@ -5,9 +5,7 @@ use crate::lex::{
     RawKind, Tag, expanded_name, namespace_prefix, ns,
 };
 use crate::parse::parser::RawKind::{Rawtext, Rcdata, ScriptData};
-use crate::{
-    Document, Fragment, LocalNodeId, Name as HtmlName, Namespace as HtmlNamespace, NodeTree,
-};
+use crate::{Document, Fragment, LocalNodeId, Namespace as HtmlNamespace, NodeTree};
 
 use destack_source::File;
 
@@ -104,7 +102,7 @@ pub(crate) enum InlineEntry<Handle> {
 
 /// One document quirks mode.
 #[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]
-pub(crate) enum QuirksMode {
+pub enum QuirksMode {
     /// Full quirks mode.
     Quirks,
     /// Almost standards mode.
@@ -127,9 +125,9 @@ pub(crate) struct ElementFlags {
     pub had_duplicate_attributes: bool,
 }
 
-/// One HTML parser options struct.
+/// HTML parser options.
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct ParserOptions {
+pub struct ParserOptions {
     /// Report all parse errors described in the spec at some performance cost.
     pub exact_errors: bool,
 
@@ -228,7 +226,7 @@ pub struct Parser<'a> {
 #[allow(clippy::clone_on_copy)]
 impl<'a> Parser<'a> {
     /// Create one HTML parser over one direct HTML builder.
-    pub(super) fn new_with_options(
+    pub(crate) fn new_with_options(
         builder: HtmlBuilder<'a>,
         source: &'a str,
         options: ParserOptions,
@@ -265,10 +263,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Create one HTML fragment parser from authored source and one context element.
-    pub(super) fn new_fragment_with_options(
+    pub(crate) fn new_fragment_with_options(
         file: &'a File,
         source: &'a str,
-        context: &HtmlName,
+        context: &ParseContextName,
         options: ParserOptions,
     ) -> Self {
         let builder = HtmlBuilder::new(file, source);
@@ -299,7 +297,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Create one HTML fragment parser from authored source and one context element.
-    pub fn new_fragment(file: &'a File, source: &'a str, context: &HtmlName) -> Self {
+    pub fn new_fragment(file: &'a File, source: &'a str, context: &ParseContextName) -> Self {
         Self::new_fragment_with_options(file, source, context, ParserOptions::default())
     }
 
@@ -356,15 +354,17 @@ impl<'a> Parser<'a> {
 
     /// Parse one HTML document and return one html5lib-style tree-construction snapshot.
     #[cfg(test)]
-    pub(super) fn parse_tree_construction(self) -> String {
+    pub(crate) fn parse_tree_construction(self) -> String {
         let lexer = self.run();
+
         lexer.parser.builder.finish_tree_construction()
     }
 
     /// Parse one HTML fragment and return one html5lib-style fragment snapshot.
     #[cfg(test)]
-    pub(super) fn parse_fragment_tree_construction(self) -> String {
+    pub(crate) fn parse_fragment_tree_construction(self) -> String {
         let lexer = self.run();
+
         lexer.parser.builder.finish_tree_construction_fragment()
     }
 
@@ -399,8 +399,19 @@ impl<'a> Parser<'a> {
     }
 }
 
+/// One fragment context name with plain owned strings.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseContextName {
+    /// The optional qualified prefix.
+    pub prefix: Option<String>,
+    /// The resolved namespace.
+    pub namespace: HtmlNamespace,
+    /// The local name.
+    pub local: String,
+}
+
 /// Lower one authored HTML name into one parser qualified name.
-fn lower_context_name(name: &HtmlName) -> QualifiedName {
+fn lower_context_name(name: &ParseContextName) -> QualifiedName {
     // namespace prefix
     let prefix = name.prefix.as_deref().map(namespace_prefix_from_string);
 
@@ -434,11 +445,32 @@ pub fn parse_html(file: &File, source: &str) -> (NodeTree, LocalNodeId<Document>
     Parser::new(file, source).parse()
 }
 
+/// Parse one HTML document tree from authored source with explicit options.
+pub fn parse_html_with_options(
+    file: &File,
+    source: &str,
+    options: ParserOptions,
+) -> (NodeTree, LocalNodeId<Document>) {
+    let builder = HtmlBuilder::new(file, source);
+
+    Parser::new_with_options(builder, source, options).parse()
+}
+
 /// Parse one HTML fragment tree from authored source and one context element.
 pub fn parse_fragment(
     file: &File,
     source: &str,
-    context: &HtmlName,
+    context: &ParseContextName,
 ) -> (NodeTree, LocalNodeId<Fragment>) {
     Parser::new_fragment(file, source, context).parse_fragment()
+}
+
+/// Parse one HTML fragment tree from authored source with explicit options.
+pub fn parse_fragment_with_options(
+    file: &File,
+    source: &str,
+    context: &ParseContextName,
+    options: ParserOptions,
+) -> (NodeTree, LocalNodeId<Fragment>) {
+    Parser::new_fragment_with_options(file, source, context, options).parse_fragment()
 }

@@ -1,4 +1,4 @@
-use crate::{Content, LocalNodeId, Node, NodeType};
+use crate::{Content, LocalNodeId, Node, NodeType, StringId};
 use serde::{Deserialize, Serialize};
 
 /// One HTML document node.
@@ -18,13 +18,13 @@ impl Node for Document {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Doctype {
     /// The authored doctype name.
-    pub name: String,
+    pub name: StringId,
     /// The authored `doctype` keyword spelling.
-    pub doctype_keyword: String,
+    pub doctype_keyword: StringId,
     /// The authored doctype keyword form.
     pub kind: DoctypeKind,
     /// The authored `public` or `system` keyword spelling when one exists.
-    pub kind_keyword: Option<String>,
+    pub kind_keyword: Option<StringId>,
     /// The authored public id.
     pub public_id: String,
     /// The authored public id quote style when one exists.

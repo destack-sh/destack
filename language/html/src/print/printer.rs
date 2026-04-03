@@ -1,4 +1,4 @@
-use crate::{Attribute, AttributeValue, AttributeValueForm, Element, Name, Namespace, NodeTree};
+use crate::{Attribute, AttributeValue, AttributeValueForm, Element, Name, NodeTree};
 
 /// One HTML printer.
 #[derive(Debug)]
@@ -25,49 +25,38 @@ impl<'a> Printer<'a> {
 
     /// Render one authored element start tag name.
     pub(crate) fn render_element_start_tag_name(&self, element: &Element) -> String {
-        // authored spelling
-        element
-            .authored_start_tag_name
-            .clone()
-            .unwrap_or_else(|| Self::render_name(&element.name))
+        if let Some(name) = element.authored_start_tag_name {
+            return self.tree.string(name).to_string();
+        }
+
+        self.render_name(&element.name)
     }
 
     /// Render one authored element end tag name.
     pub(crate) fn render_element_end_tag_name(&self, element: &Element) -> String {
-        // authored spelling
-        element
-            .authored_end_tag_name
-            .clone()
-            .or_else(|| element.authored_start_tag_name.clone())
-            .unwrap_or_else(|| Self::render_name(&element.name))
+        if let Some(name) = element.authored_end_tag_name {
+            return self.tree.string(name).to_string();
+        }
+
+        if let Some(name) = element.authored_start_tag_name {
+            return self.tree.string(name).to_string();
+        }
+
+        self.render_name(&element.name)
     }
 
     /// Render one authored attribute name.
     pub(crate) fn render_attribute_name(&self, attribute: &Attribute) -> String {
-        // authored spelling
-        attribute
-            .authored_name
-            .clone()
-            .unwrap_or_else(|| Self::render_name(&attribute.name))
+        if let Some(name) = attribute.authored_name {
+            return self.tree.string(name).to_string();
+        }
+
+        self.render_name(&attribute.name)
     }
 
     /// Render one qualified HTML name.
-    pub(crate) fn render_name(name: &Name) -> String {
-        // qualified name
-        match &name.prefix {
-            Some(prefix) => format!("{prefix}:{}", name.local),
-
-            // resolved fallback
-            None => match &name.namespace {
-                Namespace::Other(_)
-                | Namespace::Html
-                | Namespace::Svg
-                | Namespace::MathMl
-                | Namespace::Xml
-                | Namespace::XmlNs
-                | Namespace::XLink => name.local.clone(),
-            },
-        }
+    pub(crate) fn render_name(&self, name: &Name) -> String {
+        name.render(&self.tree.strings)
     }
 
     /// Return whether one element local name is raw text.

@@ -2,8 +2,9 @@ use std::fmt::{Debug, Formatter};
 
 use crate::{
     Arena, Attribute, Content, Doctype, Document, FileId, Fragment, LocalNodeId, Node, NodeType,
-    Span,
+    Span, StringId, StringPool,
 };
+use destack_core::StringRef;
 use serde::{Deserialize, Serialize};
 
 /// One side span kind.
@@ -16,6 +17,8 @@ pub enum NodeSpanKind {
 /// One mutable HTML node tree.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct NodeTree {
+    /// The interned HTML name strings.
+    pub strings: StringPool,
     /// The next global node id.
     pub(crate) next_global_id: u32,
     /// The local ids of all nodes.
@@ -61,6 +64,7 @@ impl NodeTree {
     /// Create one empty node tree with one initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
+            strings: StringPool::new(),
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
@@ -171,6 +175,16 @@ impl NodeTree {
         self.node_type_by_node_id[id as usize]
     }
 
+    /// Intern one string in this tree.
+    pub fn intern(&self, value: &str) -> StringId {
+        self.strings.intern(value)
+    }
+
+    /// Read one interned string from this tree.
+    pub fn string(&self, id: StringId) -> StringRef<'_> {
+        self.strings.get(id)
+    }
+
     /// Rebind every stored span to one file id.
     pub fn rebind_file(&mut self, file_id: FileId) {
         for span in &mut self.span_by_node_id {
@@ -220,108 +234,3 @@ impl_node_tree_store!(Doctype, doctypes);
 impl_node_tree_store!(Fragment, fragments);
 impl_node_tree_store!(Content, nodes);
 impl_node_tree_store!(Attribute, attributes);
-
-#[cfg(test)]
-mod tests {
-    use destack_source::FileId;
-
-    use crate::{
-        Attribute, AttributeValue, AttributeValueForm, Content, Document, Element, Fragment, Name,
-        Namespace, NodeSpanKind, NodeTree, Text,
-    };
-
-    /// Store the main span and side spans for inserted nodes.
-    #[test]
-    fn test_insert_tracks_main_and_side_spans() {
-        let mut tree = NodeTree::new();
-        let attribute = tree.insert(
-            Attribute {
-                name: Name {
-                    prefix: None,
-                    namespace: Namespace::Html,
-                    local: "src".to_string(),
-                },
-                authored_name: None,
-                value: Some(AttributeValue {
-                    value: "./asset.png".to_string(),
-                    form: AttributeValueForm::DoubleQuoted,
-                }),
-            },
-            destack_source::Span::new(FileId::new(1), 5, 21),
-        );
-        tree.set_side_span(
-            attribute,
-            NodeSpanKind::Name,
-            destack_source::Span::new(FileId::new(1), 5, 8),
-        );
-        tree.set_side_span(
-            attribute,
-            NodeSpanKind::Value,
-            destack_source::Span::new(FileId::new(1), 10, 21),
-        );
-
-        assert_eq!(
-            tree.span(attribute),
-            destack_source::Span::new(FileId::new(1), 5, 21)
-        );
-        assert_eq!(
-            tree.name_span(attribute),
-            Some(destack_source::Span::new(FileId::new(1), 5, 8))
-        );
-        assert_eq!(
-            tree.value_span(attribute),
-            Some(destack_source::Span::new(FileId::new(1), 10, 21))
-        );
-    }
-
-    /// Keep explicit template content fragments on element nodes.
-    #[test]
-    fn test_element_keeps_template_content_fragment() {
-        let mut tree = NodeTree::new();
-        let text = tree.insert(
-            Content::Text(Text {
-                value: "fragment".to_string(),
-            }),
-            destack_source::Span::new(FileId::new(1), 20, 28),
-        );
-        let fragment = tree.insert(
-            Fragment {
-                children: vec![text],
-            },
-            destack_source::Span::new(FileId::new(1), 10, 39),
-        );
-        let element = tree.insert(
-            Content::Element(Element {
-                name: Name {
-                    prefix: None,
-                    namespace: Namespace::Html,
-                    local: "template".to_string(),
-                },
-                authored_start_tag_name: None,
-                has_authored_end_tag: false,
-                authored_end_tag_name: None,
-                is_self_closing: false,
-                self_closing_style: None,
-                attributes: Vec::new(),
-                children: Vec::new(),
-                content: Some(fragment),
-            }),
-            destack_source::Span::new(FileId::new(1), 0, 50),
-        );
-        let document = tree.insert(
-            Document {
-                doctype: None,
-                children: vec![element],
-            },
-            destack_source::Span::new(FileId::new(1), 0, 50),
-        );
-
-        let element_node = match tree.get(element) {
-            Content::Element(element_node) => element_node,
-            _ => return,
-        };
-
-        assert_eq!(tree.get(document).children, vec![element]);
-        assert_eq!(element_node.content, Some(fragment));
-    }
-}

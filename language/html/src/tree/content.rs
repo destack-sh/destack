@@ -1,4 +1,4 @@
-use crate::{Attribute, Fragment, LocalNodeId, Name, Node, NodeType};
+use crate::{Attribute, Fragment, LocalNodeId, Name, Node, NodeType, StringId};
 use serde::{Deserialize, Serialize};
 
 /// One HTML node.
@@ -24,11 +24,11 @@ pub struct Element {
     /// The element name.
     pub name: Name,
     /// The authored start-tag name spelling when one exists.
-    pub authored_start_tag_name: Option<String>,
+    pub authored_start_tag_name: Option<StringId>,
     /// Whether the element had one authored end tag.
     pub has_authored_end_tag: bool,
     /// The authored end-tag name spelling when one exists.
-    pub authored_end_tag_name: Option<String>,
+    pub authored_end_tag_name: Option<StringId>,
     /// Whether the authored start tag used self-closing syntax.
     pub is_self_closing: bool,
     /// The authored self-closing slash form when one exists.
@@ -68,7 +68,7 @@ pub struct Comment {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Instruction {
     /// The instruction target.
-    pub target: String,
+    pub target: StringId,
     /// The instruction contents.
     pub contents: String,
 }
