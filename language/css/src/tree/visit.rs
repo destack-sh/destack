@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 
 use super::walk::{
-    walk_any_selector, walk_attribute_selector, walk_container_condition,
+    walk_any_selector, walk_attribute_selector, walk_component_fragment, walk_container_condition,
     walk_container_scroll_state_query, walk_container_style_query, walk_declaration,
     walk_declaration_block, walk_environment_variable, walk_feature_name, walk_feature_value,
     walk_media_condition, walk_media_query, walk_media_query_list, walk_nth_of_selector,
@@ -10,12 +10,12 @@ use super::walk::{
     walk_selector_list, walk_simple_selector, walk_stylesheet, walk_supports_condition,
 };
 use crate::{
-    AnySelector, AttributeSelector, ContainerCondition, ContainerScrollStateQuery,
-    ContainerStyleQuery, Declaration, DeclarationBlock, EnvironmentVariable, FeatureName,
-    FeatureValue, LocalNodeId, MediaCondition, MediaQuery, MediaQueryList, NodeTree, NodeType,
-    NthOfSelector, NthSelector, PageMarginRule, PseudoClass, PseudoElement, QueryFeature,
-    RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector, Stylesheet,
-    SupportsCondition,
+    AnySelector, AttributeSelector, ComponentFragment, ContainerCondition,
+    ContainerScrollStateQuery, ContainerStyleQuery, Declaration, DeclarationBlock,
+    EnvironmentVariable, FeatureName, FeatureValue, LocalNodeId, MediaCondition, MediaQuery,
+    MediaQueryList, NodeTree, NodeType, NthOfSelector, NthSelector, PageMarginRule, PseudoClass,
+    PseudoElement, QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList,
+    SimpleSelector, Stylesheet, SupportsCondition,
 };
 
 /// One CSS node visitor configuration.
@@ -39,6 +39,16 @@ pub trait NodeVisitor {
         stylesheet: &Stylesheet,
     ) {
         destack_core::ensure_sufficient_stack(|| walk_stylesheet(self, tree, id, stylesheet));
+    }
+
+    /// Visit one component fragment root.
+    fn visit_component_fragment(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<ComponentFragment>,
+        fragment: &ComponentFragment,
+    ) {
+        walk_component_fragment(self, tree, id, fragment);
     }
 
     /// Visit one CSS rule node.

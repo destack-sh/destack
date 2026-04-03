@@ -1,7 +1,7 @@
 use crate::{
     ComponentValueList, ContainerCondition, ContainerName, DeclarationBlock, DeclarationValue,
     ImportLayer, KeyframeSelectorList, LayerNameList, LocalNodeId, MediaQueryList, Node, NodeType,
-    PageMarginBox, PageSelectorList, SelectorList, SupportsCondition,
+    PageMarginBox, PageSelectorList, SelectorList, SupportsCondition, UrlResource,
 };
 use serde::{Deserialize, Serialize};
 
@@ -482,12 +482,41 @@ pub struct IgnoredRule {}
 pub struct ImportRule {
     /// The authored import url without surrounding quotes.
     pub url: String,
+    /// The structured import resource payload when this rule owns one.
+    pub resource: Option<ImportResource>,
     /// The optional layer clause.
     pub layer: Option<ImportLayer>,
     /// The optional supports clause.
     pub supports: Option<LocalNodeId<SupportsCondition>>,
     /// The optional media query list.
     pub media: Option<LocalNodeId<MediaQueryList>>,
+}
+
+/// One rewriteable CSS import resource payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportResource {
+    /// The stable authored resource id within this stylesheet.
+    pub id: u32,
+    /// The path portion of the authored value.
+    pub path: String,
+    /// The suffix portion of the authored value.
+    pub suffix: String,
+    /// Whether this value should stay untouched.
+    pub is_external: bool,
+}
+
+impl ImportResource {
+    /// Create one import resource from one authored specifier.
+    pub fn new(id: u32, specifier: &str) -> Self {
+        let (path, suffix) = UrlResource::split_specifier(specifier);
+
+        Self {
+            id,
+            path: path.to_string(),
+            suffix: suffix.to_string(),
+            is_external: UrlResource::is_external_specifier(specifier),
+        }
+    }
 }
 
 /// One style like rule with declarations and nested rules.

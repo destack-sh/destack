@@ -237,6 +237,17 @@ pub enum PseudoArgument {
     Components(ComponentValueList),
     /// One nested selector argument.
     Selector(LocalNodeId<Selector>),
+    /// One view-transition part selector argument.
+    ViewTransitionPart(ViewTransitionPartArgument),
+}
+
+/// One authored view-transition part selector argument.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ViewTransitionPartArgument {
+    /// The optional part name.
+    pub name: Option<String>,
+    /// The class names in authored order.
+    pub classes: Vec<String>,
 }
 
 /// One authored CSS keyframe selector list.

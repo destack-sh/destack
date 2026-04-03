@@ -1,14 +1,14 @@
 use std::fmt::{Debug, Formatter};
 
 use crate::{
-    AnySelector, AttributeSelector, ContainerCondition, ContainerScrollStateQuery,
-    ContainerStyleQuery, Declaration, DeclarationBlock, EnvironmentVariable, FeatureName,
-    FeatureValue, LocalNodeId, MediaCondition, MediaQuery, MediaQueryList, Node, NodeType,
-    NthOfSelector, NthSelector, PageMarginRule, PseudoClass, PseudoElement, QueryFeature,
-    RatioValue, Rule, Selector, SelectorComponent, SelectorList, SimpleSelector, Stylesheet,
-    SupportsCondition,
+    AnySelector, AttributeSelector, ComponentFragment, ContainerCondition,
+    ContainerScrollStateQuery, ContainerStyleQuery, Declaration, DeclarationBlock,
+    EnvironmentVariable, FeatureName, FeatureValue, LocalNodeId, MediaCondition, MediaQuery,
+    MediaQueryList, Node, NodeType, NthOfSelector, NthSelector, PageMarginRule, PseudoClass,
+    PseudoElement, QueryFeature, RatioValue, Rule, Selector, SelectorComponent, SelectorList,
+    SimpleSelector, Stylesheet, SupportsCondition,
 };
-use destack_core::Arena;
+use destack_core::{Arena, StringId, StringPool, StringRef};
 use destack_source::{FileId, NodeSourceMap, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
@@ -23,9 +23,12 @@ pub struct NodeTree {
     pub(crate) node_type_by_node_id: Vec<NodeType>,
     /// The source spans for all nodes.
     pub source_map: NodeSourceMap,
+    /// The interned strings used by pooled css identifiers.
+    pub strings: StringPool,
 
     // node arenas
     pub(crate) stylesheets: Arena<Stylesheet>,
+    pub(crate) component_fragments: Arena<ComponentFragment>,
     pub(crate) rules: Arena<Rule>,
     pub(crate) page_margin_rules: Arena<PageMarginRule>,
     pub(crate) declaration_blocks: Arena<DeclarationBlock>,
@@ -82,7 +85,9 @@ impl NodeTree {
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
             source_map: NodeSourceMap::with_capacity(capacity),
+            strings: StringPool::new(),
             stylesheets: Arena::new(),
+            component_fragments: Arena::new(),
             rules: Arena::new(),
             page_margin_rules: Arena::new(),
             declaration_blocks: Arena::new(),
@@ -175,6 +180,16 @@ impl NodeTree {
         self.source_map.set_side(id.id, span_type, span);
     }
 
+    /// Intern one pooled css string.
+    pub fn intern(&self, value: &str) -> StringId {
+        self.strings.intern(value)
+    }
+
+    /// Return one pooled css string.
+    pub fn string(&self, id: StringId) -> StringRef<'_> {
+        self.strings.get(id)
+    }
+
     /// Rebind every stored span to one file id.
     pub fn rebind_file(&mut self, file_id: FileId) {
         self.source_map.rebind_file(file_id);
@@ -212,6 +227,7 @@ macro_rules! impl_node_tree_store {
 }
 
 impl_node_tree_store!(Stylesheet, stylesheets);
+impl_node_tree_store!(ComponentFragment, component_fragments);
 impl_node_tree_store!(Rule, rules);
 impl_node_tree_store!(PageMarginRule, page_margin_rules);
 impl_node_tree_store!(DeclarationBlock, declaration_blocks);

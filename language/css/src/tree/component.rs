@@ -1,4 +1,17 @@
+use crate::{Node, NodeType};
+use destack_core::{StringId, StringPool};
 use serde::{Deserialize, Serialize};
+
+/// One standalone CSS component fragment root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ComponentFragment {
+    /// The component values in authored order.
+    pub value: ComponentValueList,
+}
+
+impl Node for ComponentFragment {
+    const TYPE: NodeType = NodeType::ComponentFragment;
+}
 
 /// One generic CSS component value list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -22,9 +35,18 @@ pub enum ComponentValue {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Function {
     /// The function name without the trailing `(`.
-    pub name: String,
+    pub name: StringId,
+    /// The url resource payload when this function owns one rewriteable resource.
+    pub url_resource: Option<UrlResource>,
     /// The nested function argument values.
     pub arguments: ComponentValueList,
+}
+
+impl Function {
+    /// Return whether this function name equals one expected value.
+    pub fn name_eq(&self, strings: &StringPool, expected: &str) -> bool {
+        strings.get(self.name).as_ref() == expected
+    }
 }
 
 /// One CSS simple block component value.
@@ -51,9 +73,9 @@ pub enum BlockKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Token {
     /// One identifier token.
-    Ident(String),
+    Ident(StringId),
     /// One at-keyword token.
-    AtKeyword(String),
+    AtKeyword(StringId),
     /// One hash token.
     Hash {
         /// The hash text without `#`.
@@ -64,7 +86,12 @@ pub enum Token {
     /// One string token without quotes.
     String(String),
     /// One unquoted url token without `url(` and `)`.
-    UnquotedUrl(String),
+    UnquotedUrl {
+        /// The unquoted url value.
+        value: String,
+        /// The url resource payload when this token owns one rewriteable resource.
+        url_resource: Option<UrlResource>,
+    },
     /// One single delimiter token.
     Delimiter(char),
     /// One number token.
@@ -83,6 +110,55 @@ pub enum Token {
     BadUrl(String),
     /// One bad string token.
     BadString(String),
+}
+
+/// One rewriteable CSS url resource payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UrlResource {
+    /// The stable authored resource id within this stylesheet.
+    pub id: u32,
+    /// The path portion of the authored value.
+    pub path: String,
+    /// The suffix portion of the authored value.
+    pub suffix: String,
+    /// Whether this value should stay untouched.
+    pub is_external: bool,
+}
+
+impl UrlResource {
+    /// Create one url resource from one authored specifier.
+    pub fn new(id: u32, specifier: &str) -> Self {
+        let (path, suffix) = Self::split_specifier(specifier);
+
+        Self {
+            id,
+            path: path.to_string(),
+            suffix: suffix.to_string(),
+            is_external: Self::is_external_specifier(specifier),
+        }
+    }
+
+    /// Return whether one authored specifier should stay untouched.
+    pub(crate) fn is_external_specifier(specifier: &str) -> bool {
+        let specifier = specifier.trim();
+
+        if specifier.is_empty() {
+            return true;
+        }
+
+        specifier.starts_with('#')
+            || specifier.starts_with("http://")
+            || specifier.starts_with("https://")
+            || specifier.starts_with("//")
+            || specifier.starts_with("data:")
+    }
+
+    /// Split one authored specifier into path and suffix.
+    pub(crate) fn split_specifier(specifier: &str) -> (&str, &str) {
+        let suffix_start = specifier.find(['?', '#']).unwrap_or(specifier.len());
+
+        specifier.split_at(suffix_start)
+    }
 }
 
 /// One numeric CSS token payload.
@@ -104,7 +180,7 @@ pub struct Dimension {
     /// The numeric portion of the dimension.
     pub number: Number,
     /// The unit suffix.
-    pub unit: String,
+    pub unit: StringId,
 }
 
 /// One symbolic CSS token.
