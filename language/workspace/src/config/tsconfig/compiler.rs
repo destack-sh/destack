@@ -68,10 +68,6 @@ pub struct TsCompilerOptions {
     pub verbatim_module_syntax: bool,
     /// Preserve value imports (deprecated).
     pub preserve_value_imports: bool,
-    /// Emit babel style interop helpers for CommonJS default and namespace imports.
-    pub es_module_interop: bool,
-    /// Allow default imports from modules without explicit default exports.
-    pub allow_synthetic_default_imports: bool,
     /// How to handle type-only imports.
     pub imports_not_used_as_values: ImportsNotUsedAsValues,
     /// Rewrite relative import extensions.
@@ -195,8 +191,6 @@ impl Default for TsCompilerOptions {
 
             verbatim_module_syntax: false,
             preserve_value_imports: false,
-            es_module_interop: false,
-            allow_synthetic_default_imports: false,
             imports_not_used_as_values: ImportsNotUsedAsValues::default(),
             rewrite_relative_import_extensions: false,
 
@@ -310,10 +304,6 @@ impl From<&TsCompilerOptionsJson> for TsCompilerOptions {
 
             verbatim_module_syntax: json.verbatim_module_syntax.unwrap_or(false),
             preserve_value_imports: json.preserve_value_imports.unwrap_or(false),
-            es_module_interop: json.es_module_interop.unwrap_or(false),
-            allow_synthetic_default_imports: json
-                .allow_synthetic_default_imports
-                .unwrap_or(json.es_module_interop.unwrap_or(false)),
             imports_not_used_as_values: json
                 .imports_not_used_as_values
                 .as_deref()
@@ -538,14 +528,6 @@ pub struct TsCompilerOptionsJson {
     /// Preserve value imports (e.g. `true`)
     /// <https://www.typescriptlang.org/tsconfig/#preserveValueImports>
     pub preserve_value_imports: Option<bool>,
-
-    /// Emit babel style interop helpers for CommonJS default and namespace imports.
-    /// <https://www.typescriptlang.org/tsconfig/#esModuleInterop>
-    pub es_module_interop: Option<bool>,
-
-    /// Allow default imports from modules without explicit default exports.
-    /// <https://www.typescriptlang.org/tsconfig/#allowSyntheticDefaultImports>
-    pub allow_synthetic_default_imports: Option<bool>,
 
     /// Imports not used as values (e.g. `"error"`)
     /// <https://www.typescriptlang.org/tsconfig/#importsNotUsedAsValues>

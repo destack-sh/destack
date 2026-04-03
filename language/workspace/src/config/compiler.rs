@@ -183,10 +183,6 @@ pub struct CompilerOptions {
     pub allow_arbitrary_extensions: bool,
     /// Allow TypeScript file extensions in import specifiers.
     pub allow_importing_ts_extensions: bool,
-    /// Enable TypeScript CommonJS default import interop semantics.
-    pub es_module_interop: bool,
-    /// Allow synthetic default imports from modules without explicit defaults.
-    pub allow_synthetic_default_imports: bool,
     /// Preserve import and export syntax verbatim.
     pub verbatim_module_syntax: bool,
     /// Rewrite relative import extensions.
@@ -299,8 +295,6 @@ impl Default for CompilerOptions {
             allow_js: true,
             js_as_jsx: false,
             check_js: false,
-            es_module_interop: false,
-            allow_synthetic_default_imports: false,
             verbatim_module_syntax: false,
             rewrite_relative_import_extensions: false,
             skip_lib_check: false,
@@ -768,10 +762,6 @@ pub struct CompilerOptionsJson {
     pub allow_arbitrary_extensions: Option<bool>,
     /// Allow TypeScript file extensions in import specifiers.
     pub allow_importing_ts_extensions: Option<bool>,
-    /// Enable TypeScript CommonJS default import interop semantics.
-    pub es_module_interop: Option<bool>,
-    /// Allow synthetic default imports from modules without explicit defaults.
-    pub allow_synthetic_default_imports: Option<bool>,
     /// Preserve import and export syntax verbatim.
     pub verbatim_module_syntax: Option<bool>,
     /// Rewrite relative import extensions.
@@ -1027,10 +1017,6 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
             allow_js: json.allow_js.unwrap_or(true),
             js_as_jsx: json.js_as_jsx.unwrap_or(false),
             check_js: json.check_js.unwrap_or(false),
-            es_module_interop: json.es_module_interop.unwrap_or(false),
-            allow_synthetic_default_imports: json
-                .allow_synthetic_default_imports
-                .unwrap_or(json.es_module_interop.unwrap_or(false)),
             verbatim_module_syntax: json.verbatim_module_syntax.unwrap_or(false),
             rewrite_relative_import_extensions: json
                 .rewrite_relative_import_extensions
