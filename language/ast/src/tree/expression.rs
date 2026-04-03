@@ -47,9 +47,6 @@ pub enum Expression {
     /// Block of Expressions.
     Block(LocalNodeId<Block>),
 
-    /// Statement expression (explicit statement with a `;` terminator).
-    Statement(LocalNodeId<Expression>),
-
     /// Labelled statement (like `label: stmt` in JavaScript).
     ///
     /// Examples:
@@ -902,7 +899,6 @@ impl Expression {
         match self {
             Expression::Block(_) => true,
             Expression::Declaration(_) => true,
-            Expression::Statement(_) => true,
             Expression::Labelled { .. } => true,
             Expression::If { kind, .. } => *kind == IfKind::If,
             Expression::While { .. } => true,
@@ -932,6 +928,30 @@ impl Expression {
             || self.is_top_level_statement()
     }
 
+    /// Return whether this expression may remain a value tail in an expression block.
+    #[inline]
+    pub fn preserves_value_tail_in_expression_block(&self) -> bool {
+        matches!(
+            self,
+            Expression::Block(_)
+                | Expression::If {
+                    kind: IfKind::If,
+                    else_expression: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    catch_expression: Some(_),
+                    ..
+                }
+                | Expression::Try {
+                    finally_expression: Some(_),
+                    ..
+                }
+                | Expression::Match { .. }
+                | Expression::Loop { .. }
+        )
+    }
+
     /// Determine if this expression should terminate at a newline in statement position.
     #[inline]
     pub fn ends_statement_on_newline(&self) -> bool {
@@ -939,7 +959,6 @@ impl Expression {
             self,
             Expression::Block(_)
                 | Expression::Declaration(_)
-                | Expression::Statement(_)
                 | Expression::Labelled { .. }
                 | Expression::Import { .. }
                 | Expression::Export { .. }
@@ -974,8 +993,7 @@ impl Expression {
     pub fn is_wide(&self) -> bool {
         matches!(
             self,
-            Expression::Statement { .. }
-                | Expression::Declaration { .. }
+            Expression::Declaration { .. }
                 | Expression::Import { .. }
                 | Expression::ExportNamespace { .. }
                 | Expression::Let { .. }
