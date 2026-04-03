@@ -35,6 +35,15 @@ fn format_statement_body_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    format_statement_body_expression_with_semicolon(f, expression_id, true)
+}
+
+/// Format one control-flow body expression with configurable semicolon ownership.
+fn format_statement_body_expression_with_semicolon<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    has_trailing_semicolon: bool,
+) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
     let is_ignored = node_has_ignore_directive(f.context(), expression_id);
 
@@ -47,7 +56,7 @@ fn format_statement_body_expression<'ast>(
     )?;
     format_expression(f, expression_id, expression, is_ignored)?;
 
-    if statement_wrapper_needs_semicolon(f.context(), expression_id) {
+    if has_trailing_semicolon && statement_wrapper_needs_semicolon(f.context(), expression_id) {
         write!(f, [token(";")])?;
     }
 
@@ -71,6 +80,31 @@ fn format_statement_body_expression<'ast>(
     Ok(())
 }
 
+/// Return whether one inline `if` branch expression needs a statement terminator.
+fn inline_if_branch_needs_semicolon(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    matches!(
+        context.tree.get(expression_id),
+        Expression::Break { .. }
+            | Expression::Continue { .. }
+            | Expression::Yield { .. }
+            | Expression::Throw { .. }
+            | Expression::Return { .. }
+    )
+}
+
+/// Return whether one statement-like control expression lives directly in a block.
+fn control_expression_parent_is_block(
+    f: &DestackFormatter<'_, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    f.context()
+        .parent(node_id)
+        .is_some_and(|(_, parent_type)| parent_type == NodeType::Block)
+}
+
 /// Format a statement body block, preserving wrapper semantics.
 pub(crate) fn format_statement_body_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -91,10 +125,10 @@ pub(crate) fn format_statement_body_block<'ast>(
         )]
     )?;
 
-    if block.expressions.is_empty() {
+    if block.is_empty() {
         write!(f, [token(";")])?;
-    } else if block.expressions.len() == 1 {
-        let expression_id = block.expressions[0];
+    } else if block.len() == 1 {
+        let expression_id = block.first_expression().expect("single-expression block");
         if expression_has_block_prefix_annotation(f.context(), expression_id) {
             write!(
                 f,
@@ -137,7 +171,7 @@ pub(crate) fn is_empty_statement_block<'ast>(
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = context.tree.get(block_id);
-    is_statement_wrapper_block(context, block_id) && block.expressions.is_empty()
+    is_statement_wrapper_block(context, block_id) && block.is_empty()
 }
 
 /// Detect a source binding keyword for a for each pattern binding.
@@ -243,20 +277,26 @@ fn format_statement_body_expression_after_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
+    let has_trailing_semicolon = inline_if_branch_needs_semicolon(f.context(), expression_id);
+
     if expression_has_block_prefix_annotation(f.context(), expression_id) {
         write!(
             f,
             [
                 hard_line_break(),
                 group(&block_indent(&format_with(|f| {
-                    format_statement_body_expression(f, expression_id)
+                    format_statement_body_expression_with_semicolon(
+                        f,
+                        expression_id,
+                        has_trailing_semicolon,
+                    )
                 })))
             ]
         )?;
         return Ok(());
     }
 
-    format_statement_body_expression(f, expression_id)
+    format_statement_body_expression_with_semicolon(f, expression_id, has_trailing_semicolon)
 }
 
 /// Return whether one annotation id forces adjacent argument wrapping.
@@ -320,7 +360,6 @@ fn next_adjacent_argument_left_side(
             condition: IfCondition::Expression { condition },
             ..
         } => Some(*condition),
-        Expression::Statement(expression) => Some(*expression),
         Expression::Parenthesized { expression } => Some(*expression),
         _ => None,
     }
@@ -475,12 +514,16 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
                 write!(f, [comment_id, hard_line_break()])?;
             }
 
-            write!(
+            f.context().push_owned_comment_nodes(&hoisted_comments);
+            let format_result = write!(
                 f,
                 [format_with(|f| {
                     write_expanded_wrapped_value(f, parenthesized_inner_id)
                 })]
-            )
+            );
+            f.context().pop_owned_comment_nodes(hoisted_comments.len());
+
+            format_result
         });
 
         write!(
@@ -559,16 +602,14 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
                     write!(f, [comment_id, hard_line_break()])?;
                 }
 
-                f.context()
-                    .push_suppressed_parenthesized_leading_comment_node(hoisted_parenthesized_id);
+                f.context().push_owned_comment_nodes(&hoisted_comments);
                 let format_result = write!(
                     f,
                     [format_with(|f| {
                         write_expanded_wrapped_value(f, value_check_id)
                     })]
                 );
-                f.context()
-                    .pop_suppressed_parenthesized_leading_comment_node();
+                f.context().pop_owned_comment_nodes(hoisted_comments.len());
 
                 format_result
             });
@@ -1006,10 +1047,7 @@ pub(crate) fn format_return_expression<'ast>(
     value: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
-    let return_parent_is_block = f
-        .context()
-        .parent(node_id)
-        .is_some_and(|(_, parent_type)| parent_type == NodeType::Block);
+    let return_parent_is_block = control_expression_parent_is_block(f, node_id);
 
     // return keyword
     write!(f, [token("return")])?;
@@ -1081,10 +1119,7 @@ pub(crate) fn format_yield_expression<'ast>(
     }
 
     // block statement yields terminate like return or throw
-    let yield_parent_is_block = f
-        .context()
-        .parent(node_id)
-        .is_some_and(|(_, parent_type)| parent_type == NodeType::Block);
+    let yield_parent_is_block = control_expression_parent_is_block(f, node_id);
     if yield_parent_is_block {
         write!(f, [token(";")])?;
     }
@@ -1095,15 +1130,23 @@ pub(crate) fn format_yield_expression<'ast>(
 /// Format one throw expression in statement position.
 pub(crate) fn format_throw_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     write!(f, [token("throw")])?;
-    format_adjacent_statement_argument(f, value_id)
+    format_adjacent_statement_argument(f, value_id)?;
+
+    if control_expression_parent_is_block(f, node_id) {
+        write!(f, [token(";")])?;
+    }
+
+    Ok(())
 }
 
 /// Format one break expression in statement position.
 pub(crate) fn format_break_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     label: &Option<StringId>,
     value: &Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
@@ -1121,12 +1164,17 @@ pub(crate) fn format_break_expression<'ast>(
         write!(f, [space(), value])?;
     }
 
+    if control_expression_parent_is_block(f, node_id) {
+        write!(f, [token(";")])?;
+    }
+
     Ok(())
 }
 
 /// Format one continue expression in statement position.
 pub(crate) fn format_continue_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
     label: &Option<StringId>,
 ) -> FormatResult<()> {
     write!(f, [Keyword::Continue])?;
@@ -1137,6 +1185,10 @@ pub(crate) fn format_continue_expression<'ast>(
         } else {
             write!(f, [space(), label])?;
         }
+    }
+
+    if control_expression_parent_is_block(f, node_id) {
+        write!(f, [token(";")])?;
     }
 
     Ok(())
@@ -1503,17 +1555,11 @@ pub(crate) fn format_match_case_with_style<'ast>(
                         } else {
                             write!(f, [space(), explicit_block_expression])?;
                         }
-                    } else if !block.expressions.is_empty() {
+                    } else if !block.is_empty() {
                         if !has_boundary_line_comment {
                             write!(f, [hard_line_break()])?;
                         }
-                        write!(
-                            f,
-                            [block_indent(&block_statement_sequence(
-                                &block.expressions,
-                                false,
-                            ))]
-                        )?;
+                        write!(f, [block_indent(&block_statement_sequence(*body, false))])?;
                     }
                 } else if has_boundary_line_comment {
                     if has_inline_star_line_postfix_boundary_comment {
@@ -1553,17 +1599,10 @@ fn switch_case_expression_body_should_break(
 
 /// Return one expression id with statement wrappers removed.
 fn switch_case_expression_without_statement_wrapper(
-    context: &DestackFormatContext<'_>,
+    _context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
-    let mut expression_id = expression_id;
-
-    loop {
-        let Expression::Statement(inner_expression_id) = context.tree.get(expression_id) else {
-            return expression_id;
-        };
-        expression_id = *inner_expression_id;
-    }
+    expression_id
 }
 
 /// Return whether one switch case expression body is one explicit block expression.
@@ -1594,7 +1633,7 @@ fn expression_is_empty_statement_block(
     };
 
     let block = context.tree.get(*block_id);
-    block.format == BlockFormat::Implicit && block.expressions.is_empty()
+    block.format == BlockFormat::Implicit && block.is_empty()
 }
 
 /// Return one explicit block expression for one switch case body when collapsible.
@@ -1627,7 +1666,7 @@ fn switch_case_implicit_body_single_explicit_block_expression(
     }
 
     let mut explicit_block_expression = None;
-    for expression_id in implicit_block.expressions.iter().copied() {
+    for expression_id in implicit_block.iter_expressions() {
         if expression_is_empty_statement_block(context, expression_id) {
             continue;
         }

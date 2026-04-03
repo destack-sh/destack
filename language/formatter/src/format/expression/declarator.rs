@@ -1,3 +1,4 @@
+use crate::format::annotation::{prefix_annotations, write_inline_prefix_annotations};
 use crate::format::call::{format_call_expression, format_instantiation_expression};
 use crate::format::chain::{
     argument_value_id_if_present, has_line_comment_between_expressions, is_chain_root,
@@ -216,22 +217,24 @@ pub(crate) fn declarator_value_has_assignment_seam_prefix_comment(
         })
 }
 
-/// Return whether one declarator value has raw comment trivia on the `=` seam.
-fn declarator_value_has_assignment_seam_comment_trivia(
+/// Return raw comment trivia nodes on the `=` seam for one declarator value.
+fn declarator_value_assignment_seam_comment_nodes(
     context: &DestackFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
-) -> bool {
+) -> Vec<LocalNodeId<Comment>> {
     let value_span = context.span(value_id);
     let Some(previous_token) = context.previous_non_trivia_token_before_span(value_span) else {
-        return false;
+        return Vec::new();
     };
 
-    previous_token.token.ty == TokenType::Assign
-        && previous_token.span.file == value_span.file
-        && previous_token.span.end < value_span.start
-        && !context
-            .comment_nodes_in_range(previous_token.span.end, value_span.start)
-            .is_empty()
+    if previous_token.token.ty != TokenType::Assign
+        || previous_token.span.file != value_span.file
+        || previous_token.span.end >= value_span.start
+    {
+        return Vec::new();
+    }
+
+    context.comment_nodes_in_range(previous_token.span.end, value_span.start)
 }
 
 /// Write raw comments between one `=` operator and rhs expression.
@@ -302,7 +305,13 @@ fn format_assignment_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
     value_has_assignment_seam_prefix_annotation: bool,
+    assignment_seam_comment_nodes: &[LocalNodeId<Comment>],
 ) -> FormatResult<()> {
+    if !assignment_seam_comment_nodes.is_empty() {
+        f.context()
+            .push_owned_comment_nodes(assignment_seam_comment_nodes);
+    }
+
     let prefix_annotation_ids: Vec<_> = f
         .context()
         .annotation_ids(value_id)
@@ -316,32 +325,35 @@ fn format_assignment_value<'ast>(
         })
         .collect();
 
-    if prefix_annotation_ids.is_empty() {
-        return write_expression_with_inline_prefix_annotations(f, value_id);
+    let result = (|| {
+        if prefix_annotation_ids.is_empty() {
+            return write_expression_with_inline_prefix_annotations(f, value_id);
+        }
+
+        if value_has_assignment_seam_prefix_annotation {
+            write_inline_prefix_annotations(f, &prefix_annotation_ids)?;
+            write!(f, [space()])?;
+            return write_expression_without_prefix_annotations(f, value_id);
+        }
+
+        write!(f, [prefix_annotations(f.context(), value_id)])?;
+
+        if let Some(last_prefix_annotation_id) = prefix_annotation_ids.last().copied()
+            && f.context()
+                .annotation_next_token_is_on_same_line(last_prefix_annotation_id)
+        {
+            write!(f, [space()])?;
+        }
+
+        write_expression_without_prefix_annotations(f, value_id)
+    })();
+
+    if !assignment_seam_comment_nodes.is_empty() {
+        f.context()
+            .pop_owned_comment_nodes(assignment_seam_comment_nodes.len());
     }
 
-    if value_has_assignment_seam_prefix_annotation {
-        crate::format::annotation::write_inline_prefix_annotations(f, &prefix_annotation_ids)?;
-        write!(f, [space()])?;
-        return write_expression_without_prefix_annotations(f, value_id);
-    }
-
-    write!(
-        f,
-        [crate::format::annotation::prefix_annotations(
-            f.context(),
-            value_id
-        )]
-    )?;
-
-    if let Some(last_prefix_annotation_id) = prefix_annotation_ids.last().copied()
-        && f.context()
-            .annotation_next_token_is_on_same_line(last_prefix_annotation_id)
-    {
-        write!(f, [space()])?;
-    }
-
-    write_expression_without_prefix_annotations(f, value_id)
+    result
 }
 
 /// Return whether a declaration heritage clause contains static type arguments.
@@ -461,7 +473,7 @@ pub(crate) fn value_has_generic_class_heritage(
         | Expression::Instantiation { left, .. } => {
             value_has_generic_class_heritage(context, *left)
         }
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             value_has_generic_class_heritage(context, *expression)
         }
         _ => false,
@@ -512,9 +524,7 @@ pub(crate) fn value_is_inline_closure_cast_type_binary(
         }
 
         let next_id = match context.tree.get(current_id) {
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-                Some(*expression)
-            }
+            Expression::Parenthesized { expression } => Some(*expression),
             Expression::TypeBinary { left, .. }
             | Expression::Binary { left, .. }
             | Expression::Call { left, .. }
@@ -557,7 +567,7 @@ fn value_chain_has_instantiation_prefix(
             | Expression::Must { left, .. } => {
                 current_id = *left;
             }
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            Expression::Parenthesized { expression } => {
                 current_id = *expression;
             }
             _ => return false,
@@ -591,7 +601,7 @@ fn expression_has_static_arguments(
     let expression_id = transparent_inner_expression(context, expression_id);
 
     match context.tree.get(expression_id) {
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments
             .as_deref()
@@ -626,7 +636,7 @@ fn expression_has_static_arguments(
             left,
             static_arguments,
         } => expression_has_static_arguments(context, *left) || !static_arguments.is_empty(),
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             expression_has_static_arguments(context, *expression)
         }
         _ => false,
@@ -662,7 +672,7 @@ fn expression_has_nested_call_chain(
             | Expression::Must { left, .. } => {
                 current_id = *left;
             }
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            Expression::Parenthesized { expression } => {
                 current_id = *expression;
             }
             _ => return false,
@@ -678,7 +688,7 @@ fn expression_has_block_static_arguments(
     let expression_id = transparent_inner_expression(context, expression_id);
 
     match context.tree.get(expression_id) {
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments.as_deref().is_some_and(|arguments| {
             static_argument_list_has_block_expressions(context, arguments)
@@ -716,7 +726,7 @@ fn expression_has_block_static_arguments(
             expression_has_block_static_arguments(context, *left)
                 || static_argument_list_has_block_expressions(context, static_arguments)
         }
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             expression_has_block_static_arguments(context, *expression)
         }
         _ => false,
@@ -778,7 +788,7 @@ fn expression_has_class_heritage(
         Expression::Call { left, .. }
         | Expression::New { left, .. }
         | Expression::Instantiation { left, .. } => expression_has_class_heritage(context, *left),
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             expression_has_class_heritage(context, *expression)
         }
         _ => false,
@@ -801,7 +811,6 @@ fn expression_chain_has_private_member(
         | Expression::Must { left, .. }
         | Expression::New { left, .. } => expression_chain_has_private_member(context, *left),
         Expression::Parenthesized { expression }
-        | Expression::Statement(expression)
         | Expression::Await { expression }
         | Expression::AwaitMaybe { expression } => {
             expression_chain_has_private_member(context, *expression)
@@ -868,8 +877,9 @@ pub(crate) fn format_declarator<'ast>(
     let value_has_prefix_annotation = f.context().has_prefix_annotation(*value_id);
     let value_has_assignment_seam_prefix_annotation =
         declarator_value_has_assignment_seam_prefix_comment(f.context(), *value_id);
-    let value_has_assignment_seam_comment_trivia =
-        declarator_value_has_assignment_seam_comment_trivia(f.context(), *value_id);
+    let assignment_seam_comment_nodes =
+        declarator_value_assignment_seam_comment_nodes(f.context(), *value_id);
+    let value_has_assignment_seam_comment_trivia = !assignment_seam_comment_nodes.is_empty();
     let value_has_prefix_annotation_that_forces_break = value_has_prefix_annotation
         && !value_is_inline_closure_cast_type_binary
         && !value_has_assignment_seam_prefix_annotation;
@@ -930,12 +940,22 @@ pub(crate) fn format_declarator<'ast>(
     let value_has_class_heritage = expression_has_class_heritage(f.context(), value_inner_id);
     let format_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_assignment_seam_comments(f, *value_id, false)?;
-        format_assignment_value(f, *value_id, value_has_assignment_seam_prefix_annotation)
+        format_assignment_value(
+            f,
+            *value_id,
+            value_has_assignment_seam_prefix_annotation,
+            &assignment_seam_comment_nodes,
+        )
     });
 
     let format_value_after_break = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_assignment_seam_comments(f, *value_id, true)?;
-        format_assignment_value(f, *value_id, value_has_assignment_seam_prefix_annotation)
+        format_assignment_value(
+            f,
+            *value_id,
+            value_has_assignment_seam_prefix_annotation,
+            &assignment_seam_comment_nodes,
+        )
     });
 
     // layout fragments
@@ -1252,13 +1272,7 @@ impl<'ast> FormatNode<'ast, Declarator> for Declarator {
         node_id: LocalNodeId<Declarator>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(
-            f,
-            [crate::format::annotation::prefix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         format_declarator(f, f.context().tree, node_id)?;
 

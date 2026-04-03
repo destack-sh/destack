@@ -1,17 +1,20 @@
 use std::borrow::Cow;
 
-use crate::format::annotation::write_annotation_sequence;
+use crate::format::annotation::{
+    block_infix_annotations, prefix_annotations, raw_prefix_comment_nodes,
+    write_annotation_sequence,
+};
 use crate::format::declaration::expression_needs_statement_terminator;
 use crate::format::declaration::statement::{
     block_leading_line_comment_nodes, block_trailing_comment_nodes,
 };
 use crate::format::directive::{
-    ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
+    ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
 };
 use crate::format::expression::format_expression;
 use destack_ast::{
     AnnotationPosition, Block, BlockContext, Declaration, Expression, FunctionKind, FunctionMode,
-    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property,
+    IfCondition, IfKind, LocalNodeId, Member, NodeType, Property, TokenSpan,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
@@ -35,22 +38,22 @@ fn expressions_have_blank_line_between(
     context.has_blank_line(between_span)
 }
 
-/// Format one block-scoped statement sequence.
-pub(crate) fn block_statement_sequence<'ast>(
-    expressions: &'ast [LocalNodeId<Expression>],
-    allow_value_tail: bool,
-) -> impl Format<DestackFormatContext<'ast>> + 'ast {
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-        format_block_statement_sequence(f, expressions, allow_value_tail)
-    })
-}
-
 /// Format one program-scoped statement sequence.
 pub(crate) fn program_statement_sequence<'ast>(
     expressions: &'ast [LocalNodeId<Expression>],
 ) -> impl Format<DestackFormatContext<'ast>> + 'ast {
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         format_program_statement_sequence(f, expressions)
+    })
+}
+
+/// Format one block-scoped statement sequence.
+pub(crate) fn block_statement_sequence<'ast>(
+    block_id: LocalNodeId<Block>,
+    allow_value_tail: bool,
+) -> impl Format<DestackFormatContext<'ast>> + 'ast {
+    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        format_block_statement_sequence_for_block(f, block_id, allow_value_tail)
     })
 }
 
@@ -77,9 +80,17 @@ fn expression_prefix_start(
 ) -> u32 {
     let mut start = default_start;
 
+    for comment_id in raw_prefix_comment_nodes(context, expression_id) {
+        start = start.min(context.span(comment_id).start);
+    }
+
     // declaration expressions semantically start at their prefix annotations,
     // even though the expression span begins at the declaration head
     if let Expression::Declaration(declaration_id) = context.tree.get(expression_id) {
+        for comment_id in raw_prefix_comment_nodes(context, *declaration_id) {
+            start = start.min(context.span(comment_id).start);
+        }
+
         for annotation_id in context.annotation_ids(*declaration_id).iter().copied() {
             if matches!(
                 context.annotation(annotation_id).position(),
@@ -157,31 +168,8 @@ fn write_expression_postfix_annotations<'ast>(
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
     is_ignored: bool,
-    use_statement_inner_annotations: bool,
+    _use_statement_inner_annotations: bool,
 ) -> FormatResult<()> {
-    if use_statement_inner_annotations && let Expression::Statement(statement_id) = expression {
-        let statement_expression = f.context().tree.get(*statement_id);
-        let statement_is_ignored = node_has_ignore_directive(f.context(), *statement_id);
-        let if_chain_handles_annotations = matches!(
-            statement_expression,
-            Expression::If {
-                kind: IfKind::If,
-                ..
-            }
-        );
-        if if_chain_handles_annotations || statement_is_ignored {
-            return Ok(());
-        }
-
-        return write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations(
-                f.context(),
-                *statement_id
-            )]
-        );
-    }
-
     let if_chain_handles_annotations = matches!(
         expression,
         Expression::If {
@@ -210,20 +198,21 @@ pub(crate) fn format_block_body_narrow<'ast>(
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
-    debug_assert!(block.expressions.len() <= 1);
+    debug_assert!(block.len() <= 1);
 
     // body
-    if block.expressions.is_empty() {
+    if block.is_empty() {
         write!(f, [token("{"), token("}")])?;
     } else {
+        let expression_id = block.first_expression().expect("single-expression block");
         write!(
             f,
             [
                 token("{"),
                 soft_line_break_or_space(),
                 soft_block_indent(&format_args![
-                    &block.expressions[0],
-                    crate::format::annotation::block_infix_annotations(f.context(), block_id)
+                    &expression_id,
+                    block_infix_annotations(f.context(), block_id)
                 ]),
                 soft_line_break_or_space(),
                 token("}")
@@ -265,7 +254,7 @@ pub(crate) fn format_block_body_wide<'ast>(
                 }
             ))]
         )?;
-        if !block.expressions.is_empty()
+        if !block.is_empty()
             || !trailing_comment_nodes.is_empty()
             || f.context().has_infix_annotation(block_id)
         {
@@ -273,14 +262,17 @@ pub(crate) fn format_block_body_wide<'ast>(
         }
     }
 
-    if !block.expressions.is_empty() {
+    if !block.is_empty() {
+        f.context().push_owned_comment_nodes(&leading_comment_nodes);
         write!(
             f,
             [soft_block_indent(&block_statement_sequence(
-                &block.expressions,
+                block_id,
                 allow_value_tail
             ))]
         )?;
+        f.context()
+            .pop_owned_comment_nodes(leading_comment_nodes.len());
         if !trailing_comment_nodes.is_empty() || f.context().has_infix_annotation(block_id) {
             write!(f, [hard_line_break()])?;
         }
@@ -310,12 +302,30 @@ pub(crate) fn format_block_body_wide<'ast>(
 
     write!(
         f,
-        [block_indent(
-            &crate::format::annotation::block_infix_annotations(f.context(), block_id)
-        )]
+        [block_indent(&block_infix_annotations(
+            f.context(),
+            block_id
+        ))]
     )?;
 
     write!(f, [hard_line_break(), token("}")])
+}
+
+/// Collect ignore ranges for block expressions without materializing a temporary list.
+fn ignore_ranges_for_block_expressions(
+    ctx: &DestackFormatContext<'_>,
+    block: &Block,
+    comment_tokens: &[TokenSpan],
+) -> std::collections::HashMap<u32, Span> {
+    let mut ignore_ranges = std::collections::HashMap::new();
+
+    for expression_id in block.iter_expressions() {
+        if let Some(range_span) = ignore_range_for_node(ctx, expression_id, comment_tokens) {
+            ignore_ranges.insert(expression_id.id, range_span);
+        }
+    }
+
+    ignore_ranges
 }
 
 /// Format one block statement sequence with spacing and ignore handling.
@@ -471,13 +481,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             }
             write_annotation_sequence(f, &prefix_items)?;
         } else {
-            write!(
-                f,
-                [crate::format::annotation::prefix_annotations(
-                    f.context(),
-                    expression_id
-                )]
-            )?;
+            write!(f, [prefix_annotations(f.context(), expression_id)])?;
         }
         format_expression(f, expression_id, expression, is_ignored)?;
 
@@ -495,6 +499,182 @@ pub(crate) fn format_block_statement_sequence<'ast>(
         let expression_output_end =
             expression_postfix_end(f.context(), expression_id, expression_span.end);
         previous_output_end = Some((expression_span.file, expression_output_end));
+    }
+    Ok(())
+}
+
+/// Format one block statement sequence with spacing and ignore handling.
+pub(crate) fn format_block_statement_sequence_for_block<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    block_id: LocalNodeId<Block>,
+    allow_value_tail: bool,
+) -> FormatResult<()> {
+    let tree = f.context().tree;
+    let block = f.context().tree.get(block_id);
+    let expression_count = block.len();
+
+    // ignore ranges: only compute when the file may contain ignore directives
+    let ignore_ranges = if f.context().has_ignore_directive_markers() {
+        let comment_tokens = f.context().comment_tokens();
+        ignore_ranges_for_block_expressions(f.context(), block, comment_tokens)
+    } else {
+        std::collections::HashMap::new()
+    };
+    let mut previous_output_end: Option<(FileId, u32)> = None;
+    let mut previous_expression_id: Option<LocalNodeId<Expression>> = None;
+    let mut skip_until: Option<u32> = None;
+
+    for (i, expression_id) in block.iter_expressions().enumerate() {
+        let expression = f.context().tree.get(expression_id);
+        let ignore_range = ignore_ranges.get(&expression_id.id).copied();
+        let has_ignore_range = ignore_range.is_some();
+        let is_ignored = node_has_ignore_directive(f.context(), expression_id);
+
+        let expression_span = f.context().span(expression_id);
+
+        if let Some(skip_end) = skip_until {
+            if expression_span.start < skip_end {
+                continue;
+            }
+            skip_until = None;
+        }
+
+        // blank line between expressions
+        if let Some(previous_expression_id) = previous_expression_id {
+            let source_has_blank_line_between = if has_ignore_range {
+                if let Some((previous_file, previous_end)) = previous_output_end {
+                    if previous_file != expression_span.file {
+                        false
+                    } else {
+                        let range_start =
+                            ignore_range.map_or(expression_span.start, |span| span.start);
+                        has_blank_line_between_offsets(
+                            f.context(),
+                            expression_span.file,
+                            previous_end,
+                            range_start,
+                        )
+                    }
+                } else {
+                    let previous_span = f.context().span(previous_expression_id);
+                    if previous_span.file != expression_span.file {
+                        false
+                    } else {
+                        let range_start =
+                            ignore_range.map_or(expression_span.start, |span| span.start);
+                        has_blank_line_between_offsets(
+                            f.context(),
+                            expression_span.file,
+                            previous_span.end,
+                            range_start,
+                        )
+                    }
+                }
+            } else {
+                expressions_have_blank_line_between(
+                    f.context(),
+                    previous_expression_id,
+                    expression_id,
+                )
+            };
+            if !has_ignore_range {
+                if !source_has_blank_line_between {
+                    write!(f, [hard_line_break()])?;
+                }
+
+                // determine if we need an extra blank line
+                let needs_blank = if source_has_blank_line_between {
+                    true
+                } else {
+                    false
+                };
+
+                if needs_blank {
+                    write!(f, [empty_line()])?;
+                }
+            }
+        }
+
+        if let Some(range_span) = ignore_range {
+            let prefix_start = if let Some((previous_file, previous_end)) = previous_output_end {
+                if previous_file == range_span.file {
+                    previous_end
+                } else {
+                    expression_prefix_start(f.context(), expression_id, expression_span.start)
+                }
+            } else if let Some(previous_expression_id) = previous_expression_id {
+                let previous_span = f.context().span(previous_expression_id);
+                if previous_span.file == range_span.file {
+                    previous_span.end
+                } else {
+                    expression_prefix_start(f.context(), expression_id, expression_span.start)
+                }
+            } else {
+                expression_prefix_start(f.context(), expression_id, expression_span.start)
+            };
+            if prefix_start < range_span.start {
+                let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
+                write_ignored_span(f, prefix_span)?;
+            }
+
+            write_ignored_span(f, range_span)?;
+            skip_until = Some(range_span.end);
+            previous_output_end = Some((range_span.file, range_span.end));
+            continue;
+        }
+
+        // raw seam comments
+        if let Some(previous_expression_id) = previous_expression_id {
+            let gap_start = previous_output_end
+                .filter(|(file, _)| *file == expression_span.file)
+                .map_or_else(
+                    || f.context().span(previous_expression_id).end,
+                    |(_, previous_end)| previous_end,
+                );
+            write_expression_gap_comments(f, gap_start, expression_id)?;
+        }
+
+        // expression itself (with prefix annotations)
+        // lambda declaration line prefix comments are handled in declaration formatting
+        let is_lambda_declaration_expression = matches!(
+            expression,
+            Expression::Declaration(declaration_id)
+                if matches!(
+                    tree.get(*declaration_id),
+                    Declaration::Function { signature, .. }
+                        if signature.kind == FunctionKind::Lambda
+                )
+        );
+        if is_lambda_declaration_expression {
+            let mut prefix_items = Vec::new();
+            for annotation_id in f.context().annotation_ids(expression_id).iter().copied() {
+                if f.context().annotation(annotation_id).position()
+                    == AnnotationPosition::BlockPrefix
+                {
+                    prefix_items.push(annotation_id);
+                }
+            }
+            write_annotation_sequence(f, &prefix_items)?;
+        } else {
+            write!(f, [prefix_annotations(f.context(), expression_id)])?;
+        }
+        format_expression(f, expression_id, expression, is_ignored)?;
+
+        // add statement terminators for statement-context expression forms
+        let is_expression_context_tail = allow_value_tail && i + 1 == expression_count;
+        if expression_needs_statement_terminator(
+            f.context(),
+            expression,
+            is_expression_context_tail,
+        ) {
+            write!(f, [token(";")])?;
+        }
+
+        write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
+        let expression_output_end =
+            expression_postfix_end(f.context(), expression_id, expression_span.end);
+        previous_output_end = Some((expression_span.file, expression_output_end));
+        previous_expression_id = Some(expression_id);
     }
     Ok(())
 }
@@ -696,13 +876,7 @@ fn format_program_statement_sequence<'ast>(
             }
             write_annotation_sequence(f, &prefix_items)?;
         } else {
-            write!(
-                f,
-                [crate::format::annotation::prefix_annotations(
-                    f.context(),
-                    expression_id
-                )]
-            )?;
+            write!(f, [prefix_annotations(f.context(), expression_id)])?;
         }
         format_expression(f, expression_id, expression, is_ignored)?;
 
@@ -757,7 +931,7 @@ pub(crate) fn block_allows_value_tail(
 }
 
 /// Return true when this expression is in statement position.
-fn expression_is_in_statement_position(
+pub(crate) fn expression_is_in_statement_position(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -769,10 +943,7 @@ fn expression_is_in_statement_position(
         NodeType::Expression => {
             let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
             let parent_expression = context.tree.get(parent_expression_id);
-            if matches!(
-                parent_expression,
-                Expression::Statement(inner_expression_id) if *inner_expression_id == expression_id
-            ) {
+            if parent_expression_id == expression_id {
                 return true;
             }
 
@@ -871,9 +1042,8 @@ fn expression_is_in_statement_position_inside_parent_block(
     }
 
     let is_last_expression = parent_block
-        .expressions
-        .last()
-        .is_some_and(|last_expression_id| *last_expression_id == expression_id);
+        .last_expression()
+        .is_some_and(|last_expression_id| last_expression_id == expression_id);
     if !is_last_expression {
         return true;
     }
@@ -969,7 +1139,8 @@ fn expression_is_self_type_path(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
-        Expression::Path { path, .. } => {
+        Expression::Identifier { name } => context.strings.get(*name) == "Self",
+        Expression::QualifiedReference { path, .. } => {
             path.segments.len() == 1 && context.strings.get(path.segments[0]) == "Self"
         }
         Expression::Parenthesized { expression } => {

@@ -1,3 +1,4 @@
+use crate::format::annotation::raw_prefix_comment_nodes;
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::format::operator::write_expression_with_inline_prefix_annotations;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
@@ -261,9 +262,12 @@ fn write_parameter_name_type_gap_comments<'ast>(
     ty: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let type_span = f.context().span(ty);
-    let comment_ids = f
+    let mut comment_ids = f
         .context()
         .comment_nodes_in_range(gap_start, type_span.start);
+    let prefix_comment_ids = raw_prefix_comment_nodes(f.context(), ty);
+    comment_ids.retain(|comment_id| !prefix_comment_ids.contains(comment_id));
+
     if comment_ids.is_empty() {
         return Ok(());
     }
@@ -998,7 +1002,7 @@ pub(crate) fn expression_body_requires_head_space(
     }
 
     let block = context.tree.get(*block_id);
-    if let Some(first_expression) = block.expressions.first().copied()
+    if let Some(first_expression) = block.first_expression()
         && let Some(requires_space) =
             annotations_require_head_spacing(context, context.annotation_ids(first_expression))
     {

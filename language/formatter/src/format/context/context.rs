@@ -78,10 +78,8 @@ pub struct DestackFormatContext<'a> {
     pub has_template_literal_markers: bool,
     /// Whether file-level ignore was applied during formatting.
     pub file_ignore_applied: Rc<Cell<bool>>,
-    /// Parenthesized nodes whose leading-inner comments are hoisted by an outer owner.
-    pub suppressed_parenthesized_leading_comment_nodes: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
-    /// Type-position expression roots whose leading raw comments are owned by an outer formatter.
-    pub suppressed_type_position_leading_comment_nodes: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
+    /// Comment ids already owned by an outer formatter shell.
+    pub owned_comment_nodes: Rc<RefCell<Vec<u32>>>,
     /// Expression roots that should be treated as explicit type-position subtrees.
     pub forced_type_position_expression_roots: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
 }
@@ -176,66 +174,27 @@ impl<'a> DestackFormatContext<'a> {
             has_ignore_directive_markers,
             has_template_literal_markers,
             file_ignore_applied: Rc::new(Cell::new(false)),
-            suppressed_parenthesized_leading_comment_nodes: Rc::new(RefCell::new(Vec::new())),
-            suppressed_type_position_leading_comment_nodes: Rc::new(RefCell::new(Vec::new())),
+            owned_comment_nodes: Rc::new(RefCell::new(Vec::new())),
             forced_type_position_expression_roots: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
-    /// Push one parenthesized node whose leading-inner comments are owned by an outer formatter.
-    pub fn push_suppressed_parenthesized_leading_comment_node(
-        &self,
-        node_id: LocalNodeId<Expression>,
-    ) {
-        self.suppressed_parenthesized_leading_comment_nodes
-            .borrow_mut()
-            .push(node_id);
+    /// Push comment ids already owned by an outer formatter shell.
+    pub fn push_owned_comment_nodes(&self, comment_ids: &[LocalNodeId<Comment>]) {
+        let mut owned_comment_nodes = self.owned_comment_nodes.borrow_mut();
+        owned_comment_nodes.extend(comment_ids.iter().map(|comment_id| comment_id.id));
     }
 
-    /// Pop one parenthesized node whose leading-inner comments were owned by an outer formatter.
-    pub fn pop_suppressed_parenthesized_leading_comment_node(&self) {
-        let _ = self
-            .suppressed_parenthesized_leading_comment_nodes
-            .borrow_mut()
-            .pop();
+    /// Pop one trailing batch of outer-owned comment ids.
+    pub fn pop_owned_comment_nodes(&self, count: usize) {
+        let mut owned_comment_nodes = self.owned_comment_nodes.borrow_mut();
+        let new_len = owned_comment_nodes.len().saturating_sub(count);
+        owned_comment_nodes.truncate(new_len);
     }
 
-    /// Return whether one parenthesized node has its leading-inner comments suppressed.
-    pub fn is_parenthesized_leading_comment_node_suppressed(
-        &self,
-        node_id: LocalNodeId<Expression>,
-    ) -> bool {
-        self.suppressed_parenthesized_leading_comment_nodes
-            .borrow()
-            .contains(&node_id)
-    }
-
-    /// Push one type-position root whose leading raw comments are owned by an outer formatter.
-    pub fn push_suppressed_type_position_leading_comment_node(
-        &self,
-        node_id: LocalNodeId<Expression>,
-    ) {
-        self.suppressed_type_position_leading_comment_nodes
-            .borrow_mut()
-            .push(node_id);
-    }
-
-    /// Pop one type-position root whose leading raw comments were owned by an outer formatter.
-    pub fn pop_suppressed_type_position_leading_comment_node(&self) {
-        let _ = self
-            .suppressed_type_position_leading_comment_nodes
-            .borrow_mut()
-            .pop();
-    }
-
-    /// Return whether one type-position root has its leading raw comments suppressed.
-    pub fn is_type_position_leading_comment_node_suppressed(
-        &self,
-        node_id: LocalNodeId<Expression>,
-    ) -> bool {
-        self.suppressed_type_position_leading_comment_nodes
-            .borrow()
-            .contains(&node_id)
+    /// Return whether one comment id is already owned by an outer formatter shell.
+    pub fn is_comment_owned(&self, comment_id: LocalNodeId<Comment>) -> bool {
+        self.owned_comment_nodes.borrow().contains(&comment_id.id)
     }
 
     /// Push one expression root that should be treated as a forced type-position subtree.

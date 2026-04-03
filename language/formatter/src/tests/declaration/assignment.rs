@@ -1,13 +1,29 @@
-use crate::{assert_format_program_idempotent, assert_format_program_reference_widths};
+use crate::assert_format_program_reference_widths;
 use destack_source::FileType;
 
-/// Type alias comments after `=` should stay stable across passes.
+/// Type alias comments after `=` should normalize to the stable union shell.
 #[test]
 fn test_format_typescript_union_head_comment_after_equals_is_idempotent() {
-    assert_format_program_idempotent!(
+    assert_format_program_reference_widths(
         r#"type Aa1 = /*1*/ | /*2*/ C | D;
 "#,
-        FileType::TypeScript
+        FileType::TypeScript,
+        &[
+            (
+                80,
+                r#"type Aa1 = /*1*/
+  | /*2*/ C
+  | D;
+"#,
+            ),
+            (
+                100,
+                r#"type Aa1 = /*1*/
+  | /*2*/ C
+  | D;
+"#,
+            ),
+        ],
     );
 }
 

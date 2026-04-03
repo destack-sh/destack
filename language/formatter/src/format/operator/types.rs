@@ -1,13 +1,16 @@
 use super::r#type::{
     leading_raw_type_position_comment_nodes, write_expression_with_inline_prefix_annotations,
 };
+use crate::format::annotation::raw_prefix_comment_nodes;
 use crate::format::chain::{is_chain_root, is_expression_chain, transparent_inner_expression};
+use crate::format::declaration::expression_is_in_statement_position;
 use crate::format::expression::expression_has_leading_prefix_comment;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{Expression, LocalNodeId, NodeType, TokenType, TypeBinaryOperator};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
-    format_with, group, indent, soft_block_indent, soft_line_break_or_space, space, token,
+    format_with, group, hard_line_break, indent, soft_block_indent, soft_line_break_or_space,
+    space, token,
 };
 use destack_fir::{format_args, write};
 
@@ -26,7 +29,8 @@ pub(crate) fn is_simple_type_binary_left_expression(
                 TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
             ) && is_simple_type_binary_left_expression(tree, *left)
         }
-        Expression::Path { .. }
+        Expression::Identifier { .. }
+        | Expression::QualifiedReference { .. }
         | Expression::Member { .. }
         | Expression::PrivateMember { .. }
         | Expression::Index { .. }
@@ -150,10 +154,7 @@ pub(crate) fn format_type_binary_expression<'ast>(
             }
 
             let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            if matches!(
-                f.context().tree.get(parent_expression_id),
-                Expression::Statement(inner) if *inner == node_id
-            ) {
+            if parent_expression_id == node_id {
                 return true;
             }
 
@@ -169,12 +170,7 @@ pub(crate) fn format_type_binary_expression<'ast>(
             f.context().parent(parent_expression_id).is_some_and(
                 |(grandparent_id, grandparent_type)| {
                     grandparent_type == NodeType::Expression
-                        && matches!(
-                            f.context()
-                                .tree
-                                .get(LocalNodeId::<Expression>::new(grandparent_id)),
-                            Expression::Statement(inner_id) if *inner_id == parent_expression_id
-                        )
+                        && LocalNodeId::<Expression>::new(grandparent_id) == parent_expression_id
                 },
             )
         },
@@ -189,20 +185,26 @@ pub(crate) fn format_type_binary_expression<'ast>(
     };
 
     if cast_uses_angle_assertion {
-        let right_has_type_position_leading_comments =
-            !leading_raw_type_position_comment_nodes(f.context(), right).is_empty();
+        let right_has_leading_prefix_material = f.context().has_prefix_annotation(right)
+            || !raw_prefix_comment_nodes(f.context(), right).is_empty()
+            || !leading_raw_type_position_comment_nodes(f.context(), right).is_empty();
 
-        if f.context().has_prefix_annotation(right) || right_has_type_position_leading_comments {
+        if right_has_leading_prefix_material {
             let format_cast = format_with(|f: &mut DestackFormatter<'ast, '_>| {
                 write!(
                     f,
-                    [
+                    [group(&format_args![
                         token("<"),
-                        group(&soft_block_indent(&format_with(|f| {
-                            write_expression_with_inline_prefix_annotations(f, right)
-                        }))),
+                        indent(&format_args![
+                            hard_line_break(),
+                            format_with(|f| {
+                                write_expression_with_inline_prefix_annotations(f, right)
+                            })
+                        ]),
+                        hard_line_break(),
                         token(">")
-                    ]
+                    ])
+                    .should_expand(true)]
                 )
             });
             write!(f, [format_cast, format_with(format_left)])?;
@@ -375,6 +377,15 @@ fn should_drop_type_binary_left_parentheses(
     parenthesized_id: LocalNodeId<Expression>,
     left_id: LocalNodeId<Expression>,
 ) -> bool {
+    if expression_is_in_statement_position(context, node_id)
+        && !matches!(
+            context.parent(node_id).map(|(_, parent_type)| parent_type),
+            Some(NodeType::Declaration | NodeType::Member | NodeType::Property)
+        )
+    {
+        return false;
+    }
+
     let left_is_cast_chain = matches!(
         context.tree.get(left_id),
         Expression::TypeBinary {
@@ -408,10 +419,7 @@ fn should_drop_type_binary_left_parentheses(
             }
 
             let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            if matches!(
-                context.tree.get(parent_expression_id),
-                Expression::Statement(inner) if *inner == node_id
-            ) {
+            if parent_expression_id == node_id {
                 return true;
             }
 
@@ -426,10 +434,7 @@ fn should_drop_type_binary_left_parentheses(
             context.parent(parent_expression_id).is_some_and(
                 |(grandparent_id, grandparent_type)| {
                     grandparent_type == NodeType::Expression
-                        && matches!(
-                            context.tree.get(LocalNodeId::<Expression>::new(grandparent_id)),
-                            Expression::Statement(inner_id) if *inner_id == parent_expression_id
-                        )
+                        && LocalNodeId::<Expression>::new(grandparent_id) == parent_expression_id
                 },
             )
         })
