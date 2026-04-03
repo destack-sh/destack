@@ -949,8 +949,13 @@ impl Parser {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
+            // continue regular parameter lists after a real separator
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+
+                if !is_recovered_parameter {
+                    continue;
+                }
             }
 
             // recovered parameter lists should stop before a newline led keyword statement
@@ -1834,8 +1839,14 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
+
+            // continue regular positional argument lists after a real separator
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+
+                if !is_recovered_argument {
+                    continue;
+                }
             }
 
             // recovered statement calls should stop before the next newline led statement
@@ -1894,8 +1905,14 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.trim_argument_span_before_separator(argument_id, terminator);
             arguments.push(argument_id);
+
+            // continue regular argument lists after a real separator
             if self.peek_is(TokenType::Comma) {
                 self.eat_item_stop_with_newlines()?;
+
+                if !is_recovered_argument {
+                    continue;
+                }
             }
 
             // recovered statement calls should stop before the next newline led statement
