@@ -511,13 +511,6 @@ impl DestackDeclaration {
         if self.json.compiler.js_as_jsx.is_none() {
             compiler.js_as_jsx = parent_compiler.js_as_jsx;
         }
-        if self.json.compiler.es_module_interop.is_none() {
-            compiler.es_module_interop = parent_compiler.es_module_interop;
-        }
-        if self.json.compiler.allow_synthetic_default_imports.is_none() {
-            compiler.allow_synthetic_default_imports =
-                parent_compiler.allow_synthetic_default_imports;
-        }
         if self.json.compiler.verbatim_module_syntax.is_none() {
             compiler.verbatim_module_syntax = parent_compiler.verbatim_module_syntax;
         }

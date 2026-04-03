@@ -223,24 +223,6 @@ impl TsConfigDeclaration {
             compiler_options.preserve_value_imports = Some(preserve_value_imports);
         }
 
-        // compilerOptions.esModuleInterop
-        if compiler_options.es_module_interop.is_none()
-            && let Some(es_module_interop) = tsconfig.json.compiler_options.es_module_interop
-        {
-            compiler_options.es_module_interop = Some(es_module_interop);
-        }
-
-        // compilerOptions.allowSyntheticDefaultImports
-        if compiler_options.allow_synthetic_default_imports.is_none()
-            && let Some(allow_synthetic_default_imports) = tsconfig
-                .json
-                .compiler_options
-                .allow_synthetic_default_imports
-        {
-            compiler_options.allow_synthetic_default_imports =
-                Some(allow_synthetic_default_imports);
-        }
-
         // compilerOptions.importsNotUsedAsValues
         if compiler_options.imports_not_used_as_values.is_none()
             && let Some(imports_not_used_as_values) =
