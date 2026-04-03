@@ -44,8 +44,8 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | ecma | temporal | Temporal | translated 3 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
 | ecma | test262 | ECMA Test262 | ignore 7 | 0e808c74fbec780646434cad17bb22dc52461003 |
 | ecma | v8 | ECMA V8 | none | main |
-| formatter | oxfmt | Formatter Oxfmt | none | f4fefb6201295f2ba6cef1c1348b4b17c9d6e197 |
-| formatter | prettier | Formatter Prettier | known-fail 1, ignore 13 | 456d14dbc2639d5a6b3eb2d8836b30f63597e1d6 |
+| formatter | oxfmt | Formatter Oxfmt | none | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
+| formatter | prettier | Formatter Prettier | known-fail 1, ignore 13 | 574b18d7d692370ace1b67c763b486926b4fb139 |
 | node | crypto | node:crypto | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
 | node | fs | node:fs | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
 | node | net | node:net | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |

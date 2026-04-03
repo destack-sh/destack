@@ -265,6 +265,19 @@ fn empty_block_prefers_multiline<'ast>(
 
 /// Format a block (without a nested group!).
 /// Format a block with opening and closing braces.
+fn write_block_body<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Block>,
+) -> FormatResult<()> {
+    if should_inline_block(f, node_id) {
+        return format_block_body_narrow(f, node_id);
+    }
+
+    format_block_body_wide(f, node_id)
+}
+
+/// Format a block (without a nested group!).
+/// Format a block with opening and closing braces.
 pub fn format_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
@@ -276,11 +289,7 @@ pub fn format_block<'ast>(
             node_id
         )]
     )?;
-    if should_inline_block(f, node_id) {
-        format_block_body_narrow(f, node_id)?;
-    } else {
-        format_block_body_wide(f, node_id)?;
-    }
+    write_block_body(f, node_id)?;
     write!(
         f,
         [crate::format::annotation::postfix_annotations(
@@ -304,19 +313,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
                 node_id
             )]
         )?;
-        if should_inline_block(f, node_id) {
-            write!(
-                f,
-                [group(&format_with(|f| format_block_body_narrow(
-                    f, node_id
-                )))]
-            )?;
-        } else {
-            write!(
-                f,
-                [group(&format_with(|f| format_block_body_wide(f, node_id)))]
-            )?;
-        }
+        write!(f, [group(&format_with(|f| write_block_body(f, node_id)))])?;
         write!(
             f,
             [crate::format::annotation::postfix_annotations(

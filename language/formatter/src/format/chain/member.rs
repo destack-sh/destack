@@ -144,6 +144,14 @@ pub(crate) fn chain_operation_is_index(operation: &ChainExpression) -> bool {
     matches!(operation, ChainExpression::Index { .. })
 }
 
+/// Return whether one chain operation behaves like a call.
+pub(crate) fn chain_operation_is_call_like(operation: &ChainExpression) -> bool {
+    matches!(
+        operation,
+        ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+    )
+}
+
 /// Return the first operation of the first grouped line.
 pub(crate) fn first_grouped_line_operation(
     lines: &[SmallVec<[ChainExpression; 2]>],
@@ -211,25 +219,6 @@ pub(crate) fn chain_base_root_expression_id(
     let Expression::Parenthesized { expression } = context.tree.get(root_id) else {
         return root_id;
     };
-
-    let root_is_statement_expression =
-        context
-            .parent(root_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Expression {
-                    return false;
-                }
-
-                LocalNodeId::<Expression>::new(parent_id).id == root_id.id
-            });
-    if root_is_statement_expression
-        && matches!(
-            context.tree.get(*expression),
-            Expression::ObjectExpression { .. }
-        )
-    {
-        return root_id;
-    }
 
     if should_unwrap_parenthesized_member_object(context, root_id, *expression) {
         *expression

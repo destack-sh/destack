@@ -6,12 +6,12 @@ use super::control::{
     is_empty_statement_block,
 };
 use super::ternary::format_ternary;
+use crate::DestackFormatter;
 use crate::format::declaration::dependency::format_dependency_statement_expression;
 use crate::format::declaration::{
     format_let_statement_expression, format_using_statement_expression,
 };
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Expression, FunctionKind, IfKind, LocalNodeId, TypeBinaryOperator};
+use destack_ast::{Expression, IfKind, LocalNodeId};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
@@ -24,53 +24,6 @@ pub(crate) fn statement_expression_owns_trailing_annotations(expression: &Expres
             kind: IfKind::If,
             ..
         }
-    )
-}
-
-/// Decide whether a statement can drop one parenthesized expression wrapper.
-pub(crate) fn statement_drops_parenthesized_expression_wrapper(
-    context: &DestackFormatContext<'_>,
-    parenthesized_id: LocalNodeId<Expression>,
-    inner_expression_id: LocalNodeId<Expression>,
-) -> bool {
-    if context.has_annotation(parenthesized_id) || context.has_annotation(inner_expression_id) {
-        return false;
-    }
-
-    if crate::format::expression::parenthesized_has_leading_inner_trivia(
-        context,
-        parenthesized_id,
-        inner_expression_id,
-    ) {
-        return false;
-    }
-
-    if !crate::format::expression::parenthesized_boundary_comments(
-        context,
-        parenthesized_id,
-        inner_expression_id,
-    )
-    .is_empty()
-    {
-        return false;
-    }
-
-    let inner_expression = context.tree.get(inner_expression_id);
-
-    matches!(
-        inner_expression,
-        Expression::TypeBinary {
-            operator: TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies,
-            ..
-        }
-    ) || matches!(
-        inner_expression,
-        Expression::Declaration(declaration_id)
-            if matches!(
-                context.tree.get(*declaration_id),
-                destack_ast::Declaration::Function { signature, .. }
-                    if signature.kind == FunctionKind::Lambda
-            )
     )
 }
 

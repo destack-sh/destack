@@ -9,6 +9,31 @@ use destack_ast::{
     NodeTree, NodeTreeImpl, Parameter, TemplateLiteral, TokenType,
 };
 
+/// The layout facts derived from one call argument list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct CallArgumentLayoutFacts {
+    /// Whether the call node has infix annotations.
+    pub(crate) has_call_infix_annotations: bool,
+    /// Whether the argument seams contain boundary comments.
+    pub(crate) has_boundary_comments: bool,
+    /// Whether any argument carries annotations.
+    pub(crate) has_any_argument_annotation: bool,
+    /// Whether every argument is single-line and unannotated.
+    pub(crate) all_single_line_and_unannotated: bool,
+    /// Whether every argument is compact, simple, and unannotated.
+    pub(crate) all_compact_simple_unannotated: bool,
+    /// Whether any argument contains raw line comments.
+    pub(crate) has_line_comments: bool,
+    /// The number of lambda arguments.
+    pub(crate) arrow_argument_count: usize,
+    /// The number of non-lambda function arguments.
+    pub(crate) function_argument_count: usize,
+    /// Whether any non-callback argument is structurally complex.
+    pub(crate) has_complex_non_callback_argument: bool,
+    /// Whether the final argument is a collection literal.
+    pub(crate) trailing_collection_argument: bool,
+}
+
 /// Decide whether a call can drop one parenthesized callee wrapper.
 pub(crate) fn call_drops_parenthesized_callee_wrapper(
     context: &DestackFormatContext<'_>,
@@ -52,6 +77,15 @@ fn expression_is_lambda_declaration(
                     if signature.kind == FunctionKind::Lambda
             )
     )
+}
+
+/// Return one argument's transparent expression value, if present.
+pub(crate) fn argument_expression_id(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
+    let value_id = argument_value_id_if_present(context.tree, argument_id)?;
+    Some(transparent_inner_expression(context, value_id))
 }
 
 /// Return whether an argument is trivial and free of annotations or lambda values.
@@ -108,14 +142,12 @@ pub(crate) fn argument_is_object_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    argument_value_id_if_present(context.tree, argument_id)
-        .map(|value_id| transparent_inner_expression(context, value_id))
-        .is_some_and(|value_id| {
-            matches!(
-                context.tree.get(value_id),
-                Expression::ObjectExpression { .. }
-            )
-        })
+    argument_expression_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::ObjectExpression { .. }
+        )
+    })
 }
 
 /// Return whether one argument is an array literal expression.
@@ -123,14 +155,12 @@ pub(crate) fn argument_is_array_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    argument_value_id_if_present(context.tree, argument_id)
-        .map(|value_id| transparent_inner_expression(context, value_id))
-        .is_some_and(|value_id| {
-            matches!(
-                context.tree.get(value_id),
-                Expression::ArrayExpression { .. }
-            )
-        })
+    argument_expression_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::ArrayExpression { .. }
+        )
+    })
 }
 
 /// Return whether one argument is a template literal expression.
@@ -138,14 +168,12 @@ pub(crate) fn argument_is_template_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    argument_value_id_if_present(context.tree, argument_id)
-        .map(|value_id| transparent_inner_expression(context, value_id))
-        .is_some_and(|value_id| {
-            matches!(
-                context.tree.get(value_id),
-                Expression::TemplateExpression { .. }
-            )
-        })
+    argument_expression_id(context, argument_id).is_some_and(|value_id| {
+        matches!(
+            context.tree.get(value_id),
+            Expression::TemplateExpression { .. }
+        )
+    })
 }
 
 /// Return whether one lambda body is complex enough for tree formatting.
@@ -171,10 +199,9 @@ pub(crate) fn argument_is_complex_callback(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+    let Some(value_id) = argument_expression_id(context, argument_id) else {
         return false;
     };
-    let value_id = transparent_inner_expression(context, value_id);
 
     let Expression::Declaration(declaration_id) = context.tree.get(value_id) else {
         return false;
@@ -293,10 +320,9 @@ pub(crate) fn argument_is_interpolated_template_literal(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
-    let Some(value_id) = argument_value_id_if_present(context.tree, argument_id) else {
+    let Some(value_id) = argument_expression_id(context, argument_id) else {
         return false;
     };
-    let value_id = transparent_inner_expression(context, value_id);
 
     matches!(
         context.tree.get(value_id),
@@ -379,22 +405,22 @@ pub(crate) fn call_argument_layout_facts(
     ctx: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
-) -> (bool, bool, bool, bool, bool, bool, usize, usize, bool, bool) {
+) -> CallArgumentLayoutFacts {
     let has_call_infix_annotations = ctx.has_infix_annotation(call_node_id);
 
     if dynamic_arguments.is_empty() {
-        return (
+        return CallArgumentLayoutFacts {
             has_call_infix_annotations,
-            false,
-            false,
-            true,
-            true,
-            false,
-            0,
-            0,
-            false,
-            false,
-        );
+            has_boundary_comments: false,
+            has_any_argument_annotation: false,
+            all_single_line_and_unannotated: true,
+            all_compact_simple_unannotated: true,
+            has_line_comments: false,
+            arrow_argument_count: 0,
+            function_argument_count: 0,
+            has_complex_non_callback_argument: false,
+            trailing_collection_argument: false,
+        };
     }
 
     let mut has_any_argument_annotation = false;
@@ -537,10 +563,10 @@ pub(crate) fn call_argument_layout_facts(
         }
     }
 
-    (
+    CallArgumentLayoutFacts {
         has_call_infix_annotations,
-        has_boundary_comments,
         has_any_argument_annotation,
+        has_boundary_comments,
         all_single_line_and_unannotated,
         all_compact_simple_unannotated,
         has_line_comments,
@@ -548,7 +574,7 @@ pub(crate) fn call_argument_layout_facts(
         function_argument_count,
         has_complex_non_callback_argument,
         trailing_collection_argument,
-    )
+    }
 }
 
 /// Return whether one argument has callback-blocking line comments or multiline prefix signal.
@@ -569,18 +595,7 @@ pub(crate) fn chain_call_argument_force_expand(
     call_node_id: LocalNodeId<Expression>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
-    let (
-        has_call_infix_annotations,
-        _has_boundary_comments,
-        _has_any_argument_annotation,
-        _all_single_line_and_unannotated,
-        _all_compact_simple_unannotated,
-        has_line_comments,
-        arrow_argument_count,
-        function_argument_count,
-        has_complex_non_callback_argument,
-        trailing_collection_argument,
-    ) = call_argument_layout_facts(ctx, call_node_id, dynamic_arguments);
+    let layout_facts = call_argument_layout_facts(ctx, call_node_id, dynamic_arguments);
     if dynamic_arguments.len() == 1 {
         let argument_id = dynamic_arguments[0];
         let has_collection_source_comment = argument_is_collection_literal(ctx, argument_id) && {
@@ -590,7 +605,7 @@ pub(crate) fn chain_call_argument_force_expand(
         };
 
         has_multiline_jsx_argument(ctx, dynamic_arguments)
-            || has_call_infix_annotations
+            || layout_facts.has_call_infix_annotations
             || argument_has_line_comment(ctx, argument_id)
             || argument_has_prefix_line_comment(ctx, argument_id)
             || has_collection_source_comment
@@ -602,31 +617,13 @@ pub(crate) fn chain_call_argument_force_expand(
             .any(|argument_id| argument_is_block_callback(ctx, argument_id));
 
         has_multiline_jsx_argument(ctx, dynamic_arguments)
-            || has_call_infix_annotations
-            || has_line_comments
-            || has_complex_non_callback_argument
-            || arrow_argument_count >= MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT
-            || function_argument_count >= MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT
-            || (trailing_collection_argument && has_callback_prefix)
+            || layout_facts.has_call_infix_annotations
+            || layout_facts.has_line_comments
+            || layout_facts.has_complex_non_callback_argument
+            || layout_facts.arrow_argument_count >= MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT
+            || layout_facts.function_argument_count >= MULTIPLE_FUNCTION_ARGUMENT_MIN_COUNT
+            || (layout_facts.trailing_collection_argument && has_callback_prefix)
     }
-}
-
-/// Return whether a single static argument call should force expansion.
-pub(crate) fn call_force_expand_single_multiline_with_static_arguments(
-    _ctx: &DestackFormatContext<'_>,
-    _call_node_id: LocalNodeId<Expression>,
-    _dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    false
-}
-
-/// Return whether a single collection argument should expand for type binary callees.
-pub(crate) fn call_force_expand_single_collection_for_type_binary_callee(
-    _ctx: &DestackFormatContext<'_>,
-    _call_node_id: LocalNodeId<Expression>,
-    _dynamic_arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    false
 }
 
 /// Return whether a single argument call should force expanded list layout.

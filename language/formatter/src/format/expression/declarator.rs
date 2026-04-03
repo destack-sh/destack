@@ -12,6 +12,7 @@ use crate::format::expression::{
 };
 use crate::format::operator::{
     flattened_binary_operand_count, write_expression_with_inline_prefix_annotations,
+    write_type_expression_with_inline_prefix_annotations,
 };
 use crate::format::tree::tree_literal_should_expand;
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
@@ -307,10 +308,7 @@ fn format_assignment_value<'ast>(
     value_has_assignment_seam_prefix_annotation: bool,
     assignment_seam_comment_nodes: &[LocalNodeId<Comment>],
 ) -> FormatResult<()> {
-    if !assignment_seam_comment_nodes.is_empty() {
-        f.context()
-            .push_owned_comment_nodes(assignment_seam_comment_nodes);
-    }
+    let context = f.context().clone();
 
     let prefix_annotation_ids: Vec<_> = f
         .context()
@@ -325,7 +323,7 @@ fn format_assignment_value<'ast>(
         })
         .collect();
 
-    let result = (|| {
+    let mut operation = || {
         if prefix_annotation_ids.is_empty() {
             return write_expression_with_inline_prefix_annotations(f, value_id);
         }
@@ -346,14 +344,13 @@ fn format_assignment_value<'ast>(
         }
 
         write_expression_without_prefix_annotations(f, value_id)
-    })();
+    };
 
-    if !assignment_seam_comment_nodes.is_empty() {
-        f.context()
-            .pop_owned_comment_nodes(assignment_seam_comment_nodes.len());
+    if assignment_seam_comment_nodes.is_empty() {
+        return operation();
     }
 
-    result
+    context.with_owned_comment_nodes(assignment_seam_comment_nodes, operation)
 }
 
 /// Return whether a declaration heritage clause contains static type arguments.
@@ -833,7 +830,7 @@ pub(crate) fn format_declarator<'ast>(
         write!(f, [pattern])?;
         if let Some(ty_id) = ty {
             write!(f, [token(":"), space()])?;
-            write_expression_with_inline_prefix_annotations(f, *ty_id)?;
+            write_type_expression_with_inline_prefix_annotations(f, *ty_id)?;
         }
         Ok(())
     });

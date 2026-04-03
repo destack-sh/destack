@@ -1,6 +1,7 @@
-use crate::format::annotation::raw_prefix_comment_nodes;
 use crate::format::collection::{TrailingSeparator, separated_entries};
-use crate::format::operator::write_expression_with_inline_prefix_annotations;
+use crate::format::operator::{
+    raw_type_position_comment_nodes_in_range, write_type_expression_with_inline_prefix_annotations,
+};
 use crate::{Annotation, DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     AbstractionModifier, AccessorKind, AnnotationPosition, Asynchrony, BindingAnchor, BindingKind,
@@ -249,7 +250,7 @@ fn write_parameter_type_with_infix<'ast>(
             write!(f, [token(":"), space()])?;
         }
 
-        write_expression_with_inline_prefix_annotations(f, ty)?;
+        write_type_expression_with_inline_prefix_annotations(f, ty)?;
     }
 
     Ok(true)
@@ -261,12 +262,7 @@ fn write_parameter_name_type_gap_comments<'ast>(
     gap_start: u32,
     ty: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let type_span = f.context().span(ty);
-    let mut comment_ids = f
-        .context()
-        .comment_nodes_in_range(gap_start, type_span.start);
-    let prefix_comment_ids = raw_prefix_comment_nodes(f.context(), ty);
-    comment_ids.retain(|comment_id| !prefix_comment_ids.contains(comment_id));
+    let comment_ids = raw_type_position_comment_nodes_in_range(f.context(), ty, gap_start);
 
     if comment_ids.is_empty() {
         return Ok(());
@@ -315,6 +311,26 @@ fn parameter_name_type_gap_start(
     Some(separator_token.span.end)
 }
 
+/// Write raw comment seams between one parameter binding and its type annotation, when needed.
+fn write_parameter_name_type_gap_comments_maybe<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    is_static_parameter: bool,
+    ty: Option<LocalNodeId<Expression>>,
+) -> FormatResult<()> {
+    if is_static_parameter {
+        return Ok(());
+    }
+
+    let Some(ty) = ty else {
+        return Ok(());
+    };
+    let Some(gap_start) = parameter_name_type_gap_start(f.context(), ty) else {
+        return Ok(());
+    };
+
+    write_parameter_name_type_gap_comments(f, gap_start, ty)
+}
+
 /// Write one static parameter trailer sequence after its name.
 fn write_static_parameter_trailers<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -336,6 +352,75 @@ fn write_static_parameter_trailers<'ast>(
     write_type_parameter_constraint_and_default(f, constraint, default)?;
 
     Ok(true)
+}
+
+/// Write one parameter type and default trailer sequence.
+fn write_parameter_type_and_default<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
+    is_static_parameter: bool,
+    ty: Option<LocalNodeId<Expression>>,
+    default: Option<LocalNodeId<Expression>>,
+) -> FormatResult<bool> {
+    if is_static_parameter {
+        return write_static_parameter_trailers(f, node_id, ty, default);
+    }
+
+    let wrote_type_infix = write_parameter_type_with_infix(f, node_id, false, ty)?;
+
+    if let Some(default) = default {
+        write!(f, [space(), token("="), space(), default])?;
+    }
+
+    Ok(wrote_type_infix)
+}
+
+/// Write one parameter's trailing annotations after its core syntax.
+fn write_parameter_trailing_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Parameter>,
+    wrote_type_infix: bool,
+    suppress_separator_boundary_annotations: bool,
+) -> FormatResult<()> {
+    if wrote_type_infix {
+        if suppress_separator_boundary_annotations {
+            return write!(
+                f,
+                [
+                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
+                        f.context(),
+                        node_id
+                    )
+                ]
+            );
+        }
+
+        return write!(
+            f,
+            [crate::format::annotation::postfix_annotations(
+                f.context(),
+                node_id
+            )]
+        );
+    }
+
+    if suppress_separator_boundary_annotations {
+        return write!(
+            f,
+            [crate::format::annotation::infix_or_postfix_annotations_without_line_postfix_boundary(
+                f.context(),
+                node_id
+            )]
+        );
+    }
+
+    write!(
+        f,
+        [crate::format::annotation::infix_or_postfix_annotations(
+            f.context(),
+            node_id
+        )]
+    )
 }
 
 /// Return whether all prefix annotations on one variadic parameter follow `...`.
@@ -410,25 +495,11 @@ fn format_parameter_node<'ast>(
             format_binding_modifiers_postfix_maybe(f, *modifiers)?;
 
             // name to type seam comments
-            if !is_static_parameter && let Some(ty) = ty {
-                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
-                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
-                }
-            }
+            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
 
             // type and default
-            let wrote_type_infix = if is_static_parameter {
-                write_static_parameter_trailers(f, node_id, *ty, *default)?
-            } else {
-                let wrote_type_infix =
-                    write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?;
-
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-
-                wrote_type_infix
-            };
+            let wrote_type_infix =
+                write_parameter_type_and_default(f, node_id, is_static_parameter, *ty, *default)?;
 
             wrote_type_infix
         }
@@ -448,25 +519,11 @@ fn format_parameter_node<'ast>(
             format_binding_modifiers_postfix_maybe(f, *modifiers)?;
 
             // pattern to type seam comments
-            if !is_static_parameter && let Some(ty) = ty {
-                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
-                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
-                }
-            }
+            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
 
             // type and default
-            let wrote_type_infix = if is_static_parameter {
-                write_static_parameter_trailers(f, node_id, *ty, *default)?
-            } else {
-                let wrote_type_infix =
-                    write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?;
-
-                if let Some(default) = default {
-                    write!(f, [space(), token("="), space(), default])?;
-                }
-
-                wrote_type_infix
-            };
+            let wrote_type_infix =
+                write_parameter_type_and_default(f, node_id, is_static_parameter, *ty, *default)?;
 
             wrote_type_infix
         }
@@ -496,11 +553,7 @@ fn format_parameter_node<'ast>(
             write!(f, [name])?;
 
             // name to type seam comments
-            if !is_static_parameter && let Some(ty) = ty {
-                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
-                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
-                }
-            }
+            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
 
             // type
             write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
@@ -531,11 +584,7 @@ fn format_parameter_node<'ast>(
             write!(f, [pattern])?;
 
             // pattern to type seam comments
-            if !is_static_parameter && let Some(ty) = ty {
-                if let Some(gap_start) = parameter_name_type_gap_start(f.context(), *ty) {
-                    write_parameter_name_type_gap_comments(f, gap_start, *ty)?;
-                }
-            }
+            write_parameter_name_type_gap_comments_maybe(f, is_static_parameter, *ty)?;
 
             // type
             write_parameter_type_with_infix(f, node_id, is_static_parameter, *ty)?
@@ -543,43 +592,12 @@ fn format_parameter_node<'ast>(
         Parameter::Error => false,
     };
 
-    if wrote_type_infix {
-        if suppress_separator_boundary_annotations {
-            write!(
-                f,
-                [
-                    crate::format::annotation::postfix_annotations_without_line_postfix_boundary(
-                        f.context(),
-                        node_id
-                    )
-                ]
-            )?;
-        } else {
-            write!(
-                f,
-                [crate::format::annotation::postfix_annotations(
-                    f.context(),
-                    node_id
-                )]
-            )?;
-        }
-    } else if suppress_separator_boundary_annotations {
-        write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations_without_line_postfix_boundary(
-                f.context(),
-                node_id
-            )]
-        )?;
-    } else {
-        write!(
-            f,
-            [crate::format::annotation::infix_or_postfix_annotations(
-                f.context(),
-                node_id
-            )]
-        )?;
-    }
+    write_parameter_trailing_annotations(
+        f,
+        node_id,
+        wrote_type_infix,
+        suppress_separator_boundary_annotations,
+    )?;
 
     Ok(())
 }
@@ -1222,7 +1240,8 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
             )]
         )?;
 
-        write!(f, [self.left, token(":"), space(), self.right])?;
+        write!(f, [self.left, token(":"), space()])?;
+        write_type_expression_with_inline_prefix_annotations(f, self.right)?;
 
         write!(
             f,

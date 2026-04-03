@@ -3,17 +3,16 @@ use crate::format::declaration::declaration::format_declaration_export_modifier;
 use crate::format::declaration::signature::{
     default_static_parameter_trailing_separator, write_static_parameter_list,
 };
-use crate::format::expression::{
-    expression_has_static_type_arguments, write_expression_without_prefix_annotations,
-};
+use crate::format::expression::expression_has_static_type_arguments;
 use crate::format::operator::{
     expression_has_type_grouping_semantics, format_binary_expression,
     normalize_parenthesized_type_grouping_inner_expression,
     should_drop_parenthesized_type_expression, transparent_type_binary_root_expression,
     type_union_prefers_inline_assignment_seam, union_has_trailing_own_line_doc_prefix_annotation,
-    write_expression_with_inline_prefix_annotations,
+    write_type_expression_with_inline_prefix_annotations,
+    write_type_expression_without_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{DestackFormatContext, DestackFormatter, ExpressionFormatRole};
 use destack_ast::{
     CommentStyle, Declaration, DeclarationDescriptor, DeclarationKind, Expression, Keyword,
     LocalNodeId, Mutability, Parameter, TypeKind,
@@ -441,11 +440,12 @@ impl<'a> TypeAliasAssignmentLike<'a> {
                 right,
             } = f.context().tree.get(normalized_binary_value_id)
         {
-            f.context()
-                .push_forced_type_position_expression_root(self.value_id);
-            let result = format_binary_expression(f, self.value_id, *left, operator, *right);
-            f.context().pop_forced_type_position_expression_root();
-            return result;
+            let context = f.context().clone();
+            return context.with_expression_format_role_root(
+                self.value_id,
+                ExpressionFormatRole::Type,
+                || format_binary_expression(f, self.value_id, *left, operator, *right),
+            );
         }
 
         let value_id = normalized_binary_value_id.unwrap_or(self.value_id);
@@ -464,7 +464,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
             });
 
         if !has_inline_prefix_annotation {
-            return write_expression_with_inline_prefix_annotations(f, value_id);
+            return write_type_expression_with_inline_prefix_annotations(f, value_id);
         }
 
         write!(
@@ -496,7 +496,7 @@ impl<'a> TypeAliasAssignmentLike<'a> {
             write!(f, [space()])?;
         }
 
-        write_expression_without_prefix_annotations(f, value_id)
+        write_type_expression_without_prefix_annotations(f, value_id)
     }
 
     /// Format the full assignment-like type alias shell.

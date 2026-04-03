@@ -17,10 +17,10 @@ use crate::format::expression::{
     parenthesized_has_explicit_delimiters, write_expression_without_prefix_annotations,
 };
 use crate::format::operator::types::is_simple_type_binary_left_expression;
-use crate::{Annotation, DestackFormatContext, DestackFormatter};
+use crate::{Annotation, DestackFormatContext, DestackFormatter, ExpressionFormatRole};
 use destack_ast::{
     AnnotationPosition, Argument, BinaryOperator, Comment, CommentStyle, Doc, DocStyle, Expression,
-    LocalNodeId, Member, NodeType, Property, TokenType, TypeBinaryOperator, TypeUnaryOperator,
+    LocalNodeId, NodeType, TokenType, TypeBinaryOperator, TypeUnaryOperator,
 };
 use destack_fir::format::{Buffer, FormatResult, RemoveSoftLinesBuffer};
 use destack_fir::prelude::{
@@ -94,14 +94,28 @@ pub(crate) fn is_associative_type_binary_operator(operator: BinaryOperator) -> b
 }
 
 /// Collect raw source comments that sit directly before one type-position expression.
+pub(crate) fn raw_type_position_comment_nodes_in_range(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+    start: u32,
+) -> Vec<LocalNodeId<Comment>> {
+    let expression_span = context.span(expression_id);
+    if start >= expression_span.start {
+        return Vec::new();
+    }
+
+    let mut comment_ids = context.comment_nodes_in_range(start, expression_span.start);
+    let prefix_comment_ids = raw_prefix_comment_nodes(context, expression_id);
+    comment_ids.retain(|comment_id| !prefix_comment_ids.contains(comment_id));
+
+    comment_ids
+}
+
+/// Collect raw source comments that sit directly before one type-position expression.
 pub(crate) fn leading_raw_type_position_comment_nodes(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Vec<LocalNodeId<Comment>> {
-    if !expression_is_type_position(context, expression_id) {
-        return Vec::new();
-    }
-
     let expression_span = context.span(expression_id);
     let first_token_type = context
         .first_non_trivia_token_in_span(expression_span)
@@ -130,12 +144,7 @@ pub(crate) fn leading_raw_type_position_comment_nodes(
         return Vec::new();
     }
 
-    let mut comment_ids =
-        context.comment_nodes_in_range(previous_owner_start, expression_span.start);
-    let prefix_comment_ids = raw_prefix_comment_nodes(context, expression_id);
-    comment_ids.retain(|comment_id| !prefix_comment_ids.contains(comment_id));
-
-    comment_ids
+    raw_type_position_comment_nodes_in_range(context, expression_id, previous_owner_start)
 }
 
 /// Write raw source comments that precede one type-position expression.
@@ -212,7 +221,7 @@ pub(crate) fn write_colon_prefixed_type_annotation<'ast>(
 ) -> FormatResult<()> {
     write!(f, [token(":"), space()])?;
 
-    write_expression_with_inline_prefix_annotations(f, expression_id)
+    write_type_expression_with_inline_prefix_annotations(f, expression_id)
 }
 
 /// Write one static type argument, preserving type-position seam ownership.
@@ -225,18 +234,117 @@ fn write_static_argument<'ast>(
             let argument_span = f.context().span(argument_id);
             let value_span = f.context().span(*value);
             if argument_span.file == value_span.file && argument_span.start < value_span.start {
-                let comment_ids = f
-                    .context()
-                    .comment_nodes_in_range(argument_span.start, value_span.start);
+                let comment_ids = raw_type_position_comment_nodes_in_range(
+                    f.context(),
+                    *value,
+                    argument_span.start,
+                );
                 if !comment_ids.is_empty() {
                     write_leading_raw_type_position_comment_nodes(f, &comment_ids)?;
                 }
             }
 
-            write_expression_with_inline_prefix_annotations(f, *value)
+            write_type_expression_with_inline_prefix_annotations(f, *value)
         }
         _ => write!(f, [argument_id]),
     }
+}
+
+/// Run one formatter operation with an explicit type-expression role root.
+fn with_type_expression_root<'ast, T>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    operation: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> T,
+) -> T {
+    let context = f.context().clone();
+    context.with_expression_format_role_root(expression_id, ExpressionFormatRole::Type, || {
+        operation(f)
+    })
+}
+
+/// Run one formatter operation while the given comments are owned locally.
+fn with_owned_type_position_comment_nodes<'ast, T>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comment_ids: &[LocalNodeId<Comment>],
+    operation: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> T,
+) -> T {
+    if comment_ids.is_empty() {
+        return operation(f);
+    }
+
+    let context = f.context().clone();
+    context.with_owned_comment_nodes(comment_ids, || operation(f))
+}
+
+/// Return the widest parenthesized or associative type-grouping root for one type expression.
+fn normalize_type_grouping_root_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    if !expression_is_type_position(context, expression_id) {
+        return expression_id;
+    }
+
+    let mut current_expression_id = expression_id;
+
+    loop {
+        let Some((parent_id, parent_type)) = context.parent(current_expression_id) else {
+            break;
+        };
+        if parent_type != NodeType::Expression {
+            break;
+        }
+
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        match context.tree.get(parent_expression_id) {
+            Expression::Parenthesized { expression } if *expression == current_expression_id => {
+                current_expression_id = parent_expression_id;
+            }
+            Expression::Binary {
+                operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+                left,
+                right,
+            } if expression_has_type_grouping_semantics(context, parent_expression_id)
+                && (*left == current_expression_id || *right == current_expression_id) =>
+            {
+                current_expression_id = parent_expression_id;
+            }
+            _ => break,
+        }
+    }
+
+    current_expression_id
+}
+
+/// Write one expression body without prefix annotations while owning local type comments.
+fn write_expression_body_with_owned_type_position_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    comment_ids: &[LocalNodeId<Comment>],
+) -> FormatResult<()> {
+    with_owned_type_position_comment_nodes(f, comment_ids, |f| {
+        write_expression_without_prefix_annotations(f, expression_id)
+    })
+}
+
+/// Write one expression with inline prefix annotations in explicit type role.
+pub(crate) fn write_type_expression_with_inline_prefix_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    with_type_expression_root(f, expression_id, |f| {
+        write_expression_with_inline_prefix_annotations(f, expression_id)
+    })
+}
+
+/// Write one expression without prefix annotations in explicit type role.
+pub(crate) fn write_type_expression_without_prefix_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    with_type_expression_root(f, expression_id, |f| {
+        write_expression_without_prefix_annotations(f, expression_id)
+    })
 }
 
 /// Write one rhs expression while preserving inline prefix annotation ownership.
@@ -245,41 +353,7 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     // type grouping root
-    let expression_id = if expression_is_type_position(f.context(), expression_id) {
-        let mut current_expression_id = expression_id;
-
-        loop {
-            let Some((parent_id, parent_type)) = f.context().parent(current_expression_id) else {
-                break;
-            };
-            if parent_type != NodeType::Expression {
-                break;
-            }
-
-            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            match f.context().tree.get(parent_expression_id) {
-                Expression::Parenthesized { expression }
-                    if *expression == current_expression_id =>
-                {
-                    current_expression_id = parent_expression_id;
-                }
-                Expression::Binary {
-                    operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
-                    left,
-                    right,
-                } if expression_has_type_grouping_semantics(f.context(), parent_expression_id)
-                    && (*left == current_expression_id || *right == current_expression_id) =>
-                {
-                    current_expression_id = parent_expression_id;
-                }
-                _ => break,
-            }
-        }
-
-        current_expression_id
-    } else {
-        expression_id
-    };
+    let expression_id = normalize_type_grouping_root_expression(f.context(), expression_id);
     let leading_raw_comment_ids =
         if expression_has_type_grouping_semantics(f.context(), expression_id) {
             Vec::new()
@@ -351,6 +425,12 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
             .iter()
             .copied()
             .all(|comment_id| !type_position_comment_requires_break_after(f.context(), comment_id));
+    let owned_type_position_comment_ids: &[LocalNodeId<Comment>] =
+        if suppress_leading_raw_comment_owner {
+            &leading_raw_comment_ids
+        } else {
+            &[]
+        };
 
     let write_expression_body = |f: &mut DestackFormatter<'ast, '_>| -> FormatResult<()> {
         let should_skip_generic_prefix_owner =
@@ -387,40 +467,34 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
                 _ => unreachable!("unexpected leading separator token"),
             }
 
-            if suppress_leading_raw_comment_owner {
-                f.context()
-                    .push_owned_comment_nodes(&leading_raw_comment_ids);
-            }
-
-            let result = write_expression_without_prefix_annotations(f, expression_id);
-
-            if suppress_leading_raw_comment_owner {
-                f.context()
-                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
-            }
-
-            result?;
+            write_expression_body_with_owned_type_position_comments(
+                f,
+                expression_id,
+                owned_type_position_comment_ids,
+            )?;
 
             return Ok(());
         }
 
         // default type-position owner
         if !has_inline_non_slash_prefix_annotations {
-            if suppress_leading_raw_comment_owner {
-                f.context()
-                    .push_owned_comment_nodes(&leading_raw_comment_ids);
-            }
-
             let result = if should_skip_generic_prefix_owner {
-                write_expression_without_prefix_annotations(f, expression_id)
+                write_expression_body_with_owned_type_position_comments(
+                    f,
+                    expression_id,
+                    owned_type_position_comment_ids,
+                )
             } else {
-                write!(f, [expression_id])
+                if suppress_leading_raw_comment_owner {
+                    with_owned_type_position_comment_nodes(
+                        f,
+                        owned_type_position_comment_ids,
+                        |f| write!(f, [expression_id]),
+                    )
+                } else {
+                    write!(f, [expression_id])
+                }
             };
-
-            if suppress_leading_raw_comment_owner {
-                f.context()
-                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
-            }
 
             result?;
             return Ok(());
@@ -429,19 +503,12 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
         // inline prefix annotations
         write_annotation_prefix_sequence(f, &prefix_annotation_ids)?;
         write!(f, [space()])?;
-        if suppress_leading_raw_comment_owner {
-            f.context()
-                .push_owned_comment_nodes(&leading_raw_comment_ids);
-        }
 
-        let result = write_expression_without_prefix_annotations(f, expression_id);
-
-        if suppress_leading_raw_comment_owner {
-            f.context()
-                .pop_owned_comment_nodes(leading_raw_comment_ids.len());
-        }
-
-        result
+        write_expression_body_with_owned_type_position_comments(
+            f,
+            expression_id,
+            owned_type_position_comment_ids,
+        )
     };
 
     // inline union with inline prefix annotations
@@ -496,21 +563,15 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
             );
             let write_inline_union = format_with(|f| {
                 write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
-                f.context()
-                    .push_owned_comment_nodes(&leading_raw_comment_ids);
-                let result = format_inline_type_union_layout(f, &operands);
-                f.context()
-                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
-                result
+                with_owned_type_position_comment_nodes(f, &leading_raw_comment_ids, |f| {
+                    format_inline_type_union_layout(f, &operands)
+                })
             });
             let write_body = format_with(|f| {
                 write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
-                f.context()
-                    .push_owned_comment_nodes(&leading_raw_comment_ids);
-                let result = write_expression_body(f);
-                f.context()
-                    .pop_owned_comment_nodes(leading_raw_comment_ids.len());
-                result
+                with_owned_type_position_comment_nodes(f, &leading_raw_comment_ids, |f| {
+                    write_expression_body(f)
+                })
             });
 
             write!(
@@ -523,12 +584,9 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
 
         let write_body = format_with(|f| {
             write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
-            f.context()
-                .push_owned_comment_nodes(&leading_raw_comment_ids);
-            let result = write_expression_body(f);
-            f.context()
-                .pop_owned_comment_nodes(leading_raw_comment_ids.len());
-            result
+            with_owned_type_position_comment_nodes(f, &leading_raw_comment_ids, |f| {
+                write_expression_body(f)
+            })
         });
         let interned_body = f.intern(&write_body)?;
         let write_flat_body = format_with(move |f| {
@@ -551,12 +609,9 @@ pub(crate) fn write_expression_with_inline_prefix_annotations<'ast>(
     // breaking raw type-position comments
     if !leading_raw_comment_ids.is_empty() {
         write_leading_raw_type_position_comment_nodes(f, &leading_raw_comment_ids)?;
-        f.context()
-            .push_owned_comment_nodes(&leading_raw_comment_ids);
-        let result = write_expression_body(f);
-        f.context()
-            .pop_owned_comment_nodes(leading_raw_comment_ids.len());
-        return result;
+        return with_owned_type_position_comment_nodes(f, &leading_raw_comment_ids, |f| {
+            write_expression_body(f)
+        });
     }
 
     write_expression_body(f)
@@ -701,6 +756,261 @@ pub(crate) fn parenthesized_type_expression_prefers_soft_block_layout(
         || union_or_intersection_member_count > 2
 }
 
+/// Return the expression parent of one expression node, if any.
+fn expression_parent_expression_id(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<Expression>> {
+    let (parent_id, parent_type) = context.parent(expression_id)?;
+    if parent_type != NodeType::Expression {
+        return None;
+    }
+
+    Some(LocalNodeId::<Expression>::new(parent_id))
+}
+
+/// Return the declaration parent of one expression node, if any.
+fn expression_parent_declaration_id(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> Option<LocalNodeId<destack_ast::Declaration>> {
+    let (parent_id, parent_type) = context.parent(expression_id)?;
+    if parent_type != NodeType::Declaration {
+        return None;
+    }
+
+    Some(LocalNodeId::<destack_ast::Declaration>::new(parent_id))
+}
+
+/// Return the normalized inner expression used for parenthesized type drop checks.
+fn normalized_parenthesized_type_drop_inner_expression(
+    context: &DestackFormatContext<'_>,
+    inner_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    transparent_inner_expression(
+        context,
+        normalize_parenthesized_type_grouping_inner_expression(context, inner_id),
+    )
+}
+
+/// Return whether one expression is an associative type binary with one effective operand.
+fn expression_is_single_operand_associative_type_binary(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    matches!(
+        context.tree.get(expression_id),
+        Expression::Binary {
+            operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
+            ..
+        }
+    ) && flatten_type_binary_expression(
+        context,
+        expression_id,
+        match context.tree.get(expression_id) {
+            Expression::Binary { operator, .. } => *operator,
+            _ => unreachable!("checked above"),
+        },
+    )
+    .len()
+        == 1
+}
+
+/// Return whether one parenthesized type is the value of a type alias declaration.
+fn parenthesized_type_parent_is_alias_value(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(declaration_id) = expression_parent_declaration_id(context, node_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(declaration_id),
+        destack_ast::Declaration::Type { value, .. } if *value == node_id
+    )
+}
+
+/// Return whether one parenthesized type sits in a function return type slot.
+fn parenthesized_type_parent_is_function_return_type(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(declaration_id) = expression_parent_declaration_id(context, node_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(declaration_id),
+        destack_ast::Declaration::Function { signature, .. } if signature.return_type == Some(node_id)
+    )
+}
+
+/// Return whether one parenthesized type sits in one conditional type arm.
+fn parenthesized_type_parent_is_conditional_arm(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(parent_expression_id) = expression_parent_expression_id(context, node_id) else {
+        return false;
+    };
+
+    matches!(
+        context.tree.get(parent_expression_id),
+        Expression::TypeConditional { left, right, .. } if *left == node_id || *right == node_id
+    )
+}
+
+/// Return whether one parenthesized type can drop inside an index left side.
+fn parenthesized_type_can_drop_array_element_wrapper(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    normalized_inner_id: LocalNodeId<Expression>,
+    inner_is_single_operand_type_binary: bool,
+) -> bool {
+    let Some(parent_expression_id) = expression_parent_expression_id(context, node_id) else {
+        return false;
+    };
+
+    let Expression::Index { left, index, .. } = context.tree.get(parent_expression_id) else {
+        return false;
+    };
+
+    *left == node_id
+        && index.is_none()
+        && !context.has_annotation(normalized_inner_id)
+        && (is_simple_type_binary_left_expression(context.tree, normalized_inner_id)
+            || inner_is_single_operand_type_binary)
+}
+
+/// Return whether one parenthesized type can drop inside the same associative type grouping.
+fn parenthesized_type_can_drop_associative_type_binary_wrapper(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    inner_id: LocalNodeId<Expression>,
+) -> bool {
+    let Expression::Binary {
+        operator: inner_operator,
+        ..
+    } = context.tree.get(inner_id)
+    else {
+        return false;
+    };
+    if !is_associative_type_binary_operator(*inner_operator) {
+        return false;
+    }
+
+    let Some(parent_expression_id) = expression_parent_expression_id(context, node_id) else {
+        return false;
+    };
+
+    let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = context.tree.get(parent_expression_id)
+    else {
+        return false;
+    };
+
+    (*left == node_id || *right == node_id)
+        && *operator == *inner_operator
+        && expression_has_type_grouping_semantics(context, parent_expression_id)
+}
+
+/// Return whether one parenthesized conditional type can drop inside union or intersection grouping.
+fn parenthesized_type_can_drop_conditional_type_grouping(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    normalized_inner_id: LocalNodeId<Expression>,
+) -> bool {
+    if !matches!(
+        context.tree.get(normalized_inner_id),
+        Expression::TypeConditional { .. }
+    ) {
+        return false;
+    }
+
+    let Some(parent_expression_id) = expression_parent_expression_id(context, node_id) else {
+        return false;
+    };
+
+    let Expression::Binary {
+        left,
+        operator,
+        right,
+    } = context.tree.get(parent_expression_id)
+    else {
+        return false;
+    };
+
+    (*left == node_id || *right == node_id)
+        && matches!(
+            operator,
+            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+        )
+        && expression_has_type_grouping_semantics(context, parent_expression_id)
+}
+
+/// Return whether one parenthesized type is the only operand in its parent grouping.
+fn parenthesized_type_can_drop_single_operand_grouping(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(parent_expression_id) = expression_parent_expression_id(context, node_id) else {
+        return false;
+    };
+
+    let Expression::Binary { operator, .. } = context.tree.get(parent_expression_id) else {
+        return false;
+    };
+    if !matches!(
+        operator,
+        BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+    ) || !expression_has_type_grouping_semantics(context, parent_expression_id)
+    {
+        return false;
+    }
+
+    let operands = flatten_type_binary_expression(context, parent_expression_id, *operator);
+    operands.len() == 1
+}
+
+/// Return whether dropping one parenthesized type grouping stays safe in its parent.
+fn parenthesized_type_grouping_drop_is_safe_in_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    inner_id: LocalNodeId<Expression>,
+) -> bool {
+    let Some(parent_expression_id) = expression_parent_expression_id(context, node_id) else {
+        return true;
+    };
+
+    match context.tree.get(parent_expression_id) {
+        Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => *left != node_id,
+        Expression::Binary {
+            left,
+            operator: parent_operator,
+            right,
+        } if (*left == node_id || *right == node_id)
+            && expression_has_type_grouping_semantics(context, parent_expression_id) =>
+        {
+            let Expression::Binary {
+                operator: inner_operator,
+                ..
+            } = context.tree.get(inner_id)
+            else {
+                return true;
+            };
+
+            !(is_associative_type_binary_operator(*parent_operator)
+                && is_associative_type_binary_operator(*inner_operator)
+                && parent_operator != inner_operator)
+        }
+        _ => true,
+    }
+}
+
 /// Decide whether a parenthesized type expression can drop wrappers.
 pub(crate) fn should_drop_parenthesized_type_expression(
     context: &DestackFormatContext<'_>,
@@ -730,183 +1040,29 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
-    let normalized_inner_id = transparent_inner_expression(
+    let normalized_inner_id =
+        normalized_parenthesized_type_drop_inner_expression(context, inner_id);
+    let inner_is_single_operand_type_binary =
+        expression_is_single_operand_associative_type_binary(context, normalized_inner_id);
+
+    if parenthesized_type_can_drop_array_element_wrapper(
         context,
-        normalize_parenthesized_type_grouping_inner_expression(context, inner_id),
-    );
-    let inner_is_single_operand_type_binary = matches!(
-        context.tree.get(normalized_inner_id),
-        Expression::Binary {
-            operator: BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd,
-            ..
-        }
-    ) && flatten_type_binary_expression(
-        context,
+        node_id,
         normalized_inner_id,
-        match context.tree.get(normalized_inner_id) {
-            Expression::Binary { operator, .. } => *operator,
-            _ => unreachable!("checked above"),
-        },
-    )
-    .len()
-        == 1;
-
-    let can_drop_array_element_wrapper =
-        context
-            .parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Expression {
-                    return false;
-                }
-
-                let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                if let Expression::Index { left, index, .. } =
-                    context.tree.get(parent_expression_id)
-                {
-                    *left == node_id
-                        && index.is_none()
-                        && !context.has_annotation(normalized_inner_id)
-                        && (is_simple_type_binary_left_expression(
-                            context.tree,
-                            normalized_inner_id,
-                        ) || inner_is_single_operand_type_binary)
-                } else {
-                    false
-                }
-            });
-    let can_drop_associative_type_binary_wrapper = {
-        match context.tree.get(inner_id) {
-            Expression::Binary {
-                operator: inner_operator,
-                ..
-            } if is_associative_type_binary_operator(*inner_operator) => context
-                .parent(node_id)
-                .is_some_and(|(parent_id, parent_type)| {
-                    if parent_type != NodeType::Expression {
-                        return false;
-                    }
-
-                    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                    match context.tree.get(parent_expression_id) {
-                        Expression::Binary {
-                            left,
-                            operator,
-                            right,
-                        } => {
-                            (*left == node_id || *right == node_id)
-                                && *operator == *inner_operator
-                                && expression_has_type_grouping_semantics(
-                                    context,
-                                    parent_expression_id,
-                                )
-                        }
-                        _ => false,
-                    }
-                }),
-            _ => false,
-        }
-    };
-    let can_drop_conditional_type_grouping = matches!(
-        context.tree.get(normalized_inner_id),
-        Expression::TypeConditional { .. }
-    ) && context.parent(node_id).is_some_and(
-        |(parent_id, parent_type)| {
-            if parent_type != NodeType::Expression {
-                return false;
-            }
-
-            let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-            match context.tree.get(parent_expression_id) {
-                Expression::Binary {
-                    left,
-                    operator,
-                    right,
-                } => {
-                    (*left == node_id || *right == node_id)
-                        && matches!(
-                            operator,
-                            BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                        )
-                        && expression_has_type_grouping_semantics(context, parent_expression_id)
-                }
-                _ => false,
-            }
-        },
-    );
-    let can_drop_single_operand_grouping =
-        context
-            .parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Expression {
-                    return false;
-                }
-
-                let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                let Expression::Binary { operator, .. } = context.tree.get(parent_expression_id)
-                else {
-                    return false;
-                };
-                if !matches!(
-                    operator,
-                    BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
-                ) || !expression_has_type_grouping_semantics(context, parent_expression_id)
-                {
-                    return false;
-                }
-
-                let operands =
-                    flatten_type_binary_expression(context, parent_expression_id, *operator);
-                operands.len() == 1
-            });
-
-    if can_drop_array_element_wrapper
-        || can_drop_associative_type_binary_wrapper
-        || can_drop_conditional_type_grouping
-        || can_drop_single_operand_grouping
+        inner_is_single_operand_type_binary,
+    ) || parenthesized_type_can_drop_associative_type_binary_wrapper(context, node_id, inner_id)
+        || parenthesized_type_can_drop_conditional_type_grouping(
+            context,
+            node_id,
+            normalized_inner_id,
+        )
+        || parenthesized_type_can_drop_single_operand_grouping(context, node_id)
         || inner_is_single_operand_type_binary
     {
         return true;
     }
 
-    let parenthesized_type_grouping_drop_is_safe_in_parent =
-        context
-            .parent(node_id)
-            .is_none_or(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Expression {
-                    return true;
-                }
-
-                let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                match context.tree.get(parent_expression_id) {
-                    Expression::Index { left, .. } | Expression::TypeIndex { left, .. } => {
-                        *left != node_id
-                    }
-                    Expression::Binary {
-                        left,
-                        operator: parent_operator,
-                        right,
-                    } if (*left == node_id || *right == node_id)
-                        && expression_has_type_grouping_semantics(
-                            context,
-                            parent_expression_id,
-                        ) =>
-                    {
-                        let Expression::Binary {
-                            operator: inner_operator,
-                            ..
-                        } = context.tree.get(inner_id)
-                        else {
-                            return true;
-                        };
-
-                        !(is_associative_type_binary_operator(*parent_operator)
-                            && is_associative_type_binary_operator(*inner_operator)
-                            && parent_operator != inner_operator)
-                    }
-                    _ => true,
-                }
-            });
-    if !parenthesized_type_grouping_drop_is_safe_in_parent {
+    if !parenthesized_type_grouping_drop_is_safe_in_parent(context, node_id, inner_id) {
         return false;
     }
 
@@ -923,19 +1079,7 @@ pub(crate) fn should_drop_parenthesized_type_expression(
     }
 
     let parenthesized_type_alias_value_can_drop =
-        context
-            .parent(node_id)
-            .is_some_and(|(parent_id, parent_type)| {
-                if parent_type != NodeType::Declaration {
-                    return false;
-                }
-
-                let declaration_id = LocalNodeId::<destack_ast::Declaration>::new(parent_id);
-                matches!(
-                    context.tree.get(declaration_id),
-                    destack_ast::Declaration::Type { value, .. } if *value == node_id
-                )
-            })
+        parenthesized_type_parent_is_alias_value(context, node_id)
             && matches!(
                 context.tree.get(normalized_inner_id),
                 Expression::Binary { operator, .. }
@@ -949,32 +1093,11 @@ pub(crate) fn should_drop_parenthesized_type_expression(
         return false;
     }
 
-    let parent = context.parent(node_id);
-    let parent_is_expression =
-        parent.is_some_and(|(_, parent_type)| parent_type == NodeType::Expression);
-    let parent_is_function_return_type = parent.is_some_and(|(parent_id, parent_type)| {
-        if parent_type != NodeType::Declaration {
-            return false;
-        }
-
-        let declaration_id = LocalNodeId::<destack_ast::Declaration>::new(parent_id);
-        matches!(
-            context.tree.get(declaration_id),
-            destack_ast::Declaration::Function { signature, .. } if signature.return_type == Some(node_id)
-        )
-    });
-    let parent_is_type_conditional_arm = parent.is_some_and(|(parent_id, parent_type)| {
-        if parent_type != NodeType::Expression {
-            return false;
-        }
-
-        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-        matches!(
-            context.tree.get(parent_expression_id),
-            Expression::TypeConditional { left, right, .. }
-                if *left == node_id || *right == node_id
-        )
-    });
+    let parent_is_expression = expression_parent_expression_id(context, node_id).is_some();
+    let parent_is_function_return_type =
+        parenthesized_type_parent_is_function_return_type(context, node_id);
+    let parent_is_type_conditional_arm =
+        parenthesized_type_parent_is_conditional_arm(context, node_id);
 
     let inner_is_lambda_declaration = matches!(
         context.tree.get(inner_id),
@@ -1104,216 +1227,96 @@ pub(crate) fn expression_has_static_type_arguments(
     }
 }
 
+/// Return whether one parent expression propagates type position upward.
+fn parent_expression_propagates_type_position(
+    context: &DestackFormatContext<'_>,
+    current_expression_id: LocalNodeId<Expression>,
+    parent_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let parent_expression = context.tree.get(parent_expression_id);
+
+    if let Expression::TypeUnary { operator, right } = parent_expression
+        && *operator == TypeUnaryOperator::AsConst
+        && *right == current_expression_id
+    {
+        return true;
+    }
+
+    if let Expression::Index { left, index, .. } = parent_expression
+        && *left == current_expression_id
+        && index.is_none()
+    {
+        return true;
+    }
+
+    if let Expression::TypeBinary { left, operator, .. } = parent_expression
+        && *left == current_expression_id
+        && matches!(
+            operator,
+            TypeBinaryOperator::Cast
+                | TypeBinaryOperator::Satisfies
+                | TypeBinaryOperator::Is
+                | TypeBinaryOperator::InstanceOf
+                | TypeBinaryOperator::In
+        )
+    {
+        return true;
+    }
+
+    if let Expression::Binary { left, right, .. } = parent_expression
+        && (*left == current_expression_id || *right == current_expression_id)
+        && expression_has_type_grouping_semantics(context, parent_expression_id)
+    {
+        return true;
+    }
+
+    false
+}
+
+/// Return whether one parent expression establishes type position.
+fn parent_expression_establishes_type_position(parent_expression: &Expression) -> bool {
+    matches!(
+        parent_expression,
+        Expression::TypeUnary { .. }
+            | Expression::TypeBinary { .. }
+            | Expression::TypeConditional { .. }
+            | Expression::TypeMapped { .. }
+            | Expression::TypeIndex { .. }
+            | Expression::TypeTemplateLiteral { .. }
+            | Expression::TypeImport { .. }
+            | Expression::TypeInfer { .. }
+            | Expression::TypePredicate { .. }
+    )
+}
+
 /// Return whether one expression sits in one explicit or nested type position.
 pub(crate) fn expression_is_type_position(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    if context.expression_is_under_forced_type_position_root(node_id) {
-        return true;
+    if let Some(role) = context.expression_format_role(node_id) {
+        return role == ExpressionFormatRole::Type;
     }
 
     let mut current_id = node_id.id;
 
     while let Some((parent_id, parent_type)) = context.parent_by_id(current_id) {
+        if parent_type != NodeType::Expression {
+            return false;
+        }
+
         let current_expression_id = LocalNodeId::<Expression>::new(current_id);
-        let is_explicit_type_root = match parent_type {
-            NodeType::Argument => {
-                let argument_id = LocalNodeId::<Argument>::new(parent_id);
-                let Some((expression_id, expression_type)) = context.parent(argument_id) else {
-                    return false;
-                };
-                if expression_type != NodeType::Expression {
-                    return false;
-                }
-
-                let parent_expression = context
-                    .tree
-                    .get(LocalNodeId::<Expression>::new(expression_id));
-                expression_static_arguments(parent_expression)
-                    .is_some_and(|arguments| arguments.contains(&argument_id))
-            }
-            NodeType::Declarator => {
-                let declarator = context
-                    .tree
-                    .get(LocalNodeId::<destack_ast::Declarator>::new(parent_id));
-                declarator.ty.is_some_and(|ty| ty == current_expression_id)
-            }
-            NodeType::Parameter => {
-                let parameter = context
-                    .tree
-                    .get(LocalNodeId::<destack_ast::Parameter>::new(parent_id));
-                let parameter_ty = match parameter {
-                    destack_ast::Parameter::Named { ty, .. }
-                    | destack_ast::Parameter::Pattern { ty, .. }
-                    | destack_ast::Parameter::VariadicNamed { ty, .. }
-                    | destack_ast::Parameter::VariadicPattern { ty, .. } => *ty,
-                    destack_ast::Parameter::Error => None,
-                };
-
-                parameter_ty.is_some_and(|ty| ty == current_expression_id)
-            }
-            NodeType::WhereClause => {
-                let where_clause = context
-                    .tree
-                    .get(LocalNodeId::<destack_ast::WhereClause>::new(parent_id));
-                where_clause.right == current_expression_id
-            }
-            NodeType::Declaration => {
-                let declaration = context
-                    .tree
-                    .get(LocalNodeId::<destack_ast::Declaration>::new(parent_id));
-                match declaration {
-                    destack_ast::Declaration::Type { value, .. } => *value == current_expression_id,
-                    destack_ast::Declaration::Struct { heritage, .. }
-                    | destack_ast::Declaration::Interface { heritage, .. }
-                    | destack_ast::Declaration::Enum { heritage, .. } => {
-                        heritage
-                            .extends_types
-                            .as_ref()
-                            .is_some_and(|types| types.contains(&current_expression_id))
-                            || heritage
-                                .implements_types
-                                .as_ref()
-                                .is_some_and(|types| types.contains(&current_expression_id))
-                    }
-                    destack_ast::Declaration::Class { heritage, .. } => heritage
-                        .implements_types
-                        .as_ref()
-                        .is_some_and(|types| types.contains(&current_expression_id)),
-                    destack_ast::Declaration::Extension {
-                        target_type,
-                        heritage,
-                        ..
-                    } => {
-                        *target_type == current_expression_id
-                            || heritage
-                                .extends_types
-                                .as_ref()
-                                .is_some_and(|types| types.contains(&current_expression_id))
-                            || heritage
-                                .implements_types
-                                .as_ref()
-                                .is_some_and(|types| types.contains(&current_expression_id))
-                    }
-                    destack_ast::Declaration::Function { signature, .. } => signature
-                        .return_type
-                        .is_some_and(|return_type| return_type == current_expression_id),
-                    destack_ast::Declaration::ImportAlias { kind, target, .. } => {
-                        matches!(
-                            (kind, target),
-                            (
-                                destack_ast::DependencyKind::Type,
-                                destack_ast::ImportAliasTarget::Path { value }
-                            ) if *value == current_expression_id
-                        )
-                    }
-                    destack_ast::Declaration::Global { .. }
-                    | destack_ast::Declaration::Namespace { .. } => false,
-                }
-            }
-            _ => false,
-        };
-        if is_explicit_type_root {
-            return true;
+        let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+        if parent_expression_propagates_type_position(
+            context,
+            current_expression_id,
+            parent_expression_id,
+        ) {
+            current_id = parent_id;
+            continue;
         }
 
-        match parent_type {
-            NodeType::Expression => {
-                let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-                let parent_expression = context.tree.get(parent_expression_id);
-
-                if let Expression::TypeUnary { operator, right } = parent_expression
-                    && *operator == TypeUnaryOperator::AsConst
-                    && right.id == current_id
-                {
-                    current_id = parent_id;
-                    continue;
-                }
-
-                if let Expression::Index { left, index, .. } = parent_expression
-                    && *left == current_expression_id
-                    && index.is_none()
-                {
-                    current_id = parent_id;
-                    continue;
-                }
-
-                if let Expression::TypeBinary { left, operator, .. } = parent_expression
-                    && left.id == current_id
-                    && matches!(
-                        operator,
-                        TypeBinaryOperator::Cast
-                            | TypeBinaryOperator::Satisfies
-                            | TypeBinaryOperator::Is
-                            | TypeBinaryOperator::InstanceOf
-                            | TypeBinaryOperator::In
-                    )
-                {
-                    current_id = parent_id;
-                    continue;
-                }
-
-                if let Expression::Binary { left, right, .. } = parent_expression
-                    && (left.id == current_id || right.id == current_id)
-                    && expression_has_type_grouping_semantics(context, parent_expression_id)
-                {
-                    current_id = parent_id;
-                    continue;
-                }
-
-                if matches!(
-                    parent_expression,
-                    Expression::TypeUnary { .. }
-                        | Expression::TypeBinary { .. }
-                        | Expression::TypeConditional { .. }
-                        | Expression::TypeMapped { .. }
-                        | Expression::TypeIndex { .. }
-                        | Expression::TypeTemplateLiteral { .. }
-                        | Expression::TypeImport { .. }
-                        | Expression::TypeInfer { .. }
-                        | Expression::TypePredicate { .. }
-                ) {
-                    return true;
-                }
-
-                return false;
-            }
-            NodeType::Property => {
-                let property = context.tree.get(LocalNodeId::<Property>::new(parent_id));
-                if let Property::Field { value, .. } = property
-                    && value.is_some_and(|value| value.id == current_id)
-                    && let Some((expression_id, expression_type)) = context.parent_by_id(parent_id)
-                    && expression_type == NodeType::Expression
-                {
-                    return expression_is_type_position(
-                        context,
-                        LocalNodeId::<Expression>::new(expression_id),
-                    );
-                }
-
-                return false;
-            }
-            NodeType::Member => {
-                let member = context.tree.get(LocalNodeId::<Member>::new(parent_id));
-                return match member {
-                    Member::Type { ty, value, .. } => {
-                        ty.is_some_and(|ty| ty.id == current_id)
-                            || value.is_some_and(|value| value.id == current_id)
-                    }
-                    Member::Field { value, .. } => {
-                        value.is_some_and(|value| value.id == current_id)
-                    }
-                    Member::ComptimeConst { ty, .. } => ty.is_some_and(|ty| ty.id == current_id),
-                    Member::Embed { value, .. } => value.id == current_id,
-                    Member::Method { .. }
-                    | Member::StaticBlock { .. }
-                    | Member::ComptimeBlock { .. }
-                    | Member::Error => false,
-                };
-            }
-            _ => return false,
-        }
+        return parent_expression_establishes_type_position(context.tree.get(parent_expression_id));
     }
 
     false

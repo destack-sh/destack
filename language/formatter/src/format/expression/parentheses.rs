@@ -4,7 +4,6 @@ use super::{
     format_expression, format_inline_ternary_expression,
     postfix_continuation_requires_parenthesized_object_wrapper,
     should_hoist_parenthesized_inner_cast_prefix_comments,
-    statement_drops_parenthesized_expression_wrapper,
 };
 use crate::format::call::call_drops_parenthesized_callee_wrapper;
 use crate::format::directive::node_has_ignore_directive;
@@ -490,15 +489,6 @@ pub(crate) fn should_drop_parenthesized_expression_wrapper(
         return false;
     }
 
-    let is_statement_wrapper = parent_expression_id.id == node_id.id;
-    if is_statement_wrapper {
-        return statement_drops_parenthesized_expression_wrapper(
-            context,
-            node_id,
-            inner_expression_id,
-        );
-    }
-
     let should_drop_call_callee_instantiation_wrapper = call_drops_parenthesized_callee_wrapper(
         context,
         node_id,
@@ -817,13 +807,10 @@ pub(crate) fn format_primary_parenthesized_expression<'ast>(
                     write!(f, [*comment_id, hard_line_break()])?;
                 }
 
-                f.context()
-                    .push_owned_comment_nodes(&leading_inner_comments);
-                let result = write!(f, [group(expression).should_expand(true)]);
-                f.context()
-                    .pop_owned_comment_nodes(leading_inner_comments.len());
-
-                result
+                let context = f.context().clone();
+                context.with_owned_comment_nodes(&leading_inner_comments, || {
+                    write!(f, [group(expression).should_expand(true)])
+                })
             });
             write!(
                 f,

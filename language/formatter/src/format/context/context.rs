@@ -22,6 +22,15 @@ pub(crate) const TYPE_CONTEXT_STATE_UNKNOWN: u8 = 0;
 pub(crate) const TYPE_CONTEXT_STATE_FALSE: u8 = 1;
 pub(crate) const TYPE_CONTEXT_STATE_TRUE: u8 = 2;
 
+/// The explicit formatter role for one expression subtree.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ExpressionFormatRole {
+    /// The expression is formatted as a value subtree.
+    Value,
+    /// The expression is formatted as a type subtree.
+    Type,
+}
+
 /// The formatter implementation specialized for the Destack context.
 pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
 
@@ -80,8 +89,9 @@ pub struct DestackFormatContext<'a> {
     pub file_ignore_applied: Rc<Cell<bool>>,
     /// Comment ids already owned by an outer formatter shell.
     pub owned_comment_nodes: Rc<RefCell<Vec<u32>>>,
-    /// Expression roots that should be treated as explicit type-position subtrees.
-    pub forced_type_position_expression_roots: Rc<RefCell<Vec<LocalNodeId<Expression>>>>,
+    /// Expression roots with explicit formatter roles.
+    pub expression_format_role_roots:
+        Rc<RefCell<Vec<(LocalNodeId<Expression>, ExpressionFormatRole)>>>,
 }
 
 impl<'a> DestackFormatContext<'a> {
@@ -175,7 +185,7 @@ impl<'a> DestackFormatContext<'a> {
             has_template_literal_markers,
             file_ignore_applied: Rc::new(Cell::new(false)),
             owned_comment_nodes: Rc::new(RefCell::new(Vec::new())),
-            forced_type_position_expression_roots: Rc::new(RefCell::new(Vec::new())),
+            expression_format_role_roots: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -183,6 +193,20 @@ impl<'a> DestackFormatContext<'a> {
     pub fn push_owned_comment_nodes(&self, comment_ids: &[LocalNodeId<Comment>]) {
         let mut owned_comment_nodes = self.owned_comment_nodes.borrow_mut();
         owned_comment_nodes.extend(comment_ids.iter().map(|comment_id| comment_id.id));
+    }
+
+    /// Run one operation while a batch of comment ids is owned by an outer formatter shell.
+    pub fn with_owned_comment_nodes<T>(
+        &self,
+        comment_ids: &[LocalNodeId<Comment>],
+        operation: impl FnOnce() -> T,
+    ) -> T {
+        self.push_owned_comment_nodes(comment_ids);
+
+        let result = operation();
+
+        self.pop_owned_comment_nodes(comment_ids.len());
+        result
     }
 
     /// Pop one trailing batch of outer-owned comment ids.
@@ -197,43 +221,49 @@ impl<'a> DestackFormatContext<'a> {
         self.owned_comment_nodes.borrow().contains(&comment_id.id)
     }
 
-    /// Push one expression root that should be treated as a forced type-position subtree.
-    pub fn push_forced_type_position_expression_root(&self, node_id: LocalNodeId<Expression>) {
-        self.forced_type_position_expression_roots
-            .borrow_mut()
-            .push(node_id);
-    }
-
-    /// Pop one forced type-position subtree root.
-    pub fn pop_forced_type_position_expression_root(&self) {
-        let _ = self
-            .forced_type_position_expression_roots
-            .borrow_mut()
-            .pop();
-    }
-
-    /// Return whether one expression sits under a forced type-position subtree root.
-    pub fn expression_is_under_forced_type_position_root(
+    /// Run one operation while one expression has one explicit formatter role.
+    pub fn with_expression_format_role_root<T>(
         &self,
         node_id: LocalNodeId<Expression>,
-    ) -> bool {
-        let forced_roots = self.forced_type_position_expression_roots.borrow();
-        if forced_roots.is_empty() {
-            return false;
+        role: ExpressionFormatRole,
+        operation: impl FnOnce() -> T,
+    ) -> T {
+        self.expression_format_role_roots
+            .borrow_mut()
+            .push((node_id, role));
+
+        let result = operation();
+
+        let _ = self.expression_format_role_roots.borrow_mut().pop();
+        result
+    }
+
+    /// Return the nearest explicit formatter role for one expression subtree.
+    pub fn expression_format_role(
+        &self,
+        node_id: LocalNodeId<Expression>,
+    ) -> Option<ExpressionFormatRole> {
+        let format_roots = self.expression_format_role_roots.borrow();
+        if format_roots.is_empty() {
+            return None;
         }
 
         let mut current_id = node_id.id;
         loop {
             let current_expression_id = LocalNodeId::<Expression>::new(current_id);
-            if forced_roots.contains(&current_expression_id) {
-                return true;
+            if let Some((_, role)) = format_roots
+                .iter()
+                .rev()
+                .find(|(root_id, _)| *root_id == current_expression_id)
+            {
+                return Some(*role);
             }
 
             let Some((parent_id, parent_type)) = self.parent_by_id(current_id) else {
-                return false;
+                return None;
             };
             if parent_type != NodeType::Expression {
-                return false;
+                return None;
             }
 
             current_id = parent_id;

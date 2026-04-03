@@ -151,6 +151,16 @@ fn write_expression_gap_comments<'ast>(
         return Ok(());
     }
 
+    write_comment_node_lines(f, &comment_nodes)?;
+
+    write!(f, [hard_line_break()])
+}
+
+/// Write one raw comment node sequence separated by hard line breaks.
+fn write_comment_node_lines<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comment_nodes: &[LocalNodeId<destack_ast::Comment>],
+) -> FormatResult<()> {
     for (index, comment_id) in comment_nodes.iter().copied().enumerate() {
         if index > 0 {
             write!(f, [hard_line_break()])?;
@@ -159,7 +169,7 @@ fn write_expression_gap_comments<'ast>(
         write!(f, [comment_id])?;
     }
 
-    write!(f, [hard_line_break()])
+    Ok(())
 }
 
 /// Write postfix annotations for one block expression.
@@ -242,15 +252,7 @@ pub(crate) fn format_block_body_wide<'ast>(
             f,
             [block_indent(&format_with(
                 |f: &mut DestackFormatter<'ast, '_>| {
-                    for (index, comment_id) in leading_comment_nodes.iter().copied().enumerate() {
-                        if index > 0 {
-                            write!(f, [hard_line_break()])?;
-                        }
-
-                        write!(f, [comment_id])?;
-                    }
-
-                    Ok(())
+                    write_comment_node_lines(f, &leading_comment_nodes)
                 }
             ))]
         )?;
@@ -263,16 +265,16 @@ pub(crate) fn format_block_body_wide<'ast>(
     }
 
     if !block.is_empty() {
-        f.context().push_owned_comment_nodes(&leading_comment_nodes);
-        write!(
-            f,
-            [soft_block_indent(&block_statement_sequence(
-                block_id,
-                allow_value_tail
-            ))]
-        )?;
-        f.context()
-            .pop_owned_comment_nodes(leading_comment_nodes.len());
+        let context = f.context().clone();
+        context.with_owned_comment_nodes(&leading_comment_nodes, || {
+            write!(
+                f,
+                [soft_block_indent(&block_statement_sequence(
+                    block_id,
+                    allow_value_tail
+                ))]
+            )
+        })?;
         if !trailing_comment_nodes.is_empty() || f.context().has_infix_annotation(block_id) {
             write!(f, [hard_line_break()])?;
         }
@@ -283,15 +285,7 @@ pub(crate) fn format_block_body_wide<'ast>(
             f,
             [block_indent(&format_with(
                 |f: &mut DestackFormatter<'ast, '_>| {
-                    for (index, comment_id) in trailing_comment_nodes.iter().copied().enumerate() {
-                        if index > 0 {
-                            write!(f, [hard_line_break()])?;
-                        }
-
-                        write!(f, [comment_id])?;
-                    }
-
-                    Ok(())
+                    write_comment_node_lines(f, &trailing_comment_nodes)
                 }
             ))]
         )?;

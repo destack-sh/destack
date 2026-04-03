@@ -22,7 +22,7 @@ use destack_ast::{
     Mutability, NodeType, Pattern, TokenType, WhileKind, YieldCardinality,
 };
 use destack_core::StringId;
-use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
 use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, hard_line_break,
     line_postfix_boundary, space, token,
@@ -460,6 +460,42 @@ fn adjacent_statement_hoisted_parenthesized_comment_owner(
     }
 }
 
+/// Write one adjacent statement value inside explicit wrapping parentheses.
+fn write_wrapped_adjacent_statement_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    content: &impl Format<DestackFormatContext<'ast>>,
+) -> FormatResult<()> {
+    write!(
+        f,
+        [
+            space(),
+            token("("),
+            block_indent(content),
+            hard_line_break(),
+            token(")")
+        ]
+    )
+}
+
+/// Write one wrapped adjacent statement value after hoisting owned comments.
+fn write_hoisted_adjacent_statement_value<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    hoisted_comments: &[LocalNodeId<Comment>],
+    content: &impl Format<DestackFormatContext<'ast>>,
+) -> FormatResult<()> {
+    write_wrapped_adjacent_statement_value(
+        f,
+        &format_with(|f| {
+            for comment_id in hoisted_comments.iter().copied() {
+                write!(f, [comment_id, hard_line_break()])?;
+            }
+
+            let context = f.context().clone();
+            context.with_owned_comment_nodes(hoisted_comments, || write!(f, [content]))
+        }),
+    )
+}
+
 /// Format one adjacent return, throw, or yield argument.
 pub(crate) fn format_adjacent_statement_argument<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -509,33 +545,9 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
     {
         let hoisted_comments =
             parenthesized_leading_inner_comments(f.context(), value_id, parenthesized_inner_id);
-        let format_wrapped_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            for comment_id in hoisted_comments.iter().copied() {
-                write!(f, [comment_id, hard_line_break()])?;
-            }
-
-            f.context().push_owned_comment_nodes(&hoisted_comments);
-            let format_result = write!(
-                f,
-                [format_with(|f| {
-                    write_expanded_wrapped_value(f, parenthesized_inner_id)
-                })]
-            );
-            f.context().pop_owned_comment_nodes(hoisted_comments.len());
-
-            format_result
-        });
-
-        write!(
-            f,
-            [
-                space(),
-                token("("),
-                block_indent(&format_wrapped_value),
-                hard_line_break(),
-                token(")")
-            ]
-        )?;
+        let wrapped_value =
+            format_with(|f| write_expanded_wrapped_value(f, parenthesized_inner_id));
+        write_hoisted_adjacent_statement_value(f, &hoisted_comments, &wrapped_value)?;
         return Ok(());
     }
 
@@ -597,53 +609,13 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
                 hoisted_parenthesized_id,
                 *expression,
             );
-            let format_wrapped_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                for comment_id in hoisted_comments.iter().copied() {
-                    write!(f, [comment_id, hard_line_break()])?;
-                }
-
-                f.context().push_owned_comment_nodes(&hoisted_comments);
-                let format_result = write!(
-                    f,
-                    [format_with(|f| {
-                        write_expanded_wrapped_value(f, value_check_id)
-                    })]
-                );
-                f.context().pop_owned_comment_nodes(hoisted_comments.len());
-
-                format_result
-            });
-
-            write!(
-                f,
-                [
-                    space(),
-                    token("("),
-                    block_indent(&format_wrapped_value),
-                    hard_line_break(),
-                    token(")")
-                ]
-            )?;
+            let wrapped_value = format_with(|f| write_expanded_wrapped_value(f, value_check_id));
+            write_hoisted_adjacent_statement_value(f, &hoisted_comments, &wrapped_value)?;
             return Ok(());
         }
 
-        write!(
-            f,
-            [
-                space(),
-                token("("),
-                block_indent(&format_with(|f| {
-                    write!(
-                        f,
-                        [format_with(|f| {
-                            write_expanded_wrapped_value(f, value_check_id)
-                        })]
-                    )
-                })),
-                hard_line_break(),
-                token(")")
-            ]
-        )?;
+        let wrapped_value = format_with(|f| write_expanded_wrapped_value(f, value_check_id));
+        write_wrapped_adjacent_statement_value(f, &wrapped_value)?;
         return Ok(());
     }
 
@@ -974,15 +946,6 @@ fn match_case_has_boundary_line_comment(
         .iter()
         .copied()
         .any(|comment| context.comment_is_line(comment))
-}
-
-/// Return whether one match case has an inline block boundary comment.
-fn match_case_has_inline_star_line_postfix_boundary_comment(
-    context: &DestackFormatContext<'_>,
-    case_id: LocalNodeId<MatchCase>,
-) -> bool {
-    let _ = (context, case_id);
-    false
 }
 
 /// Format a match selector according to the selected case style.
@@ -1465,8 +1428,6 @@ pub(crate) fn format_match_case_with_style<'ast>(
 ) -> FormatResult<()> {
     let case = f.context().tree.get(case_id);
     let has_boundary_line_comment = match_case_has_boundary_line_comment(f.context(), case_id);
-    let has_inline_star_line_postfix_boundary_comment =
-        match_case_has_inline_star_line_postfix_boundary_comment(f.context(), case_id);
 
     // case prefix
     write!(
@@ -1498,11 +1459,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                 switch_case_expression_body_collapsed_explicit_block_expression(f.context(), *body)
             {
                 if has_boundary_line_comment {
-                    if has_inline_star_line_postfix_boundary_comment {
-                        write!(f, [space(), explicit_block_expression])?;
-                    } else {
-                        write!(f, [explicit_block_expression])?;
-                    }
+                    write!(f, [explicit_block_expression])?;
                 } else {
                     write!(f, [space(), explicit_block_expression])?;
                 }
@@ -1513,11 +1470,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                     write!(f, [hard_line_break(), block_indent(body)])?;
                 }
             } else if has_boundary_line_comment {
-                if has_inline_star_line_postfix_boundary_comment {
-                    write!(f, [space(), *body])?;
-                } else {
-                    write!(f, [*body])?;
-                }
+                write!(f, [*body])?;
             } else {
                 write!(f, [space(), *body])?;
             }
@@ -1547,11 +1500,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                         )
                     {
                         if has_boundary_line_comment {
-                            if has_inline_star_line_postfix_boundary_comment {
-                                write!(f, [space(), explicit_block_expression])?;
-                            } else {
-                                write!(f, [explicit_block_expression])?;
-                            }
+                            write!(f, [explicit_block_expression])?;
                         } else {
                             write!(f, [space(), explicit_block_expression])?;
                         }
@@ -1562,11 +1511,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                         write!(f, [block_indent(&block_statement_sequence(*body, false))])?;
                     }
                 } else if has_boundary_line_comment {
-                    if has_inline_star_line_postfix_boundary_comment {
-                        write!(f, [space(), *body])?;
-                    } else {
-                        write!(f, [*body])?;
-                    }
+                    write!(f, [*body])?;
                 } else {
                     write!(f, [space(), *body])?;
                 }
@@ -1597,22 +1542,11 @@ fn switch_case_expression_body_should_break(
         || f.context().node_has_newline(body_expression_id)
 }
 
-/// Return one expression id with statement wrappers removed.
-fn switch_case_expression_without_statement_wrapper(
-    _context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    expression_id
-}
-
 /// Return whether one switch case expression body is one explicit block expression.
 fn switch_case_expression_body_is_explicit_block(
     context: &DestackFormatContext<'_>,
     body_expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let body_expression_id =
-        switch_case_expression_without_statement_wrapper(context, body_expression_id);
-
     let Expression::Block(block_id) = context.tree.get(body_expression_id) else {
         return false;
     };
@@ -1626,8 +1560,6 @@ fn expression_is_empty_statement_block(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let expression_id = switch_case_expression_without_statement_wrapper(context, expression_id);
-
     let Expression::Block(block_id) = context.tree.get(expression_id) else {
         return false;
     };
@@ -1641,9 +1573,6 @@ fn switch_case_expression_body_collapsed_explicit_block_expression(
     context: &DestackFormatContext<'_>,
     body_expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
-    let body_expression_id =
-        switch_case_expression_without_statement_wrapper(context, body_expression_id);
-
     if switch_case_expression_body_is_explicit_block(context, body_expression_id) {
         return Some(body_expression_id);
     }

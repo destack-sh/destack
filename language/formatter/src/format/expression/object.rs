@@ -3,8 +3,8 @@ use crate::format::collection::{
     property_has_complex_value, separated_entries,
 };
 use crate::format::directive::any_ignore_range_for_nodes;
-use crate::format::operator::{expression_is_type_position, expression_static_arguments};
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::format::operator::expression_static_arguments;
+use crate::{DestackFormatContext, DestackFormatter, ExpressionFormatRole};
 use destack_ast::{
     Argument, Expression, LocalNodeId, NodeType, Parameter, Pattern, PatternField, Property,
 };
@@ -443,8 +443,11 @@ pub(crate) fn format_struct_literal<'ast>(
                 expression_static_arguments(f.context().tree.get(parent_expression_id))
                     .is_some_and(|arguments| arguments.contains(&argument_id))
             });
-    let is_type_position = expression_is_type_position(f.context(), expression_id);
-    let in_type_context = is_type_position || is_static_type_argument;
+    let in_type_context = f
+        .context()
+        .expression_format_role(expression_id)
+        .is_some_and(|role| role == ExpressionFormatRole::Type)
+        || is_static_type_argument;
     let has_leading_newline_before_first_property =
         object_has_leading_newline_before_first_property(
             f.context(),

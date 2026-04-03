@@ -11,7 +11,9 @@ use crate::format::declaration::signature::{
     write_static_parameter_list,
 };
 use crate::format::directive::{node_has_ignore_directive, write_ignored_node};
-use crate::format::operator::write_colon_prefixed_type_annotation;
+use crate::format::operator::{
+    write_colon_prefixed_type_annotation, write_type_expression_with_inline_prefix_annotations,
+};
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Comment, Declaration, Expression, Keyword, LocalNodeId, Member};
 use destack_fir::format::{Buffer, FormatResult};
@@ -67,6 +69,26 @@ fn field_type_trailing_comment_nodes<'ast>(
 
     let value_span = f.context().span(value_id);
     f.context().end_of_line_comment_nodes_after(value_span.end)
+}
+
+/// Write a class field terminator and any trailing field-type comments.
+fn write_field_terminator_and_trailing_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value: Option<LocalNodeId<Expression>>,
+    default: Option<LocalNodeId<Expression>>,
+) -> FormatResult<()> {
+    write!(f, [token(";")])?;
+
+    for comment_id in field_type_trailing_comment_nodes(f, value, default) {
+        let comment_span = f.context().span(comment_id);
+        if f.context().span_starts_on_own_line(comment_span) {
+            write!(f, [hard_line_break(), comment_id])?;
+        } else {
+            write!(f, [space(), comment_id])?;
+        }
+    }
+
+    Ok(())
 }
 
 impl<'ast> FormatNode<'ast, Member> for Member {
@@ -137,7 +159,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
             // ignored class fields still get one formatter-owned terminator
             if matches!(self, Member::Field { .. }) {
-                write!(f, [token(";")])?;
+                write_field_terminator_and_trailing_comments(f, None, None)?;
             }
 
             return Ok(());
@@ -196,7 +218,8 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
                     // value
                     if let Some(value) = value {
-                        write!(f, [space(), token("="), space(), value])?;
+                        write!(f, [space(), token("="), space()])?;
+                        write_type_expression_with_inline_prefix_annotations(f, *value)?;
                     }
                 }
                 Member::ComptimeConst {
@@ -278,20 +301,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 
             let needs_semicolon = matches!(self, Member::Field { .. });
             if needs_semicolon {
-                write!(f, [token(";")])?;
-
-                // field type seams
                 if let Member::Field { value, default, .. } = self {
-                    let trailing_comment_nodes =
-                        field_type_trailing_comment_nodes(f, *value, *default);
-                    for comment_id in trailing_comment_nodes {
-                        let comment_span = f.context().span(comment_id);
-                        if f.context().span_starts_on_own_line(comment_span) {
-                            write!(f, [hard_line_break(), comment_id])?;
-                        } else {
-                            write!(f, [space(), comment_id])?;
-                        }
-                    }
+                    write_field_terminator_and_trailing_comments(f, *value, *default)?;
+                } else {
+                    write!(f, [token(";")])?;
                 }
             }
 
