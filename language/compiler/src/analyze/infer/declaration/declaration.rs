@@ -501,6 +501,7 @@ impl Compiler {
                 scope: _,
                 members,
                 heritage,
+                ..
             } => self.infer_class_declaration(
                 &mut ctx.reborrow(),
                 declaration_id,
@@ -579,6 +580,7 @@ impl Compiler {
                 self_symbol: _,
                 scope: _,
                 body,
+                ..
             } => self.infer_function_declaration(
                 &mut ctx.reborrow(),
                 declaration_id,
@@ -3680,17 +3682,17 @@ impl Compiler {
                     });
                 }
             };
-
             // infer structural type from JSON value
-            Ok(json_value_to_type(
+            return Ok(json_value_to_type(
                 value,
                 source_node,
                 types,
                 &self.repository.strings,
-            ))
+            ));
         }
-        // otherwise text imports are always string
-        else if target_module.loader.is_text() {
+
+        // otherwise text and file imports are always string
+        if target_module.loader.is_text() || target_module.loader.is_file() {
             Ok(types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
