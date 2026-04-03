@@ -4783,7 +4783,7 @@ mod tests {
         let mut documentation_nodes = Vec::new();
         for annotation_id in parser.tree.iter_nodes::<Annotation>() {
             if let Annotation::Doc { node, position } = parser.tree.get(annotation_id) {
-                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_eq!(*position, AnnotationPosition::LinePrefix);
                 documentation_nodes.push(*node);
             }
         }
