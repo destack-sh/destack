@@ -1759,6 +1759,7 @@ dependencies = [
  "argon2",
  "base64",
  "block2",
+ "cfg-if",
  "core-foundation-sys",
  "destack_artifact",
  "destack_ast",
