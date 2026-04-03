@@ -569,6 +569,40 @@ impl Compiler {
         Ok(())
     }
 
+    /// Reify implicit casts in a compound assignment expression.
+    pub(super) fn reify_implicit_casts_in_assign_binary(
+        &self,
+        state: &mut ElaborateState<'_>,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: dir::AssignOperator,
+        right: LocalNodeId<Expression>,
+    ) -> ElaborateResult<()> {
+        // read the target type from the left hand side
+        // FUGU #Incomplete: some resolved assignment targets still do not carry value types here
+        let Some(target_type_id) = self.value_type_id_for_expression(state, left) else {
+            return Ok(());
+        };
+
+        // wrap the right hand side when needed
+        let cast_right_id =
+            self.wrap_value_with_cast(state, expression_id, right, target_type_id)?;
+
+        // replace the assignment when the value changes
+        if cast_right_id != right {
+            state.tree.replace(
+                expression_id,
+                Expression::AssignBinary {
+                    left,
+                    operator,
+                    right: cast_right_id,
+                },
+            );
+        }
+
+        Ok(())
+    }
+
     /// Reify implicit casts in a return expression.
     pub(super) fn reify_implicit_casts_in_return(
         &self,
@@ -585,6 +619,11 @@ impl Compiler {
         let Some(target_type_id) = self.enclosing_return_type(state, expression_id) else {
             return Ok(());
         };
+
+        // skip return casts when the value still has no concrete type
+        if self.value_type_id_for_expression(state, value_id).is_none() {
+            return Ok(());
+        }
 
         // wrap the return value when needed
         let cast_value_id =
