@@ -872,6 +872,12 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             js::Expression::ImportMeta => {
                 self.node("js::Expression::ImportMeta", id.id).end();
             }
+            js::Expression::This => {
+                self.node("js::Expression::This", id.id).end();
+            }
+            js::Expression::Super => {
+                self.node("js::Expression::Super", id.id).end();
+            }
             js::Expression::NewTarget => {
                 self.node("js::Expression::NewTarget", id.id).end();
             }

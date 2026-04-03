@@ -1326,7 +1326,9 @@ impl Compiler {
                 };
                 let mut merged = first.clone();
                 for map in rest {
-                    merged.retain(|key, literal| map.get(key) == Some(literal));
+                    merged.retain(|key, literal| {
+                        map.get(key).is_some_and(|other| *other == *literal)
+                    });
                 }
 
                 Some(merged)

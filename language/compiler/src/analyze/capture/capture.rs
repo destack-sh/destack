@@ -139,6 +139,7 @@ impl Compiler {
                 signature: _,
                 scope,
                 body,
+                self_symbol: _,
             } = declaration
             else {
                 continue;

@@ -5,8 +5,9 @@ use destack_dir::{
     BindingAnchor, BindingCategory, Declaration, DeclarationAbstraction, DeclarationDescriptor,
     DeclarationKind, DependencyItem, DependencyKind, DependencyMode, DependencySource, EnumField,
     EnumKind, Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, Name, NamespaceKind, NodeTree, NodeType, ScopeKind, StaticKey,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
+    LocalScopeMark, LocalSymbolId, ModuleBinding, Name, NamespaceKind, NodeTree, NodeType,
+    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    SymbolType, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -259,28 +260,27 @@ impl Compiler {
         name: Name,
         symbol_type: SymbolType,
         symbols: &mut SymbolTable,
-    ) {
+    ) -> LocalSymbolId {
         let key = StaticKey::Name(name.string());
         let scope = (scope_id, LocalScopeMark::end());
-        let has_binding = symbols
-            .get_scope_by_id(scope_id)
-            .find_up_to(key, scope.1)
-            .is_some();
+        let existing_binding = symbols.get_scope_by_id(scope_id).find_up_to(key, scope.1);
 
         // keep one self binding per name
-        if has_binding {
-            return;
+        if let Some(symbol_id) = existing_binding {
+            return symbol_id;
         }
 
-        symbols.insert_symbol(
-            SymbolKind::Local,
-            symbol_type,
-            SymbolSpace::Value,
-            SymbolBinding::Runtime,
-            Some(key),
-            scope,
-            None,
-        );
+        symbols
+            .insert_symbol(
+                SymbolKind::Local,
+                symbol_type,
+                SymbolSpace::Value,
+                SymbolBinding::Runtime,
+                Some(key),
+                scope,
+                None,
+            )
+            .0
     }
 
     /// Bind a declaration descriptor with expression self-name semantics.
@@ -294,7 +294,7 @@ impl Compiler {
         symbol_type: SymbolType,
         is_statement_declaration: bool,
         symbols: &mut SymbolTable,
-    ) -> (DeclarationDescriptor, LocalScopeId) {
+    ) -> (DeclarationDescriptor, LocalScopeId, Option<LocalSymbolId>) {
         // named class/function expressions keep their self name inside declaration scope
         let name_is_self_scope_only = self.declaration_expression_name_is_self_scope_only(
             module,
@@ -319,19 +319,20 @@ impl Compiler {
             symbols,
         );
         if !name_is_self_scope_only {
-            return (descriptor, scope_id);
+            return (descriptor, scope_id, None);
         }
 
         // insert one local self binding so recursion and self references resolve
         let Some(name) = expression_name else {
-            return (descriptor, scope_id);
+            return (descriptor, scope_id, None);
         };
-        self.bind_declaration_expression_self_name(scope_id, name, symbol_type, symbols);
+        let self_symbol =
+            self.bind_declaration_expression_self_name(scope_id, name, symbol_type, symbols);
 
         let mut descriptor = descriptor;
         descriptor.name = Some(name);
 
-        (descriptor, scope_id)
+        (descriptor, scope_id, Some(self_symbol))
     }
 
     /// Bind AST declaration descriptor for a global augmentation.
@@ -776,16 +777,17 @@ impl Compiler {
                 heritage,
                 members,
             } => {
-                let (descriptor, scope_id) = self.bind_declaration_expression_descriptor(
-                    module,
-                    ast,
-                    scope,
-                    descriptor,
-                    SymbolKind::Item,
-                    SymbolType::Class,
-                    is_statement_declaration,
-                    symbols,
-                );
+                let (descriptor, scope_id, self_symbol) = self
+                    .bind_declaration_expression_descriptor(
+                        module,
+                        ast,
+                        scope,
+                        descriptor,
+                        SymbolKind::Item,
+                        SymbolType::Class,
+                        is_statement_declaration,
+                        symbols,
+                    );
                 let generics = self.bind_generics(
                     module,
                     ast,
@@ -832,6 +834,7 @@ impl Compiler {
                     .collect();
                 Declaration::Class {
                     descriptor,
+                    self_symbol,
                     generics,
                     heritage,
                     scope: scope_id,
@@ -1098,16 +1101,17 @@ impl Compiler {
                 {
                     descriptor.kind = ast::DeclarationKind::Declaration;
                 }
-                let (descriptor, scope_id) = self.bind_declaration_expression_descriptor(
-                    module,
-                    ast,
-                    scope,
-                    &descriptor,
-                    SymbolKind::Item,
-                    SymbolType::Function,
-                    is_statement_declaration,
-                    symbols,
-                );
+                let (descriptor, scope_id, self_symbol) = self
+                    .bind_declaration_expression_descriptor(
+                        module,
+                        ast,
+                        scope,
+                        &descriptor,
+                        SymbolKind::Item,
+                        SymbolType::Function,
+                        is_statement_declaration,
+                        symbols,
+                    );
                 let signature = self.bind_function_signature(
                     module,
                     ast,
@@ -1139,6 +1143,7 @@ impl Compiler {
                 });
                 Declaration::Function {
                     descriptor,
+                    self_symbol,
                     signature,
                     scope: scope_id,
                     body,

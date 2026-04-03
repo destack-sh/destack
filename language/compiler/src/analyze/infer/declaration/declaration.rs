@@ -497,6 +497,7 @@ impl Compiler {
             Declaration::Class {
                 descriptor,
                 generics,
+                self_symbol: _,
                 scope: _,
                 members,
                 heritage,
@@ -575,6 +576,7 @@ impl Compiler {
             Declaration::Function {
                 descriptor,
                 signature,
+                self_symbol: _,
                 scope: _,
                 body,
             } => self.infer_function_declaration(
