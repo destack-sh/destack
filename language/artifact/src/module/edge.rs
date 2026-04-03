@@ -46,6 +46,8 @@ pub struct ModuleEdge {
     pub relation: ModuleEdgeRelation,
     /// The authored module specifier when one exists.
     pub specifier: Option<StringId>,
+    /// The source-site identity when one exists.
+    pub site: Option<u32>,
     /// The authored loader override when one exists.
     pub loader: Option<Loader>,
 }
@@ -57,6 +59,7 @@ impl ModuleEdge {
             target,
             relation,
             specifier: None,
+            site: None,
             loader: None,
         }
     }
@@ -64,6 +67,12 @@ impl ModuleEdge {
     /// Attach one authored specifier to this edge.
     pub fn with_specifier(mut self, specifier: Option<StringId>) -> Self {
         self.specifier = specifier;
+        self
+    }
+
+    /// Attach one source-site identity to this edge.
+    pub fn with_site(mut self, site: Option<u32>) -> Self {
+        self.site = site;
         self
     }
 
@@ -79,6 +88,7 @@ impl ModuleEdge {
             target: source_module_id,
             relation: self.relation,
             specifier: self.specifier,
+            site: self.site,
             loader: self.loader,
         }
     }

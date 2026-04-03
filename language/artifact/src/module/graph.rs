@@ -1,3 +1,4 @@
+use destack_core::StringId;
 use destack_source::{ModuleId, ModuleVersion, ProfileId};
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
@@ -140,6 +141,62 @@ impl ModuleGraph {
             .get(&module_id)
             .map(|metadata| metadata.dependencies.iter().copied().collect())
             .unwrap_or_default()
+    }
+
+    /// Return the dependency edges for one module filtered by relation.
+    pub fn dependency_edges_with_relation(
+        &self,
+        module_id: ModuleId,
+        relation: ModuleEdgeRelation,
+    ) -> Vec<ModuleEdge> {
+        self.dependency_edges_for(module_id)
+            .into_iter()
+            .filter(|edge| edge.relation == relation)
+            .collect()
+    }
+
+    /// Return one exact authored dependency edge when it exists.
+    pub fn dependency_edge_for_specifier(
+        &self,
+        module_id: ModuleId,
+        relation: ModuleEdgeRelation,
+        specifier: StringId,
+    ) -> Option<ModuleEdge> {
+        self.dependency_edges_for(module_id)
+            .into_iter()
+            .find(|edge| edge.relation == relation && edge.specifier == Some(specifier))
+    }
+
+    /// Return the dependency edges recorded for one exact source site.
+    pub fn dependency_edges_for_site(&self, module_id: ModuleId, site: u32) -> Vec<ModuleEdge> {
+        self.dependency_edges_for(module_id)
+            .into_iter()
+            .filter(|edge| edge.site == Some(site))
+            .collect()
+    }
+
+    /// Return one exact authored dependency edge for one source site when it exists.
+    pub fn dependency_edge_for_site_specifier(
+        &self,
+        module_id: ModuleId,
+        relation: ModuleEdgeRelation,
+        site: u32,
+        specifier: StringId,
+    ) -> Option<ModuleEdge> {
+        self.dependency_edges_for_site(module_id, site)
+            .into_iter()
+            .find(|edge| edge.relation == relation && edge.specifier == Some(specifier))
+    }
+
+    /// Return one exact authored dependency target when it exists.
+    pub fn dependency_target_for_specifier(
+        &self,
+        module_id: ModuleId,
+        relation: ModuleEdgeRelation,
+        specifier: StringId,
+    ) -> Option<ModuleId> {
+        self.dependency_edge_for_specifier(module_id, relation, specifier)
+            .map(|edge| edge.target)
     }
 
     /// Return the dependency list for one module.
