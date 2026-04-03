@@ -288,6 +288,7 @@ impl Compiler {
             };
             let value = match data.as_ref() {
                 Data::Json(value) => value,
+                Data::Html(_) | Data::Css(_) => return Ok(()),
             };
 
             let inferred_type =
