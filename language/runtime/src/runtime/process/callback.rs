@@ -34,8 +34,9 @@ pub(crate) enum RuntimeScheduledCallbackControl {
 }
 
 /// One runtime-owned scheduled callback.
-type RuntimeScheduledCallback =
-    dyn FnMut(&BindingCallContext) -> RuntimeResult<RuntimeScheduledCallbackControl> + 'static;
+type RuntimeScheduledCallback = dyn FnMut(&BindingCallContext) -> RuntimeResult<RuntimeScheduledCallbackControl>
+    + Send
+    + 'static;
 
 /// One registered runtime callback entry.
 struct RuntimeScheduledCallbackEntry {
@@ -72,6 +73,7 @@ impl RuntimeScheduledCallbackRegistry {
         delay_ns: u64,
         interval_ns: Option<u64>,
         callback: impl FnMut(&BindingCallContext) -> RuntimeResult<RuntimeScheduledCallbackControl>
+        + Send
         + 'static,
     ) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
         // allocate one synthetic callback handle

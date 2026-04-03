@@ -9,7 +9,7 @@ use super::{
 };
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::HostEventKind;
-use crate::platform::resource::ResourceTableSnapshot;
+use crate::platform::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::platform::{ResourceId, ResourceTable};
 use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
 use crate::runtime::capability::resolve_capability_profile;
@@ -18,7 +18,7 @@ use crate::runtime::memory::{Gc, RootSet, RootVisitor, resolve_heap_options};
 use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
-use crate::runtime::world::{RebindContext, RuntimeId, World};
+use crate::runtime::world::{RuntimeId, WorldRef};
 use crate::runtime::{
     DropCounts, DropReason, ExecutionContextId, Hooks, PlatformState, PlatformStateImage,
     RuntimeFinalizers, RuntimeFinalizersImage,
@@ -147,10 +147,10 @@ impl Agent {
     }
 
     /// Create one agent with explicit runtime options in one shared world.
-    pub fn new_in_world(
+    pub(crate) fn new_in_world(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &World,
+        world: &WorldRef,
         engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
         let platform_args = platform_args.into();
@@ -172,7 +172,7 @@ impl Agent {
     pub(crate) fn new_in_runtime(
         platform_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &World,
+        world: &WorldRef,
         runtime_id: RuntimeId,
         engine: Box<dyn Engine>,
     ) -> RuntimeResult<Self> {
@@ -194,7 +194,7 @@ impl Agent {
     fn assemble(
         platform_args: Arc<[String]>,
         options: &RuntimeOptions,
-        world: &World,
+        world: &WorldRef,
         runtime_id: RuntimeId,
         agent_id: AgentId,
         agent_name: String,
@@ -303,7 +303,7 @@ impl Agent {
 
     /// Register one new runtime and one primary agent in one world.
     fn register_runtime(
-        world: &World,
+        world: &WorldRef,
         options: &RuntimeOptions,
     ) -> RuntimeResult<(RuntimeId, AgentId, String, String)> {
         // runtime selector metadata
@@ -338,7 +338,7 @@ impl Agent {
 
     /// Register one agent in one existing runtime.
     fn register_agent(
-        world: &World,
+        world: &WorldRef,
         options: &RuntimeOptions,
         runtime_id: RuntimeId,
     ) -> RuntimeResult<(AgentId, String)> {
@@ -386,6 +386,7 @@ impl Agent {
         delay_ns: u64,
         interval_ns: Option<u64>,
         callback: impl FnMut(&BindingCallContext) -> RuntimeResult<RuntimeScheduledCallbackControl>
+        + Send
         + 'static,
     ) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
         self.runtime_callbacks
@@ -546,10 +547,10 @@ impl Agent {
     /// Check whether the heap should trigger a GC cycle.
     pub fn should_collect(&mut self) -> bool {
         // read the current heap size
-        let managed_retained_bytes = self.heap.managed_retained_bytes();
+        let managed_allocated_bytes = self.heap.managed_allocated_bytes();
 
         // evaluate runtime gc pacing policy
-        self.gc.should_collect(managed_retained_bytes)
+        self.gc.should_collect(managed_allocated_bytes)
     }
 
     /// Run garbage collection using the current root set.
@@ -564,7 +565,7 @@ impl Agent {
             .collect_young_managed_handles(handles.iter().copied());
 
         // escalate to one full cycle if mature pressure is still high
-        let stats = if self.gc.should_collect(self.heap.managed_retained_bytes()) {
+        let stats = if self.gc.should_collect(self.heap.managed_allocated_bytes()) {
             self.heap.collect_managed_handles(handles.iter().copied())
         } else {
             stats
@@ -625,10 +626,10 @@ impl Agent {
 
     /// Restore one agent from one materialized image.
     pub(crate) fn from_image(
-        world: &World,
+        world: &WorldRef,
         platform_args: Arc<[String]>,
         image: &AgentImage,
-        rebind_context: Option<&RebindContext>,
+        rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<Self> {
         // hooks and resources
         let hooks = Arc::new(Hooks::new(
@@ -682,10 +683,7 @@ impl Agent {
         event_loop.restore_snapshot(&image.event_loop, engine.as_mut())?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
         hooks.restore_snapshot(&image.hooks)?;
-        resources.restore_snapshot(
-            &image.resources,
-            rebind_context.map(RebindContext::resources),
-        )?;
+        resources.restore_snapshot(&image.resources, rebind_context)?;
 
         Ok(Self {
             id: image.agent_id,

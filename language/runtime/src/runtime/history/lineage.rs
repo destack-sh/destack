@@ -1,16 +1,14 @@
 use std::collections::BTreeMap;
-use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::WorldInstant;
-use crate::runtime::trace::{TraceImage, TraceSequence};
+use crate::runtime::trace::TraceSequence;
 use crate::runtime::world::ObservationRecord;
 
 use super::{
-    Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, Image, ImageId, Moment, Revision,
-    RevisionId,
+    Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, ImageId, Moment, Revision, RevisionId,
 };
 
 /// First active branch identifier for one new world.
@@ -25,8 +23,6 @@ const INITIAL_BRANCH_ID: u128 = 1;
 const INITIAL_REVISION_ID: u128 = 1;
 /// First allocated checkpoint identifier.
 const INITIAL_CHECKPOINT_ID: u128 = 1;
-/// First allocated image identifier.
-const INITIAL_IMAGE_ID: u128 = 1;
 
 /// World-owned lineage metadata and durable restore metadata.
 #[derive(Debug)]
@@ -37,82 +33,14 @@ pub(crate) struct Lineage {
     pub next_revision_id: u128,
     /// The next checkpoint identifier to allocate.
     pub next_checkpoint_id: u128,
-    /// The next image identifier to allocate.
-    pub next_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
     pub revisions: BTreeMap<RevisionId, Revision>,
     /// The known checkpoint metadata records.
     pub checkpoints: BTreeMap<CheckpointId, Checkpoint>,
-    /// The known image metadata records.
-    pub images: BTreeMap<ImageId, Rc<Image>>,
-    /// The known trace image records keyed by revision identifier.
-    pub trace_images: BTreeMap<RevisionId, Rc<TraceImage>>,
     /// The committed observation history keyed by branch.
     pub observations: BTreeMap<BranchId, Vec<ObservationRecord>>,
-}
-
-/// Fully resolved backing for one materialized revision.
-#[derive(Debug, Clone)]
-pub(crate) struct RevisionBacking {
-    /// The resolved revision metadata.
-    pub revision: Revision,
-    /// The resolved world image.
-    pub image: Rc<Image>,
-    /// The resolved trace image.
-    pub trace_image: Rc<TraceImage>,
-}
-
-/// One restore plan for reaching one specific revision.
-#[derive(Debug, Clone)]
-pub(crate) struct RevisionRestorePlan {
-    /// The requested target revision.
-    pub target_revision: Revision,
-    /// The nearest materialized base revision.
-    pub base_revision: Revision,
-    /// The materialized image for the base revision.
-    pub image: Rc<Image>,
-    /// The materialized trace image for the target revision.
-    pub trace_image: Rc<TraceImage>,
-}
-
-impl RevisionRestorePlan {
-    /// Report whether this restore plan needs replay past its base image.
-    pub(crate) fn requires_replay(&self) -> bool {
-        self.base_revision.id != self.target_revision.id
-    }
-}
-
-/// One restore plan for reaching one specific moment.
-#[derive(Debug, Clone)]
-pub(crate) struct MomentRestorePlan {
-    /// The requested target moment.
-    pub target_moment: Moment,
-    /// The latest committed revision at or before the target moment.
-    pub anchor_revision: Revision,
-    /// The nearest materialized base revision.
-    pub base_revision: Revision,
-    /// The materialized image for the base revision.
-    pub image: Rc<Image>,
-}
-
-impl MomentRestorePlan {
-    /// Report whether this restore plan needs replay past its base image.
-    pub(crate) fn requires_replay(&self) -> bool {
-        self.base_revision.sequence != self.target_moment.sequence
-    }
-}
-
-/// One committed lineage update for one new materialized revision.
-#[derive(Debug, Clone)]
-pub(crate) struct CommittedRevision {
-    /// The committed world revision metadata.
-    pub revision: Revision,
-    /// The committed world image.
-    pub image: Rc<Image>,
-    /// The committed checkpoint metadata, when created.
-    pub checkpoint: Option<Checkpoint>,
 }
 
 /// Durable lineage metadata captured in one world snapshot.
@@ -124,34 +52,26 @@ pub struct LineageSnapshot {
     pub next_revision_id: u128,
     /// The next checkpoint identifier to allocate.
     pub next_checkpoint_id: u128,
-    /// The next image identifier to allocate.
-    pub next_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
     pub revisions: BTreeMap<RevisionId, Revision>,
     /// The known checkpoint metadata records.
     pub checkpoints: BTreeMap<CheckpointId, Checkpoint>,
-    /// The known image metadata records.
-    pub images: BTreeMap<ImageId, Image>,
-    /// The known trace image records keyed by revision identifier.
-    pub trace_images: BTreeMap<RevisionId, TraceImage>,
     /// The committed observation history keyed by branch.
     pub observations: BTreeMap<BranchId, Vec<ObservationRecord>>,
 }
 
 impl Lineage {
     /// Create one lineage with one fully materialized root revision.
-    pub(crate) fn new_root(image: Rc<Image>, trace_image: Rc<TraceImage>) -> Self {
+    pub(crate) fn new_root(
+        wall: WorldInstant,
+        mono: WorldInstant,
+        sequence: TraceSequence,
+    ) -> Self {
         let mut branches = BTreeMap::new();
         let mut revisions = BTreeMap::new();
-        let mut images = BTreeMap::new();
-        let mut trace_images = BTreeMap::new();
         let observations = BTreeMap::new();
-
-        let wall = image.clock.virtual_wall;
-        let mono = image.clock.virtual_mono;
-        let sequence = trace_image.next_sequence;
 
         revisions.insert(
             ROOT_REVISION_ID,
@@ -178,73 +98,39 @@ impl Lineage {
             },
         );
 
-        images.insert(ROOT_IMAGE_ID, image);
-        trace_images.insert(ROOT_REVISION_ID, trace_image);
-
         Self {
             next_branch_id: INITIAL_BRANCH_ID,
             next_revision_id: INITIAL_REVISION_ID,
             next_checkpoint_id: INITIAL_CHECKPOINT_ID,
-            next_image_id: INITIAL_IMAGE_ID,
             branches,
             revisions,
             checkpoints: BTreeMap::new(),
-            images,
-            trace_images,
             observations,
         }
     }
 
     /// Capture one durable lineage snapshot.
     pub(crate) fn snapshot(&self) -> LineageSnapshot {
-        let images = self
-            .images
-            .iter()
-            .map(|(image_id, image)| (*image_id, image.as_ref().clone()))
-            .collect();
-        let trace_images = self
-            .trace_images
-            .iter()
-            .map(|(revision_id, trace_image)| (*revision_id, trace_image.as_ref().clone()))
-            .collect();
-
         LineageSnapshot {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
-            next_image_id: self.next_image_id,
             branches: self.branches.clone(),
             revisions: self.revisions.clone(),
             checkpoints: self.checkpoints.clone(),
-            images,
-            trace_images,
             observations: self.observations.clone(),
         }
     }
 
     /// Rebuild lineage state from one durable lineage snapshot.
     pub(crate) fn from_snapshot(snapshot: LineageSnapshot) -> Self {
-        let images = snapshot
-            .images
-            .into_iter()
-            .map(|(image_id, image)| (image_id, Rc::new(image)))
-            .collect();
-        let trace_images = snapshot
-            .trace_images
-            .into_iter()
-            .map(|(revision_id, trace_image)| (revision_id, Rc::new(trace_image)))
-            .collect();
-
         Self {
             next_branch_id: snapshot.next_branch_id,
             next_revision_id: snapshot.next_revision_id,
             next_checkpoint_id: snapshot.next_checkpoint_id,
-            next_image_id: snapshot.next_image_id,
             branches: snapshot.branches,
             revisions: snapshot.revisions,
             checkpoints: snapshot.checkpoints,
-            images,
-            trace_images,
             observations: snapshot.observations,
         }
     }
@@ -268,13 +154,6 @@ impl Lineage {
         let checkpoint_id = CheckpointId::new(self.next_checkpoint_id);
         self.next_checkpoint_id += 1;
         checkpoint_id
-    }
-
-    /// Allocate one new image identifier.
-    pub(crate) fn allocate_image_id(&mut self) -> ImageId {
-        let image_id = ImageId::new(self.next_image_id);
-        self.next_image_id += 1;
-        image_id
     }
 
     /// Set the current head revision for one branch.
@@ -320,17 +199,16 @@ impl Lineage {
         Ok(branch)
     }
 
-    /// Commit one new materialized revision and update the branch head.
+    /// Commit one new revision and update the branch head.
     pub(crate) fn commit_revision(
         &mut self,
         branch_id: BranchId,
-        mut image: Image,
-        trace_image: TraceImage,
-        retain_image: bool,
+        image_id: ImageId,
+        sequence: TraceSequence,
         wall: WorldInstant,
         mono: WorldInstant,
         checkpoint_name: Option<String>,
-    ) -> RuntimeResult<CommittedRevision> {
+    ) -> RuntimeResult<(Revision, Option<Checkpoint>)> {
         let parent_branch = self.branches.get(&branch_id).cloned().ok_or_else(|| {
             RuntimeError::BranchNotFound {
                 branch_id: branch_id.get(),
@@ -338,15 +216,12 @@ impl Lineage {
             .boxed()
         })?;
 
-        image.id = self.allocate_image_id();
-        let image = Rc::new(image);
-        let trace_image = Rc::new(trace_image);
         let revision = Revision {
             id: self.allocate_revision_id(),
             branch_id,
             parent_revision_id: Some(parent_branch.head_revision_id),
-            sequence: trace_image.next_sequence,
-            image_id: image.id,
+            sequence,
+            image_id,
             wall,
             mono,
             labels: BTreeMap::new(),
@@ -364,22 +239,14 @@ impl Lineage {
             labels: BTreeMap::new(),
         });
 
-        if retain_image {
-            self.images.insert(image.id, image.clone());
-        }
-        self.trace_images.insert(revision.id, trace_image.clone());
         self.revisions.insert(revision.id, revision.clone());
-        self.branches.insert(branch_id, branch.clone());
+        self.branches.insert(branch_id, branch);
 
         if let Some(checkpoint) = checkpoint.clone() {
             self.checkpoints.insert(checkpoint.id, checkpoint);
         }
 
-        Ok(CommittedRevision {
-            revision,
-            image,
-            checkpoint,
-        })
+        Ok((revision, checkpoint))
     }
 
     /// Return the revision that owns one image identifier.
@@ -389,50 +256,11 @@ impl Lineage {
         })
     }
 
-    /// Resolve one materialized revision and all of its backing records.
-    pub(crate) fn resolve_revision_backing(
-        &self,
-        revision_id: RevisionId,
-    ) -> RuntimeResult<RevisionBacking> {
-        let revision = self.revisions.get(&revision_id).cloned().ok_or_else(|| {
-            RuntimeError::RevisionNotFound {
-                revision_id: revision_id.get(),
-            }
-            .boxed()
-        })?;
-        let image = self
-            .images
-            .get(&revision.image_id)
-            .cloned()
-            .ok_or_else(|| {
-                RuntimeError::RevisionImageMissing {
-                    revision_id: revision.id.get(),
-                    image_id: revision.image_id.get(),
-                }
-                .boxed()
-            })?;
-        let trace_image = self
-            .trace_images
-            .get(&revision.id)
-            .cloned()
-            .ok_or_else(|| {
-                RuntimeError::RevisionTraceImageMissing {
-                    revision_id: revision.id.get(),
-                }
-                .boxed()
-            })?;
-
-        Ok(RevisionBacking {
-            revision,
-            image,
-            trace_image,
-        })
-    }
-
     /// Return the nearest materialized revision at or before one target revision.
     pub(crate) fn nearest_image_revision_id(
         &self,
         revision_id: RevisionId,
+        has_image: impl Fn(ImageId) -> bool,
     ) -> RuntimeResult<RevisionId> {
         let mut current_revision_id = revision_id;
 
@@ -444,7 +272,7 @@ impl Lineage {
                 .boxed()
             })?;
 
-            if self.images.contains_key(&revision.image_id) {
+            if has_image(revision.image_id) {
                 return Ok(current_revision_id);
             }
 
@@ -460,35 +288,13 @@ impl Lineage {
         }
     }
 
-    /// Resolve one revision restore plan from the nearest materialized image.
-    pub(crate) fn resolve_revision_restore_plan(
-        &self,
-        revision_id: RevisionId,
-    ) -> RuntimeResult<RevisionRestorePlan> {
-        let target_revision = self.revisions.get(&revision_id).cloned().ok_or_else(|| {
+    /// Return one committed revision by identifier.
+    pub(crate) fn revision(&self, revision_id: RevisionId) -> RuntimeResult<Revision> {
+        self.revisions.get(&revision_id).cloned().ok_or_else(|| {
             RuntimeError::RevisionNotFound {
                 revision_id: revision_id.get(),
             }
             .boxed()
-        })?;
-        let base_revision_id = self.nearest_image_revision_id(revision_id)?;
-        let base_backing = self.resolve_revision_backing(base_revision_id)?;
-        let trace_image = self
-            .trace_images
-            .get(&target_revision.id)
-            .cloned()
-            .ok_or_else(|| {
-                RuntimeError::RevisionTraceImageMissing {
-                    revision_id: target_revision.id.get(),
-                }
-                .boxed()
-            })?;
-
-        Ok(RevisionRestorePlan {
-            target_revision,
-            base_revision: base_backing.revision,
-            image: base_backing.image,
-            trace_image,
         })
     }
 
@@ -709,7 +515,7 @@ impl Lineage {
     }
 
     /// Return the latest committed revision at or before one target sequence on one branch.
-    fn latest_revision_at_or_before(
+    pub(crate) fn latest_revision_at_or_before(
         &self,
         branch_id: BranchId,
         sequence: TraceSequence,
@@ -743,31 +549,5 @@ impl Lineage {
 
             return Ok(parent_revision.clone());
         }
-    }
-
-    /// Resolve one moment restore plan from the nearest materialized image.
-    pub(crate) fn resolve_moment_restore_plan(
-        &self,
-        moment: Moment,
-    ) -> RuntimeResult<MomentRestorePlan> {
-        let head_revision = self.head_revision_for_branch(moment.branch_id)?;
-        if head_revision.sequence.get() < moment.sequence.get() {
-            return Err(RuntimeError::MomentNotFound {
-                branch_id: moment.branch_id.get(),
-                sequence: moment.sequence.get(),
-            }
-            .boxed());
-        }
-
-        let anchor_revision =
-            self.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
-        let base_revision_id = self.nearest_image_revision_id(anchor_revision.id)?;
-        let base_backing = self.resolve_revision_backing(base_revision_id)?;
-        Ok(MomentRestorePlan {
-            target_moment: moment,
-            anchor_revision,
-            base_revision: base_backing.revision,
-            image: base_backing.image,
-        })
     }
 }

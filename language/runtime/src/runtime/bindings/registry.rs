@@ -13,9 +13,10 @@ use crate::runtime::{BindingCallContext, enter_binding_call_context};
 use destack_workspace::RuntimeOptions;
 
 use crate::runtime::bindings::VmBindingSet;
+use destack_workspace::ExecutionMode;
 
 /// Registry for external bindings and shims.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct BindingRegistry {
     /// Registered binding descriptors for policy enforcement.
     descriptors: Vec<BindingDescriptor>,
@@ -32,7 +33,13 @@ pub struct BindingRegistry {
 impl BindingRegistry {
     /// Create a new binding registry.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            descriptors: Vec::new(),
+            descriptor_by_id: HashMap::new(),
+            native_by_id: HashMap::new(),
+            native_bindings: Vec::new(),
+            policy: RwLock::new(BindingPolicy::new(ExecutionMode::Fast)),
+        }
     }
 
     /// Borrow the live binding policy state.

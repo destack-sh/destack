@@ -210,11 +210,6 @@ pub enum RuntimeError {
         /// Revision identifier with the dangling trace-image reference.
         revision_id: u128,
     } = 120,
-    /// Exclusive access cannot begin while shared activity is still active.
-    ExclusiveAccessActive {
-        /// Number of active shared operations.
-        active_operations: usize,
-    } = 121,
     /// Exclusive access is already held.
     ExclusiveAccessHeld = 122,
     /// Shared activity was attempted while exclusive access is held.
@@ -394,11 +389,6 @@ impl RuntimeError {
             }
             RuntimeError::RevisionTraceImageMissing { revision_id } => {
                 format!("revision {revision_id} is missing trace image")
-            }
-            RuntimeError::ExclusiveAccessActive { active_operations } => {
-                format!(
-                    "world cannot acquire exclusive access while {active_operations} operation(s) are active"
-                )
             }
             RuntimeError::ExclusiveAccessHeld => {
                 "world is already under exclusive access".to_string()

@@ -1,4 +1,3 @@
-mod access;
 mod apply;
 mod constants;
 mod input;
@@ -15,7 +14,6 @@ pub(crate) use crate::runtime::history::lineage;
 pub use crate::runtime::history::*;
 pub(crate) use crate::runtime::topology;
 pub use crate::runtime::topology::*;
-pub(crate) use access::*;
 pub use constants::*;
 pub use input::*;
 pub use mutation::*;

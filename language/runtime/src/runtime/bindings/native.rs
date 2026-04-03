@@ -24,6 +24,12 @@ impl NativeBinding {
     }
 }
 
+// safety: native bindings are immutable metadata and the function pointer targets static code
+unsafe impl Send for NativeBinding {}
+
+// safety: native bindings are immutable metadata and the function pointer targets static code
+unsafe impl Sync for NativeBinding {}
+
 /// Set of native bindings for a platform domain.
 #[derive(Debug, Clone, Copy)]
 pub struct NativeBindingSet {

@@ -8,7 +8,7 @@ use crate::runtime::scheduler::{
     Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
 };
 use crate::runtime::time::timer::on_event_loop_timer_fire;
-use crate::runtime::world::World;
+use crate::runtime::world::WorldRef;
 use destack_heap as heap;
 use destack_workspace::TimeMode;
 
@@ -25,9 +25,10 @@ fn host_limit(value: u64, label: &str) -> usize {
 
 impl Agent {
     /// Run an entrypoint through the event loop.
-    pub fn run_entrypoint(
+    #[cfg(test)]
+    pub(crate) fn run_entrypoint(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         entry: &Entry,
         args: &[heap::Value],
@@ -39,7 +40,7 @@ impl Agent {
     /// Run an entrypoint through the event loop with one external poller.
     pub(crate) fn run_entrypoint_with_host_and_poller(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         entry: &Entry,
         args: &[heap::Value],
@@ -48,7 +49,7 @@ impl Agent {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const HostSession;
-        let world_ptr = world as *const World;
+        let world_ptr = world as *const WorldRef;
         let _context_guard = enter_current_agent_context(
             agent_ptr,
             event_loop,
@@ -59,7 +60,7 @@ impl Agent {
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let mut shared = world.shared.borrow_mut();
+        let mut shared = world.shared_mut();
         let mut memory = heap::MemoryContext::with_shared_limits(
             &mut self.heap,
             &mut shared,
@@ -91,7 +92,7 @@ impl Agent {
     /// Run one replayable entrypoint through the event loop with one external poller.
     pub(crate) fn run_replayable_entrypoint_with_host_and_poller(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         entry: &Entry,
         args: &[heap::Value],
@@ -100,7 +101,7 @@ impl Agent {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const HostSession;
-        let world_ptr = world as *const World;
+        let world_ptr = world as *const WorldRef;
         let _context_guard = enter_current_agent_context(
             agent_ptr,
             event_loop,
@@ -111,7 +112,7 @@ impl Agent {
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_event_loop_scope(EventLoopScope::empty());
-        let mut shared = world.shared.borrow_mut();
+        let mut shared = world.shared_mut();
         let mut memory = heap::MemoryContext::with_shared_limits(
             &mut self.heap,
             &mut shared,
@@ -140,9 +141,10 @@ impl Agent {
     }
 
     /// Run the loop until the specified task completes.
-    pub fn run_loop_until_task_complete(
+    #[cfg(test)]
+    pub(crate) fn run_loop_until_task_complete(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         target_task: TaskId,
     ) -> RuntimeResult<ExecutionOutput> {
@@ -156,9 +158,10 @@ impl Agent {
     }
 
     /// Run the loop until the specified task completes with one external poller.
+    #[cfg(test)]
     pub(crate) fn run_loop_until_task_complete_with_host_and_poller(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         target_task: TaskId,
         poller: &mut Option<Box<dyn HostPoller>>,
@@ -173,9 +176,10 @@ impl Agent {
     }
 
     /// Run the loop until the specified task completes or one timeout elapses.
-    pub fn run_loop_until_task_complete_with_timeout(
+    #[cfg(test)]
+    pub(crate) fn run_loop_until_task_complete_with_timeout(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
@@ -187,7 +191,7 @@ impl Agent {
     /// Run the loop until one task completes or one timeout elapses with one external poller.
     fn run_until_task_complete(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         target_task: TaskId,
         timeout_nanos: Option<u64>,
@@ -231,12 +235,17 @@ impl Agent {
     }
 
     /// Execute one local agent tick.
-    pub fn tick(&mut self, world: &World, host: &HostSession) -> RuntimeResult<bool> {
+    pub(crate) fn tick(&mut self, world: &WorldRef, host: &HostSession) -> RuntimeResult<bool> {
         self.tick_once(world, host)
     }
 
     /// Run runtime ticks until no work remains.
-    pub fn tick_until_idle(&mut self, world: &World, host: &HostSession) -> RuntimeResult<()> {
+    #[cfg(test)]
+    pub(crate) fn tick_until_idle(
+        &mut self,
+        world: &WorldRef,
+        host: &HostSession,
+    ) -> RuntimeResult<()> {
         loop {
             let progressed = self.tick_once(world, host)?;
             if !progressed {
@@ -248,7 +257,7 @@ impl Agent {
     }
 
     /// Execute one local agent tick.
-    fn tick_once(&mut self, world: &World, host: &HostSession) -> RuntimeResult<bool> {
+    fn tick_once(&mut self, world: &WorldRef, host: &HostSession) -> RuntimeResult<bool> {
         // run one event loop tick and capture progress
         let (mut progressed, _) = self.tick_loop(world, host, None)?;
 
@@ -264,14 +273,14 @@ impl Agent {
     /// Tick the loop once and return progress and optional target output.
     fn tick_loop(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<ExecutionOutput>)> {
         let agent_ptr = self as *const Agent;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const HostSession;
-        let world_ptr = world as *const World;
+        let world_ptr = world as *const WorldRef;
         let _context_guard = enter_current_agent_context(
             agent_ptr,
             event_loop,
@@ -374,7 +383,11 @@ impl Agent {
     }
 
     /// Deliver one fired timer into the watched task queue.
-    pub(crate) fn deliver_timer_wake(&mut self, world: &World, timer: Timer) -> RuntimeResult<()> {
+    pub(crate) fn deliver_timer_wake(
+        &mut self,
+        world: &WorldRef,
+        timer: Timer,
+    ) -> RuntimeResult<()> {
         // runtime-owned scheduled callbacks
         match timer.handle {
             TimerHandle::Internal(handle) => {
@@ -420,7 +433,7 @@ impl Agent {
     /// Enqueue one yielded continuation as a task.
     fn enqueue_task(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         task_id: TaskId,
         runnable: LiveContinuation,
         resume_value: heap::Value,
@@ -440,7 +453,7 @@ impl Agent {
     /// Execute one task and return output when it completes the target task.
     fn execute_dequeued_task(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<ExecutionOutput>> {
@@ -451,7 +464,7 @@ impl Agent {
     /// Execute one task and return output when it completes the target task.
     fn execute_task(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         mut task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<ExecutionOutput>> {
@@ -480,7 +493,7 @@ impl Agent {
     }
 
     /// Enqueue one prepared task and record enqueue hooks.
-    fn enqueue_prepared_task(&mut self, world: &World, task: Task) -> RuntimeResult<()> {
+    fn enqueue_prepared_task(&mut self, world: &WorldRef, task: Task) -> RuntimeResult<()> {
         // enqueue the task into the event loop
         self.event_loop.enqueue_task(task);
         self.hooks.on_scheduler_enqueue(world);
@@ -491,7 +504,7 @@ impl Agent {
     /// Execute one microtask to completion.
     fn execute_microtask(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         microtask: Microtask,
         max_microtask_depth: usize,
     ) -> RuntimeResult<()> {
@@ -522,7 +535,7 @@ impl Agent {
     }
 
     /// Drain all pending microtasks. Returns (drained_microtasks, budget_exhausted)
-    fn drain_microtasks(&mut self, world: &World) -> RuntimeResult<(usize, bool)> {
+    fn drain_microtasks(&mut self, world: &WorldRef) -> RuntimeResult<(usize, bool)> {
         // resolve the microtask safety limits for this drain cycle
         let microtask_budget = self
             .event_loop
@@ -561,11 +574,11 @@ impl Agent {
     /// Resume one engine continuation with one runtime value.
     fn execute_runnable(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         runnable: LiveContinuation,
         resume_value: heap::Value,
     ) -> RuntimeResult<ExecutionOutcome<LiveContinuation>> {
-        let mut shared = world.shared.borrow_mut();
+        let mut shared = world.shared_mut();
         let mut memory = heap::MemoryContext::with_shared_limits(
             &mut self.heap,
             &mut shared,
@@ -577,7 +590,7 @@ impl Agent {
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.
     fn wait_for_next_turn(
         &mut self,
-        world: &World,
+        world: &WorldRef,
         host: &HostSession,
         poller: &mut Option<Box<dyn HostPoller>>,
     ) -> RuntimeResult<bool> {
@@ -654,7 +667,7 @@ impl Agent {
     }
 
     /// Return whether the current tick exhausted the configured budget.
-    fn is_tick_budget_exhausted(&self, world: &World, tick_start_mono_nanos: u64) -> bool {
+    fn is_tick_budget_exhausted(&self, world: &WorldRef, tick_start_mono_nanos: u64) -> bool {
         let Some(tick_budget_nanos) = self.event_loop.options().tick_budget_ns else {
             return false;
         };

@@ -192,13 +192,13 @@ pub struct LineageView<'a> {
 impl<'a> LineageView<'a> {
     /// Return metadata for one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<Branch> {
-        let lineage = self.world.lineage.borrow();
+        let lineage = self.world.lineage.read();
         lineage.branch(branch_id)
     }
 
     /// Return every known branch in stable lineage order.
     pub fn branches(self) -> BranchSet {
-        let lineage = self.world.lineage.borrow();
+        let lineage = self.world.lineage.read();
         let branches = lineage.branches.values().cloned().collect();
 
         BranchSet::new(branches)
@@ -221,7 +221,7 @@ impl<'a> LineageView<'a> {
 
     /// Return every branch that descends from one ancestor branch.
     pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<BranchSet> {
-        let lineage = self.world.lineage.borrow();
+        let lineage = self.world.lineage.read();
         let branches = lineage.descendant_branches(branch_id)?;
 
         Ok(BranchSet::new(branches))
@@ -229,13 +229,13 @@ impl<'a> LineageView<'a> {
 
     /// Return the branch-origin moment for one branch.
     pub fn branch_origin_moment(self, branch_id: BranchId) -> RuntimeResult<Moment> {
-        let lineage = self.world.lineage.borrow();
+        let lineage = self.world.lineage.read();
         lineage.branch_origin_moment(branch_id)
     }
 
     /// Return the committed head moment for one branch.
     pub fn branch_head_moment(self, branch_id: BranchId) -> RuntimeResult<Moment> {
-        let lineage = self.world.lineage.borrow();
+        let lineage = self.world.lineage.read();
         lineage.branch_head_moment(branch_id)
     }
 
@@ -246,7 +246,7 @@ impl<'a> LineageView<'a> {
             moment,
         )?;
 
-        let image = self.world.image_at_committed_moment(moment)?;
+        let image = self.world.image_at_moment(moment)?;
 
         Ok(WorldView::new(moment, image))
     }
@@ -266,7 +266,7 @@ impl<'a> LineageView<'a> {
         left_branch_id: BranchId,
         right_branch_id: BranchId,
     ) -> RuntimeResult<Divergence> {
-        let lineage = self.world.lineage.borrow();
+        let lineage = self.world.lineage.read();
         let revision = lineage.common_ancestor_revision(left_branch_id, right_branch_id)?;
         let left = lineage.branch_head_moment(left_branch_id)?;
         let right = lineage.branch_head_moment(right_branch_id)?;
@@ -407,7 +407,7 @@ impl<'a> LineageView<'a> {
 
     /// Project committed observations into query events for one range.
     fn observation_events_between(self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
-        let lineage = self.world.lineage.borrow();
+        let lineage = self.world.lineage.read();
         let records = lineage.observation_records_between(start, end)?;
 
         Ok(records.into_iter().map(Event::from_observation).collect())
@@ -426,15 +426,9 @@ impl<'a> LineageView<'a> {
     /// Build one replay trace for the committed head of one branch.
     fn replay_trace_for_branch(self, branch_id: BranchId) -> RuntimeResult<Trace> {
         let trace_image = {
-            let lineage = self.world.lineage.borrow();
+            let lineage = self.world.lineage.read();
             let head_revision = lineage.head_revision_for_branch(branch_id)?;
-            lineage
-                .trace_images
-                .get(&head_revision.id)
-                .cloned()
-                .ok_or_else(|| RuntimeError::RevisionTraceImageMissing {
-                    revision_id: head_revision.id.get(),
-                })?
+            self.world.trace_image(head_revision.id)?
         };
 
         Trace::replay_from_image(&trace_image)
@@ -558,7 +552,7 @@ impl World {
     /// Project committed and live observation records into query events for one range.
     fn observation_events_between(&self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
         let committed_head = {
-            let lineage = self.lineage.borrow();
+            let lineage = self.lineage.read();
             lineage.branch_head_moment(self.branch_id)?
         };
 
@@ -569,7 +563,7 @@ impl World {
                 self.branch_id,
                 TraceSequence::new(end.sequence.get().min(committed_head.sequence.get())),
             );
-            let lineage = self.lineage.borrow();
+            let lineage = self.lineage.read();
             let records = lineage.observation_records_between(start, committed_end)?;
             events.extend(records.into_iter().map(Event::from_observation));
         }

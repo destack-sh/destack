@@ -18,7 +18,7 @@ pub use kind::*;
 pub(crate) use resolve::ensure_resource_affinity;
 pub use snapshot::{
     ResourceBacking, ResourceCapture, ResourceImageEntry, ResourcePortability, ResourceProvider,
-    ResourceRebindContext, ResourceRebinder, ResourceRoute, ResourceSnapshot,
+    ResourceRebinder, ResourceRebinders, ResourceRoute, ResourceSnapshot,
 };
 pub(crate) use table::ResourceTableSnapshot;
 pub use table::{ResourceEntry, ResourceFinalizer, ResourceTable};

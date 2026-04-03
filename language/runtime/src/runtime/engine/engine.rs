@@ -8,7 +8,7 @@ use super::{EngineImage, EngineSnapshot, Entry, LiveContinuation};
 use crate::diagnostic::RuntimeResult;
 
 /// Execution engine used by one agent event loop.
-pub trait Engine: Any {
+pub trait Engine: Any + Send {
     /// Return the encoded managed-reference width required by this engine.
     fn heap_managed_reference_bytes(&self) -> u8;
 

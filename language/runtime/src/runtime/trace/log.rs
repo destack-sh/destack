@@ -285,12 +285,6 @@ pub struct TraceLog {
     state: Arc<Mutex<TraceState>>,
 }
 
-impl Default for TraceLog {
-    fn default() -> Self {
-        Self::new(TraceHeader::default())
-    }
-}
-
 impl TraceLog {
     /// Create a trace log with an explicit header.
     pub fn new(mut header: TraceHeader) -> Self {
@@ -507,13 +501,18 @@ mod tests {
 
     use super::*;
     use crate::runtime::time::WorldInstant;
-    use crate::runtime::trace::{Outcome, TraceRecord};
+    use crate::runtime::trace::{EnvironmentConfig, Outcome, TraceRecord};
     use crate::runtime::world::{CheckpointId, RevisionId};
+
+    /// Build one explicit trace header for log tests.
+    fn test_trace_header() -> TraceHeader {
+        TraceHeader::new(EnvironmentConfig::default())
+    }
 
     /// Capture one trace image should materialize the local tail into shared history.
     #[test]
     fn test_image_materializes_shared_history() {
-        let log = TraceLog::new(TraceHeader::default());
+        let log = TraceLog::new(test_trace_header());
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
             WorldInstant::new(1),
         )))
@@ -535,7 +534,7 @@ mod tests {
     /// Appending after one captured trace image should keep the shared head stable.
     #[test]
     fn test_record_after_image_keeps_shared_head() {
-        let log = TraceLog::new(TraceHeader::default());
+        let log = TraceLog::new(test_trace_header());
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
             WorldInstant::new(1),
         )))
@@ -563,7 +562,7 @@ mod tests {
     /// Recording one checkpoint with an explicit sequence should preserve checkpoint order.
     #[test]
     fn test_record_checkpoint_exact_orders_by_sequence() {
-        let log = TraceLog::new(TraceHeader::default());
+        let log = TraceLog::new(test_trace_header());
 
         log.record_checkpoint_exact(TraceCheckpointIndex {
             checkpoint_id: CheckpointId::new(2),
@@ -597,7 +596,7 @@ mod tests {
     /// Restoring one captured trace image should keep existing cursors usable.
     #[test]
     fn test_restore_image_keeps_cursor_validation_consistent() {
-        let log = TraceLog::new(TraceHeader::default());
+        let log = TraceLog::new(test_trace_header());
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
             WorldInstant::new(1),
         )))
@@ -632,7 +631,7 @@ mod tests {
     /// Seeking one cursor should reposition it at the requested sequence boundary.
     #[test]
     fn test_cursor_seek_sequence_repositions_reader() {
-        let log = TraceLog::new(TraceHeader::default());
+        let log = TraceLog::new(test_trace_header());
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
             WorldInstant::new(1),
         )))

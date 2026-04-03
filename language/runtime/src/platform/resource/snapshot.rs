@@ -117,20 +117,20 @@ pub trait ResourceRebinder: Send + Sync {
 
 /// Rebinding hooks for restoring external resources.
 #[derive(Default, Clone)]
-pub struct ResourceRebindContext {
+pub struct ResourceRebinders {
     /// Rebinding hooks keyed by resource kind.
     rebinders: HashMap<ResourceKind, Arc<dyn ResourceRebinder>>,
 }
 
-impl fmt::Debug for ResourceRebindContext {
+impl fmt::Debug for ResourceRebinders {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ResourceRebindContext")
+        f.debug_struct("ResourceRebinders")
             .field("rebinder_count", &self.rebinders.len())
             .finish()
     }
 }
 
-impl ResourceRebindContext {
+impl ResourceRebinders {
     /// Register one rebinding hook for one resource kind.
     pub fn register(&mut self, resource_kind: ResourceKind, rebinder: Arc<dyn ResourceRebinder>) {
         let _ = self.rebinders.insert(resource_kind, rebinder);
