@@ -6,7 +6,7 @@
   "title": "Formatter Prettier",
   "origin": {
     "repo": "https://github.com/prettier/prettier.git",
-    "ref": "456d14dbc2639d5a6b3eb2d8836b30f63597e1d6",
+    "ref": "574b18d7d692370ace1b67c763b486926b4fb139",
     "kind": "git"
   },
   "fetch": {
