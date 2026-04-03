@@ -118,18 +118,27 @@ impl CodegenJsResultExt for CodegenJsResult<js::LocalNodeIdAny> {
     fn expect_node<T: js::Node>(
         self,
         source_id: dir::GlobalNodeIdAny,
-        _lowerer: &mut ModuleLowerer<'_>,
+        lowerer: &mut ModuleLowerer<'_>,
     ) -> CodegenJsResult<js::LocalNodeId<T>> {
         match self {
             Ok(node_id) => {
                 if node_id.ty == T::TYPE {
                     Ok(js::LocalNodeId::<T>::new(node_id.id))
                 } else {
+                    let source_kind = if source_id.local_id.ty == dir::NodeType::Expression {
+                        let expression_id =
+                            dir::LocalNodeId::<dir::Expression>::new(source_id.local_id.id);
+                        let expression = lowerer.dir_tree.get(expression_id);
+                        format!(" for {}", expression.kind_name())
+                    } else {
+                        String::new()
+                    };
+
                     Err(CodegenJsError::UnexpectedNode {
                         node: source_id,
                         wanted: T::TYPE,
                         message: Some(format!(
-                            "lowered to unexpected {} (wanted {})",
+                            "lowered to unexpected {} (wanted {}){source_kind}",
                             node_id.ty.name(),
                             T::TYPE.name()
                         )),
