@@ -29,7 +29,8 @@ impl Parser {
                 Block {
                     context: BlockContext::Statement,
                     format: BlockFormat::Implicit,
-                    expressions: vec![],
+                    leading_expressions: vec![],
+                    tail_expression: None,
                 },
                 self.get_span_from(&start),
             );
@@ -59,12 +60,31 @@ impl Parser {
             return Ok(expression_id);
         }
 
-        // wrap a non-block expression into an implicit statement block
+        // destack branch values stay value-producing through an implicit expression block
+        if self.language.is_destack() {
+            let block_id = self.insert_node(
+                Block {
+                    context: BlockContext::Expression,
+                    format: BlockFormat::Implicit,
+                    leading_expressions: vec![],
+                    tail_expression: Some(expression_id),
+                },
+                self.get_span_from(&start),
+            );
+            let expression_id = self
+                .tree
+                .insert(Expression::Block(block_id), self.get_span_from(&start));
+
+            return Ok(expression_id);
+        }
+
+        // js/ts branch statements stay statement-position blocks
         let block_id = self.insert_node(
             Block {
                 context: BlockContext::Statement,
                 format: BlockFormat::Implicit,
-                expressions: vec![expression_id],
+                leading_expressions: vec![expression_id],
+                tail_expression: None,
             },
             self.get_span_from(&start),
         );
@@ -218,7 +238,9 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_name, assert_node};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, block_expression_ids,
+    };
 
     #[test]
     fn test_parse_if_basic() {
@@ -235,7 +257,8 @@ mod tests {
             assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             // empty then block
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert!(expressions.is_empty());
                 });
             });
@@ -258,13 +281,15 @@ mod tests {
             assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
             // { }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert!(expressions.is_empty());
                 });
             });
             // { }
             assert_node!(parser.tree, else_expression.unwrap(), Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert!(expressions.is_empty());
                 });
             });
@@ -287,17 +312,19 @@ mod tests {
             assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
             // { a }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let then_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                    let then_statement_id = parser.unwrap_labelled_expression(expressions[0]);
                     assert_expression_path!(parser, parser.tree.get(then_statement_id), "a");
                 });
             });
             // { b }
             assert_node!(parser.tree, else_expression.unwrap(), Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
-                    let else_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                    let else_statement_id = parser.unwrap_labelled_expression(expressions[0]);
                     assert_expression_path!(parser, parser.tree.get(else_statement_id), "b");
                 });
             });
@@ -320,7 +347,8 @@ mod tests {
             assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
             // empty then block
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert!(expressions.is_empty());
                 });
             });
@@ -354,10 +382,11 @@ if cond {
             assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
             // { if (cond) { a } else { b } }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                     // if (cond) { a } else { b }
-                    let inner_if_id = parser.unwrap_statement_expression(expressions[0]);
+                    let inner_if_id = parser.unwrap_labelled_expression(expressions[0]);
                     assert_node!(parser.tree, inner_if_id, Expression::If { condition: inner_condition, then_expression: inner_then, else_expression: inner_else, .. } => {
                         // cond
                         let inner_condition_id = match inner_condition {
@@ -367,17 +396,19 @@ if cond {
                         assert_expression_path!(parser, parser.tree.get(inner_condition_id), "cond");
                         // { a }
                         assert_node!(parser.tree, *inner_then, Expression::Block(inner_block_id) => {
-                            assert_node!(parser.tree, *inner_block_id, Block { format: _, expressions, .. } => {
+                            assert_node!(parser.tree, *inner_block_id, Block { format: _, .. } => {
+                                let expressions = block_expression_ids(parser.tree.get(*inner_block_id));
                                 assert_eq!(expressions.len(), 1);
-                                let inner_then_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                                let inner_then_statement_id = parser.unwrap_labelled_expression(expressions[0]);
                                 assert_expression_path!(parser, parser.tree.get(inner_then_statement_id), "a");
                             });
                         });
                         // { b }
                         assert_node!(parser.tree, inner_else.unwrap(), Expression::Block(inner_block_id) => {
-                            assert_node!(parser.tree, *inner_block_id, Block { format: _, expressions, .. } => {
+                            assert_node!(parser.tree, *inner_block_id, Block { format: _, .. } => {
+                                let expressions = block_expression_ids(parser.tree.get(*inner_block_id));
                                 assert_eq!(expressions.len(), 1);
-                                let inner_else_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                                let inner_else_statement_id = parser.unwrap_labelled_expression(expressions[0]);
                                 assert_expression_path!(parser, parser.tree.get(inner_else_statement_id), "b");
                             });
                         });
@@ -403,7 +434,8 @@ if cond {
             assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             // then block
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert!(expressions.is_empty());
                 });
             });
@@ -415,7 +447,8 @@ if cond {
                 };
                 assert_node!(parser.tree, inner_condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
                 assert_node!(parser.tree, *inner_then, Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert!(expressions.is_empty());
                     });
                 });
@@ -454,7 +487,8 @@ if x > y {
             });
             // { y }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                 });
             });
@@ -474,7 +508,8 @@ if x > y {
                 });
                 // { x }
                 assert_node!(parser.tree, *inner_then, Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert_eq!(expressions.len(), 1);
                     });
                 });
@@ -497,7 +532,8 @@ if x > y {
             assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             // { }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert!(expressions.is_empty());
                 });
             });
@@ -511,13 +547,15 @@ if x > y {
                 assert_node!(parser.tree, inner_condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
                 // { }
                 assert_node!(parser.tree, *inner_then, Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert!(expressions.is_empty());
                     });
                 });
                 // else { }
                 assert_node!(parser.tree, inner_else.unwrap(), Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert!(expressions.is_empty());
                     });
                 });
@@ -553,7 +591,8 @@ else { v }
             });
             // { lo }
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                 });
             });
@@ -573,13 +612,15 @@ else { v }
                 });
                 // { hi }
                 assert_node!(parser.tree, *inner_then, Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert_eq!(expressions.len(), 1);
                     });
                 });
                 // else { v }
                 assert_node!(parser.tree, inner_else.unwrap(), Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert_eq!(expressions.len(), 1);
                     });
                 });
@@ -609,7 +650,8 @@ if (x > y) {
             assert_node!(parser.tree, condition_id, Expression::Binary { left: _, operator: _, right: _ });
             // then block has one expression
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                 });
             });
@@ -641,7 +683,8 @@ else
             };
             assert_expression_path!(parser, parser.tree.get(condition_id), "x");
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                 });
             });
@@ -653,13 +696,15 @@ else
                 };
                 assert_expression_path!(parser, parser.tree.get(condition_id), "y");
                 assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert_eq!(expressions.len(), 1);
                     });
                 });
                 // else z
                 assert_node!(parser.tree, else_expression.unwrap(), Expression::Block(block_id) => {
-                    assert_node!(parser.tree, *block_id, Block { format: _, expressions, .. } => {
+                    assert_node!(parser.tree, *block_id, Block { format: _, .. } => {
+                        let expressions = block_expression_ids(parser.tree.get(*block_id));
                         assert_eq!(expressions.len(), 1);
                     });
                 });
@@ -689,22 +734,15 @@ else
             let else_expression_id = else_expression.expect("expected else expression");
             assert_node!(parser.tree, else_expression_id, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
-                assert_eq!(block.expressions.len(), 1);
+                let expressions = block_expression_ids(block);
+                assert_eq!(expressions.len(), 1);
 
-                let else_item = block.expressions[0];
+                let else_item = expressions[0];
                 match parser.tree.get(else_item) {
                     Expression::Declaration(declaration_id) => {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
                             assert_eq!(signature.kind, FunctionKind::Lambda);
                             assert_eq!(signature.dynamic_parameters.len(), 1);
-                        });
-                    }
-                    Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
-                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
-                                assert_eq!(signature.kind, FunctionKind::Lambda);
-                                assert_eq!(signature.dynamic_parameters.len(), 1);
-                            });
                         });
                     }
                     _ => panic!("expected lambda declaration in else branch"),
@@ -801,7 +839,7 @@ else
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { condition, .. } => {
             let condition_id = match condition {
                 IfCondition::Expression { condition } => *condition,
@@ -814,7 +852,8 @@ else
 
         assert_node!(parser.tree, expression_id, Expression::If { then_expression, .. } => {
             assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                     let then_annotations = parser.tree.get_annotations(expressions[0].id);
                     assert!(then_annotations.is_empty());
@@ -842,7 +881,7 @@ else
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             let else_expression_id = else_expression.expect("expected else expression");
             let annotations = parser.tree.get_annotations(else_expression_id.id);
@@ -862,7 +901,7 @@ else
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             assert!(else_expression.is_some());
         });
@@ -877,7 +916,7 @@ else
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::If { else_expression, .. } => {
             assert!(else_expression.is_some());
         });

@@ -120,8 +120,8 @@ pub(super) fn is_declaration_keyword(keyword: Keyword) -> bool {
 }
 
 impl Parser {
-    /// Unwrap statement and label wrappers to get the underlying expression.
-    pub(crate) fn unwrap_statement_expression(
+    /// Unwrap label wrappers to get the underlying expression.
+    pub(crate) fn unwrap_labelled_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> LocalNodeId<Expression> {
@@ -129,9 +129,6 @@ impl Parser {
         loop {
             let expression = self.tree.get(current);
             match expression {
-                Expression::Statement(inner) => {
-                    current = *inner;
-                }
                 Expression::Labelled { body, .. } => {
                     current = *body;
                 }

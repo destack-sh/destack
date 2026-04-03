@@ -1137,7 +1137,7 @@ export function stableLater(): void {}
         assert_eq!(expressions.len(), 2);
 
         // export function broken( {}
-        let first_declaration_id = parser.unwrap_statement_expression(expressions[0]);
+        let first_declaration_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
                 assert_name!(parser, descriptor.name.unwrap(), "broken");
@@ -1145,7 +1145,7 @@ export function stableLater(): void {}
         });
 
         // export function stableLater(): void {}
-        let second_declaration_id = parser.unwrap_statement_expression(expressions[1]);
+        let second_declaration_id = parser.unwrap_labelled_expression(expressions[1]);
         assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
                 assert_name!(parser, descriptor.name.unwrap(), "stableLater");
@@ -1171,7 +1171,7 @@ function stableLater(): void {}
         assert_eq!(expressions.len(), 2);
 
         // function broken(
-        let first_declaration_id = parser.unwrap_statement_expression(expressions[0]);
+        let first_declaration_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
                 assert_name!(parser, descriptor.name.unwrap(), "broken");
@@ -1179,7 +1179,7 @@ function stableLater(): void {}
         });
 
         // function stableLater(): void {}
-        let second_declaration_id = parser.unwrap_statement_expression(expressions[1]);
+        let second_declaration_id = parser.unwrap_labelled_expression(expressions[1]);
         assert_node!(parser.tree, second_declaration_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
                 assert_name!(parser, descriptor.name.unwrap(), "stableLater");
@@ -1205,7 +1205,7 @@ const value = 1
         assert_eq!(expressions.len(), 2);
 
         // function broken(
-        let first_declaration_id = parser.unwrap_statement_expression(expressions[0]);
+        let first_declaration_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, first_declaration_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function { descriptor, .. } => {
                 assert_name!(parser, descriptor.name.unwrap(), "broken");
@@ -1213,7 +1213,7 @@ const value = 1
         });
 
         // const value = 1
-        let second_expression_id = parser.unwrap_statement_expression(expressions[1]);
+        let second_expression_id = parser.unwrap_labelled_expression(expressions[1]);
         assert_node!(parser.tree, second_expression_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
             assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
@@ -1684,12 +1684,11 @@ function h<T>
             let body_id = body.expect("expected function body");
             assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
-                assert_eq!(block.expressions.len(), 1);
-                assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                    assert_node!(parser.tree, *statement_id, Expression::Return { value } => {
+                assert_eq!(block.leading_expressions.len(), 1);
+                assert!(block.tail_expression.is_none());
+                assert_node!(parser.tree, block.leading_expressions[0], Expression::Return { value } => {
                         let value = value.expect("expected return value");
                         assert_node!(parser.tree, value, Expression::TypeBinary { .. });
-                    });
                 });
             });
         });
@@ -1860,10 +1859,10 @@ async function* foo() => int32 {
                 // { b.c(yield); }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert!(block.tail_expression.is_none());
                     // b.c(yield);
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Call { left, dynamic_arguments, .. } => {
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Call { left, dynamic_arguments, .. } => {
                             assert_eq!(dynamic_arguments.len(), 1);
                             // b.c
                             assert_expression_path!(parser, parser.tree.get(*left), "b.c");
@@ -1874,7 +1873,6 @@ async function* foo() => int32 {
                                     assert!(value.is_none());
                                 });
                             });
-                        });
                     });
                 });
             });
@@ -1916,17 +1914,16 @@ function main() {
                 // { const userName = "Alice"; greet(userName, }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 2);
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    let tail_expression = block.tail_expression.expect("expected trailing malformed call");
 
                     // const userName = "Alice";
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Let { declarators, .. } => {
-                            assert_eq!(declarators.len(), 1);
-                        });
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Let { declarators, .. } => {
+                        assert_eq!(declarators.len(), 1);
                     });
 
                     // greet(userName,
-                    assert_node!(parser.tree, block.expressions[1], Expression::Call { left, dynamic_arguments, .. } => {
+                    assert_node!(parser.tree, tail_expression, Expression::Call { left, dynamic_arguments, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "greet");
                         assert_eq!(dynamic_arguments.len(), 2);
 
@@ -1957,10 +1954,10 @@ function main() {
                 // { yield yield }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert!(block.tail_expression.is_none());
                     // yield yield
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
                             assert_eq!(*cardinality, YieldCardinality::Scalar);
                             assert!(value.is_some());
                             // yield
@@ -1968,7 +1965,6 @@ function main() {
                                 assert_eq!(*cardinality, YieldCardinality::Scalar);
                                 assert!(value.is_none());
                             });
-                        });
                     });
                 });
             });
@@ -1991,14 +1987,13 @@ function main() {
                 // { yield *a }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert!(block.tail_expression.is_none());
                     // yield *a
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
                             assert_eq!(*cardinality, YieldCardinality::Generator);
                             assert!(value.is_some());
                             assert_expression_path!(parser, parser.tree.get(value.unwrap()), "a");
-                        });
                     });
                 });
             });
@@ -2023,10 +2018,10 @@ function main() {
                 // { yield *yield }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert!(block.tail_expression.is_none());
                     // yield *yield
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
                             assert_eq!(*cardinality, YieldCardinality::Generator);
                             assert!(value.is_some());
                             // yield
@@ -2034,7 +2029,6 @@ function main() {
                                 assert_eq!(*cardinality, YieldCardinality::Scalar);
                                 assert!(value.is_none());
                             });
-                        });
                     });
                 });
             });
@@ -2060,18 +2054,17 @@ function main() {
                 // { yield \n *a }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 2);
+                    assert_eq!(block.leading_expressions.len(), 2);
+                    assert!(block.tail_expression.is_none());
 
                     // yield
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
                             assert_eq!(*cardinality, YieldCardinality::Scalar);
                             assert!(value.is_none());
-                        });
                     });
 
                     // *a
-                    assert_node!(parser.tree, block.expressions[1], Expression::Error);
+                    assert_node!(parser.tree, block.leading_expressions[1], Expression::Error);
                 });
             });
         });
@@ -2101,18 +2094,17 @@ function main() {
                 // { yield* \n const value = 1 }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 2);
+                    assert_eq!(block.leading_expressions.len(), 2);
+                    assert!(block.tail_expression.is_none());
 
                     // yield*
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Yield { cardinality, value } => {
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
                             assert_eq!(*cardinality, YieldCardinality::Generator);
                             assert_node!(parser.tree, value.expect("expected missing generator operand"), Expression::Missing);
-                        });
                     });
 
                     // const value = 1
-                    assert_node!(parser.tree, block.expressions[1], Expression::Let { declarators, .. } => {
+                    assert_node!(parser.tree, block.leading_expressions[1], Expression::Let { declarators, .. } => {
                         assert_eq!(declarators.len(), 1);
                     });
                 });
@@ -2138,10 +2130,9 @@ function main() {
                 // { (class extends (yield) {}); }
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Parenthesized { .. });
-                    });
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert!(block.tail_expression.is_none());
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { .. });
                 });
             });
         });
@@ -2162,10 +2153,9 @@ function main() {
                 assert_eq!(signature.cardinality, FunctionCardinality::Generator);
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Parenthesized { .. });
-                    });
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert!(block.tail_expression.is_none());
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { .. });
                 });
             });
         });
@@ -2182,10 +2172,9 @@ function main() {
                 assert_eq!(signature.cardinality, FunctionCardinality::Generator);
                 assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
-                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
-                        assert_node!(parser.tree, *statement_id, Expression::Parenthesized { .. });
-                    });
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert!(block.tail_expression.is_none());
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { .. });
                 });
             });
         });

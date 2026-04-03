@@ -1699,14 +1699,12 @@ import {
         let roots = parser.parse();
         let root_id = roots[0];
 
-        assert_node!(parser.tree, root_id, Expression::Statement(import_id) => {
-            assert_node!(parser.tree, *import_id, Expression::Import { items, target, .. } => {
+        assert_node!(parser.tree, root_id, Expression::Import { items, target, .. } => {
                 assert_eq!(items.len(), 1);
                 assert_import_target_string(&parser, target, "./types.ds");
                 assert_node!(parser.tree, items[0], DependencyItem::Item { name: Some(name), .. } => {
                     assert_string!(parser, name.string(), "Widget");
                 });
-            });
         });
 
         let enclosing = parser.tree.source_map.get_enclosing_spans(cursor, cursor);
@@ -1724,17 +1722,15 @@ import {
         let roots = parser.parse();
         let root_id = roots[0];
 
-        assert_node!(parser.tree, root_id, Expression::Statement(import_id) => {
-            assert_node!(parser.tree, *import_id, Expression::Import { target, .. } => {
+        assert_node!(parser.tree, root_id, Expression::Import { target, .. } => {
                 assert_import_target_string(&parser, target, "./u");
-            });
-
-            let enclosing = parser.tree.source_map.get_enclosing_spans(probe, probe);
-            assert!(enclosing.iter().any(|span| span.idx == import_id.id));
-
-            let main_span = parser.tree.source_map.get_main(import_id.id).unwrap();
-            assert!(main_span.contains(probe));
         });
+
+        let enclosing = parser.tree.source_map.get_enclosing_spans(probe, probe);
+        assert!(enclosing.iter().any(|span| span.idx == root_id.id));
+
+        let main_span = parser.tree.source_map.get_main(root_id.id).unwrap();
+        assert!(main_span.contains(probe));
     }
 
     #[test]
@@ -2182,10 +2178,8 @@ export as namespace Foo"#,
             assert!(arguments.is_none());
             assert_import_target_string(&parser, target, "global.d.ts");
         });
-        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
-                assert_string!(parser, *name, "Foo");
-            });
+        assert_node!(parser.tree, expressions[1], Expression::ExportNamespace { name } => {
+            assert_string!(parser, *name, "Foo");
         });
     }
 
@@ -2200,10 +2194,8 @@ export as namespace Foo"#,
         let expressions = parser.parse_without_trivia();
 
         assert_eq!(expressions.len(), 1);
-        assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
-                assert_string!(parser, *name, "Foo");
-            });
+        assert_node!(parser.tree, expressions[0], Expression::ExportNamespace { name } => {
+            assert_string!(parser, *name, "Foo");
         });
     }
 
@@ -2225,10 +2217,8 @@ export as namespace Foo"#,
             assert!(arguments.is_none());
             assert_import_target_string(&parser, target, "node");
         });
-        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
-                assert_string!(parser, *name, "Foo");
-            });
+        assert_node!(parser.tree, expressions[1], Expression::ExportNamespace { name } => {
+            assert_string!(parser, *name, "Foo");
         });
     }
 
@@ -2250,10 +2240,8 @@ export as namespace Foo"#,
             assert!(arguments.is_none());
             assert_import_target_string(&parser, target, "dom");
         });
-        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
-                assert_string!(parser, *name, "Foo");
-            });
+        assert_node!(parser.tree, expressions[1], Expression::ExportNamespace { name } => {
+            assert_string!(parser, *name, "Foo");
         });
     }
 
@@ -2302,10 +2290,8 @@ export as namespace Foo"#,
 
         assert_eq!(expressions.len(), 2);
         assert_node!(parser.tree, expressions[0], Expression::Stub => {});
-        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::ExportNamespace { name } => {
-                assert_string!(parser, *name, "Foo");
-            });
+        assert_node!(parser.tree, expressions[1], Expression::ExportNamespace { name } => {
+            assert_string!(parser, *name, "Foo");
         });
     }
 

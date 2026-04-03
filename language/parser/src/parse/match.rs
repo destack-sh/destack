@@ -284,7 +284,8 @@ impl Parser {
                     Block {
                         context: BlockContext::Statement,
                         format: BlockFormat::Implicit,
-                        expressions: Vec::new(),
+                        leading_expressions: Vec::new(),
+                        tail_expression: None,
                     },
                     self.get_span_from(&start),
                 );
@@ -333,23 +334,6 @@ impl Parser {
                         self.tree
                             .insert(Expression::Error, self.get_span_from(&statement_start))
                     });
-                let expression_id = if !self.language.is_destack() {
-                    let expression = self.tree.get(expression_id);
-                    let is_statement = matches!(expression, Expression::Statement(_))
-                        || expression.is_top_level_statement();
-                    if is_statement {
-                        expression_id
-                    } else {
-                        self.wrap_statement_expression(
-                            expression_id,
-                            self.tree.get_span(expression_id),
-                        )
-                    }
-                } else if let Expression::Statement(statement_id) = self.tree.get(expression_id) {
-                    *statement_id
-                } else {
-                    expression_id
-                };
                 expressions.push(expression_id);
                 if self.is_any_stop() {
                     self.eat_any_stop_with_newlines()?;
@@ -371,7 +355,8 @@ impl Parser {
                     Block {
                         context: BlockContext::Statement,
                         format: BlockFormat::Implicit,
-                        expressions,
+                        leading_expressions: expressions,
+                        tail_expression: None,
                     },
                     self.get_span_from(&start),
                 );
@@ -433,12 +418,14 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AnnotationPosition, Block, CommentStyle, Expression, MatchCase, MatchKind, MatchSelector,
-        Pattern, ScalarLiteral,
+        Block, CommentStyle, Expression, MatchCase, MatchKind, MatchSelector, Pattern,
+        ScalarLiteral,
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_node, assert_string, block_expression_ids,
+    };
 
     #[test]
     fn test_parse_match_simple_arms() {
@@ -625,7 +612,8 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -640,7 +628,8 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -663,7 +652,8 @@ switch (left.type) {
             // case default (block)
             assert_node!(parser.tree, cases[3], MatchCase::Block { selector: MatchSelector::Default, body } => {
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                 });
             });
@@ -687,7 +677,8 @@ switch(a) { case 1: {}
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
-                assert_node!(parser.tree, *body, Block { format: _, expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                     assert_node!(parser.tree, expressions[0], Expression::Block(_));
                     assert_node!(parser.tree, expressions[1], Expression::ScalarLiteral(ScalarLiteral::RegexString { .. }));
@@ -715,7 +706,8 @@ switch (tag.injectTo) {
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
-                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
 
                     // first statement: (bodyTags ??= []).push(tag)
@@ -779,11 +771,12 @@ switch (tag) {
                     }
                     _ => panic!("expected pattern selector"),
                 };
-                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 3);
                     assert_node!(parser.tree, expressions[0], Expression::If { .. });
-                    let first_assign_id = parser.unwrap_statement_expression(expressions[1]);
-                    let second_assign_id = parser.unwrap_statement_expression(expressions[2]);
+                    let first_assign_id = parser.unwrap_labelled_expression(expressions[1]);
+                    let second_assign_id = parser.unwrap_labelled_expression(expressions[2]);
                     assert_node!(parser.tree, first_assign_id, Expression::Assign { .. });
                     assert_node!(parser.tree, second_assign_id, Expression::Assign { .. });
                 });
@@ -800,7 +793,7 @@ switch (tag) {
                     }
                     _ => panic!("expected pattern selector"),
                 };
-                let return_id = parser.unwrap_statement_expression(*body);
+                let return_id = parser.unwrap_labelled_expression(*body);
                 assert_node!(parser.tree, return_id, Expression::Return { .. });
             });
         });
@@ -825,7 +818,8 @@ switch (value) {
         assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
-                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                     assert_node!(parser.tree, expressions[0], Expression::Break { .. });
                     assert_node!(parser.tree, expressions[1], Expression::Break { .. });
@@ -851,7 +845,8 @@ switch (value) {
             // default case body keeps both if statements
             assert_node!(parser.tree, cases[0], MatchCase::Block { selector, body } => {
                 assert!(matches!(selector, MatchSelector::Default));
-                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                     assert_node!(parser.tree, expressions[0], Expression::If { .. });
                     assert_node!(parser.tree, expressions[1], Expression::If { .. });
@@ -883,7 +878,7 @@ switch (value) {
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Match { kind, cases, .. } => {
             assert_eq!(*kind, MatchKind::Switch);
             assert_eq!(cases.len(), 2);
@@ -892,7 +887,8 @@ switch (value) {
             assert!(first_case_annotations.is_empty());
 
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
-                assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                     let start_annotations = parser.tree.get_annotations(expressions[0].id);
                     assert!(start_annotations.is_empty());
@@ -905,19 +901,10 @@ switch (value) {
             });
         });
         assert_eq!(parser.tree.comment_trivia().len(), 3);
-        let before_ready_trivia = parser.tree.comment_trivia()[0];
-        assert_eq!(before_ready_trivia.position, AnnotationPosition::BlockInfix);
-        assert_eq!(before_ready_trivia.target_node, None);
         crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "before-ready");
 
-        let ready_tail_trivia = parser.tree.comment_trivia()[1];
-        assert_eq!(ready_tail_trivia.position, AnnotationPosition::BlockInfix);
-        assert_eq!(ready_tail_trivia.target_node, None);
         crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "ready-tail");
 
-        let default_tail_trivia = parser.tree.comment_trivia()[2];
-        assert_eq!(default_tail_trivia.position, AnnotationPosition::BlockInfix);
-        assert_eq!(default_tail_trivia.target_node, None);
         crate::assert_comment_trivia!(parser, 2, CommentStyle::Slash, "default-tail");
     }
 }

@@ -418,7 +418,7 @@ class Counter extends {}
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, members, .. } => {
                 let extends_types = heritage.extends_types.as_ref().expect("expected extends");
@@ -456,7 +456,7 @@ Second // impl-second
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, members, .. } => {
                 let implements_types = heritage
@@ -500,7 +500,7 @@ Second // impl-second
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             let first_static_parameter_id = assert_node!(parser.tree, *declaration_id, Declaration::Class { generics, .. } => {
                 let static_parameters = generics
