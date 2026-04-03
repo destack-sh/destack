@@ -295,7 +295,7 @@ impl Compiler {
             return false;
         };
         let block = ctx.tree.get(*block);
-        let Some(last_expression_id) = block.expressions.last().copied() else {
+        let Some(last_expression_id) = block.last_expression() else {
             return false;
         };
 
@@ -315,11 +315,7 @@ impl Compiler {
         {
             return true;
         }
-        let Expression::Statement { statement } = ctx.tree.get(expression_id) else {
-            return false;
-        };
-
-        self.expression_blocks_cascading_diagnostic(ctx, *statement)
+        false
     }
 
     /// Check whether a return type allows a fallthrough without a value.
@@ -350,23 +346,21 @@ impl Compiler {
         body_id: LocalNodeId<Expression>,
     ) -> bool {
         match ctx.tree.get(body_id) {
-            Expression::Statement { .. }
-            | Expression::Return { .. }
-            | Expression::Break { .. }
-            | Expression::Continue { .. } => false,
+            Expression::Return { .. } | Expression::Break { .. } | Expression::Continue { .. } => {
+                false
+            }
             Expression::Block { block } => {
                 let block = ctx.tree.get(*block);
 
-                let Some(last_expression_id) = block.expressions.last() else {
+                let Some(last_expression_id) = block.tail_expression else {
                     return false;
                 };
 
-                match ctx.tree.get(*last_expression_id) {
-                    Expression::Statement { .. }
-                    | Expression::Return { .. }
+                match ctx.tree.get(last_expression_id) {
+                    Expression::Return { .. }
                     | Expression::Break { .. }
                     | Expression::Continue { .. } => false,
-                    _ => self.expression_has_value_return(ctx, *last_expression_id),
+                    _ => self.expression_has_value_return(ctx, last_expression_id),
                 }
             }
             _ => true,
@@ -1256,7 +1250,7 @@ impl Compiler {
                     }
                     MatchCase::Block { body, .. } => {
                         let block = ctx.tree.get(*body);
-                        let Some(last_expression_id) = block.expressions.last() else {
+                        let Some(last_expression_id) = block.last_expression() else {
                             self.error(AnalyzeError::SwitchFallthrough {
                                 node: (*case_id)
                                     .into_global_any(ctx.module.id)
@@ -1264,7 +1258,7 @@ impl Compiler {
                             });
                             continue;
                         };
-                        self.ends_with_terminating_statement(ctx.tree, *last_expression_id)
+                        self.ends_with_terminating_statement(ctx.tree, last_expression_id)
                     }
                 };
 
@@ -1286,11 +1280,9 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> bool {
         let expression = tree.get(expression_id);
-        // unwrap statement containers before checking termination
-        match expression {
-            Expression::Statement { statement } => self.is_terminating_statement(tree, *statement),
-            _ => self.is_terminating_statement(tree, expression_id),
-        }
+        let _ = expression;
+
+        self.is_terminating_statement(tree, expression_id)
     }
 
     /// Check if an expression is a terminating statement.
@@ -1306,14 +1298,13 @@ impl Compiler {
             | Expression::Return { .. }
             | Expression::Throw { .. }
             | Expression::Continue { .. } => true,
-            Expression::Statement { statement } => self.is_terminating_statement(tree, *statement),
             Expression::Parenthesized { expression } => {
                 self.is_terminating_statement(tree, *expression)
             }
             Expression::Block { block } => {
                 let block = tree.get(*block);
-                if let Some(last_expression_id) = block.expressions.last() {
-                    self.ends_with_terminating_statement(tree, *last_expression_id)
+                if let Some(last_expression_id) = block.last_expression() {
+                    self.ends_with_terminating_statement(tree, last_expression_id)
                 } else {
                     false
                 }

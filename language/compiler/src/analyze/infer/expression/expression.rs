@@ -885,16 +885,6 @@ impl Compiler {
             Expression::Block { block } => self.infer_block(&mut ctx.reborrow(), *block, state)?,
 
             // statement: analyze the statement
-            Expression::Statement { statement } => {
-                self.infer_expression(&mut ctx.reborrow(), *statement, state)?;
-                self.warn_ignored_return_value(&ctx.reborrow(), *statement);
-
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Void,
-                };
-                ctx.types.insert_type_from(ty, expression_id)
-            }
-
             // labelled statement: analyze the body with label in context
             Expression::Labelled {
                 label: _,
@@ -2592,7 +2582,6 @@ impl Compiler {
         let ty_id: LocalTypeId = match expression {
             Expression::Declaration { .. }
             | Expression::Block { .. }
-            | Expression::Statement { .. }
             | Expression::Labelled { .. }
             | Expression::Import { .. }
             | Expression::UnresolvedImport { .. }
@@ -3714,22 +3703,19 @@ impl Compiler {
         let block = ctx.tree.get(block_id);
 
         // infer all but the last expression without contextual typing
-        let last_index = block.expressions.len().saturating_sub(1);
-        for (index, expression_id) in block.expressions.iter().enumerate() {
-            if index == last_index {
-                continue;
-            }
+        for expression_id in &block.leading_expressions {
             let mut expr_ctx = state.fork().with_expected_type(None);
             self.infer_expression(&mut ctx.reborrow(), *expression_id, &mut expr_ctx)?;
+            self.warn_ignored_return_value(&ctx.reborrow(), *expression_id);
             state.merge_try_error_types_from(&expr_ctx);
             state.merge_break_values_from(&expr_ctx);
         }
 
-        // infer the last expression with contextual typing
-        let ty_id = if let Some(last_expression_id) = block.expressions.last() {
+        // infer the tail expression with contextual typing
+        let ty_id = if let Some(last_expression_id) = block.tail_expression {
             let mut last_ctx = state.fork().with_expected_type(state.expected_type);
             let ty_id =
-                self.infer_expression(&mut ctx.reborrow(), *last_expression_id, &mut last_ctx)?;
+                self.infer_expression(&mut ctx.reborrow(), last_expression_id, &mut last_ctx)?;
             state.merge_try_error_types_from(&last_ctx);
             state.merge_break_values_from(&last_ctx);
             ty_id
@@ -5187,8 +5173,7 @@ pub(crate) fn implicit_return_expression(
 ) -> Option<LocalNodeId<Expression>> {
     // treat statement-like expressions as non-returning values
     match tree.get(expression_id) {
-        Expression::Statement { .. }
-        | Expression::Return { .. }
+        Expression::Return { .. }
         | Expression::Break { .. }
         | Expression::Continue { .. }
         | Expression::If {
@@ -5198,13 +5183,12 @@ pub(crate) fn implicit_return_expression(
         Expression::Block { block } => {
             // read the block expression list
             let block = tree.get(*block);
-            let last_expression_id = *block.expressions.last()?;
+            let last_expression_id = block.tail_expression?;
 
             // ignore statement-like trailing expressions
             if matches!(
                 tree.get(last_expression_id),
-                Expression::Statement { .. }
-                    | Expression::Return { .. }
+                Expression::Return { .. }
                     | Expression::Break { .. }
                     | Expression::Continue { .. }
                     | Expression::If {

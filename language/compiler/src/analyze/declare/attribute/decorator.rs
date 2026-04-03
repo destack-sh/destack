@@ -254,15 +254,6 @@ impl Compiler {
                         .or_insert_with(Vec::new)
                         .push(expression_id);
                 }
-                Expression::Statement { statement } => {
-                    let Expression::Declaration { declaration } = tree.get(*statement) else {
-                        continue;
-                    };
-                    wrappers
-                        .entry(declaration.into_any())
-                        .or_insert_with(Vec::new)
-                        .push(expression_id);
-                }
                 _ => {}
             }
         }

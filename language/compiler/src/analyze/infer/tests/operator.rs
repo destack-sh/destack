@@ -68,18 +68,11 @@ if (value != null) {
     let then_expression_id = match view.tree().get(*then_expression) {
         Expression::Block { block } => {
             let block = view.tree().get(*block);
-            *block
-                .expressions
-                .first()
+            block
+                .first_expression()
                 .expect("expected then block expression")
         }
-        Expression::Statement { statement } => *statement,
         _ => *then_expression,
-    };
-
-    let then_expression_id = match view.tree().get(then_expression_id) {
-        Expression::Statement { statement } => *statement,
-        _ => then_expression_id,
     };
 
     let Expression::Let { declarators, .. } = view.tree().get(then_expression_id) else {

@@ -390,9 +390,8 @@ function next_id(id: UserId): int64 {
         Expression::Match { .. } => *body,
         Expression::Block { block } => {
             let block = view.tree().get(*block);
-            *block
-                .expressions
-                .last()
+            block
+                .last_expression()
                 .expect("function body block should have an expression")
         }
         other => panic!("unexpected function body kind: {}", other.kind_name()),
