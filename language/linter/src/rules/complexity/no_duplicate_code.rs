@@ -373,19 +373,13 @@ fn build_block_prefilter_key(
 ) -> BlockPrefilterKey {
     let block = tree.get(block_id);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    for expression_id in &block.expressions {
-        let expression = tree.get(*expression_id);
+    for expression_id in block.iter_expressions() {
+        let expression = tree.get(expression_id);
         std::mem::discriminant(expression).hash(&mut hasher);
-
-        // preserve a small amount of statement shape detail
-        if let ast::Expression::Statement(statement) = expression {
-            let statement_expression = tree.get(*statement);
-            std::mem::discriminant(statement_expression).hash(&mut hasher);
-        }
     }
 
     BlockPrefilterKey {
-        top_level_expression_count: block.expressions.len(),
+        top_level_expression_count: block.len(),
         top_level_shape_hash: hasher.finish(),
     }
 }

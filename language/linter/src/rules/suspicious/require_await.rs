@@ -246,7 +246,7 @@ fn function_body_is_empty(
         return false;
     };
     let block = tree.get(*block);
-    block.expressions.is_empty()
+    block.is_empty()
 }
 
 /// Analyze one async function body for await and Promise like return signals.

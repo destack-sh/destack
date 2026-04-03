@@ -337,7 +337,7 @@ fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<St
 
     let container_expressions = if let Some((block_id, _, _)) = best_block {
         let block = dir_tree.get::<dir::Block>(block_id);
-        block.expressions.clone()
+        block.iter_expressions().collect()
     } else {
         ctx.dir().roots().to_vec()
     };

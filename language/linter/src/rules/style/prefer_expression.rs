@@ -80,8 +80,8 @@ fn check_expression(
     match expression {
         Expression::Block(block_id) => {
             let block = tree.get(*block_id);
-            for child_expression_id in &block.expressions {
-                check_expression(ctx, meta, tree, *child_expression_id);
+            for child_expression_id in block.iter_expressions() {
+                check_expression(ctx, meta, tree, child_expression_id);
             }
         }
         Expression::If {
@@ -114,7 +114,7 @@ fn check_block(
     block_id: LocalNodeId<Block>,
 ) {
     let block = tree.get(block_id);
-    let expressions = &block.expressions;
+    let expressions = block.iter_expressions().collect::<Vec<_>>();
 
     // keep adjacent let + if pairs
     for window_index in 0..expressions.len().saturating_sub(1) {
@@ -252,10 +252,10 @@ fn branch_assigned_value(
     // keep one expression blocks only
     let assignment_expression_id = if let Expression::Block(block_id) = expression {
         let block = tree.get(*block_id);
-        if block.expressions.len() != 1 {
+        if block.len() != 1 {
             return None;
         }
-        unwrap_statement_expression(tree, block.expressions[0])
+        unwrap_statement_expression(tree, block.first_expression()?)
     } else {
         unwrap_statement_expression(tree, expression_id)
     };
@@ -335,11 +335,7 @@ fn unwrap_statement_expression(
     tree: &NodeTree,
     expression_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
-    let expression = tree.get(expression_id);
-    if let Expression::Statement(inner_expression_id) = expression {
-        return *inner_expression_id;
-    }
-
+    let _ = tree;
     expression_id
 }
 

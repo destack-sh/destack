@@ -95,17 +95,6 @@ fn top_level_import_expression_id(
             source: ImportSource::ImportStatement | ImportSource::ImportEquals,
             ..
         } => Some(root_expression_id),
-        Expression::Statement(statement_expression_id)
-            if matches!(
-                ctx.tree.get(*statement_expression_id),
-                Expression::Import {
-                    source: ImportSource::ImportStatement | ImportSource::ImportEquals,
-                    ..
-                }
-            ) =>
-        {
-            Some(*statement_expression_id)
-        }
         _ => None,
     }
 }

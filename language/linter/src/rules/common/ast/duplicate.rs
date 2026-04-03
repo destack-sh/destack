@@ -147,7 +147,7 @@ fn expression_coarse_key(
         }
         ast::Expression::Block(block_id) => {
             let block = ctx.tree.get(*block_id);
-            block.expressions.len().hash(&mut hasher);
+            block.len().hash(&mut hasher);
         }
         ast::Expression::If {
             kind,
@@ -278,10 +278,10 @@ fn expression_structural_key(
 fn block_prefilter_key(ctx: &LintAstContext<'_>, block_id: ast::LocalNodeId<ast::Block>) -> u64 {
     let block = ctx.tree.get(block_id);
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    block.expressions.len().hash(&mut hasher);
+    block.len().hash(&mut hasher);
 
-    for expression_id in &block.expressions {
-        hash_expression_kind(ctx, &mut hasher, *expression_id);
+    for expression_id in block.iter_expressions() {
+        hash_expression_kind(ctx, &mut hasher, expression_id);
     }
 
     hasher.finish()
@@ -354,7 +354,7 @@ fn hash_debug_into(
     stable_hash_debug(value).hash(hasher);
 }
 
-/// Unwrap parenthesized and statement expressions for normalized hashing.
+/// Unwrap parenthesized expressions for normalized hashing.
 fn unwrap_expression<'a>(
     ctx: &'a LintAstContext<'_>,
     expression: &'a ast::Expression,
@@ -363,10 +363,6 @@ fn unwrap_expression<'a>(
         ast::Expression::Parenthesized {
             expression: inner_expression_id,
         } => {
-            let inner_expression = ctx.tree.get(*inner_expression_id);
-            unwrap_expression(ctx, inner_expression)
-        }
-        ast::Expression::Statement(inner_expression_id) => {
             let inner_expression = ctx.tree.get(*inner_expression_id);
             unwrap_expression(ctx, inner_expression)
         }

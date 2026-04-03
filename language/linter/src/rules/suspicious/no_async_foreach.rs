@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
-use crate::rules::common::{is_array_type, is_async_function_type, strip_dot_member_suffix};
+use crate::rules::common::{
+    expression_is_standalone_statement, is_array_type, is_async_function_type,
+    strip_dot_member_suffix,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -187,16 +190,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         }
 
         // keep statement-level calls only
-        let parent_id = self.ctx.tree.get_parent_id(expression_id.id)?;
-        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
-            return None;
-        }
-        let statement_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
-        let parent_expression = self.ctx.tree.get(statement_id);
-        if !matches!(
-            parent_expression,
-            dir::Expression::Statement { statement } if *statement == expression_id
-        ) {
+        if !expression_is_standalone_statement(self.ctx.tree, expression_id) {
             return None;
         }
 
@@ -268,7 +262,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         let edits = self
             .ctx
             .edit_builder()
-            .replace(self.ctx.get_span(statement_id), replacement)
+            .replace(self.ctx.get_span(expression_id), replacement)
             .into_edits();
         Some(LintFix::r#unsafe("Rewrite async forEach callback as for-of loop").with_edits(edits))
     }

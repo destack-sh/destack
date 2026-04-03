@@ -90,15 +90,8 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
         let mut to_report: HashSet<u32> = HashSet::new();
 
         // inspect candidate syntax nodes
-        for expr_id in &block.expressions {
-            let expression = self.ctx.tree.get(*expr_id);
-
-            // unwrap statement wrapper if present
-            let inner_id = if let dir::Expression::Statement { statement } = expression {
-                *statement
-            } else {
-                *expr_id
-            };
+        for expr_id in block.iter_expressions() {
+            let inner_id = expr_id;
             let inner_expr = self.ctx.tree.get(inner_id);
 
             // check if this expression reads any of the assigned variables
@@ -249,9 +242,9 @@ impl NodeVisitor for UselessAssignmentVisitor<'_, '_> {
         self.check_block(id);
 
         // walk children
-        for expr_id in &block.expressions {
-            let expression = tree.get(*expr_id);
-            self.visit_expression(tree, *expr_id, expression);
+        for expr_id in block.iter_expressions() {
+            let expression = tree.get(expr_id);
+            self.visit_expression(tree, expr_id, expression);
         }
     }
 

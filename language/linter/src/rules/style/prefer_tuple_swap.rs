@@ -45,17 +45,18 @@ impl LintRule for PreferTupleSwap {
         // look for blocks containing expression sequences
         for block_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(block_id);
+            let expression_ids = block.iter_expressions().collect::<Vec<_>>();
 
             // need at least 3 expressions for a swap pattern
-            if block.expressions.len() < 3 {
+            if expression_ids.len() < 3 {
                 continue;
             }
 
             // check consecutive triples for swap pattern
-            for window_start in 0..block.expressions.len().saturating_sub(2) {
-                let first_id = block.expressions[window_start];
-                let second_id = block.expressions[window_start + 1];
-                let third_id = block.expressions[window_start + 2];
+            for window_start in 0..expression_ids.len().saturating_sub(2) {
+                let first_id = expression_ids[window_start];
+                let second_id = expression_ids[window_start + 1];
+                let third_id = expression_ids[window_start + 2];
                 if let Some(swap_info) = detect_swap_pattern(ctx, first_id, second_id, third_id) {
                     let severity = ctx.get_effective_severity(meta, first_id);
                     if !severity.is_enabled() {
@@ -174,11 +175,7 @@ fn unwrap_statement<'a>(
     ctx: &'a LintAstContext<'_>,
     expression_id: ast::LocalNodeId<Expression>,
 ) -> &'a Expression {
-    let expression = ctx.tree.get(expression_id);
-    match expression {
-        Expression::Statement(inner) => ctx.tree.get(*inner),
-        other => other,
-    }
+    ctx.tree.get(expression_id)
 }
 
 /// Get a simple identifier name from a binding pattern.

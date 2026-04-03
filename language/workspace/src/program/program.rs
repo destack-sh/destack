@@ -1004,12 +1004,8 @@ impl Program {
         tree: &ast::NodeTree,
         expression_id: ast::LocalNodeId<ast::Expression>,
     ) -> ast::LocalNodeId<ast::Expression> {
-        let expression = tree.get(expression_id);
-        if let ast::Expression::Statement(statement_id) = expression {
-            *statement_id
-        } else {
-            expression_id
-        }
+        let _ = tree;
+        expression_id
     }
 }
 

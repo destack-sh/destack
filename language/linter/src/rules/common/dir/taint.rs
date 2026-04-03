@@ -205,18 +205,12 @@ impl<'a> TaintAnalysis<'a> {
         }
 
         match expression {
-            dir::Expression::Statement { statement } => {
-                // statement wrappers preserve value taint
-                let statement_labels =
-                    self.expression_taint_labels_inner(*statement, expression_stack, symbol_stack);
-                labels.merge(&statement_labels);
-            }
             dir::Expression::Block { block } => {
                 // block expressions taint from their last expression value
                 let block = self.tree.get(*block);
-                if let Some(last_expression_id) = block.expressions.last() {
+                if let Some(last_expression_id) = block.last_expression() {
                     let block_labels = self.expression_taint_labels_inner(
-                        *last_expression_id,
+                        last_expression_id,
                         expression_stack,
                         symbol_stack,
                     );
@@ -548,9 +542,9 @@ impl<'a> TaintAnalysis<'a> {
                         }
                         dir::MatchCase::Block { body, .. } => {
                             let block = self.tree.get(*body);
-                            if let Some(last_expression_id) = block.expressions.last() {
+                            if let Some(last_expression_id) = block.last_expression() {
                                 let case_labels = self.expression_taint_labels_inner(
-                                    *last_expression_id,
+                                    last_expression_id,
                                     expression_stack,
                                     symbol_stack,
                                 );

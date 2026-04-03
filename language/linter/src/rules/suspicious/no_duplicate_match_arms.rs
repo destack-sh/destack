@@ -54,9 +54,9 @@ impl LintRule for NoDuplicateMatchArms {
                         .is_some(),
                     ast::MatchCase::Block { body, .. } => {
                         let block = ctx.tree.get(*body);
-                        if block.expressions.len() == 1 {
+                        if block.len() == 1 {
                             seen_expression_bodies
-                                .find_duplicate_or_insert(ctx, block.expressions[0])
+                                .find_duplicate_or_insert(ctx, block.first_expression().unwrap())
                                 .is_some()
                         } else {
                             seen_block_bodies

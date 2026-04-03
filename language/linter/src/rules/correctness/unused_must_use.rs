@@ -2,7 +2,8 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_discarded_call_like_value, expression_has_decorator, expression_unwrap_parenthesized,
+    expression_discarded_call_like_value, expression_has_decorator,
+    expression_is_standalone_statement, expression_unwrap_parenthesized,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -183,10 +184,9 @@ impl NodeVisitor for UnusedMustUseVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        if let dir::Expression::Statement { statement } = expression {
-            self.check_statement(id, *statement);
-        }
-        if matches!(expression, dir::Expression::Block { .. }) {
+        if expression_is_standalone_statement(tree, id)
+            || matches!(expression, dir::Expression::Block { .. })
+        {
             self.check_statement(id, id);
         }
 

@@ -163,12 +163,8 @@ fn member_access_context_at_offset(
         };
         let expr = dir_tree.get::<dir::Expression>(expr_id);
 
-        // unwrap statement expressions to the inner expression
-        let (actual_node_id, actual_expr) =
-            unwrap_statement_expression(dir_tree, dir_node_id, expr);
-
         // prefer the member left operand as the receiver
-        if let dir::Expression::Member { left, .. } = actual_expr {
+        if let dir::Expression::Member { left, .. } = expr {
             let receiver_local: dir::LocalNodeIdAny = (*left).into();
             let receiver_global = receiver_local.into_global(dir.module_id());
             let receiver_symbol = get_expression_symbol(dir, *left);
@@ -193,11 +189,11 @@ fn member_access_context_at_offset(
         }
 
         // otherwise treat the expression itself as the receiver
-        let receiver_symbol = actual_expr.target_symbol();
+        let receiver_symbol = expr.target_symbol();
         if receiver_symbol.is_none() {
             if partial_context.is_none() {
                 partial_context = Some(CompletionContext::MemberAccess {
-                    receiver_node: actual_node_id,
+                    receiver_node: dir_node_id,
                     receiver_symbol,
                     receiver_type: None,
                 });
@@ -205,11 +201,11 @@ fn member_access_context_at_offset(
             continue;
         }
 
-        let receiver_global = actual_node_id.into_global(dir.module_id());
+        let receiver_global = dir_node_id.into_global(dir.module_id());
         let receiver_type = get_receiver_type(dir, receiver_global, receiver_symbol);
 
         return Some(CompletionContext::MemberAccess {
-            receiver_node: actual_node_id,
+            receiver_node: dir_node_id,
             receiver_symbol,
             receiver_type,
         });
@@ -229,23 +225,4 @@ fn member_access_context_from_dot(
     let receiver_offset = receiver_token.span.end.saturating_sub(1);
 
     member_access_context_at_offset(ast, dir, receiver_offset)
-}
-
-/// Unwrap statement expressions to get the inner expression.
-///
-/// Statement expressions wrap another expression with a `;` terminator.
-/// When searching for member access context, we want the actual inner expression,
-/// not the statement wrapper, which has type void and no target symbol.
-fn unwrap_statement_expression<'a>(
-    dir_tree: &'a dir::NodeTree,
-    node_id: dir::LocalNodeIdAny,
-    expr: &'a dir::Expression,
-) -> (dir::LocalNodeIdAny, &'a dir::Expression) {
-    if let dir::Expression::Statement { statement } = expr {
-        let inner_node_id: dir::LocalNodeIdAny = (*statement).into();
-        let inner_expr = dir_tree.get::<dir::Expression>(*statement);
-        return unwrap_statement_expression(dir_tree, inner_node_id, inner_expr);
-    }
-
-    (node_id, expr)
 }

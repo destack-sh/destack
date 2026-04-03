@@ -68,9 +68,9 @@ impl LintRule for NoFallthrough {
                 let (body_id, is_block) = match case {
                     ast::MatchCase::Expression { body, .. } => (*body, false),
                     ast::MatchCase::Block { body, .. } => {
-                        let body_expression_id = ctx.tree.get(*body).expressions.last();
+                        let body_expression_id = ctx.tree.get(*body).last_expression();
                         if let Some(id) = body_expression_id {
-                            (*id, true)
+                            (id, true)
                         } else {
                             let fallthrough_comment_span = fallthrough_comment_between_cases(
                                 ctx,
@@ -256,11 +256,7 @@ fn ends_with_terminating_statement(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let expression = ctx.tree.get(expression_id);
-    match expression {
-        ast::Expression::Statement(inner_id) => is_terminating_statement(ctx, *inner_id),
-        _ => is_terminating_statement(ctx, expression_id),
-    }
+    is_terminating_statement(ctx, expression_id)
 }
 
 /// Check if an expression is a terminating statement.
@@ -274,12 +270,11 @@ fn is_terminating_statement(
         ast::Expression::Return { .. } => true,
         ast::Expression::Throw { .. } => true,
         ast::Expression::Continue { .. } => true,
-        ast::Expression::Statement(inner_id) => is_terminating_statement(ctx, *inner_id),
         ast::Expression::Parenthesized { expression } => is_terminating_statement(ctx, *expression),
         ast::Expression::Block(block_id) => {
             let block = ctx.tree.get(*block_id);
-            if let Some(last_id) = block.expressions.last() {
-                ends_with_terminating_statement(ctx, *last_id)
+            if let Some(last_id) = block.last_expression() {
+                ends_with_terminating_statement(ctx, last_id)
             } else {
                 false
             }

@@ -171,7 +171,7 @@ fn constructor_body_is_empty(
     };
     let block = ctx.tree.get(*block);
 
-    block.expressions.is_empty()
+    block.is_empty()
 }
 
 /// Return true when one constructor uses parameter modifiers.
@@ -197,12 +197,12 @@ fn is_redundant_super_passthrough_constructor(
         return false;
     };
     let block = ctx.tree.get(*block);
-    if block.expressions.len() != 1 {
+    if block.len() != 1 {
         return false;
     }
 
     // unwrap statement syntax to the effective expression
-    let expression_id = expression_unwrap_statement(ctx.tree, block.expressions[0]);
+    let expression_id = expression_unwrap_statement(ctx.tree, block.first_expression().unwrap());
     let expression = ctx.tree.get(expression_id);
     let dir::Expression::Call {
         left,

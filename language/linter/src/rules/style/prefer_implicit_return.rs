@@ -113,24 +113,18 @@ fn single_return_block_value(
     tree: &ast::NodeTree,
     block: &Block,
 ) -> Option<ast::LocalNodeId<Expression>> {
-    if block.expressions.len() != 1 {
+    if block.len() != 1 {
         return None;
     }
 
-    let expr_id = block.expressions[0];
+    let expr_id = block.first_expression()?;
     let expr = tree.get(expr_id);
-
-    // unwrap statement wrapper
-    let inner = match expr {
-        Expression::Statement(inner_id) => tree.get(*inner_id),
-        other => other,
-    };
 
     // check if it's a return with a value
     let Expression::Return {
         value: Some(value_id),
         ..
-    } = inner
+    } = expr
     else {
         return None;
     };

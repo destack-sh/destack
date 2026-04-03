@@ -292,7 +292,7 @@ impl NodeVisitor for StatementCountVisitor {
         // count statements from each block expression
         if let Expression::Block(block_id) = expression {
             let block = tree.get(*block_id);
-            self.statement_count += block.expressions.len();
+            self.statement_count += block.len();
         }
 
         // recurse into expression children

@@ -122,7 +122,7 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
         let body = self.ctx.tree.get(body_id);
 
         // empty loop bodies are allowed
-        if body.expressions.is_empty() {
+        if body.is_empty() {
             return;
         }
 
@@ -130,7 +130,11 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
         let binding_symbol = for_in_binding_symbol(self.ctx.tree, binding)
             .map(|symbol| symbol.into_global(self.ctx.module_id()));
         let has_guard = binding_symbol.is_some_and(|binding_symbol| {
-            self.starts_with_own_property_guard(iterator_id, binding_symbol, body.expressions[0])
+            self.starts_with_own_property_guard(
+                iterator_id,
+                binding_symbol,
+                body.first_expression().unwrap(),
+            )
         });
         if has_guard {
             return;
@@ -398,11 +402,12 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
             return false;
         };
         let block = self.ctx.tree.get(*block);
-        if block.expressions.len() != 1 {
+        if block.len() != 1 {
             return false;
         }
 
-        let continue_id = expression_unwrap_statement(self.ctx.tree, block.expressions[0]);
+        let continue_id =
+            expression_unwrap_statement(self.ctx.tree, block.first_expression().unwrap());
         matches!(
             self.ctx.tree.get(continue_id),
             dir::Expression::Continue { .. }
@@ -514,8 +519,8 @@ fn side_effect_free_iterator_text(
 
 /// Return a block's inner source text for fix rewriting.
 fn block_inner_text(ctx: &LintModuleDirContext<'_>, block: &dir::Block) -> Option<String> {
-    let first_expression_id = *block.expressions.first()?;
-    let last_expression_id = *block.expressions.last()?;
+    let first_expression_id = block.first_expression()?;
+    let last_expression_id = block.last_expression()?;
     let first_span = ctx.get_span(first_expression_id);
     let last_span = ctx.get_span(last_expression_id);
     let inner_span = destack_source::Span::new(first_span.file, first_span.start, last_span.end);

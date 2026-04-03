@@ -97,11 +97,11 @@ pub fn block_single_return_value(
     block_id: dir::LocalNodeId<dir::Block>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     let block = tree.get(block_id);
-    if block.expressions.len() != 1 {
+    if block.len() != 1 {
         return None;
     }
 
-    let expression_id = expression_unwrap_statement(tree, block.expressions[0]);
+    let expression_id = expression_unwrap_statement(tree, block.first_expression()?);
     let expression = tree.get(expression_id);
     let dir::Expression::Return {
         value: Some(value_id),
@@ -231,14 +231,14 @@ pub fn expression_affects_resource_management_context(
             let block_id = parent_id.into_typed::<dir::Block>();
             let block = tree.get(block_id);
             let child_expression_id = current_child_id.into_typed::<dir::Expression>();
-            let child_index = block
-                .expressions
+            let expression_ids = block.iter_expressions().collect::<Vec<_>>();
+            let child_index = expression_ids
                 .iter()
                 .position(|expression_id| *expression_id == child_expression_id);
 
             // report when a prior using declaration exists in this block scope
             if let Some(child_index) = child_index {
-                let has_prior_using_declaration = block.expressions[..child_index]
+                let has_prior_using_declaration = expression_ids[..child_index]
                     .iter()
                     .copied()
                     .any(|statement_expression_id| {
@@ -534,20 +534,46 @@ pub fn statement_expression_ancestor(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // normalize transparent wrappers before checking statement ownership
-    let outer_expression_id = expression_outer_transparent_ancestor(tree, expression_id);
+    let mut outer_expression_id = expression_outer_transparent_ancestor(tree, expression_id);
 
-    // resolve one parent expression
-    let parent_expression_id = expression_parent_id(tree, outer_expression_id)?;
-    let parent_expression = tree.get(parent_expression_id);
-
-    // return one statement wrapper parent
-    if let dir::Expression::Statement { statement } = parent_expression
-        && *statement == outer_expression_id
-    {
-        return Some(parent_expression_id);
+    // root expressions are statement-position by default
+    if tree.get_parent(outer_expression_id.id).is_none() {
+        return Some(outer_expression_id);
     }
 
-    None
+    loop {
+        let parent_node_id = tree.get_parent(outer_expression_id.id)?;
+
+        if parent_node_id.ty == dir::NodeType::Expression {
+            let parent_expression_id = parent_node_id.into_typed::<dir::Expression>();
+            let parent_expression = tree.get(parent_expression_id);
+
+            if let dir::Expression::Labelled { body, .. } = parent_expression
+                && *body == outer_expression_id
+            {
+                outer_expression_id = parent_expression_id;
+                continue;
+            }
+
+            return None;
+        }
+
+        if parent_node_id.ty == dir::NodeType::Block {
+            let block_id = parent_node_id.into_typed::<dir::Block>();
+            let block = tree.get(block_id);
+
+            if block
+                .leading_expressions
+                .iter()
+                .copied()
+                .any(|child_id| child_id == outer_expression_id)
+            {
+                return Some(outer_expression_id);
+            }
+        }
+
+        return None;
+    }
 }
 
 /// Return the enclosing statement span for a standalone expression.

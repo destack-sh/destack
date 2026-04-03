@@ -39,7 +39,8 @@ impl LintRule for NoSequentialIndependentAwait {
         // check sequential awaits in each block
         for block_id in ctx.tree.iter_node_ids_of_type::<dir::Block>() {
             let block = ctx.tree.get(block_id);
-            report_sequential_independent_awaits(ctx, meta, block.expressions.as_slice());
+            let expression_ids = block.iter_expressions().collect::<Vec<_>>();
+            report_sequential_independent_awaits(ctx, meta, expression_ids.as_slice());
         }
     }
 }
@@ -109,11 +110,7 @@ fn await_statement_from_expression(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<AwaitStatement> {
-    let expression = ctx.tree.get(expression_id);
-    let statement_id = match expression {
-        dir::Expression::Statement { statement } => *statement,
-        _ => expression_id,
-    };
+    let statement_id = expression_id;
     let statement = ctx.tree.get(statement_id);
 
     // keep direct await statements

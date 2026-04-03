@@ -88,12 +88,6 @@ fn find_terminal_else_if_without_fallback(
     loop {
         let current_expression = ctx.tree.get(current_id);
 
-        // unwrap statement wrappers around else-if nodes
-        if let ast::Expression::Statement(inner_id) = current_expression {
-            current_id = *inner_id;
-            continue;
-        }
-
         let ast::Expression::If {
             else_expression, ..
         } = current_expression

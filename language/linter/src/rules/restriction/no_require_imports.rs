@@ -10,7 +10,8 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     compiled_allowed_require_import_patterns, expression_is_global_qualified_member,
-    expression_static_string_literal, expression_unwrap_transparent, statement_prefix_span,
+    expression_is_standalone_statement, expression_static_string_literal,
+    expression_unwrap_transparent, statement_prefix_span,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -437,25 +438,14 @@ fn require_side_effect_fix(
     let target = expression_static_string_literal(ctx.tree, *value)?;
 
     // keep standalone statement calls only
-    let parent = ctx.tree.get_parent(expression_id.id)?;
-    if parent.ty != dir::NodeType::Expression {
-        return None;
-    }
-
-    // require the call expression to be wrapped in a statement expression
-    let statement_id = parent.into_typed::<dir::Expression>();
-    let statement = ctx.tree.get(statement_id);
-    let dir::Expression::Statement { statement } = statement else {
-        return None;
-    };
-    if *statement != expression_id {
+    if !expression_is_standalone_statement(ctx.tree, expression_id) {
         return None;
     }
 
     // render one side effect esm import replacement
     let target_text = escape_import_target(ctx.program.strings.get(target).as_ref());
     let replacement = format!("import \"{target_text}\";");
-    let statement_span = ctx.get_span(statement_id);
+    let statement_span = ctx.get_span(expression_id);
     let edits = ctx
         .edit_builder()
         .replace(statement_span, replacement)

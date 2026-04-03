@@ -203,12 +203,6 @@ fn unwrap_statement_ast_expression(
     expr_id: ast::LocalNodeId<ast::Expression>,
 ) -> (ast::LocalNodeId<ast::Expression>, &ast::Expression) {
     let expr = ast_tree.get(expr_id);
-
-    // statement wrappers do not own expression slots themselves
-    if let ast::Expression::Statement(inner) = expr {
-        return unwrap_statement_ast_expression(ast_tree, *inner);
-    }
-
     (expr_id, expr)
 }
 

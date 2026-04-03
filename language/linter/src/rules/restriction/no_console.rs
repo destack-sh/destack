@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_global_qualified_member, expression_static_property_name,
-    expression_target_symbol,
+    expression_is_global_qualified_member, expression_is_standalone_statement,
+    expression_static_property_name, expression_target_symbol,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -170,6 +170,13 @@ fn no_console_fix(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
+    // remove `console...;` when the reported expression is directly statement scoped
+    if expression_is_standalone_statement(ctx.tree, expression_id) {
+        let statement_span = ctx.get_span(expression_id);
+        let edits = ctx.edit_builder().delete(statement_span).into_edits();
+        return Some(LintFix::r#unsafe("Remove console statement").with_edits(edits));
+    }
+
     let parent = ctx.tree.get_parent(expression_id.id)?;
     if parent.ty != dir::NodeType::Expression {
         return None;
@@ -177,15 +184,6 @@ fn no_console_fix(
 
     let parent_id = parent.into_typed::<dir::Expression>();
     let parent_expression = ctx.tree.get(parent_id);
-
-    // remove `console...;` when the reported expression is directly statement scoped
-    if let dir::Expression::Statement { statement } = parent_expression
-        && *statement == expression_id
-    {
-        let statement_span = ctx.get_span(parent_id);
-        let edits = ctx.edit_builder().delete(statement_span).into_edits();
-        return Some(LintFix::r#unsafe("Remove console statement").with_edits(edits));
-    }
 
     // remove call statements when the reported expression is the call callee
     let dir::Expression::Call { left, .. } = parent_expression else {
@@ -195,21 +193,11 @@ fn no_console_fix(
         return None;
     }
 
-    let grandparent = ctx.tree.get_parent(parent_id.id)?;
-    if grandparent.ty != dir::NodeType::Expression {
+    if !expression_is_standalone_statement(ctx.tree, parent_id) {
         return None;
     }
 
-    let grandparent_id = grandparent.into_typed::<dir::Expression>();
-    let grandparent_expression = ctx.tree.get(grandparent_id);
-    let dir::Expression::Statement { statement } = grandparent_expression else {
-        return None;
-    };
-    if *statement != parent_id {
-        return None;
-    }
-
-    let statement_span = ctx.get_span(grandparent_id);
+    let statement_span = ctx.get_span(parent_id);
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::r#unsafe("Remove console statement").with_edits(edits))
 }

@@ -338,23 +338,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         expression_id: LocalNodeId<dir::Expression>,
     ) -> Option<(Option<u32>, LocalNodeId<dir::Expression>)> {
         let parent_id = self.ctx.tree.get_parent_id(expression_id.id);
-        let Some(parent_id) = parent_id else {
-            return Some((None, expression_id));
-        };
-
-        if self.ctx.tree.get_node_type(parent_id) == dir::NodeType::Expression {
-            let parent_expression_id = LocalNodeId::<dir::Expression>::new(parent_id);
-            let parent_expression = self.ctx.tree.get(parent_expression_id);
-            if matches!(
-                parent_expression,
-                dir::Expression::Statement { statement } if *statement == expression_id
-            ) {
-                let container_id = self.ctx.tree.get_parent_id(parent_id);
-                return Some((container_id, parent_expression_id));
-            }
-        }
-
-        Some((Some(parent_id), expression_id))
+        Some((parent_id, expression_id))
     }
 }
 

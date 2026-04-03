@@ -318,17 +318,9 @@ pub fn expression_unwrap_transparent(
 /// Return the expression id with statement wrappers unwrapped.
 pub fn expression_unwrap_statement(
     tree: &dir::NodeTree,
-    mut expression_id: dir::LocalNodeId<dir::Expression>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
-    loop {
-        let expression_id_unwrapped = expression_unwrap_transparent(tree, expression_id);
-        let expression = tree.get(expression_id_unwrapped);
-        let dir::Expression::Statement { statement } = expression else {
-            return expression_id_unwrapped;
-        };
-
-        expression_id = *statement;
-    }
+    expression_unwrap_transparent(tree, expression_id)
 }
 
 /// Return true when one binary expression is nested under the same operator.
@@ -485,11 +477,6 @@ pub fn expression_discarded_call_like_value(
     loop {
         let expression = tree.get(expression_id);
 
-        if let dir::Expression::Statement { statement } = expression {
-            expression_id = *statement;
-            continue;
-        }
-
         if let dir::Expression::Parenthesized { expression } = expression {
             let value_id = expression_unwrap_parenthesized(tree, *expression);
             if matches!(
@@ -530,14 +517,7 @@ pub fn expression_discarded_call_like_value(
             return None;
         };
         let block = tree.get(*block);
-        let tail_expression_id = *block.expressions.last()?;
-
-        if matches!(
-            tree.get(tail_expression_id),
-            dir::Expression::Statement { .. }
-        ) {
-            return None;
-        }
+        let tail_expression_id = block.tail_expression?;
 
         expression_id = tail_expression_id;
         replacement_expression_id = tail_expression_id;

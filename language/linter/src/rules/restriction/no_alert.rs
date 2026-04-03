@@ -3,7 +3,10 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{expression_is_global_qualified_member, expression_target_symbol};
+use crate::rules::common::{
+    expression_is_global_qualified_member, expression_is_standalone_statement,
+    expression_target_symbol,
+};
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -211,21 +214,11 @@ fn no_alert_fix(
     ctx: &LintModuleDirContext<'_>,
     call_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
-    let parent = ctx.tree.get_parent(call_id.id)?;
-    if parent.ty != dir::NodeType::Expression {
+    if !expression_is_standalone_statement(ctx.tree, call_id) {
         return None;
     }
 
-    let parent_id = parent.into_typed::<dir::Expression>();
-    let parent_expression = ctx.tree.get(parent_id);
-    let dir::Expression::Statement { statement } = parent_expression else {
-        return None;
-    };
-    if *statement != call_id {
-        return None;
-    }
-
-    let statement_span = ctx.get_span(parent_id);
+    let statement_span = ctx.get_span(call_id);
     let edits = ctx.edit_builder().delete(statement_span).into_edits();
     Some(LintFix::r#unsafe("Remove alert dialog call").with_edits(edits))
 }
