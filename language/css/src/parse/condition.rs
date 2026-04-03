@@ -230,7 +230,7 @@ impl<'a> Lowerer<'a> {
         let value = match value {
             lightning::MediaFeatureValue::Length(length) => {
                 FeatureValue::Length(DeclarationValue {
-                    components: self.lower_component_value_css_list(length),
+                    components: self.lower_length(length),
                 })
             }
             lightning::MediaFeatureValue::Number(value) => FeatureValue::Number(Number {
@@ -242,7 +242,9 @@ impl<'a> Lowerer<'a> {
             lightning::MediaFeatureValue::Boolean(value) => FeatureValue::Boolean(*value),
             lightning::MediaFeatureValue::Resolution(value) => {
                 FeatureValue::Resolution(DeclarationValue {
-                    components: self.lower_component_value_css_list(value),
+                    components: ComponentValueList {
+                        values: vec![self.lower_resolution_value(value)],
+                    },
                 })
             }
             lightning::MediaFeatureValue::Ratio(value) => {
@@ -428,15 +430,5 @@ impl<'a> Lowerer<'a> {
         };
 
         self.insert_inner(query)
-    }
-
-    /// Lower one printable value into one owned component value list.
-    pub(crate) fn lower_component_value_css_list<T: lightning::ToCss>(
-        &self,
-        value: &T,
-    ) -> ComponentValueList {
-        let mut values = Vec::new();
-        self.lower_component_value_css(&mut values, value);
-        ComponentValueList { values }
     }
 }
