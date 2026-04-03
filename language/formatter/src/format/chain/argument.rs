@@ -128,11 +128,17 @@ pub(crate) fn static_argument_list_is_hug_safe(
             return false;
         }
 
-        if let Expression::Path { path, .. } = context.tree.get(argument_value_id)
-            && path.segments.len() == 1
-            && context.strings.get(path.segments[0]).chars().count() > 12
-        {
-            return false;
+        match context.tree.get(argument_value_id) {
+            Expression::Identifier { name } if context.strings.get(*name).chars().count() > 12 => {
+                return false;
+            }
+            Expression::QualifiedReference { path, .. }
+                if path.segments.len() == 1
+                    && context.strings.get(path.segments[0]).chars().count() > 12 =>
+            {
+                return false;
+            }
+            _ => {}
         }
 
         static_argument_expression_is_hug_safe(context, argument_value_id)
@@ -261,7 +267,8 @@ fn expression_is_simple_chain_argument(
                     .copied()
                     .all(|argument_id| simple_argument_is_simple(context, argument_id, depth - 1))
         }),
-        Expression::Path {
+        Expression::Identifier { .. } => true,
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments.as_ref().is_none_or(|arguments| {
             arguments.is_empty()
@@ -483,8 +490,9 @@ fn static_argument_expression_is_hug_safe(
     match context.tree.get(expression_id) {
         Expression::ScalarLiteral(_)
         | Expression::TypeLiteral(_)
+        | Expression::Identifier { .. }
         | Expression::PrivateIdentifier { .. } => true,
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments.as_deref().is_none_or(|static_arguments| {
             static_argument_list_is_hug_safe(context, static_arguments)
@@ -505,7 +513,7 @@ fn static_argument_expression_is_hug_safe(
                 })
         }
         Expression::Index { .. } | Expression::TypeIndex { .. } => false,
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             static_argument_expression_is_hug_safe(context, *expression)
         }
         Expression::Binary {

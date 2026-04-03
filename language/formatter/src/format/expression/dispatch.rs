@@ -22,7 +22,6 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
     match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
-        | Expression::Statement(_)
         | Expression::Labelled { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
@@ -44,7 +43,8 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
             format_statement_expression(f, expression_id, expression)?;
             write_statement_expression_trailing_annotations(f, expression_id, expression)
         }
-        Expression::Path { .. }
+        Expression::Identifier { .. }
+        | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::This
         | Expression::Super
@@ -113,7 +113,6 @@ pub(crate) fn format_expression<'ast>(
     let formatted = match expression {
         Expression::Declaration(_)
         | Expression::Block(_)
-        | Expression::Statement(_)
         | Expression::Labelled { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
@@ -132,7 +131,8 @@ pub(crate) fn format_expression<'ast>(
         | Expression::Yield { .. }
         | Expression::Throw { .. }
         | Expression::Return { .. } => format_statement_expression(f, node_id, expression)?,
-        Expression::Path { .. }
+        Expression::Identifier { .. }
+        | Expression::QualifiedReference { .. }
         | Expression::PrivateIdentifier { .. }
         | Expression::This
         | Expression::Super

@@ -517,13 +517,19 @@ fn head_call_requires_expanded_arguments(
     chain
         .iter()
         .copied()
-        .find_map(|expression_id| {
+        .enumerate()
+        .find_map(|(index, expression_id)| {
             let Expression::Call {
                 dynamic_arguments, ..
             } = context.tree.get(expression_id)
             else {
                 return None;
             };
+
+            // only calls that still have one chain tail should force the outer break
+            if index + 1 >= chain.len() {
+                return Some(false);
+            }
 
             Some(call_arguments_force_expand_for_chain(
                 context,

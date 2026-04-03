@@ -281,11 +281,6 @@ pub(crate) fn is_assignment_left_target(
             {
                 current_expression_id = ancestor_expression_id;
             }
-            Expression::Statement(inner_expression_id)
-                if inner_expression_id.id == current_expression_id.id =>
-            {
-                current_expression_id = ancestor_expression_id;
-            }
             _ => return false,
         }
     }

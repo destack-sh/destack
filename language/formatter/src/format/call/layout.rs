@@ -216,16 +216,16 @@ pub(crate) fn expression_has_complex_callback(
         | Expression::Index { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. }
-        | Expression::Parenthesized { expression: left }
-        | Expression::Statement(left) => expression_has_complex_callback(context, *left),
+        | Expression::Parenthesized { expression: left } => {
+            expression_has_complex_callback(context, *left)
+        }
         Expression::Declaration(declaration_id) => {
             lambda_body_is_complex_for_tree(context, *declaration_id)
         }
         Expression::Block(block_id) => tree
             .get(*block_id)
-            .expressions
-            .iter()
-            .any(|expr_id| expression_has_complex_callback(context, *expr_id)),
+            .iter_expressions()
+            .any(|expr_id| expression_has_complex_callback(context, expr_id)),
         _ => false,
     }
 }
@@ -281,7 +281,7 @@ pub(crate) fn argument_is_compact_inline_callback(
         let body_id = transparent_inner_expression(context, body_id);
 
         match context.tree.get(body_id) {
-            Expression::Block(block_id) => context.tree.get(*block_id).expressions.len() <= 1,
+            Expression::Block(block_id) => context.tree.get(*block_id).len() <= 1,
             Expression::TreeExpression { .. } => true,
             expression => is_trivial_expression(context.tree, expression),
         }
@@ -646,11 +646,17 @@ pub(crate) fn single_argument_requires_expanded_list(
     };
     let value_id = transparent_inner_expression(ctx, raw_value_id);
     let is_chain_layout_candidate = is_expression_chain(ctx.tree, value_id)
-        || matches!(ctx.tree.get(value_id), Expression::Path { path, .. } if path.segments.len() > 1)
+        || matches!(
+            ctx.tree.get(value_id),
+            Expression::QualifiedReference { path, .. } if path.segments.len() > 1
+        )
         || matches!(
             ctx.tree.get(value_id),
             Expression::Call { left, .. } | Expression::Instantiation { left, .. }
-                if matches!(ctx.tree.get(*left), Expression::Path { path, .. } if path.segments.len() > 1)
+                if matches!(
+                    ctx.tree.get(*left),
+                    Expression::QualifiedReference { path, .. } if path.segments.len() > 1
+                )
         );
     if !is_chain_layout_candidate {
         return false;

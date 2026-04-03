@@ -220,10 +220,7 @@ pub(crate) fn chain_base_root_expression_id(
                     return false;
                 }
 
-                matches!(
-                    context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-                    Expression::Statement(expression_id) if expression_id.id == root_id.id
-                )
+                LocalNodeId::<Expression>::new(parent_id).id == root_id.id
             });
     if root_is_statement_expression
         && matches!(
@@ -386,7 +383,7 @@ pub(crate) fn split_path_chain_root(
     has_ternary_ancestor: bool,
     has_optional_or_must_tail: bool,
 ) -> FormatResult<Option<(ChainExpressionBaseHead, Vec<ChainExpression>)>> {
-    let Expression::Path {
+    let Expression::QualifiedReference {
         path,
         static_arguments,
     } = context.tree.get(base_root_id)
@@ -552,7 +549,11 @@ pub(crate) fn expression_trivia_anchor_end(
             .tree
             .get_main_span(expression_id)
             .map_or(span.end, |member_span| member_span.end),
-        Expression::Path { path, .. } if path.segments.len() == 1 => context
+        Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => context
+            .tree
+            .get_main_span(expression_id)
+            .map_or(span.end, |path_span| path_span.end),
+        Expression::Identifier { .. } => context
             .tree
             .get_main_span(expression_id)
             .map_or(span.end, |path_span| path_span.end),
@@ -665,7 +666,10 @@ pub(crate) fn chain_has_parent_intervening_break_or_comment(
         | Expression::Maybe { .. }
         | Expression::Must { .. } => matches!(
             context.tree.get(node_id),
-            Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Path { .. }
+            Expression::Member { .. }
+                | Expression::PrivateMember { .. }
+                | Expression::Identifier { .. }
+                | Expression::QualifiedReference { .. }
         ),
         _ => false,
     };

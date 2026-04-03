@@ -151,7 +151,7 @@ fn write_tree_closing_tag<'ast>(
     )?;
     if let Some(left) = left {
         let left_expression = f.context().tree.get(*left);
-        if let Expression::Path { path, .. } = left_expression {
+        if let Expression::QualifiedReference { path, .. } = left_expression {
             write!(f, [path])?;
         } else {
             write!(f, [left])?;
@@ -707,8 +707,6 @@ pub(crate) fn tree_literal_wraps_on_break(
                     kind: IfKind::Ternary,
                     ..
                 } => false,
-                // standalone jsx statements stay unwrapped
-                Expression::Statement(_) => false,
                 // declaration expressions own their initializer grouping
                 Expression::Let { .. } => false,
                 // return handles jsx wrapping at the statement formatter level

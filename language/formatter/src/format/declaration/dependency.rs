@@ -127,21 +127,6 @@ pub(crate) fn import_expression(
                 None
             }
         }
-        Expression::Statement(inner_id) => {
-            let inner = tree.get(*inner_id);
-            if matches!(
-                inner,
-                Expression::Import {
-                    source: ImportSource::ImportStatement | ImportSource::ImportEquals,
-                    target: ImportTarget::String(_),
-                    ..
-                }
-            ) {
-                Some(inner)
-            } else {
-                None
-            }
-        }
         _ => None,
     }
 }
@@ -852,6 +837,7 @@ pub(crate) fn format_export_expression<'ast>(
     let has_item_annotations = dependency_items_have_annotations(f.context(), items);
     let organize_imports = f.context().options.organize_imports.is_enabled();
     let sort_order = f.context().options.import_sort_order;
+    let mut needs_trailing_semicolon = false;
 
     write!(f, [Keyword::Export, space()])?;
     if kind == DependencyKind::Type {
@@ -878,6 +864,7 @@ pub(crate) fn format_export_expression<'ast>(
             });
         };
         write!(f, [Keyword::Default, space(), value])?;
+        needs_trailing_semicolon = true;
     } else if items.len() == 1
         && first_item
             .is_some_and(|item| dependency_item_mode(item) == Some(DependencyMode::Namespace))
@@ -895,6 +882,7 @@ pub(crate) fn format_export_expression<'ast>(
                 });
             };
             write!(f, [token("="), space(), value])?;
+            needs_trailing_semicolon = true;
         } else {
             write!(f, [token("*")])?;
             if let Some(alias) = dependency_item_alias(first_item) {
@@ -946,6 +934,10 @@ pub(crate) fn format_export_expression<'ast>(
     }
 
     write_dependency_attribute_clause(f, node_id, arguments)?;
+
+    if needs_trailing_semicolon {
+        write!(f, [token(";")])?;
+    }
 
     Ok(())
 }

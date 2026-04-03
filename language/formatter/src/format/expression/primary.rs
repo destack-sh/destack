@@ -427,8 +427,13 @@ pub(crate) fn format_primary_expression<'ast>(
     let tree = f.context().tree;
 
     match expression {
-        // path
-        Expression::Path {
+        // identifier
+        Expression::Identifier { name } => {
+            write!(f, [*name])?;
+        }
+
+        // qualified reference
+        Expression::QualifiedReference {
             path,
             static_arguments,
         } => {

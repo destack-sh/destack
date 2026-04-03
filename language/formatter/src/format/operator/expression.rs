@@ -29,7 +29,8 @@ fn is_simple_new_member_object(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match tree.get(expression_id) {
-        Expression::Path { .. }
+        Expression::Identifier { .. }
+        | Expression::QualifiedReference { .. }
         | Expression::This
         | Expression::Super
         | Expression::PrivateIdentifier { .. } => true,
@@ -60,7 +61,7 @@ fn should_unwrap_parenthesized_new_member_callee(
     }
 
     match context.tree.get(inner_expression_id) {
-        Expression::Path { .. } => true,
+        Expression::Identifier { .. } | Expression::QualifiedReference { .. } => true,
         Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
             if member_expression_has_optional_chain(context, inner_expression_id) {
                 return false;

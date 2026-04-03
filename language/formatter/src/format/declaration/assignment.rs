@@ -429,27 +429,6 @@ impl<'a> TypeAliasAssignmentLike<'a> {
                     None
                 }
             }
-            Expression::Statement(expression) => {
-                let normalized_inner_id = normalize_parenthesized_type_grouping_inner_expression(
-                    f.context(),
-                    *expression,
-                );
-                let should_route_through_type_binary_owner = matches!(
-                    f.context().tree.get(normalized_inner_id),
-                    Expression::Binary {
-                        operator: destack_ast::BinaryOperator::ElementwiseOr
-                            | destack_ast::BinaryOperator::ElementwiseAnd,
-                        ..
-                    }
-                )
-                    && expression_has_type_grouping_semantics(f.context(), normalized_inner_id);
-
-                if should_route_through_type_binary_owner {
-                    Some(normalized_inner_id)
-                } else {
-                    Some(*expression)
-                }
-            }
             _ => None,
         });
 

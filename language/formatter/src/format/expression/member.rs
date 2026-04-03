@@ -36,7 +36,7 @@ fn expression_has_trailing_static_instantiation(
         Expression::Instantiation {
             static_arguments, ..
         } => !static_arguments.is_empty(),
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         }
         | Expression::Member {
@@ -70,7 +70,7 @@ pub(crate) fn member_expression_has_optional_chain(
             | Expression::Call { left, .. }
             | Expression::Must { left, .. }
             | Expression::Instantiation { left, .. } => current_id = *left,
-            Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+            Expression::Parenthesized { expression } => {
                 current_id = *expression;
             }
             _ => return false,

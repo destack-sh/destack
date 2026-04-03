@@ -78,6 +78,7 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
         Expression::ScalarLiteral(_)
         | Expression::TypeLiteral(_)
+        | Expression::Identifier { .. }
         | Expression::This
         | Expression::Super
         | Expression::PrivateIdentifier { .. } => true,
@@ -100,7 +101,7 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
         Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
             is_trivial_expression(tree, tree.get(*left))
         }
-        Expression::Path {
+        Expression::QualifiedReference {
             path,
             static_arguments,
         } => {
@@ -134,7 +135,6 @@ fn static_arguments_are_trivial(
 /// Return whether an expression prefers multiline layout.
 pub fn is_complex_expression(_tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
-        Expression::Statement { .. } => true,
         Expression::ObjectExpression { properties, .. } => properties.len() > 3,
         Expression::TreeExpression { .. } => true,
         _ => false,
@@ -221,7 +221,7 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         | Expression::TypeConditional { .. }
         | Expression::TypeMapped { .. }
         | Expression::TypeTemplateLiteral { .. } => true,
-        Expression::Path {
+        Expression::QualifiedReference {
             static_arguments, ..
         } => static_arguments
             .as_ref()
@@ -455,7 +455,6 @@ pub(crate) fn sequence_expression_needs_parens(
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     match context.tree.get(parent_id) {
-        Expression::Statement(_) => true,
         Expression::Return { value } => value.is_some_and(|value_id| value_id != node_id),
         Expression::Throw { value } => *value != node_id,
         Expression::Parenthesized { expression } => *expression != node_id,

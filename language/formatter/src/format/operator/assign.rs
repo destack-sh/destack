@@ -180,9 +180,7 @@ fn next_assignment_seam_left_spine_expression(
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(expression_id) {
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
-            Some(*expression)
-        }
+        Expression::Parenthesized { expression } => Some(*expression),
         Expression::Member { left, .. }
         | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
@@ -522,9 +520,7 @@ fn assignment_is_index_operand(
 
         let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
         match context.tree.get(parent_expression_id) {
-            Expression::Parenthesized { expression } | Expression::Statement(expression)
-                if expression.id == current_id =>
-            {
+            Expression::Parenthesized { expression } if expression.id == current_id => {
                 current_id = parent_id;
             }
             Expression::Index { index, .. } => {
@@ -554,7 +550,7 @@ fn expression_chain_starts_with_keyword_prefix_expression(
         | Expression::Must { left, .. } => {
             expression_chain_starts_with_keyword_prefix_expression(tree, *left)
         }
-        Expression::Parenthesized { expression } | Expression::Statement(expression) => {
+        Expression::Parenthesized { expression } => {
             expression_chain_starts_with_keyword_prefix_expression(tree, *expression)
         }
         _ => false,
@@ -613,7 +609,7 @@ pub(crate) fn format_assign_expression<'ast>(
     let right_is_assign = matches!(inner_right_expression, Expression::Assign { .. });
     let right_is_path_chain = matches!(
         inner_right_expression,
-        Expression::Path { path, .. } if path.segments.len() > 1
+        Expression::QualifiedReference { path, .. } if path.segments.len() > 1
     );
     let right_is_chain = right_is_path_chain
         || is_expression_chain(context.tree, inner_right_id)
@@ -638,7 +634,8 @@ pub(crate) fn format_assign_expression<'ast>(
     let right_is_inline_index_operand_value = matches!(
         inner_right_expression,
         Expression::Call { .. }
-            | Expression::Path { .. }
+            | Expression::Identifier { .. }
+            | Expression::QualifiedReference { .. }
             | Expression::Member { .. }
             | Expression::PrivateMember { .. }
             | Expression::Index { .. }

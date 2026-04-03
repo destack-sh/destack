@@ -99,10 +99,7 @@ fn lambda_declaration_is_statement_position(
     }
 
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
-    matches!(
-        context.tree.get(parent_expression_id),
-        Expression::Statement(inner_id) if inner_id.id == declaration_expression_id.id
-    )
+    parent_expression_id.id == declaration_expression_id.id
 }
 
 /// Return whether one lambda declaration is nested under a call argument lambda chain.
@@ -202,7 +199,7 @@ fn lambda_body_is_empty_annotated_block(
         return false;
     };
     let block = context.tree.get(*block_id);
-    block.expressions.is_empty() && context.has_infix_annotation(*block_id)
+    block.is_empty() && context.has_infix_annotation(*block_id)
 }
 
 /// Write one lambda arrow token with local infix spacing.
