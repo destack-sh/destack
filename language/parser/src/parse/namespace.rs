@@ -265,15 +265,15 @@ declare module A {
                 assert_eq!(expressions.len(), 3);
 
                 // "name": "troublesome-lib",
-                let first_statement_id = parser.unwrap_statement_expression(expressions[0]);
+                let first_statement_id = parser.unwrap_labelled_expression(expressions[0]);
                 assert_node!(parser.tree, first_statement_id, Expression::ScalarLiteral(_));
 
                 // "typings": "lib/index.d.ts",
-                let second_statement_id = parser.unwrap_statement_expression(expressions[1]);
+                let second_statement_id = parser.unwrap_labelled_expression(expressions[1]);
                 assert_node!(parser.tree, second_statement_id, Expression::ScalarLiteral(_));
 
                 // "version": "0.0.1"
-                let third_statement_id = parser.unwrap_statement_expression(expressions[2]);
+                let third_statement_id = parser.unwrap_labelled_expression(expressions[2]);
                 assert_node!(parser.tree, third_statement_id, Expression::ScalarLiteral(_));
             });
         });
@@ -286,22 +286,13 @@ declare module A {
         let expressions = parser.parse();
         assert_eq!(expressions.len(), 3);
 
-        let module_id = match parser.tree.get(expressions[0]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => expressions[0],
-        };
+        let module_id = expressions[0];
         assert_expression_path!(parser, parser.tree.get(module_id), "module");
 
-        let name_id = match parser.tree.get(expressions[1]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => expressions[1],
-        };
+        let name_id = expressions[1];
         assert_expression_path!(parser, parser.tree.get(name_id), "Foo");
 
-        let object_id = match parser.tree.get(expressions[2]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => expressions[2],
-        };
+        let object_id = expressions[2];
         assert_node!(parser.tree, object_id, Expression::Block(_) => {});
     }
 
@@ -312,22 +303,13 @@ declare module A {
         let expressions = parser.parse();
         assert_eq!(expressions.len(), 3);
 
-        let namespace_id = match parser.tree.get(expressions[0]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => expressions[0],
-        };
+        let namespace_id = expressions[0];
         assert_expression_path!(parser, parser.tree.get(namespace_id), "namespace");
 
-        let name_id = match parser.tree.get(expressions[1]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => expressions[1],
-        };
+        let name_id = expressions[1];
         assert_expression_path!(parser, parser.tree.get(name_id), "Foo");
 
-        let object_id = match parser.tree.get(expressions[2]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => expressions[2],
-        };
+        let object_id = expressions[2];
         assert_node!(parser.tree, object_id, Expression::Block(_) => {});
     }
 
@@ -565,13 +547,9 @@ namespace M {
         assert_node!(parser.tree, expressions[0], Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Namespace { expressions, .. } => {
                 assert_eq!(expressions.len(), 2);
-                assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
-                    assert_node!(parser.tree, *statement_id, Expression::ScalarLiteral(_) => {});
-                });
-                assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-                    assert_node!(parser.tree, *statement_id, Expression::Let { descriptor, .. } => {
-                        assert_eq!(descriptor.export, Some(DependencyMode::Item));
-                    });
+                assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(_) => {});
+                assert_node!(parser.tree, expressions[1], Expression::Let { descriptor, .. } => {
+                    assert_eq!(descriptor.export, Some(DependencyMode::Item));
                 });
             });
         });

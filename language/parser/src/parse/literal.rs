@@ -1422,7 +1422,10 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_node, assert_path, assert_string,
+        block_expression_ids,
+    };
 
     /// Parse integer literals in various formats.
     #[test]
@@ -3540,11 +3543,9 @@ function x() {
                 let body = body.expect("expected body");
                 assert_node!(parser.tree, body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 2);
-                    let tree_expression = match parser.tree.get(block.expressions[1]) {
-                        Expression::Statement(expression_id) => *expression_id,
-                        _ => block.expressions[1],
-                    };
+                    let expressions = block_expression_ids(block);
+                    assert_eq!(expressions.len(), 2);
+                    let tree_expression = expressions[1];
                     assert_node!(parser.tree, tree_expression, Expression::TreeExpression { .. });
                 });
             });
@@ -3563,10 +3564,7 @@ class Foo {}
 
         // ensure fragments after classes parse with multiple children
         assert_eq!(expressions.len(), 2);
-        let tree_expression = match parser.tree.get(expressions[1]) {
-            Expression::Statement(expression_id) => *expression_id,
-            _ => expressions[1],
-        };
+        let tree_expression = expressions[1];
         assert_node!(parser.tree, tree_expression, Expression::TreeExpression { left, elements, .. } => {
             assert!(left.is_none());
             let elements = elements.as_ref().expect("expected elements");
@@ -3594,18 +3592,13 @@ function test() {
                 let body = body.expect("expected body");
                 assert_node!(parser.tree, body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 2);
-                    let return_expression = match parser.tree.get(block.expressions[0]) {
-                        Expression::Statement(expression_id) => *expression_id,
-                        _ => block.expressions[0],
-                    };
+                    let expressions = block_expression_ids(block);
+                    assert_eq!(expressions.len(), 2);
+                    let return_expression = expressions[0];
                     assert_node!(parser.tree, return_expression, Expression::Return { value } => {
                         assert!(value.is_none());
                     });
-                    let tree_expression = match parser.tree.get(block.expressions[1]) {
-                        Expression::Statement(expression_id) => *expression_id,
-                        _ => block.expressions[1],
-                    };
+                    let tree_expression = expressions[1];
                     assert_node!(parser.tree, tree_expression, Expression::TreeExpression { .. });
                 });
             });
@@ -3638,11 +3631,9 @@ function app() {
                 let body = body.expect("expected function body");
                 assert_node!(parser.tree, body, Expression::Block(block_id) => {
                     let block = parser.tree.get(*block_id);
-                    assert_eq!(block.expressions.len(), 1);
-                    let return_expression = match parser.tree.get(block.expressions[0]) {
-                        Expression::Statement(expression_id) => *expression_id,
-                        _ => block.expressions[0],
-                    };
+                    let expressions = block_expression_ids(block);
+                    assert_eq!(expressions.len(), 1);
+                    let return_expression = expressions[0];
                     assert_node!(parser.tree, return_expression, Expression::Return { value } => {
                         let value = value.expect("expected return value");
                         assert_node!(parser.tree, value, Expression::Parenthesized { expression } => {
@@ -3688,7 +3679,7 @@ function app() {
         );
         assert_eq!(expressions.len(), 1);
 
-        let statement_id = parser.unwrap_statement_expression(expressions[0]);
+        let statement_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, statement_id, Expression::Let { declarators, .. } => {
             assert_eq!(declarators.len(), 1);
             let value = parser

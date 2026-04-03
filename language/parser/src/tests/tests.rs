@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_ast::{NodeType, TokenType};
+use destack_ast::{Block, Expression, LocalNodeId, NodeType, TokenType};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
 use crate::Parser;
@@ -85,6 +85,11 @@ impl TestParser {
     pub(crate) fn assert_no_errors(&self, parser: &Parser) {
         assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     }
+}
+
+/// Collect block expressions in source order for test assertions.
+pub(crate) fn block_expression_ids(block: &Block) -> Vec<LocalNodeId<Expression>> {
+    block.iter_expressions().collect()
 }
 
 /// Assert that `tree.get(id)` matches `$pat`.

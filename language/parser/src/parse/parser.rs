@@ -1914,28 +1914,6 @@ impl Parser {
         }
     }
 
-    /// Wrap an expression in a statement expression.
-    #[inline]
-    pub(crate) fn wrap_statement_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-        span: Span,
-    ) -> LocalNodeId<Expression> {
-        // wrap expression as statement first so annotation remap has a stable target
-        let statement_id = self.insert_node(Expression::Statement(expression_id), span);
-
-        // semantic annotations on statement expressions must follow the statement owner
-        if self.tree.has_annotations(expression_id.id) {
-            let _moved = self.tree.move_annotations_if(
-                expression_id.id,
-                statement_id.id,
-                |_annotation_id, _annotation, _annotation_span| true,
-            );
-        }
-
-        statement_id
-    }
-
     /// Insert a node into the AST tree.
     #[inline]
     pub(crate) fn insert_node<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>

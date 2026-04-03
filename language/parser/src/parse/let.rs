@@ -1197,8 +1197,7 @@ const registry: Map<
             });
         });
 
-        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::Call { left, dynamic_arguments, .. } => {
+        assert_node!(parser.tree, expressions[1], Expression::Call { left, dynamic_arguments, .. } => {
                 assert!(dynamic_arguments.is_empty());
                 assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                     assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
@@ -1207,7 +1206,6 @@ const registry: Map<
                         });
                     });
                 });
-            });
         });
     }
 }

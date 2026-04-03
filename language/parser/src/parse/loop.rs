@@ -395,7 +395,10 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_name, assert_node, assert_string};
+    use crate::{
+        TestParser, assert_expression_path, assert_name, assert_node, assert_string,
+        block_expression_ids,
+    };
 
     #[test]
     fn test_parse_loop() {
@@ -451,7 +454,8 @@ for (const item in items) {
             assert!(initialization.is_none());
             assert!(condition.is_none());
             assert!(increment.is_none());
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert!(expressions.is_empty());
             });
         });
@@ -468,7 +472,8 @@ for (const item in items) {
             assert!(initialization.is_none());
             assert!(condition.is_none());
             assert!(increment.is_none());
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert!(expressions.is_empty());
             });
         });
@@ -563,7 +568,8 @@ for (
 
             // selectedRelations
             assert_expression_path!(parser, parser.tree.get(*iterator), "selectedRelations");
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert!(expressions.is_empty());
             });
         });
@@ -620,7 +626,8 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
                 });
             });
 
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert!(expressions.is_empty());
             });
         });
@@ -674,7 +681,8 @@ for (var r in t)
             // t
             assert_expression_path!(parser, parser.tree.get(*iterator), "t");
             // body
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 1);
                 assert_node!(parser.tree, expressions[0], Expression::If { .. } => {});
             });
@@ -915,7 +923,8 @@ for (using item of items) {
                 });
             });
             assert_expression_path!(parser, parser.tree.get(*iterator), "list");
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 1);
                 assert_node!(parser.tree, expressions[0], Expression::Call { .. });
             });
@@ -1006,7 +1015,8 @@ for (
             assert!(initialization.is_some());
             assert!(condition.is_some());
             assert!(increment.is_some());
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 1);
             });
         });
@@ -1115,7 +1125,8 @@ while (x > y) {
                 assert_expression_path!(parser, parser.tree.get(*right), "y");
             });
 
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 2);
 
                 // while a < b
@@ -1165,7 +1176,8 @@ do { x } while (true)
             assert_eq!(*kind, WhileKind::DoWhile);
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             // body should be a block with single expression
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 1);
             });
         });
@@ -1182,7 +1194,8 @@ do { x } while (true)
             assert_eq!(*kind, WhileKind::DoWhile);
             assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             // body should be a block with continue statement
-            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+            assert_node!(parser.tree, *body, Block { .. } => {
+                let expressions = block_expression_ids(parser.tree.get(*body));
                 assert_eq!(expressions.len(), 1);
                 assert_node!(parser.tree, expressions[0], Expression::Continue { label: None });
             });

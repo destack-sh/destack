@@ -603,7 +603,8 @@ impl Parser {
                         Block {
                             context: BlockContext::Statement,
                             format: BlockFormat::Implicit,
-                            expressions: Vec::new(),
+                            leading_expressions: Vec::new(),
+                            tail_expression: None,
                         },
                         self.get_span_from(&body_start),
                     );
@@ -1287,16 +1288,6 @@ impl Parser {
                 // declaration expressions bind decorators to the declaration node itself
                 Expression::Declaration(declaration_id) => {
                     return declaration_id.id;
-                }
-
-                // statement wrappers around declarations are transparent for decorator ownership
-                Expression::Statement(inner_expression_id)
-                    if matches!(
-                        self.tree.get(*inner_expression_id),
-                        Expression::Declaration(_)
-                    ) =>
-                {
-                    current_expression_id = *inner_expression_id;
                 }
 
                 // export wrappers forward decorator ownership to the exported declaration expression

@@ -1354,7 +1354,9 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::tests::TestParser;
-    use crate::{assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        assert_expression_path, assert_node, assert_path, assert_string, block_expression_ids,
+    };
 
     #[test]
     fn test_parse_member_with_private_hash_name() {
@@ -1454,10 +1456,10 @@ port2 = {
                         assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
                             assert_eq!(signature.kind, FunctionKind::Lambda);
                             assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                assert_node!(parser.tree, *block_id, Block { .. } => {
+                                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                                     assert_eq!(expressions.len(), 1);
-                                    assert_node!(parser.tree, expressions[0], Expression::Statement(expression) => {
-                                        assert_node!(parser.tree, *expression, Expression::Call { dynamic_arguments, .. } => {
+                                    assert_node!(parser.tree, expressions[0], Expression::Call { dynamic_arguments, .. } => {
                                             assert_eq!(dynamic_arguments.len(), 2);
                                             assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
                                                 assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
@@ -1468,7 +1470,6 @@ port2 = {
                                                     });
                                                 });
                                             });
-                                        });
                                     });
                                 });
                             });
@@ -1652,7 +1653,8 @@ port2 = {
             assert!(return_type_annotations.is_empty());
 
             assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                     let body_statement_annotations = parser.tree.get_annotations(expressions[0].id);
                     assert!(body_statement_annotations.is_empty());
@@ -1688,7 +1690,8 @@ port2 = {
                 });
             });
             assert_node!(parser.tree, body.expect("expected method body"), Expression::Block(block_id) => {
-                assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                assert_node!(parser.tree, *block_id, Block { .. } => {
+                    let expressions = block_expression_ids(parser.tree.get(*block_id));
                     assert_eq!(expressions.len(), 1);
                 });
             });
@@ -2218,7 +2221,7 @@ foo(): string;"#,
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
                 assert_eq!(members.len(), 2);

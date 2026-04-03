@@ -1410,10 +1410,7 @@ mod tests {
         });
 
         // <div>a</div>
-        let tree_id = match parser.tree.get(expressions[1]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => expressions[1],
-        };
+        let tree_id = expressions[1];
         assert_node!(parser.tree, tree_id, Expression::TreeExpression { .. } => {});
     }
 
@@ -2677,16 +2674,14 @@ mod tests {
         let expressions = parser.parse();
 
         assert_eq!(expressions.len(), 2);
-        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
-                        assert_eq!(*modifiers, TypeMappedModifiers {
-                            readonly: TypeModifier::None,
-                            optional: TypeModifier::None,
-                        });
-                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+        assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
+                    assert_eq!(*modifiers, TypeMappedModifiers {
+                        readonly: TypeModifier::None,
+                        optional: TypeModifier::None,
                     });
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
                 });
             });
         });
@@ -2702,30 +2697,26 @@ mod tests {
 
         assert_eq!(expressions.len(), 2);
 
-        assert_node!(parser.tree, expressions[0], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
-                        assert_eq!(*modifiers, TypeMappedModifiers {
-                            readonly: TypeModifier::Add,
-                            optional: TypeModifier::None,
-                        });
-                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
+                    assert_eq!(*modifiers, TypeMappedModifiers {
+                        readonly: TypeModifier::Add,
+                        optional: TypeModifier::None,
                     });
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
                 });
             });
         });
 
-        assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
-            assert_node!(parser.tree, *statement_id, Expression::Declaration(declaration_id) => {
-                assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
-                    assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
-                        assert_eq!(*modifiers, TypeMappedModifiers {
-                            readonly: TypeModifier::None,
-                            optional: TypeModifier::Add,
-                        });
-                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+        assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeMapped { modifiers, value, .. } => {
+                    assert_eq!(*modifiers, TypeMappedModifiers {
+                        readonly: TypeModifier::None,
+                        optional: TypeModifier::Add,
                     });
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
                 });
             });
         });
@@ -4599,7 +4590,7 @@ mod tests {
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
@@ -4631,7 +4622,7 @@ mod tests {
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
@@ -4659,7 +4650,7 @@ mod tests {
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left, .. } => {
@@ -4686,7 +4677,7 @@ mod tests {
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
@@ -4709,7 +4700,7 @@ mod tests {
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left, .. } => {
@@ -4736,7 +4727,7 @@ mod tests {
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, left, right } => {
@@ -4777,7 +4768,7 @@ mod tests {
 
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Type { descriptor, value, .. } => {
                 assert!(descriptor.export.is_some());
@@ -4792,7 +4783,7 @@ mod tests {
         let mut documentation_nodes = Vec::new();
         for annotation_id in parser.tree.iter_nodes::<Annotation>() {
             if let Annotation::Doc { node, position } = parser.tree.get(annotation_id) {
-                assert_eq!(*position, AnnotationPosition::LinePrefix);
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
                 documentation_nodes.push(*node);
             }
         }
@@ -4865,7 +4856,7 @@ mod tests {
                 assert_eq!(expressions.len(), 1);
 
                 // type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2
-                let namespace_expression_id = parser.unwrap_statement_expression(expressions[0]);
+                let namespace_expression_id = parser.unwrap_labelled_expression(expressions[0]);
                 assert_node!(parser.tree, namespace_expression_id, Expression::Declaration(type_declaration_id) => {
                     assert_node!(parser.tree, *type_declaration_id, Declaration::Type { descriptor, static_parameters: Some(static_parameters), value, .. } => {
                         assert_string!(parser, descriptor.name.unwrap().string(), "FindMyWayVersion");

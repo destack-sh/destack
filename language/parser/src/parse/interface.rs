@@ -269,10 +269,7 @@ interface Example {
         assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
         assert_eq!(roots.len(), 1);
 
-        let root_id = match parser.tree.get(roots[0]) {
-            Expression::Statement(statement_id) => *statement_id,
-            _ => roots[0],
-        };
+        let root_id = roots[0];
         assert_node!(parser.tree, root_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {
                 assert_eq!(members.len(), 2);
@@ -960,7 +957,7 @@ interface Add<T, R = Self> {
         );
         assert_eq!(expressions.len(), 1);
 
-        let expression_id = parser.unwrap_statement_expression(expressions[0]);
+        let expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Interface { .. } => {});
 
