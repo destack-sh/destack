@@ -143,7 +143,7 @@ impl<'a> Printer<'a> {
     /// Print one component-value-backed rule.
     fn print_component_value_rule(&mut self, components: &ComponentValueList) {
         self.source
-            .push_str(&Self::render_component_value_list(components));
+            .push_str(&self.render_component_value_list(components));
     }
 
     /// Print one unknown at-rule.
@@ -154,13 +154,13 @@ impl<'a> Printer<'a> {
         if !rule.prelude.values.is_empty() {
             self.source.push(' ');
             self.source
-                .push_str(&Self::render_component_value_list(&rule.prelude));
+                .push_str(&self.render_component_value_list(&rule.prelude));
         }
 
         if let Some(block) = &rule.block {
             self.source.push('{');
             self.source
-                .push_str(&Self::render_component_value_list(block));
+                .push_str(&self.render_component_value_list(block));
             self.source.push('}');
         } else {
             self.source.push(';');
@@ -304,9 +304,8 @@ impl<'a> Printer<'a> {
         if let Some(initial_value) = &rule.initial_value {
             self.source.push(';');
             self.source.push_str(" initial-value: ");
-            self.source.push_str(&Self::render_component_value_list(
-                initial_value.components(),
-            ));
+            self.source
+                .push_str(&self.render_component_value_list(initial_value.components()));
         }
 
         self.source.push(';');

@@ -25,9 +25,8 @@ impl<'a> Printer<'a> {
         self.source
             .push_str(Self::render_property_name(&declaration.name));
         self.source.push(':');
-        self.source.push_str(&Self::render_component_value_list(
-            declaration.value.components(),
-        ));
+        self.source
+            .push_str(&self.render_component_value_list(declaration.value.components()));
 
         if declaration.is_important {
             self.source.push_str("!important");

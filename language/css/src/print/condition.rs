@@ -129,7 +129,7 @@ impl<'a> Printer<'a> {
                 |condition| self.render_parenthesized_media(*condition),
             ),
             MediaCondition::Unknown(condition) => {
-                Self::render_component_value_list(&condition.components)
+                self.render_component_value_list(&condition.components)
             }
         }
     }
@@ -159,7 +159,7 @@ impl<'a> Printer<'a> {
                 format!(
                     "({}: {})",
                     Self::render_property_name(property),
-                    Self::render_component_value_list(value.components()),
+                    self.render_component_value_list(value.components()),
                 )
             }
             SupportsCondition::Selector(selector) => {
@@ -169,7 +169,7 @@ impl<'a> Printer<'a> {
                 )
             }
             SupportsCondition::Unknown(condition) => {
-                Self::render_component_value_list(&condition.components)
+                self.render_component_value_list(&condition.components)
             }
         }
     }
@@ -202,7 +202,7 @@ impl<'a> Printer<'a> {
                 )
             }
             ContainerCondition::Unknown(condition) => {
-                Self::render_component_value_list(&condition.components)
+                self.render_component_value_list(&condition.components)
             }
         }
     }
@@ -241,7 +241,7 @@ impl<'a> Printer<'a> {
 
         match value {
             FeatureValue::Length(value) | FeatureValue::Resolution(value) => {
-                Self::render_component_value_list(value.components())
+                self.render_component_value_list(value.components())
             }
             FeatureValue::Number(value) => Self::render_number(*value),
             FeatureValue::Integer(value) => value.to_string(),
@@ -286,7 +286,7 @@ impl<'a> Printer<'a> {
 
         if let Some(fallback) = &value.fallback {
             source.push_str(", ");
-            source.push_str(&Self::render_component_value_list(fallback));
+            source.push_str(&self.render_component_value_list(fallback));
         }
 
         source.push(')');
@@ -354,7 +354,7 @@ impl<'a> Printer<'a> {
                 format!(
                     "({}: {})",
                     Self::render_property_name(property),
-                    Self::render_component_value_list(value.components())
+                    self.render_component_value_list(value.components())
                 )
             }
             ContainerStyleQuery::Property(property) => {
