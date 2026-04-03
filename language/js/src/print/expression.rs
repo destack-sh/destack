@@ -97,6 +97,12 @@ impl<'a> Printer<'a> {
             Expression::ImportMeta => {
                 self.write_punct("import.meta");
             }
+            Expression::This => {
+                self.write_keyword(Keyword::This);
+            }
+            Expression::Super => {
+                self.write_keyword(Keyword::Super);
+            }
             Expression::NewTarget => {
                 self.write_punct("new.target");
             }

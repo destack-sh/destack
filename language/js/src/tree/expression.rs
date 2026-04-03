@@ -29,6 +29,10 @@ pub enum Expression {
     },
     /// Import meta expression.
     ImportMeta,
+    /// This intrinsic value.
+    This,
+    /// Super intrinsic value.
+    Super,
     /// New target expression.
     NewTarget,
     /// Private identifier.
@@ -315,6 +319,8 @@ impl Expression {
             Self::Declaration { .. }
             | Self::Path { .. }
             | Self::ImportMeta
+            | Self::This
+            | Self::Super
             | Self::NewTarget
             | Self::PrivateIdentifier { .. }
             | Self::ScalarLiteral { .. }

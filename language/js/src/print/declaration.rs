@@ -299,7 +299,7 @@ impl<'a> Printer<'a> {
                 self.print_method_like_prefix(*modifiers, *key, signature)?;
 
                 if let Some(body) = body {
-                    self.print_expression_id(*body)?;
+                    self.print_block_id(*body)?;
                 }
             }
             Property::Spread { modifiers, value } => {
@@ -344,12 +344,12 @@ impl<'a> Printer<'a> {
                 self.print_method_like_prefix(*modifiers, *key, signature)?;
 
                 if let Some(body) = body {
-                    self.print_expression_id(*body)?;
+                    self.print_block_id(*body)?;
                 }
             }
             Member::StaticBlock { body } => {
                 self.write_keyword(Keyword::Static);
-                self.print_expression_id(*body)?;
+                self.print_block_id(*body)?;
             }
         }
 

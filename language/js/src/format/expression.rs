@@ -127,6 +127,12 @@ fn format_expression_with_precedence<'ast>(
         Expression::ImportMeta => {
             write!(f, [token("import"), token("."), token("meta")])?;
         }
+        Expression::This => {
+            write!(f, [Keyword::This])?;
+        }
+        Expression::Super => {
+            write!(f, [Keyword::Super])?;
+        }
         Expression::NewTarget => {
             write!(f, [Keyword::New, token("."), token("target")])?;
         }
