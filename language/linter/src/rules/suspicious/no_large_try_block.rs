@@ -75,9 +75,8 @@ fn count_statements(
     match expression {
         ast::Expression::Block(block_id) => {
             let block = ctx.tree.get(*block_id);
-            block.expressions.len()
+            block.len()
         }
-        ast::Expression::Statement(_) => 1,
         _ => 1,
     }
 }

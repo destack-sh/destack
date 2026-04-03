@@ -4,8 +4,8 @@ use destack_dir::{
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_outer_transparent_ancestor, expression_parent_id, function_return_type,
-    is_void_or_never_type,
+    expression_is_standalone_statement, expression_outer_transparent_ancestor,
+    expression_parent_id, function_return_type, is_void_or_never_type,
 };
 use crate::{LintDiagnostic, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -281,16 +281,15 @@ fn invalid_ancestor_expression_id(
 
     // walk ancestor expressions until we hit a valid or invalid boundary
     loop {
+        if expression_is_standalone_statement(tree, current_expression_id) {
+            return None;
+        }
+
         let Some(parent_expression_id) = expression_parent_id(tree, current_expression_id) else {
             return Some(current_expression_id);
         };
 
         let parent_expression = tree.get(parent_expression_id);
-
-        // allow standalone expression statements
-        if is_statement_parent(parent_expression, current_expression_id) {
-            return None;
-        }
 
         // allow non-tail sequence operands
         if is_non_tail_sequence_parent(parent_expression, current_expression_id) {
@@ -306,17 +305,6 @@ fn invalid_ancestor_expression_id(
 
         return Some(parent_expression_id);
     }
-}
-
-/// Return true when the parent expression is a standalone statement wrapper.
-fn is_statement_parent(
-    parent_expression: &dir::Expression,
-    child_expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    matches!(
-        parent_expression,
-        dir::Expression::Statement { statement } if *statement == child_expression_id
-    )
 }
 
 /// Return true when the parent is a non-tail sequence wrapper.

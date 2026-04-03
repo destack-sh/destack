@@ -8,8 +8,7 @@ use crate::core::QueryContext;
 pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
     !matches!(
         expression,
-        dir::Expression::Statement { .. }
-            | dir::Expression::Let { .. }
+        dir::Expression::Let { .. }
             | dir::Expression::Using { .. }
             | dir::Expression::Declaration { .. }
             | dir::Expression::Block { .. }
@@ -71,8 +70,7 @@ pub(crate) fn statement_span_for_expression(
             let parent_expression = dir_tree.get::<dir::Expression>(parent_id);
             if matches!(
                 parent_expression,
-                dir::Expression::Statement { .. }
-                    | dir::Expression::Let { .. }
+                dir::Expression::Let { .. }
                     | dir::Expression::Using { .. }
                     | dir::Expression::Declaration { .. }
             ) {

@@ -25,16 +25,10 @@ pub fn expression_unwrap_parenthesized_syntax(
 /// Return the AST expression id with statement wrappers unwrapped.
 pub fn expression_unwrap_statement_syntax(
     tree: &ast::NodeTree,
-    mut expression_id: ast::LocalNodeId<ast::Expression>,
+    expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> ast::LocalNodeId<ast::Expression> {
-    loop {
-        let expression = tree.get(expression_id);
-        let ast::Expression::Statement(inner_expression_id) = expression else {
-            return expression_id;
-        };
-
-        expression_id = *inner_expression_id;
-    }
+    let _ = tree;
+    expression_id
 }
 
 /// The assignment wrapping style for one conditional expression.
@@ -129,30 +123,43 @@ pub fn expression_statement_ancestor(
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    // start from the target expression
-    let mut current_id = expression_id;
+    // start from the outer syntax expression
+    let mut current_id = expression_outer_parenthesized_syntax(tree, parents, expression_id);
 
-    // walk through parenthesized wrappers to one statement boundary
+    // root expressions are statement-position by default
+    if parents.get(current_id).is_none() {
+        return Some(current_id);
+    }
+
+    // walk out through statement-like wrappers until one block boundary is found
     loop {
         let parent_id = parents.get(current_id)?;
-        if tree.get_node_type(parent_id) != ast::NodeType::Expression {
+
+        if tree.get_node_type(parent_id) == ast::NodeType::Expression {
+            let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
+            let parent_expression = tree.get(parent_expression_id);
+
+            if let ast::Expression::Labelled { body, .. } = parent_expression
+                && *body == current_id
+            {
+                current_id = parent_expression_id;
+                continue;
+            }
+
             return None;
         }
 
-        let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-        let parent_expression = tree.get(parent_expression_id);
+        if tree.get_node_type(parent_id) == ast::NodeType::Block {
+            let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
+            let block = tree.get(block_id);
 
-        if let ast::Expression::Parenthesized { expression } = parent_expression
-            && *expression == current_id
-        {
-            current_id = parent_expression_id;
-            continue;
-        }
-
-        if let ast::Expression::Statement(statement_id) = parent_expression
-            && *statement_id == current_id
-        {
-            return Some(parent_expression_id);
+            if block.context == ast::BlockContext::Statement
+                && block
+                    .iter_expressions()
+                    .any(|child_id| child_id == current_id)
+            {
+                return Some(current_id);
+            }
         }
 
         return None;
@@ -178,16 +185,8 @@ pub fn expression_is_direct_statement(
     parents: &ast::NodeParentIndex,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> bool {
-    let Some(parent_id) = parents.get(expression_id) else {
-        return false;
-    };
-    if tree.get_node_type(parent_id) != ast::NodeType::Expression {
-        return false;
-    }
-
-    let parent_expression_id = ast::LocalNodeId::<ast::Expression>::new(parent_id);
-    let parent_expression = tree.get(parent_expression_id);
-    matches!(parent_expression, ast::Expression::Statement(inner) if *inner == expression_id)
+    let outer_expression_id = expression_outer_parenthesized_syntax(tree, parents, expression_id);
+    expression_statement_ancestor(tree, parents, expression_id) == Some(outer_expression_id)
 }
 
 /// Return true when one expression can safely start an expression statement.
@@ -747,7 +746,7 @@ pub fn block_is_empty_without_comment(
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> bool {
     let block = tree.get(block_id);
-    if !block.expressions.is_empty() {
+    if !block.is_empty() {
         return false;
     }
 
@@ -1432,17 +1431,6 @@ pub fn expression_is_equal(
             blocks_equal(ctx, *left_block, *right_block)
         }
 
-        // statements: unwrap and compare
-        (ast::Expression::Statement(left_inner), ast::Expression::Statement(right_inner)) => {
-            expression_is_equal(ctx, *left_inner, *right_inner)
-        }
-        (ast::Expression::Statement(left_inner), _) => {
-            expression_is_equal(ctx, *left_inner, right_id)
-        }
-        (_, ast::Expression::Statement(right_inner)) => {
-            expression_is_equal(ctx, left_id, *right_inner)
-        }
-
         // fallback: compare structural signatures for remaining expression kinds
         _ => expression_signature_equal(ctx, left_id, right_id),
     }
@@ -1456,11 +1444,12 @@ pub fn blocks_equal(
 ) -> bool {
     let left = ctx.tree.get(left_id);
     let right = ctx.tree.get(right_id);
-    if left.expressions.len() != right.expressions.len() {
+    if left.len() != right.len() {
         return false;
     }
-    for (left_expr, right_expr) in left.expressions.iter().zip(right.expressions.iter()) {
-        if !expression_is_equal(ctx, *left_expr, *right_expr) {
+
+    for (left_expr, right_expr) in left.iter_expressions().zip(right.iter_expressions()) {
+        if !expression_is_equal(ctx, left_expr, right_expr) {
             return false;
         }
     }
@@ -1722,7 +1711,6 @@ pub fn expression_has_side_effects(
         ast::Expression::Parenthesized { expression } => {
             expression_has_side_effects(ctx, *expression)
         }
-        ast::Expression::Statement(inner) => expression_has_side_effects(ctx, *inner),
 
         // maybe/must propagation: check inner for side effect
         ast::Expression::Maybe { left, .. } | ast::Expression::Must { left, .. } => {

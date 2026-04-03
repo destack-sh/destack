@@ -64,8 +64,8 @@ fn collect_statement_expression_ids(
     // block statement lists
     for block_id in ctx.tree.iter_nodes::<ast::Block>() {
         let block = ctx.tree.get(block_id);
-        for statement_expression_id in &block.expressions {
-            statement_expression_ids.push(*statement_expression_id);
+        for statement_expression_id in block.iter_expressions() {
+            statement_expression_ids.push(statement_expression_id);
         }
     }
 
@@ -134,11 +134,6 @@ fn statement_expression_inner_id(
     ctx: &LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    // unwrap explicit statement wrappers
-    if let ast::Expression::Statement(inner_expression_id) = ctx.tree.get(expression_id) {
-        return Some(*inner_expression_id);
-    }
-
     // keep only implicit expression statements at root and block level
     if ctx.tree.get(expression_id).is_top_level_statement() {
         return None;
@@ -239,19 +234,23 @@ fn statement_list_owner_and_index(
 }
 
 /// Return the expression slice for one statement list owner.
-fn statement_list_owner_expressions<'a>(
-    ctx: &'a LintAstContext<'a>,
+fn statement_list_owner_expressions(
+    ctx: &LintAstContext<'_>,
     owner: StatementListOwner,
-) -> &'a [ast::LocalNodeId<ast::Expression>] {
+) -> Vec<ast::LocalNodeId<ast::Expression>> {
     match owner {
-        StatementListOwner::Module => &ctx.roots,
-        StatementListOwner::Block(block_id) => &ctx.tree.get(block_id).expressions,
+        StatementListOwner::Module => ctx.roots.to_vec(),
+        StatementListOwner::Block(block_id) => ctx
+            .tree
+            .get(block_id)
+            .iter_expressions()
+            .collect::<Vec<_>>(),
         StatementListOwner::Declaration(declaration_id) => {
             let declaration = ctx.tree.get(declaration_id);
             match declaration {
                 ast::Declaration::Global { expressions, .. }
-                | ast::Declaration::Namespace { expressions, .. } => expressions.as_slice(),
-                _ => &[],
+                | ast::Declaration::Namespace { expressions, .. } => expressions.clone(),
+                _ => Vec::new(),
             }
         }
     }
@@ -283,7 +282,8 @@ fn block_statement_list_index(
     }
     let block_id = ast::LocalNodeId::<ast::Block>::new(block_id);
     let block = ctx.tree.get(block_id);
-    let statement_index = expression_index_in_slice(&block.expressions, statement_expression_id)?;
+    let expression_ids = block.iter_expressions().collect::<Vec<_>>();
+    let statement_index = expression_index_in_slice(&expression_ids, statement_expression_id)?;
 
     Some((block_id, statement_index))
 }
@@ -415,10 +415,6 @@ fn statement_expression_subject_id(
     loop {
         let current_expression = ctx.tree.get(current_expression_id);
         match current_expression {
-            ast::Expression::Statement(inner_expression_id) => {
-                current_expression_id =
-                    expression_unwrap_parenthesized_syntax(ctx.tree, *inner_expression_id);
-            }
             ast::Expression::Must { left, .. } | ast::Expression::Maybe { left, .. } => {
                 current_expression_id = expression_unwrap_parenthesized_syntax(ctx.tree, *left);
             }

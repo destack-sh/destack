@@ -4,8 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_promise_like, expression_unwrap_parenthesized, is_function_type,
-    supports_promise_spread_elements,
+    expression_is_promise_like, expression_is_standalone_statement,
+    expression_unwrap_parenthesized, is_function_type, supports_promise_spread_elements,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -331,8 +331,8 @@ impl NodeVisitor for FloatingPromiseVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         // check expression statements
-        if let dir::Expression::Statement { statement } = expression {
-            self.check_statement(id, *statement);
+        if expression_is_standalone_statement(tree, id) {
+            self.check_statement(id, id);
         }
 
         // walk expression children

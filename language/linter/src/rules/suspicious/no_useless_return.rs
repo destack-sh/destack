@@ -118,8 +118,8 @@ fn get_trailing_bare_return(
     match expr {
         ast::Expression::Block(block_id) => {
             let block = ctx.tree.get(*block_id);
-            if let Some(last_id) = block.expressions.last() {
-                return get_trailing_bare_return(ctx, *last_id);
+            if let Some(last_id) = block.last_expression() {
+                return get_trailing_bare_return(ctx, last_id);
             }
             None
         }

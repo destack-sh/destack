@@ -210,11 +210,11 @@ fn find_single_if_without_else(
     // handle block wrapper
     if let ast::Expression::Block(block_id) = expression {
         let block: &Block = ctx.tree.get(*block_id);
-        if block.expressions.len() != 1 {
+        if block.len() != 1 {
             return None;
         }
 
-        let inner_id = block.expressions[0];
+        let inner_id = block.first_expression()?;
         let single_expression = ctx.tree.get(inner_id);
         return is_if_without_else(ctx, single_expression, inner_id);
     }
@@ -225,16 +225,10 @@ fn find_single_if_without_else(
 /// Check if an expression is an if without else (possibly wrapped in a Statement).
 /// Returns the if expression ID if it's a valid collapsible if.
 fn is_if_without_else(
-    ctx: &LintAstContext<'_>,
+    _ctx: &LintAstContext<'_>,
     expression: &ast::Expression,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
-    // unwrap statement if needed
-    if let ast::Expression::Statement(inner_id) = expression {
-        let inner = ctx.tree.get(*inner_id);
-        return is_if_without_else(ctx, inner, *inner_id);
-    }
-
     // check if it's an if without else
     if let ast::Expression::If {
         kind: ast::IfKind::If,

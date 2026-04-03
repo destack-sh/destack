@@ -230,9 +230,9 @@ impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
 
                 // walk the body
                 let body_block = tree.get(*body);
-                for expr_id in &body_block.expressions {
-                    let expr = tree.get(*expr_id);
-                    self.visit_expression(tree, *expr_id, expr);
+                for expr_id in body_block.iter_expressions() {
+                    let expr = tree.get(expr_id);
+                    self.visit_expression(tree, expr_id, expr);
                 }
 
                 // pop from stack

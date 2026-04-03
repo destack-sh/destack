@@ -50,10 +50,7 @@ impl LintRule for NoBarrelFile {
 
         // classify top-level expressions as value re-exports or regular module code
         for &node_id in ctx.roots {
-            let expression_id = match ctx.tree.get(node_id) {
-                Expression::Statement(inner_expression_id) => *inner_expression_id,
-                _ => node_id,
-            };
+            let expression_id = node_id;
             let expression = ctx.tree.get(expression_id);
             match expression {
                 Expression::Export {

@@ -149,9 +149,8 @@ fn block_contains_binding_declaration(
 ) -> bool {
     let block = ctx.tree.get(block_id);
     block
-        .expressions
-        .iter()
-        .any(|expression_id| expression_contains_binding_declaration(ctx, *expression_id))
+        .iter_expressions()
+        .any(|expression_id| expression_contains_binding_declaration(ctx, expression_id))
 }
 
 /// Return true when one expression declares bindings in local scope.
@@ -164,9 +163,6 @@ fn expression_contains_binding_declaration(
         ast::Expression::Let { .. }
         | ast::Expression::Using { .. }
         | ast::Expression::Declaration(_) => true,
-        ast::Expression::Statement(inner_id) => {
-            expression_contains_binding_declaration(ctx, *inner_id)
-        }
         ast::Expression::Parenthesized { expression } => {
             expression_contains_binding_declaration(ctx, *expression)
         }
@@ -180,8 +176,8 @@ fn block_inner_text(
     block_id: ast::LocalNodeId<ast::Block>,
 ) -> Option<String> {
     let block = ctx.tree.get(block_id);
-    let (&first_expression_id, &last_expression_id) =
-        (block.expressions.first()?, block.expressions.last()?);
+    let (first_expression_id, last_expression_id) =
+        (block.first_expression()?, block.last_expression()?);
 
     let first_span = ctx.tree.get_span(first_expression_id);
     let last_span = ctx.tree.get_span(last_expression_id);
@@ -199,13 +195,12 @@ fn ends_with_return(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Exp
         ast::Expression::Return { .. } => true,
         ast::Expression::Block(block_id) => {
             let block: &Block = ctx.tree.get(*block_id);
-            if let Some(&last_id) = block.expressions.last() {
+            if let Some(last_id) = block.last_expression() {
                 ends_with_return(ctx, last_id)
             } else {
                 false
             }
         }
-        ast::Expression::Statement(inner_id) => ends_with_return(ctx, *inner_id),
         _ => false,
     }
 }

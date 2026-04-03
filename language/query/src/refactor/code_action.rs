@@ -250,20 +250,6 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
                 items,
                 ..
             } => Some((*target, items.is_empty())),
-            ast::Expression::Statement(inner_id) => {
-                let inner = ctx.ast().tree().get(*inner_id);
-                if let ast::Expression::Import {
-                    source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
-                    target: ast::ImportTarget::String(target),
-                    items,
-                    ..
-                } = inner
-                {
-                    Some((*target, items.is_empty()))
-                } else {
-                    None
-                }
-            }
             _ => None,
         };
 

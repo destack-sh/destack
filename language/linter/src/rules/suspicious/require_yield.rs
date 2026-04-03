@@ -163,7 +163,7 @@ fn generator_body_is_empty(
     };
     let block = tree.get(*block_id);
 
-    block.expressions.is_empty()
+    block.is_empty()
 }
 
 /// Return true when one generator body has one yield expression in its own scope.

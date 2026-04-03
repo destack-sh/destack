@@ -14,14 +14,10 @@ pub(crate) enum BlockStatementPosition {
 
 /// Check whether an expression can act as one statement head.
 fn expression_is_statement_head_candidate(
-    ast_tree: &ast::NodeTree,
+    _ast_tree: &ast::NodeTree,
     expr: &ast::Expression,
 ) -> bool {
     match expr {
-        ast::Expression::Statement(inner) => {
-            let inner = ast_tree.get(*inner);
-            !inner.is_wide()
-        }
         ast::Expression::Missing => false,
         _ => !expr.is_wide(),
     }
@@ -35,7 +31,6 @@ fn expression_has_trailing_missing_slot(
     let expr = ast_tree.get(expr_id);
 
     match expr {
-        ast::Expression::Statement(inner) => expression_has_trailing_missing_slot(ast_tree, *inner),
         ast::Expression::Let { declarators, .. } | ast::Expression::Using { declarators, .. } => {
             let Some(last_declarator) = declarators.last() else {
                 return false;
@@ -87,23 +82,23 @@ pub(crate) fn block_statement_position(
     let block = ast_tree.get(block_id);
 
     // empty blocks always expose one statement gap
-    if block.expressions.is_empty() {
+    if block.is_empty() {
         return Some(BlockStatementPosition::StatementGap);
     }
 
     // track the last completed expression before the cursor
     let mut last_expression_before_cursor = None;
 
-    for expr_id in &block.expressions {
+    for expr_id in block.iter_expressions() {
         let span = ast_tree.source_map.get(expr_id.id);
 
         // statement heads only count when the cursor is on the owning statement span
         if span_owns_cursor(span, offset) {
-            if !cursor_is_on_statement_main_span(ast_tree, *expr_id, span, offset) {
+            if !cursor_is_on_statement_main_span(ast_tree, expr_id, span, offset) {
                 return None;
             }
 
-            let expr = ast_tree.get(*expr_id);
+            let expr = ast_tree.get(expr_id);
             if expression_is_statement_head_candidate(ast_tree, expr) {
                 return Some(BlockStatementPosition::StatementHead);
             }
@@ -113,7 +108,7 @@ pub(crate) fn block_statement_position(
 
         // remember the last expression before the cursor
         if span.end <= offset {
-            last_expression_before_cursor = Some(*expr_id);
+            last_expression_before_cursor = Some(expr_id);
         }
     }
 

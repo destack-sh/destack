@@ -31,14 +31,8 @@ pub(super) fn detect_import_context(
             continue;
         }
 
-        let mut expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
-        let mut expr = ast.tree().get(expr_id);
-
-        // unwrap transparent statement wrappers around recovered imports
-        if let ast::Expression::Statement(inner) = expr {
-            expr_id = *inner;
-            expr = ast.tree().get(expr_id);
-        }
+        let expr_id = ast::LocalNodeId::<ast::Expression>::new(enc.idx);
+        let expr = ast.tree().get(expr_id);
 
         if !matches!(expr, ast::Expression::Import { .. }) {
             continue;

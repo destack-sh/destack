@@ -115,12 +115,12 @@ fn no_loop_single_iteration_fix(
 
     // resolve block
     let block = ctx.tree.get(*body);
-    if block.expressions.len() != 1 {
+    if block.len() != 1 {
         return None;
     }
 
     // resolve single expression id
-    let single_expression_id = block.expressions[0];
+    let single_expression_id = block.first_expression().unwrap();
     let single_expression = unwrap_statement_expression(ctx, single_expression_id);
     if !matches!(
         single_expression,
@@ -197,13 +197,13 @@ fn block_flow(ctx: &LintAstContext<'_>, body_id: ast::LocalNodeId<ast::Block>) -
     let mut reaches_next_iteration = false;
 
     // evaluate each expression in order while statement flow is still reachable
-    for expression_id in &block.expressions {
+    for expression_id in block.iter_expressions() {
         if !reaches_next_statement {
             break;
         }
 
         // fold the next expression flow into the block state
-        let flow = expression_flow(ctx, *expression_id);
+        let flow = expression_flow(ctx, expression_id);
         reaches_next_iteration = reaches_next_iteration || flow.reaches_next_iteration;
         reaches_next_statement = flow.reaches_next_statement;
     }
@@ -230,9 +230,6 @@ fn expression_flow(
 
         // continue reaches the loop's next iteration
         ast::Expression::Continue { .. } => flow_continue_iteration(),
-
-        // unwrap statement wrapper
-        ast::Expression::Statement(inner_id) => expression_flow(ctx, *inner_id),
 
         // block: evaluate statement order and flow
         ast::Expression::Block(block_id) => block_flow(ctx, *block_id),
@@ -269,11 +266,7 @@ fn unwrap_statement_expression<'a>(
     ctx: &'a LintAstContext<'_>,
     expression_id: ast::LocalNodeId<ast::Expression>,
 ) -> &'a ast::Expression {
-    let expression = ctx.tree.get(expression_id);
-    match expression {
-        ast::Expression::Statement(inner) => ctx.tree.get(*inner),
-        _ => expression,
-    }
+    ctx.tree.get(expression_id)
 }
 
 #[cfg(test)]

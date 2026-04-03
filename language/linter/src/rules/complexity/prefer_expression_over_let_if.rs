@@ -48,13 +48,6 @@ fn is_assignment_to(
     target_name: destack_core::StringId,
 ) -> bool {
     let expr = ctx.tree.get(expr_id);
-
-    // unwrap Statement wrapper
-    let expr = match expr {
-        ast::Expression::Statement(inner) => ctx.tree.get(*inner),
-        other => other,
-    };
-
     match expr {
         ast::Expression::Assign { left, .. } => {
             // check if left is the same variable
@@ -79,8 +72,8 @@ fn expr_is_simple_assignment(
     // if it's a block expression, check its contents
     if let ast::Expression::Block(block_id) = expr {
         let block = ctx.tree.get(*block_id);
-        if block.expressions.len() == 1 {
-            return is_assignment_to(ctx, block.expressions[0], target_name);
+        if block.len() == 1 {
+            return is_assignment_to(ctx, block.first_expression().unwrap(), target_name);
         }
     }
 
@@ -98,16 +91,17 @@ impl LintRule for PreferExpressionOverLetIf {
         // look for blocks with potential let-if patterns
         for block_id in ctx.tree.iter_nodes::<ast::Block>() {
             let block = ctx.tree.get(block_id);
+            let expression_ids = block.iter_expressions().collect::<Vec<_>>();
 
             // need at least 2 expressions
-            if block.expressions.len() < 2 {
+            if expression_ids.len() < 2 {
                 continue;
             }
 
             // check consecutive pairs
-            for i in 0..block.expressions.len() - 1 {
-                let first_id = block.expressions[i];
-                let second_id = block.expressions[i + 1];
+            for i in 0..expression_ids.len() - 1 {
+                let first_id = expression_ids[i];
+                let second_id = expression_ids[i + 1];
 
                 // unwrap statement wrappers
                 let let_expression_id = expression_unwrap_statement_syntax(ctx.tree, first_id);
@@ -251,11 +245,11 @@ fn assignment_value_text(
         return None;
     };
     let block = ctx.tree.get(*block_id);
-    if block.expressions.len() != 1 {
+    if block.len() != 1 {
         return None;
     }
 
-    let branch_statement_id = block.expressions[0];
+    let branch_statement_id = block.first_expression().unwrap();
     let assignment_expression_id =
         expression_unwrap_statement_syntax(ctx.tree, branch_statement_id);
     let assignment_expression = ctx.tree.get(assignment_expression_id);

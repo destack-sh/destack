@@ -48,8 +48,9 @@ impl LintRule for NoLonelyIf {
             let lonely_if_id = match else_expr {
                 ast::Expression::Block(block_id) => {
                     let block: &Block = ctx.tree.get(*block_id);
-                    if block.expressions.len() == 1 {
-                        let single_expr = ctx.tree.get(block.expressions[0]);
+                    if block.len() == 1 {
+                        let single_expression_id = block.first_expression().unwrap();
+                        let single_expr = ctx.tree.get(single_expression_id);
                         if matches!(
                             single_expr,
                             ast::Expression::If {
@@ -57,20 +58,7 @@ impl LintRule for NoLonelyIf {
                                 ..
                             }
                         ) {
-                            Some(block.expressions[0])
-                        } else if let ast::Expression::Statement(inner_id) = single_expr {
-                            let inner = ctx.tree.get(*inner_id);
-                            if matches!(
-                                inner,
-                                ast::Expression::If {
-                                    kind: ast::IfKind::If,
-                                    ..
-                                }
-                            ) {
-                                Some(*inner_id)
-                            } else {
-                                None
-                            }
+                            Some(single_expression_id)
                         } else {
                             None
                         }

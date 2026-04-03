@@ -108,18 +108,13 @@ fn is_throw_of_name(
         ast::Expression::Throw { value } => {
             expression_is_unqualified_path_name(ctx.tree, *value, name)
         }
-        // unwrap statement wrappers around throw expressions
-        ast::Expression::Statement(inner_expression_id) => {
-            is_throw_of_name(ctx, *inner_expression_id, name)
-        }
         // block with exactly one throw of the caught name
         ast::Expression::Block(block_id) => {
             let block = ctx.tree.get(*block_id);
-            block.expressions.len() == 1
+            block.len() == 1
                 && block
-                    .expressions
-                    .first()
-                    .is_some_and(|expression_id| is_throw_of_name(ctx, *expression_id, name))
+                    .first_expression()
+                    .is_some_and(|expression_id| is_throw_of_name(ctx, expression_id, name))
         }
         _ => false,
     }

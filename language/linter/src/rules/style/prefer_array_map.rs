@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expand_span_to_statement_terminator, expression_method_call, is_array_type,
-    member_receiver_text,
+    member_receiver_text, statement_expression_ancestor,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -245,10 +245,10 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         // block callbacks: keep single body expression
         if let dir::Expression::Block { block } = expression {
             let block = self.ctx.tree.get(*block);
-            if block.expressions.len() != 1 {
+            if block.len() != 1 {
                 return None;
             }
-            return Some(self.unwrap_statement_expression(block.expressions[0]));
+            return Some(self.unwrap_statement_expression(block.first_expression().unwrap()));
         }
 
         // concise callbacks: body must already be a call
@@ -264,11 +264,6 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> dir::LocalNodeId<dir::Expression> {
-        let expression = self.ctx.tree.get(expression_id);
-        if let dir::Expression::Statement { statement } = expression {
-            return *statement;
-        }
-
         expression_id
     }
 
@@ -277,21 +272,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::LocalNodeId<dir::Expression>> {
-        let parent_id = self.ctx.tree.get_parent_id(expression_id.id)?;
-        if self.ctx.tree.get_node_type(parent_id) != dir::NodeType::Expression {
-            return None;
-        }
-
-        let statement_id = dir::LocalNodeId::<dir::Expression>::new(parent_id);
-        let statement_expression = self.ctx.tree.get(statement_id);
-        if !matches!(
-            statement_expression,
-            dir::Expression::Statement { statement } if *statement == expression_id
-        ) {
-            return None;
-        }
-
-        Some(statement_id)
+        statement_expression_ancestor(self.ctx.tree, expression_id)
     }
 
     /// Resolve the immediate previous expression in the same container.
@@ -305,15 +286,15 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         {
             let block_id = dir::LocalNodeId::<dir::Block>::new(parent_id);
             let block = self.ctx.tree.get(block_id);
-            let index = block
-                .expressions
+            let expression_ids = block.iter_expressions().collect::<Vec<_>>();
+            let index = expression_ids
                 .iter()
                 .position(|item| *item == expression_id)?;
             if index == 0 {
                 return None;
             }
 
-            return Some(block.expressions[index - 1]);
+            return Some(expression_ids[index - 1]);
         }
 
         // then check top-level roots

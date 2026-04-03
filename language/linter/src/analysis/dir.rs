@@ -64,7 +64,6 @@ fn evaluate_const_value(
                 _ => None,
             }
         }
-        dir::Expression::Statement { statement } => evaluate_const_value(tree, *statement),
         _ => None,
     }
 }
