@@ -2,7 +2,7 @@ use crate::{Compiler, RequirementCollector, ResolveError, ResolveResult};
 use destack_core::StringId;
 use destack_dir::{Declaration, LocalNodeId, ModuleTarget};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{ModuleFormat, PackageKind, ProfileId, Revision};
+use destack_workspace::{PackageKind, ProfileId, Revision};
 
 /// Reference a module binding declaration in a module.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -95,89 +95,6 @@ impl Compiler {
         } else {
             Ok(Some(bindings))
         }
-    }
-
-    /// Detect one runtime module format for a target.
-    ///
-    /// Returns `None` when the target has no runtime module, or when bindings mix formats.
-    pub(crate) fn module_format_for_target(
-        &self,
-        revision: Revision,
-        origin_module_id: ModuleId,
-        profile_id: ProfileId,
-        target: ModuleTarget,
-    ) -> ResolveResult<Option<ModuleFormat>> {
-        // module targets expose one direct runtime format
-        if let ModuleTarget::Module(module_id) = target {
-            let module = self
-                .cache_module_snapshot(revision, module_id)
-                .map_err(|error| ResolveError::Internal {
-                    message: format!("failed to load module snapshot: {error}"),
-                })?;
-            let module = module.as_ref();
-
-            // declaration modules do not encode runtime format
-            if module.language_type.is_declaration() {
-                return Ok(None);
-            }
-
-            return Ok(Some(module.module_format));
-        }
-
-        // external targets do not carry one local runtime format
-        if let ModuleTarget::External(_) = target {
-            return Ok(None);
-        }
-
-        // binding targets may span declarations from multiple modules
-        let ModuleTarget::Binding(specifier) = target else {
-            return Ok(None);
-        };
-
-        let bindings =
-            self.module_bindings_for_specifier(revision, origin_module_id, profile_id, specifier)?;
-        let Some(bindings) = bindings else {
-            return Ok(None);
-        };
-
-        // fold runtime formats across binding modules
-        let mut saw_commonjs = false;
-        let mut saw_esm = false;
-        for binding_ref in bindings {
-            let module = self
-                .cache_module_snapshot(revision, binding_ref.module_id)
-                .map_err(|error| ResolveError::Internal {
-                    message: format!("failed to load module snapshot: {error}"),
-                })?;
-            let module = module.as_ref();
-
-            // declaration modules do not encode runtime format
-            if module.language_type.is_declaration() {
-                continue;
-            }
-
-            if module.module_format.is_commonjs() {
-                saw_commonjs = true;
-            } else {
-                saw_esm = true;
-            }
-
-            // mixed runtime formats are not interop-safe
-            if saw_commonjs && saw_esm {
-                return Ok(None);
-            }
-        }
-
-        // resolve the folded format
-        if saw_commonjs {
-            return Ok(Some(ModuleFormat::CommonJs));
-        }
-
-        if saw_esm {
-            return Ok(Some(ModuleFormat::Esm));
-        }
-
-        Ok(None)
     }
 
     /// Collect ambient modules that can contribute module bindings.

@@ -23,10 +23,19 @@ impl Compiler {
 
         let module = context.import_module(module_id)?;
         let module = module.as_ref();
+
+        // top-level dependency placement
         self.validate_dependency_top_level(module, tree, roots);
+
+        // local export names
         self.validate_export_local_item_names(module, tree, roots);
+
+        // symbol conflicts
         self.validate_binding_conflicts(context, module, tree, symbols, global_augmentation_scope);
+
+        // export conflicts
         self.validate_export_conflicts(module, tree, symbols, roots);
+
         Ok(())
     }
 }

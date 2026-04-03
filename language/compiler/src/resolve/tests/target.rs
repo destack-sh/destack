@@ -1032,178 +1032,6 @@ SchemaEnv;
     test.compile_check_clean();
 }
 
-/// Resolve default imports from CommonJS `module.exports` assignments.
-#[test]
-fn test_resolve_default_import_from_commonjs_module_exports() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    test.add_module(
-        "cjs.js",
-        r#"
-function buildValue() {
-    return 1;
-}
-
-module.exports = buildValue;
-"#,
-    );
-    let main_module_id = test.add_module(
-        "main.mjs",
-        r#"
-import buildValue from "./cjs.js";
-
-buildValue();
-"#,
-    );
-
-    test.resolve_module(main_module_id);
-    test.compile_check_clean();
-}
-
-/// Resolve default imports from CommonJS bracket export assignments.
-#[test]
-fn test_resolve_default_import_from_commonjs_bracket_exports() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    test.add_module(
-        "cjs.js",
-        r#"
-function buildValue() {
-    return 1;
-}
-
-module["exports"] = buildValue;
-"#,
-    );
-    let main_module_id = test.add_module(
-        "main.mjs",
-        r#"
-import buildValue from "./cjs.js";
-
-buildValue() satisfies number;
-"#,
-    );
-
-    test.resolve_module(main_module_id);
-    test.compile_check_clean();
-}
-
-/// Resolve the last CommonJS export assignment as the default import.
-#[test]
-fn test_resolve_default_import_from_commonjs_last_assignment_wins() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    test.add_module(
-        "cjs.js",
-        r#"
-function second() {
-    return;
-}
-
-module.exports = 1;
-module.exports = second;
-"#,
-    );
-    let main_module_id = test.add_module(
-        "main.mjs",
-        r#"
-import selected from "./cjs.js";
-
-selected();
-"#,
-    );
-
-    test.resolve_module(main_module_id);
-    test.compile_check_clean();
-}
-
-/// Resolve default imports from chained CommonJS export assignments.
-#[test]
-fn test_resolve_default_import_from_commonjs_chained_assignment() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    test.add_module(
-        "cjs.js",
-        r#"
-const holder = {};
-
-function buildValue() {
-    return 1;
-}
-
-holder.value = module.exports = buildValue;
-"#,
-    );
-    let main_module_id = test.add_module(
-        "main.mjs",
-        r#"
-import selected from "./cjs.js";
-
-selected();
-"#,
-    );
-
-    test.resolve_module(main_module_id);
-    test.compile_check_clean();
-}
-
-/// Resolve default imports from CommonJS modules without explicit export assignments.
-#[test]
-fn test_resolve_default_import_from_commonjs_named_exports_only() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    test.add_module(
-        "cjs.js",
-        r#"
-exports.answer = 1;
-"#,
-    );
-    let main_module_id = test.add_module(
-        "main.mjs",
-        r#"
-import cjs from "./cjs.js";
-
-cjs.answer;
-"#,
-    );
-
-    test.resolve_module(main_module_id);
-    test.compile_check_clean();
-}
-
-/// Resolve CommonJS default imports when `module` is declared via global augmentation.
-#[test]
-fn test_resolve_default_import_from_commonjs_with_ambient_module_global() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    test.add_module(
-        "globals.d.ts",
-        r#"
-export {};
-
-declare global {
-    var module: { exports: unknown };
-}
-"#,
-    );
-    test.add_module(
-        "cjs.js",
-        r#"
-function buildValue() {
-    return 1;
-}
-
-module.exports = buildValue;
-"#,
-    );
-    let main_module_id = test.add_module(
-        "main.ts",
-        r#"
-import "./globals.d.ts";
-import buildValue from "./cjs";
-
-buildValue() satisfies number;
-"#,
-    );
-
-    test.resolve_module(main_module_id);
-    test.compile_check_clean();
-}
-
 /// Resolve TypeScript value import symbols from declaration companions.
 #[test]
 fn test_resolve_typescript_value_import_prefers_declaration_symbols() {
@@ -1335,7 +1163,7 @@ export * from "react";
     );
 
     test.configure_target(main_module_id, "js", |target| {
-        target.bundle.dependencies.never_bundle = vec!["react".to_string()];
+        target.bundle_dependencies.never_bundle = vec!["react".to_string()];
     });
 
     // direct import resolution should already preserve the external target
@@ -1413,7 +1241,7 @@ useValue;
     );
 
     test.configure_target(main_module_id, "js", |target| {
-        target.bundle.dependencies.never_bundle = vec!["react".to_string()];
+        target.bundle_dependencies.never_bundle = vec!["react".to_string()];
     });
 
     test.resolve_module(main_module_id);

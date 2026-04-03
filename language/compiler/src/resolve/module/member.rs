@@ -10,6 +10,24 @@ use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Get one resolved dir snapshot for a module when available.
+    fn dir_resolved_snapshot(
+        &self,
+        module_id: destack_source::ModuleId,
+        profile: ProfileId,
+    ) -> Option<std::sync::Arc<destack_artifact::DirResolved>> {
+        self.dir_resolved(module_id, profile)
+    }
+
+    /// Get one prepared dir snapshot for a module when available.
+    fn dir_prepared_snapshot(
+        &self,
+        module_id: destack_source::ModuleId,
+        profile: ProfileId,
+    ) -> Option<std::sync::Arc<destack_artifact::DirPrepared>> {
+        self.dir_prepared(module_id, profile)
+    }
+
     /// Resolve a static member symbol for a target symbol using module context fields.
     pub fn query_static_member_symbol(
         &self,
@@ -45,14 +63,7 @@ impl Compiler {
             .cache_module_snapshot(revision, target_symbol.module_id)
             .ok()?;
         let target_module = target_module.as_ref();
-        let snapshot = self
-            .dir_resolved(target_symbol.module_id, profile)
-            .unwrap_or_else(|| {
-                panic!(
-                    "missing committed resolved dir artifact for {:?}",
-                    target_symbol.module_id
-                )
-            });
+        let snapshot = self.dir_resolved_snapshot(target_symbol.module_id, profile)?;
 
         self.query_static_member_symbol_inner(
             revision,
@@ -353,14 +364,11 @@ impl Compiler {
                     .cache_module_snapshot(revision, canonical_symbol.module_id)
                     .ok()?;
                 let remote_module = remote_module.as_ref();
-                let snapshot = self
-                    .dir_resolved(canonical_symbol.module_id, profile)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "missing committed resolved dir artifact for {:?}",
-                            canonical_symbol.module_id
-                        )
-                    });
+                let Some(snapshot) =
+                    self.dir_resolved_snapshot(canonical_symbol.module_id, profile)
+                else {
+                    return None;
+                };
 
                 if let Some(symbol) = self.query_static_member_symbol_inner(
                     revision,
@@ -409,14 +417,9 @@ impl Compiler {
             let symbol_entry = symbols.get_symbol(symbol.local_id);
             (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
         } else {
-            let snapshot = self
-                .dir_prepared(symbol.module_id, profile)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "missing committed prepared dir artifact for {:?}",
-                        symbol.module_id
-                    )
-                });
+            let Some(snapshot) = self.dir_prepared_snapshot(symbol.module_id, profile) else {
+                return symbol;
+            };
             let symbol_entry = snapshot.symbols.get_symbol(symbol.local_id);
             (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
         };
@@ -491,13 +494,13 @@ impl Compiler {
             })?;
         let target_module = target_module.as_ref();
         let snapshot = self
-            .dir_resolved(target_symbol.module_id, profile)
-            .unwrap_or_else(|| {
-                panic!(
+            .dir_resolved_snapshot(target_symbol.module_id, profile)
+            .ok_or_else(|| ResolveError::Internal {
+                message: format!(
                     "missing committed resolved dir artifact for {:?}",
                     target_symbol.module_id
-                )
-            });
+                ),
+            })?;
 
         let Some(symbol) = self.query_static_member_symbol(
             revision,

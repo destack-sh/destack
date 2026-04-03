@@ -1099,84 +1099,27 @@ const value = 1;
     test.check_no_diagnostic_code("ER101");
 }
 
-/// Allow unresolved identifiers as direct runtime `typeof` operands.
+/// Reject unresolved identifiers in runtime `typeof` probes.
 #[test]
-fn test_resolve_allow_unresolved_identifier_in_runtime_typeof() {
+fn test_resolve_reject_unresolved_identifier_in_runtime_typeof() {
     let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.js",
-        r#"
-typeof self === "object";
-typeof define === "function";
-"#,
-    );
+    let module_id = test.add_module("test.js", r#"typeof missing === "undefined";"#);
     test.resolve_module(module_id);
     test.compile();
-    test.check_no_diagnostic_code("ER101");
+    test.check_has_diagnostic("ER101");
 }
 
-/// Allow unresolved identifiers as runtime `typeof` operands in strict scripts.
+/// Reject unresolved identifiers through parenthesized runtime `typeof` probes.
 #[test]
-fn test_resolve_allow_unresolved_identifier_in_runtime_typeof_strict_script() {
+fn test_resolve_reject_parenthesized_unresolved_identifier_in_runtime_typeof() {
     let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.js",
-        r#"
-"use strict";
-typeof missing === "undefined";
-"#,
-    );
+    let module_id = test.add_module("test.js", r#"typeof (missing) === "undefined";"#);
     test.resolve_module(module_id);
     test.compile();
-    test.check_no_diagnostic_code("ER101");
+    test.check_has_diagnostic("ER101");
 }
 
-/// Allow unresolved identifiers as runtime `typeof` operands in ESM modules.
-#[test]
-fn test_resolve_allow_unresolved_identifier_in_runtime_typeof_module() {
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.mjs",
-        r#"
-export const ok = typeof missing === "undefined";
-"#,
-    );
-    test.resolve_module(module_id);
-    test.compile();
-    test.check_no_diagnostic_code("ER101");
-}
-
-/// Allow unresolved identifiers through parenthesized runtime `typeof` operands.
-#[test]
-fn test_resolve_allow_unresolved_identifier_in_parenthesized_runtime_typeof() {
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.js",
-        r#"
-typeof (missing) === "undefined";
-"#,
-    );
-    test.resolve_module(module_id);
-    test.compile();
-    test.check_no_diagnostic_code("ER101");
-}
-
-/// Allow unresolved identifiers as direct runtime `typeof` operands in Destack.
-#[test]
-fn test_resolve_allow_unresolved_identifier_in_runtime_typeof_destack() {
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.ds",
-        r#"
-typeof missing == "undefined";
-"#,
-    );
-    test.resolve_module(module_id);
-    test.compile();
-    test.check_no_diagnostic_code("ER101");
-}
-
-/// Keep unresolved member roots as errors under runtime `typeof`.
+/// Reject unresolved member roots under runtime `typeof`.
 #[test]
 fn test_resolve_reject_unresolved_member_root_in_runtime_typeof() {
     let test = TestProgram::memory_sequential();
@@ -1186,9 +1129,9 @@ fn test_resolve_reject_unresolved_member_root_in_runtime_typeof() {
     test.check_has_diagnostic("ER101");
 }
 
-/// Resolve commonjs wrapper globals and runtime namespace member probes in JavaScript.
+/// Reject commonjs wrapper global probes in JavaScript.
 #[test]
-fn test_resolve_commonjs_wrapper_runtime_globals_javascript() {
+fn test_resolve_reject_commonjs_wrapper_runtime_globals_javascript() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.js",
@@ -1202,12 +1145,12 @@ if (typeof define == "function" && define.amd) {
     );
     test.resolve_module(module_id);
     test.compile();
-    test.check_no_diagnostic_code("ER101");
+    test.check_has_diagnostic("ER101");
 }
 
-/// Allow unresolved namespace members to fall back to runtime member access in value paths.
+/// Reject unresolved namespace members in value paths.
 #[test]
-fn test_resolve_runtime_namespace_member_fallback_value_paths() {
+fn test_resolve_reject_unresolved_namespace_member_value_paths() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
         "test.ts",
@@ -1221,7 +1164,7 @@ Box.missing;
     );
     test.resolve_module(module_id);
     test.compile();
-    test.check_no_diagnostic_code("ER101");
+    test.check_has_diagnostic("ER101");
 }
 
 /// Resolve TypeScript angle bracket const assertions without unresolved `const` names.

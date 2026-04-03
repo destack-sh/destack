@@ -7,7 +7,7 @@ use destack_resolver::{
     TypeScriptOptionsReferences,
 };
 use destack_source::LanguageType;
-use destack_workspace::{ModuleFormat, ModuleResolution, NodeLinker, TsCompilerOptions};
+use destack_workspace::{NodeLinker, TsCompilerOptions};
 use indexmap::IndexMap;
 
 /// Extension alias order for TypeScript source imports.
@@ -50,51 +50,6 @@ impl ImportResolveContext {
     pub fn is_require_edge(self) -> bool {
         self.edge_relation.is_require_like()
     }
-
-    /// Return whether one default import may fall back to a CommonJS namespace symbol.
-    pub fn allows_commonjs_default_namespace_import(
-        self,
-        target_module_format: Option<ModuleFormat>,
-        is_typescript_commonjs_default_interop_enabled: bool,
-    ) -> bool {
-        // only value imports on import edges may use default namespace interop
-        if self.dependency_kind != DependencyKind::Value || !self.edge_relation.is_import_like() {
-            return false;
-        }
-
-        // esm targets must keep explicit default export requirements
-        if target_module_format == Some(ModuleFormat::Esm) {
-            return false;
-        }
-
-        // javascript source imports use runtime interop semantics
-        if self
-            .source_language_type
-            .is_some_and(|language_type| language_type.is_javascript())
-        {
-            return true;
-        }
-
-        // typescript source imports require interop policy
-        if self
-            .source_language_type
-            .is_some_and(|language_type| language_type.is_typescript())
-        {
-            return is_typescript_commonjs_default_interop_enabled;
-        }
-
-        // destack source keeps strict explicit default imports
-        false
-    }
-}
-
-/// Return whether TypeScript compiler options enable CommonJS default import interop.
-pub fn typescript_commonjs_default_interop_is_enabled(options: &TsCompilerOptions) -> bool {
-    // node esm module resolution semantics include commonjs default interop
-    matches!(
-        options.module_resolution,
-        ModuleResolution::Node16 | ModuleResolution::NodeNext
-    )
 }
 
 /// Materialize compiler import resolve options for one import request.
@@ -313,7 +268,7 @@ mod tests {
     use super::{
         ImportResolveContext, apply_node_linker_resolve_policy,
         apply_typescript_import_resolve_policy, declaration_companion_path_for_module_path,
-        materialize_import_resolve_options, typescript_commonjs_default_interop_is_enabled,
+        materialize_import_resolve_options,
     };
     use std::path::{Path, PathBuf};
 
@@ -544,107 +499,5 @@ mod tests {
             declaration_companion_path_for_module_path(Path::new("/tmp/mod.ts")),
             None,
         );
-    }
-    /// Allow javascript default imports from CommonJS namespace targets.
-    #[test]
-    fn test_commonjs_default_namespace_import_policy_javascript_source() {
-        let context = ImportResolveContext {
-            dependency_kind: DependencyKind::Value,
-            source_language_type: Some(LanguageType::JavaScript),
-            edge_relation: ModuleEdgeRelation::Import,
-        };
-
-        let allowed =
-            context.allows_commonjs_default_namespace_import(Some(ModuleFormat::CommonJs), false);
-
-        assert!(allowed);
-    }
-
-    /// Allow javascript fallback when runtime module format is unknown.
-    #[test]
-    fn test_commonjs_default_namespace_import_policy_javascript_unknown_target_format() {
-        let context = ImportResolveContext {
-            dependency_kind: DependencyKind::Value,
-            source_language_type: Some(LanguageType::JavaScript),
-            edge_relation: ModuleEdgeRelation::Import,
-        };
-
-        let allowed = context.allows_commonjs_default_namespace_import(None, false);
-
-        assert!(allowed);
-    }
-
-    /// Reject typescript default imports from CommonJS without interop options.
-    #[test]
-    fn test_commonjs_default_namespace_import_policy_typescript_strict_default() {
-        let context = ImportResolveContext {
-            dependency_kind: DependencyKind::Value,
-            source_language_type: Some(LanguageType::TypeScript),
-            edge_relation: ModuleEdgeRelation::Import,
-        };
-
-        let allowed = context.allows_commonjs_default_namespace_import(
-            Some(ModuleFormat::CommonJs),
-            typescript_commonjs_default_interop_is_enabled(&TsCompilerOptions::default()),
-        );
-
-        assert!(!allowed);
-    }
-
-    /// Allow typescript default imports from CommonJS under nodenext resolution.
-    #[test]
-    fn test_commonjs_default_namespace_import_policy_typescript_nodenext_resolution() {
-        let context = ImportResolveContext {
-            dependency_kind: DependencyKind::Value,
-            source_language_type: Some(LanguageType::TypeScript),
-            edge_relation: ModuleEdgeRelation::Import,
-        };
-        let options = TsCompilerOptions {
-            module_resolution: ModuleResolution::NodeNext,
-            ..TsCompilerOptions::default()
-        };
-
-        let allowed = context.allows_commonjs_default_namespace_import(
-            Some(ModuleFormat::CommonJs),
-            typescript_commonjs_default_interop_is_enabled(&options),
-        );
-
-        assert!(allowed);
-    }
-
-    /// Allow typescript default imports from CommonJS under node16 style resolution.
-    #[test]
-    fn test_commonjs_default_namespace_import_policy_typescript_node16_resolution() {
-        let context = ImportResolveContext {
-            dependency_kind: DependencyKind::Value,
-            source_language_type: Some(LanguageType::TypeScript),
-            edge_relation: ModuleEdgeRelation::Import,
-        };
-        let options = TsCompilerOptions {
-            module_resolution: ModuleResolution::Node16,
-            ..TsCompilerOptions::default()
-        };
-
-        let allowed = context.allows_commonjs_default_namespace_import(
-            Some(ModuleFormat::CommonJs),
-            typescript_commonjs_default_interop_is_enabled(&options),
-        );
-
-        assert!(allowed);
-    }
-
-    /// Reject default namespace fallback for non commonjs targets.
-    #[test]
-    fn test_commonjs_default_namespace_import_policy_reject_non_commonjs_target() {
-        let context = ImportResolveContext {
-            dependency_kind: DependencyKind::Value,
-            source_language_type: Some(LanguageType::JavaScript),
-            edge_relation: ModuleEdgeRelation::Import,
-        };
-
-        let allowed =
-            context.allows_commonjs_default_namespace_import(Some(ModuleFormat::Esm), false);
-
-        assert!(!allowed);
     }
 }

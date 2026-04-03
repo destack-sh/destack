@@ -997,23 +997,11 @@ impl Compiler {
             return Ok(symbol_id);
         }
 
-        // resolve default imports from export assignments and CommonJS assignments
+        // resolve default imports from export assignments
         if kind == DependencyKind::Value && key == StaticKey::Name(default_name) {
             if let Some(symbol) =
                 self.resolve_export_assignment_symbol(revision, module.id, remote_target, profile)?
             {
-                return Ok(ResolvedExportSymbol {
-                    symbol,
-                    export_space: SymbolSpace::Value,
-                });
-            }
-
-            if let Some(symbol) = self.resolve_commonjs_default_export_symbol(
-                revision,
-                module.id,
-                remote_target,
-                profile,
-            )? {
                 return Ok(ResolvedExportSymbol {
                     symbol,
                     export_space: SymbolSpace::Value,

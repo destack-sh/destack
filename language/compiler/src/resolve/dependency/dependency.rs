@@ -270,32 +270,8 @@ impl Compiler {
                             )
                         };
 
-                        // allow commonjs default import fallback via namespace
                         let (symbol, resolved_kind) = match resolved {
                             Ok(resolved) => resolved,
-                            Err(error @ ResolveError::MissingSymbol { .. }) => {
-                                if !self.default_import_uses_namespace_fallback(
-                                    revision,
-                                    module_handle,
-                                    source,
-                                    kind,
-                                    profile,
-                                    remote_target,
-                                )? {
-                                    return Err(error);
-                                }
-
-                                let _timing =
-                                    self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_NAMESPACE);
-                                let symbol = self.resolve_namespace_symbol(
-                                    revision,
-                                    module.id,
-                                    item_id.into_global_any(module.id),
-                                    remote_target,
-                                    profile,
-                                )?;
-                                (symbol, kind)
-                            }
                             Err(error) => return Err(error),
                         };
                         (symbol, resolved_kind)

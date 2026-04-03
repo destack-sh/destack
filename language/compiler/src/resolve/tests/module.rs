@@ -1,6 +1,8 @@
 use super::*;
-use destack_artifact::{Loader, ModuleKind};
+use destack_artifact::{Data, Loader, ModuleEdgeRelation, ModuleKind};
+use destack_css::{Rule, Token};
 use destack_dir::{StaticKey, SymbolSpace};
+use destack_html::Content;
 
 /// Assert one module exports a type symbol for the requested name.
 fn assert_has_type_export(test: &TestProgram, module_id: destack_source::ModuleId, name: &str) {
@@ -81,6 +83,696 @@ value;
     assert!(
         dependencies.contains(&dep_module_id),
         "expected module graph to include dep.ts"
+    );
+}
+
+/// Build module graph stylesheet edges for preload style links.
+#[test]
+fn test_module_graph_html_preload_style_dependency() {
+    let test = TestProgram::memory_sequential();
+    let stylesheet_module_id = test.add_module(
+        "styles/site.css",
+        r#"
+body {
+    color: red;
+}
+"#,
+    );
+    let html_module_id = test.add_module(
+        "index.html",
+        r#"
+<!doctype html>
+<html>
+    <head>
+        <link rel="preload" href="./styles/site.css" as="style" />
+    </head>
+</html>
+"#,
+    );
+
+    test.resolve_module(html_module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(html_module_id);
+    let graph = test
+        .compiler
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let dependencies = graph.dependencies_for(html_module_id);
+
+    // assert dependency edges
+    assert!(
+        dependencies.contains(&stylesheet_module_id),
+        "expected module graph to include stylesheet preload target",
+    );
+}
+
+/// Record exact authored HTML edge relations and specifiers in the module graph.
+#[test]
+fn test_module_graph_html_records_exact_document_edge_specifiers() {
+    let test = TestProgram::memory_sequential();
+    let stylesheet_module_id = test.add_module(
+        "src/styles/site.css",
+        r#"
+body {
+    color: red;
+}
+"#,
+    );
+    let script_module_id = test.add_module(
+        "src/scripts/app.ts",
+        r#"
+export const value = 1;
+"#,
+    );
+    let asset_module_id = test.add_module("src/assets/logo.svg", "<svg></svg>");
+    let html_module_id = test.add_module(
+        "src/index.html",
+        r#"
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/styles/site.css?v=1" />
+        <script src="/scripts/app.ts?worker"></script>
+    </head>
+    <body>
+        <img src="/assets/logo.svg#icon" />
+    </body>
+</html>
+"#,
+    );
+    test.apply_destack_config(
+        html_module_id,
+        r#"
+{
+  "compiler": {
+    "rootDir": "src"
+  }
+}
+"#,
+    );
+
+    test.resolve_module(html_module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(html_module_id);
+    let graph = test
+        .compiler
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let stylesheet_specifier = test.program.strings.intern("/styles/site.css?v=1");
+    let script_specifier = test.program.strings.intern("/scripts/app.ts?worker");
+    let asset_specifier = test.program.strings.intern("/assets/logo.svg#icon");
+
+    assert_eq!(
+        graph.dependency_target_for_specifier(
+            html_module_id,
+            ModuleEdgeRelation::DocumentStylesheet,
+            stylesheet_specifier,
+        ),
+        Some(stylesheet_module_id),
+    );
+    assert_eq!(
+        graph.dependency_target_for_specifier(
+            html_module_id,
+            ModuleEdgeRelation::DocumentScript,
+            script_specifier,
+        ),
+        Some(script_module_id),
+    );
+    assert_eq!(
+        graph.dependency_target_for_specifier(
+            html_module_id,
+            ModuleEdgeRelation::Resource,
+            asset_specifier,
+        ),
+        Some(asset_module_id),
+    );
+}
+
+/// Record exact HTML attribute sites in the module graph.
+#[test]
+fn test_module_graph_html_records_attribute_sites() {
+    let test = TestProgram::memory_sequential();
+    let stylesheet_module_id = test.add_module(
+        "styles.css",
+        r#"
+body {
+    color: red;
+}
+"#,
+    );
+    let script_module_id = test.add_module(
+        "app.ts",
+        r#"
+export const value = 1;
+"#,
+    );
+    let asset_module_id = test.add_module("logo.svg", "<svg></svg>");
+    let html_module_id = test.add_module(
+        "index.html",
+        r#"
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="./styles.css" />
+        <script src="./app.ts"></script>
+    </head>
+    <body>
+        <img src="./logo.svg" />
+    </body>
+</html>
+"#,
+    );
+
+    test.resolve_module(html_module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(html_module_id);
+    let graph = test
+        .compiler
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let data = test
+        .compiler
+        .artifacts
+        .data(html_module_id)
+        .unwrap_or_else(|| panic!("missing html data payload for module {html_module_id:?}"));
+    let html = match data.as_ref() {
+        Data::Html(html) => html,
+        Data::Json(_) | Data::Css(_) => panic!("expected html data payload"),
+    };
+    let document = html.tree.get(html.document);
+    let html_element = document
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "html" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing html element"));
+    let head_element = html_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "head" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing head element"));
+    let body_element = html_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "body" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing body element"));
+    let stylesheet_element = head_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "link" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing link element"));
+    let script_element = head_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "script" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing script element"));
+    let image_element = body_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "img" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing img element"));
+    let stylesheet_attribute_id = *stylesheet_element
+        .attributes
+        .iter()
+        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "href")
+        .unwrap_or_else(|| panic!("missing link href attribute"));
+    let script_attribute_id = *script_element
+        .attributes
+        .iter()
+        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "src")
+        .unwrap_or_else(|| panic!("missing script src attribute"));
+    let image_attribute_id = *image_element
+        .attributes
+        .iter()
+        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "src")
+        .unwrap_or_else(|| panic!("missing img src attribute"));
+    let stylesheet_specifier = test.program.strings.intern("./styles.css");
+    let script_specifier = test.program.strings.intern("./app.ts");
+    let asset_specifier = test.program.strings.intern("./logo.svg");
+
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                html_module_id,
+                ModuleEdgeRelation::DocumentStylesheet,
+                stylesheet_attribute_id.id,
+                stylesheet_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(stylesheet_module_id),
+    );
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                html_module_id,
+                ModuleEdgeRelation::DocumentScript,
+                script_attribute_id.id,
+                script_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(script_module_id),
+    );
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                html_module_id,
+                ModuleEdgeRelation::Resource,
+                image_attribute_id.id,
+                asset_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(asset_module_id),
+    );
+}
+
+/// Keep owned link href relations narrow while preserving intended asset references.
+#[test]
+fn test_module_graph_html_link_asset_policy() {
+    let test = TestProgram::memory_sequential();
+    let canonical_module_id =
+        test.add_module("canonical.html", "<!doctype html><title>Canonical</title>");
+    let manifest_module_id = test.add_module("site.webmanifest", r#"{"name":"Site"}"#);
+    let icon_module_id = test.add_module("favicon.svg", "<svg></svg>");
+    let image_module_id = test.add_module("hero.jpg", "fake image content");
+    let html_module_id = test.add_module(
+        "index.html",
+        r#"
+<!doctype html>
+<html>
+    <head>
+        <link rel="canonical" href="./canonical.html" />
+        <link rel="manifest" href="./site.webmanifest" />
+        <link rel="icon" href="./favicon.svg" />
+        <link rel="preload" href="./hero.jpg" as="image" />
+    </head>
+</html>
+"#,
+    );
+
+    test.resolve_module(html_module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(html_module_id);
+    let graph = test
+        .compiler
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let dependencies = graph.dependencies_for(html_module_id);
+    let data = test
+        .compiler
+        .artifacts
+        .data(html_module_id)
+        .unwrap_or_else(|| panic!("missing html data payload for module {html_module_id:?}"));
+    let html = match data.as_ref() {
+        Data::Html(html) => html,
+        Data::Json(_) | Data::Css(_) => panic!("expected html data payload"),
+    };
+    let document = html.tree.get(html.document);
+    let html_element = document
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "html" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing html element"));
+    let head_element = html_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "head" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing head element"));
+    let canonical_link = head_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element)
+                if element.name.local == "link"
+                    && element.attributes.iter().any(|attribute_id| {
+                        let attribute = html.tree.get(*attribute_id);
+                        attribute.name.local == "rel"
+                            && attribute
+                                .value
+                                .as_ref()
+                                .is_some_and(|value| value.value == "canonical")
+                    }) =>
+            {
+                Some(element)
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing canonical link element"));
+    let canonical_href_attribute = *canonical_link
+        .attributes
+        .iter()
+        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "href")
+        .unwrap_or_else(|| panic!("missing canonical href attribute"));
+
+    assert!(!dependencies.contains(&canonical_module_id));
+    assert!(dependencies.contains(&manifest_module_id));
+    assert!(dependencies.contains(&icon_module_id));
+    assert!(dependencies.contains(&image_module_id));
+}
+
+/// Record `imagesrcset` sites on link preload elements as owned asset references.
+#[test]
+fn test_module_graph_html_records_link_imagesrcset_sites() {
+    let test = TestProgram::memory_sequential();
+    let fallback_module_id = test.add_module("hero.jpg", "fallback image");
+    let small_module_id = test.add_module("hero-small.jpg", "small image");
+    let large_module_id = test.add_module("hero-large.jpg", "large image");
+    let html_module_id = test.add_module(
+        "index.html",
+        r#"
+<!doctype html>
+<html>
+    <head>
+        <link
+            rel="preload"
+            href="./hero.jpg"
+            as="image"
+            imagesrcset="./hero-small.jpg 1x, ./hero-large.jpg 2x"
+        />
+    </head>
+</html>
+"#,
+    );
+
+    test.resolve_module(html_module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(html_module_id);
+    let graph = test
+        .compiler
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let data = test
+        .compiler
+        .artifacts
+        .data(html_module_id)
+        .unwrap_or_else(|| panic!("missing html data payload for module {html_module_id:?}"));
+    let html = match data.as_ref() {
+        Data::Html(html) => html,
+        Data::Json(_) | Data::Css(_) => panic!("expected html data payload"),
+    };
+    let document = html.tree.get(html.document);
+    let html_element = document
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "html" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing html element"));
+    let head_element = html_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "head" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing head element"));
+    let preload_element = head_element
+        .children
+        .iter()
+        .find_map(|node| match html.tree.get(*node) {
+            Content::Element(element) if element.name.local == "link" => Some(element),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing preload link element"));
+    let href_attribute_id = *preload_element
+        .attributes
+        .iter()
+        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "href")
+        .unwrap_or_else(|| panic!("missing link href attribute"));
+    let imagesrcset_attribute_id = *preload_element
+        .attributes
+        .iter()
+        .find(|attribute_id| html.tree.get(**attribute_id).name.local == "imagesrcset")
+        .unwrap_or_else(|| panic!("missing link imagesrcset attribute"));
+    let href_specifier = test.program.strings.intern("./hero.jpg");
+    let small_specifier = test.program.strings.intern("./hero-small.jpg");
+    let large_specifier = test.program.strings.intern("./hero-large.jpg");
+
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                html_module_id,
+                ModuleEdgeRelation::Resource,
+                href_attribute_id.id,
+                href_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(fallback_module_id),
+    );
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                html_module_id,
+                ModuleEdgeRelation::Resource,
+                imagesrcset_attribute_id.id,
+                small_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(small_module_id),
+    );
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                html_module_id,
+                ModuleEdgeRelation::Resource,
+                imagesrcset_attribute_id.id,
+                large_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(large_module_id),
+    );
+}
+
+/// Build module graph edges for root-relative HTML script and stylesheet references.
+#[test]
+fn test_module_graph_html_root_relative_dependencies() {
+    let test = TestProgram::memory_sequential();
+    let stylesheet_module_id = test.add_module(
+        "src/styles/site.css",
+        r#"
+body {
+    color: red;
+}
+"#,
+    );
+    let script_module_id = test.add_module(
+        "src/scripts/app.ts",
+        r#"
+export const value = 1;
+"#,
+    );
+    let html_module_id = test.add_module(
+        "src/index.html",
+        r#"
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="/styles/site.css" />
+        <script src="/scripts/app.ts"></script>
+    </head>
+</html>
+"#,
+    );
+    test.apply_destack_config(
+        html_module_id,
+        r#"
+{
+  "compiler": {
+    "rootDir": "src"
+  }
+}
+"#,
+    );
+
+    test.resolve_module(html_module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(html_module_id);
+    let graph = test
+        .compiler
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let dependencies = graph.dependencies_for(html_module_id);
+
+    // assert dependency edges
+    assert!(
+        dependencies.contains(&stylesheet_module_id),
+        "expected module graph to include root-relative stylesheet target",
+    );
+
+    // assert dependency edges
+    assert!(
+        dependencies.contains(&script_module_id),
+        "expected module graph to include root-relative script target",
+    );
+}
+
+/// Record exact authored CSS import and url edge specifiers in the module graph.
+#[test]
+fn test_module_graph_css_records_exact_edge_specifiers() {
+    let test = TestProgram::memory_sequential();
+    let imported_stylesheet_module_id = test.add_module(
+        "styles/reset.css",
+        r#"
+html {
+    box-sizing: border-box;
+}
+"#,
+    );
+    let asset_module_id = test.add_module("images/pattern.svg", "<svg></svg>");
+    let stylesheet_module_id = test.add_module(
+        "styles/site.css",
+        r#"
+@import "./reset.css?inline";
+
+body {
+    background-image: url("../images/pattern.svg#hero");
+}
+"#,
+    );
+
+    test.resolve_module(stylesheet_module_id);
+    test.compile_check_clean();
+
+    let profile = test.default_profile_id(stylesheet_module_id);
+    let graph = test
+        .compiler
+        .artifacts
+        .module_graph(profile)
+        .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+    let data = test
+        .compiler
+        .artifacts
+        .data(stylesheet_module_id)
+        .unwrap_or_else(|| panic!("missing css data payload for module {stylesheet_module_id:?}"));
+    let css = match data.as_ref() {
+        Data::Css(css) => css,
+        Data::Json(_) | Data::Html(_) => panic!("expected css data payload"),
+    };
+    let import_specifier = test.program.strings.intern("./reset.css?inline");
+    let asset_specifier = test.program.strings.intern("../images/pattern.svg#hero");
+    let import_site_id = css
+        .tree
+        .get(css.stylesheet)
+        .rules
+        .iter()
+        .find_map(|rule_id| match css.tree.get(*rule_id) {
+            Rule::Import(rule) if rule.url == "./reset.css?inline" => {
+                rule.resource.as_ref().map(|resource| resource.id)
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("missing css import resource"));
+    let asset_site_id = css
+        .tree
+        .get(css.stylesheet)
+        .rules
+        .iter()
+        .find_map(|rule_id| {
+            let Rule::Style(rule) = css.tree.get(*rule_id) else {
+                return None;
+            };
+            let declarations = rule.declarations?;
+            let declarations = css.tree.get(declarations);
+
+            for declaration_id in &declarations.declarations {
+                let declaration = css.tree.get(*declaration_id);
+
+                for value in &declaration.value.components().values {
+                    match value {
+                        destack_css::ComponentValue::Token(Token::UnquotedUrl {
+                            value,
+                            url_resource,
+                        }) if value == "../images/pattern.svg#hero" => {
+                            return url_resource.as_ref().map(|resource| resource.id);
+                        }
+                        destack_css::ComponentValue::Function(function)
+                            if function.name.eq_ignore_ascii_case("url") =>
+                        {
+                            if function.url_resource.is_some() {
+                                return function.url_resource.as_ref().map(|resource| resource.id);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            None
+        })
+        .unwrap_or_else(|| panic!("missing css url resource"));
+
+    assert_eq!(
+        graph.dependency_target_for_specifier(
+            stylesheet_module_id,
+            ModuleEdgeRelation::StyleImport,
+            import_specifier,
+        ),
+        Some(imported_stylesheet_module_id),
+    );
+    assert_eq!(
+        graph.dependency_target_for_specifier(
+            stylesheet_module_id,
+            ModuleEdgeRelation::StyleUrl,
+            asset_specifier,
+        ),
+        Some(asset_module_id),
+    );
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                stylesheet_module_id,
+                ModuleEdgeRelation::StyleImport,
+                import_site_id,
+                import_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(imported_stylesheet_module_id),
+    );
+    assert_eq!(
+        graph
+            .dependency_edge_for_site_specifier(
+                stylesheet_module_id,
+                ModuleEdgeRelation::StyleUrl,
+                asset_site_id,
+                asset_specifier,
+            )
+            .map(|edge| edge.target),
+        Some(asset_module_id),
     );
 }
 
@@ -429,103 +1121,4 @@ value;
         dependencies.contains(&decl_module_id),
         "expected module graph to include module binding module"
     );
-}
-
-/// Synthesize named exports from CommonJS property writes.
-#[test]
-fn test_build_module_exports_collects_commonjs_named_property_writes() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    let module_id = test.add_module(
-        "cjs.js",
-        r#"
-function buildValue() {
-    return 1;
-}
-
-exports.buildValue = buildValue;
-"#,
-    );
-
-    test.resolve_module(module_id);
-    test.compile_check_clean();
-
-    assert_has_value_export(&test, module_id, "buildValue");
-}
-
-/// Replace named exports when CommonJS default replacement occurs.
-#[test]
-fn test_build_module_exports_replaces_commonjs_named_exports_on_module_exports_assignment() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    let module_id = test.add_module(
-        "cjs.js",
-        r#"
-function first() {
-    return 1;
-}
-
-function second() {
-    return 2;
-}
-
-exports.first = first;
-module.exports = second;
-"#,
-    );
-
-    test.resolve_module(module_id);
-    test.compile_check_clean();
-
-    assert_missing_value_export(&test, module_id, "first");
-}
-
-/// Ignore exports alias writes after module exports replacement.
-#[test]
-fn test_build_module_exports_ignores_exports_alias_writes_after_replacement() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    let module_id = test.add_module(
-        "cjs.js",
-        r#"
-function selected() {
-    return 1;
-}
-
-function leaked() {
-    return 2;
-}
-
-module.exports = selected;
-exports.leaked = leaked;
-"#,
-    );
-
-    test.resolve_module(module_id);
-    test.compile_check_clean();
-
-    assert_missing_value_export(&test, module_id, "leaked");
-}
-
-/// Skip synthesized CommonJS named exports when export assignment is present.
-#[test]
-fn test_build_module_exports_skips_commonjs_named_exports_with_export_assignment() {
-    let test = TestProgram::memory_sequential_with_prelude();
-    let module_id = test.add_module(
-        "cjs.cts",
-        r#"
-function selected() {
-    return 1;
-}
-
-function helper() {
-    return 2;
-}
-
-module.exports.helper = helper;
-export = selected;
-"#,
-    );
-
-    test.resolve_module(module_id);
-    test.compile_check_clean();
-
-    assert_missing_value_export(&test, module_id, "helper");
 }
