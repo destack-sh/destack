@@ -957,22 +957,21 @@ impl Parser {
                     continue;
                 }
             }
-
             // recovered parameter lists should stop before a newline led keyword statement
-            let should_end_at_keyword_boundary =
-                is_recovered_parameter && self.current_keyword_starts_parameter_recovery_boundary();
-
+            else if is_recovered_parameter
+                && self.current_keyword_starts_parameter_recovery_boundary()
+            {
+                break;
+            }
             // recovered slots may continue across newline separators only
-            let can_continue = self.can_continue_after_recovered_item(
+            else if !self.can_continue_after_recovered_item(
                 if self.options.is_in_static() {
                     TokenType::GreaterThan
                 } else {
                     TokenType::CloseParenthesis
                 },
                 is_recovered_parameter,
-            );
-
-            if should_end_at_keyword_boundary || !can_continue {
+            ) {
                 break;
             }
         }
@@ -1848,16 +1847,14 @@ impl Parser {
                     continue;
                 }
             }
-
             // recovered statement calls should stop before the next newline led statement
-            let should_end_at_statement_boundary = self
-                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument);
-
+            else if self
+                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+            {
+                break;
+            }
             // recovered slots may continue across newline separators only
-            let can_continue =
-                self.can_continue_after_recovered_item(terminator, is_recovered_argument);
-
-            if should_end_at_statement_boundary || !can_continue {
+            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
                 break;
             }
         }
@@ -1914,16 +1911,14 @@ impl Parser {
                     continue;
                 }
             }
-
             // recovered statement calls should stop before the next newline led statement
-            let should_end_at_statement_boundary = self
-                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument);
-
+            else if self
+                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
+            {
+                break;
+            }
             // recovered slots may continue across newline separators only
-            let can_continue =
-                self.can_continue_after_recovered_item(terminator, is_recovered_argument);
-
-            if should_end_at_statement_boundary || !can_continue {
+            else if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
                 break;
             }
         }
