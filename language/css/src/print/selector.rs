@@ -1,9 +1,10 @@
+use super::TokenRenderer;
 use super::printer::Printer;
 use crate::{
     AnySelector, AttributeSelector, Combinator, KeyframeSelector, KeyframeSelectorList,
     LocalNodeId, NthOfSelector, NthSelector, NthSelectorKind, PageMarginBox, PagePseudoClass,
     PageSelector, PageSelectorList, PseudoArgument, PseudoClass, PseudoElement, Selector,
-    SelectorComponent, SelectorList, SimpleSelector, TimelineRangeName, Token, VendorPrefix,
+    SelectorComponent, SelectorList, SimpleSelector, TimelineRangeName, VendorPrefix,
 };
 
 impl<'a> Printer<'a> {
@@ -34,11 +35,7 @@ impl<'a> Printer<'a> {
     /// Render one keyframe selector as canonical CSS source.
     pub(crate) fn render_keyframe_selector(selector: &KeyframeSelector) -> String {
         match selector {
-            KeyframeSelector::Percentage(value) => {
-                let mut source = String::new();
-                Self::write_token(&mut source, &Token::Percentage(*value));
-                source
-            }
+            KeyframeSelector::Percentage(value) => TokenRenderer::render_percentage_source(*value),
             KeyframeSelector::From => "from".to_string(),
             KeyframeSelector::To => "to".to_string(),
             KeyframeSelector::TimelineRangePercentage(range) => format!(
@@ -91,24 +88,24 @@ impl<'a> Printer<'a> {
             SimpleSelector::ExplicitNoNamespace => source.push('|'),
             SimpleSelector::DefaultNamespace => {}
             SimpleSelector::Namespace(prefix) => {
-                source.push_str(&Self::render_identifier(prefix));
+                source.push_str(&self.render_identifier(prefix));
                 source.push('|');
             }
             SimpleSelector::ExplicitUniversalType => source.push('*'),
             SimpleSelector::LocalName(name) => {
-                source.push_str(&Self::render_identifier(&name.name));
+                source.push_str(&self.render_identifier(&name.name));
             }
             SimpleSelector::Id(value) => {
                 source.push('#');
-                source.push_str(&Self::render_identifier(value));
+                source.push_str(&self.render_identifier(value));
             }
             SimpleSelector::Class(value) => {
                 source.push('.');
-                source.push_str(&Self::render_identifier(value));
+                source.push_str(&self.render_identifier(value));
             }
             SimpleSelector::Attribute(selector) => {
                 let selector = self.tree.get(*selector);
-                Self::write_attribute_selector(source, selector);
+                self.write_attribute_selector(source, selector);
             }
             SimpleSelector::Negation(selectors) => {
                 source.push_str(":not(");
@@ -143,7 +140,7 @@ impl<'a> Printer<'a> {
                         source.push(' ');
                     }
 
-                    source.push_str(&Self::render_identifier(part));
+                    source.push_str(&self.render_identifier(part));
                 }
                 source.push(')');
             }
@@ -183,9 +180,13 @@ impl<'a> Printer<'a> {
         }
     }
     /// Write one attribute selector into CSS source.
-    pub(crate) fn write_attribute_selector(source: &mut String, selector: &AttributeSelector) {
+    pub(crate) fn write_attribute_selector(
+        &self,
+        source: &mut String,
+        selector: &AttributeSelector,
+    ) {
         source.push('[');
-        Self::write_component_value_list(source, &selector.components);
+        self.write_component_value_list(source, &selector.components);
         source.push(']');
     }
 
@@ -277,11 +278,21 @@ impl<'a> Printer<'a> {
     pub(crate) fn write_pseudo_argument(&self, source: &mut String, argument: &PseudoArgument) {
         match argument {
             PseudoArgument::Components(arguments) => {
-                Self::write_component_value_list(source, arguments);
+                self.write_component_value_list(source, arguments);
             }
             PseudoArgument::Selector(selector) => {
                 let selector = self.tree.get(*selector);
                 self.write_selector(source, selector);
+            }
+            PseudoArgument::ViewTransitionPart(argument) => {
+                if let Some(name) = &argument.name {
+                    source.push_str(name);
+                }
+
+                for class in &argument.classes {
+                    source.push('.');
+                    source.push_str(&self.render_identifier(class));
+                }
             }
         }
     }
@@ -314,10 +325,8 @@ impl<'a> Printer<'a> {
     }
 
     /// Render one identifier as canonical CSS source.
-    pub(crate) fn render_identifier(value: &str) -> String {
-        let mut source = String::new();
-        Self::write_token(&mut source, &Token::Ident(value.to_string()));
-        source
+    pub(crate) fn render_identifier(&self, value: &str) -> String {
+        self.token_renderer().render_identifier(value)
     }
 
     /// Render one page selector list as canonical CSS source.

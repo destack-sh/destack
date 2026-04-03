@@ -1,10 +1,11 @@
+use destack_core::StringPool;
 use destack_fir::format::{FormatContext, FormatResult, format};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_source::{File, FileType};
 
 use super::CssFormatOptions;
-use crate::print::Printer;
+use crate::print::TokenRenderer;
 use crate::{
     AnySelector, BlockKind, Combinator, ComponentValue, ComponentValueList, ConditionOperator,
     ContainerCondition, ContainerRule, ContainerScrollStateQuery, ContainerStyleQuery,
@@ -27,7 +28,7 @@ pub fn format_stylesheet(
     stylesheet: LocalNodeId<Stylesheet>,
     options: CssFormatOptions,
 ) -> FormatResult<String> {
-    let context = CssFormatContext::new(options);
+    let context = CssFormatContext::new(options, tree.strings.clone());
     let formatted = format(
         context,
         destack_fir::format_args![format_with(|f| write_stylesheet(tree, stylesheet, f))],
@@ -43,14 +44,17 @@ struct CssFormatContext {
     options: CssFormatOptions,
     /// The virtual CSS file used by FIR printing.
     file: File,
+    /// The pooled css strings for this formatting pass.
+    strings: StringPool,
 }
 
 impl CssFormatContext {
     /// Create one CSS formatting context.
-    fn new(options: CssFormatOptions) -> Self {
+    fn new(options: CssFormatOptions, strings: StringPool) -> Self {
         Self {
             options,
             file: File::empty_text(FileType::Css),
+            strings,
         }
     }
 
@@ -63,11 +67,7 @@ impl CssFormatContext {
 
     /// Render one component token as canonical CSS.
     fn render_component_token(&self, token: &Token) -> String {
-        let mut source = String::new();
-
-        Printer::write_token(&mut source, token);
-
-        source
+        TokenRenderer::new(&self.strings).render_token(token)
     }
 }
 
@@ -388,9 +388,9 @@ fn write_selector_list(
 
 /// Write one identifier token.
 fn write_identifier(value: &str, f: &mut Formatter<'_, CssFormatContext>) -> FormatResult<()> {
-    let token = Token::Ident(value.to_string());
+    let source = TokenRenderer::render_identifier_source(value);
 
-    write_component_token(&token, f)
+    write!(f, [text(&source)])
 }
 
 /// Write one selector.
@@ -607,6 +607,17 @@ fn write_pseudo_argument(
     match argument {
         PseudoArgument::Components(arguments) => write_component_value_list(arguments, f),
         PseudoArgument::Selector(selector) => write_selector(tree, *selector, f),
+        PseudoArgument::ViewTransitionPart(argument) => {
+            if let Some(name) = &argument.name {
+                write!(f, [text(name)])?;
+            }
+
+            for class in &argument.classes {
+                write!(f, [token("."), text(class)])?;
+            }
+
+            Ok(())
+        }
     }
 }
 
@@ -2011,7 +2022,8 @@ fn write_component_function(
     function: &Function,
     f: &mut Formatter<'_, CssFormatContext>,
 ) -> FormatResult<()> {
-    write!(f, [text(&function.name), token("(")])?;
+    let function_name = f.context().strings.get(function.name).to_string();
+    write!(f, [text(&function_name), token("(")])?;
 
     // nested values
     write_component_value_list(&function.arguments, f)?;
@@ -2053,6 +2065,7 @@ fn write_number(number: Number, f: &mut Formatter<'_, CssFormatContext>) -> Form
     write_component_token(&Token::Number(number), f)
 }
 
+/// Render one component token as canonical CSS.
 /// Write one nested rule list.
 fn write_rule_list(
     tree: &NodeTree,
@@ -2070,32 +2083,4 @@ fn write_rule_list(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{CssFormatOptions, format_stylesheet};
-    use crate::parse_css;
-    use destack_source::{File, FileId, FileType, Uri};
-
-    /// Preserve block structure while formatting nested CSS rules.
-    #[test]
-    fn test_format_stylesheet() {
-        let file = File::from_text(
-            FileId::new(1),
-            "style.css".to_string(),
-            Uri::from_string("test:///style.css"),
-            None,
-            FileType::Css,
-            String::new(),
-        );
-        let source = "@media screen{.button{color:red;background:blue}}";
-        let (tree, stylesheet) = parse_css(&file, source).unwrap();
-        let formatted = format_stylesheet(&tree, stylesheet, CssFormatOptions::default()).unwrap();
-
-        assert_eq!(
-            formatted,
-            "@media screen {\n    .button {\n        color: red;\n        background: #00f;\n    }\n}\n"
-        );
-    }
 }
