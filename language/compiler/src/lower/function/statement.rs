@@ -18,14 +18,13 @@ impl FunctionLowerer<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<Terminates> {
         match self.context.dir_tree.get(expression_id) {
-            Expression::Statement { statement } => self.lower_statement_expression(*statement),
             Expression::Labelled { body, symbol, .. } => {
                 self.lower_labelled_statement(expression_id, *symbol, *body)
             }
             Expression::Block { block } => {
                 let block = self.context.dir_tree.get(*block);
-                for expr_id in &block.expressions {
-                    let terminated = self.lower_statement_expression(*expr_id)?;
+                for expr_id in block.iter_expressions() {
+                    let terminated = self.lower_statement_expression(expr_id)?;
                     if terminated.is_yes() {
                         return Ok(Terminates::Yes);
                     }
@@ -597,8 +596,8 @@ impl FunctionLowerer<'_> {
     /// Lower a block body (list of expressions).
     fn lower_block_body(&mut self, block_id: LocalNodeId<dir::Block>) -> LowerResult<Terminates> {
         let block = self.context.dir_tree.get(block_id);
-        for expr_id in &block.expressions {
-            let terminated = self.lower_statement_expression(*expr_id)?;
+        for expr_id in block.iter_expressions() {
+            let terminated = self.lower_statement_expression(expr_id)?;
             if terminated.is_yes() {
                 return Ok(Terminates::Yes);
             }

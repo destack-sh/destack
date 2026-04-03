@@ -20,7 +20,7 @@ use destack_dir::{
     LocalNodeIdAny, LocalScopeId, NodeTree, Pattern, ScalarLiteral, StringId, Symbol, SymbolTable,
     TypeTable,
 };
-use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_linter::Linter;
 use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
@@ -194,10 +194,10 @@ pub struct ExpectedDiagnostic {
     pub message: String,
 }
 
-/// Resolve a root expression id, unwrapping statement wrappers.
+/// Resolve a root expression id.
 pub fn root_expression_id(
     roots: &[LocalNodeId<Expression>],
-    tree: &NodeTree,
+    _tree: &NodeTree,
     index: usize,
 ) -> LocalNodeId<Expression> {
     // select the requested root
@@ -206,12 +206,7 @@ pub fn root_expression_id(
         .copied()
         .unwrap_or_else(|| panic!("missing root at index {index}"));
 
-    // unwrap statement roots
-    let expression = tree.get(root_id);
-    match expression {
-        Expression::Statement { statement } => *statement,
-        _ => root_id,
-    }
+    root_id
 }
 
 /// Find a let declarator by binding name.
@@ -224,10 +219,6 @@ pub fn expect_let_declarator_by_name(
     for root_id in roots {
         let let_expression_id = match tree.get(*root_id) {
             Expression::Let { .. } => Some(*root_id),
-            Expression::Statement { statement } => match tree.get(*statement) {
-                Expression::Let { .. } => Some(*statement),
-                _ => None,
-            },
             _ => None,
         };
 
@@ -1761,14 +1752,11 @@ impl TestProgram {
             NodeParentIndex::from_tree(&unbound.tree),
         );
 
-        // format each root expression and join with blank lines
-        let mut results = Vec::new();
-        for root_id in &unbound.roots {
-            let formatted = destack_fir::format!(context.clone(), [root_id]).unwrap();
-            let printed = formatted.print().unwrap();
-            results.push(printed.into_str());
-        }
-        results.join("\n\n")
+        // format the module roots as one statement list
+        let formatted = destack_fir::format!(context, [statement_list(&unbound.roots)]).unwrap();
+        let printed = formatted.print().unwrap();
+
+        printed.into_str()
     }
 
     /// Format a module's MIR to a string.
@@ -1993,13 +1981,7 @@ impl TestProgram {
             panic!("expected single root expression");
         }
 
-        // unwrap statement roots to their inner expression
-        let root_id = roots[0];
-        let expression = dir.tree.get(root_id);
-        match expression {
-            Expression::Statement { statement } => *statement,
-            _ => root_id,
-        }
+        roots[0]
     }
 
     /// Get the nth function symbol declared in a module.
@@ -2016,10 +1998,6 @@ impl TestProgram {
             // select the declaration expression if present
             let declaration_id = match expression {
                 Expression::Declaration { declaration } => Some(*declaration),
-                Expression::Statement { statement } => match tree.get(*statement) {
-                    Expression::Declaration { declaration } => Some(*declaration),
-                    _ => None,
-                },
                 _ => None,
             };
 
@@ -2056,10 +2034,6 @@ impl TestProgram {
             // select the let expression if present
             let let_expression_id = match expression {
                 Expression::Let { .. } => Some(*root_id),
-                Expression::Statement { statement } => match tree.get(*statement) {
-                    Expression::Let { .. } => Some(*statement),
-                    _ => None,
-                },
                 _ => None,
             };
 

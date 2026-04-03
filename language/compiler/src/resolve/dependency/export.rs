@@ -787,10 +787,8 @@ impl Compiler {
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
     ) -> LocalNodeId<Expression> {
-        match tree.get(expression_id) {
-            Expression::Statement { statement } => *statement,
-            _ => expression_id,
-        }
+        let _ = tree;
+        expression_id
     }
 
     /// Unwrap transparent wrappers for static CommonJS matching.

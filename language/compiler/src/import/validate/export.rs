@@ -43,11 +43,10 @@ impl Compiler {
             return;
         }
 
-        // collect top level expressions after unwrapping statement wrappers
+        // collect top level expressions
         let mut top_level_expression_ids = HashSet::new();
         for root_id in roots {
-            let expression_id = self.unwrap_statement_expression_for_import(tree, *root_id);
-            top_level_expression_ids.insert(expression_id.id);
+            top_level_expression_ids.insert(root_id.id);
         }
 
         // report nested static dependencies as import errors
@@ -115,8 +114,7 @@ impl Compiler {
     ) {
         // only direct module exports participate in local export name validation
         for root_id in roots {
-            let expression_id = self.unwrap_statement_expression_for_import(tree, *root_id);
-            let Expression::Export { items, .. } = tree.get(expression_id) else {
+            let Expression::Export { items, .. } = tree.get(*root_id) else {
                 continue;
             };
 
@@ -177,8 +175,7 @@ impl Compiler {
 
         // scan top-level roots in source order
         for root_id in roots {
-            let expression_id = self.unwrap_statement_expression_for_import(tree, *root_id);
-            let expression = tree.get(expression_id);
+            let expression = tree.get(*root_id);
 
             // collect exported names by expression kind
             match expression {
@@ -287,26 +284,6 @@ impl Compiler {
                 }
                 _ => {}
             }
-        }
-    }
-
-    /// Unwrap statement wrappers to access the inner expression.
-    fn unwrap_statement_expression_for_import(
-        &self,
-        tree: &destack_dir::NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        let mut current = expression_id;
-
-        // walk through statement wrappers
-        loop {
-            let expression = tree.get(current);
-            if let Expression::Statement { statement } = expression {
-                current = *statement;
-                continue;
-            }
-
-            return current;
         }
     }
 

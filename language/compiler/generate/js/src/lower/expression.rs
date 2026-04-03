@@ -47,28 +47,6 @@ impl ModuleLowerer<'_> {
                 self.tree.alias_from(expression_id.id, block_id);
                 block_id.into_any()
             }
-            dir::Expression::Statement { statement } => {
-                let lowered_id = self.lower_expression(*statement)?;
-                let statement_id: LocalNodeId<Statement> = match lowered_id.ty {
-                    // wrap expression in statement (normal, no warning)
-                    NodeType::Expression => {
-                        let statement = Statement::Expression {
-                            expression: lowered_id.try_into().unwrap(),
-                        };
-                        self.tree
-                            .insert_from_source(statement, self.module.id, expression_id)
-                    }
-                    NodeType::Statement => lowered_id.try_into().unwrap(),
-                    _ => {
-                        return Err(CodegenJsError::UnsupportedConstruct {
-                            node: expression_id.into_global_any(self.module.id),
-                            message: None,
-                        });
-                    }
-                };
-                self.tree.alias_from(lowered_id.id, statement_id);
-                statement_id.into_any()
-            }
 
             dir::Expression::UnresolvedImport {
                 source,

@@ -1886,65 +1886,41 @@ string;
     let tree = &dir.tree;
     let roots = &dir.roots;
 
-    assert_node!(tree, roots[0], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[0], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))));
-        });
     });
-    assert_node!(tree, roots[1], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[1], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))));
-        });
     });
-    assert_node!(tree, roots[2], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[2], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int64))));
-        });
     });
-    assert_node!(tree, roots[3], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[3], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Arbitrary { width: 68, is_signed: true }))));
-        });
     });
-    assert_node!(tree, roots[4], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[4], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint32))));
-        });
     });
-    assert_node!(tree, roots[5], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[5], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8))));
-        });
     });
-    assert_node!(tree, roots[6], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[6], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint16))));
-        });
     });
-    assert_node!(tree, roots[7], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[7], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64))));
-        });
     });
-    assert_node!(tree, roots[8], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[8], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float32))));
-        });
     });
-    assert_node!(tree, roots[9], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[9], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64))));
-        });
     });
-    assert_node!(tree, roots[10], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[10], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::Boolean)));
-        });
     });
-    assert_node!(tree, roots[11], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::TypeLiteral { value } => {
+    assert_node!(tree, roots[11], Expression::TypeLiteral { value } => {
             assert!(matches!(value, TypeLiteral::Primitive(PrimitiveType::String)));
-        });
     });
 }
 
@@ -1969,9 +1945,7 @@ string;
     let (string_symbol_id, _) = test
         .resolve_to_node::<Pattern>("test.ds", "string")
         .unwrap();
-    assert_node!(tree, roots[1], Expression::Statement { statement } => {
-        assert_node!(tree, *statement, Expression::ModuleReference { target_symbol, .. } => {
+    assert_node!(tree, roots[1], Expression::ModuleReference { target_symbol, .. } => {
             assert_eq!(*target_symbol, string_symbol_id);
-        });
     });
 }
