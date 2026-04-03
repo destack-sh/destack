@@ -315,7 +315,13 @@ impl Compiler {
 
         for heritage_expression_id in extends_types.iter().chain(implements_types.iter()) {
             let heritage_expression = tree.get(*heritage_expression_id);
-            let Some(heritage_symbol) = heritage_expression.target_symbol() else {
+
+            // generic heritage expressions keep the nominal target on the left reference
+            let heritage_symbol = match heritage_expression {
+                Expression::Instantiation { left, .. } => tree.get(*left).target_symbol(),
+                _ => heritage_expression.target_symbol(),
+            };
+            let Some(heritage_symbol) = heritage_symbol else {
                 continue;
             };
             let canonical_symbol =

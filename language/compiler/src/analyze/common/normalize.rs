@@ -1746,6 +1746,30 @@ impl Compiler {
             }
         }
 
+        let filtered =
+            self.collapse_exhaustive_simple_literal_union_members(filtered, type_id, ctx.types);
+
+        // drop literal members that are already covered by one simple primitive
+        let mut simplified = Vec::new();
+        for element_id in filtered {
+            if self.union_element_is_subsumed_by_simple_primitive_member(
+                element_id,
+                &simplified,
+                ctx.types,
+            ) {
+                continue;
+            }
+
+            simplified.retain(|existing| {
+                !self.union_element_is_subsumed_by_simple_primitive_member(
+                    *existing,
+                    &[element_id],
+                    ctx.types,
+                )
+            });
+            simplified.push(element_id);
+        }
+
         // honor dominating any or unknown
         if let Some(any_type) = any_type {
             return any_type;
@@ -1755,7 +1779,7 @@ impl Compiler {
         }
 
         // no matches means never
-        if filtered.is_empty() {
+        if simplified.is_empty() {
             return never_type.unwrap_or_else(|| {
                 ctx.types.insert_type_from_any(
                     Type::TypeLiteral {
@@ -1767,16 +1791,16 @@ impl Compiler {
         }
 
         // short circuit when a single element remains
-        if filtered.len() == 1 {
-            return filtered[0];
+        if simplified.len() == 1 {
+            return simplified[0];
         }
 
         // reuse existing union id when unchanged
-        if filtered == elements {
+        if simplified == elements {
             return type_id;
         }
 
-        ctx.types.intern_union_type(filtered, type_id)
+        ctx.types.intern_union_type(simplified, type_id)
     }
 
     /// Normalize intersection types by flattening and collapsing special cases.

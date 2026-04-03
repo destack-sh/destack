@@ -92,6 +92,8 @@ struct CallExpressionResolution {
     call_member_resolution: Option<MemberResolution>,
     /// Member-call lookup context when the callee is a member expression.
     member_call_context: Option<MemberCallContext>,
+    /// Static arguments supplied on the member expression itself.
+    member_static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     /// Inherited static arguments from the receiver.
     inherited_static_arguments: Vec<StaticArgument>,
     /// Inherited substitutions from the receiver.
@@ -1546,7 +1548,8 @@ impl Compiler {
         // resolve effective static-argument sources
         let effective_static_arguments =
             self.query_call_signature_static_arguments(static_arguments, &call);
-        let union_static_arguments = effective_static_arguments;
+        let union_static_arguments =
+            self.query_union_member_call_static_arguments(static_arguments, &call);
 
         // handle union receiver member calls with dynamic resolution
         let union_return_type_id = self.infer_union_member_call_expression(
@@ -2438,6 +2441,7 @@ impl Compiler {
                             call_receiver_ty_id: None,
                             call_member_resolution: None,
                             member_call_context: None,
+                            member_static_arguments: None,
                             inherited_static_arguments: Vec::new(),
                             inherited_substitutions: HashMap::new(),
                             member_instance_arguments: None,
@@ -2567,6 +2571,7 @@ impl Compiler {
             call_receiver_ty_id: Some(receiver_ty_id),
             call_member_resolution: Some(member_resolution),
             member_call_context,
+            member_static_arguments,
             inherited_static_arguments,
             inherited_substitutions,
             member_instance_arguments,
@@ -2605,6 +2610,7 @@ impl Compiler {
                 call_receiver_ty_id: None,
                 call_member_resolution: None,
                 member_call_context: None,
+                member_static_arguments: None,
                 inherited_static_arguments: Vec::new(),
                 inherited_substitutions: HashMap::new(),
                 member_instance_arguments: None,
@@ -2622,6 +2628,7 @@ impl Compiler {
             call_receiver_ty_id: None,
             call_member_resolution: None,
             member_call_context: None,
+            member_static_arguments: None,
             inherited_static_arguments: Vec::new(),
             inherited_substitutions: HashMap::new(),
             member_instance_arguments: None,
@@ -2693,6 +2700,23 @@ impl Compiler {
             return static_arguments;
         }
         None
+    }
+
+    /// Query effective static arguments for union member-call candidate resolution.
+    fn query_union_member_call_static_arguments<'a>(
+        &self,
+        static_arguments: Option<&'a [LocalNodeId<Argument>]>,
+        call: &'a CallExpressionResolution,
+    ) -> Option<&'a [LocalNodeId<Argument>]> {
+        if call.has_static_argument_conflict {
+            return None;
+        }
+
+        if call.call_has_static_arguments {
+            return static_arguments;
+        }
+
+        call.member_static_arguments.as_deref()
     }
 
     /// Infer dynamic union member-call dispatch when the receiver is a union.
