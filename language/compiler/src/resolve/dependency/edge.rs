@@ -1097,7 +1097,11 @@ impl Compiler {
             .map(|options| {
                 let options = options.compiler;
 
-                options.es_module_interop || options.allow_synthetic_default_imports
+                matches!(
+                    options.module_resolution,
+                    destack_workspace::ModuleResolution::Node16
+                        | destack_workspace::ModuleResolution::NodeNext
+                )
             })
             .or_else(|| {
                 self.repository

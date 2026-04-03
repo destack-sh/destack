@@ -90,11 +90,6 @@ impl ImportResolveContext {
 
 /// Return whether TypeScript compiler options enable CommonJS default import interop.
 pub fn typescript_commonjs_default_interop_is_enabled(options: &TsCompilerOptions) -> bool {
-    // explicit tsconfig interop flags enable synthetic default imports
-    if options.es_module_interop || options.allow_synthetic_default_imports {
-        return true;
-    }
-
     // node esm module resolution semantics include commonjs default interop
     matches!(
         options.module_resolution,
@@ -596,16 +591,16 @@ mod tests {
         assert!(!allowed);
     }
 
-    /// Allow typescript default imports from CommonJS with esModuleInterop.
+    /// Allow typescript default imports from CommonJS under nodenext resolution.
     #[test]
-    fn test_commonjs_default_namespace_import_policy_typescript_es_module_interop() {
+    fn test_commonjs_default_namespace_import_policy_typescript_nodenext_resolution() {
         let context = ImportResolveContext {
             dependency_kind: DependencyKind::Value,
             source_language_type: Some(LanguageType::TypeScript),
             edge_relation: ModuleEdgeRelation::Import,
         };
         let options = TsCompilerOptions {
-            es_module_interop: true,
+            module_resolution: ModuleResolution::NodeNext,
             ..TsCompilerOptions::default()
         };
 

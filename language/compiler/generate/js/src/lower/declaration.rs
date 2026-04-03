@@ -188,6 +188,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Declaration::Class {
                 descriptor,
+                self_symbol: _,
                 scope: _,
                 generics,
                 heritage,
@@ -247,6 +248,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Declaration::Function {
                 descriptor,
+                self_symbol: _,
                 scope: _,
                 signature,
                 body,

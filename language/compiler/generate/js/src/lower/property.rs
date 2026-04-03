@@ -104,13 +104,7 @@ impl ModuleLowerer<'_> {
                 let signature = self.lower_function_signature(signature)?;
                 let body = body
                     .as_ref()
-                    .map(|body_id| {
-                        self.lower_expression(*body_id)
-                            .expect_node::<js::Expression>(
-                                body_id.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                    .map(|body_id| self.lower_expression_as_block(*body_id))
                     .transpose()?;
 
                 js::Property::Method {
@@ -221,13 +215,7 @@ impl ModuleLowerer<'_> {
                 let signature = self.lower_function_signature(signature)?;
                 let body = body
                     .as_ref()
-                    .map(|body_id| {
-                        self.lower_expression(*body_id)
-                            .expect_node::<js::Expression>(
-                                body_id.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                    .map(|body_id| self.lower_expression_as_block(*body_id))
                     .transpose()?;
 
                 js::Member::Method {
@@ -244,9 +232,7 @@ impl ModuleLowerer<'_> {
                 });
             }
             dir::Member::StaticBlock { body, .. } => {
-                let body = self
-                    .lower_expression(*body)
-                    .expect_node::<js::Expression>(body.into_global_any(self.module.id), self)?;
+                let body = self.lower_expression_as_block(*body)?;
 
                 js::Member::StaticBlock { body }
             }
