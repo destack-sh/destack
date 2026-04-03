@@ -3672,7 +3672,12 @@ impl Compiler {
             };
 
             // infer structural type from JSON value
-            Ok(json_value_to_type(value, source_node, types, &self.repository.strings))
+            Ok(json_value_to_type(
+                value,
+                source_node,
+                types,
+                &self.repository.strings,
+            ))
         }
         // otherwise text imports are always string
         else if target_module.loader.is_text() {

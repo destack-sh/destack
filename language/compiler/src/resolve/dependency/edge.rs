@@ -87,7 +87,7 @@ impl Compiler {
 
     /// Return whether one selected target explicitly externalizes a specifier.
     fn target_externalizes_dependency_specifier(&self, target: &Target, specifier: &str) -> bool {
-        let dependency = &target.bundle.dependencies;
+        let dependency = &target.bundle_dependencies;
 
         dependency
             .external

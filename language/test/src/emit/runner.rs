@@ -1,6 +1,7 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
+use std::{env, fs};
 
 use crate::core::{
     Case, CaseResult, RunContext, RunOptions, Runner, Suite, current_workspace_revision,
@@ -13,12 +14,17 @@ use destack_workspace::{Repository, Target};
 
 use super::assert::compare_directory;
 use super::discover::{SOURCE_EXTENSIONS, discover_emit_cases, discover_source_files};
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct EmitSuite;
 
 impl Suite for EmitSuite {
     fn name(&self) -> &'static str {
         "emit"
+    }
+
+    fn runs_in_parallel(&self) -> bool {
+        false
     }
 
     fn discover(&self, _options: &RunOptions) -> Vec<Case> {
@@ -112,11 +118,168 @@ pub fn run_emit_tests(options: &RunOptions) -> std::process::ExitCode {
     Runner::run_suite(EmitSuite, options)
 }
 
+/// Return the emit timing filter from the environment.
+fn emit_trace_filter() -> Option<String> {
+    env::var("DESTACK_EMIT_TRACE")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+/// Return whether emit runs should disable builtin library loading.
+fn emit_trace_disables_libraries() -> bool {
+    env::var("DESTACK_EMIT_NO_LIBS")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .is_some_and(|value| value > 0)
+}
+
+/// Return whether one emit case should print compiler timings.
+fn should_trace_emit_case(test: &Case) -> bool {
+    let Some(filter) = emit_trace_filter() else {
+        return false;
+    };
+
+    if filter == "1" || filter == "all" || filter == "*" {
+        return true;
+    }
+
+    test.name.contains(&filter)
+}
+
+/// Return true when the package config explicitly requests builtin libraries.
+fn emit_has_explicit_libs(
+    repository: &Repository,
+    revision: destack_workspace::Revision,
+    package_id: destack_source::PackageId,
+) -> bool {
+    let Ok(package_options) = repository.package_options(revision, package_id) else {
+        return false;
+    };
+    let Some(package_options) = package_options else {
+        return false;
+    };
+
+    // compiler lib entries
+    if !package_options.compiler.lib.is_empty() {
+        return true;
+    }
+
+    // target lib entries
+    package_options
+        .targets
+        .values()
+        .any(|target| target.lib.is_some())
+}
+
+/// Return whether one emit case should load builtin libraries.
+fn emit_case_load_libraries(
+    repository: &Repository,
+    revision: destack_workspace::Revision,
+    package_id: destack_source::PackageId,
+    module_ids: &[destack_source::ModuleId],
+    targets: &[(String, Target)],
+) -> bool {
+    // debug override
+    if emit_trace_disables_libraries() {
+        return false;
+    }
+
+    // explicit config opts in immediately
+    if emit_has_explicit_libs(repository, revision, package_id) {
+        return true;
+    }
+
+    // derived target profiles may still require ambient libs
+    for module_id in module_ids {
+        for (target_name, _) in targets {
+            let target_id = repository.intern_target_id(package_id, target_name);
+            let Ok(profile) =
+                repository.profile_for_target_or_default(revision, *module_id, &target_id)
+            else {
+                continue;
+            };
+
+            if !profile.key.lib.is_empty() {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Format one duration in milliseconds for compact debug output.
+fn format_duration_ms(duration: Duration) -> String {
+    format!("{:.2}ms", duration.as_secs_f64() * 1000.0)
+}
+
+/// Print one compiler timing summary for one emit case.
+fn print_emit_timing_summary(test: &Case, compiler: &Compiler) {
+    let snapshot = compiler.stats.snapshot();
+
+    eprintln!();
+    eprintln!("emit timing: {}", test.name);
+    eprintln!("  elapsed: {}", format_duration_ms(snapshot.elapsed));
+    eprintln!("  modules: {}", snapshot.modules_processed());
+    eprintln!(
+        "  cache: hits={} misses={} writes={}",
+        snapshot.cache_totals().hits_memory,
+        snapshot.cache_totals().misses,
+        snapshot.cache_totals().writes_memory
+    );
+
+    eprintln!("  packages:");
+    for package in snapshot.packages.iter().take(8) {
+        let name = package.name.as_deref().unwrap_or("<unnamed>");
+        eprintln!(
+            "    {}: {} modules, {} lines, {}",
+            name,
+            package.modules,
+            package.lines,
+            format_duration_ms(package.duration)
+        );
+    }
+
+    eprintln!("  phases:");
+    for phase in snapshot.phases.iter().take(8) {
+        eprintln!(
+            "    {}: {} across {} tasks",
+            phase.phase.code(),
+            format_duration_ms(phase.duration),
+            phase.task_count
+        );
+    }
+
+    eprintln!("  tasks:");
+    for task in snapshot.task_names.iter().take(8) {
+        eprintln!(
+            "    {}: {} across {} tasks",
+            task.name,
+            format_duration_ms(task.duration),
+            task.task_count
+        );
+    }
+
+    if !snapshot.timings.is_empty() {
+        eprintln!("  timings:");
+        for timing in snapshot.timings.iter().take(12) {
+            eprintln!(
+                "    {}: {} across {} samples",
+                timing.name,
+                format_duration_ms(timing.duration),
+                timing.sample_count
+            );
+        }
+    }
+}
+
 /// Run a single emit test.
 fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let destack_config_path = test.path.join("destack.json");
     let diagnostics_snapshot = test.path.join("diagnostics.txt");
     let dist_expected = test.path.join("dist");
+    let has_dist_snapshot = dist_expected.exists();
 
     // success-only fixture contract
     if diagnostics_snapshot.exists() {
@@ -164,11 +327,14 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     }
 
     // set up compiler
-    let compiler = Compiler::new(
+    let trace_timings = should_trace_emit_case(test);
+    let mut compiler = Compiler::new(
         repository.clone(),
         CompilerOptions {
             workers: 1,
             inject_prelude: false,
+            load_libraries: false,
+            timings: trace_timings,
             ..Default::default()
         },
     );
@@ -211,6 +377,11 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
         .expect("missing emit module")
         .package_id;
 
+    // load only the ambient libraries that the resolved profiles actually need
+    let load_libraries =
+        emit_case_load_libraries(&repository, revision, package_id, &module_ids, &targets);
+    compiler.options.load_libraries = load_libraries;
+
     // clean
     if actual_root.exists()
         && let Err(e) = fs::remove_dir_all(&actual_root)
@@ -227,6 +398,10 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     }
     compiler.compile();
 
+    if trace_timings {
+        print_emit_timing_summary(test, &compiler);
+    }
+
     // check for errors
     let diagnostics =
         collect_emit_diagnostics(&repository, revision, package_id, &module_ids, &targets);
@@ -241,6 +416,12 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     if let Some(diagnostics) = unexpected_diagnostics {
         return CaseResult::Failed {
             message: format!("unexpected diagnostics:\n{diagnostics}"),
+        };
+    }
+
+    if !has_dist_snapshot && !context.options.update_snapshots {
+        return CaseResult::Failed {
+            message: format!("emit fixture must define dist/: {}", test.path.display()),
         };
     }
 

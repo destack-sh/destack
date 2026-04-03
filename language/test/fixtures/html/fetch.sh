@@ -14,3 +14,7 @@ bash "$HELPER" "html5lib fixtures" "$HTML5LIB_TESTS_VERSION" "$HTML5LIB_TESTS_RE
     "tokenizer" \
     "tree-construction" \
     "encoding"
+
+# script-driven tree-construction fixtures require DOM mutation during parsing,
+# which is outside this parser-only harness
+rm -rf "$HTML5LIB_TARGET/tree-construction/scripted"

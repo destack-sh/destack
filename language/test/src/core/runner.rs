@@ -106,8 +106,14 @@ impl Runner {
         let run = Arc::new(move |case: &Case, ctx: &RunContext<'_>| suite_for_run.run(case, ctx));
 
         // execute the suite and collect both raw and rewritten results
-        let (exit_code, results, raw_results, expected_summary) =
-            Self::run_cases_and_collect(cases, expected_failures, &context, case_noun, run);
+        let (exit_code, results, raw_results, expected_summary) = Self::run_cases_and_collect(
+            cases,
+            expected_failures,
+            &context,
+            case_noun,
+            suite.runs_in_parallel(),
+            run,
+        );
 
         // report raw results when baselines are being updated
         let report_results = if context.options.update_known_failures {
@@ -132,7 +138,7 @@ impl Runner {
     {
         let run = Arc::new(run);
         let (exit_code, _results, _raw_results, _summary) =
-            Self::run_cases_and_collect(cases, None, context, "tests", run);
+            Self::run_cases_and_collect(cases, None, context, "tests", true, run);
         exit_code
     }
 
@@ -142,6 +148,7 @@ impl Runner {
         expected_failures: Option<&HashSet<String>>,
         context: &RunContext<'_>,
         case_noun: &str,
+        suite_runs_in_parallel: bool,
         run: Arc<F>,
     ) -> RunCasesResult
     where
@@ -173,8 +180,12 @@ impl Runner {
         let mut expected_summary =
             track_expected_failures.then(|| ExpectedFailureSummary::new(expected_failures));
         let abort_on_timeout = context.options.aborts_on_timeout();
-        let should_run_parallel =
-            should_run_parallel(context.options, context.timeout, abort_on_timeout);
+        let should_run_parallel = should_run_parallel(
+            context.options,
+            context.timeout,
+            abort_on_timeout,
+            suite_runs_in_parallel,
+        );
 
         let mut final_results_indexed: Vec<(usize, Case, CaseResult)> = Vec::new();
         let mut raw_results_indexed: Vec<(usize, Case, CaseResult)> = Vec::new();
@@ -405,8 +416,12 @@ fn should_run_parallel(
     options: &RunOptions,
     timeout: Option<Duration>,
     abort_on_timeout: bool,
+    suite_runs_in_parallel: bool,
 ) -> bool {
-    options.runs_in_parallel() && options.jobs > 1 && !(timeout.is_some() && abort_on_timeout)
+    suite_runs_in_parallel
+        && options.runs_in_parallel()
+        && options.jobs > 1
+        && !(timeout.is_some() && abort_on_timeout)
 }
 
 /// Compute a skip reason for a case when it should not run.
@@ -543,16 +558,28 @@ mod tests {
             ..RunOptions::default()
         };
 
-        assert!(should_run_parallel(&options, None, true));
+        assert!(should_run_parallel(&options, None, true, true));
         assert!(should_run_parallel(
             &options,
             Some(Duration::from_secs(1)),
-            false
+            false,
+            true,
         ));
         assert!(!should_run_parallel(
             &options,
             Some(Duration::from_secs(1)),
-            true
+            true,
+            true,
         ));
+    }
+
+    #[test]
+    fn test_should_run_parallel_respects_suite_capability() {
+        let options = RunOptions {
+            jobs: 8,
+            ..RunOptions::default()
+        };
+
+        assert!(!should_run_parallel(&options, None, false, false));
     }
 }

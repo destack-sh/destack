@@ -133,9 +133,9 @@ fn format_destack_file_source(
 }
 
 /// Render one parser expression list through the main formatter.
-fn render_destack_expressions(
-    context: &DestackFormatContext<'_>,
-    expressions: &[LocalNodeId<Expression>],
+fn render_destack_expressions<'a>(
+    context: &DestackFormatContext<'a>,
+    expressions: &'a [LocalNodeId<Expression>],
 ) -> Result<String, FormatFileError> {
     // format the parsed roots
     let mut result = if expressions.is_empty() {

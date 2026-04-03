@@ -91,7 +91,7 @@ impl ScriptOutputDependencyCollector {
 impl<'a> ScriptLinker<'a> {
     /// Return whether target policy explicitly externalizes one dependency specifier.
     fn script_dependency_is_external(&self, target: &Target, specifier: &str) -> bool {
-        let dependency = &target.bundle.dependencies;
+        let dependency = &target.bundle_dependencies;
 
         dependency
             .external
@@ -106,8 +106,7 @@ impl<'a> ScriptLinker<'a> {
     /// Return whether target policy explicitly bundles one dependency specifier.
     fn script_dependency_is_always_bundled(&self, target: &Target, specifier: &str) -> bool {
         target
-            .bundle
-            .dependencies
+            .bundle_dependencies
             .always_bundle
             .iter()
             .any(|candidate| candidate == specifier)
@@ -125,7 +124,7 @@ impl<'a> ScriptLinker<'a> {
         let specifier = dependency_target.specifier();
         let has_resolved_module = dependency_target.module().is_some();
         let is_package_like = Compiler::is_package_like_dependency_specifier(specifier);
-        let dependency = &target.bundle.dependencies;
+        let dependency = &target.bundle_dependencies;
 
         // explicit external policy
         if self.script_dependency_is_external(target, specifier) {

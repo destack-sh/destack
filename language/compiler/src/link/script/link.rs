@@ -40,7 +40,7 @@ impl<'a> ScriptLinker<'a> {
         let mut output = self.package_output(output_files);
 
         // optional manifest
-        if self.target.bundle.output.manifest {
+        if self.target.bundle_output.manifest {
             let manifest = self.compiler.build_script_manifest(
                 self.package_dir,
                 self.target,
@@ -64,7 +64,7 @@ impl<'a> ScriptLinker<'a> {
     /// Validate the script bundle options used by this target.
     fn validate_target(&self) -> LinkResult<()> {
         // only esm bundle output is implemented so far
-        if let Some(format) = self.target.bundle.output.format
+        if let Some(format) = self.target.bundle_output.format
             && format != BundleFormat::Esm
         {
             return Err(LinkError::InvalidTarget {
@@ -72,29 +72,19 @@ impl<'a> ScriptLinker<'a> {
                 package: self.package_id,
                 target: *self.target_id,
                 message: format!(
-                    "bundle.output.format '{}' is not implemented yet",
+                    "bundleOutput.format '{}' is not implemented yet",
                     Self::bundle_format_name(format)
                 ),
             });
         }
 
-        // inline dynamic imports still need explicit runtime handling
-        if self.target.bundle.inline_dynamic_imports {
-            return Err(LinkError::InvalidTarget {
-                anchor: self.package_id.into(),
-                package: self.package_id,
-                target: *self.target_id,
-                message: "bundle.inlineDynamicImports is not implemented yet".to_string(),
-            });
-        }
-
         // minified bundle output is not wired yet
-        if self.target.bundle.minify.is_enabled() {
+        if self.target.minify.is_enabled() {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
                 target: *self.target_id,
-                message: "bundle.minify is not implemented yet".to_string(),
+                message: "minify is not implemented yet".to_string(),
             });
         }
 

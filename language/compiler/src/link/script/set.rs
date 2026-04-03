@@ -173,7 +173,7 @@ impl<'a> ScriptLinker<'a> {
 
                         // chunked outputs can retain internal dynamic edges as output links
                         if should_bundle {
-                            if self.target.bundle.assembly == BundleMode::Chunked {
+                            if self.target.assembly == BundleMode::Chunked {
                                 continue;
                             }
 

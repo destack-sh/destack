@@ -164,7 +164,7 @@ impl<'a> ScriptLinker<'a> {
 
         PackageOutput::new(
             self.target.emit,
-            Compiler::package_assembly(self.target.bundle.assembly),
+            Compiler::package_assembly(self.target.assembly),
             outputs,
         )
     }

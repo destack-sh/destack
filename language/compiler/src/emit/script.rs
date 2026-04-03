@@ -101,7 +101,7 @@ impl<'a> ScriptTextOutputPolicy<'a> {
         }
 
         // append footer text before any source map reference
-        if let Some(footer) = self.target.bundle.output.footer.as_deref() {
+        if let Some(footer) = self.target.bundle_output.footer.as_deref() {
             if !code.is_empty() && !code.ends_with('\n') {
                 code.push('\n');
             }
@@ -118,7 +118,7 @@ impl<'a> ScriptTextOutputPolicy<'a> {
 
     /// Return the exact banner prefix inserted before mapped script code.
     fn script_banner_prefix(self) -> String {
-        let Some(banner) = self.target.bundle.output.banner.as_deref() else {
+        let Some(banner) = self.target.bundle_output.banner.as_deref() else {
             return String::new();
         };
         let mut prefix = banner.to_string();
