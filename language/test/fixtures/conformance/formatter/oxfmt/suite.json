@@ -6,7 +6,7 @@
   "title": "Formatter Oxfmt",
   "origin": {
     "repo": "https://github.com/oxc-project/oxc.git",
-    "ref": "f4fefb6201295f2ba6cef1c1348b4b17c9d6e197",
+    "ref": "8c3607060b7432d51bcd0b049cb77bed473d35e3",
     "kind": "git"
   },
   "fetch": {

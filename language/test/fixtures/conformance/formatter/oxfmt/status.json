@@ -1,4 +1,13 @@
 {
   "$schema": "../../schema/status.schema.json",
-  "entries": []
+  "entries": [
+    {
+      "patterns": [
+        "js/ignore/oxfmt.js"
+      ],
+      "status": "ignore",
+      "reason": "legacy",
+      "note": "unsupported legacy `with` statement syntax"
+    }
+  ]
 }
