@@ -45,20 +45,14 @@ impl Compiler {
         let block = state.tree.get(block_id).clone();
         let scope = state.tree.get_scope(block_id);
 
-        // process each expression, collecting replacements
-        let mut new_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
+        // process leading expressions in effect-position
+        let mut new_leading_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
+        let mut new_tail_expression = block.tail_expression;
         let mut modified = false;
 
-        for expr_id in block.expressions.iter().copied() {
+        for expr_id in block.leading_expressions.iter().copied() {
             let expr = state.tree.get(expr_id).clone();
-
-            // unwrap Statement wrapper if present
-            let inner_expr = match &expr {
-                Expression::Statement { statement } => state.tree.get(*statement).clone(),
-                _ => expr.clone(),
-            };
-
-            match &inner_expr {
+            match &expr {
                 // let x = if (c) { a } else { b }
                 Expression::Let {
                     descriptor,
@@ -66,7 +60,7 @@ impl Compiler {
                     declarators,
                 } => {
                     if declarators.len() != 1 {
-                        new_expressions.push(expr_id);
+                        new_leading_expressions.push(expr_id);
                         continue;
                     }
                     let declarator_id = declarators[0];
@@ -74,7 +68,7 @@ impl Compiler {
 
                     // skip declarators without values
                     let Some(value_id) = declarator.value else {
-                        new_expressions.push(expr_id);
+                        new_leading_expressions.push(expr_id);
                         continue;
                     };
 
@@ -90,7 +84,7 @@ impl Compiler {
                             self.normalize_if_in_let(
                                 state,
                                 scope,
-                                &mut new_expressions,
+                                &mut new_leading_expressions,
                                 expr_id,
                                 declarator_id,
                                 &declarator,
@@ -107,7 +101,7 @@ impl Compiler {
                             let did_normalize = self.normalize_sequence_in_let(
                                 state,
                                 scope,
-                                &mut new_expressions,
+                                &mut new_leading_expressions,
                                 expr_id,
                                 declarator_id,
                                 &declarator,
@@ -126,7 +120,7 @@ impl Compiler {
                             let did_normalize = self.normalize_block_in_let(
                                 state,
                                 scope,
-                                &mut new_expressions,
+                                &mut new_leading_expressions,
                                 declarator_id,
                                 &declarator,
                                 descriptor.clone(),
@@ -148,7 +142,7 @@ impl Compiler {
                             let did_normalize = self.normalize_coalesce_in_let(
                                 state,
                                 scope,
-                                &mut new_expressions,
+                                &mut new_leading_expressions,
                                 expr_id,
                                 declarator_id,
                                 &declarator,
@@ -176,13 +170,14 @@ impl Compiler {
                         condition,
                         then_expression,
                         else_expression: Some(else_expr),
-                    } = value
+                    } = value.clone()
                     {
                         self.normalize_if_in_return(
                             state,
                             scope,
-                            &mut new_expressions,
+                            &mut new_leading_expressions,
                             expr_id,
+                            *value_id,
                             condition,
                             then_expression,
                             else_expr,
@@ -195,12 +190,14 @@ impl Compiler {
                         left,
                         operator: BinaryOperator::Coalesce,
                         right,
-                    } = value
+                    } = value.clone()
                     {
                         let did_normalize = self.normalize_coalesce_in_return(
                             state,
                             scope,
-                            &mut new_expressions,
+                            &mut new_leading_expressions,
+                            expr_id,
+                            *value_id,
                             left,
                             right,
                         )?;
@@ -219,18 +216,193 @@ impl Compiler {
                 self.normalize_nested_coalesce_in_expression(state, scope, expr_id)?;
             if did_normalize_nested {
                 modified = true;
-                new_expressions.push(expr_id);
+                new_leading_expressions.push(expr_id);
                 continue;
             }
 
             // no transformation, keep the original
-            new_expressions.push(expr_id);
+            new_leading_expressions.push(expr_id);
+        }
+
+        // process the tail expression in value-position
+        if let Some(expr_id) = block.tail_expression {
+            let expr = state.tree.get(expr_id).clone();
+            let mut consumed_tail = false;
+
+            match &expr {
+                // let x = if (c) { a } else { b }
+                Expression::Let {
+                    descriptor,
+                    mutability,
+                    declarators,
+                } => {
+                    if declarators.len() == 1 {
+                        let declarator_id = declarators[0];
+                        let declarator = state.tree.get(declarator_id).clone();
+
+                        if let Some(value_id) = declarator.value {
+                            let value = state.tree.get(value_id).clone();
+                            match value {
+                                Expression::If {
+                                    kind: IfKind::If,
+                                    condition,
+                                    then_expression,
+                                    else_expression: Some(else_expr),
+                                } => {
+                                    self.normalize_if_in_let(
+                                        state,
+                                        scope,
+                                        &mut new_leading_expressions,
+                                        expr_id,
+                                        declarator_id,
+                                        &declarator,
+                                        condition,
+                                        then_expression,
+                                        else_expr,
+                                    )?;
+                                    modified = true;
+                                    consumed_tail = true;
+                                }
+
+                                Expression::SequenceExpression { expressions } => {
+                                    let did_normalize = self.normalize_sequence_in_let(
+                                        state,
+                                        scope,
+                                        &mut new_leading_expressions,
+                                        expr_id,
+                                        declarator_id,
+                                        &declarator,
+                                        descriptor.clone(),
+                                        *mutability,
+                                        &expressions,
+                                    )?;
+                                    if did_normalize {
+                                        modified = true;
+                                        consumed_tail = true;
+                                    }
+                                }
+
+                                Expression::Block { block: inner_block } => {
+                                    let did_normalize = self.normalize_block_in_let(
+                                        state,
+                                        scope,
+                                        &mut new_leading_expressions,
+                                        declarator_id,
+                                        &declarator,
+                                        descriptor.clone(),
+                                        *mutability,
+                                        inner_block,
+                                    )?;
+                                    if did_normalize {
+                                        modified = true;
+                                        consumed_tail = true;
+                                    }
+                                }
+
+                                Expression::Binary {
+                                    left,
+                                    operator: BinaryOperator::Coalesce,
+                                    right,
+                                } => {
+                                    let did_normalize = self.normalize_coalesce_in_let(
+                                        state,
+                                        scope,
+                                        &mut new_leading_expressions,
+                                        expr_id,
+                                        declarator_id,
+                                        &declarator,
+                                        left,
+                                        right,
+                                    )?;
+                                    if did_normalize {
+                                        modified = true;
+                                        consumed_tail = true;
+                                    }
+                                }
+
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+
+                // return if (c) { a } else { b }
+                Expression::Return {
+                    value: Some(value_id),
+                } => {
+                    let value = state.tree.get(*value_id).clone();
+
+                    if let Expression::If {
+                        kind: IfKind::If,
+                        condition,
+                        then_expression,
+                        else_expression: Some(else_expr),
+                    } = value.clone()
+                    {
+                        self.normalize_if_in_return(
+                            state,
+                            scope,
+                            &mut new_leading_expressions,
+                            expr_id,
+                            *value_id,
+                            condition,
+                            then_expression,
+                            else_expr,
+                        )?;
+                        modified = true;
+                        consumed_tail = true;
+                    }
+
+                    if !consumed_tail
+                        && let Expression::Binary {
+                            left,
+                            operator: BinaryOperator::Coalesce,
+                            right,
+                        } = value
+                    {
+                        let did_normalize = self.normalize_coalesce_in_return(
+                            state,
+                            scope,
+                            &mut new_leading_expressions,
+                            expr_id,
+                            *value_id,
+                            left,
+                            right,
+                        )?;
+                        if did_normalize {
+                            modified = true;
+                            consumed_tail = true;
+                        }
+                    }
+                }
+
+                _ => {}
+            }
+
+            // normalize nested coalesce in eager value contexts
+            if !consumed_tail {
+                let did_normalize_nested =
+                    self.normalize_nested_coalesce_in_expression(state, scope, expr_id)?;
+                if did_normalize_nested {
+                    modified = true;
+                }
+
+                new_tail_expression = Some(expr_id);
+            }
+            // the tail was normalized into explicit leading expressions
+            else {
+                new_tail_expression = None;
+            }
         }
 
         // update the block when modified
         if modified {
-            let block_mut = state.tree.get_mut(block_id);
-            block_mut.expressions = new_expressions;
+            let updated_block = Block {
+                leading_expressions: new_leading_expressions,
+                tail_expression: new_tail_expression,
+                ..block
+            };
+            state.tree.replace(block_id, updated_block);
 
             self.reinfer_block_type_in_state(state, block_id)?;
         }
@@ -284,7 +456,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, declarator_id.into_any(), scope, None);
-        let new_if: LocalNodeId<Expression> = state.tree.insert(
+        let new_if: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_if_id,
             Expression::If {
                 kind: IfKind::If,
@@ -321,7 +493,7 @@ impl Compiler {
 
         // add all but the last expression as statements
         for &expr_id in &seq_expressions[..seq_expressions.len() - 1] {
-            let stmt = self.insert_statement_expression(state, original_let_id, expr_id, scope);
+            let stmt = self.insert_effect_expression(state, original_let_id, expr_id, scope);
             new_expressions.push(stmt);
         }
 
@@ -332,7 +504,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Declarator, declarator_id.into_any(), scope, None);
-        let new_declarator: LocalNodeId<Declarator> = state.tree.insert(
+        let new_declarator: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             new_declarator_id,
             Declarator {
                 pattern: declarator.pattern,
@@ -347,7 +519,7 @@ impl Compiler {
             scope,
             None,
         );
-        let new_let: LocalNodeId<Expression> = state.tree.insert(
+        let new_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             new_let_id,
             Expression::Let {
                 descriptor,
@@ -377,16 +549,16 @@ impl Compiler {
     ) -> ElaborateResult<bool> {
         // skip empty blocks
         let inner_block = state.tree.get(inner_block_id).clone();
-        if inner_block.expressions.is_empty() {
+        let Some(last_expr_id) = inner_block.tail_expression else {
             return Ok(false);
-        }
+        };
 
         // create uninitialized declarator
         let uninit_declarator_id =
             state
                 .tree
                 .reserve_from(NodeType::Declarator, declarator_id.into_any(), scope, None);
-        let uninit_declarator: LocalNodeId<Declarator> = state.tree.insert(
+        let uninit_declarator: LocalNodeId<Declarator> = state.tree.insert_as_owner(
             uninit_declarator_id,
             Declarator {
                 pattern: declarator.pattern,
@@ -400,7 +572,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, declarator_id.into_any(), scope, None);
-        let uninit_let: LocalNodeId<Expression> = state.tree.insert(
+        let uninit_let: LocalNodeId<Expression> = state.tree.insert_as_owner(
             uninit_let_id,
             Expression::Let {
                 descriptor,
@@ -411,23 +583,23 @@ impl Compiler {
         self.set_void_expression_type(state.types, state.ctx.module_id, uninit_let);
         new_expressions.push(uninit_let);
 
-        // replace the last expression with an assignment
-        let last_expr_id = inner_block.expressions[inner_block.expressions.len() - 1];
+        // replace the tail expression with an assignment
         let target_id = self.pattern_to_assignment_target(state, scope, declarator.pattern)?;
         let assign_expr = self.wrap_in_assignment(state, scope, target_id, last_expr_id)?;
 
         // update the block
-        let block_mut = state.tree.get_mut(inner_block_id);
-        if let Some(last) = block_mut.expressions.last_mut() {
-            *last = assign_expr;
-        }
+        let updated_block = Block {
+            tail_expression: Some(assign_expr),
+            ..inner_block
+        };
+        state.tree.replace(inner_block_id, updated_block);
 
         // add the block expression
         let block_expr_id =
             state
                 .tree
                 .reserve_from(NodeType::Expression, declarator_id.into_any(), scope, None);
-        let block_expr: LocalNodeId<Expression> = state.tree.insert(
+        let block_expr: LocalNodeId<Expression> = state.tree.insert_as_owner(
             block_expr_id,
             Expression::Block {
                 block: inner_block_id,
@@ -453,6 +625,7 @@ impl Compiler {
         scope: dir::LocalScope,
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         original_return_id: LocalNodeId<Expression>,
+        original_value_id: LocalNodeId<Expression>,
         condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
@@ -470,15 +643,9 @@ impl Compiler {
             _ => self.wrap_branch_value_in_return(state, scope, else_expression)?,
         };
 
-        // create the new if expression
-        let new_if_id = state.tree.reserve_from(
-            NodeType::Expression,
-            original_return_id.into_any(),
-            scope,
-            None,
-        );
-        let new_if: LocalNodeId<Expression> = state.tree.insert(
-            new_if_id,
+        // replace the original return with the normalized if
+        state.tree.replace(
+            original_return_id,
             Expression::If {
                 kind: IfKind::If,
                 condition,
@@ -486,8 +653,9 @@ impl Compiler {
                 else_expression: Some(else_transformed),
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, new_if);
-        new_expressions.push(new_if);
+        state.tree.mark_inactive(original_value_id.into_any());
+        self.set_void_expression_type(state.types, state.ctx.module_id, original_return_id);
+        new_expressions.push(original_return_id);
 
         Ok(())
     }
@@ -595,27 +763,19 @@ impl Compiler {
             // for blocks, wrap the last expression in assignment
             Expression::Block { block: block_id } => {
                 let block = state.tree.get(block_id).clone();
-                if block.expressions.is_empty() {
+                let Some(last_expr_id) = block.tail_expression else {
                     // empty block: just return the branch unchanged
                     return Ok(branch);
-                }
-
-                // get the last expression
-                let last_idx = block.expressions.len() - 1;
-                let last_expr_id = block.expressions[last_idx];
+                };
 
                 // wrap the last expression in assignment
                 let assign = self.wrap_in_assignment(state, scope, target, last_expr_id)?;
 
-                // wrap the assignment in a Statement for proper semicolon
-                let stmt = self.insert_statement_expression(state, last_expr_id, assign, scope);
-
-                // update the block with the statement as the last expression
-                let mut new_expressions = block.expressions.clone();
-                new_expressions[last_idx] = stmt;
-
-                let block_mut = state.tree.get_mut(block_id);
-                block_mut.expressions = new_expressions;
+                let updated_block = Block {
+                    tail_expression: Some(assign),
+                    ..block
+                };
+                state.tree.replace(block_id, updated_block);
                 self.set_void_block_expression_type(
                     state.types,
                     state.ctx.module_id,
@@ -648,28 +808,19 @@ impl Compiler {
             // for blocks, wrap the last expression in return
             Expression::Block { block: block_id } => {
                 let block = state.tree.get(block_id).clone();
-                if block.expressions.is_empty() {
+                let Some(last_expr_id) = block.tail_expression else {
                     // empty block: just return the branch unchanged
                     return Ok(branch);
-                }
-
-                // get the last expression
-                let last_idx = block.expressions.len() - 1;
-                let last_expr_id = block.expressions[last_idx];
+                };
 
                 // wrap the last expression in return
                 let return_expr = self.wrap_in_return(state, scope, last_expr_id)?;
 
-                // wrap the return in a Statement for proper semicolon
-                let stmt =
-                    self.insert_statement_expression(state, last_expr_id, return_expr, scope);
-
-                // update the block with the statement as the last expression
-                let mut new_expressions = block.expressions.clone();
-                new_expressions[last_idx] = stmt;
-
-                let block_mut = state.tree.get_mut(block_id);
-                block_mut.expressions = new_expressions;
+                let updated_block = Block {
+                    tail_expression: Some(return_expr),
+                    ..block
+                };
+                state.tree.replace(block_id, updated_block);
                 self.set_void_block_expression_type(
                     state.types,
                     state.ctx.module_id,
@@ -683,39 +834,50 @@ impl Compiler {
 
             // for simple expressions, wrap the whole thing
             _ => {
-                // wrap the return in a statement inside a block
                 let return_expr = self.wrap_in_return(state, scope, branch)?;
-                let stmt = self.insert_statement_expression(state, branch, return_expr, scope);
 
-                let block_id =
-                    state
-                        .tree
-                        .reserve_from(NodeType::Block, branch.into_any(), scope, None);
-                let block: LocalNodeId<Block> = state.tree.insert(
-                    block_id,
-                    Block {
-                        scope: scope.0,
-                        expressions: vec![stmt],
-                    },
-                );
-
-                let block_expr_id =
-                    state
-                        .tree
-                        .reserve_from(NodeType::Expression, branch.into_any(), scope, None);
-                let block_expr: LocalNodeId<Expression> = state
-                    .tree
-                    .insert(block_expr_id, Expression::Block { block });
-                self.set_void_block_expression_type(
-                    state.types,
-                    state.ctx.module_id,
-                    block,
-                    block_expr,
-                );
-
-                Ok(block_expr)
+                Ok(self.wrap_expression_in_block(state, branch, return_expr, scope))
             }
         }
+    }
+
+    /// Wrap one expression in a block expression.
+    fn wrap_expression_in_block(
+        &self,
+        state: &mut ElaborateState<'_>,
+        origin_id: LocalNodeId<Expression>,
+        body: LocalNodeId<Expression>,
+        scope: dir::LocalScope,
+    ) -> LocalNodeId<Expression> {
+        // don't double wrap blocks
+        if matches!(state.tree.get(body), Expression::Block { .. }) {
+            return body;
+        }
+
+        // create the block node
+        let block_id = state
+            .tree
+            .reserve_from(NodeType::Block, origin_id.into_any(), scope, None);
+        let block: LocalNodeId<Block> = state.tree.insert_as_owner(
+            block_id,
+            Block {
+                scope: scope.0,
+                leading_expressions: Vec::new(),
+                tail_expression: Some(body),
+            },
+        );
+
+        // wrap the block as an expression
+        let block_expr_id =
+            state
+                .tree
+                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+        let block_expr_id = state
+            .tree
+            .insert_as_owner(block_expr_id, Expression::Block { block });
+        self.set_void_block_expression_type(state.types, state.ctx.module_id, block, block_expr_id);
+
+        block_expr_id
     }
 
     /// Wrap an expression in an assignment to a target.
@@ -726,20 +888,9 @@ impl Compiler {
         target: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
-        let assign_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, value.into_any(), scope, None);
-        let assign: LocalNodeId<Expression> = state.tree.insert(
-            assign_id,
-            Expression::Assign {
-                left: target,
-                right: value,
-            },
-        );
-        self.set_void_expression_type(state.types, state.ctx.module_id, assign);
+        self.replace_expression_with_explicit_assignment(state, value, target, scope);
 
-        Ok(assign)
+        Ok(value)
     }
 
     /// Wrap an expression in a return statement.
@@ -749,15 +900,8 @@ impl Compiler {
         scope: dir::LocalScope,
         value: LocalNodeId<Expression>,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
-        let return_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, value.into_any(), scope, None);
-        let return_expr: LocalNodeId<Expression> = state
-            .tree
-            .insert(return_id, Expression::Return { value: Some(value) });
-        self.set_never_expression_type(state.types, state.ctx.module_id, return_expr);
+        self.replace_expression_with_explicit_return(state, value, scope);
 
-        Ok(return_expr)
+        Ok(value)
     }
 }

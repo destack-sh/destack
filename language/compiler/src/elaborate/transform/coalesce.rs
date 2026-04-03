@@ -82,7 +82,7 @@ impl Compiler {
             scope,
             None,
         );
-        let if_id: LocalNodeId<Expression> = state.tree.insert(
+        let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
             Expression::If {
                 kind: IfKind::If,
@@ -105,6 +105,8 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         scope: dir::LocalScope,
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
+        original_return_id: LocalNodeId<Expression>,
+        original_value_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         right: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
@@ -114,7 +116,7 @@ impl Compiler {
         }
 
         // bind the left operand once before nullish checks
-        let origin_id = left;
+        let origin_id = original_return_id;
         let Some(binding) = self.prepare_coalesce_binding_state(state, scope, left, origin_id)?
         else {
             return Ok(false);
@@ -134,13 +136,9 @@ impl Compiler {
         )?;
         let else_return = self.wrap_in_return(state, scope, else_value)?;
 
-        // emit the explicit coalesce branch
-        let if_id =
-            state
-                .tree
-                .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let if_id: LocalNodeId<Expression> = state.tree.insert(
-            if_id,
+        // replace the original return with the explicit coalesce branch
+        state.tree.replace(
+            original_return_id,
             Expression::If {
                 kind: IfKind::If,
                 condition: IfCondition::Expression {
@@ -150,8 +148,9 @@ impl Compiler {
                 else_expression: Some(else_return),
             },
         );
-        self.set_void_expression_type(state.types, state.ctx.module_id, if_id);
-        new_expressions.push(if_id);
+        state.tree.mark_inactive(original_value_id.into_any());
+        self.set_void_expression_type(state.types, state.ctx.module_id, original_return_id);
+        new_expressions.push(original_return_id);
 
         Ok(true)
     }
@@ -173,8 +172,7 @@ impl Compiler {
 
         match expression {
             // wrappers and eager single-child forms
-            Expression::Statement { statement }
-            | Expression::Parenthesized {
+            Expression::Parenthesized {
                 expression: statement,
             }
             | Expression::Unary {
@@ -430,7 +428,7 @@ impl Compiler {
             block_scope,
             None,
         );
-        let if_id: LocalNodeId<Expression> = state.tree.insert(
+        let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
             Expression::If {
                 kind: IfKind::If,
@@ -447,11 +445,12 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Block, expression_id.into_any(), block_scope, None);
-        let block_id = state.tree.insert(
+        let block_id = state.tree.insert_as_owner(
             block_id,
             dir::Block {
                 scope: block_scope_id,
-                expressions: vec![binding.left_temp_let, if_id],
+                leading_expressions: vec![binding.left_temp_let],
+                tail_expression: Some(if_id),
             },
         );
 

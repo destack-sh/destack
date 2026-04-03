@@ -25,7 +25,6 @@ struct Point {
     x: int32;
     y: int32;
 }
-
 function getX(p): int32 {
     return p.x;
 }
@@ -106,12 +105,10 @@ struct User {
     name: string;
     role: string;
 }
-
 struct Admin {
     name: string;
     level: int32;
 }
-
 function getName(person): string {
     if (person is User) {
         return person.name;
@@ -159,14 +156,12 @@ struct Cat {
         return "meow";
     }
 }
-
 struct Dog {
     name: string;
     speak(): string {
         return "woof";
     }
 }
-
 function greet(pet): string {
     if (pet is Cat) {
         return pet.speak();
@@ -219,21 +214,18 @@ struct Cat {
         return "meow";
     }
 }
-
 struct Dog {
     name: string;
     speak(): string {
         return "woof";
     }
 }
-
 struct Bird {
     name: string;
     speak(): string {
         return "chirp";
     }
 }
-
 function greet(pet): string {
     if (pet is Cat) {
         return pet.speak();
@@ -283,23 +275,19 @@ function greet(pet: Cat | Dog): string {
 struct Cat {
     name: string;
 }
-
 struct Dog {
     name: string;
 }
-
 extension for Cat {
     speak(): string {
         return "meow";
     }
 }
-
 extension for Dog {
     speak(): string {
         return "woof";
     }
 }
-
 function greet(pet): string {
     if (pet is Cat) {
         return pet.speak();
@@ -343,13 +331,11 @@ struct Cat {
         return 1;
     }
 }
-
 struct Dog {
     speak(amount): int32 {
         return 2;
     }
 }
-
 function speakVolume(pet, amount): int32 {
     if (pet is Cat) {
         return pet.speak((amount as int64));
@@ -464,7 +450,6 @@ struct Counter {
         return Counter { value: this.value + 1 };
     }
 }
-
 function bump(c): Counter {
     return c.increment();
 }
@@ -496,7 +481,6 @@ function bump(c: Counter): Counter {
 interface Counter {
     increment(): Counter;
 }
-
 function bump(c): Counter {
     return c.increment();
 }
@@ -534,13 +518,11 @@ function increment(counter: Counter): Counter {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Add<int32> {
     add(other): Counter {
         return Counter { value: this.value + other };
     }
 }
-
 function increment(counter): Counter {
     return counter.add(1);
 }
@@ -578,13 +560,11 @@ function differs(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Equal {
     equal(other): boolean {
         return this.value == other.value;
     }
 }
-
 function differs(left, right): boolean {
     return !left.equal(right);
 }
@@ -628,7 +608,6 @@ function isLess(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
@@ -639,7 +618,6 @@ extension for Counter implements Compare {
         return Ordering.Equal;
     }
 }
-
 function isLess(left, right): boolean {
     return left.compare(right) == Ordering.Less;
 }
@@ -683,7 +661,6 @@ function isAtLeast(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
@@ -694,7 +671,6 @@ extension for Counter implements Compare {
         return Ordering.Equal;
     }
 }
-
 function isAtLeast(left, right): boolean {
     return left.compare(right) != Ordering.Less;
 }
@@ -738,7 +714,6 @@ function isAtMost(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
@@ -749,7 +724,6 @@ extension for Counter implements Compare {
         return Ordering.Equal;
     }
 }
-
 function isAtMost(left, right): boolean {
     return left.compare(right) != Ordering.Greater;
 }
@@ -793,7 +767,6 @@ function isGreater(left: Counter, right: Counter): boolean {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Compare {
     compare(other): Ordering {
         if (this.value < other.value) {
@@ -804,7 +777,6 @@ extension for Counter implements Compare {
         return Ordering.Equal;
     }
 }
-
 function isGreater(left, right): boolean {
     return left.compare(right) == Ordering.Greater;
 }
@@ -842,13 +814,11 @@ function flip(counter: Counter): Counter {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Negate {
     negate(): Counter {
         return Counter { value: -this.value };
     }
 }
-
 function flip(counter): Counter {
     return counter.negate();
 }
@@ -886,13 +856,11 @@ function keep(counter: Counter): Counter {
 struct Counter {
     value: int32;
 }
-
 extension for Counter implements Plus {
     plus(): Counter {
         return Counter { value: this.value };
     }
 }
-
 function keep(counter): Counter {
     return counter.plus();
 }
@@ -930,13 +898,11 @@ struct Cat {
         return "meow";
     }
 }
-
 struct Dog {
     speak(): string {
         return "woof";
     }
 }
-
 function greet(pet): string {
     if (pet is Cat) {
         return pet.speak();

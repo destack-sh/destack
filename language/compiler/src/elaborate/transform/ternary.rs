@@ -110,7 +110,6 @@ impl Compiler {
             | Expression::ForEach { .. }
             | Expression::For { .. }
             | Expression::Try { .. }
-            | Expression::Statement { .. }
             | Expression::Let { .. }
             | Expression::Using { .. } => false,
 

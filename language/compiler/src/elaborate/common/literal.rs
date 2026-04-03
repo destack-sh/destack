@@ -18,7 +18,7 @@ impl Compiler {
             state
                 .tree
                 .reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
-        let expression_id = state.tree.insert(
+        let expression_id = state.tree.insert_as_owner(
             literal_id,
             Expression::ScalarLiteral {
                 value: ScalarLiteral::Boolean(value),

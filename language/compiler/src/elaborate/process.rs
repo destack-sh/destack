@@ -94,8 +94,14 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
         self.elaborate_module_transform(module_ref, profile, &mut tree, &mut symbols, &mut types)?;
 
+        #[cfg(debug_assertions)]
+        tree.debug_assert_valid_parents();
+
         let _timing = self.timing_scope(tags::ELABORATE_MODULE_REIFY);
         self.elaborate_module_reify(module_ref, profile, &mut tree, &mut symbols, &mut types)?;
+
+        #[cfg(debug_assertions)]
+        tree.debug_assert_valid_parents();
 
         let is_code_module = self.is_code_module(module);
 

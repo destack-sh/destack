@@ -157,7 +157,7 @@ impl Compiler {
         let pattern_id = state
             .tree
             .reserve_from(NodeType::Pattern, if_id.into_any(), scope, None);
-        state.tree.insert(pattern_id, Pattern::Wildcard)
+        state.tree.insert_as_owner(pattern_id, Pattern::Wildcard)
     }
 
     /// Insert a match case for an if let branch.
@@ -174,7 +174,7 @@ impl Compiler {
         let case_id = state
             .tree
             .reserve_from(NodeType::MatchCase, if_id.into_any(), scope, None);
-        state.tree.insert(
+        state.tree.insert_as_owner(
             case_id,
             MatchCase::Expression {
                 selector: MatchSelector::Pattern {
@@ -198,11 +198,12 @@ impl Compiler {
         let block_id = state
             .tree
             .reserve_from(NodeType::Block, if_id.into_any(), scope, None);
-        let block: LocalNodeId<Block> = state.tree.insert(
+        let block: LocalNodeId<Block> = state.tree.insert_as_owner(
             block_id,
             Block {
                 scope: scope.0,
-                expressions: Vec::new(),
+                leading_expressions: Vec::new(),
+                tail_expression: None,
             },
         );
 
@@ -213,7 +214,7 @@ impl Compiler {
                 .reserve_from(NodeType::Expression, if_id.into_any(), scope, None);
         let block_expr_id = state
             .tree
-            .insert(block_expr_id, Expression::Block { block });
+            .insert_as_owner(block_expr_id, Expression::Block { block });
 
         // record void types for the synthesized block
         let void_type = Type::TypeLiteral {

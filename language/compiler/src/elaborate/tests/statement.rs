@@ -145,7 +145,6 @@ function ordered(a: number, b: number): number {
 function touch(value): number {
     return value;
 }
-
 function ordered(a, b): number {
     touch(a);
     touch(b);
@@ -323,7 +322,6 @@ function choose(name: string | undefined, fallback: string): string {
 function wrap(value): string {
     return value;
 }
-
 function choose(name, fallback): string {
     return wrap(
         {
@@ -481,7 +479,6 @@ function choose(name: string | undefined, fallback: string): string {
 function wrap(value): string {
     return value;
 }
-
 function choose(name, fallback): string {
     return wrap(name ?? fallback);
 }

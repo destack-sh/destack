@@ -210,7 +210,7 @@ impl Compiler {
             operator_symbol,
             candidate.target_symbol,
         );
-        let call_id = state.tree.insert(call_id, call);
+        let call_id = state.tree.insert_as_owner(call_id, call);
 
         // copy the inferred return type when available
         if let Some(return_type) = candidate
@@ -253,7 +253,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let member_id = state.tree.insert(
+        let member_id = state.tree.insert_as_owner(
             member_id,
             Expression::Member {
                 left: receiver,
@@ -279,7 +279,7 @@ impl Compiler {
                 state.tree.get_scope(origin_id),
                 None,
             );
-            let argument_id = state.tree.insert(
+            let argument_id = state.tree.insert_as_owner(
                 argument_id,
                 Argument::Positional {
                     modifiers: None,
@@ -334,7 +334,7 @@ impl Compiler {
             state.tree.get_scope(origin_id),
             None,
         );
-        let reference_id = state.tree.insert(
+        let reference_id = state.tree.insert_as_owner(
             reference_id,
             Expression::ModuleReference {
                 path: Path::from(&[ordering_name, member_name][..]),

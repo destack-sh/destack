@@ -9,6 +9,174 @@ use crate::{Compiler, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Clone one dynamic-resolution expression so each synthetic branch owns its own shell.
+    fn clone_resolution_expression(
+        &self,
+        state: &mut ElaborateState<'_>,
+        expression_id: LocalNodeId<Expression>,
+        expression: &Expression,
+        scope: dir::LocalScope,
+    ) -> LocalNodeId<Expression> {
+        let cloned_expression = match expression {
+            Expression::Member {
+                left,
+                name,
+                static_arguments,
+            } => {
+                let left_expression = state.tree.get(*left).clone();
+                let left = self.clone_resolution_expression(state, *left, &left_expression, scope);
+
+                Expression::Member {
+                    left,
+                    name: *name,
+                    static_arguments: static_arguments.clone(),
+                }
+            }
+
+            Expression::Call {
+                left,
+                static_arguments,
+                dynamic_arguments,
+            } => {
+                let left_expression = state.tree.get(*left).clone();
+                let left = self.clone_resolution_expression(state, *left, &left_expression, scope);
+                let dynamic_arguments = dynamic_arguments
+                    .iter()
+                    .map(|argument_id| self.clone_resolution_argument(state, *argument_id, scope))
+                    .collect();
+
+                Expression::Call {
+                    left,
+                    static_arguments: static_arguments.clone(),
+                    dynamic_arguments,
+                }
+            }
+
+            Expression::Parenthesized { expression } => {
+                let inner_expression = state.tree.get(*expression).clone();
+                let expression =
+                    self.clone_resolution_expression(state, *expression, &inner_expression, scope);
+
+                Expression::Parenthesized { expression }
+            }
+
+            Expression::Unary { operator, right } => {
+                let right_expression = state.tree.get(*right).clone();
+                let right =
+                    self.clone_resolution_expression(state, *right, &right_expression, scope);
+
+                Expression::Unary {
+                    operator: *operator,
+                    right,
+                }
+            }
+
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_expression = state.tree.get(*left).clone();
+                let left = self.clone_resolution_expression(state, *left, &left_expression, scope);
+                let right_expression = state.tree.get(*right).clone();
+                let right =
+                    self.clone_resolution_expression(state, *right, &right_expression, scope);
+
+                Expression::Binary {
+                    left,
+                    operator: *operator,
+                    right,
+                }
+            }
+
+            Expression::Index { left, right } => {
+                let left_expression = state.tree.get(*left).clone();
+                let left = self.clone_resolution_expression(state, *left, &left_expression, scope);
+                let right = right.map(|right| {
+                    let right_expression = state.tree.get(right).clone();
+                    self.clone_resolution_expression(state, right, &right_expression, scope)
+                });
+
+                Expression::Index { left, right }
+            }
+
+            _ => expression.clone(),
+        };
+
+        let cloned_id =
+            state
+                .tree
+                .reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+        let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
+        state.types.copy_node_analysis(
+            expression_id.into_global_any(state.ctx.module_id),
+            cloned_id.into_global_any(state.ctx.module_id),
+        );
+
+        cloned_id
+    }
+
+    /// Clone one call argument for a dynamic-resolution branch.
+    fn clone_resolution_argument(
+        &self,
+        state: &mut ElaborateState<'_>,
+        argument_id: LocalNodeId<dir::Argument>,
+        scope: dir::LocalScope,
+    ) -> LocalNodeId<dir::Argument> {
+        let argument = state.tree.get(argument_id).clone();
+        let value = argument.value();
+        let value_expression = state.tree.get(value).clone();
+        let value = self.clone_resolution_expression(state, value, &value_expression, scope);
+
+        let cloned_id =
+            state
+                .tree
+                .reserve_from(NodeType::Argument, argument_id.into_any(), scope, None);
+
+        let cloned_argument = match argument {
+            dir::Argument::Named {
+                modifiers,
+                name,
+                value: _,
+            } => dir::Argument::Named {
+                modifiers,
+                name,
+                value,
+            },
+            dir::Argument::Labeled {
+                modifiers,
+                label,
+                value: _,
+            } => dir::Argument::Labeled {
+                modifiers,
+                label,
+                value,
+            },
+            dir::Argument::Positional {
+                modifiers,
+                value: _,
+            } => dir::Argument::Positional { modifiers, value },
+            dir::Argument::Spread {
+                modifiers,
+                label,
+                value: _,
+            } => dir::Argument::Spread {
+                modifiers,
+                label,
+                value,
+            },
+            dir::Argument::Error { value: _ } => dir::Argument::Error { value },
+        };
+
+        let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_argument);
+        state.types.copy_node_analysis(
+            argument_id.into_global_any(state.ctx.module_id),
+            cloned_id.into_global_any(state.ctx.module_id),
+        );
+
+        cloned_id
+    }
+
     /// Reify dynamic resolutions into explicit type checks.
     ///
     /// Transforms `Resolution::Dynamic` into if-else chains with `is` type checks
@@ -98,7 +266,7 @@ impl Compiler {
                 scope,
                 None,
             );
-            else_branch = state.tree.insert(
+            else_branch = state.tree.insert_as_owner(
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
@@ -121,8 +289,7 @@ impl Compiler {
         }
 
         // replace the original expression with the if-else chain
-        let final_expression = state.tree.get(else_branch).clone();
-        state.tree.replace(expression_id, final_expression);
+        state.tree.replace_from(expression_id, else_branch);
 
         Ok(())
     }
@@ -185,7 +352,7 @@ impl Compiler {
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // clone the original expression
-        let cloned_id = self.clone_expression_with_analysis(state, origin_id, expression, scope);
+        let cloned_id = self.clone_resolution_expression(state, origin_id, expression, scope);
 
         // get the receiver type for the static resolution
         let receiver_type = self.type_for_dispatch_candidate(candidate);
@@ -207,25 +374,9 @@ impl Compiler {
         // reify branch local call argument casts after static dispatch split
         let cloned_expression = state.tree.get(cloned_id).clone();
         if let Expression::Call {
-            left,
-            static_arguments,
-            dynamic_arguments,
+            dynamic_arguments, ..
         } = cloned_expression
         {
-            let dynamic_arguments = self.clone_arguments_with_analysis(
-                state,
-                cloned_id,
-                &dynamic_arguments,
-                state.tree.get_scope(cloned_id),
-            );
-            state.tree.replace(
-                cloned_id,
-                Expression::Call {
-                    left,
-                    static_arguments,
-                    dynamic_arguments: dynamic_arguments.clone(),
-                },
-            );
             self.reify_implicit_casts_in_call(state, cloned_id, &dynamic_arguments)?;
         }
 
@@ -241,6 +392,10 @@ impl Compiler {
         check_type_id: LocalTypeId,
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
+        // each generated type check needs its own receiver node
+        let value_expression = state.tree.get(value_id).clone();
+        let value_id = self.clone_resolution_expression(state, value_id, &value_expression, scope);
+
         // create the type expression for the right side of `is`
         let type_expr_id =
             self.insert_type_expression_for_type_id(state, origin_id, check_type_id, scope);
