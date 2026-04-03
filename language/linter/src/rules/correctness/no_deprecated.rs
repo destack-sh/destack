@@ -125,8 +125,8 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
         expression: &dir::Expression,
     ) -> Option<Option<String>> {
         expression_decorator_map(
-            &self.ctx.program,
-            &self.ctx.artifacts,
+            &self.ctx.repository,
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -141,7 +141,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
             },
         )
         .map(|message_id| {
-            message_id.map(|message_id| self.ctx.program.strings.get(message_id).to_string())
+            message_id.map(|message_id| self.ctx.repository.strings.get(message_id).to_string())
         })
     }
 }

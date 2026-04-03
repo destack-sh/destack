@@ -4,7 +4,7 @@ use destack_source::{FileId, FileType, ModuleId, Span};
 use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
 use crate::rules::common::glob_matches;
-use crate::{LintDiagnostic, LintProgramDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintRule, LintWorkspaceDirContext, declare_lint};
 
 declare_lint! {
     /// Disallow imports that violate configured module boundary constraints.
@@ -16,7 +16,7 @@ declare_lint! {
         code = "LR036",
         category = Restriction,
         level = Dir,
-        scope = Program,
+        scope = Workspace,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -33,7 +33,7 @@ impl LintRule for NoLayerViolation {
         NoLayerViolation::meta()
     }
 
-    fn check_program_dir(&self, ctx: &mut LintProgramDirContext) {
+    fn check_workspace_dir(&self, ctx: &mut LintWorkspaceDirContext) {
         // resolve lint metadata and base severity
         let meta = self.meta();
         let rule_severity = ctx.get_severity(meta);
@@ -48,7 +48,7 @@ impl LintRule for NoLayerViolation {
         }
 
         // resolve module graph for this profile
-        let Some(graph) = ctx.artifacts.module_graph(ctx.profile_id) else {
+        let Some(graph) = ctx.module_graph() else {
             return;
         };
 
@@ -96,22 +96,27 @@ struct ModuleDescriptor {
 
 /// Collect eligible module descriptors with component assignments.
 fn collect_module_descriptors(
-    ctx: &LintProgramDirContext,
+    ctx: &LintWorkspaceDirContext,
     module_boundaries: &LintModuleBoundariesOptions,
 ) -> Vec<ModuleDescriptor> {
     let mut descriptors = Vec::new();
 
     // collect user modules and assign configured components
-    for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.as_ref();
-        if module.id == ctx.program.root_module_id {
+    for module_id in ctx.workspace_module_ids() {
+        let Some(module) = ctx.repository_module(module_id) else {
+            continue;
+        };
+        let module = module.as_ref();
+        if module.id == ctx.repository.root_module_id() {
             continue;
         }
         if !module.is_user() {
             continue;
         }
 
-        let file = ctx.program.files.get(module.file_id);
+        let Some(file) = ctx.repository_file(module.file_id) else {
+            continue;
+        };
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
@@ -228,7 +233,7 @@ fn collect_forbidden_dependency_diagnostics(
 
 /// Report modules that do not match any configured component.
 fn report_unknown_component_modules(
-    ctx: &mut LintProgramDirContext,
+    ctx: &mut LintWorkspaceDirContext,
     module_boundaries: &LintModuleBoundariesOptions,
     descriptors: &[ModuleDescriptor],
 ) {
@@ -379,7 +384,7 @@ fn lint_severity_for_policy(policy: DiagnosticPolicy) -> Option<LintSeverity> {
 }
 
 /// Return true when one file should be excluded by declaration filtering.
-fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceDirContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }
@@ -401,14 +406,14 @@ mod tests {
     use crate::linter::TestProgram;
     use crate::test_modules;
 
-    /// Add modules, run analysis, and lint the program at DIR level.
-    fn lint_program_with_modules(
+    /// Add modules, run analysis, and lint the workspace at DIR level.
+    fn lint_workspace_with_modules(
         modules: &[(&str, &str)],
         configure: impl FnOnce(&mut destack_workspace::LinterOptions),
     ) -> (TestProgram, Vec<LintDiagnostic>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoLayerViolation)])
             .with_options(configure);
-        let diagnostics = test.lint_program_dir_with_modules(modules);
+        let diagnostics = test.lint_workspace_dir_with_modules(modules);
         (test, diagnostics)
     }
 
@@ -476,7 +481,7 @@ mod tests {
     /// Report dependencies that violate configured component direction.
     #[test]
     fn test_flags_forbidden_component_dependency() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { query } from "../infra/database.ds";
@@ -500,7 +505,7 @@ export const query = 1;
     /// Report one diagnostic per forbidden dependency target.
     #[test]
     fn test_flags_multiple_forbidden_component_dependencies() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { queryOne } from "../infra/database_one.ds";
@@ -528,7 +533,7 @@ export const queryTwo = 2;
     /// Report one diagnostic when repeated imports hit one forbidden target.
     #[test]
     fn test_deduplicates_forbidden_dependency_edge() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { query } from "../infra/database.ds";
@@ -553,7 +558,7 @@ export const query = 1;
     /// Allow dependencies that match configured component direction.
     #[test]
     fn test_allows_allowed_component_dependency() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { rule } from "../domain/rule.ds";
@@ -576,7 +581,7 @@ export const rule = 1;
     /// Allow dependencies inside one component.
     #[test]
     fn test_allows_same_component_dependency() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/main.ds" => r#"
 import { helper } from "./helper.ds";
@@ -599,7 +604,7 @@ export const helper = 1;
     /// Allow dependencies when a matching exception is configured.
     #[test]
     fn test_allows_configured_exception() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/bootstrap.ds" => r#"
 import { query } from "../infra/database.ds";
@@ -631,7 +636,7 @@ export const query = 1;
     /// Allow dependencies when the component pair is globally excepted.
     #[test]
     fn test_allows_global_component_pair_exception() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/bootstrap.ds" => r#"
 import { query } from "../infra/database.ds";
@@ -663,7 +668,7 @@ export const query = 1;
     /// Report dependencies when exception path patterns do not match.
     #[test]
     fn test_reports_when_exception_pattern_does_not_match() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { query } from "../infra/database.ds";
@@ -696,7 +701,7 @@ export const query = 1;
     /// Allow dependencies from components with no explicit dependency rule.
     #[test]
     fn test_allows_component_without_explicit_rule() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/infra/worker.ds" => r#"
 import { value } from "../app/service.ds";
@@ -719,7 +724,7 @@ export const value = 1;
     /// Warn on modules not assigned to any component when configured.
     #[test]
     fn test_warns_on_unknown_component_module() {
-        let (_test, diagnostics) = lint_program_with_modules(
+        let (_test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/misc/tool.ds" => r#"
 export const tool = 1;
@@ -740,7 +745,7 @@ export const tool = 1;
     /// Error on modules not assigned to any component when configured.
     #[test]
     fn test_errors_on_unknown_component_module() {
-        let (_test, diagnostics) = lint_program_with_modules(
+        let (_test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/misc/tool.ds" => r#"
 export const tool = 1;
@@ -761,7 +766,7 @@ export const tool = 1;
     /// Skip unknown component diagnostics when policy allows it.
     #[test]
     fn test_ignores_unknown_component_module_when_allowed() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/misc/tool.ds" => r#"
 export const tool = 1;
@@ -779,7 +784,7 @@ export const tool = 1;
     /// Skip unknown component diagnostics for declaration files by default.
     #[test]
     fn test_skips_declaration_file_unknown_component_by_default() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/misc/tool.d.ds" => r#"
 export declare const tool: number;
@@ -799,7 +804,7 @@ export declare const tool: number;
     /// Include declaration file diagnostics when declaration files are enabled.
     #[test]
     fn test_includes_declaration_file_unknown_component_when_enabled() {
-        let (_test, diagnostics) = lint_program_with_modules(
+        let (_test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/misc/tool.d.ds" => r#"
 export declare const tool: number;
@@ -821,7 +826,7 @@ export declare const tool: number;
     /// Allow all dependencies when no components are configured.
     #[test]
     fn test_allows_when_no_components_configured() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { query } from "../infra/database.ds";
@@ -844,7 +849,7 @@ export const query = 1;
     /// Match overlapping component patterns in declaration order.
     #[test]
     fn test_prefers_first_matching_component_pattern() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { query } from "../infra/database.ds";
@@ -884,7 +889,7 @@ export const query = 1;
     /// Skip forbidden dependency diagnostics to unknown component targets.
     #[test]
     fn test_does_not_report_forbidden_dependency_to_unknown_target_component() {
-        let (_test, diagnostics) = lint_program_with_modules(
+        let (_test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { value } from "../misc/tool.ds";
@@ -911,7 +916,7 @@ export const value = 1;
     /// Skip declaration file dependency diagnostics by default.
     #[test]
     fn test_skips_declaration_file_dependency_by_default() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { query } from "../infra/database.d.ds";
@@ -934,7 +939,7 @@ export declare const query: number;
     /// Include declaration file dependencies when enabled.
     #[test]
     fn test_reports_declaration_file_dependency_when_enabled() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             test_modules! {
                 "no_layer_violation/app/service.ds" => r#"
 import { query } from "../infra/database.d.ds";

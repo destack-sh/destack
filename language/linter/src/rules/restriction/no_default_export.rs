@@ -31,7 +31,7 @@ impl LintRule for NoDefaultExport {
 
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let default_name = ctx.program.strings.intern("default");
+        let default_name = ctx.repository.strings.intern("default");
 
         // check default export dependency items in export and re-export expressions
         for (node_id, item) in ctx.tree.iter_nodes_of_type::<dir::DependencyItem>() {

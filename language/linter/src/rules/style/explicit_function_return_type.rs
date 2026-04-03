@@ -34,7 +34,7 @@ impl LintRule for ExplicitFunctionReturnType {
 
     fn check_module_ast<'a>(&self, _severity: LintSeverity, ctx: &mut LintAstContext<'a>) {
         let meta = self.meta();
-        let constructor_name = ctx.program.strings.intern("constructor");
+        let constructor_name = ctx.repository.strings.intern("constructor");
 
         // declaration functions
         for node_id in ctx.tree.iter_nodes::<ast::Declaration>() {

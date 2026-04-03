@@ -1,5 +1,5 @@
 use destack_ast as ast;
-use destack_workspace::{ConditionAssignmentMode, LintSeverity};
+use destack_workspace::config::{ConditionAssignmentMode, LintSeverity};
 
 use crate::rules::common::{
     ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,

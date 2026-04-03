@@ -148,7 +148,7 @@ fn no_empty_interface_single_extends_fix(
     // build the replacement alias from the source declaration text
     let parent_id = *heritage.extends_types.as_ref()?.first()?;
     let parent_text = ctx.get_span_text(ctx.ast.get_span(parent_id));
-    let interface_name = ctx.program.strings.get(interface_name_id);
+    let interface_name = ctx.repository.strings.get(interface_name_id);
     let generic_text = generic_parameters_text(ctx, generics.static_parameters.as_deref());
     let replacement = format!(
         "type {}{generic_text} = {parent_text}",

@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::ArtifactStore;
+use destack_artifact::Ast;
 use destack_ast::{self as ast, Annotation, Argument, Expression, ScalarLiteral, StringPool};
-use destack_source::{EditBuilder, File};
-use destack_workspace::{LintSeverity, LinterOptions, Module, Program};
+use destack_source::{EditBuilder, File, FileId, ModuleId};
+use destack_workspace::{LintSeverity, LinterOptions, Module, Repository, Revision};
 
 use crate::rules::common::expression_path_segments;
 use crate::{
@@ -31,12 +31,12 @@ pub(crate) struct DecoratorCall<'a> {
 
 /// Context for AST-level linting of a single module. Unfurls Ast.
 pub struct LintAstContext<'a> {
-    /// The program containing this module.
-    pub program: Arc<Program>,
-    /// The live artifact store for the program.
-    pub artifacts: Arc<ArtifactStore>,
+    /// The repository containing this module.
+    pub repository: Arc<Repository>,
     /// The module being linted.
     pub module: &'a Module,
+    /// The source revision for this lint pass.
+    pub revision: Revision,
     /// The source file.
     pub file: Arc<File>,
 
@@ -74,9 +74,9 @@ impl<'a> std::fmt::Debug for LintAstContext<'a> {
 impl<'a> LintAstContext<'a> {
     /// Create a new AST lint context for a module.
     pub fn new(
-        program: Arc<Program>,
-        artifacts: Arc<ArtifactStore>,
+        repository: Arc<Repository>,
         module: &'a Module,
+        revision: Revision,
         file: Arc<File>,
         tree: &'a ast::NodeTree,
         parents: &'a ast::NodeParentIndex,
@@ -86,9 +86,9 @@ impl<'a> LintAstContext<'a> {
         compute_fixes: bool,
     ) -> Self {
         Self {
-            program,
-            artifacts,
+            repository,
             module,
+            revision,
             file,
             tree,
             parents,
@@ -109,6 +109,24 @@ impl<'a> LintAstContext<'a> {
     /// Return the module id.
     pub fn module_id(&self) -> destack_source::ModuleId {
         self.module.id
+    }
+
+    /// Return one module snapshot for the active revision when present.
+    pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
+        self.repository
+            .module(self.revision, module_id)
+            .ok()
+            .flatten()
+    }
+
+    /// Return one file snapshot for the active revision when present.
+    pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
+        self.repository.file(self.revision, file_id).ok().flatten()
+    }
+
+    /// Return one AST artifact for one revision-scoped module.
+    pub fn module_ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
+        self.repository.ast(self.revision, module_id)
     }
 
     /// Return the linter options.

@@ -8,7 +8,7 @@ use crate::rules::common::{
     stable_hash_bool, stable_hash_bytes, stable_hash_char, stable_hash_debug, stable_hash_f64,
     stable_hash_i64, stable_hash_none, stable_hash_token_hashed_value, stable_hash_usize,
 };
-use crate::{LintDiagnostic, LintProgramAstContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintRule, LintWorkspaceAstContext, declare_lint};
 
 declare_lint! {
     /// Warn on duplicate and near duplicate code blocks.
@@ -20,7 +20,7 @@ declare_lint! {
         code = "LX017",
         category = Complexity,
         level = Ast,
-        scope = Program,
+        scope = Workspace,
         requires_all = [],
         requires_any = [],
         declarations = Exclude,
@@ -37,7 +37,7 @@ impl LintRule for NoDuplicateCode {
         NoDuplicateCode::meta()
     }
 
-    fn check_program_ast(&self, ctx: &mut LintProgramAstContext) {
+    fn check_workspace_ast(&self, ctx: &mut LintWorkspaceAstContext) {
         // lint metadata
         let meta = self.meta();
         let severity = ctx.get_severity(meta);
@@ -195,7 +195,7 @@ impl DuplicateKind {
 
 /// Detect exact and near duplicate groups for one run.
 fn detect_duplicate_groups(
-    ctx: &LintProgramAstContext,
+    ctx: &LintWorkspaceAstContext,
     options: &DuplicateCodeOptions,
 ) -> DuplicateDetectionResult {
     let include_near = options.near_enabled();
@@ -257,7 +257,7 @@ fn detect_duplicate_groups(
 
 /// Collect block occurrences eligible for duplicate detection.
 fn collect_occurrences(
-    ctx: &LintProgramAstContext,
+    ctx: &LintWorkspaceAstContext,
     min_lines: usize,
     min_tokens: usize,
     include_near: bool,
@@ -265,13 +265,18 @@ fn collect_occurrences(
 ) -> Vec<CodeOccurrence> {
     let mut candidates = Vec::new();
 
-    for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.as_ref();
-        let file = ctx.program.files.get(module.file_id);
+    for module_id in ctx.workspace_module_ids() {
+        let Some(module) = ctx.repository_module(module_id) else {
+            continue;
+        };
+        let module = module.as_ref();
+        let Some(file) = ctx.repository_file(module.file_id) else {
+            continue;
+        };
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
-        let Some(module_ast) = ctx.artifacts.ast(module.id) else {
+        let Some(module_ast) = ctx.module_ast(module.id) else {
             continue;
         };
 
@@ -313,9 +318,11 @@ fn collect_occurrences(
     let mut occurrences = Vec::new();
     for candidate_index in candidate_indices {
         let candidate = &candidates[candidate_index];
-        let module_ref = ctx.program.modules.get(candidate.module_id);
-        let module = module_ref.as_ref();
-        let Some(module_ast) = ctx.artifacts.ast(module.id) else {
+        let Some(module) = ctx.repository_module(candidate.module_id) else {
+            continue;
+        };
+        let module = module.as_ref();
+        let Some(module_ast) = ctx.module_ast(module.id) else {
             continue;
         };
 
@@ -820,7 +827,7 @@ impl DisjointSet {
 
 /// Emit diagnostics for one duplicate group.
 fn report_group_diagnostics(
-    ctx: &mut LintProgramAstContext,
+    ctx: &mut LintWorkspaceAstContext,
     severity: destack_workspace::LintSeverity,
     occurrences: &[CodeOccurrence],
     group: &[usize],
@@ -840,7 +847,9 @@ fn report_group_diagnostics(
         if occurrence.file_id == reference.file_id {
             label.push_str("another block in this file");
         } else {
-            let reference_file = ctx.program.files.get(reference.file_id);
+            let Some(reference_file) = ctx.repository_file(reference.file_id) else {
+                continue;
+            };
             label.push_str("a ");
             label.push_str(reference.block_kind);
             label.push_str(" in ");
@@ -970,7 +979,7 @@ fn classify_block_expression_owner(
 }
 
 /// Return true when declaration files should be skipped.
-fn is_declaration_file(file_type: FileType, ctx: &LintProgramAstContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceAstContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }
@@ -1961,7 +1970,7 @@ function {function_name}(input: int32): int32 {{
         test.import_module(second_module);
         test.compile();
 
-        test.lint_program_ast()
+        test.lint_workspace_ast()
     }
 
     /// Report exact duplicate blocks across modules.
@@ -1998,7 +2007,7 @@ function sharedAgain(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2038,7 +2047,7 @@ function second(value: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2078,7 +2087,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2119,7 +2128,7 @@ function second(input: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2158,7 +2167,7 @@ function second(input: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2199,7 +2208,7 @@ function second(value: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2235,7 +2244,7 @@ function sharedAgain(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2284,7 +2293,7 @@ function three(x: int32): int32 {
         test.import_module(third_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 3);
@@ -2324,7 +2333,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2365,7 +2374,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2405,7 +2414,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result).assert_no_lint("no-duplicate-code");
     }
 
@@ -2444,7 +2453,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         test.result(result)
             .assert_lint("no-duplicate-code")
             .assert_lint_count("no-duplicate-code", 2);
@@ -2479,7 +2488,7 @@ function second(x: int32): int32 {
         test.import_module(module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         let lint_result = test.result(result);
         lint_result
             .assert_lint("no-duplicate-code")
@@ -2532,7 +2541,7 @@ function second(x: int32): int32 {
         test.import_module(second_module);
         test.compile();
 
-        let result = test.lint_program_ast();
+        let result = test.lint_workspace_ast();
         let lint_result = test.result(result);
         lint_result.assert_lint_count("no-duplicate-code", 2);
 

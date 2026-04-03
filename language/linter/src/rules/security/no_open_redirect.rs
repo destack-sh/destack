@@ -71,11 +71,11 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Build a new visitor.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         // intern names
-        let location_name = ctx.program.strings.intern("location");
-        let window_name = ctx.program.strings.intern("window");
-        let href_name = ctx.program.strings.intern("href");
-        let assign_name = ctx.program.strings.intern("assign");
-        let replace_name = ctx.program.strings.intern("replace");
+        let location_name = ctx.repository.strings.intern("location");
+        let window_name = ctx.repository.strings.intern("window");
+        let href_name = ctx.repository.strings.intern("href");
+        let assign_name = ctx.repository.strings.intern("assign");
+        let replace_name = ctx.repository.strings.intern("replace");
 
         // resolve symbols
         let location_symbol = ctx.declared_library_symbol(location_name);
@@ -252,8 +252,8 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Return true when an expression is tainted.
     fn expression_is_tainted(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let mut taint = TaintAnalysis::new(
-            self.ctx.program.as_ref(),
-            self.ctx.artifacts.as_ref(),
+            self.ctx.repository.as_ref(),
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

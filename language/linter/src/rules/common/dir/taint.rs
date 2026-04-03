@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use destack_artifact::ArtifactStore;
 use destack_core::StringId;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{ProfileId, Repository, Revision};
 
 use crate::rules::common::glob_matches;
 
@@ -60,7 +59,7 @@ impl TaintLabels {
     }
 
     /// Return true when this source set can flow into the sink set.
-    pub fn matches_sink(&self, sink: &Self, program: &Program) -> bool {
+    pub fn matches_sink(&self, sink: &Self, repository: &Repository) -> bool {
         if self.is_empty() || sink.is_empty() {
             return false;
         }
@@ -74,7 +73,7 @@ impl TaintLabels {
                 .labels
                 .iter()
                 .copied()
-                .any(|sink_label| label_matches_glob_pattern(program, source_label, sink_label))
+                .any(|sink_label| label_matches_glob_pattern(repository, source_label, sink_label))
             {
                 return true;
             }
@@ -84,7 +83,7 @@ impl TaintLabels {
     }
 
     /// Remove labels covered by a sanitizer set.
-    pub fn apply_sanitizer(&mut self, sanitizer: &Self, program: &Program) {
+    pub fn apply_sanitizer(&mut self, sanitizer: &Self, repository: &Repository) {
         if sanitizer.is_empty() {
             return;
         }
@@ -96,7 +95,7 @@ impl TaintLabels {
 
         self.labels.retain(|source_label| {
             !sanitizer.labels.iter().copied().any(|sanitizer_label| {
-                label_matches_glob_pattern(program, *source_label, sanitizer_label)
+                label_matches_glob_pattern(repository, *source_label, sanitizer_label)
             })
         });
     }
@@ -115,9 +114,9 @@ pub struct TaintCache {
 #[derive(Debug)]
 pub struct TaintAnalysis<'a> {
     /// Program handle for symbol and string lookups.
-    program: &'a Program,
-    /// Live artifact store for cross-module lookups.
-    artifacts: &'a ArtifactStore,
+    repository: &'a Repository,
+    /// Active source revision.
+    revision: Revision,
     /// Active profile id.
     profile_id: ProfileId,
     /// Active module id.
@@ -138,8 +137,8 @@ impl<'a> TaintAnalysis<'a> {
     /// Build a taint analysis session.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        program: &'a Program,
-        artifacts: &'a ArtifactStore,
+        repository: &'a Repository,
+        revision: Revision,
         profile_id: ProfileId,
         module_id: ModuleId,
         tree: &'a dir::NodeTree,
@@ -149,8 +148,8 @@ impl<'a> TaintAnalysis<'a> {
         include_heuristic_sources: bool,
     ) -> Self {
         Self {
-            program,
-            artifacts,
+            repository,
+            revision,
             profile_id,
             module_id,
             tree,
@@ -295,8 +294,8 @@ impl<'a> TaintAnalysis<'a> {
 
                 // apply opt-in sanitizer tags on the callee
                 let sanitizer_labels = expression_sanitizer_taint_labels(
-                    self.program,
-                    self.artifacts,
+                    self.repository,
+                    self.revision,
                     self.profile_id,
                     self.module_id,
                     self.symbols,
@@ -304,7 +303,7 @@ impl<'a> TaintAnalysis<'a> {
                     *left,
                     callee_expression,
                 );
-                labels.apply_sanitizer(&sanitizer_labels, self.program);
+                labels.apply_sanitizer(&sanitizer_labels, self.repository);
             }
             dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } => {
                 // awaits preserve taint
@@ -572,8 +571,8 @@ impl<'a> TaintAnalysis<'a> {
         }
 
         let candidate_symbols = expression_candidate_symbols(
-            self.program,
-            self.artifacts,
+            self.repository,
+            self.revision,
             self.profile_id,
             self.module_id,
             self.symbols,
@@ -610,8 +609,8 @@ impl<'a> TaintAnalysis<'a> {
         symbol_stack.push(symbol_id);
 
         let mut labels = symbol_taint_labels_from_decorators(
-            self.program,
-            self.artifacts,
+            self.repository,
+            self.revision,
             self.profile_id,
             self.module_id,
             self.symbols,
@@ -636,8 +635,8 @@ impl<'a> TaintAnalysis<'a> {
         expression: &dir::Expression,
     ) -> TaintLabels {
         let candidate_symbols = expression_candidate_symbols(
-            self.program,
-            self.artifacts,
+            self.repository,
+            self.revision,
             self.profile_id,
             self.module_id,
             self.symbols,
@@ -649,8 +648,8 @@ impl<'a> TaintAnalysis<'a> {
         let mut labels = TaintLabels::default();
         for symbol_id in candidate_symbols {
             let symbol_labels = symbol_taint_labels_from_decorators(
-                self.program,
-                self.artifacts,
+                self.repository,
+                self.revision,
                 self.profile_id,
                 self.module_id,
                 self.symbols,
@@ -695,8 +694,8 @@ impl<'a> TaintAnalysis<'a> {
         symbol_stack: &mut Vec<dir::GlobalSymbolId>,
     ) -> Option<TaintLabels> {
         let value_expression_id = resolve_symbol_initializer_expression(
-            self.program,
-            self.artifacts,
+            self.repository,
+            self.revision,
             self.profile_id,
             self.module_id,
             self.symbols,
@@ -713,8 +712,8 @@ impl<'a> TaintAnalysis<'a> {
 
 /// Return sink taint labels declared on expression target symbols.
 pub fn expression_sink_taint_labels(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
     symbols: &dir::SymbolTable,
@@ -723,8 +722,8 @@ pub fn expression_sink_taint_labels(
     expression: &dir::Expression,
 ) -> TaintLabels {
     let candidate_symbols = expression_candidate_symbols(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         module_id,
         symbols,
@@ -736,7 +735,7 @@ pub fn expression_sink_taint_labels(
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
         let Some(decorators) = symbol_decorators_for(
-            program, artifacts, profile_id, module_id, symbols, symbol_id,
+            repository, revision, profile_id, module_id, symbols, symbol_id,
         ) else {
             continue;
         };
@@ -750,8 +749,8 @@ pub fn expression_sink_taint_labels(
 
 /// Return sanitizer taint labels declared on expression target symbols.
 pub fn expression_sanitizer_taint_labels(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
     symbols: &dir::SymbolTable,
@@ -760,8 +759,8 @@ pub fn expression_sanitizer_taint_labels(
     expression: &dir::Expression,
 ) -> TaintLabels {
     let candidate_symbols = expression_candidate_symbols(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         module_id,
         symbols,
@@ -773,7 +772,7 @@ pub fn expression_sanitizer_taint_labels(
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
         let Some(decorators) = symbol_decorators_for(
-            program, artifacts, profile_id, module_id, symbols, symbol_id,
+            repository, revision, profile_id, module_id, symbols, symbol_id,
         ) else {
             continue;
         };
@@ -811,15 +810,15 @@ fn expression_is_heuristically_tainted(
 
 /// Resolve taint labels from symbol decorators.
 fn symbol_taint_labels_from_decorators(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
     symbols: &dir::SymbolTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> TaintLabels {
     let Some(decorators) = symbol_decorators_for(
-        program, artifacts, profile_id, module_id, symbols, symbol_id,
+        repository, revision, profile_id, module_id, symbols, symbol_id,
     ) else {
         return TaintLabels::default();
     };
@@ -852,9 +851,9 @@ fn decorator_marker_taint_labels(markers: impl Iterator<Item = Option<StringId>>
 }
 
 /// Return true when one source label matches one sink or sanitizer glob pattern.
-fn label_matches_glob_pattern(program: &Program, source: StringId, sink: StringId) -> bool {
-    let source_text = program.strings.get(source);
-    let sink_text = program.strings.get(sink);
+fn label_matches_glob_pattern(repository: &Repository, source: StringId, sink: StringId) -> bool {
+    let source_text = repository.strings.get(source);
+    let sink_text = repository.strings.get(sink);
     let source_text = source_text.as_ref();
     let sink_text = sink_text.as_ref();
 

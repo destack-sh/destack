@@ -311,7 +311,7 @@ fn prefer_tuple_destructure_fix(
         if slot.is_some() {
             return None;
         }
-        *slot = Some(ctx.program.strings.get(*name).to_string());
+        *slot = Some(ctx.repository.strings.get(*name).to_string());
     }
     if names_by_index.iter().any(Option::is_none) {
         return None;

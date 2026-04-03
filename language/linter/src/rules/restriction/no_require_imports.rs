@@ -69,7 +69,7 @@ struct NoRequireImportsVisitor<'a, 'b> {
 impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
     /// Build a visitor for require import checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let require_name = ctx.program.strings.intern("require");
+        let require_name = ctx.repository.strings.intern("require");
         let global_qualifiers = ctx.global_qualifier_symbols();
         let allowed_target_patterns = compiled_allowed_require_import_patterns(
             &ctx.options.restriction.allowed_require_import_patterns,
@@ -117,7 +117,7 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
             &self.global_qualifiers,
             self.require_name,
         ) && require_target_is_allowed(
-            self.ctx.program.strings.get(target).as_ref(),
+            self.ctx.repository.strings.get(target).as_ref(),
             &self.allowed_target_patterns,
         ) {
             return;
@@ -378,8 +378,8 @@ fn require_import_alias_fix(
     };
 
     // render the esm import replacement for this alias
-    let local_name = ctx.program.strings.get(name_id);
-    let target_text = escape_import_target(ctx.program.strings.get(*target).as_ref());
+    let local_name = ctx.repository.strings.get(name_id);
+    let target_text = escape_import_target(ctx.repository.strings.get(*target).as_ref());
     let prefix = if *kind == dir::DependencyKind::Type {
         "import type"
     } else {
@@ -443,7 +443,7 @@ fn require_side_effect_fix(
     }
 
     // render one side effect esm import replacement
-    let target_text = escape_import_target(ctx.program.strings.get(target).as_ref());
+    let target_text = escape_import_target(ctx.repository.strings.get(target).as_ref());
     let replacement = format!("import \"{target_text}\";");
     let statement_span = ctx.get_span(expression_id);
     let edits = ctx

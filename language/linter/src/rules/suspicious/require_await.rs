@@ -1,10 +1,9 @@
-use destack_artifact::ArtifactStore;
 use destack_dir::{
     self as dir, Asynchrony, Expression, FunctionCardinality, NodeVisitor, NodeVisitorOptions,
     WellKnownSymbol, walk_expression,
 };
 use destack_source::{ModuleId, Span};
-use destack_workspace::{LintSeverity, ProfileId, Program};
+use destack_workspace::{LintSeverity, ProfileId, Repository, Revision};
 use std::collections::HashSet;
 
 use crate::rules::common::{
@@ -187,8 +186,8 @@ fn check_async_callable<T: dir::Node>(
 
     // analyze await and Promise like return signals
     let analysis = analyze_async_callable_body(
-        ctx.program.as_ref(),
-        ctx.artifacts.as_ref(),
+        ctx.repository.as_ref(),
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
@@ -251,8 +250,8 @@ fn function_body_is_empty(
 
 /// Analyze one async function body for await and Promise like return signals.
 fn analyze_async_callable_body(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -265,8 +264,8 @@ fn analyze_async_callable_body(
 ) -> RequireAwaitBodyAnalysis {
     // run body traversal analysis
     let mut visitor = RequireAwaitBodyVisitor::new(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         module_id,
         symbols,
@@ -280,8 +279,8 @@ fn analyze_async_callable_body(
     // treat expression bodies as implicit returns
     if !visitor.has_thenable_return
         && expression_is_implicit_thenable_return(
-            program,
-            artifacts,
+            repository,
+            revision,
             profile_id,
             module_id,
             tree,
@@ -317,9 +316,9 @@ struct RequireAwaitBodyVisitor<'a> {
     /// Node visitor options.
     options: NodeVisitorOptions,
     /// Program for symbol backed type lookups.
-    program: &'a Program,
-    /// Live artifact store for symbol backed type lookups.
-    artifacts: &'a ArtifactStore,
+    repository: &'a Repository,
+    /// Active revision for symbol backed type lookups.
+    revision: Revision,
     /// Active profile id for symbol backed type lookups.
     profile_id: ProfileId,
     /// Current module id for type lookups.
@@ -347,8 +346,8 @@ struct RequireAwaitBodyVisitor<'a> {
 impl<'a> RequireAwaitBodyVisitor<'a> {
     /// Build one body visitor.
     fn new(
-        program: &'a Program,
-        artifacts: &'a ArtifactStore,
+        repository: &'a Repository,
+        revision: Revision,
         profile_id: ProfileId,
         module_id: ModuleId,
         symbols: &'a dir::SymbolTable,
@@ -359,8 +358,8 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
     ) -> Self {
         Self {
             options: NodeVisitorOptions::default(),
-            program,
-            artifacts,
+            repository,
+            revision,
             profile_id,
             module_id,
             symbols,
@@ -411,8 +410,8 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                     ..
                 } = expression
                 && expression_is_thenable_return_value(
-                    self.program,
-                    self.artifacts,
+                    self.repository,
+                    self.revision,
                     self.profile_id,
                     self.module_id,
                     tree,
@@ -430,8 +429,8 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                 value: Some(value_id),
             } = expression
                 && expression_is_thenable_return_value(
-                    self.program,
-                    self.artifacts,
+                    self.repository,
+                    self.revision,
                     self.profile_id,
                     self.module_id,
                     tree,
@@ -467,8 +466,8 @@ fn expression_has_await_signal(expression: &Expression) -> bool {
 
 /// Return true when one return value expression is Promise like.
 fn expression_is_thenable_return_value(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -488,8 +487,8 @@ fn expression_is_thenable_return_value(
     // keep symbol backed Promise checks for unresolved expression types
     let has_symbol_backed_promise_type = promise_symbols.iter().any(|promise_symbol| {
         expression_type_or_call_return_type_map(
-            program,
-            artifacts,
+            repository,
+            revision,
             profile_id,
             module_id,
             tree,
@@ -510,8 +509,8 @@ fn expression_is_thenable_return_value(
 
 /// Return true when a function body expression is an implicit Promise like return.
 fn expression_is_implicit_thenable_return(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::NodeTree,
@@ -527,8 +526,8 @@ fn expression_is_implicit_thenable_return(
     }
 
     expression_is_thenable_return_value(
-        program,
-        artifacts,
+        repository,
+        revision,
         profile_id,
         module_id,
         tree,

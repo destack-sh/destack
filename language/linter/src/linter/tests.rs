@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::env::current_dir;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Once};
 
@@ -15,10 +16,13 @@ use destack_formatter::{
 };
 use destack_parser::Parser;
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit, File, FileId, FileType,
-    LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics, print_diff,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit as SourceEdit, File, FileId,
+    FileType, LanguageType, MemoryFileSystem, ModuleId, Uri, print_diff,
 };
-use destack_workspace::{LintCategory, LintSeverity, LinterOptions, ProfileId, Program, Session};
+use destack_workspace::{
+    Change, Edit as RepositoryEdit, LintCategory, LintSeverity, LinterOptions, Profile, Ref,
+    Repository, Revision,
+};
 use parking_lot::Mutex;
 
 use crate::{
@@ -39,14 +43,14 @@ static PRELUDE_WARMERS: LazyLock<Mutex<HashMap<Vec<String>, Arc<Once>>>> =
 pub(crate) struct TestProgram {
     /// The file system.
     fs: Arc<MemoryFileSystem>,
-    /// The session.
-    session: Arc<Session>,
-    /// The program.
-    pub program: Arc<Program>,
-    /// The profile id for tests.
-    profile_id: ProfileId,
+    /// The repository.
+    pub repository: Arc<Repository>,
+    /// The profile for tests.
+    profile: Profile,
     /// The compiler.
     compiler: Arc<Compiler>,
+    /// The latest compiler diagnostics for this test harness.
+    latest_diagnostics: Mutex<DiagnosticCollection>,
     /// The lint runner.
     runner: LintRunner,
     /// Linter options for tests (all rules enabled by default).
@@ -118,7 +122,62 @@ pub(crate) use test_modules;
 
 #[allow(dead_code)]
 impl TestProgram {
-    /// Create a new test program with the given rules and options.
+    /// Return the current workspace reference.
+    fn current_reference(&self) -> Ref {
+        Ref::for_workspace_root(self.repository.workspace_root())
+    }
+
+    /// Return the current published workspace revision.
+    fn current_revision(&self) -> Revision {
+        self.repository
+            .current(&self.current_reference())
+            .expect("workspace revision should be tracked")
+    }
+
+    /// Return the active profile id for tests.
+    fn profile_id(&self) -> destack_source::ProfileId {
+        self.profile.id()
+    }
+
+    /// Return the active package id for tests.
+    fn package_id(&self) -> destack_source::PackageId {
+        let mut package_ids = self
+            .repository
+            .workspace_package_ids(self.current_revision())
+            .expect("workspace package ids should load");
+        package_ids.sort_unstable();
+
+        *package_ids
+            .first()
+            .expect("linter tests should have one active package")
+    }
+
+    /// Return one module snapshot for the current revision.
+    pub(crate) fn repository_module(&self, module_id: ModuleId) -> Arc<destack_workspace::Module> {
+        self.repository
+            .module(self.current_revision(), module_id)
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| panic!("missing module snapshot for {module_id:?}"))
+    }
+
+    /// Return one file snapshot for the current revision.
+    pub(crate) fn repository_file(&self, file_id: FileId) -> Arc<File> {
+        self.repository
+            .file(self.current_revision(), file_id)
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| panic!("missing file snapshot for {file_id:?}"))
+    }
+
+    /// Publish one source change to the current workspace revision.
+    fn apply_change(&self, change: Change) {
+        self.repository
+            .apply(&self.current_reference(), change)
+            .expect("failed to apply linter test change");
+    }
+
+    /// Create a new test repository with the given rules and options.
     fn new(
         rules: Vec<BoxedLintRule>,
         inject_prelude: bool,
@@ -127,12 +186,11 @@ impl TestProgram {
         let fs = Arc::new(MemoryFileSystem::new());
         let cwd = current_dir().unwrap();
 
-        let session = Arc::new(
-            Session::new(cwd.clone())
-                .with_fs(fs.clone())
+        let repository = Arc::new(
+            Repository::open_root_from_fs(cwd.clone(), fs.clone())
+                .expect("failed to import repository from linter test file system")
                 .with_cache_store(TEST_CACHE_STORE.clone()),
         );
-        let program = session.add_root(cwd);
 
         // libs
         let libs = explicit_libs.unwrap_or_else(|| collect_required_libs_from_rules(&rules));
@@ -152,43 +210,46 @@ impl TestProgram {
             EnvSnapshot::from_env_all(),
             ProfileFlags::default(),
         );
-        let profile_id = program.profiles.get_or_create(profile_key);
+        let profile = Profile::from_key(profile_key);
 
         // compiler / runner
         let compiler = Arc::new(Compiler::new(
-            session.clone(),
-            program.clone(),
+            repository.clone(),
             CompilerOptions {
                 workers: 1,
                 inject_prelude,
                 ..Default::default()
             },
         ));
+
+        // keep the compiler profile cache aligned with the explicit test profile
+        let _ = compiler.remember_profile(profile.clone());
+
         let runner = LintRunner::new(rules);
 
         Self {
             fs,
-            session,
-            program,
-            profile_id,
+            repository,
+            profile,
             compiler,
+            latest_diagnostics: Mutex::new(DiagnosticCollection::new()),
             runner,
             linter_options: test_linter_options(),
             has_enqueued_profile_resolution: AtomicBool::new(false),
         }
     }
 
-    /// Create a test program without prelude injection.
+    /// Create a test repository without prelude injection.
     pub(crate) fn new_without_prelude(rules: Vec<BoxedLintRule>) -> Self {
         Self::new(rules, false, None)
     }
 
-    /// Create a test program with prelude injection.
+    /// Create a test repository with prelude injection.
     pub(crate) fn new_with_prelude(rules: Vec<BoxedLintRule>) -> Self {
         Self::new(rules, true, None)
     }
 
-    /// Create a prelude test program with explicit libs.
+    /// Create a prelude test repository with explicit libs.
     fn new_with_prelude_libs(libs: Vec<String>) -> Self {
         Self::new(Vec::new(), true, Some(libs))
     }
@@ -232,47 +293,86 @@ impl TestProgram {
         self
     }
 
-    /// Add a file to the filesystem.
+    /// Set one source file in the filesystem and current workspace revision.
     pub(crate) fn add_file(&self, path: &str, content: &str) {
         self.fs.add_file(path, content.as_bytes()).unwrap();
+
+        self.apply_change(Change::single(RepositoryEdit::set_text(path, content)));
+    }
+
+    /// Set one root target config with explicit entry paths.
+    pub(crate) fn set_root_target_entries(&self, name: &str, entry_paths: &[&str]) {
+        let entries = entry_paths
+            .iter()
+            .map(|entry| format!("\"{entry}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let config = format!(
+            r#"{{
+    "targets": {{
+        "{name}": {{
+            "emit": "js",
+            "entry": [{entries}]
+        }}
+    }}
+}}
+"#
+        );
+
+        self.add_file("destack.json", &config);
     }
 
     /// Add a module and return its id.
     pub(crate) fn add_module(&self, path: &str, content: &str) -> ModuleId {
         self.add_file(path, content);
-        self.compiler
-            .resolve_path_to_module(&std::path::PathBuf::from(path))
+        self.repository
+            .module_id_for_path(self.current_revision(), Path::new(path))
             .unwrap()
+            .unwrap_or_else(|| panic!("missing module id for {path}"))
     }
 
     /// Import a module.
     pub(crate) fn import_module(&self, module: ModuleId) {
-        self.compiler.enqueue(ArtifactKey::DirBase { module });
+        self.compiler
+            .enqueue(self.current_revision(), ArtifactKey::DirBase { module });
     }
 
     /// Resolve a module.
     pub(crate) fn resolve_module(&self, module: ModuleId) {
-        self.compiler.enqueue(ArtifactKey::DirResolved {
-            module,
-            profile: self.profile_id,
-        });
+        self.compiler.enqueue(
+            self.current_revision(),
+            ArtifactKey::DirResolved {
+                module,
+                profile: self.profile_id(),
+            },
+        );
     }
 
     /// Resolve the language environment for the current profile.
     pub(crate) fn resolve_language_environment(&self) {
         self.compiler
-            .run_to_completion(|compiler| compiler.require_language_environment(self.profile_id))
+            .run_to_completion(self.current_revision(), |compiler| {
+                compiler.require_language_environment(self.profile_id())
+            })
             .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
+
+        // publish diagnostics from this compiler operation into the test harness
+        self.replace_latest_diagnostics(self.compiler.take_diagnostics());
     }
 
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
         self.compiler
-            .run_to_completion(|compiler| compiler.require_library_environment(self.profile_id))
+            .run_to_completion(self.current_revision(), |compiler| {
+                compiler.require_library_environment(self.profile_id())
+            })
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
+
+        // publish diagnostics from this compiler operation into the test harness
+        self.replace_latest_diagnostics(self.compiler.take_diagnostics());
     }
 
-    /// Enqueue builtin and lib resolution once for this test program.
+    /// Enqueue builtin and lib resolution once for this test repository.
     pub(crate) fn enqueue_profile_resolution_once(&self) {
         let has_enqueued = self
             .has_enqueued_profile_resolution
@@ -287,24 +387,43 @@ impl TestProgram {
 
     /// Analyze a module.
     pub(crate) fn analyze_module(&self, module: ModuleId) {
-        self.compiler.enqueue(ArtifactKey::DirAnalyzed {
-            module,
-            profile: self.profile_id,
-        });
+        self.compiler.enqueue(
+            self.current_revision(),
+            ArtifactKey::DirAnalyzed {
+                module,
+                profile: self.profile_id(),
+            },
+        );
     }
 
     /// Run all queued tasks.
     pub(crate) fn compile(&self) {
         self.compiler.compile();
+
+        // publish diagnostics from this compiler run into the test harness
+        self.replace_latest_diagnostics(self.compiler.take_diagnostics());
+    }
+
+    /// Replace the latest compiler diagnostics for this test harness.
+    fn replace_latest_diagnostics(&self, diagnostics: DiagnosticCollection) {
+        let mut latest_diagnostics = self.latest_diagnostics.lock();
+
+        *latest_diagnostics = diagnostics;
+    }
+
+    /// Return the latest compiler diagnostics for this test harness.
+    fn diagnostics(&self) -> DiagnosticCollection {
+        self.latest_diagnostics.lock().clone()
     }
 
     /// Lint a module at the given level.
     pub(crate) fn lint_module(&self, module: ModuleId, level: LintLevel) -> Vec<LintDiagnostic> {
-        let module = self.program.modules.get(module);
-        let profile = self.profile_id;
+        let revision = self.current_revision();
+        let module = self.repository_module(module);
+        let profile = self.profile.clone();
         self.runner.lint_module(
-            self.program.clone(),
-            self.compiler.artifacts.clone(),
+            self.repository.clone(),
+            revision,
             module,
             profile,
             &self.linter_options,
@@ -318,11 +437,12 @@ impl TestProgram {
         module: ModuleId,
         level: LintLevel,
     ) -> LintModuleReport {
-        let module = self.program.modules.get(module);
-        let profile = self.profile_id;
+        let revision = self.current_revision();
+        let module = self.repository_module(module);
+        let profile = self.profile.clone();
         self.runner.lint_module_profiled(
-            self.program.clone(),
-            self.compiler.artifacts.clone(),
+            self.repository.clone(),
+            revision,
             module,
             profile,
             &self.linter_options,
@@ -394,84 +514,158 @@ impl TestProgram {
         self.lint_module(target_module_id, LintLevel::Dir)
     }
 
-    /// Add modules, analyze them at DIR level, and lint program-scope DIR rules.
-    pub(crate) fn lint_program_dir_with_modules(
+    /// Add modules, analyze them at DIR level, and lint package-scope DIR rules.
+    pub(crate) fn lint_package_dir_with_modules(
         &self,
         modules: &[(&str, &str)],
     ) -> Vec<LintDiagnostic> {
         self.prepare_dir_modules(modules);
-        self.lint_program_dir()
+        self.lint_package_dir()
     }
 
-    /// Lint the full program with program-scope rules.
-    pub(crate) fn lint_program_ast(&self) -> Vec<LintDiagnostic> {
-        self.runner.lint_program_ast(
-            self.program.clone(),
-            self.compiler.artifacts.clone(),
+    /// Add modules, analyze them at DIR level, and lint workspace-scope DIR rules.
+    pub(crate) fn lint_workspace_dir_with_modules(
+        &self,
+        modules: &[(&str, &str)],
+    ) -> Vec<LintDiagnostic> {
+        self.prepare_dir_modules(modules);
+        self.lint_workspace_dir()
+    }
+
+    /// Lint the full workspace with workspace-scope rules.
+    pub(crate) fn lint_workspace_ast(&self) -> Vec<LintDiagnostic> {
+        let revision = self.current_revision();
+        self.runner
+            .lint_workspace_ast(self.repository.clone(), revision, &self.linter_options)
+    }
+
+    /// Lint the full workspace with AST workspace-scope rules and collect performance data.
+    pub(crate) fn lint_workspace_ast_profiled(&self) -> LintRunReport {
+        let revision = self.current_revision();
+        self.runner.lint_workspace_ast_profiled(
+            self.repository.clone(),
+            revision,
             &self.linter_options,
         )
     }
 
-    /// Lint the full program with AST program-scope rules and collect performance data.
-    pub(crate) fn lint_program_ast_profiled(&self) -> LintRunReport {
-        self.runner.lint_program_ast_profiled(
-            self.program.clone(),
-            self.compiler.artifacts.clone(),
+    /// Lint the active package with package-scope AST rules.
+    pub(crate) fn lint_package_ast(&self) -> Vec<LintDiagnostic> {
+        let revision = self.current_revision();
+        self.runner.lint_package_ast(
+            self.repository.clone(),
+            revision,
+            self.package_id(),
             &self.linter_options,
         )
     }
 
-    /// Lint the full program with DIR program-scope rules.
-    pub(crate) fn lint_program_dir(&self) -> Vec<LintDiagnostic> {
-        self.runner.lint_program_dir(
-            self.program.clone(),
-            self.compiler.artifacts.clone(),
-            self.profile_id,
+    /// Lint the active package with package-scope AST rules and collect performance data.
+    pub(crate) fn lint_package_ast_profiled(&self) -> LintRunReport {
+        let revision = self.current_revision();
+        self.runner.lint_package_ast_profiled(
+            self.repository.clone(),
+            revision,
+            self.package_id(),
             &self.linter_options,
         )
     }
 
-    /// Lint the full program with DIR program-scope rules and collect performance data.
-    pub(crate) fn lint_program_dir_profiled(&self) -> LintRunReport {
-        self.runner.lint_program_dir_profiled(
-            self.program.clone(),
-            self.compiler.artifacts.clone(),
-            self.profile_id,
+    /// Lint the active package with package-scope DIR rules.
+    pub(crate) fn lint_package_dir(&self) -> Vec<LintDiagnostic> {
+        let revision = self.current_revision();
+        self.runner.lint_package_dir(
+            self.repository.clone(),
+            revision,
+            self.package_id(),
+            self.profile_id(),
             &self.linter_options,
         )
     }
 
-    /// Lint the full program with program-scope rules.
-    pub(crate) fn lint_program(&self) -> Vec<LintDiagnostic> {
-        let mut diagnostics = self.lint_program_ast();
-        diagnostics.extend(self.lint_program_dir());
+    /// Lint the active package with package-scope DIR rules and collect performance data.
+    pub(crate) fn lint_package_dir_profiled(&self) -> LintRunReport {
+        let revision = self.current_revision();
+        self.runner.lint_package_dir_profiled(
+            self.repository.clone(),
+            revision,
+            self.package_id(),
+            self.profile_id(),
+            &self.linter_options,
+        )
+    }
+
+    /// Lint the active workspace with workspace-scope DIR rules.
+    pub(crate) fn lint_workspace_dir(&self) -> Vec<LintDiagnostic> {
+        let revision = self.current_revision();
+        self.runner.lint_workspace_dir(
+            self.repository.clone(),
+            revision,
+            self.profile_id(),
+            &self.linter_options,
+        )
+    }
+
+    /// Lint the active workspace with workspace-scope DIR rules and collect performance data.
+    pub(crate) fn lint_workspace_dir_profiled(&self) -> LintRunReport {
+        let revision = self.current_revision();
+        self.runner.lint_workspace_dir_profiled(
+            self.repository.clone(),
+            revision,
+            self.profile_id(),
+            &self.linter_options,
+        )
+    }
+
+    /// Lint the active workspace and package scope rules.
+    pub(crate) fn lint_workspace(&self) -> Vec<LintDiagnostic> {
+        let mut diagnostics = self.lint_workspace_ast();
+        diagnostics.extend(self.lint_package_ast());
+        diagnostics.extend(self.lint_workspace_dir());
+        diagnostics.extend(self.lint_package_dir());
         diagnostics
     }
 
-    /// Lint the full program with program-scope rules and collect performance data.
-    pub(crate) fn lint_program_profiled(&self) -> LintRunReport {
-        let mut ast_report = self.lint_program_ast_profiled();
-        let dir_report = self.lint_program_dir_profiled();
-        ast_report.performance.merge(&dir_report.performance);
-        ast_report.diagnostics.extend(dir_report.diagnostics);
+    /// Lint the active workspace and package scope rules and collect performance data.
+    pub(crate) fn lint_workspace_profiled(&self) -> LintRunReport {
+        let mut ast_report = self.lint_workspace_ast_profiled();
+        let package_ast_report = self.lint_package_ast_profiled();
+        let workspace_dir_report = self.lint_workspace_dir_profiled();
+        let package_dir_report = self.lint_package_dir_profiled();
+        ast_report
+            .performance
+            .merge(&package_ast_report.performance);
+        ast_report
+            .diagnostics
+            .extend(package_ast_report.diagnostics);
+        ast_report
+            .performance
+            .merge(&workspace_dir_report.performance);
+        ast_report
+            .diagnostics
+            .extend(workspace_dir_report.diagnostics);
+        ast_report
+            .performance
+            .merge(&package_dir_report.performance);
+        ast_report
+            .diagnostics
+            .extend(package_dir_report.diagnostics);
         ast_report
     }
 
     /// Check no compiler diagnostics at or above the given severity.
     #[track_caller]
     pub(crate) fn check_no_diagnostic(&self, min_severity: DiagnosticSeverity) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let highest = diagnostics.highest_severity();
         if let Some(highest) = highest
             && highest >= min_severity
         {
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &diagnostics, options);
+            self.repository
+                .print_diagnostics(self.current_revision(), &diagnostics);
             let severity_name = min_severity.family_name().to_ascii_lowercase();
             panic!(
-                "program has {} unexpected {severity_name}s",
+                "repository has {} unexpected {severity_name}s",
                 diagnostics.len()
             );
         }
@@ -485,24 +679,43 @@ impl TestProgram {
 
     /// Wrap diagnostics in a LintResult for assertion methods.
     pub(crate) fn result(&self, diagnostics: Vec<LintDiagnostic>) -> LintResult<'_> {
-        LintResult::new(diagnostics, &self.program)
+        LintResult::new(
+            diagnostics,
+            self.repository.as_ref(),
+            self.current_revision(),
+        )
     }
 }
 
 /// Result of linting that can be asserted on.
 pub(crate) struct LintResult<'a> {
     diagnostics: Vec<LintDiagnostic>,
-    program: &'a Program,
+    repository: &'a Repository,
+    revision: Revision,
 }
 
 #[allow(dead_code)]
 impl<'a> LintResult<'a> {
     /// Create a new lint result.
-    pub(crate) fn new(diagnostics: Vec<LintDiagnostic>, program: &'a Program) -> Self {
+    pub(crate) fn new(
+        diagnostics: Vec<LintDiagnostic>,
+        repository: &'a Repository,
+        revision: Revision,
+    ) -> Self {
         Self {
             diagnostics,
-            program,
+            repository,
+            revision,
         }
+    }
+
+    /// Return one file snapshot for one diagnostic file id.
+    fn repository_file(&self, file_id: FileId) -> Arc<File> {
+        self.repository
+            .file(self.revision, file_id)
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| panic!("missing file snapshot for {file_id:?}"))
     }
 
     /// Get the diagnostics.
@@ -516,10 +729,8 @@ impl<'a> LintResult<'a> {
         for d in diagnostics {
             collection.insert(d.clone().into_diagnostic());
         }
-        let options = PrintOptions::new()
-            .with_line_width(self.program.formatter.line_width as u32)
-            .with_module_count(self.program.modules.len());
-        print_diagnostics(&self.program.files, &collection, options);
+        self.repository
+            .print_diagnostics(self.revision, &collection);
     }
 
     /// Assert diagnostics contain a lint with the given rule id.
@@ -575,7 +786,7 @@ impl<'a> LintResult<'a> {
         }
 
         for diagnostic in &matching {
-            let file = self.program.files.get(diagnostic.file_id);
+            let file = self.repository_file(diagnostic.file_id);
             if let Some((line_index, _)) = file.get_position(diagnostic.span.start) {
                 let diagnostic_line = line_index + 1;
                 if diagnostic_line == line {
@@ -587,7 +798,7 @@ impl<'a> LintResult<'a> {
         let lines: Vec<_> = matching
             .iter()
             .filter_map(|d| {
-                let file = self.program.files.get(d.file_id);
+                let file = self.repository_file(d.file_id);
                 file.get_position(d.span.start)
                     .map(|(line_index, _)| line_index + 1)
             })
@@ -597,11 +808,12 @@ impl<'a> LintResult<'a> {
     }
 
     /// Apply edits to source code and return the result.
-    pub(crate) fn apply_edits(&self, edits: Vec<&Edit>) -> String {
+    pub(crate) fn apply_edits(&self, edits: Vec<&SourceEdit>) -> String {
         // return original source if no edits
         if edits.is_empty() {
             if let Some(d) = self.diagnostics.first() {
-                return self.program.files.get(d.file_id).text().to_string();
+                let file = self.repository_file(d.file_id);
+                return file.text().to_string();
             }
             return String::new();
         }
@@ -612,7 +824,7 @@ impl<'a> LintResult<'a> {
 
         // apply all edits to the source
         let file_id = sorted_edits[0].span.file;
-        let file = self.program.files.get(file_id);
+        let file = self.repository_file(file_id);
         let mut source = file.text().to_string();
         for edit in sorted_edits {
             let start = edit.span.start as usize;
@@ -626,7 +838,7 @@ impl<'a> LintResult<'a> {
     /// Apply fixes from diagnostics with the given applicability and return the fixed source.
     pub(crate) fn apply_fixes(&self, applicability: Option<Fixability>) -> String {
         // collect all edits from fixes with matching applicability
-        let edits: Vec<&Edit> = self
+        let edits: Vec<&SourceEdit> = self
             .diagnostics
             .iter()
             .flat_map(|d| &d.fixes)

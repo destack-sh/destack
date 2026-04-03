@@ -110,9 +110,9 @@ impl LintFix {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Fixability {
     /// Safe to apply automatically with `--fix`.
-    /// The fix preserves the program's semantics.
+    /// The fix preserves the repository's semantics.
     Safe,
-    /// May change program semantics; requires `--fix-unsafe`.
+    /// May change repository semantics; requires `--fix-unsafe`.
     /// The fix might alter behavior in edge cases.
     Unsafe,
     /// Suggestion only; requires human review.

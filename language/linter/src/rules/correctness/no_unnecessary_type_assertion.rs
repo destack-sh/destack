@@ -133,8 +133,8 @@ fn source_expression_matches_target_type(
         return false;
     };
     let Some(source_value_type_id) = symbol_value_type_id_for(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -156,10 +156,7 @@ fn source_expression_matches_target_type(
     }
 
     // read source module types to validate `any as any` cross module
-    let Some(module_dir) = ctx
-        .artifacts
-        .dir_analyzed(source_value_type_id.module_id, ctx.profile_id)
-    else {
+    let Some(module_dir) = ctx.analyzed_dir(source_value_type_id.module_id) else {
         return false;
     };
     let source_type_id = unwrap_value_type_id(&module_dir.types, source_value_type_id.type_id);
@@ -268,8 +265,8 @@ fn assertion_operand_type_id(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalTypeId> {
     let type_id = expression_type_map(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,

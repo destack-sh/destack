@@ -98,10 +98,16 @@ impl LintRule for NoArgumentsOrderMismatch {
             let Some(Some(second_parameter_name)) = parameter_names.get(second_index) else {
                 continue;
             };
-            let first_parameter_name_text =
-                ctx.program.strings.get(*first_parameter_name).to_string();
-            let second_parameter_name_text =
-                ctx.program.strings.get(*second_parameter_name).to_string();
+            let first_parameter_name_text = ctx
+                .repository
+                .strings
+                .get(*first_parameter_name)
+                .to_string();
+            let second_parameter_name_text = ctx
+                .repository
+                .strings
+                .get(*second_parameter_name)
+                .to_string();
 
             let first_argument_span = ctx.get_span(argument_ids[first_index]);
             let second_argument_span = ctx.get_span(argument_ids[second_index]);
@@ -143,8 +149,8 @@ fn swapped_pair_type_compatible(
 ) -> bool {
     let callee_expression = ctx.tree.get(callee_expression_id);
     let candidate_symbols = expression_candidate_symbols(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -159,8 +165,8 @@ fn swapped_pair_type_compatible(
     // evaluate every local declaration candidate conservatively
     for symbol_id in candidate_symbols {
         let Some(declaration_id) = symbol_primary_declaration_for(
-            &ctx.program,
-            &ctx.artifacts,
+            &ctx.repository,
+            ctx.revision,
             ctx.profile_id,
             ctx.module_id(),
             ctx.symbols,
@@ -302,8 +308,8 @@ fn stable_parameter_names_for_call_target(
 ) -> Option<Vec<Option<StringId>>> {
     let callee_expression = ctx.tree.get(callee_expression_id);
     let candidate_symbols = expression_candidate_symbols(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -339,8 +345,8 @@ fn parameter_names_for_symbol(
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<Option<StringId>>> {
     let declaration_id = symbol_primary_declaration_for(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -351,9 +357,7 @@ fn parameter_names_for_symbol(
         return declaration_parameter_names(ctx.tree, declaration_id.local_id);
     }
 
-    let module_dir = ctx
-        .artifacts
-        .dir_analyzed(declaration_id.module_id, ctx.profile_id)?;
+    let module_dir = ctx.analyzed_dir(declaration_id.module_id)?;
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 

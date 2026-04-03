@@ -37,8 +37,8 @@ impl LintRule for MaxLines {
         let skip_blank_lines = ctx.options.complexity.max_lines_skip_blank_lines;
 
         // count file lines with option aware filtering
-        let file = ctx.program.files.get(ctx.module.file_id);
-        let line_count = count_file_lines(&file, skip_comments, skip_blank_lines);
+        let file = ctx.file.as_ref();
+        let line_count = count_file_lines(file, skip_comments, skip_blank_lines);
         if line_count <= max_lines {
             return;
         }

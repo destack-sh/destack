@@ -55,7 +55,7 @@ impl LintRule for NoClass {
                 continue;
             }
             let span = ctx.tree.get_span(node_id);
-            let file = ctx.program.files.get(ctx.module.file_id);
+            let file = ctx.file.as_ref();
             ctx.report(
                 LintDiagnostic::new(
                     NO_CLASS.id,

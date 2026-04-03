@@ -73,9 +73,9 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     /// Build a visitor for prefer-string-replaceall checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let string_symbol = ctx.well_known_symbol(WellKnownSymbol::String);
-        let replace_name = ctx.program.strings.intern("replace");
-        let replace_all_name = ctx.program.strings.intern("replaceAll");
-        let regexp_name = ctx.program.strings.intern("RegExp");
+        let replace_name = ctx.repository.strings.intern("replace");
+        let replace_all_name = ctx.repository.strings.intern("replaceAll");
+        let regexp_name = ctx.repository.strings.intern("RegExp");
         let regexp_symbol = ctx.get_declared_library_symbol(regexp_name);
         let global_qualifiers = ctx.global_qualifier_symbols();
 
@@ -236,13 +236,13 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
 
         if is_replace {
             let member_span = self.ctx.get_span(member_id);
-            let replace_name = self.ctx.program.strings.get(self.replace_name);
+            let replace_name = self.ctx.repository.strings.get(self.replace_name);
             let method_span = destack_source::Span::new(
                 member_span.file,
                 member_span.end.saturating_sub(replace_name.len() as u32),
                 member_span.end,
             );
-            let replace_all_name = self.ctx.program.strings.get(self.replace_all_name);
+            let replace_all_name = self.ctx.repository.strings.get(self.replace_all_name);
             edit_builder = edit_builder.replace(method_span, replace_all_name.as_ref());
         }
 
@@ -306,8 +306,8 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             }
 
             let Some(initializer_id) = symbol_initializer_expression(
-                &self.ctx.program,
-                &self.ctx.artifacts,
+                &self.ctx.repository,
+                self.ctx.revision,
                 self.ctx.profile_id,
                 self.ctx.module_id(),
                 self.ctx.symbols,
@@ -321,7 +321,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         };
 
         // inspect regex flags
-        let flags = self.ctx.program.strings.get(*flags);
+        let flags = self.ctx.repository.strings.get(*flags);
         flags.as_ref().contains('g')
     }
 
@@ -365,7 +365,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             else {
                 return false;
             };
-            let flags_text = self.ctx.program.strings.get(flags_id);
+            let flags_text = self.ctx.repository.strings.get(flags_id);
             return flags_text.as_ref().contains('g');
         }
 
@@ -406,8 +406,8 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         }
 
         let initializer_id = symbol_initializer_expression(
-            &self.ctx.program,
-            &self.ctx.artifacts,
+            &self.ctx.repository,
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -459,12 +459,12 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return None;
         };
         let flags = flags.as_ref()?;
-        let flags_text = self.ctx.program.strings.get(*flags);
+        let flags_text = self.ctx.repository.strings.get(*flags);
         if !regex_flags_are_global_only(flags_text.as_ref()) {
             return None;
         }
 
-        let pattern_text = self.ctx.program.strings.get(*content);
+        let pattern_text = self.ctx.repository.strings.get(*content);
         let regex_parse =
             LintRegexParse::parse_with_flags(pattern_text.as_ref(), Some(flags_text.as_ref()));
         let hir = regex_parse.hir?;

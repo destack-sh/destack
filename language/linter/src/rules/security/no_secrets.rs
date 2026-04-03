@@ -253,11 +253,11 @@ fn is_suspicious_name(name: &str) -> bool {
     for start in 0..words.len() {
         let mut sequence = String::new();
 
-        for end in start..words.len() {
-            if end > start {
+        for (index, word) in words[start..].iter().enumerate() {
+            if index > 0 {
                 sequence.push(' ');
             }
-            sequence.push_str(&words[end]);
+            sequence.push_str(word);
 
             if suspicious_name_pattern_matches(&sequence) {
                 return true;

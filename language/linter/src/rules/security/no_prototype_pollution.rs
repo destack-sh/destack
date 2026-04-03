@@ -57,8 +57,8 @@ struct NoPrototypePollutionVisitor<'a, 'b> {
 impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
     /// Build a new visitor.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let prototype_name = ctx.program.strings.intern("prototype");
-        let proto_name = ctx.program.strings.intern("__proto__");
+        let prototype_name = ctx.repository.strings.intern("prototype");
+        let proto_name = ctx.repository.strings.intern("__proto__");
         let object_symbol = ctx.well_known_symbol(WellKnownSymbol::Object);
 
         Self {
@@ -91,7 +91,6 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         // check for direct prototype assignment
         if self.is_prototype_assignment_target(left) {
             self.report(expression_id, "direct prototype modification");
-            return;
         }
     }
 

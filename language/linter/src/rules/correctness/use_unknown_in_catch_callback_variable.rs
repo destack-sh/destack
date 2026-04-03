@@ -40,8 +40,8 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
     /// Check module DIR nodes for Promise rejection callback parameter types.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let catch_name = ctx.program.strings.intern("catch");
-        let then_name = ctx.program.strings.intern("then");
+        let catch_name = ctx.repository.strings.intern("catch");
+        let then_name = ctx.repository.strings.intern("then");
         let promise_symbol = ctx
             .well_known_symbols()
             .get_type_symbol(WellKnownSymbol::Promise)
@@ -72,8 +72,8 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                 continue;
             };
             let is_promise_receiver = expression_type_map(
-                &ctx.program,
-                &ctx.artifacts,
+                &ctx.repository,
+                ctx.revision,
                 ctx.profile_id,
                 ctx.module_id(),
                 ctx.tree,
@@ -230,7 +230,7 @@ fn catch_callback_uses_any_parameter(
 ) -> bool {
     // prefer direct parameter analysis for local callback declarations
     if let Some(parameter_id) = callback_parameter_id {
-        let Some(ast) = ctx.artifacts.ast(ctx.module_id()) else {
+        let Some(ast) = ctx.module_ast(ctx.module_id()) else {
             return false;
         };
         return parameter_uses_explicit_any(
@@ -259,8 +259,8 @@ fn callback_type_uses_any_parameter(
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let Some(callback_type_id) = expression_type_map(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
@@ -294,8 +294,8 @@ fn callback_primary_declaration(
 
     let target_symbol = callback_expression.target_symbol()?;
     symbol_primary_declaration_for(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -308,13 +308,10 @@ fn callback_declaration_uses_any_parameter(
     ctx: &LintModuleDirContext<'_>,
     declaration_id: dir::GlobalNodeIdAny,
 ) -> bool {
-    let Some(module_dir) = ctx
-        .artifacts
-        .dir_analyzed(declaration_id.module_id, ctx.profile_id)
-    else {
+    let Some(module_dir) = ctx.analyzed_dir(declaration_id.module_id) else {
         return false;
     };
-    let Some(ast) = ctx.artifacts.ast(declaration_id.module_id) else {
+    let Some(ast) = ctx.module_ast(declaration_id.module_id) else {
         return false;
     };
 

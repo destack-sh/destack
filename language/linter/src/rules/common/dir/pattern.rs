@@ -147,8 +147,8 @@ fn pattern_expression_is_equal(
     let right_symbol = expression_target_symbol(ctx.tree, right_expression_id);
     if let (Some(left_symbol), Some(right_symbol)) = (left_symbol, right_symbol) {
         let left_symbol = canonical_symbol_for(
-            &ctx.program,
-            &ctx.artifacts,
+            &ctx.repository,
+            ctx.revision,
             ctx.profile_id,
             ctx.module_id(),
             ctx.symbols,
@@ -156,8 +156,8 @@ fn pattern_expression_is_equal(
         )
         .unwrap_or(left_symbol);
         let right_symbol = canonical_symbol_for(
-            &ctx.program,
-            &ctx.artifacts,
+            &ctx.repository,
+            ctx.revision,
             ctx.profile_id,
             ctx.module_id(),
             ctx.symbols,

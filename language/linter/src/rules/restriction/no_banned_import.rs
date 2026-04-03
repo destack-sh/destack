@@ -70,7 +70,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
             .filter(|pattern| !pattern.is_empty())
             .map(ToOwned::to_owned)
             .collect::<Vec<_>>();
-        let require_name = ctx.program.strings.intern("require");
+        let require_name = ctx.repository.strings.intern("require");
         let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
@@ -120,7 +120,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         let Some(specifier_id) = specifier_id else {
             return;
         };
-        let specifier_text = self.ctx.program.strings.get(specifier_id).to_string();
+        let specifier_text = self.ctx.repository.strings.get(specifier_id).to_string();
 
         // match specifier or resolved target identity against restricted patterns
         let Some(matched_target) = matching_target(
@@ -251,8 +251,8 @@ fn matching_target(
     let target_module = expression_target_module(expression)?;
     match target_module {
         dir::ModuleTarget::Module(module_id) => {
-            let module_ref = ctx.program.modules.get(module_id);
-            let module = module_ref.as_ref();
+            let module = ctx.repository_module(module_id)?;
+            let module = module.as_ref();
 
             // check resolved module path next
             if let Some(path) = module.path.as_ref() {
@@ -267,7 +267,7 @@ fn matching_target(
             }
 
             // check resolved file name as a fallback
-            let file = ctx.program.files.get(module.file_id);
+            let file = ctx.repository_file(module.file_id)?;
             if let Some(pattern) = matching_pattern(&file.name, patterns) {
                 return Some(MatchedTarget {
                     pattern,
@@ -277,7 +277,7 @@ fn matching_target(
             }
         }
         dir::ModuleTarget::Binding(binding_specifier) => {
-            let binding_text = ctx.program.strings.get(binding_specifier);
+            let binding_text = ctx.repository.strings.get(binding_specifier);
             if let Some(pattern) = matching_pattern(binding_text.as_ref(), patterns) {
                 return Some(MatchedTarget {
                     pattern,
@@ -287,7 +287,7 @@ fn matching_target(
             }
         }
         dir::ModuleTarget::External(specifier) => {
-            let binding_text = ctx.program.strings.get(specifier);
+            let binding_text = ctx.repository.strings.get(specifier);
             if let Some(pattern) = matching_pattern(binding_text.as_ref(), patterns) {
                 return Some(MatchedTarget {
                     pattern,

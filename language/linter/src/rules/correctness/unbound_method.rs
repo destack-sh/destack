@@ -39,9 +39,9 @@ impl LintRule for UnboundMethod {
     /// Check module DIR nodes for unbound method references.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let bind_name = ctx.program.strings.intern("bind");
-        let call_name = ctx.program.strings.intern("call");
-        let apply_name = ctx.program.strings.intern("apply");
+        let bind_name = ctx.repository.strings.intern("bind");
+        let call_name = ctx.repository.strings.intern("call");
+        let apply_name = ctx.repository.strings.intern("apply");
 
         // resolve visitor
         let mut visitor = UnboundMethodVisitor::new(ctx, meta, bind_name, call_name, apply_name);
@@ -359,8 +359,8 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
     fn is_this_bound_method_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
         // prefer declarations to identify method symbols and skip static members
         let Some(primary_declaration) = symbol_primary_declaration_for(
-            &self.ctx.program,
-            &self.ctx.artifacts,
+            &self.ctx.repository,
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -371,11 +371,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect member declarations and reject static methods
         if primary_declaration.local_id.ty == dir::NodeType::Member {
-            let Some(module_dir) = self
-                .ctx
-                .artifacts
-                .dir_analyzed(primary_declaration.module_id, self.ctx.profile_id)
-            else {
+            let Some(module_dir) = self.ctx.analyzed_dir(primary_declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let member = module_dir
@@ -393,11 +389,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect property declarations for method values
         if primary_declaration.local_id.ty == dir::NodeType::Property {
-            let Some(module_dir) = self
-                .ctx
-                .artifacts
-                .dir_analyzed(primary_declaration.module_id, self.ctx.profile_id)
-            else {
+            let Some(module_dir) = self.ctx.analyzed_dir(primary_declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let property = module_dir
@@ -412,8 +404,8 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
     /// Return true when a symbol value type declares a `this` parameter.
     fn symbol_has_this_parameter(&self, symbol_id: dir::GlobalSymbolId) -> bool {
         let Some(symbol_type_id) = symbol_value_type_id_for(
-            &self.ctx.program,
-            &self.ctx.artifacts,
+            &self.ctx.repository,
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -429,11 +421,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         }
 
         // load foreign module types for the `this` parameter check
-        let Some(module_dir) = self
-            .ctx
-            .artifacts
-            .dir_analyzed(symbol_type_id.module_id, self.ctx.profile_id)
-        else {
+        let Some(module_dir) = self.ctx.analyzed_dir(symbol_type_id.module_id) else {
             return false;
         };
         has_non_void_this_parameter_type(&module_dir.types, symbol_type_id.type_id)

@@ -68,9 +68,9 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
     /// Build a visitor for Promise rejection checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         Self {
-            reject_name: ctx.program.strings.intern("reject"),
-            ok_name: ctx.program.strings.intern("ok"),
-            err_name: ctx.program.strings.intern("err"),
+            reject_name: ctx.repository.strings.intern("reject"),
+            ok_name: ctx.repository.strings.intern("ok"),
+            err_name: ctx.repository.strings.intern("err"),
             promise_symbol: ctx.well_known_symbol(WellKnownSymbol::Promise),
             error_symbol: ctx.get_language_symbol(LanguageSymbol::Error),
             result_symbol: ctx.get_language_symbol(LanguageSymbol::Result),
@@ -211,8 +211,8 @@ fn is_promise_receiver(
     };
 
     symbol_matches_or_canonical(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -254,8 +254,8 @@ fn reject_payload_is_obviously_non_error(
 
     // typed primitive and nominal non-error cases
     expression_type_map(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
@@ -356,8 +356,8 @@ fn expression_is_result_constructor_call(
     };
 
     symbol_matches_or_canonical(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

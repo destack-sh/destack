@@ -42,7 +42,7 @@ impl LintRule for MaxLinesPerFunction {
             .complexity
             .max_lines_per_function_skip_blank_lines;
         let include_iifes = ctx.options.complexity.max_lines_per_function_iifes;
-        let file = ctx.program.files.get(ctx.module.file_id);
+        let file = ctx.file.clone();
 
         // check all callable owners that have a body expression
         for_each_callable_signature(ctx.tree, |owner_id, _signature, body_id| {
@@ -59,7 +59,7 @@ impl LintRule for MaxLinesPerFunction {
             // resolve owner span for line counting
             let owner_span = callable_owner_span(ctx.tree, owner_id);
             let line_count =
-                count_file_span_lines(&file, owner_span, skip_comments, skip_blank_lines);
+                count_file_span_lines(file.as_ref(), owner_span, skip_comments, skip_blank_lines);
             if line_count <= max_lines {
                 return;
             }

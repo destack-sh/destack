@@ -38,8 +38,8 @@ impl LintRule for CatchErrorName {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let expected_name = &ctx.options.style.catch_error_name;
-        let catch_name = ctx.program.strings.intern("catch");
-        let then_name = ctx.program.strings.intern("then");
+        let catch_name = ctx.repository.strings.intern("catch");
+        let then_name = ctx.repository.strings.intern("then");
 
         // inspect expressions for catch bindings and promise rejection callbacks
         for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
@@ -113,7 +113,7 @@ fn report_try_catch_binding(
     else {
         return;
     };
-    let actual_name = ctx.program.strings.get(*actual_name_id).to_string();
+    let actual_name = ctx.repository.strings.get(*actual_name_id).to_string();
     if name_matches_expected(&actual_name, expected_name)
         || name_is_unused_placeholder(ctx, *symbol, &actual_name)
     {
@@ -191,7 +191,7 @@ fn report_promise_rejection_callback(
     else {
         return;
     };
-    let actual_name = ctx.program.strings.get(actual_name_id).to_string();
+    let actual_name = ctx.repository.strings.get(actual_name_id).to_string();
     if name_matches_expected(&actual_name, expected_name)
         || name_is_unused_placeholder(ctx, symbol_id, &actual_name)
     {
@@ -286,8 +286,8 @@ fn callback_primary_declaration(
     // then resolve referenced callback declarations
     let target_symbol = callback_expression.target_symbol()?;
     symbol_primary_declaration_for(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

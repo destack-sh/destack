@@ -3,10 +3,9 @@ use std::collections::HashSet;
 use destack_source::{FileType, ModuleId, Span};
 use destack_workspace::{
     EntryResolutionMode, EntrySource, TargetDiscovery, TargetDiscoveryOptions,
-    discover_entry_modules,
 };
 
-use crate::{LintDiagnostic, LintProgramDirContext, LintRule, declare_lint};
+use crate::{LintDiagnostic, LintRule, LintWorkspaceDirContext, declare_lint};
 
 declare_lint! {
     /// Disallow exported modules that are never imported by another module.
@@ -18,7 +17,7 @@ declare_lint! {
         code = "LR029",
         category = Restriction,
         level = Dir,
-        scope = Program,
+        scope = Workspace,
         requires_all = [],
         requires_any = [],
         fixable = No,
@@ -35,7 +34,7 @@ impl LintRule for NoUnusedModules {
         NoUnusedModules::meta()
     }
 
-    fn check_program_dir(&self, ctx: &mut LintProgramDirContext) {
+    fn check_workspace_dir(&self, ctx: &mut LintWorkspaceDirContext) {
         let meta = self.meta();
         let severity = ctx.get_severity(meta);
         if !severity.is_enabled() {
@@ -43,7 +42,7 @@ impl LintRule for NoUnusedModules {
         }
 
         // resolve the module graph for the active profile
-        let Some(graph) = ctx.artifacts.module_graph(ctx.profile_id) else {
+        let Some(graph) = ctx.module_graph() else {
             return;
         };
 
@@ -89,9 +88,13 @@ impl LintRule for NoUnusedModules {
         });
 
         for module_id in unused_module_ids {
-            let module_ref = ctx.program.modules.get(module_id);
-            let module = module_ref.as_ref();
-            let file = ctx.program.files.get(module.file_id);
+            let Some(module) = ctx.repository_module(module_id) else {
+                continue;
+            };
+            let module = module.as_ref();
+            let Some(file) = ctx.repository_file(module.file_id) else {
+                continue;
+            };
 
             ctx.report(
                 LintDiagnostic::new(
@@ -111,20 +114,25 @@ impl LintRule for NoUnusedModules {
 }
 
 /// Collect user code modules eligible for this rule.
-fn collect_eligible_modules(ctx: &LintProgramDirContext) -> HashSet<ModuleId> {
+fn collect_eligible_modules(ctx: &LintWorkspaceDirContext) -> HashSet<ModuleId> {
     let mut modules = HashSet::new();
 
     // inspect all modules and keep user code modules only
-    for module_ref in ctx.program.modules.iter() {
-        let module = module_ref.as_ref();
-        if module.id == ctx.program.root_module_id {
+    for module_id in ctx.workspace_module_ids() {
+        let Some(module) = ctx.repository_module(module_id) else {
+            continue;
+        };
+        let module = module.as_ref();
+        if module.id == ctx.repository.root_module_id() {
             continue;
         }
         if !module.is_user() {
             continue;
         }
 
-        let file = ctx.program.files.get(module.file_id);
+        let Some(file) = ctx.repository_file(module.file_id) else {
+            continue;
+        };
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
@@ -137,14 +145,16 @@ fn collect_eligible_modules(ctx: &LintProgramDirContext) -> HashSet<ModuleId> {
 
 /// Collect target entry modules from configured package targets.
 fn collect_profile_target_entry_modules(
-    ctx: &LintProgramDirContext,
+    ctx: &LintWorkspaceDirContext,
     eligible_modules: &HashSet<ModuleId>,
 ) -> HashSet<ModuleId> {
     let mut entry_modules = HashSet::new();
-
     // inspect package targets for entry roots
-    for package_ref in ctx.program.packages.iter() {
-        let package = package_ref.read();
+    for package_id in ctx.workspace_package_ids() {
+        let Some(package) = ctx.repository_package(package_id) else {
+            continue;
+        };
+        let package = package.as_ref();
         let package_path = package.path.clone();
 
         for (target_id, target) in &package.targets {
@@ -154,11 +164,11 @@ fn collect_profile_target_entry_modules(
 
             let options = TargetDiscoveryOptions {
                 entry_source: EntrySource::Target,
-                entry_resolution: EntryResolutionMode::RegistryRelative,
+                entry_resolution: EntryResolutionMode::RepositoryRelative,
                 manifest_entry_targets: &[],
             };
-            let discovered_modules = discover_entry_modules(
-                &ctx.program.modules,
+            let discovered_modules = ctx.repository.entry_module_ids(
+                ctx.revision,
                 package.id,
                 &package_path,
                 target,
@@ -182,7 +192,7 @@ fn collect_profile_target_entry_modules(
 }
 
 /// Return true when a file should be treated as declaration-only.
-fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool {
+fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceDirContext) -> bool {
     if ctx.options().include_declaration_files {
         return false;
     }
@@ -194,8 +204,8 @@ fn is_declaration_file(file_type: FileType, ctx: &LintProgramDirContext) -> bool
 }
 
 /// Return true when the module has exports in the active profile DIR.
-fn module_has_exports(ctx: &LintProgramDirContext, module_id: ModuleId) -> bool {
-    let Some(dir) = ctx.artifacts.dir_resolved(module_id, ctx.profile_id) else {
+fn module_has_exports(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> bool {
+    let Some(dir) = ctx.resolved_dir(module_id) else {
         return false;
     };
 
@@ -206,24 +216,24 @@ fn module_has_exports(ctx: &LintProgramDirContext, module_id: ModuleId) -> bool 
 }
 
 /// Return the file name for deterministic sorting.
-fn module_file_name(ctx: &LintProgramDirContext, module_id: ModuleId) -> String {
-    let module_ref = ctx.program.modules.get(module_id);
-    let module = module_ref.as_ref();
-    let file = ctx.program.files.get(module.file_id);
+fn module_file_name(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> String {
+    let Some(module) = ctx.repository_module(module_id) else {
+        return module_id.to_string();
+    };
+    let module = module.as_ref();
+    let Some(file) = ctx.repository_file(module.file_id) else {
+        return module_id.to_string();
+    };
     file.name.clone()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use destack_workspace::TargetDiscovery;
-
     use super::*;
     use crate::linter::TestProgram;
 
-    /// Add modules, run DIR analysis, and lint program scope rules.
-    fn lint_program_with_modules(
+    /// Add modules, run DIR analysis, and lint workspace scope rules.
+    fn lint_workspace_with_modules(
         modules: &[(&str, &str)],
         entry_paths: &[&str],
         configure: impl FnOnce(&mut destack_workspace::LinterOptions),
@@ -233,7 +243,7 @@ mod tests {
 
         let mut module_ids = Vec::new();
 
-        // add all modules to the test program
+        // add all modules to the test repository
         for (path, source) in modules {
             let module_id = test.add_module(path, source);
             module_ids.push(module_id);
@@ -251,31 +261,17 @@ mod tests {
 
         // configure one explicit target entry root when requested
         if !entry_paths.is_empty() && !module_ids.is_empty() {
-            let first_module = test.program.modules.get(module_ids[0]);
-            let first_module = first_module.as_ref();
-            let package_id = first_module.package_id;
-            let _ = first_module;
-
-            let package_ref = test.program.packages.get(package_id);
-            let mut package = package_ref.write();
-            let target_id = destack_workspace::TargetId::new(package_id, "lint-entry");
-            let target = destack_workspace::Target::js("lint-entry")
-                .with_discovery(TargetDiscovery::Entry)
-                .with_runtime(destack_artifact::Runtime::Browser)
-                .with_platform(destack_artifact::Platform::Web)
-                .with_lib(vec!["es2024".to_string()])
-                .with_entry(entry_paths.iter().map(PathBuf::from).collect());
-            package.targets.insert(target_id, target);
+            test.set_root_target_entries("lint-entry", entry_paths);
         }
 
-        let diagnostics = test.lint_program_dir();
+        let diagnostics = test.lint_workspace_dir();
         (test, diagnostics)
     }
 
     /// Report exported modules that are never imported.
     #[test]
     fn test_flags_unused_exported_module() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             &[(
                 "no_unused_modules/unused.ds",
                 r#"
@@ -294,7 +290,7 @@ export const value = 1;
     /// Allow exported modules when another module imports them.
     #[test]
     fn test_allows_imported_exported_module() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             &[
                 (
                     "no_unused_modules/source.ds",
@@ -320,7 +316,7 @@ const copy = value;
     /// Ignore modules that do not export anything.
     #[test]
     fn test_ignores_modules_without_exports() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             &[(
                 "no_unused_modules/no_exports.ds",
                 r#"
@@ -337,7 +333,7 @@ const value = 1;
     /// Report each unused exported module independently.
     #[test]
     fn test_reports_multiple_unused_modules() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             &[
                 (
                     "no_unused_modules/unused_first.ds",
@@ -364,7 +360,7 @@ export const second = 2;
     /// Skip declaration files by default.
     #[test]
     fn test_skips_declaration_files_by_default() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             &[(
                 "no_unused_modules/unused_decl.d.ds",
                 r#"
@@ -381,7 +377,7 @@ export const value: int32;
     /// Include declaration files when requested.
     #[test]
     fn test_includes_declaration_files_when_enabled() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             &[(
                 "no_unused_modules/unused_decl_enabled.d.ds",
                 r#"
@@ -400,7 +396,7 @@ export const value: int32;
     /// Keep entry modules for the active profile out of unused-module diagnostics.
     #[test]
     fn test_skips_active_profile_entry_modules() {
-        let (test, diagnostics) = lint_program_with_modules(
+        let (test, diagnostics) = lint_workspace_with_modules(
             &[
                 (
                     "no_unused_modules/entry.ds",
@@ -422,7 +418,7 @@ export const dead = 1;
         let lint_file_names = diagnostics
             .iter()
             .filter(|diagnostic| diagnostic.rule_id == "no-unused-modules")
-            .map(|diagnostic| test.program.files.get(diagnostic.file_id).name.clone())
+            .map(|diagnostic| test.repository_file(diagnostic.file_id).name.clone())
             .collect::<Vec<_>>();
 
         assert!(

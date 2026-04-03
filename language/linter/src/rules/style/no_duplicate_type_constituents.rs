@@ -95,8 +95,8 @@ fn report_duplicate_constituents(
     let mut constituents = Vec::new();
     for constituent_expression_id in expression_constituents {
         let Some(type_id) = expression_type_map(
-            &ctx.program,
-            &ctx.artifacts,
+            &ctx.repository,
+            ctx.revision,
             ctx.profile_id,
             ctx.module_id(),
             ctx.tree,

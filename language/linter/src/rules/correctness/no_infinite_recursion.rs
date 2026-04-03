@@ -227,7 +227,13 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
         // build a readable function name for diagnostics
         let display_name = descriptor
             .name
-            .map(|name| ctx.program.strings.get(name.string()).as_ref().to_string())
+            .map(|name| {
+                ctx.repository
+                    .strings
+                    .get(name.string())
+                    .as_ref()
+                    .to_string()
+            })
             .unwrap_or_else(|| "<anonymous>".to_string());
         let symbol = dir::GlobalSymbolId::new(module_id, descriptor.symbol);
         functions.push(FunctionInfo {

@@ -91,7 +91,7 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         }
 
         for string_id in strings {
-            let text = self.ctx.program.strings.get(*string_id);
+            let text = self.ctx.repository.strings.get(*string_id);
             if !text.is_empty() {
                 return None;
             }
@@ -113,8 +113,8 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         }
 
         expression_type_or_call_return_type_map(
-            &self.ctx.program,
-            &self.ctx.artifacts,
+            &self.ctx.repository,
+            self.ctx.revision,
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

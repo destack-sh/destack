@@ -63,9 +63,9 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
     /// Build a visitor for prefer-flat-map checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let array_symbol = ctx.well_known_symbol(WellKnownSymbol::Array);
-        let map_name = ctx.program.strings.intern("map");
-        let flat_name = ctx.program.strings.intern("flat");
-        let flat_map_name = ctx.program.strings.intern("flatMap");
+        let map_name = ctx.repository.strings.intern("map");
+        let flat_name = ctx.repository.strings.intern("flat");
+        let flat_map_name = ctx.repository.strings.intern("flatMap");
 
         Self {
             ctx,
@@ -302,7 +302,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         let arguments_span = Span::new(first_span.file, first_span.start, last_span.end);
         let arguments_text = self.ctx.get_span_text(arguments_span);
 
-        let flat_map_name = self.ctx.program.strings.get(self.flat_map_name);
+        let flat_map_name = self.ctx.repository.strings.get(self.flat_map_name);
         let replacement = format!(
             "{receiver_text}.{}({arguments_text})",
             flat_map_name.as_ref()

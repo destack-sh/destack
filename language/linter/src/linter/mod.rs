@@ -1,17 +1,19 @@
 mod ast;
 mod dir;
 mod linter;
-mod program;
+mod package;
 mod rule;
 mod runner;
+mod workspace;
 
 pub use ast::*;
 pub use destack_workspace::LintCategory;
 pub use dir::*;
 pub use linter::*;
-pub use program::*;
+pub use package::*;
 pub use rule::*;
 pub use runner::*;
+pub use workspace::*;
 
 #[cfg(test)]
 mod tests;

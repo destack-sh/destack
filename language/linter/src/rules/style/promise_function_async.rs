@@ -170,8 +170,8 @@ fn signature_returns_promise(
     };
 
     if expression_type_map(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
@@ -196,8 +196,8 @@ fn symbol_type_is_promise(
     promise_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
     symbol_value_type_map_for(
-        &ctx.program,
-        &ctx.artifacts,
+        &ctx.repository,
+        ctx.revision,
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
