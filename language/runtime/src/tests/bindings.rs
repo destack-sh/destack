@@ -74,7 +74,7 @@ fn run_vm_random_call(
 #[test]
 fn test_random_next_u64_matches_vm_and_native() {
     // native and VM bindings should produce the same deterministic value
-    let native_runtime = TestRuntime::deterministic_random();
+    let mut native_runtime = TestRuntime::deterministic_random();
     let native_value = match native_runtime.call_native_next_u64() {
         Ok(value) => value,
         Err(error) if is_not_supported_error(&error) => return,
@@ -89,7 +89,7 @@ fn test_random_next_u64_matches_vm_and_native() {
 #[test]
 fn test_random_next_u64_from_matches_vm_and_native() {
     // stream based random calls should match for the same stream id
-    let native_runtime = TestRuntime::deterministic_random();
+    let mut native_runtime = TestRuntime::deterministic_random();
     let native_value = match native_runtime.call_native_next_u64_from(0) {
         Ok(value) => value,
         Err(error) if is_not_supported_error(&error) => return,

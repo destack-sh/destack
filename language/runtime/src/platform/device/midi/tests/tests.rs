@@ -81,7 +81,7 @@ pub(crate) enum MidiHarnessHandle {
 
 impl MidiHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(MidiHarnessContext<'call>) -> R,
     {
@@ -109,7 +109,7 @@ impl MidiHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(MidiHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -121,12 +121,12 @@ impl MidiHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&MidiHarnessHandle),
+    F: FnMut(&mut MidiHarnessHandle),
 {
-    let native = MidiHarnessHandle::Native(NativeMidiHarness::new());
-    callback(&native);
-    let vm = MidiHarnessHandle::Vm(VmMidiHarness::new());
-    callback(&vm);
+    let mut native = MidiHarnessHandle::Native(NativeMidiHarness::new());
+    callback(&mut native);
+    let mut vm = MidiHarnessHandle::Vm(VmMidiHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

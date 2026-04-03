@@ -56,7 +56,7 @@ pub(crate) enum DeviceHarnessHandle {
 
 impl DeviceHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(DeviceHarnessContext<'call>) -> R,
     {
@@ -84,7 +84,7 @@ impl DeviceHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(DeviceHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -96,12 +96,12 @@ impl DeviceHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&DeviceHarnessHandle),
+    F: FnMut(&mut DeviceHarnessHandle),
 {
-    let native = DeviceHarnessHandle::Native(NativeDeviceHarness::new());
-    callback(&native);
-    let vm = DeviceHarnessHandle::Vm(VmDeviceHarness::new());
-    callback(&vm);
+    let mut native = DeviceHarnessHandle::Native(NativeDeviceHarness::new());
+    callback(&mut native);
+    let mut vm = DeviceHarnessHandle::Vm(VmDeviceHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.
@@ -128,7 +128,7 @@ pub(crate) fn with_native_context<F>(callback: F)
 where
     F: for<'call> FnOnce(&'call BindingCallContext) -> RuntimeResult<()>,
 {
-    let runtime = TestRuntime::deterministic_random();
+    let mut runtime = TestRuntime::deterministic_random();
 
     runtime
         .with_native_call_context(callback)

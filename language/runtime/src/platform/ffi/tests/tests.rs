@@ -57,7 +57,7 @@ pub(crate) enum FfiHarnessHandle {
 
 impl FfiHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(FfiHarnessContext<'call>) -> R,
     {
@@ -85,7 +85,7 @@ impl FfiHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(FfiHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -97,12 +97,12 @@ impl FfiHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&FfiHarnessHandle),
+    F: FnMut(&mut FfiHarnessHandle),
 {
-    let native = FfiHarnessHandle::Native(NativeFfiHarness::new());
-    callback(&native);
-    let vm = FfiHarnessHandle::Vm(VmFfiHarness::new());
-    callback(&vm);
+    let mut native = FfiHarnessHandle::Native(NativeFfiHarness::new());
+    callback(&mut native);
+    let mut vm = FfiHarnessHandle::Vm(VmFfiHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

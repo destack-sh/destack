@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
@@ -14,9 +13,9 @@ use crate::runtime::control::inspect::{
     agent_in_image, edge_in_image, entity_in_image, list_agents, list_edges, list_entities,
     list_resources, list_runtimes, resource_in_image, runtime_in_image,
 };
-use crate::runtime::world::{Image, Revision, World};
+use crate::runtime::world::{Image, Revision};
 
-use crate::runtime::control::table::ControlTable;
+use crate::runtime::control::Control;
 
 use super::{RuntimeDescriptorCodec, RuntimeHandleCodec};
 
@@ -25,20 +24,18 @@ use super::{RuntimeDescriptorCodec, RuntimeHandleCodec};
 pub(crate) struct PinnedWorldView {
     /// The owning world handle.
     pub world_handle: WorldHandle,
-    /// The live world backing this view.
-    pub world: Arc<World>,
     /// The stored world labels.
     pub labels: BTreeMap<String, String>,
     /// The pinned revision metadata.
     pub revision: Revision,
     /// The pinned world image.
-    pub image: Rc<Image>,
+    pub image: Arc<Image>,
 }
 
 impl PinnedWorldView {
     /// Resolve one pinned world view through the control table.
     pub(crate) fn from_handle(
-        table: &ControlTable,
+        table: &Control,
         handle: super::WorldViewHandle,
     ) -> RuntimeResult<Self> {
         let handle_id = RuntimeHandleCodec::decode_world_view_handle(handle);
@@ -69,7 +66,7 @@ impl PinnedWorldView {
 
     /// Return one owned image descriptor from this pinned world view.
     pub(crate) fn image_descriptor(&self) -> RuntimeResult<ImageDescriptor> {
-        RuntimeDescriptorCodec::image_descriptor(&self.world, &self.image)
+        RuntimeDescriptorCodec::image_descriptor(self.revision.id, &self.image)
     }
 
     /// Return one owned trace descriptor from this pinned world view.

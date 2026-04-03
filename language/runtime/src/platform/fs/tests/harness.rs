@@ -630,9 +630,8 @@ impl<'call> FsHarnessContext<'call> {
 
         // load the captured runtime error
         let error = self
-            .runtime
-            .agent
-            .diagnostics
+            .call_context
+            .diagnostics()
             .take_error(DiagnosticId::from_raw(status.error_id))
             .unwrap_or_else(|| {
                 RuntimeError::from(PlatformError::io(format!(
@@ -690,7 +689,7 @@ impl<'call> FsHarnessContext<'call> {
     /// Read the port assigned to a listener handle.
     #[cfg(any(unix, windows))]
     pub(crate) fn listener_port(&self, handle: ListenerHandle) -> u16 {
-        self.runtime.listener_port(handle)
+        super::listener_port(self.call_context.agent(), handle)
     }
 
     /// Start listening on the given address.

@@ -57,7 +57,7 @@ pub(crate) enum GpuHarnessHandle {
 
 impl GpuHarnessHandle {
     /// Run a native or VM call context around one callback.
-    pub(crate) fn with_context<F, R>(&self, callback: F) -> R
+    pub(crate) fn with_context<F, R>(&mut self, callback: F) -> R
     where
         F: for<'call> FnOnce(GpuHarnessContext<'call>) -> R,
     {
@@ -85,7 +85,7 @@ impl GpuHarnessHandle {
     }
 
     /// Run one callback that returns a runtime result.
-    pub(crate) fn run<F>(&self, callback: F)
+    pub(crate) fn run<F>(&mut self, callback: F)
     where
         F: for<'call> FnOnce(GpuHarnessContext<'call>) -> RuntimeResult<()>,
     {
@@ -97,12 +97,12 @@ impl GpuHarnessHandle {
 /// Run one callback against both harnesses.
 pub(crate) fn with_harnesses<F>(mut callback: F)
 where
-    F: FnMut(&GpuHarnessHandle),
+    F: FnMut(&mut GpuHarnessHandle),
 {
-    let native = GpuHarnessHandle::Native(NativeGpuHarness::new());
-    callback(&native);
-    let vm = GpuHarnessHandle::Vm(VmGpuHarness::new());
-    callback(&vm);
+    let mut native = GpuHarnessHandle::Native(NativeGpuHarness::new());
+    callback(&mut native);
+    let mut vm = GpuHarnessHandle::Vm(VmGpuHarness::new());
+    callback(&mut vm);
 }
 
 /// Run one callback against both harness contexts.

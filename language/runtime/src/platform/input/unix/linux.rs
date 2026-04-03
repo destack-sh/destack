@@ -2839,7 +2839,7 @@ mod tests {
     /// Map Linux wheel events with scroll action semantics.
     #[test]
     fn test_map_linux_event_sets_scroll_action_for_wheel_codes() {
-        let runtime = TestRuntime::deterministic_random();
+        let mut runtime = TestRuntime::deterministic_random();
         runtime.with_native_call_context(|context| {
             let raw = LinuxInputEvent {
                 time: libc::timeval {
@@ -2982,7 +2982,7 @@ mod tests {
     /// Map sensor-axis packets into sensor payload coordinates.
     #[test]
     fn test_map_linux_event_sets_sensor_axis_payload() {
-        let runtime = TestRuntime::deterministic_random();
+        let mut runtime = TestRuntime::deterministic_random();
         runtime.with_native_call_context(|context| {
             let raw = LinuxInputEvent {
                 time: libc::timeval {
