@@ -17,8 +17,6 @@ mod reference;
 mod step;
 mod string;
 mod tag;
-#[cfg(test)]
-mod test;
 pub(crate) mod text;
 pub(crate) mod token;
 
@@ -26,8 +24,12 @@ pub(crate) use atom::{
     LocalName, Namespace, Prefix, local_name, namespace_prefix, namespace_url, ns,
 };
 pub(crate) use charset::SmallCharSet;
+#[cfg(test)]
+pub(crate) use encoding::EncodingScanner;
 pub(crate) use encoding::MetaEncodingScanner;
 pub(crate) use lexer::{Lexer, LexerOptions, RawKind};
+#[cfg(test)]
+pub(crate) use macros::small_char_set;
 pub(crate) use name::{Attribute, ExpandedName, QualifiedName, expanded_name};
 pub(crate) use string::{lower_ascii_letter, to_escaped_string};
 pub(crate) use text::HtmlString;

@@ -12,3 +12,6 @@ pub use parse::{
     parse_html, parse_html_with_options,
 };
 pub use tree::*;
+
+#[cfg(test)]
+mod tests;
