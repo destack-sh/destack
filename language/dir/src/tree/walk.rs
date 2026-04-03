@@ -952,6 +952,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             }
             Declaration::Class {
                 descriptor: _,
+                self_symbol: _,
                 generics,
                 heritage,
                 members,
@@ -1001,6 +1002,7 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             }
             Declaration::Function {
                 descriptor: _,
+                self_symbol: _,
                 signature,
                 body,
                 scope: _,
