@@ -94,9 +94,6 @@ pub(crate) use constants::{
 pub(crate) use constants::{BACKEND_OPEN_ALSA_NO_RESAMPLE, BACKEND_OPEN_JACK_NO_AUTOCONNECT};
 
 #[cfg(unix)]
-pub(crate) use constants::resolved_stream_wait_slice_ns;
-
-#[cfg(unix)]
 pub(crate) use constants::resolved_max_stream_read_bytes;
 
 #[cfg(windows)]

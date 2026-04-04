@@ -6,14 +6,13 @@ pub(crate) use std::sync::atomic::{AtomicU64, Ordering};
 pub(crate) use std::time::Duration;
 
 pub(crate) use crate::diagnostic::{RuntimeError, RuntimeResult};
-pub(crate) use crate::host::core::{HostEventObserver, HostQueue, HostSessionRegistry};
 pub(crate) use crate::host::operation::{
     background as host_background, location as host_location, notification as host_notification,
 };
 pub(crate) use crate::host::{
-    HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState,
-    HostLocationEvent, HostMemoryPressureLevel, HostNotificationEvent, HostPowerMode,
-    HostRequestId,
+    HostBackgroundEvent, HostEvent, HostEventObserver, HostIntentEvent, HostIntentPayload,
+    HostLifecycleState, HostLocationEvent, HostMemoryPressureLevel, HostNotificationEvent,
+    HostPowerMode, HostQueue, HostRequestId, HostSessionRegistry,
 };
 pub(crate) use crate::platform::core::{
     invalid_argument, io_would_block, monotonic_now_ns, not_supported,
@@ -41,9 +40,6 @@ pub(crate) use crate::runtime::process::RuntimeScheduledCallbackHandle;
 pub(crate) use crate::runtime::{BindingCallContext, RuntimeEventQueue};
 pub(crate) use destack_core::{Capture, CaptureMode};
 pub(crate) use parking_lot::{Mutex, RwLock};
-
-/// Maximum wait slice used while one OS read services runtime ingress.
-pub(crate) const OS_READ_WAIT_SLICE_NS: u64 = 10_000_000;
 
 /// Build one invalid-data runtime error.
 pub(crate) fn invalid_data(

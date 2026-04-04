@@ -190,14 +190,11 @@ pub(crate) unsafe fn window_event_read(
 
     let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
     let deadline = platform::core::monotonic_now_ns().saturating_add(timeoutns);
-    let wait_slice_ns = platform::display::options::event_wait_slice_ns(binding);
-
     // wait until one seeded or live record becomes visible
     let event = binding.wait_for_binding_result(
         "destack.display.window.eventRead",
         "event read timed out",
         deadline,
-        wait_slice_ns,
         || {
             next_window_event(
                 binding,
@@ -245,14 +242,11 @@ pub(crate) unsafe fn window_event_read_batch(
 
     let runtime_state = platform::display::unix::appkit::core::runtime_state(binding);
     let deadline = platform::core::monotonic_now_ns().saturating_add(timeoutns);
-    let wait_slice_ns = platform::display::options::event_wait_slice_ns(binding);
-
     // wait until at least one event is available, then drain a bounded batch
     let events = binding.wait_for_binding_result(
         "destack.display.window.eventReadBatch",
         "event read timed out",
         deadline,
-        wait_slice_ns,
         || {
             let events = drain_window_events(
                 binding,

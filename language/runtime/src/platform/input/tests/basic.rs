@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "execution", allow(dead_code, unused_imports))]
+#![allow(dead_code, unused_imports)]
 
 #[cfg(any(windows, target_os = "macos"))]
 use super::InputKeyboardStateRecord;

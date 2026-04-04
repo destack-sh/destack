@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequestContext, HostSessionId};
+use crate::host::{HostSessionId, RequestContext};
 use crate::platform::core::io_not_found;
 use crate::platform::os::abi_generated::NotificationRequestValue;
 use crate::platform::os::notification::{delivery, runtime};
@@ -7,7 +7,7 @@ use crate::platform::os::notification::{delivery, runtime};
 use super::state::{DesktopNotificationRuntimeState, notification_runtime_service};
 
 /// Cancel one posted notification for this runtime.
-pub(crate) fn cancel_notification(context: &HostRequestContext, id: &str) -> RuntimeResult<()> {
+pub(crate) fn cancel_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     let service = notification_runtime_service();
     let mut registry = service.registry.lock();
     let runtime_state = registry
@@ -38,7 +38,7 @@ pub(crate) fn cancel_notification(context: &HostRequestContext, id: &str) -> Run
 }
 
 /// Cancel every posted notification for this runtime.
-pub(crate) fn cancel_all_notifications(context: &HostRequestContext) -> RuntimeResult<()> {
+pub(crate) fn cancel_all_notifications(context: &RequestContext) -> RuntimeResult<()> {
     let posted_ids = {
         let service = notification_runtime_service();
         let mut registry = service.registry.lock();
@@ -77,7 +77,7 @@ pub(crate) fn remove_posted_notification(host_session_id: HostSessionId, id: &st
 
 /// Post one notification immediately and emit one delivered event.
 pub(crate) fn post_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: NotificationRequestValue,
 ) -> RuntimeResult<String> {
     let (id, sequence) = {
@@ -151,8 +151,7 @@ pub(crate) fn notification_identifier_belongs_to_runtime(
 #[cfg(test)]
 mod tests {
     use super::{notification_identifier_belongs_to_runtime, notification_identifier_for_request};
-    use crate::host::Platform;
-    use crate::host::core::HostSessionId;
+    use crate::host::{HostSessionId, Platform};
     use crate::platform::os::NotificationPriority;
     use crate::platform::os::abi_generated::{
         NotificationImmediateTriggerValue, NotificationRequestValue, NotificationTriggerValue,

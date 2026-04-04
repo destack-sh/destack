@@ -15,7 +15,7 @@ use crate::runtime::poller::{PollerEvent, PollerToken};
 use crate::runtime::{DropCounts, ExecutionContextId};
 
 /// Durable event-loop state captured at one checkpoint.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EventLoopSnapshot {
     /// Configured scheduler options.
     pub options: SchedulerOptions,

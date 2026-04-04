@@ -30,9 +30,9 @@ use crate::platform::input::{
 use crate::platform::{PlatformError, core as core_platform};
 use crate::runtime::BindingCallContext;
 use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, periodic_service_executor,
+    PeriodicTaskHandle, open_periodic_task,
 };
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 /// Prefix for stable xinput device identifiers.
 pub(super) const XINPUT_DEVICE_ID_PREFIX: &str = "xinput:";
@@ -86,15 +86,19 @@ impl WindowsXInputService {
     /// Build one process-global XInput packet polling service.
     fn new() -> RuntimeResult<Self> {
         let state = Arc::new(WindowsXInputSharedState::new());
-        let executor = periodic_service_executor()?;
         let poll_state = Arc::clone(&state);
 
         // keep one shared packet snapshot current for all XInput readers
-        let task = executor.register(XINPUT_POLL_INTERVAL, move || {
-            refresh_xinput_slot_state(&poll_state);
+        let task = open_periodic_task(
+            "destack-input-windows-xinput",
+            Self::POLICY,
+            XINPUT_POLL_INTERVAL,
+            move || {
+                refresh_xinput_slot_state(&poll_state);
 
-            Ok(())
-        })?;
+                Ok(())
+            },
+        )?;
 
         Ok(Self { state, _task: task })
     }
@@ -142,7 +146,7 @@ impl WindowsXInputService {
     }
 }
 
-impl GlobalService for WindowsXInputService {
+impl Service for WindowsXInputService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
 }
 

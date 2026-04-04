@@ -2,7 +2,8 @@ use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::android::abi::crypto::ffi::{
+use crate::host::HostStatus;
+use crate::host::os::android::abi::crypto::ffi::{
     destack_host_android_crypto_compute_hardware_mac,
     destack_host_android_crypto_decrypt_hardware_key,
     destack_host_android_crypto_decrypt_hardware_secret_key,
@@ -16,7 +17,6 @@ use crate::host::android::abi::crypto::ffi::{
     destack_host_android_crypto_supports_hardware_key_pair,
     destack_host_android_crypto_supports_hardware_secret_key,
 };
-use crate::host::core::HostStatus;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core as core_platform;
 use crate::platform::crypto::core::{

@@ -17,7 +17,7 @@ use super::state::{
 };
 use crate::platform::PlatformError;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 use crate::runtime::process::service::windows::WindowsRegisteredWait;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy};
 
@@ -279,7 +279,7 @@ impl WindowsSerialService {
     }
 }
 
-impl GlobalService for WindowsSerialService {
+impl Service for WindowsSerialService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

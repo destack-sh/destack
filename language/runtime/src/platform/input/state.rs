@@ -14,7 +14,7 @@ use crate::diagnostic::RuntimeResult;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::host::abi::text::HostTextInputCloseRequest;
 #[cfg(any(target_os = "android", target_os = "ios"))]
-use crate::host::core::{HostEvent, HostEventObserver, HostQueue, HostSessionRegistry};
+use crate::host::{HostEvent, HostEventObserver, HostQueue, HostSessionRegistry};
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(any(target_os = "android", target_os = "ios"))]

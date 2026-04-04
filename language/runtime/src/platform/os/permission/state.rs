@@ -4,13 +4,11 @@ use std::time::Duration;
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::unsupported_request_completion;
 use crate::host::core::request::unexpected_request_result;
-use crate::host::core::{
-    HostRequest, HostRequestCompletion, HostRequestOutcome, HostRequestResult,
+use crate::host::{
+    HostPermissionEvent, HostRequest, HostRequestCompletion, HostRequestCompletionEvent,
+    HostRequestId, HostRequestOutcome, HostRequestResult, operation,
 };
-use crate::host::{HostPermissionEvent, HostRequestId, operation};
-use crate::platform::os::state::{
-    OS_READ_WAIT_SLICE_NS, PlatformOsState, invalid_data, invalid_handle, os_state,
-};
+use crate::platform::os::state::{PlatformOsState, invalid_data, invalid_handle, os_state};
 use crate::platform::os::{
     NotificationPermissionState, Permission, PermissionEntry, PermissionState,
 };
@@ -38,14 +36,14 @@ pub(crate) fn permission_request(
     permission: Permission,
 ) -> RuntimeResult<PermissionState> {
     let runtime_state = os_state(binding)?;
-    let request_id = binding.host().allocate_host_request_id();
+    let request_id = binding.host().allocate_request_id();
     let transaction = Arc::new(PermissionTransactionState::new(permission));
 
     // register before submission so early host completion is not lost
     runtime_state.insert_permission_transaction(request_id, Arc::clone(&transaction));
 
     let request = HostRequest::OsPermissionRequest { permission };
-    let outcome = binding.host().submit_request_with_id(request_id, request);
+    let outcome = binding.host().submit_with_id(request_id, request);
 
     // clear runtime state on submission failure
     let outcome = match outcome {
@@ -65,8 +63,8 @@ pub(crate) fn permission_request(
         return Ok(state);
     }
 
-    // only event-completing permission requests are valid on mobile
-    if outcome.completion != HostRequestCompletion::EventCompleting {
+    // only deferred permission requests are valid on mobile
+    if outcome.completion != HostRequestCompletion::Deferred {
         runtime_state.remove_permission_transaction(request_id);
         return Err(unsupported_request_completion(
             "destack.os.permission.request",
@@ -78,7 +76,6 @@ pub(crate) fn permission_request(
         "destack.os.permission.request",
         "timed out waiting for permission result",
         u64::MAX,
-        OS_READ_WAIT_SLICE_NS,
         || {
             if transaction.is_closed() {
                 return Err(invalid_handle("unknown permission transaction handle"));
@@ -169,7 +166,6 @@ impl PlatformOsState {
 
     /// Apply one host permission result.
     pub(crate) fn observe_permission_event(&self, event: &HostPermissionEvent) {
-        let request_id = event.request_id;
         let permission = event.permission;
 
         let state = if event.granted {
@@ -179,20 +175,22 @@ impl PlatformOsState {
         };
 
         self.set_permission_state(permission, state);
+    }
 
-        let Some(request_id) = request_id else {
+    /// Apply one deferred permission completion result.
+    pub(crate) fn observe_permission_completion(&self, event: &HostRequestCompletionEvent) {
+        let HostRequestResult::PermissionState(state) = &event.result else {
             return;
         };
-        let Some(transaction) = self.remove_permission_transaction(request_id) else {
+
+        let Some(transaction) = self.remove_permission_transaction(event.request_id) else {
             return;
         };
 
-        if transaction.permission() != permission {
-            transaction.close();
-            return;
-        }
+        let permission = transaction.permission();
+        self.set_permission_state(permission, *state);
 
-        transaction.push_result(state);
+        transaction.push_result(*state);
         transaction.close();
     }
 

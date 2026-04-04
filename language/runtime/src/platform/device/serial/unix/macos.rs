@@ -14,7 +14,7 @@ use super::state::UnixSerialDescriptorInfo;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 use super::super::core::SerialWatchEventState;
@@ -183,28 +183,34 @@ impl UnixSerialWatchService {
         });
         let run_loop = Arc::new(AppleRunLoopHandle::new());
         // run the IOKit notification loop on one ingress thread
-        let loop_runtime = Self::worker_loop("destack-serial-iokit-watch", move || {
-            let notification_port = unsafe { arm_serial_watch_notifications(&context, &run_loop) }?;
-            let notification_port = notification_port as usize;
-            let shutdown_run_loop = Arc::clone(&run_loop);
+        let loop_runtime = WorkerLoop::open(
+            "destack-serial-iokit-watch",
+            "platform.service.spawn",
+            Self::POLICY,
+            move || {
+                let notification_port =
+                    unsafe { arm_serial_watch_notifications(&context, &run_loop) }?;
+                let notification_port = notification_port as usize;
+                let shutdown_run_loop = Arc::clone(&run_loop);
 
-            let shutdown = Box::new(move || {
-                shutdown_run_loop.stop();
-            });
-            let run = Box::new(move || {
-                let _context = context;
-                let notification_port = notification_port as AppleIoNotificationPortRef;
+                let shutdown = Box::new(move || {
+                    shutdown_run_loop.stop();
+                });
+                let run = Box::new(move || {
+                    let _context = context;
+                    let notification_port = notification_port as AppleIoNotificationPortRef;
 
-                unsafe {
-                    CFRunLoopRun();
-                    IONotificationPortDestroy(notification_port);
-                }
+                    unsafe {
+                        CFRunLoopRun();
+                        IONotificationPortDestroy(notification_port);
+                    }
 
-                Ok(())
-            });
+                    Ok(())
+                });
 
-            Ok((shutdown, run))
-        })?;
+                Ok((shutdown, run))
+            },
+        )?;
 
         *watch_runtime = Some(UnixSerialWatchRuntime {
             _loop: loop_runtime,
@@ -246,7 +252,7 @@ impl UnixSerialWatchService {
     }
 }
 
-impl GlobalService for UnixSerialWatchService {
+impl Service for UnixSerialWatchService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
 }
 

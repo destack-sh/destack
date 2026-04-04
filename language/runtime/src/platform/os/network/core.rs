@@ -19,8 +19,8 @@ use crate::platform::os::{
     NetworkConnectionType, NetworkEvent, NetworkEventVm, NetworkState, NetworkStateVm,
 };
 
-/// Maximum wait slice used while one network watch polls host state.
-const NETWORK_WATCH_SLICE_NS: u64 = 100_000_000;
+/// Shared callback interval for network watch state refresh.
+const NETWORK_WATCH_CALLBACK_INTERVAL_NS: u64 = 100_000_000;
 
 /// Read one point-in-time host network state snapshot.
 pub(crate) fn state(binding: &BindingCallContext) -> RuntimeResult<NetworkState> {
@@ -137,7 +137,6 @@ pub(crate) fn watch_read(
         "destack.os.network.watchRead",
         "timed out waiting for network event",
         deadline_ns,
-        NETWORK_WATCH_SLICE_NS,
         || {
             if watch_state.is_closed() {
                 return Err(invalid_handle("unknown network watch handle"));
@@ -155,7 +154,7 @@ pub(crate) fn watch_try_read(
     handle: resource::NetworkWatchHandle,
 ) -> RuntimeResult<NetworkEvent> {
     let watch_state = resolve_watch_state(binding, handle)?;
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let Some(event) = watch_state.try_take() else {
         return Err(io_would_block(
@@ -333,8 +332,8 @@ fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<
     let callback_runtime_state = runtime_state.clone();
     let callback_handle = binding.agent().schedule_runtime_callback(
         binding,
-        NETWORK_WATCH_SLICE_NS,
-        Some(NETWORK_WATCH_SLICE_NS),
+        NETWORK_WATCH_CALLBACK_INTERVAL_NS,
+        Some(NETWORK_WATCH_CALLBACK_INTERVAL_NS),
         move |binding| service_network_watch_callback(binding, &callback_runtime_state),
     )?;
     runtime_state.set_network_watch_callback(callback_handle);

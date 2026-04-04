@@ -11,7 +11,7 @@ use destack_workspace::{
 use {destack_heap as heap, destack_vm as vm};
 
 use super::tests::{AllocatingEngine, TestEngine, TestRuntime, TestWorld};
-use crate::host::HostSession;
+use crate::host::Session;
 use crate::platform::{ResourceEntry, ResourceId, ResourceKind};
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{
@@ -1353,7 +1353,7 @@ fn test_agent_world_control_update_refreshes_policy() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.policy", "()");
 
     // baseline policy should allow the call
@@ -1402,7 +1402,7 @@ fn test_agent_world_control_update_refreshes_hooks() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.live.hooks", "()");
 
     // install one hook-bearing fault rule in the shared world
@@ -1469,8 +1469,8 @@ fn test_agent_world_control_agent_selector() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host_a = HostSession::from_runtime_options(&options_a, agent_a.runtime_id);
-    let host_b = HostSession::from_runtime_options(&options_b, agent_b.runtime_id);
+    let host_a = Session::from_runtime_options(&options_a, agent_a.runtime_id);
+    let host_b = Session::from_runtime_options(&options_b, agent_b.runtime_id);
 
     // install one scheduler hook rule scoped to agent_a
     world
@@ -1541,7 +1541,7 @@ fn test_world_apply_policy_command_updates_rules() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.program.policy", "()");
 
     // install one deny rule through one world mutation
@@ -1716,7 +1716,7 @@ fn test_world_remove_agent_cleans_topology() {
     )
     .expect("agent should construct in world");
     let agent_id = agent.id;
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
     let descriptor = BindingDescriptor::pure("destack.test.removed.agent", "()");
 
     // binding checks should work before removal

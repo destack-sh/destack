@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::WaylandConnectionState;
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostSessionRegistry, RuntimeIngressHandler};
+use crate::host::{HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::DisplayBackend;
 use crate::platform::display::unix::wayland::event::{
     self as wayland_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord,
@@ -306,7 +306,7 @@ struct WaylandRuntimeIngressHandler {
 
 impl RuntimeIngressHandler for WaylandRuntimeIngressHandler {
     /// Service wayland ingress and publish runtime-owned event deltas.
-    fn service_session_ingress(&self) -> RuntimeResult<()> {
+    fn advance_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };

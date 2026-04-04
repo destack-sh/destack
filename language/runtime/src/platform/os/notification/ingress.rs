@@ -1,15 +1,15 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostSessionContext, HostSessionId};
+use crate::host::{HostSessionId, SessionContext};
 
 #[cfg(target_os = "macos")]
-use crate::host::macos::request::notification::backend as notification_backend;
+use crate::host::os::macos::request::notification::backend as notification_backend;
 #[cfg(all(
     unix,
     not(any(target_os = "android", target_os = "ios", target_os = "macos"))
 ))]
-use crate::host::unix::request::notification::backend as notification_backend;
+use crate::host::os::unix::request::notification::backend as notification_backend;
 #[cfg(windows)]
-use crate::host::windows::request::notification::core as notification_backend;
+use crate::host::os::windows::request::notification::core as notification_backend;
 use crate::platform::os::notification::runtime::notification_runtime_service;
 #[cfg(not(any(
     windows,
@@ -22,7 +22,7 @@ use crate::platform::os::notification::runtime::notification_runtime_service;
 use crate::platform::os::notification::unsupported as notification_backend;
 
 /// Service notification ingress for one runtime.
-pub(crate) fn service_notification_ingress(context: &HostSessionContext) -> RuntimeResult<()> {
+pub(crate) fn service_notification_ingress(context: &SessionContext) -> RuntimeResult<()> {
     notification_backend::service_notification_ingress(context)
 }
 

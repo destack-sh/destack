@@ -1,6 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::Platform;
-use crate::host::core::HostSessionId;
+use crate::host::{HostSessionId, Platform};
 use crate::platform::os::abi_generated::NotificationCategoryValue;
 use crate::platform::os::notification::delivery;
 

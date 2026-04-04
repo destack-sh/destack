@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::device::MidiEventSource;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService, start_with_policy};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, start_with_policy};
 
 use super::core::{
     JackClientHandle, JackEndpointInfo, JackTopologyState, activate_client, jack_error,
@@ -96,7 +96,7 @@ impl Drop for JackService {
     }
 }
 
-impl GlobalService for JackService {
+impl Service for JackService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

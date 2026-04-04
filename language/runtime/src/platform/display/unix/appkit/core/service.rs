@@ -7,7 +7,7 @@ use objc2_core_graphics::{
 
 use crate::platform::display::unix::appkit::event as appkit_event;
 use crate::runtime::process::service::executor::host::HostExecutor;
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, Service};
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
 use super::core::warn_callback_error;
@@ -90,7 +90,7 @@ impl AppKitDisplayService {
     }
 }
 
-impl GlobalService for AppKitDisplayService {
+impl Service for AppKitDisplayService {
     const POLICY: ExecutionPolicy =
         ExecutionPolicy::global(ExecutionMode::Host).with_affinity(ExecutionAffinity::MainThread);
 }

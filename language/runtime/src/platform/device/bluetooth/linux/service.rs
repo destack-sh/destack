@@ -14,7 +14,7 @@ use super::watch::{
     handle_scan_message, handle_subscription_message, start_adapter_discovery, start_notify,
     stop_adapter_discovery, stop_notify,
 };
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 /// Process-global BlueZ transport and signal service.
@@ -389,7 +389,7 @@ impl LinuxBluetoothService {
     }
 }
 
-impl GlobalService for LinuxBluetoothService {
+impl Service for LinuxBluetoothService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
 }
 
@@ -617,28 +617,33 @@ fn spawn_signal_dispatch_loop(
     signal_runtime: Arc<LinuxBluetoothSignalRuntime>,
     connection: Connection,
 ) -> RuntimeResult<WorkerLoop> {
-    LinuxBluetoothService::worker_loop("destack-bluez", move || {
-        let shutdown_connection = connection.clone();
-        let shutdown = Box::new(move || {
-            let _ = shutdown_connection.close();
-        });
-        let run = Box::new(move || {
-            let mut iterator = zbus::blocking::MessageIterator::from(&connection);
+    WorkerLoop::open(
+        "destack-bluez",
+        "platform.service.spawn",
+        LinuxBluetoothService::POLICY,
+        move || {
+            let shutdown_connection = connection.clone();
+            let shutdown = Box::new(move || {
+                let _ = shutdown_connection.close();
+            });
+            let run = Box::new(move || {
+                let mut iterator = zbus::blocking::MessageIterator::from(&connection);
 
-            while let Some(message) = iterator.next() {
-                let Ok(message) = message else {
-                    continue;
-                };
+                while let Some(message) = iterator.next() {
+                    let Ok(message) = message else {
+                        continue;
+                    };
 
-                signal_runtime.dispatch(&connection, &message);
-            }
+                    signal_runtime.dispatch(&connection, &message);
+                }
 
-            signal_runtime.close_all();
-            Ok(())
-        });
+                signal_runtime.close_all();
+                Ok(())
+            });
 
-        Ok((shutdown, run))
-    })
+            Ok((shutdown, run))
+        },
+    )
 }
 
 /// Resolve the shared BlueZ transport service or return a not-supported error.

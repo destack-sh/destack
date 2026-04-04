@@ -1,5 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::android::abi::midi::ffi::{
+use crate::host::HostStatus;
+use crate::host::os::android::abi::midi::ffi::{
     destack_host_android_midi_describe_backend, destack_host_android_midi_event_close,
     destack_host_android_midi_event_open, destack_host_android_midi_event_read,
     destack_host_android_midi_input_port_close, destack_host_android_midi_input_port_list,
@@ -8,11 +9,10 @@ use crate::host::android::abi::midi::ffi::{
     destack_host_android_midi_output_port_list, destack_host_android_midi_output_port_open,
     destack_host_android_midi_output_virtual_create, destack_host_android_midi_output_write,
 };
-use crate::host::android::abi::midi::types::{
+use crate::host::os::android::abi::midi::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiPortDescriptorHeader,
 };
-use crate::host::core::HostStatus;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::android::host_status_result;
 use crate::platform::device::midi::core::{
@@ -854,7 +854,7 @@ fn checked_u32_length(
 
 #[cfg(test)]
 mod tests {
-    use crate::host::core::HostStatus;
+    use crate::host::HostStatus;
     use crate::platform::diagnostic::PlatformErrorCode;
     use crate::tests::platform::error_code_from_result;
 

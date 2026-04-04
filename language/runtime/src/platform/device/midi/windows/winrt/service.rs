@@ -20,8 +20,8 @@ use crate::platform::device::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::GlobalService;
 use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::process::service::{Service, spawn_service_thread};
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 use super::core::{
@@ -265,7 +265,7 @@ impl WinRtService {
     }
 }
 
-impl GlobalService for WinRtService {
+impl Service for WinRtService {
     const POLICY: ExecutionPolicy =
         ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 }
@@ -555,9 +555,10 @@ pub(crate) fn winrt_service(operation: &'static str) -> RuntimeResult<Arc<WinRtS
         }));
         let build_topology = topology.clone();
         let build_registry = native_event_registry.clone();
-        let executor = WinRtService::thread("destack-midi-winrt", move || {
-            build_winrt_service_state(build_topology, build_registry, operation)
-        })?;
+        let executor =
+            spawn_service_thread("destack-midi-winrt", WinRtService::POLICY, move || {
+                build_winrt_service_state(build_topology, build_registry, operation)
+            })?;
 
         Ok(WinRtService {
             executor,

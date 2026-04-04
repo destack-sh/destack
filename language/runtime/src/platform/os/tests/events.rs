@@ -1,11 +1,11 @@
-#![cfg_attr(feature = "execution", allow(dead_code))]
+#![allow(dead_code)]
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostSessionRegistry;
 use crate::host::{
     HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleEvent,
     HostLifecycleSourceKind, HostLifecycleState, HostMemoryPressureEvent, HostMemoryPressureLevel,
     HostNotificationEvent, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
+    HostSessionRegistry,
 };
 use crate::platform::os::abi_generated::{BackgroundEventValue, NotificationEventValue};
 use crate::platform::os::{invalid_data, parse_host_permission_name};

@@ -37,10 +37,10 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 #[cfg(unix)]
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 #[cfg(unix)]
 use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, periodic_service_executor,
+    PeriodicTaskHandle, open_periodic_task,
 };
 #[cfg(target_os = "linux")]
 use crate::runtime::process::start_with_policy;
@@ -291,12 +291,12 @@ impl UnixInputMonitorService {
 }
 
 #[cfg(target_os = "linux")]
-impl GlobalService for UnixInputMonitorService {
+impl Service for UnixInputMonitorService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
 }
 
 #[cfg(not(target_os = "linux"))]
-impl GlobalService for UnixInputMonitorService {
+impl Service for UnixInputMonitorService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
 }
 
@@ -907,7 +907,6 @@ fn spawn_unix_monitor_synthetic_worker(
     service: &Arc<UnixInputMonitorService>,
     operation: &'static str,
 ) -> RuntimeResult<UnixInputMonitorWorker> {
-    let executor = periodic_service_executor()?;
     let service = Arc::clone(service);
     let previous_devices = Arc::new(Mutex::new(HashMap::<String, InputDeviceKind>::new()));
     let previous_devices_for_task = Arc::clone(&previous_devices);
@@ -923,8 +922,11 @@ fn spawn_unix_monitor_synthetic_worker(
     }
 
     // poll topology snapshots through the shared periodic executor
-    let task = executor
-        .register(INPUT_MONITOR_SYNTHETIC_INTERVAL, move || {
+    let task = open_periodic_task(
+        "destack-input-unix-monitor",
+        UnixInputMonitorService::POLICY,
+        INPUT_MONITOR_SYNTHETIC_INTERVAL,
+        move || {
             let Ok(next_devices) = list_monitor_devices_snapshot() else {
                 return Ok(());
             };
@@ -935,18 +937,19 @@ fn spawn_unix_monitor_synthetic_worker(
             publish_unix_monitor_snapshot_delta(&service, &mut previous_devices, &next_devices);
 
             Ok(())
-        })
-        .map_err(|error| {
-            RuntimeError::from(PlatformError::io_with(
-                None,
-                None,
-                None,
-                Some(operation.to_string()),
-                None,
-                format!("failed to start unix input synthetic monitor: {error}"),
-            ))
-            .boxed()
-        })?;
+        },
+    )
+    .map_err(|error| {
+        RuntimeError::from(PlatformError::io_with(
+            None,
+            None,
+            None,
+            Some(operation.to_string()),
+            None,
+            format!("failed to start unix input synthetic monitor: {error}"),
+        ))
+        .boxed()
+    })?;
 
     Ok(UnixInputMonitorWorker::Synthetic { task: Some(task) })
 }

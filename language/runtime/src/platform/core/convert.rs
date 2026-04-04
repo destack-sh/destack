@@ -12,12 +12,6 @@ pub(crate) fn option_u64_to_u32(value: Option<u64>) -> Option<u32> {
     value.and_then(|value| u32::try_from(value).ok())
 }
 
-/// Resolve one optional u64 value into one defaulted value with one lower bound.
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-pub(crate) fn option_u64_or_min(value: Option<u64>, default: u64, min: u64) -> u64 {
-    value.unwrap_or(default).max(min)
-}
-
 /// Resolve one optional u64 value into one defaulted usize with one lower bound.
 #[cfg(any(unix, windows))]
 #[allow(dead_code)]

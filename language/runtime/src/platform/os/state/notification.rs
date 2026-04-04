@@ -79,7 +79,7 @@ pub(crate) fn notification_event_try_read(
     binding: &BindingCallContext,
     handle: resource::NotificationEventHandle,
 ) -> RuntimeResult<NotificationEventValue> {
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let stream = resolve_notification_stream(binding, handle)?;
     let Some(event) = stream.try_take() else {
@@ -99,7 +99,7 @@ pub(crate) fn notification_event_read(
     timeout_ns: u64,
 ) -> RuntimeResult<NotificationEventValue> {
     // service ready ingress before waiting on the stream
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let stream = resolve_notification_stream(binding, handle)?;
     let now = monotonic_now_ns();
@@ -109,7 +109,6 @@ pub(crate) fn notification_event_read(
         "destack.os.notification.event.read",
         "timed out waiting for notification event",
         deadline_ns,
-        OS_READ_WAIT_SLICE_NS,
         || {
             if stream.is_closed() {
                 return Err(invalid_handle("unknown notification event stream handle"));

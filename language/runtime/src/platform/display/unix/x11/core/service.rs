@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::runtime::BindingCallContext;
 use crate::runtime::process::service::executor::inline::InlineExecutor;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 use super::runtime::X11RuntimeState;
 
@@ -38,7 +38,7 @@ impl X11DisplayService {
     }
 }
 
-impl GlobalService for X11DisplayService {
+impl Service for X11DisplayService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

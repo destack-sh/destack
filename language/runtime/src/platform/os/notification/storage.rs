@@ -6,8 +6,7 @@ use postcard::{from_bytes, to_allocvec};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Platform;
-use crate::host::core::HostRequestContext;
+use crate::host::{Platform, RequestContext};
 use crate::platform::PlatformError;
 use crate::platform::core::not_supported;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -44,7 +43,7 @@ impl DesktopScheduledNotificationRecord {
 
 /// Read every persisted scheduled notification record.
 pub(crate) fn read_notification_records(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<Vec<DesktopScheduledNotificationRecord>> {
     let directory = notification_record_directory(context)?;
 
@@ -103,7 +102,7 @@ pub(crate) fn read_notification_records(
 
 /// Read one persisted scheduled notification record when it exists.
 pub(crate) fn read_notification_record(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
 ) -> RuntimeResult<Option<DesktopScheduledNotificationRecord>> {
     let path = notification_record_path(context, id)?;
@@ -130,7 +129,7 @@ pub(crate) fn read_notification_record(
 
 /// Persist one scheduled notification record.
 pub(crate) fn write_notification_record(
-    context: &HostRequestContext,
+    context: &RequestContext,
     record: &DesktopScheduledNotificationRecord,
 ) -> RuntimeResult<()> {
     let directory = ensure_notification_record_directory(context)?;
@@ -195,10 +194,7 @@ fn encode_notification_record(
 }
 
 /// Remove one persisted scheduled notification record when it exists.
-pub(crate) fn remove_notification_record(
-    context: &HostRequestContext,
-    id: &str,
-) -> RuntimeResult<()> {
+pub(crate) fn remove_notification_record(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     let path = notification_record_path(context, id)?;
 
     if !path.exists() {
@@ -221,7 +217,7 @@ pub(crate) fn remove_notification_record(
 
 /// Ensure the persisted scheduled notification directory exists.
 pub(crate) fn ensure_notification_record_directory(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<PathBuf> {
     let directory = notification_record_directory(context)?;
 
@@ -240,9 +236,7 @@ pub(crate) fn ensure_notification_record_directory(
 }
 
 /// Return the persisted scheduler artifact directory for one runtime.
-pub(crate) fn notification_scheduler_directory(
-    context: &HostRequestContext,
-) -> RuntimeResult<PathBuf> {
+pub(crate) fn notification_scheduler_directory(context: &RequestContext) -> RuntimeResult<PathBuf> {
     let root = if let Some(state_directory) = &context.os_options.state_directory {
         state_directory.join("notification")
     } else {
@@ -254,7 +248,7 @@ pub(crate) fn notification_scheduler_directory(
 
 /// Ensure the persisted scheduler artifact directory exists.
 pub(crate) fn ensure_notification_scheduler_directory(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<PathBuf> {
     let directory = notification_scheduler_directory(context)?;
 
@@ -281,7 +275,7 @@ pub(crate) fn notification_scheduler_key(id: &str) -> String {
 
 /// Return one wrapper script path for one scheduled notification identifier.
 pub(crate) fn notification_wrapper_script_path(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
 ) -> RuntimeResult<PathBuf> {
     let directory = notification_scheduler_directory(context)?;
@@ -309,7 +303,7 @@ pub(crate) fn notification_systemd_timer_path(id: &str) -> RuntimeResult<PathBuf
 }
 
 /// Return the persisted scheduled notification record path for one identifier.
-fn notification_record_path(context: &HostRequestContext, id: &str) -> RuntimeResult<PathBuf> {
+fn notification_record_path(context: &RequestContext, id: &str) -> RuntimeResult<PathBuf> {
     let directory = notification_record_directory(context)?;
     let hash = fnv1a_64(id.as_bytes());
 
@@ -319,7 +313,7 @@ fn notification_record_path(context: &HostRequestContext, id: &str) -> RuntimeRe
 }
 
 /// Return the persisted scheduled notification record directory.
-fn notification_record_directory(context: &HostRequestContext) -> RuntimeResult<PathBuf> {
+fn notification_record_directory(context: &RequestContext) -> RuntimeResult<PathBuf> {
     let root = if let Some(state_directory) = &context.os_options.state_directory {
         state_directory.join("notification")
     } else {

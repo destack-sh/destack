@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use destack_workspace::{RuntimeOptions, RuntimeSelector};
 
 use crate::diagnostic::RuntimeError;
-use crate::host::HostSession;
+use crate::host::Session;
 use crate::runtime::bindings::BindingDescriptor;
 use crate::runtime::policy::{CustomEffect, Rule, Trigger};
 use crate::runtime::{Agent, BindingCallContext, Hook, HookDecision, HookSelector, World};
@@ -25,7 +25,7 @@ fn test_on_before_binding_allows_hook_callback_deny() {
         Box::new(super::tests::TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
 
     // register one deny callback for matching binding names
     let callback_id =
@@ -71,7 +71,7 @@ fn test_on_before_binding_respects_hook_selector_binding_glob() {
         Box::new(super::tests::TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
 
     // register one deny callback with one non-matching binding pattern
     let callback_id = agent.hooks.on_before(
@@ -106,7 +106,7 @@ fn test_on_before_binding_dispatches_custom_effect_handler() {
         Box::new(super::tests::TestEngine::default()),
     )
     .expect("agent should construct in world");
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
 
     // install one custom-effect rule for one binding pattern
     world

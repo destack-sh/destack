@@ -8,7 +8,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{HostSessionId, HostSessionRegistry, RuntimeIngressHandler};
+use crate::host::{HostSessionId, HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::WindowCursorMode;
 use crate::platform::display::windows::win32::event::{
     DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
@@ -305,7 +305,7 @@ struct Win32RuntimeIngressHandler {
 
 impl RuntimeIngressHandler for Win32RuntimeIngressHandler {
     /// Publish monitor-topology deltas after one host ingress service step.
-    fn service_session_ingress(&self) -> RuntimeResult<()> {
+    fn advance_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };

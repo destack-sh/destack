@@ -62,7 +62,7 @@ use crate::platform::input::{
     InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
 use crate::runtime::{AgentId, BindingCallContext, ProcessSubscriberRegistry};
 
@@ -526,7 +526,7 @@ pub(crate) struct WindowsRawInputService {
     worker_running: AtomicBool,
 }
 
-impl GlobalService for WindowsRawInputService {
+impl Service for WindowsRawInputService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
 }
 

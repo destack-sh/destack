@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use postcard::{from_bytes, to_allocvec};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -14,9 +14,7 @@ use super::path::{
 };
 
 /// Ensure the persisted background task directory exists.
-pub(crate) fn ensure_background_task_directory(
-    context: &HostRequestContext,
-) -> RuntimeResult<PathBuf> {
+pub(crate) fn ensure_background_task_directory(context: &RequestContext) -> RuntimeResult<PathBuf> {
     let directory = background_task_directory(context)?;
 
     fs::create_dir_all(&directory).map_err(|error| {
@@ -35,7 +33,7 @@ pub(crate) fn ensure_background_task_directory(
 
 /// Read every persisted desktop background task record.
 pub(crate) fn read_background_task_records(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<Vec<DesktopBackgroundTaskRecord>> {
     let directory = background_task_directory(context)?;
 
@@ -91,7 +89,7 @@ pub(crate) fn read_background_task_records(
 
 /// Read one persisted desktop background task record when it exists.
 pub(crate) fn read_background_task_record(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<Option<DesktopBackgroundTaskRecord>> {
     let path = background_task_record_path(context, identifier)?;
@@ -117,7 +115,7 @@ pub(crate) fn read_background_task_record(
 
 /// Persist one desktop background task record.
 pub(crate) fn write_background_task_record(
-    context: &HostRequestContext,
+    context: &RequestContext,
     record: &DesktopBackgroundTaskRecord,
 ) -> RuntimeResult<()> {
     let path = background_task_record_path(context, &record.options.identifier)?;
@@ -171,7 +169,7 @@ fn encode_background_task_record(
 
 /// Remove one persisted desktop background task record when it exists.
 pub(crate) fn remove_background_task_record(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<()> {
     let path = background_task_record_path(context, identifier)?;

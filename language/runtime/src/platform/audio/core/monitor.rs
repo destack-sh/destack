@@ -6,9 +6,9 @@ use crate::platform::audio::{
     AudioBackend, AudioEventDeliveryMode, AudioEventSource, backend as audio_backend,
 };
 use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, periodic_service_executor,
+    PeriodicTaskHandle, open_periodic_task,
 };
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 use crate::runtime::{AgentId, ProcessSubscriberRegistry};
 
 use super::constants::host_monotonic_nanos;
@@ -350,7 +350,7 @@ impl AudioMonitorService {
     }
 }
 
-impl GlobalService for AudioMonitorService {
+impl Service for AudioMonitorService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
@@ -452,39 +452,43 @@ fn start_synthetic_monitor_worker(
     backend: AudioBackend,
     poll_interval_ns: u64,
 ) -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
-    let executor = periodic_service_executor()?;
     let interval = std::time::Duration::from_nanos(poll_interval_ns.max(1));
 
-    let task = executor.register(interval, move || {
-        // publish one fresh synthetic snapshot pass
-        let now = host_monotonic_nanos();
-        let snapshot = monitor_snapshot(backend);
-        if let Ok(snapshot) = snapshot {
-            let runtimes = {
-                let mut backends = service
-                    .backends
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner());
-                let Some(monitor) = backends.get_mut(&backend) else {
-                    return Ok(());
+    let task = open_periodic_task(
+        "destack-audio-monitor",
+        AudioMonitorService::POLICY,
+        interval,
+        move || {
+            // publish one fresh synthetic snapshot pass
+            let now = host_monotonic_nanos();
+            let snapshot = monitor_snapshot(backend);
+            if let Ok(snapshot) = snapshot {
+                let runtimes = {
+                    let mut backends = service
+                        .backends
+                        .lock()
+                        .unwrap_or_else(|error| error.into_inner());
+                    let Some(monitor) = backends.get_mut(&backend) else {
+                        return Ok(());
+                    };
+
+                    monitor.live_runtime_states()
                 };
 
-                monitor.live_runtime_states()
-            };
-
-            for runtime_state in &runtimes {
-                publish_device_events_from_snapshot(
-                    runtime_state,
-                    backend,
-                    &snapshot,
-                    now,
-                    AudioEventSource::SyntheticPoll,
-                );
+                for runtime_state in &runtimes {
+                    publish_device_events_from_snapshot(
+                        runtime_state,
+                        backend,
+                        &snapshot,
+                        now,
+                        AudioEventSource::SyntheticPoll,
+                    );
+                }
             }
-        }
 
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
 
     Ok(Box::new(SyntheticAudioMonitorHandle { task }))
 }

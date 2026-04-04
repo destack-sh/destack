@@ -303,8 +303,11 @@ impl PlatformOsState {
             HostEvent::Background(event) => self.observe_background_event(event),
             HostEvent::Notification(event) => self.observe_notification_event(event),
             HostEvent::Location(event) => self.observe_location_event(event),
-            HostEvent::Document(event) => self.observe_document_event(event),
             HostEvent::Permission(event) => self.observe_permission_event(event),
+            HostEvent::RequestCompletion(event) => {
+                self.observe_document_completion(event);
+                self.observe_permission_completion(event);
+            }
             HostEvent::MemoryPressure(event) => self.observe_memory_pressure(event.level),
             HostEvent::PowerMode(event) => self.observe_power_mode(event.mode),
             _ => {}

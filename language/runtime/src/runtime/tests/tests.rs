@@ -10,7 +10,7 @@ use {destack_heap as heap, destack_vm as vm};
 use crate::diagnostic::RuntimeResult;
 use crate::host::{
     HostEvent, HostEventKind, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
-    HostSession,
+    Session,
 };
 use crate::platform::time::TimerClock;
 use crate::platform::{PlatformError, ResourceId};
@@ -436,7 +436,7 @@ pub(super) struct TestRuntime {
     /// Wrapped agent under test.
     agent: Agent,
     /// Wrapped host under test.
-    host: HostSession,
+    host: Session,
 }
 
 /// Test harness for multi-agent runtime scheduler tests.
@@ -1040,7 +1040,7 @@ impl TestMultiAgentRuntime {
             .runtime(runtime_id)
             .expect("runtime should exist")
             .host()
-            .poll_events(Some(0))
+            .poll(Some(0))
             .expect("host bootstrap events should drain");
 
         Self { world, runtime_id }
@@ -1168,7 +1168,7 @@ impl TestMultiAgentRuntime {
 
 /// Build one agent configured for runtime tests.
 #[allow(dead_code)]
-fn agent_for_options(options: &RuntimeOptions) -> (World, Agent, HostSession) {
+fn agent_for_options(options: &RuntimeOptions) -> (World, Agent, Session) {
     agent_for_options_with_engine(options, TestEngine::default())
 }
 
@@ -1177,7 +1177,7 @@ fn agent_for_options(options: &RuntimeOptions) -> (World, Agent, HostSession) {
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, Agent, HostSession) {
+) -> (World, Agent, Session) {
     agent_for_options_with_engine_and_host_clock_source(
         options,
         TestEngine::default(),
@@ -1189,7 +1189,7 @@ fn agent_for_options_with_host_clock_source(
 fn agent_for_options_with_engine(
     options: &RuntimeOptions,
     engine: impl Engine + 'static,
-) -> (World, Agent, HostSession) {
+) -> (World, Agent, Session) {
     agent_for_options_with_engine_and_host_clock_source(options, engine, None)
 }
 
@@ -1198,7 +1198,7 @@ fn agent_for_options_with_engine_and_host_clock_source(
     options: &RuntimeOptions,
     engine: impl Engine + 'static,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (World, Agent, HostSession) {
+) -> (World, Agent, Session) {
     let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
         World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
@@ -1220,10 +1220,10 @@ fn agent_for_options_with_engine_and_host_clock_source(
     agent.bindings.apply_runtime_defaults(options);
 
     // build the host for this test agent
-    let host = HostSession::from_runtime_options(options, agent.runtime_id);
+    let host = Session::from_runtime_options(options, agent.runtime_id);
 
     // drain initial host bootstrap events for deterministic scheduler tests
-    host.poll_events(Some(0))
+    host.poll(Some(0))
         .expect("host bootstrap events should drain");
 
     (world, agent, host)

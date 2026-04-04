@@ -13,7 +13,6 @@ pub(crate) mod host;
 pub mod native;
 pub(crate) mod simulation;
 mod state;
-#[cfg(any(test, feature = "execution"))]
 pub(crate) mod tests;
 pub(crate) mod validation;
 pub mod vm;
@@ -25,5 +24,6 @@ mod unsupported;
 #[cfg(windows)]
 mod windows;
 
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 pub(crate) use core::*;
 pub(crate) use state::*;

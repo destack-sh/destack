@@ -5,10 +5,7 @@ use std::hash::Hash;
 use std::sync::{Arc, Weak};
 
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::process::{
-    ExecutionLifetime, ExecutionMode, ExecutionPolicy, WorkerLoop, WorkerLoopRun,
-    WorkerLoopShutdown,
-};
+use crate::runtime::process::{ExecutionLifetime, ExecutionMode, ExecutionPolicy};
 
 pub(crate) mod executor;
 pub(crate) mod registry;
@@ -17,13 +14,13 @@ pub(crate) mod unix;
 #[cfg(windows)]
 pub(crate) mod windows;
 
-pub(crate) use registry::{ServiceHandle, global_service};
+pub(crate) use registry::ServiceHandle;
 
 #[cfg(windows)]
 use self::executor::thread::ServiceThreadExecutor;
 
 /// One process-global service with one declared execution policy.
-pub(crate) trait GlobalService: Sized {
+pub(crate) trait Service: Sized {
     /// The execution policy for this service.
     const POLICY: ExecutionPolicy;
 
@@ -48,32 +45,6 @@ pub(crate) trait GlobalService: Sized {
 
         registry::global_service_if_initialized()
     }
-
-    /// Open one owned service thread declared by this service.
-    #[cfg(windows)]
-    fn thread<State>(
-        name: &str,
-        build: impl FnOnce() -> RuntimeResult<State> + Send + 'static,
-    ) -> RuntimeResult<ServiceThreadExecutor<State>>
-    where
-        State: 'static,
-    {
-        let policy = Self::POLICY;
-        assert_global_mode_policy::<Self>(ExecutionMode::Thread);
-
-        spawn_service_thread(name, policy, build)
-    }
-
-    /// Open one owned worker loop declared by this service.
-    fn worker_loop(
-        name: &str,
-        build: impl FnOnce() -> RuntimeResult<(WorkerLoopShutdown, WorkerLoopRun)> + Send + 'static,
-    ) -> RuntimeResult<WorkerLoop> {
-        let policy = Self::POLICY;
-        assert_global_mode_policy::<Self>(ExecutionMode::Loop);
-
-        WorkerLoop::open(name, "platform.service.spawn", policy, build)
-    }
 }
 
 /// Open one owned service thread with one explicit execution policy.
@@ -92,7 +63,7 @@ where
 /// Anchor one declared execution policy at the global-service boundary.
 fn assert_global_service_policy<S>()
 where
-    S: GlobalService,
+    S: Service,
 {
     let policy = S::POLICY;
 
@@ -110,20 +81,6 @@ where
             panic!("global service cannot declare blocking mode");
         }
     }
-}
-
-/// Require one global service mode policy.
-fn assert_global_mode_policy<S>(mode: ExecutionMode)
-where
-    S: GlobalService,
-{
-    let policy = S::POLICY;
-
-    if policy.lifetime != ExecutionLifetime::Global {
-        panic!("global service must declare one global lifetime");
-    }
-
-    policy.expect_mode(mode);
 }
 
 /// Process-global weak subscriber registry keyed by one stable runtime or agent id.

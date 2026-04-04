@@ -4,8 +4,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Platform;
-use crate::host::core::HostRequestContext;
+use crate::host::{Platform, RequestContext};
 use crate::platform::PlatformError;
 use crate::platform::core::not_supported;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -21,7 +20,7 @@ use crate::platform::os::background::storage::{
 
 /// Write one persisted background wrapper script for the current runtime invocation.
 pub(crate) fn write_background_wrapper_script(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
     trigger: BackgroundTriggerKindValue,
 ) -> RuntimeResult<PathBuf> {
