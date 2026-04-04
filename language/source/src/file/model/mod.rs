@@ -4,8 +4,8 @@ mod language;
 mod module;
 mod package;
 mod profile;
-mod registry;
 mod span;
+mod store;
 mod target;
 mod r#type;
 
@@ -15,7 +15,7 @@ pub use language::*;
 pub use module::*;
 pub use package::*;
 pub use profile::*;
-pub use registry::*;
 pub use span::*;
+pub use store::*;
 pub use target::*;
 pub use r#type::*;

@@ -157,6 +157,14 @@ impl DiagnosticCollector {
         collection.diagnostics.drain(..).collect()
     }
 
+    /// Take the collected diagnostics as one owned collection.
+    pub fn take_collection(&self) -> DiagnosticCollection {
+        let mut collection = self.collection.lock();
+        let diagnostics = std::mem::take(&mut collection.diagnostics);
+
+        DiagnosticCollection::from_diagnostics(diagnostics)
+    }
+
     /// Retain diagnostics that match the predicate.
     pub fn retain<F>(&self, mut predicate: F)
     where
