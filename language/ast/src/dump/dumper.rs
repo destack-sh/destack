@@ -501,6 +501,31 @@ impl Dump for ImportTarget {
     }
 }
 
+/// Dump a dependency attribute clause kind as a string.
+impl Dump for DependencyAttributeClauseKind {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        let name = match self {
+            DependencyAttributeClauseKind::With => "With",
+            DependencyAttributeClauseKind::Assert => "Assert",
+        };
+
+        dumper.write_str(name, Some(Color::White));
+    }
+}
+
+/// Dump a dependency attribute clause as a structured representation.
+impl Dump for DependencyAttributeClause {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        let argument_ids: Vec<_> = self.arguments.iter().map(|argument| argument.id).collect();
+
+        dumper
+            .object("DependencyAttributeClause")
+            .field("kind", &self.kind)
+            .field("argument_ids", &argument_ids)
+            .end();
+    }
+}
+
 /// Dump an ImportAliasTarget as a structured representation.
 impl Dump for ImportAliasTarget {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -795,23 +820,26 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 target,
                 items: _,
+                attributes,
                 arguments: _,
             } => {
                 self.node("Expression::Import", _id.id)
                     .field("source", source)
                     .field("kind", kind)
                     .field("target", target)
+                    .field_optional("attributes", attributes)
                     .end();
             }
             Expression::Export {
                 kind,
                 target,
                 items: _,
-                arguments: _,
+                attributes,
             } => {
                 self.node("Expression::Export", _id.id)
                     .field("kind", kind)
                     .field_optional("target", target)
+                    .field_optional("attributes", attributes)
                     .end();
             }
             Expression::ExportNamespace { name } => {

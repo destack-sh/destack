@@ -210,14 +210,16 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             target: _,
             target_module: _,
             items,
-            arguments,
+            attributes,
         } => {
-            for item_id in items {
-                let item = tree.get(*item_id);
-                visitor.visit_dependency_item(tree, *item_id, item);
+            if let Some(items) = items {
+                for item_id in items {
+                    let item = tree.get(*item_id);
+                    visitor.visit_dependency_item(tree, *item_id, item);
+                }
             }
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
+            if let Some(attributes) = attributes {
+                for argument_id in &attributes.arguments {
                     let argument = tree.get(*argument_id);
                     visitor.visit_argument(tree, *argument_id, argument);
                 }
@@ -228,10 +230,17 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             target: _,
             target_module: _,
             items,
+            attributes,
         } => {
             for item_id in items {
                 let item = tree.get(*item_id);
                 visitor.visit_dependency_item(tree, *item_id, item);
+            }
+            if let Some(attributes) = attributes {
+                for argument_id in &attributes.arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
             }
         }
         Statement::ExportValue { value } => {

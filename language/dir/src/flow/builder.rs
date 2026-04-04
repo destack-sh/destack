@@ -1624,7 +1624,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 self.build_declaration_expression(*declaration, current_block_id)
             }
             Expression::UnresolvedImport {
-                target, arguments, ..
+                target,
+                attributes,
+                arguments,
+                ..
             } => {
                 let current_block_id = match target {
                     ImportTarget::String(_) => Some(current_block_id),
@@ -1633,15 +1636,36 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     }
                 };
                 let current_block_id = current_block_id?;
+                let current_block_id = self.build_arguments(
+                    attributes
+                        .as_ref()
+                        .map(|attributes| attributes.arguments.as_slice()),
+                    current_block_id,
+                )?;
                 self.build_arguments(arguments.as_deref(), current_block_id)
             }
-            Expression::Import { arguments, .. } => {
+            Expression::Import {
+                attributes,
+                arguments,
+                ..
+            } => {
+                let current_block_id = self.build_arguments(
+                    attributes
+                        .as_ref()
+                        .map(|attributes| attributes.arguments.as_slice()),
+                    current_block_id,
+                )?;
                 self.build_arguments(arguments.as_deref(), current_block_id)
             }
-            Expression::UnresolvedReExport { .. }
-            | Expression::ReExport { .. }
-            | Expression::Export { .. }
-            | Expression::ExportNamespace { .. } => Some(current_block_id),
+            Expression::UnresolvedReExport { attributes, .. }
+            | Expression::ReExport { attributes, .. }
+            | Expression::Export { attributes, .. } => self.build_arguments(
+                attributes
+                    .as_ref()
+                    .map(|attributes| attributes.arguments.as_slice()),
+                current_block_id,
+            ),
+            Expression::ExportNamespace { .. } => Some(current_block_id),
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
                 self.build_declarators(declarators, current_block_id)
             }

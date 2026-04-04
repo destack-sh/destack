@@ -909,6 +909,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 kind,
                 target,
                 items: _,
+                attributes: _,
                 arguments: _,
             } => {
                 self.node("Expression::UnresolvedImport", id.id)
@@ -923,6 +924,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 target_module,
                 items: _,
+                attributes: _,
                 arguments: _,
             } => {
                 self.node("Expression::Import", id.id)
@@ -936,7 +938,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 kind,
                 items: _,
-                arguments: _,
+                attributes: _,
             } => {
                 self.node("Expression::UnresolvedReExport", id.id)
                     .field("kind", kind)
@@ -948,7 +950,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target_module,
                 kind,
                 items: _,
-                arguments: _,
+                attributes: _,
             } => {
                 self.node("Expression::ReExport", id.id)
                     .field("kind", kind)
@@ -956,7 +958,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("target_module", target_module)
                     .end();
             }
-            Expression::Export { kind, items: _ } => {
+            Expression::Export {
+                kind,
+                items: _,
+                attributes: _,
+            } => {
                 self.node("Expression::Export", id.id)
                     .field("kind", kind)
                     .end();

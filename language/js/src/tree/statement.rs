@@ -5,6 +5,24 @@ use crate::{
 };
 use destack_source::ModuleId;
 
+/// The kind of one dependency attribute clause.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DependencyAttributeClauseKind {
+    /// The standard `with` attribute clause keyword.
+    With,
+    /// The legacy `assert` attribute clause keyword.
+    Assert,
+}
+
+/// One dependency attribute clause.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DependencyAttributeClause {
+    /// The clause introducer.
+    pub kind: DependencyAttributeClauseKind,
+    /// The attribute arguments inside the clause body.
+    pub arguments: Vec<LocalNodeId<Argument>>,
+}
+
 /// A Statement is a JS/TS top-level statement in some container/block.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
@@ -13,8 +31,8 @@ pub enum Statement {
         kind: DependencyKind,
         target: StringId,
         target_module: Option<ModuleId>,
-        items: Vec<LocalNodeId<DependencyItem>>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
+        items: Option<Vec<LocalNodeId<DependencyItem>>>,
+        attributes: Option<DependencyAttributeClause>,
     },
     /// Export items (including type items).
     Export {
@@ -22,6 +40,7 @@ pub enum Statement {
         target: Option<StringId>,
         target_module: Option<ModuleId>,
         items: Vec<LocalNodeId<DependencyItem>>,
+        attributes: Option<DependencyAttributeClause>,
     },
     /// Export value.
     ExportValue { value: LocalNodeId<Expression> },
