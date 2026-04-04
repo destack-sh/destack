@@ -37,6 +37,24 @@ pub enum ImportTarget {
     Expression { target: LocalNodeId<Expression> },
 }
 
+/// The kind of one dependency attribute clause.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DependencyAttributeClauseKind {
+    /// The standard `with` attribute clause keyword.
+    With,
+    /// The legacy `assert` attribute clause keyword.
+    Assert,
+}
+
+/// One dependency attribute clause.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DependencyAttributeClause {
+    /// The clause introducer.
+    pub kind: DependencyAttributeClauseKind,
+    /// The attribute arguments inside the clause body.
+    pub arguments: Vec<LocalNodeId<Argument>>,
+}
+
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -75,7 +93,8 @@ pub enum Expression {
         source: ImportSource,
         kind: DependencyKind,
         target: ImportTarget,
-        items: Vec<LocalNodeId<DependencyItem>>,
+        items: Option<Vec<LocalNodeId<DependencyItem>>>,
+        attributes: Option<DependencyAttributeClause>,
         arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
@@ -98,7 +117,7 @@ pub enum Expression {
         kind: DependencyKind,
         target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
+        attributes: Option<DependencyAttributeClause>,
     },
 
     /// Export the module namespace as a global name (declaration files only).
