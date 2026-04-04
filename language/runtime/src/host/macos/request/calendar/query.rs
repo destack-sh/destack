@@ -9,7 +9,7 @@ use super::native::{
     is_declined_for_current_user_native,
 };
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::call_process_main_context_if_needed;
+use crate::host::os::apple::call::call_process_main_context_if_needed;
 use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventQueryValue, CalendarEventValue,
 };

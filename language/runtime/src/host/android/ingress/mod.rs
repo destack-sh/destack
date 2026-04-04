@@ -9,7 +9,7 @@ pub(crate) mod lifecycle;
 #[path = "location.generated.rs"]
 mod location;
 #[cfg(target_os = "android")]
-pub(crate) mod message;
+pub(crate) mod r#loop;
 #[path = "notification.generated.rs"]
 mod notification;
 #[path = "permission.generated.rs"]

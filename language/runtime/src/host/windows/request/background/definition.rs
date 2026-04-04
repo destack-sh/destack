@@ -8,8 +8,8 @@ use windows::Win32::System::TaskScheduler::{
 use windows::core::{BSTR, Interface};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
-use crate::host::windows::identity::{resolved_application_identifier, resolved_display_name};
+use crate::host::RequestContext;
+use crate::host::os::windows::identity::{resolved_application_identifier, resolved_display_name};
 use crate::platform::PlatformError;
 use crate::platform::os::abi_generated::{
     BackgroundNetworkRequirementValue, BackgroundTaskOptionsValue, BackgroundTaskScheduleKindValue,
@@ -28,7 +28,7 @@ const WINDOWS_TASK_EXECUTION_LIMIT: &str = "PT1H";
 
 /// Build one Task Scheduler definition for one wrapper script.
 pub(super) fn build_task_definition(
-    context: &HostRequestContext,
+    context: &RequestContext,
     service: &ITaskService,
     identifier: &str,
     wrapper_path: &std::path::Path,

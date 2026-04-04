@@ -4,8 +4,8 @@ use windows::core::{BSTR, Error as WindowsError};
 use windows_core::HRESULT;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
-use crate::host::windows::identity::resolved_application_identifier;
+use crate::host::RequestContext;
+use crate::host::os::windows::identity::resolved_application_identifier;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{BackgroundStatusValue, BackgroundTaskOptionsValue};
@@ -38,7 +38,7 @@ pub(crate) fn background_status() -> RuntimeResult<BackgroundStatusValue> {
 
 /// Register one Task Scheduler backed desktop background task.
 pub(crate) fn register_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     options: &BackgroundTaskOptionsValue,
 ) -> RuntimeResult<()> {
     let wrapper_path =
@@ -110,7 +110,7 @@ pub(crate) fn register_background_task(
 
 /// Remove one Task Scheduler backed desktop background task.
 pub(crate) fn unregister_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<()> {
     let wrapper_path = background_wrapper_script_path(context, identifier)?;
@@ -141,7 +141,7 @@ pub(crate) fn unregister_background_task(
 
 /// Trigger one Task Scheduler backed background task immediately.
 pub(crate) fn trigger_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<bool> {
     if desktop_background_test_mode_enabled() {
@@ -170,7 +170,7 @@ pub(crate) fn trigger_background_task(
 }
 
 /// Return one stable Task Scheduler folder name for the active app identity.
-pub(super) fn windows_task_folder_name(context: &HostRequestContext) -> RuntimeResult<String> {
+pub(super) fn windows_task_folder_name(context: &RequestContext) -> RuntimeResult<String> {
     let app_identifier = resolved_application_identifier(context)?;
 
     Ok(sanitized_windows_task_folder_component(&app_identifier))

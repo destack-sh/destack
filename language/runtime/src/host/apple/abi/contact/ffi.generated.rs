@@ -5,7 +5,7 @@ use super::types::{
     HostContactCreateResponse, HostContactDraft, HostContactPageResponse, HostContactQuery,
     HostContactResponse,
 };
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::NativeStringRef;
 
 /// Forward the `list` contact request through the iOS host ABI.

@@ -1,7 +1,7 @@
 use objc2_app_kit::{NSApplication, NSRequestUserAttentionType};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
+use crate::host::os::apple::call::with_process_main_context_marker_if_needed;
 use crate::platform::display::{WindowAttentionLevel, WindowResizeEdge, unsupported};
 use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;

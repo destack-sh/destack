@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeStatus;
-use crate::host::haiku::ingress::notify::{
+use crate::host::os::haiku::ingress::notify::{
     HaikuApplicationLifecycle, haiku_notify_application_lifecycle,
     haiku_notify_interruption_changed, haiku_notify_memory_pressure_changed,
     haiku_notify_permission_result, haiku_notify_power_mode_changed,
     haiku_notify_thermal_state_changed, haiku_notify_wake, haiku_notify_wall_clock_changed,
 };
-use crate::host::unix::abi::ingress::{
+use crate::host::os::unix::abi::ingress::{
     decode_unix_application_lifecycle, decode_unix_memory_pressure_level,
     decode_unix_permission_name, decode_unix_power_mode, decode_unix_thermal_state,
     unix_runtime_status,

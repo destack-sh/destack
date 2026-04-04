@@ -3,8 +3,8 @@
 use crate::diagnostic::RuntimeStatus;
 use crate::host::core::error::invalid_argument_value;
 use crate::host::abi::permission::{HostPermissionEvent};
-use crate::host::android::abi::ingress::core::{runtime_status};
-use crate::host::android::ingress::android_notify_permission_result;
+use crate::host::os::android::abi::ingress::core::{runtime_status};
+use crate::host::os::android::ingress::android_notify_permission_result;
 
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_android_notify_permission_result(

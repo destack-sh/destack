@@ -22,7 +22,7 @@ use super::native::{
 };
 use super::page::{append_unique_contacts, paginate_contacts, sort_contacts};
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::call_process_main_context_if_needed;
+use crate::host::os::apple::call::call_process_main_context_if_needed;
 use crate::platform::os::abi_generated::{
     ContactOrganizationValue, ContactPageValue, ContactQueryValue, ContactValue,
 };

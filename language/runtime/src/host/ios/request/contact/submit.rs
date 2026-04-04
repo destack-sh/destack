@@ -5,14 +5,14 @@ use crate::host::abi::contact::{
     HostContactCreateResponse, HostContactDraft, HostContactPageResponse, HostContactQuery,
     HostContactResponse,
 };
-use crate::host::apple::abi::contact::{
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::invalid_argument_value;
+use crate::host::os::apple::abi::contact::{
     destack_host_ios_contact_create, destack_host_ios_contact_delete_contact,
     destack_host_ios_contact_list, destack_host_ios_contact_read, destack_host_ios_contact_search,
     destack_host_ios_contact_update,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::error::invalid_argument_value;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{

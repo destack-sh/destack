@@ -1,10 +1,10 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
+use crate::host::os::linux::ingress::notify::linux_notify_location_sample;
+use crate::host::{
+    HostRequest, HostRequestOutcome, HostRequestResult, HostSessionId, RequestContext,
 };
-use crate::host::linux::ingress::notify::linux_notify_location_sample;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -139,7 +139,7 @@ fn calendar_hooks() -> LinuxCalendarHooks {
 
 /// Submit one Linux calendar request from the host request lane in tests.
 pub(crate) fn submit_calendar_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let hooks = calendar_hooks();
@@ -207,7 +207,7 @@ pub(crate) fn submit_calendar_request(
 
 /// Submit one Linux contact request from the host request lane in tests.
 pub(crate) fn submit_contact_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let hooks = contact_hooks();
@@ -275,7 +275,7 @@ pub(crate) fn submit_contact_request(
 
 /// Submit one Linux location request from the host request lane in tests.
 pub(crate) fn submit_location_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let hooks = location_hooks();

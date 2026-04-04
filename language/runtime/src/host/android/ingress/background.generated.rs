@@ -2,9 +2,8 @@
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::background::HostBackgroundEvent as HostAbiBackgroundEvent;
-use crate::host::android::ingress::core::android_host_queue;
-use crate::host::core::HostSessionHandle;
-use crate::host::{HostBackgroundEvent, HostEvent};
+use crate::host::os::android::ingress::core::android_host_queue;
+use crate::host::{HostBackgroundEvent, HostEvent, HostSessionHandle};
 use crate::platform::NativeAbiCodec;
 
 /// The runtime function that receives one background event.

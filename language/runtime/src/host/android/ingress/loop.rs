@@ -9,7 +9,7 @@ const ALOOPER_POLL_TIMEOUT: i32 = -3;
 /// Android looper error status code.
 const ALOOPER_POLL_ERROR: i32 = -4;
 
-// link android looper symbols used by host adapter message pumping
+// link android looper symbols used by host message pumping
 #[link(name = "android")]
 unsafe extern "C" {
     /// Poll one android looper for one message or callback event.
@@ -21,9 +21,8 @@ unsafe extern "C" {
     ) -> i32;
 }
 
-/// Service immediately ready platform ingress without blocking.
-pub(crate) fn process_ingress_ready(_ignore_quit_message: bool) -> bool {
-    // ignore quit-message policy for android looper polling
+/// Drain immediately ready looper ingress without blocking.
+pub(crate) fn drain_ready_ingress() -> bool {
     let mut dispatched_any = false;
 
     loop {

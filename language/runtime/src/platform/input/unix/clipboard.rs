@@ -16,7 +16,7 @@ use objc2_app_kit::{NSPasteboard, NSPasteboardTypeHTML, NSPasteboardTypeString};
 use objc2_foundation::{NSArray, NSCopying, NSData, NSString};
 
 #[cfg(target_os = "macos")]
-use crate::host::apple::core::execution::call_process_main_context_if_needed;
+use crate::host::os::apple::call::call_process_main_context_if_needed;
 #[cfg(target_os = "macos")]
 use crate::platform::core::{invalid_argument, io_not_found, io_operation_error};
 

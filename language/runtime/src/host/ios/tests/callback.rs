@@ -2,16 +2,16 @@ use std::sync::Arc;
 
 use crate::host::abi::document::HostDocumentResult;
 use crate::host::abi::intent::HostIntentEvent as HostAbiIntentEvent;
-use crate::host::apple::ingress::lifecycle::host_lifecycle_state_for_application_lifecycle;
-use crate::host::apple::ingress::{
+use crate::host::os::apple::ingress::lifecycle::host_lifecycle_state_for_application_lifecycle;
+use crate::host::os::apple::ingress::{
     IosApplicationLifecycle, ios_notify_background_event, ios_notify_document_result,
     ios_notify_intent_event, ios_notify_location_sample, ios_notify_notification_event,
     ios_notify_permission_result,
 };
-use crate::host::core::{HostQueue, HostRequestId, HostSessionRegistry};
 use crate::host::{
-    HostBackgroundEvent, HostDocumentEvent, HostEvent, HostIntentEvent, HostIntentPayload,
-    HostLifecycleState, HostLocationEvent, HostNotificationEvent, HostPermissionEvent, Platform,
+    HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState,
+    HostLocationEvent, HostNotificationEvent, HostPermissionEvent, HostQueue,
+    HostRequestCompletionEvent, HostRequestId, HostRequestResult, HostSessionRegistry, Platform,
 };
 use crate::platform::NativeAbiCodec;
 use crate::platform::os::{
@@ -73,11 +73,19 @@ fn test_notify_permission_result_enqueues_permission_event_for_runtime_bridge() 
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(
         events.as_slice(),
-        [HostEvent::Permission(HostPermissionEvent {
-            request_id: Some(HostRequestId(7)),
-            permission: Permission::Camera,
-            granted: true,
-        })],
+        [
+            HostEvent::Permission(HostPermissionEvent {
+                request_id: Some(HostRequestId(7)),
+                permission: Permission::Camera,
+                granted: true,
+            }),
+            HostEvent::RequestCompletion(HostRequestCompletionEvent {
+                request_id: HostRequestId(7),
+                result: HostRequestResult::PermissionState(
+                    crate::platform::os::PermissionState::Granted,
+                ),
+            }),
+        ],
     );
 }
 
@@ -160,7 +168,7 @@ fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
 }
 
 #[test]
-fn test_notify_document_result_enqueues_document_event_for_runtime_bridge() {
+fn test_notify_document_result_enqueues_completion_event_for_runtime_bridge() {
     let runtime_id = HostSessionRegistry::allocate_session_id();
     let queue = Arc::new(HostQueue::new(runtime_id));
     let registration =
@@ -180,10 +188,10 @@ fn test_notify_document_result_enqueues_document_event_for_runtime_bridge() {
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(
         events.as_slice(),
-        [HostEvent::Document(Box::new(HostDocumentEvent {
+        [HostEvent::RequestCompletion(HostRequestCompletionEvent {
             request_id: HostRequestId(7),
-            documents,
-        }))],
+            result: HostRequestResult::DocumentDescriptors(documents),
+        })],
     );
 }
 

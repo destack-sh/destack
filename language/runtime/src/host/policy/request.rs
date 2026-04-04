@@ -1,7 +1,7 @@
 use destack_artifact::Platform;
 use destack_workspace::RuntimeAppPermission;
 
-use crate::host::core::HostRequest;
+use crate::host::HostRequest;
 
 use super::core::{runtime_app_permission, url_scheme};
 

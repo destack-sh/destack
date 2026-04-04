@@ -2,10 +2,13 @@
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::permission::HostPermissionEvent as HostAbiPermissionEvent;
-use crate::host::apple::ingress::core::ios_host_queue;
-use crate::host::core::{HostRequestId, HostSessionHandle};
-use crate::host::{HostEvent, HostPermissionEvent};
+use crate::host::os::apple::ingress::core::ios_host_queue;
+use crate::host::{
+    HostEvent, HostPermissionEvent, HostRequestCompletionEvent, HostRequestId, HostRequestResult,
+    HostSessionHandle,
+};
 use crate::platform::NativeAbiCodec;
+use crate::platform::os::PermissionState;
 
 /// The runtime function that receives one permission result.
 pub(crate) fn ios_notify_permission_result(
@@ -24,7 +27,15 @@ pub(crate) fn ios_notify_permission_result(
         granted: event.is_granted,
     };
 
-    queue.enqueue(HostEvent::Permission(event));
+    queue.enqueue(HostEvent::Permission(event.clone()));
+    queue.enqueue(HostEvent::RequestCompletion(HostRequestCompletionEvent {
+        request_id: event.request_id.expect("request id must exist"),
+        result: HostRequestResult::PermissionState(if event.granted {
+            PermissionState::Granted
+        } else {
+            PermissionState::Denied
+        }),
+    }));
 
     Ok(())
 }

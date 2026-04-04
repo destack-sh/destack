@@ -1,15 +1,15 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::document::HostDocumentRequest;
-use crate::host::android::abi::document::ffi::destack_host_android_document_pick;
 use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::os::android::abi::document::ffi::destack_host_android_document_pick;
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringSlice;
 use crate::runtime::BindingCallContext;
 
 /// Return one Android document request outcome when supported.
 pub(crate) fn submit_document_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

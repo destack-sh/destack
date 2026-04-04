@@ -1,9 +1,9 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::ingress::core::ios_host_queue;
-use crate::host::core::HostSessionHandle;
+use crate::host::os::apple::ingress::core::ios_host_queue;
 use crate::host::{
     HostEvent, HostInterruptionEvent, HostMemoryPressureEvent, HostMemoryPressureLevel,
-    HostPowerMode, HostPowerModeEvent, HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostPowerMode, HostPowerModeEvent, HostSessionHandle, HostThermalEvent, HostThermalState,
+    HostWallClockEvent,
 };
 
 /// Submit one iOS interruption callback.

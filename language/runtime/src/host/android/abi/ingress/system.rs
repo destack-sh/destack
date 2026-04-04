@@ -1,10 +1,10 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::host::android::ingress::{
+use crate::host::core::error::invalid_argument_value;
+use crate::host::os::android::ingress::{
     android_notify_interruption_changed, android_notify_memory_pressure_changed,
     android_notify_power_mode_changed, android_notify_thermal_state_changed, android_notify_wake,
     android_notify_wall_clock_changed,
 };
-use crate::host::core::error::invalid_argument_value;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 use super::core::runtime_status;

@@ -1,12 +1,12 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::PlatformError;
 use crate::platform::os::abi_generated::{
     BackgroundStatusValue, BackgroundTaskDescriptorValue, BackgroundTaskOptionsValue,
     BackgroundTaskResultValue, BackgroundTaskScheduleKindValue,
 };
 
-use crate::host::windows::request::background::{
+use crate::host::os::windows::request::background::{
     background_status as windows_background_status,
     register_background_task as register_windows_background_task,
     trigger_background_task as trigger_windows_background_task,
@@ -22,7 +22,7 @@ use crate::platform::os::background::storage::{
 
 /// Submit one Windows background request.
 pub(crate) fn submit_background_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
@@ -82,9 +82,7 @@ fn background_status() -> RuntimeResult<BackgroundStatusValue> {
 }
 
 /// Return every persisted Windows background task descriptor.
-fn background_list(
-    context: &HostRequestContext,
-) -> RuntimeResult<Vec<BackgroundTaskDescriptorValue>> {
+fn background_list(context: &RequestContext) -> RuntimeResult<Vec<BackgroundTaskDescriptorValue>> {
     let records = read_background_task_records(context)?;
 
     Ok(records
@@ -95,7 +93,7 @@ fn background_list(
 
 /// Register one Windows background task.
 fn background_register(
-    context: &HostRequestContext,
+    context: &RequestContext,
     options: &BackgroundTaskOptionsValue,
 ) -> RuntimeResult<()> {
     validate_desktop_background_options(context.platform, options)?;
@@ -127,7 +125,7 @@ fn background_register(
 }
 
 /// Unregister one Windows background task.
-fn background_unregister(context: &HostRequestContext, identifier: &str) -> RuntimeResult<()> {
+fn background_unregister(context: &RequestContext, identifier: &str) -> RuntimeResult<()> {
     unregister_windows_background_task(context, identifier)?;
     remove_background_task_record(context, identifier)?;
 
@@ -135,7 +133,7 @@ fn background_unregister(context: &HostRequestContext, identifier: &str) -> Runt
 }
 
 /// Trigger one persisted Windows background task.
-fn background_trigger_test(context: &HostRequestContext, identifier: &str) -> RuntimeResult<bool> {
+fn background_trigger_test(context: &RequestContext, identifier: &str) -> RuntimeResult<bool> {
     let record = read_background_task_record(context, identifier)?;
 
     if record.is_some() {

@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::message as apple_message;
-use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostSessionContext, HostSessionId,
+use crate::host::os::apple::ingress::r#loop as apple_ingress_loop;
+use crate::host::os::macos::{capability, ingress, request};
+use crate::host::{
+    HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
+    SessionContext,
 };
-use crate::host::macos::{ingress, request};
-use crate::host::{HostAdapter, Platform};
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::capability::PlatformCapabilitySet;
 
 /// macOS host implementation.
 #[derive(Debug, Default)]
@@ -24,15 +24,7 @@ impl HostAdapter for MacosHost {
     }
 
     fn static_capabilities(&self) -> PlatformCapabilitySet {
-        let mut host_capabilities = PlatformCapabilitySet::new();
-
-        // macos exposes runtime host intent ingress callbacks
-        host_capabilities.insert_capability(PlatformCapability::OsLifecycleRead);
-        host_capabilities.insert_capability(PlatformCapability::OsIntentRead);
-        host_capabilities.insert_capability(PlatformCapability::OsPower);
-        host_capabilities.insert_capability(PlatformCapability::OsPermissionRead);
-
-        host_capabilities
+        capability::static_capabilities()
     }
 
     fn session_capabilities(&self, _host_runtime_id: HostSessionId) -> PlatformCapabilitySet {
@@ -40,23 +32,23 @@ impl HostAdapter for MacosHost {
     }
 
     fn is_process_main_context(&self) -> bool {
-        apple_message::is_process_main_context()
+        apple_ingress_loop::is_process_main_context()
     }
 
-    fn process_native_ingress(&self) -> RuntimeResult<()> {
-        // service one ready slice of the Apple run loop
-        apple_message::process_ingress_ready(true);
+    fn advance_native_ingress(&self) -> RuntimeResult<()> {
+        // drain one ready slice of the Apple run loop
+        apple_ingress_loop::drain_ready_ingress();
 
         Ok(())
     }
 
-    fn process_runtime_ingress(&self, context: &HostSessionContext) -> RuntimeResult<()> {
+    fn advance_session_ingress(&self, context: &SessionContext) -> RuntimeResult<()> {
         ingress::service_macos_ingress(context)
     }
 
     fn submit_request(
         &self,
-        context: &HostRequestContext,
+        context: &RequestContext,
         request: HostRequest,
     ) -> RuntimeResult<HostRequestOutcome> {
         request::submit_request(context, request)

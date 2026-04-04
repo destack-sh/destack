@@ -5,7 +5,7 @@ use super::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiOutputRecordHeader, AndroidHostMidiPortDescriptorHeader,
 };
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// Forward the `describe_backend` midi request through the Android host ABI.

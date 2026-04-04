@@ -71,21 +71,15 @@ impl HostQueue {
         let mut payload = self.state.queue.lock();
         let event_observer_event = event.clone();
 
-        // coalesce latest-state semantic events before capacity checks
-        coalesce_semantic_event(&mut payload.events, &event);
-
-        // enforce bounded capacity for drop-eligible events
-        let should_enqueue = enforce_capacity_before_enqueue(&mut payload, &event);
-        if !should_enqueue {
+        if !enqueue_event(&mut payload, event) {
             return;
         }
 
-        payload.events.push_back(event);
         payload.wake_sequence = payload.wake_sequence.wrapping_add(1);
         self.state.wake.notify_all();
         drop(payload);
 
-        // host event observers receive the original event stream independently
+        // host event observers receive the queued event stream independently
         if let Err(error) = self.dispatch_host_event(&event_observer_event) {
             error!(?error, "host event observer dispatch failed");
         }
@@ -159,11 +153,11 @@ impl HostQueue {
     }
 
     /// Service queue-owned runtime ingress handlers.
-    pub(crate) fn service_session_ingress(&self) -> RuntimeResult<()> {
+    pub(crate) fn advance_session_ingress(&self) -> RuntimeResult<()> {
         let handlers = self.state.runtime_ingress_handlers.lock().clone();
 
         for handler in handlers {
-            handler.service_session_ingress()?;
+            handler.advance_session_ingress()?;
         }
 
         Ok(())
@@ -217,6 +211,21 @@ fn drain_events(payload: &mut HostQueuePayload) -> Vec<HostEvent> {
     payload.events.drain(..).collect()
 }
 
+/// Enqueue one event when queue policy accepts it.
+fn enqueue_event(payload: &mut HostQueuePayload, event: HostEvent) -> bool {
+    // coalesce latest-state semantic events before capacity checks
+    coalesce_semantic_event(&mut payload.events, &event);
+
+    // enforce bounded capacity for drop-eligible events
+    if !enforce_capacity_before_enqueue(payload, &event) {
+        return false;
+    }
+
+    payload.events.push_back(event);
+
+    true
+}
+
 /// Enforce queue capacity and return whether the new event should be enqueued.
 fn enforce_capacity_before_enqueue(payload: &mut HostQueuePayload, event: &HostEvent) -> bool {
     let Some(capacity) = payload.capacity else {
@@ -268,6 +277,7 @@ fn is_lossless_event(event: &HostEvent) -> bool {
             | HostEventKind::Background
             | HostEventKind::Notification
             | HostEventKind::Permission
+            | HostEventKind::RequestCompletion
     )
 }
 

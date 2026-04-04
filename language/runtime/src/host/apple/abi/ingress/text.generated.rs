@@ -3,8 +3,8 @@
 use crate::diagnostic::RuntimeStatus;
 use crate::host::core::error::invalid_argument_value;
 use crate::host::abi::text::{HostTextInputEvent};
-use crate::host::apple::abi::ingress::core::{runtime_status};
-use crate::host::apple::ingress::ios_notify_text_input_state;
+use crate::host::os::apple::abi::ingress::core::{runtime_status};
+use crate::host::os::apple::ingress::ios_notify_text_input_state;
 
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_notify_text_input_state(

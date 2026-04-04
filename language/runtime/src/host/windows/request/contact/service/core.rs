@@ -16,7 +16,7 @@ use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
 };
 use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::service::registry::global_service;
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// One process-global Windows contact service.

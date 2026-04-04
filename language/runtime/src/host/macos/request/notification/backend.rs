@@ -1,8 +1,8 @@
 use tracing::warn;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::apple::core::execution::call_process_main_context_if_needed;
-use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
+use crate::host::os::apple::call::call_process_main_context_if_needed;
+use crate::host::{HostSessionId, RequestContext, SessionContext};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -16,7 +16,7 @@ use super::trigger::{build_notification_trigger, trigger_delivery_unix_ns};
 
 /// Deliver one notification through the macOS user notification center.
 pub(crate) fn deliver_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -25,7 +25,7 @@ pub(crate) fn deliver_notification(
 
 /// Request one macOS notification permission state through the native notification center.
 pub(crate) fn request_permission(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
 ) -> RuntimeResult<NotificationPermissionState> {
     use std::sync::mpsc::channel;
 
@@ -78,7 +78,7 @@ pub(crate) fn request_permission(
 
 /// Schedule one macOS notification through the native notification center.
 pub(crate) fn schedule_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -164,7 +164,7 @@ pub(crate) fn set_categories(categories: &[NotificationCategoryValue]) -> Runtim
 }
 
 /// Cancel one delivered macOS notification by identifier.
-pub(crate) fn cancel_notification(_context: &HostRequestContext, id: &str) -> RuntimeResult<()> {
+pub(crate) fn cancel_notification(_context: &RequestContext, id: &str) -> RuntimeResult<()> {
     use objc2_foundation::{NSArray, NSString};
     use objc2_user_notifications::UNUserNotificationCenter;
 
@@ -180,7 +180,7 @@ pub(crate) fn cancel_notification(_context: &HostRequestContext, id: &str) -> Ru
 
 /// Cancel one pending macOS notification by identifier.
 pub(crate) fn cancel_pending_notification(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     id: &str,
 ) -> RuntimeResult<()> {
     use objc2_foundation::{NSArray, NSString};
@@ -199,7 +199,7 @@ pub(crate) fn cancel_pending_notification(
 pub(crate) fn unregister_runtime(_host_runtime_id: HostSessionId) {}
 
 /// Service macOS notification ingress.
-pub(crate) fn service_notification_ingress(_context: &HostSessionContext) -> RuntimeResult<()> {
+pub(crate) fn service_notification_ingress(_context: &SessionContext) -> RuntimeResult<()> {
     Ok(())
 }
 

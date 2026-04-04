@@ -3,7 +3,7 @@ use crate::host::abi::describe::host_abi_types;
 
 #[cfg(not(feature = "generator"))]
 #[allow(unused_imports)]
-pub(crate) use crate::host::android::abi::camera::types::{
+pub(crate) use crate::host::os::android::abi::camera::types::{
     AndroidHostCameraDeviceDescriptorHeader, AndroidHostCameraFrameHeader,
     AndroidHostCameraRecordingCapabilitiesHeader, AndroidHostCameraRecordingOptionsHeader,
     AndroidHostCameraStreamCapabilityHeader, AndroidHostCameraStreamConfigHeader,

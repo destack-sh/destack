@@ -1,16 +1,16 @@
-use crate::host::android::abi::ingress::lifecycle::{
+use crate::host::os::android::abi::ingress::lifecycle::{
     ANDROID_LIFECYCLE_CREATED, ANDROID_LIFECYCLE_DESTROYED, ANDROID_LIFECYCLE_PAUSED,
     ANDROID_LIFECYCLE_RESUMED, ANDROID_LIFECYCLE_STARTED, ANDROID_LIFECYCLE_STOPPED,
     decode_android_activity_lifecycle,
 };
-use crate::host::android::abi::ingress::system::{
+use crate::host::os::android::abi::ingress::system::{
     ANDROID_MEMORY_PRESSURE_CRITICAL, ANDROID_MEMORY_PRESSURE_NORMAL,
     ANDROID_MEMORY_PRESSURE_WARNING, ANDROID_POWER_MODE_LOW_POWER, ANDROID_POWER_MODE_NORMAL,
     ANDROID_THERMAL_CRITICAL, ANDROID_THERMAL_FAIR, ANDROID_THERMAL_NOMINAL,
     ANDROID_THERMAL_SERIOUS, decode_android_memory_pressure_level, decode_android_power_mode,
     decode_android_thermal_state,
 };
-use crate::host::android::ingress::AndroidActivityLifecycle;
+use crate::host::os::android::ingress::AndroidActivityLifecycle;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]

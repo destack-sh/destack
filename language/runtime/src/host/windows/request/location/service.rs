@@ -9,8 +9,8 @@ use windows::Foundation::{DateTime, TimeSpan, TypedEventHandler};
 use windows::core::{Error as WindowsError, Ref};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostSessionId;
-use crate::host::windows::ingress::notify::{
+use crate::host::HostSessionId;
+use crate::host::os::windows::ingress::notify::{
     windows_notify_location_sample, windows_notify_permission_result,
 };
 use crate::platform::core::{io_not_found, io_operation_error};
@@ -18,8 +18,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
 use crate::platform::os::{LocationAccuracy, Permission, PermissionState};
 use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::global_service;
-use crate::runtime::process::service::registry::global_service_if_initialized;
+use crate::runtime::process::service::registry::{global_service, global_service_if_initialized};
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// The location last-known maximum age.

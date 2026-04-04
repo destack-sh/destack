@@ -5,13 +5,13 @@ use crate::host::abi::background::{
     HostBackgroundStatus, HostBackgroundTaskDescriptor, HostBackgroundTaskOptions,
     HostBackgroundTaskResult,
 };
-use crate::host::apple::abi::background::{
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::os::apple::abi::background::{
     destack_host_ios_background_complete, destack_host_ios_background_list,
     destack_host_ios_background_register_task, destack_host_ios_background_status,
     destack_host_ios_background_trigger_test, destack_host_ios_background_unregister,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::abi::NativeStringRef;
 use crate::platform::{NativeAbiCodec, NativeArray};
 use crate::runtime::BindingCallContext;

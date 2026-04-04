@@ -7,13 +7,13 @@ use crate::host::abi::background::{
     HostBackgroundTriggerTestRequest, HostBackgroundTriggerTestResponse,
     HostBackgroundUnregisterRequest,
 };
-use crate::host::android::abi::background::{
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::os::android::abi::background::{
     destack_host_android_background_complete, destack_host_android_background_list,
     destack_host_android_background_register_task, destack_host_android_background_status,
     destack_host_android_background_trigger_test, destack_host_android_background_unregister,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringRef;
 use crate::runtime::BindingCallContext;

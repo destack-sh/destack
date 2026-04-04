@@ -3,7 +3,7 @@ use crate::host::core::error::invalid_argument_value;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 use crate::platform::abi::NativeStringRef;
 
-use crate::host::unix::ingress::notify::UnixApplicationLifecycle;
+use crate::host::os::unix::ingress::notify::UnixApplicationLifecycle;
 
 /// Unix lifecycle code for app-created initialization.
 pub(crate) const UNIX_LIFECYCLE_CREATED: u32 = 0;

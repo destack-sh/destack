@@ -25,7 +25,7 @@ pub struct HostRequestId(pub u64);
 
 /// Runtime-session-scoped context shared by host ingress and request submission.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HostSessionContext {
+pub(crate) struct SessionContext {
     /// Process-global routing id for the active host session.
     pub(crate) host_session_id: HostSessionId,
     /// Host platform for the active adapter.
@@ -40,7 +40,7 @@ pub(crate) struct HostSessionContext {
 
 /// Runtime-session-scoped context for one outbound host request.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct HostRequestContext {
+pub(crate) struct RequestContext {
     /// Stable runtime-session-scoped identifier for this request submission.
     pub(crate) request_id: HostRequestId,
     /// Process-global routing id for the active host session.
@@ -276,16 +276,16 @@ pub(crate) enum HostRequest {
 pub(crate) enum HostRequestCompletion {
     /// Submission completed the visible host work immediately.
     Immediate,
-    /// Submission was accepted and later state changes are deferred.
+    /// Submission was accepted and later completion arrives through one event.
     Deferred,
-    /// Submission completes through one later host event.
-    EventCompleting,
+    /// Submission opened one long lived resource stream.
+    OpenedResource,
 }
 
 /// Normalized host request result payload.
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum HostRequestResult {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum HostRequestResult {
     /// Request completed without one return payload.
     None,
     /// Request completed with one boolean payload.
@@ -410,11 +410,11 @@ impl HostRequestOutcome {
         }
     }
 
-    /// Build one event-completing host request outcome.
+    /// Build one resource-opening host request outcome.
     #[allow(dead_code)]
-    pub(crate) const fn event_completing(result: HostRequestResult) -> Self {
+    pub(crate) const fn opened_resource(result: HostRequestResult) -> Self {
         Self {
-            completion: HostRequestCompletion::EventCompleting,
+            completion: HostRequestCompletion::OpenedResource,
             result,
         }
     }

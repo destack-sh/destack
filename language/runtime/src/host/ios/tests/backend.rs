@@ -1,5 +1,5 @@
 use crate::host::HostAdapter;
-use crate::host::ios::IosHost;
+use crate::host::os::ios::IosHost;
 use crate::runtime::capability::PlatformCapability;
 
 /// Report the static iOS host capabilities.

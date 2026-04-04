@@ -1,6 +1,6 @@
 use super::{HostOperation, decode};
 
-use crate::host::core::HostRequest;
+use crate::host::HostRequest;
 use crate::platform::os::abi_generated::{
     BackgroundStatusValue, BackgroundTaskDescriptorValue, BackgroundTaskOptionsValue,
     BackgroundTaskResultValue,

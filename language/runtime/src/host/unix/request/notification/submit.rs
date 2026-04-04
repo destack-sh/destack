@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::os::notification::runtime::{
     cancel_all_notifications, cancel_all_pending_notifications, cancel_notification,
     cancel_pending_notification, list_notification_categories, list_pending_notifications,
@@ -9,7 +9,7 @@ use crate::platform::os::notification::runtime::{
 
 /// Submit one Unix notification operation.
 pub(crate) fn submit_notification_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

@@ -1,11 +1,11 @@
 use super::query::{list_contacts, read_contact, search_contacts};
 use super::write::{create_contact, delete_contact, update_contact};
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 
 /// Submit one macOS contact request through Contacts.
 pub(crate) fn submit_contact_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

@@ -1,8 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
+use crate::host::{
+    HostRequest, HostRequestOutcome, HostRequestResult, HostSessionId, RequestContext,
 };
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -177,7 +177,7 @@ fn location_hooks() -> MacosLocationHooks {
 
 /// Submit one macOS calendar request from the host request lane in tests.
 pub(crate) fn submit_calendar_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let hooks = calendar_hooks();
@@ -245,7 +245,7 @@ pub(crate) fn submit_calendar_request(
 
 /// Submit one macOS contact request from the host request lane in tests.
 pub(crate) fn submit_contact_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let hooks = contact_hooks();
@@ -313,7 +313,7 @@ pub(crate) fn submit_contact_request(
 
 /// Pick documents from the macOS host request lane in tests.
 pub(crate) fn pick_documents(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     validate_document_pick_options(options)?;
@@ -325,7 +325,7 @@ pub(crate) fn pick_documents(
 
 /// Submit one macOS location request from the host request lane in tests.
 pub(crate) fn submit_location_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let hooks = location_hooks();
@@ -382,7 +382,7 @@ pub(crate) fn submit_location_request(
 
 /// Request one supported macOS location permission selector in tests.
 pub(crate) fn request_location_permission(
-    context: &HostRequestContext,
+    context: &RequestContext,
     permission: Permission,
 ) -> RuntimeResult<Option<PermissionState>> {
     let hooks = location_hooks();

@@ -1,10 +1,10 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::host::apple::ingress::{
+use crate::host::core::error::invalid_argument_value;
+use crate::host::os::apple::ingress::{
     ios_notify_interruption_changed, ios_notify_memory_pressure_changed,
     ios_notify_power_mode_changed, ios_notify_thermal_state_changed, ios_notify_wake,
     ios_notify_wall_clock_changed,
 };
-use crate::host::core::error::invalid_argument_value;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 use super::core::runtime_status;

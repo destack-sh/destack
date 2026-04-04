@@ -5,7 +5,7 @@ use super::types::{
     HostCalendarEventCreateResponse, HostCalendarEventDraft, HostCalendarEventListResponse,
     HostCalendarEventQuery, HostCalendarEventReadResponse, HostCalendarListResponse,
 };
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::NativeStringRef;
 
 /// Forward the `list` calendar request through the iOS host ABI.

@@ -7,7 +7,7 @@ use crate::runtime::process::service::windows::{
 };
 
 /// Service immediately ready thread messages without blocking.
-pub(crate) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
+pub(crate) fn drain_ready_ingress() -> bool {
     // drain pending messages from the current thread queue
     let mut dispatched_any = false;
     loop {
@@ -17,8 +17,8 @@ pub(crate) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
             break;
         }
 
-        // optionally swallow quit messages for caller-managed lifecycles
-        if ignore_quit_message && message.message == WM_QUIT {
+        // swallow quit packets during nonblocking ingress draining
+        if message.message == WM_QUIT {
             continue;
         }
 
@@ -40,7 +40,7 @@ pub(crate) fn process_ingress_ready(ignore_quit_message: bool) -> bool {
 }
 
 /// Run the blocking ingress loop until quit or failure.
-pub(crate) fn process_ingress_loop() {
+pub(crate) fn run_ingress_loop() {
     // block on get message and dispatch until quit or error
     let mut message = unsafe { std::mem::zeroed::<MSG>() };
     loop {

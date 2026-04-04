@@ -1,10 +1,11 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::android::capability;
-use crate::host::android::ingress::message as android_message;
-use crate::host::android::request::submit_request;
 use crate::host::core::error::not_supported;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostSessionId};
-use crate::host::{HostAdapter, Platform};
+use crate::host::os::android::capability;
+use crate::host::os::android::ingress::r#loop as android_ingress_loop;
+use crate::host::os::android::request::submit_request;
+use crate::host::{
+    HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
+};
 use crate::runtime::capability::PlatformCapabilitySet;
 
 /// Android host implementation.
@@ -27,9 +28,9 @@ impl HostAdapter for AndroidHost {
         capability::static_capabilities()
     }
 
-    fn process_native_ingress(&self) -> RuntimeResult<()> {
-        // service one ready slice of the Android looper
-        android_message::process_ingress_ready(true);
+    fn advance_native_ingress(&self) -> RuntimeResult<()> {
+        // drain one ready slice of the Android ingress loop
+        android_ingress_loop::drain_ready_ingress();
 
         Ok(())
     }
@@ -40,7 +41,7 @@ impl HostAdapter for AndroidHost {
 
     fn submit_request(
         &self,
-        context: &HostRequestContext,
+        context: &RequestContext,
         request: HostRequest,
     ) -> RuntimeResult<HostRequestOutcome> {
         if let Some(outcome) = submit_request(context, &request)? {

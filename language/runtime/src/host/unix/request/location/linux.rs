@@ -10,18 +10,18 @@ use zbus::blocking::{Connection, Proxy};
 use zbus::zvariant::OwnedObjectPath;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
+use crate::host::os::linux::ingress::notify::linux_notify_location_sample;
+use crate::host::os::unix::identity::resolved_application_identifier;
+use crate::host::{
+    HostRequest, HostRequestOutcome, HostRequestResult, HostSessionId, RequestContext,
 };
-use crate::host::linux::ingress::notify::linux_notify_location_sample;
-use crate::host::unix::identity::resolved_application_identifier;
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     LocationAccuracy, LocationSampleValue, LocationWatchOptionsValue,
 };
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService, WorkerLoop};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, WorkerLoop};
 
 /// The Linux location services-enabled operation name.
 const LOCATION_SERVICES_ENABLED_OPERATION: &str = "destack.os.location.servicesEnabled";
@@ -108,7 +108,7 @@ impl LinuxLocationService {
     /// Open one long-lived location watch worker.
     fn open_watch(
         &self,
-        context: &HostRequestContext,
+        context: &RequestContext,
         watch_id: String,
         options: LocationWatchOptionsValue,
     ) -> RuntimeResult<()> {
@@ -255,7 +255,7 @@ impl LinuxLocationService {
     }
 }
 
-impl GlobalService for LinuxLocationService {
+impl Service for LinuxLocationService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
@@ -276,7 +276,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Submit one Linux location request through GeoClue.
 pub(crate) fn submit_location_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
@@ -339,7 +339,7 @@ fn location_services_enabled() -> RuntimeResult<bool> {
 }
 
 /// Read the most recent location sample from GeoClue.
-fn read_last_known_location(context: &HostRequestContext) -> RuntimeResult<LocationSampleValue> {
+fn read_last_known_location(context: &RequestContext) -> RuntimeResult<LocationSampleValue> {
     let desktop_id = resolved_application_identifier(context)?;
     let client = geo_clue_client(LOCATION_LAST_KNOWN_OPERATION, &desktop_id, None)?;
     client.start(LOCATION_LAST_KNOWN_OPERATION)?;
@@ -379,7 +379,7 @@ fn linux_location_service() -> RuntimeResult<Arc<LinuxLocationService>> {
 
 /// Open one long-lived location watch worker.
 fn open_location_watch(
-    context: &HostRequestContext,
+    context: &RequestContext,
     watch_id: String,
     options: LocationWatchOptionsValue,
 ) -> RuntimeResult<()> {

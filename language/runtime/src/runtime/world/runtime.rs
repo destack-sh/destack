@@ -4,34 +4,13 @@ use destack_core::CaptureMode;
 use destack_heap as heap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::HostEvent;
 use crate::platform::resource::ResourceRebinders;
 use crate::runtime::engine::{Engine, Entry, ExecutionOutput};
-use crate::runtime::poller::PollerEvent;
 use crate::runtime::trace::Outcome;
 use crate::runtime::{Agent, AgentId, AgentImage, Runtime, RuntimeImage};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
 use super::{Input, RuntimeId, World};
-
-/// Coordinator-visible arrived work that is not caused by world time advancing.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum RuntimeIngress {
-    /// Runtime-wide host semantic arrival.
-    Host {
-        /// Runtime that owns the host integration.
-        runtime_id: RuntimeId,
-        /// Host event payload.
-        event: HostEvent,
-    },
-    /// Runtime-wide poller arrival.
-    Poller {
-        /// Runtime that owns the shared poller.
-        runtime_id: RuntimeId,
-        /// Poller event payload.
-        event: PollerEvent,
-    },
-}
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.

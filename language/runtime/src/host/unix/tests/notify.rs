@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use crate::host::core::{HostQueue, HostSessionRegistry};
-use crate::host::unix::ingress::notify::{
+use crate::host::os::unix::ingress::notify::{
     UnixApplicationLifecycle, host_lifecycle_state_for_unix_application,
     unix_notify_permission_result,
 };
-use crate::host::{HostEvent, HostLifecycleState, HostPermissionEvent, Platform};
+use crate::host::{
+    HostEvent, HostLifecycleState, HostPermissionEvent, HostQueue, HostSessionRegistry, Platform,
+};
 use crate::platform::os::Permission;
 
 #[test]

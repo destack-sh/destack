@@ -2,7 +2,7 @@
 
 use super::callbacks::{IosHostLocationCallbacks, call_ios_location_callback};
 use super::types::{LocationLastKnownResponse, LocationServicesResponse, LocationWatchOptions};
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::NativeStringRef;
 
 /// Forward the `services_enabled` location request through the iOS host ABI.

@@ -4,8 +4,8 @@ use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
 use super::delegate::AppKitWindowDelegate;
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::{HostSessionId, HostSessionRegistry, RuntimeIngressHandler};
+use crate::host::os::apple::call::with_process_main_context_marker_if_needed;
+use crate::host::{HostSessionId, HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::WindowTheme;
 use crate::platform::display::appkit::AppKitWindowTextHost;
 use crate::platform::display::unix::appkit::event::{
@@ -74,7 +74,7 @@ struct AppKitIngressHandler {
 
 impl RuntimeIngressHandler for AppKitIngressHandler {
     /// Service AppKit ingress after one host message pump step.
-    fn service_session_ingress(&self) -> RuntimeResult<()> {
+    fn advance_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };

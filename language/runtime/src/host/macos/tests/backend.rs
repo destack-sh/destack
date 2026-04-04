@@ -1,5 +1,5 @@
 use crate::host::HostAdapter;
-use crate::host::macos::MacosHost;
+use crate::host::os::macos::MacosHost;
 use crate::runtime::capability::PlatformCapability;
 
 /// Report the static macOS host capabilities.

@@ -1,12 +1,12 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::os::media::{
     delete_media_assets, import_media_asset, list_media_assets, read_media_asset,
 };
 
 /// Submit one Windows media operation.
 pub(crate) fn submit_media_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -9,9 +9,7 @@ const FALLBACK_APPLICATION_ID_PREFIX: &str = "dev.destack";
 const FALLBACK_DISPLAY_NAME: &str = "Destack";
 
 /// Resolve one stable application identifier for Unix host integrations.
-pub(crate) fn resolved_application_identifier(
-    context: &HostRequestContext,
-) -> RuntimeResult<String> {
+pub(crate) fn resolved_application_identifier(context: &RequestContext) -> RuntimeResult<String> {
     // configured identity
     if let Some(identifier) = context.app_identity.identifier.as_deref() {
         let identifier = identifier.trim();
@@ -36,7 +34,7 @@ pub(crate) fn resolved_application_identifier(
 }
 
 /// Resolve one human-facing display name for Unix host integrations.
-pub(crate) fn resolved_display_name(context: &HostRequestContext) -> RuntimeResult<String> {
+pub(crate) fn resolved_display_name(context: &RequestContext) -> RuntimeResult<String> {
     // configured display name
     if let Some(display_name) = context.app_identity.display_name.as_deref() {
         let display_name = display_name.trim();

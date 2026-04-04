@@ -2,7 +2,7 @@
 
 use super::callbacks::{AndroidHostUsbCallbacks, call_android_usb_callback};
 use super::types::{AndroidHostUsbDeviceDescriptorHeader, AndroidHostUsbHotplugEventHeader};
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// Forward the `device_list` usb request through the Android host ABI.

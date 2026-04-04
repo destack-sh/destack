@@ -1,12 +1,12 @@
 #[cfg(target_os = "android")]
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "android")]
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
 
 /// Submit one outbound Android host request.
 #[cfg(target_os = "android")]
 pub(crate) fn submit_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let runtime_id = context.host_session_id.0;

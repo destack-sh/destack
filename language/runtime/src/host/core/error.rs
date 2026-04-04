@@ -44,7 +44,7 @@ pub(crate) fn unsupported_request_completion(
     let completion = match completion {
         HostRequestCompletion::Immediate => "immediate",
         HostRequestCompletion::Deferred => "deferred",
-        HostRequestCompletion::EventCompleting => "event-completing",
+        HostRequestCompletion::OpenedResource => "opened-resource",
     };
 
     RuntimeError::from(PlatformError::generic(

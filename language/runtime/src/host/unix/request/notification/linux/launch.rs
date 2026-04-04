@@ -3,14 +3,14 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
-use crate::host::unix::request::notification::core as unix_notification;
+use crate::host::os::unix::request::notification::core as unix_notification;
+use crate::host::{HostSessionId, RequestContext, SessionContext};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::notification::runtime;
 use crate::platform::os::notification::storage::read_notification_record;
 use crate::platform::os::notification::wrapper::DESKTOP_NOTIFICATION_IDENTIFIER_ENV;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 use super::schedule::{cancel_scheduled_notification, notification_trigger_repeats};
 
@@ -52,7 +52,7 @@ impl LinuxNotificationLaunchService {
     }
 }
 
-impl GlobalService for LinuxNotificationLaunchService {
+impl Service for LinuxNotificationLaunchService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 
@@ -69,7 +69,7 @@ pub(crate) fn unregister_runtime(host_session_id: HostSessionId) {
 }
 
 /// Service Linux scheduled notification ingress for one runtime.
-pub(crate) fn service_notification_ingress(context: &HostSessionContext) -> RuntimeResult<()> {
+pub(crate) fn service_notification_ingress(context: &SessionContext) -> RuntimeResult<()> {
     unix_notification::service_notification_ingress(context)?;
 
     let marker_id = {

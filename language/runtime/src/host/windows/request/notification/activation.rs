@@ -8,13 +8,12 @@ use windows::core::IUnknown;
 use windows_core::{IUnknownImpl, Interface};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::Platform;
-use crate::host::core::{HostSessionId, HostSessionRegistry};
+use crate::host::{HostSessionId, HostSessionRegistry, Platform};
 use crate::platform::os::abi_generated::{
     NotificationInteractedPayloadValue, NotificationRequestValue,
 };
 use crate::platform::os::notification::runtime;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 use super::core::{
     ActiveWindowsNotification, ActiveWindowsNotificationRegistry,
@@ -45,7 +44,7 @@ impl WindowsNotificationActivationService {
     }
 }
 
-impl GlobalService for WindowsNotificationActivationService {
+impl Service for WindowsNotificationActivationService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

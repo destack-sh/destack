@@ -1,11 +1,11 @@
 use super::query::{list_calendars, list_events, read_event};
 use super::write::{create_event, delete_event, update_event};
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 
 /// Submit one macOS calendar request through EventKit.
 pub(crate) fn submit_calendar_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

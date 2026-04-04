@@ -1,6 +1,8 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::host::android::ingress::{AndroidActivityLifecycle, android_notify_activity_lifecycle};
 use crate::host::core::error::invalid_argument_value;
+use crate::host::os::android::ingress::{
+    AndroidActivityLifecycle, android_notify_activity_lifecycle,
+};
 
 use super::core::runtime_status;
 

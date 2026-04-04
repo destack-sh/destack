@@ -1,10 +1,9 @@
 use notify_rust::{Hint, Notification, Timeout, Urgency};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Platform;
 use crate::host::core::error::not_supported;
-use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
-use crate::host::unix::identity::{resolved_application_identifier, resolved_display_name};
+use crate::host::os::unix::identity::{resolved_application_identifier, resolved_display_name};
+use crate::host::{HostSessionId, Platform, RequestContext, SessionContext};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -23,7 +22,7 @@ use super::response::{
 
 /// Return the Unix desktop notification permission state.
 pub(super) fn request_permission(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
 ) -> RuntimeResult<NotificationPermissionState> {
     if unix_notification_server_available() {
         return Ok(NotificationPermissionState::Granted);
@@ -34,7 +33,7 @@ pub(super) fn request_permission(
 
 /// Deliver one notification through the Unix desktop host.
 pub(super) fn deliver_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -92,7 +91,7 @@ pub(super) fn deliver_notification(
 }
 
 /// Cancel one delivered Unix notification by its host identifier when present.
-pub(super) fn cancel_notification(context: &HostRequestContext, id: &str) -> RuntimeResult<()> {
+pub(super) fn cancel_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     let Some(server_id) = remove_active_notification(context.host_session_id, id)? else {
         return Ok(());
     };
@@ -102,7 +101,7 @@ pub(super) fn cancel_notification(context: &HostRequestContext, id: &str) -> Run
 
 /// Reject Unix notification scheduling until it is backed by a real host scheduler.
 pub(super) fn schedule_notification(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _id: &str,
     _request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -111,14 +110,14 @@ pub(super) fn schedule_notification(
 
 /// Reject Unix pending notification enumeration until it is backed by a real host scheduler.
 pub(super) fn list_pending_notifications(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
 ) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
     Err(not_supported("destack.os.notification.pendingList"))
 }
 
 /// Reject Unix pending notification cancellation until it is backed by a real host scheduler.
 pub(super) fn cancel_pending_notification(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _id: &str,
 ) -> RuntimeResult<()> {
     Err(not_supported("destack.os.notification.pendingCancel"))
@@ -140,7 +139,7 @@ pub(super) fn unregister_runtime(host_session_id: HostSessionId) {
 }
 
 /// Service freedesktop notification ingress.
-pub(super) fn service_notification_ingress(_context: &HostSessionContext) -> RuntimeResult<()> {
+pub(super) fn service_notification_ingress(_context: &SessionContext) -> RuntimeResult<()> {
     Ok(())
 }
 

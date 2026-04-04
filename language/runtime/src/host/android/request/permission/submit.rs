@@ -1,17 +1,17 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::permission::{HostPermission, HostPermissionRequest};
-use crate::host::android::abi::permission::ffi::{
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::os::android::abi::permission::ffi::{
     destack_host_android_permission_open_settings, destack_host_android_permission_request,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::NativeAbiCodec;
 use crate::platform::os::PermissionState;
 use crate::runtime::BindingCallContext;
 
 /// Return one Android permission request outcome when supported.
 pub(crate) fn submit_permission_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

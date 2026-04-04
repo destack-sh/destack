@@ -3,12 +3,11 @@ use std::sync::Arc;
 use destack_artifact::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostInterruptionEvent, HostLifecycleEvent,
     HostLifecycleSourceKind, HostLifecycleState, HostLocationEvent, HostMemoryPressureEvent,
-    HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode, HostPowerModeEvent,
-    HostThermalEvent, HostThermalState, HostWallClockEvent,
+    HostMemoryPressureLevel, HostPermissionEvent, HostPowerMode, HostPowerModeEvent, HostQueue,
+    HostSessionId, HostSessionRegistry, HostThermalEvent, HostThermalState, HostWallClockEvent,
 };
 use crate::platform::os::abi_generated::LocationSampleValue;
 use crate::platform::os::{invalid_data, parse_host_permission_name};

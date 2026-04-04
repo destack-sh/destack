@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostSessionId;
+use crate::host::HostSessionId;
 use crate::platform::os::NotificationActionStyle;
 use crate::platform::os::abi_generated::{NotificationActionValue, NotificationRequestValue};
 

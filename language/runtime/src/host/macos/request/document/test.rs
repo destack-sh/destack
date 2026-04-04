@@ -1,8 +1,8 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 #[cfg(target_os = "macos")]
-use crate::host::macos::tests::pick_documents as pick_documents_from_tests;
-pub(crate) use crate::host::macos::tests::set_macos_document_test_pick_hook;
+use crate::host::os::macos::tests::pick_documents as pick_documents_from_tests;
+pub(crate) use crate::host::os::macos::tests::set_macos_document_test_pick_hook;
 #[cfg(not(target_os = "macos"))]
 use crate::platform::core::not_supported;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
@@ -10,7 +10,7 @@ use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOp
 /// Pick documents through the active macOS request lane in tests.
 #[cfg(target_os = "macos")]
 pub(crate) fn pick_documents(
-    context: &HostRequestContext,
+    context: &RequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     pick_documents_from_tests(context, options)
@@ -19,7 +19,7 @@ pub(crate) fn pick_documents(
 /// Fail closed for non-macOS test builds that compile the macOS host tree.
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn pick_documents(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     Err(not_supported("destack.os.document.pick"))

@@ -189,7 +189,7 @@ mod tests {
     use vobject::Property;
 
     use super::{ical_duration_from_seconds, reminder_from_trigger};
-    use crate::host::unix::request::calendar::linux::time::parse_ical_datetime;
+    use crate::host::os::unix::request::calendar::linux::time::parse_ical_datetime;
     use crate::platform::os::CalendarReminderAnchor;
     use crate::platform::os::abi_generated::{
         CalendarAbsoluteReminderValue, CalendarRelativeReminderValue, CalendarReminderValue,

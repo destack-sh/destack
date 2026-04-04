@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult, HostSessionId,
+use crate::host::{
+    HostRequest, HostRequestOutcome, HostRequestResult, HostSessionId, RequestContext,
 };
 use crate::platform::os::{Permission, PermissionState};
 
@@ -24,7 +24,7 @@ pub(super) const LOCATION_PERMISSION_REQUEST_OPERATION: &str = "destack.os.permi
 
 /// Submit one macOS location request through Core Location.
 pub(crate) fn submit_location_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
@@ -65,7 +65,7 @@ pub(crate) fn submit_location_request(
 
 /// Request one supported macOS location permission selector.
 pub(crate) fn request_location_permission(
-    context: &HostRequestContext,
+    context: &RequestContext,
     permission: Permission,
 ) -> RuntimeResult<Option<PermissionState>> {
     let request_kind = match permission {

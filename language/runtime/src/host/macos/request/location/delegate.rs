@@ -8,8 +8,8 @@ use objc2_core_location::{
 use objc2_foundation::{NSArray, NSError, NSObject, NSObjectProtocol};
 use tracing::error;
 
-use crate::host::core::HostSessionId;
-use crate::host::macos::ingress::notify::{
+use crate::host::HostSessionId;
+use crate::host::os::macos::ingress::notify::{
     macos_notify_location_sample, macos_notify_permission_result,
 };
 

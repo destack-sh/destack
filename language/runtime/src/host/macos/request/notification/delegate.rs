@@ -1,7 +1,6 @@
 use tracing::warn;
 
-use crate::host::Platform;
-use crate::host::core::HostSessionId;
+use crate::host::{HostSessionId, Platform};
 use crate::platform::os::abi_generated::NotificationInteractedPayloadValue;
 use crate::platform::os::notification::runtime;
 

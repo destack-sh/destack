@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
-use crate::host::unix::request;
+use crate::host::os::unix::request;
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::not_supported;
 use crate::platform::os::{Permission, PermissionEntry, PermissionState};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
@@ -34,7 +34,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Submit one normalized macOS host request.
 pub(crate) fn submit_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: HostRequest,
 ) -> RuntimeResult<HostRequestOutcome> {
     // service shared desktop background requests first
@@ -98,7 +98,7 @@ pub(crate) fn submit_request(
 
 /// Request one supported macOS permission selector.
 fn request_permission_state(
-    context: &HostRequestContext,
+    context: &RequestContext,
     permission: Permission,
 ) -> RuntimeResult<Option<PermissionState>> {
     if let Some(state) = super::location::request_location_permission(context, permission)? {
@@ -121,7 +121,7 @@ fn request_permission_state(
 
 /// Request one supported macOS permission selector batch.
 fn request_permission_entries(
-    context: &HostRequestContext,
+    context: &RequestContext,
     permissions: &[Permission],
 ) -> RuntimeResult<Option<Vec<PermissionEntry>>> {
     #[cfg(all(test, target_os = "macos"))]

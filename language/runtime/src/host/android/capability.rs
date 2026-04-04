@@ -1,5 +1,5 @@
-use crate::host::android::abi::registry::resolve_android_bindings;
-use crate::host::core::HostSessionId;
+use crate::host::HostSessionId;
+use crate::host::os::android::abi::registry::resolve_android_bindings;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Return the static Android host capabilities.
@@ -133,42 +133,41 @@ pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCa
 
 #[cfg(test)]
 mod tests {
-    use crate::host::HOST_STATUS_OK;
-    use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
-    use crate::host::android::abi::background::types::{
+    use crate::host::os::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
+    use crate::host::os::android::abi::background::types::{
         HostBackgroundCompleteRequest, HostBackgroundListResponse, HostBackgroundStatusResponse,
         HostBackgroundTaskOptions, HostBackgroundTriggerTestRequest,
         HostBackgroundTriggerTestResponse, HostBackgroundUnregisterRequest,
     };
-    use crate::host::android::abi::bindings::AndroidHostBindings;
-    use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
-    use crate::host::android::abi::calendar::types::{
+    use crate::host::os::android::abi::bindings::AndroidHostBindings;
+    use crate::host::os::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
+    use crate::host::os::android::abi::calendar::types::{
         HostCalendarEventCreateResponse, HostCalendarEventDraft, HostCalendarListResponse,
     };
-    use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
-    use crate::host::android::abi::contact::types::{
+    use crate::host::os::android::abi::contact::callbacks::AndroidHostContactCallbacks;
+    use crate::host::os::android::abi::contact::types::{
         HostContactCreateResponse, HostContactDraft, HostContactPageResponse, HostContactQuery,
     };
-    use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
-    use crate::host::android::abi::document::types::HostDocumentRequest;
-    use crate::host::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
-    use crate::host::android::abi::location::callbacks::AndroidHostLocationCallbacks;
-    use crate::host::android::abi::location::types::{
+    use crate::host::os::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
+    use crate::host::os::android::abi::document::types::HostDocumentRequest;
+    use crate::host::os::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
+    use crate::host::os::android::abi::location::callbacks::AndroidHostLocationCallbacks;
+    use crate::host::os::android::abi::location::types::{
         LocationServicesResponse, LocationWatchOptions,
     };
-    use crate::host::android::abi::media::callbacks::AndroidHostMediaCallbacks;
-    use crate::host::android::abi::media::types::{
+    use crate::host::os::android::abi::media::callbacks::AndroidHostMediaCallbacks;
+    use crate::host::os::android::abi::media::types::{
         HostMediaImportPathRequest, HostMediaImportPathResponse, HostMediaListRequest,
         HostMediaListResponse,
     };
-    use crate::host::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
-    use crate::host::android::abi::notification::types::HostNotificationRequest;
-    use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
-    use crate::host::android::abi::permission::types::HostPermissionRequest;
-    use crate::host::android::tests::{
+    use crate::host::os::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
+    use crate::host::os::android::abi::notification::types::HostNotificationRequest;
+    use crate::host::os::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
+    use crate::host::os::android::abi::permission::types::HostPermissionRequest;
+    use crate::host::os::android::tests::{
         callback_test_lock, register_android_bindings, register_android_runtime,
     };
-    use crate::host::core::HostSessionId;
+    use crate::host::{HOST_STATUS_OK, HostSessionId};
     use crate::platform::abi::NativeStringRef;
     use crate::runtime::capability::PlatformCapability;
 
