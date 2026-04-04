@@ -203,7 +203,10 @@ impl<'a> ArtifactCache<'a> {
             return Ok(None);
         };
 
-        postcard::from_bytes(&bytes).map_err(ArtifactImageError::Deserialize)
+        let content_id = postcard::from_bytes::<ArtifactContentId>(&bytes)
+            .map_err(ArtifactImageError::Deserialize)?;
+
+        Ok(Some(content_id))
     }
 
     /// Write one current content id for one stable image key.
