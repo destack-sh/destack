@@ -281,6 +281,7 @@ fn callable_boundary_asynchrony(
                 signature,
                 scope: _,
                 body: _,
+                ..
             } = declaration
             else {
                 return None;
