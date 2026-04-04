@@ -1,1 +1,0 @@
-console.log(typeof x<"u");console.log(typeof x<"u");console.log(typeof x<"u");console.log(typeof x<"u");console.log(typeof x>"u");console.log(typeof x>"u");console.log(typeof x>"u");console.log(typeof x>"u");console.log(typeof x=="string");console.log(typeof x=="undefinedx");

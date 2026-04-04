@@ -1,24 +1,9 @@
 {
   "files": [
     {
-      "path": "assets/index.html",
-      "type": "asset",
-      "loader": "html",
-      "isEntry": true,
-      "isDynamicEntry": false
-    },
-    {
       "path": "assets/page.html",
       "type": "asset",
       "loader": "html",
-      "isEntry": true,
-      "isDynamicEntry": false
-    },
-    {
-      "path": "assets/styles.css",
-      "type": "asset",
-      "loader": "css",
-      "input": "src/styles.css",
       "isEntry": true,
       "isDynamicEntry": false
     },
