@@ -1,9 +1,9 @@
 use crate::format::collection::{TrailingSeparator, separated_entries};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Argument, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
-    Expression, ImportSource, ImportTarget, Keyword, LocalNodeId, Name, NodeTree, Pattern,
-    ScalarLiteral,
+    Argument, DeclarationDescriptor, Declarator, DependencyAttributeClause,
+    DependencyAttributeClauseKind, DependencyItem, DependencyKind, DependencyMode, Expression,
+    ImportSource, ImportTarget, Keyword, LocalNodeId, Name, NodeTree, Pattern, ScalarLiteral,
 };
 use destack_core::{ImmutableStringPool, StringId};
 use destack_fir::format::{FormatError, FormatResult};
@@ -186,6 +186,9 @@ pub(crate) fn format_export_import_equals_statement(
         ImportTarget::Expression { .. } => return Ok(false),
     };
 
+    let items = items.as_deref().ok_or(FormatError::SyntaxError {
+        message: "import equals requires dependency items",
+    })?;
     let alias = items
         .first()
         .and_then(|item| match tree.get(*item) {
@@ -250,6 +253,7 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
             kind,
             target,
             items,
+            attributes,
             arguments,
         } => {
             format_import_expression(
@@ -258,7 +262,8 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
                 *source,
                 *kind,
                 target,
-                items,
+                items.as_deref(),
+                attributes.as_ref(),
                 arguments.as_deref(),
             )?;
             Ok(true)
@@ -267,9 +272,9 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
             kind,
             target,
             items,
-            arguments,
+            attributes,
         } => {
-            format_export_expression(f, node_id, *kind, *target, items, arguments.as_deref())?;
+            format_export_expression(f, node_id, *kind, *target, items, attributes.as_ref())?;
             Ok(true)
         }
         Expression::ExportNamespace { name } => {
@@ -302,7 +307,7 @@ pub(crate) fn sort_imports(
             expression_ids.push(expr_id);
             order_keys.push(ImportDeclarationKey {
                 target: target_str,
-                is_side_effect: items.is_empty(),
+                is_side_effect: items.is_none(),
             });
         }
     }
@@ -342,7 +347,7 @@ pub(crate) fn should_insert_blank_between(
                 return false;
             };
             let target_str = strings.get(*target);
-            (items.is_empty(), categorize_import(target_str))
+            (items.is_none(), categorize_import(target_str))
         }
         _ => return false,
     };
@@ -353,7 +358,7 @@ pub(crate) fn should_insert_blank_between(
                 return false;
             };
             let target_str = strings.get(*target);
-            (items.is_empty(), categorize_import(target_str))
+            (items.is_none(), categorize_import(target_str))
         }
         _ => return false,
     };
@@ -417,6 +422,7 @@ fn dependency_item_value(item: &DependencyItem) -> Option<LocalNodeId<Expression
 fn format_dependency_with_arguments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
+    clause_kind: DependencyAttributeClauseKind,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     let has_attribute_head_annotation = f.context().has_infix_annotation(node_id);
@@ -462,12 +468,17 @@ fn format_dependency_with_arguments<'ast>(
     });
     let with_arguments = group(&with_arguments).should_expand(should_expand_attribute_arguments);
 
+    let clause_keyword = match clause_kind {
+        DependencyAttributeClauseKind::With => Keyword::With,
+        DependencyAttributeClauseKind::Assert => Keyword::Assert,
+    };
+
     if has_attribute_head_annotation {
-        write!(f, [Keyword::With, space(), with_arguments])?;
+        write!(f, [clause_keyword, space(), with_arguments])?;
         return Ok(());
     }
 
-    write!(f, [space(), Keyword::With, space(), with_arguments])
+    write!(f, [space(), clause_keyword, space(), with_arguments])
 }
 
 /// Return whether any dependency item in one list has annotations.
@@ -573,13 +584,13 @@ fn write_dependency_from_target_clause<'ast>(
 fn write_dependency_attribute_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    arguments: Option<&[LocalNodeId<Argument>]>,
+    attributes: Option<&DependencyAttributeClause>,
 ) -> FormatResult<()> {
-    if let Some(arguments) = arguments {
-        return format_dependency_with_arguments(f, node_id, arguments);
-    }
+    let Some(attributes) = attributes else {
+        return Ok(());
+    };
 
-    Ok(())
+    format_dependency_with_arguments(f, node_id, attributes.kind, &attributes.arguments)
 }
 
 /// Return whether one import-call target should force expanded call arguments.
@@ -686,10 +697,13 @@ pub(crate) fn format_import_expression<'ast>(
     source: ImportSource,
     kind: DependencyKind,
     target: &ImportTarget,
-    items: &[LocalNodeId<DependencyItem>],
+    items: Option<&[LocalNodeId<DependencyItem>]>,
+    attributes: Option<&DependencyAttributeClause>,
     arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
+    let has_item_shell = items.is_some();
+    let items = items.unwrap_or(&[]);
     let has_item_annotations = dependency_items_have_annotations(f.context(), items);
     let organize_imports = f.context().options.organize_imports.is_enabled();
     let sort_order = f.context().options.import_sort_order;
@@ -740,7 +754,7 @@ pub(crate) fn format_import_expression<'ast>(
         write!(f, [Keyword::Type, space()])?;
     }
 
-    let import_type_empty_items = kind == DependencyKind::Type && items.is_empty();
+    let import_empty_items = has_item_shell && items.is_empty();
     let first_item = items.first().map(|item| tree.get(*item));
 
     if items.len() == 1
@@ -809,17 +823,17 @@ pub(crate) fn format_import_expression<'ast>(
             sort_order,
             has_item_annotations,
         )?;
-    } else if import_type_empty_items {
+    } else if import_empty_items {
         write!(f, [token("{"), token("}")])?;
     }
 
-    if !items.is_empty() || import_type_empty_items {
+    if has_item_shell {
         write_dependency_from_target_clause(f, target)?;
     } else {
         write_dependency_target(f, target)?;
     }
 
-    write_dependency_attribute_clause(f, node_id, arguments)?;
+    write_dependency_attribute_clause(f, node_id, attributes)?;
 
     Ok(())
 }
@@ -831,7 +845,7 @@ pub(crate) fn format_export_expression<'ast>(
     kind: DependencyKind,
     target: Option<destack_core::StringId>,
     items: &[LocalNodeId<DependencyItem>],
-    arguments: Option<&[LocalNodeId<Argument>]>,
+    attributes: Option<&DependencyAttributeClause>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let has_item_annotations = dependency_items_have_annotations(f.context(), items);
@@ -933,7 +947,7 @@ pub(crate) fn format_export_expression<'ast>(
         write_dependency_from_target_clause(f, target)?;
     }
 
-    write_dependency_attribute_clause(f, node_id, arguments)?;
+    write_dependency_attribute_clause(f, node_id, attributes)?;
 
     if needs_trailing_semicolon {
         write!(f, [token(";")])?;

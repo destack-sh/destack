@@ -253,7 +253,7 @@ impl<'ast> CodegenJsFormatContext<'ast> {
         let statement = self.tree.get(node_id);
         match statement {
             Statement::Import { items, .. } => {
-                if items.is_empty() {
+                if items.is_none() {
                     self.source_string_literal_span_after(source_span, "import")
                 } else {
                     self.source_string_literal_span_after(source_span, "from")

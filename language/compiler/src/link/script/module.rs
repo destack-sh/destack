@@ -250,14 +250,14 @@ impl Compiler {
                     target: specifier,
                     target_module: Some(target_module),
                     items,
-                    arguments,
+                    attributes,
                     ..
                 } => (
                     module.strings.get(*specifier).to_string(),
                     *target_module,
                     *kind == DependencyKind::Type,
-                    items.clone(),
-                    arguments.is_some(),
+                    items.clone().unwrap_or_default(),
+                    attributes.is_some(),
                     true,
                 ),
                 Statement::Export {

@@ -906,6 +906,7 @@ impl Compiler {
                 target: _,
                 target_module: _,
                 items,
+                attributes,
                 arguments,
             } => {
                 // reject dynamic imports when configured
@@ -923,8 +924,13 @@ impl Compiler {
                     });
                 }
 
-                for item_id in items {
+                for item_id in items.as_deref().unwrap_or(&[]) {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
+                }
+                if let Some(attributes) = attributes {
+                    for argument_id in &attributes.arguments {
+                        self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
+                    }
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
@@ -942,6 +948,7 @@ impl Compiler {
                 source,
                 target,
                 items,
+                attributes,
                 arguments,
                 ..
             } => {
@@ -964,8 +971,13 @@ impl Compiler {
                     self.infer_expression(&mut ctx.reborrow(), *target, state)?;
                 }
 
-                for item_id in items {
+                for item_id in items.as_deref().unwrap_or(&[]) {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
+                }
+                if let Some(attributes) = attributes {
+                    for argument_id in &attributes.arguments {
+                        self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
+                    }
                 }
                 if let Some(arguments) = arguments {
                     for argument_id in arguments {
@@ -983,19 +995,19 @@ impl Compiler {
                 target_module: _,
                 kind: _,
                 items,
-                arguments,
+                attributes,
             }
             | Expression::UnresolvedReExport {
                 target: _,
                 kind: _,
                 items,
-                arguments,
+                attributes,
             } => {
                 for item_id in items {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
                 }
-                if let Some(arguments) = arguments {
-                    for argument_id in arguments {
+                if let Some(attributes) = attributes {
+                    for argument_id in &attributes.arguments {
                         self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
                     }
                 }
@@ -1005,9 +1017,18 @@ impl Compiler {
                 };
                 ctx.types.insert_type_from(ty, expression_id)
             }
-            Expression::Export { kind: _, items } => {
+            Expression::Export {
+                kind: _,
+                items,
+                attributes,
+            } => {
                 for item_id in items {
                     self.infer_dependency_item(&mut ctx.reborrow(), *item_id, state)?;
+                }
+                if let Some(attributes) = attributes {
+                    for argument_id in &attributes.arguments {
+                        self.infer_argument(&mut ctx.reborrow(), *argument_id, None, state)?;
+                    }
                 }
 
                 let ty = Type::TypeLiteral {
@@ -4295,10 +4316,9 @@ impl Compiler {
             return None;
         }
         let expression_id = primary_declaration.local_id.into_typed::<Expression>();
-        let items = match tree.get(expression_id) {
-            Expression::Import { items, .. }
-            | Expression::ReExport { items, .. }
-            | Expression::Export { items, .. } => items,
+        let items: &[LocalNodeId<DependencyItem>] = match tree.get(expression_id) {
+            Expression::Import { items, .. } => items.as_deref().unwrap_or(&[]),
+            Expression::ReExport { items, .. } | Expression::Export { items, .. } => items,
             _ => return None,
         };
 

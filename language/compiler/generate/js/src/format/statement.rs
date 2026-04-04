@@ -1,8 +1,9 @@
 use crate::format::argument::list_like;
 use crate::format::dependency::{format_export_binding, format_import_binding};
 use crate::{
-    Asynchrony, CodegenJsFormatContext, CodegenJsFormatter, DeclarationKind, DependencyKind,
-    FormatNode, Keyword, LocalNodeId, LocalNodeIdAny, Mutability, NodeType, Statement,
+    Asynchrony, CodegenJsFormatContext, CodegenJsFormatter, DeclarationKind,
+    DependencyAttributeClause, DependencyAttributeClauseKind, DependencyKind, FormatNode, Keyword,
+    LocalNodeId, LocalNodeIdAny, Mutability, NodeType, Statement,
 };
 use destack_fir::format::{Format, FormatResult, Formatter};
 use destack_fir::prelude::*;
@@ -37,6 +38,26 @@ pub fn format_statements(
     Ok(())
 }
 
+fn format_dependency_attributes<'ast>(
+    f: &mut CodegenJsFormatter<'ast, '_>,
+    attributes: &DependencyAttributeClause,
+) -> FormatResult<()> {
+    let keyword = match attributes.kind {
+        DependencyAttributeClauseKind::With => "with",
+        DependencyAttributeClauseKind::Assert => "assert",
+    };
+
+    write!(
+        f,
+        [
+            space(),
+            token(keyword),
+            space(),
+            list_like("{", "}", ",", &attributes.arguments).include_space()
+        ]
+    )
+}
+
 impl<'ast> FormatNode<'ast, Statement> for Statement {
     fn format_node(
         &self,
@@ -49,7 +70,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 target,
                 target_module: _,
                 items,
-                arguments,
+                attributes,
             } => {
                 let target_span = f.context().statement_dependency_target_span(node_id);
 
@@ -57,17 +78,9 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 if *kind == DependencyKind::Type {
                     write!(f, [Keyword::Type, space()])?;
                 }
-                format_import_binding(f, *target, items, target_span)?;
-                if let Some(arguments) = arguments {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            Keyword::With,
-                            space(),
-                            list_like("{", "}", ",", arguments).include_space()
-                        ]
-                    )?;
+                format_import_binding(f, *target, items.as_deref(), target_span)?;
+                if let Some(attributes) = attributes {
+                    format_dependency_attributes(f, attributes)?;
                 }
             }
             Statement::Export {
@@ -75,6 +88,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 target,
                 target_module: _,
                 items,
+                attributes,
             } => {
                 let target_span = f.context().statement_dependency_target_span(node_id);
 
@@ -83,6 +97,9 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                     write!(f, [Keyword::Type, space()])?;
                 }
                 format_export_binding(f, *target, items, target_span)?;
+                if let Some(attributes) = attributes {
+                    format_dependency_attributes(f, attributes)?;
+                }
             }
             Statement::ExportValue { value } => {
                 write!(f, [Keyword::Export, space(), token("="), space(), value])?;

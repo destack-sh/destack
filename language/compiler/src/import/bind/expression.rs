@@ -218,6 +218,7 @@ impl Compiler {
                 kind,
                 target,
                 items,
+                attributes,
                 arguments,
             } => {
                 let (target, dependency_target) = match target {
@@ -247,28 +248,59 @@ impl Compiler {
                     }
                 };
                 let source = self.bind_dependency_source(*source);
+
                 // items
-                let items: Vec<_> = items
-                    .iter()
-                    .map(|item| {
-                        self.bind_dependency_item(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
-                            scope,
-                            source,
-                            *kind,
-                            dependency_target,
-                            *item,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                        )
-                    })
-                    .collect();
+                let items = items.as_ref().map(|items| {
+                    items
+                        .iter()
+                        .map(|item| {
+                            self.bind_dependency_item(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                source,
+                                *kind,
+                                dependency_target,
+                                *item,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect()
+                });
+
+                // attributes
+                let attributes = attributes.as_ref().map(|attributes| {
+                    let kind = self.bind_dependency_attribute_clause_kind(attributes.kind);
+                    let arguments = attributes
+                        .arguments
+                        .iter()
+                        .map(|argument| {
+                            self.bind_argument(
+                                module,
+                                ast,
+                                namespace_scope,
+                                global_augmentation_scope,
+                                module_bindings,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                                SymbolSpaceOrder::ValueThenType,
+                            )
+                        })
+                        .collect();
+
+                    destack_dir::DependencyAttributeClause { kind, arguments }
+                });
+
                 // arguments
                 let arguments = arguments.as_ref().map(|arguments| {
                     arguments
@@ -298,6 +330,7 @@ impl Compiler {
                     kind,
                     target,
                     items,
+                    attributes,
                     arguments,
                 }
             }
@@ -305,7 +338,7 @@ impl Compiler {
                 kind,
                 target,
                 items,
-                arguments,
+                attributes,
             } => {
                 let target = target.map(|target| {
                     self.program
@@ -336,9 +369,12 @@ impl Compiler {
                             )
                         })
                         .collect();
-                    // arguments
-                    let arguments = arguments.as_ref().map(|arguments| {
-                        arguments
+
+                    // attributes
+                    let attributes = attributes.as_ref().map(|attributes| {
+                        let kind = self.bind_dependency_attribute_clause_kind(attributes.kind);
+                        let arguments = attributes
+                            .arguments
                             .iter()
                             .map(|argument| {
                                 self.bind_argument(
@@ -356,15 +392,18 @@ impl Compiler {
                                     SymbolSpaceOrder::ValueThenType,
                                 )
                             })
-                            .collect()
+                            .collect();
+
+                        destack_dir::DependencyAttributeClause { kind, arguments }
                     });
+
                     let kind = self.bind_dependency_kind(*kind);
                     // re-export
                     Expression::UnresolvedReExport {
                         target,
                         kind,
                         items,
-                        arguments,
+                        attributes,
                     }
                 }
                 // export from module
@@ -395,7 +434,37 @@ impl Compiler {
                             .collect()
                     };
                     let kind = self.bind_dependency_kind(*kind);
-                    Expression::Export { kind, items }
+                    let attributes = attributes.as_ref().map(|attributes| {
+                        let kind = self.bind_dependency_attribute_clause_kind(attributes.kind);
+                        let arguments = attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                self.bind_argument(
+                                    module,
+                                    ast,
+                                    namespace_scope,
+                                    global_augmentation_scope,
+                                    module_bindings,
+                                    scope,
+                                    *argument,
+                                    Some(expression_id),
+                                    tree,
+                                    symbols,
+                                    types,
+                                    SymbolSpaceOrder::ValueThenType,
+                                )
+                            })
+                            .collect();
+
+                        destack_dir::DependencyAttributeClause { kind, arguments }
+                    });
+
+                    Expression::Export {
+                        kind,
+                        items,
+                        attributes,
+                    }
                 }
             }
             ast::Expression::ExportNamespace { name } => {

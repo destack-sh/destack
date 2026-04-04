@@ -198,7 +198,7 @@ impl Compiler {
                     expression_id,
                     *source,
                     *kind,
-                    Some(items),
+                    items.as_deref(),
                 );
             }
             Expression::Export { kind, .. }

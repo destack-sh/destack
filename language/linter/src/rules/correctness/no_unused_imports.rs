@@ -111,7 +111,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
 
         clauses.push(ImportClause {
             expression_id,
-            items: import_items.clone(),
+            items: import_items.clone().unwrap_or_default(),
         });
     }
 

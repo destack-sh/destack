@@ -125,6 +125,7 @@ impl Compiler {
                 kind,
                 ref target,
                 ref items,
+                ref attributes,
                 ref arguments,
             } => {
                 let target = match target {
@@ -141,19 +142,21 @@ impl Compiler {
                 };
 
                 if let Some(target) = target {
-                    let loader_override =
-                        match self.loader_from_import_attributes(arguments.as_ref(), tree) {
-                            LoaderAttribute::None => None,
-                            LoaderAttribute::Loader(loader) => Some(loader),
-                            LoaderAttribute::InvalidType { value } => {
-                                return Err(ResolveError::InvalidImportAttributeType {
-                                    node: expression_id
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                    value,
-                                });
-                            }
-                        };
+                    let loader_override = match self.loader_from_import_attributes(
+                        attributes.as_ref().map(|attributes| &attributes.arguments),
+                        tree,
+                    ) {
+                        LoaderAttribute::None => None,
+                        LoaderAttribute::Loader(loader) => Some(loader),
+                        LoaderAttribute::InvalidType { value } => {
+                            return Err(ResolveError::InvalidImportAttributeType {
+                                node: expression_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
+                                value,
+                            });
+                        }
+                    };
                     let Some(remote_target) = self.resolve_import_maybe(
                         module_handle,
                         imported_modules,
@@ -173,6 +176,7 @@ impl Compiler {
                         target,
                         target_module: remote_target,
                         items: items.clone(),
+                        attributes: attributes.clone(),
                         arguments: arguments.clone(),
                     }
                 } else {
@@ -184,21 +188,23 @@ impl Compiler {
                 ref target,
                 kind,
                 ref items,
-                ref arguments,
+                ref attributes,
             } => {
-                let loader_override =
-                    match self.loader_from_import_attributes(arguments.as_ref(), tree) {
-                        LoaderAttribute::None => None,
-                        LoaderAttribute::Loader(loader) => Some(loader),
-                        LoaderAttribute::InvalidType { value } => {
-                            return Err(ResolveError::InvalidImportAttributeType {
-                                node: expression_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(profile)),
-                                value,
-                            });
-                        }
-                    };
+                let loader_override = match self.loader_from_import_attributes(
+                    attributes.as_ref().map(|attributes| &attributes.arguments),
+                    tree,
+                ) {
+                    LoaderAttribute::None => None,
+                    LoaderAttribute::Loader(loader) => Some(loader),
+                    LoaderAttribute::InvalidType { value } => {
+                        return Err(ResolveError::InvalidImportAttributeType {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                            value,
+                        });
+                    }
+                };
                 let Some(remote_target) = self.resolve_import_maybe(
                     module_handle,
                     imported_modules,
@@ -217,7 +223,7 @@ impl Compiler {
                     target_module: remote_target,
                     kind,
                     items: items.clone(),
-                    arguments: arguments.clone(),
+                    attributes: attributes.clone(),
                 }
             }
 

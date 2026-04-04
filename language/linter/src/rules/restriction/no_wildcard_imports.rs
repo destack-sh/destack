@@ -39,6 +39,9 @@ impl LintRule for NoWildcardImports {
             let ast::Expression::Import { items, .. } = expression else {
                 continue;
             };
+            let Some(items) = items.as_deref() else {
+                continue;
+            };
 
             // check for namespace/wildcard imports (like `import * as foo`)
             for item_id in items {

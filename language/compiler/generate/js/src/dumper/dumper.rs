@@ -670,7 +670,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 target_module,
                 items: _,
-                arguments: _,
+                attributes: _,
             } => {
                 self.node("Statement::Import", id.id)
                     .field("kind", kind)
@@ -686,6 +686,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 target,
                 target_module,
                 items: _,
+                attributes: _,
             } => {
                 self.node("Statement::Export", id.id)
                     .field("kind", kind)

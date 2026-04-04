@@ -53,6 +53,7 @@ impl ModuleLowerer<'_> {
                 kind,
                 target,
                 items,
+                attributes,
                 arguments,
             } => {
                 // lower dynamic import calls as expression calls
@@ -111,14 +112,29 @@ impl ModuleLowerer<'_> {
                             });
                         }
                     };
-                    let items = self.lower_dependency_items(*kind, items.as_slice())?;
-                    let arguments = arguments
+                    let items = items
                         .as_ref()
-                        .map(|arguments| {
-                            arguments
+                        .map(|items| self.lower_dependency_items(*kind, items.as_slice()))
+                        .transpose()?;
+                    let attributes = attributes
+                        .as_ref()
+                        .map(|attributes| {
+                            attributes
+                                .arguments
                                 .iter()
                                 .map(|argument| self.lower_argument(*argument))
                                 .collect::<Result<Vec<_>, CodegenJsError>>()
+                                .map(|arguments| crate::DependencyAttributeClause {
+                                    kind: match attributes.kind {
+                                        dir::DependencyAttributeClauseKind::With => {
+                                            crate::DependencyAttributeClauseKind::With
+                                        }
+                                        dir::DependencyAttributeClauseKind::Assert => {
+                                            crate::DependencyAttributeClauseKind::Assert
+                                        }
+                                    },
+                                    arguments,
+                                })
                         })
                         .transpose()?;
                     let kind = self.lower_dependency_kind(*kind);
@@ -127,7 +143,7 @@ impl ModuleLowerer<'_> {
                         target,
                         target_module: None,
                         items,
-                        arguments,
+                        attributes,
                     };
                     self.tree
                         .insert_from_source(statement, self.module.id, expression_id)
@@ -140,6 +156,7 @@ impl ModuleLowerer<'_> {
                 target,
                 target_module,
                 items,
+                attributes,
                 arguments,
             } => {
                 // resolved import calls keep expression semantics
@@ -174,14 +191,29 @@ impl ModuleLowerer<'_> {
                         .into_any()
                 } else {
                     let target = self.strings.intern_from(self.source_strings, *target);
-                    let items = self.lower_dependency_items(*kind, items.as_slice())?;
-                    let arguments = arguments
+                    let items = items
                         .as_ref()
-                        .map(|arguments| {
-                            arguments
+                        .map(|items| self.lower_dependency_items(*kind, items.as_slice()))
+                        .transpose()?;
+                    let attributes = attributes
+                        .as_ref()
+                        .map(|attributes| {
+                            attributes
+                                .arguments
                                 .iter()
                                 .map(|argument| self.lower_argument(*argument))
                                 .collect::<Result<Vec<_>, CodegenJsError>>()
+                                .map(|arguments| crate::DependencyAttributeClause {
+                                    kind: match attributes.kind {
+                                        dir::DependencyAttributeClauseKind::With => {
+                                            crate::DependencyAttributeClauseKind::With
+                                        }
+                                        dir::DependencyAttributeClauseKind::Assert => {
+                                            crate::DependencyAttributeClauseKind::Assert
+                                        }
+                                    },
+                                    arguments,
+                                })
                         })
                         .transpose()?;
                     let kind = self.lower_dependency_kind(*kind);
@@ -190,7 +222,7 @@ impl ModuleLowerer<'_> {
                         target,
                         target_module: target_module.module_id(),
                         items,
-                        arguments,
+                        attributes,
                     };
                     self.tree
                         .insert_from_source(statement, self.module.id, expression_id)
@@ -201,16 +233,38 @@ impl ModuleLowerer<'_> {
                 kind,
                 target,
                 items,
-                arguments: _,
+                attributes,
             } => {
                 let target = self.strings.intern_from(self.source_strings, *target);
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                let attributes = attributes
+                    .as_ref()
+                    .map(|attributes| {
+                        attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
+                            .map(|arguments| crate::DependencyAttributeClause {
+                                kind: match attributes.kind {
+                                    dir::DependencyAttributeClauseKind::With => {
+                                        crate::DependencyAttributeClauseKind::With
+                                    }
+                                    dir::DependencyAttributeClauseKind::Assert => {
+                                        crate::DependencyAttributeClauseKind::Assert
+                                    }
+                                },
+                                arguments,
+                            })
+                    })
+                    .transpose()?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
                     kind,
                     target: Some(target),
                     target_module: None,
                     items,
+                    attributes,
                 };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
@@ -221,29 +275,77 @@ impl ModuleLowerer<'_> {
                 target,
                 target_module,
                 items,
-                arguments: _,
+                attributes,
             } => {
                 let target = self.strings.intern_from(self.source_strings, *target);
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                let attributes = attributes
+                    .as_ref()
+                    .map(|attributes| {
+                        attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
+                            .map(|arguments| crate::DependencyAttributeClause {
+                                kind: match attributes.kind {
+                                    dir::DependencyAttributeClauseKind::With => {
+                                        crate::DependencyAttributeClauseKind::With
+                                    }
+                                    dir::DependencyAttributeClauseKind::Assert => {
+                                        crate::DependencyAttributeClauseKind::Assert
+                                    }
+                                },
+                                arguments,
+                            })
+                    })
+                    .transpose()?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
                     kind,
                     target: Some(target),
                     target_module: target_module.module_id(),
                     items,
+                    attributes,
                 };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::Export { kind, items } => {
+            dir::Expression::Export {
+                kind,
+                items,
+                attributes,
+            } => {
                 let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                let attributes = attributes
+                    .as_ref()
+                    .map(|attributes| {
+                        attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
+                            .map(|arguments| crate::DependencyAttributeClause {
+                                kind: match attributes.kind {
+                                    dir::DependencyAttributeClauseKind::With => {
+                                        crate::DependencyAttributeClauseKind::With
+                                    }
+                                    dir::DependencyAttributeClauseKind::Assert => {
+                                        crate::DependencyAttributeClauseKind::Assert
+                                    }
+                                },
+                                arguments,
+                            })
+                    })
+                    .transpose()?;
                 let kind = self.lower_dependency_kind(*kind);
                 let statement = Statement::Export {
                     kind,
                     target: None,
                     target_module: None,
                     items,
+                    attributes,
                 };
                 self.tree
                     .insert_from_source(statement, self.module.id, expression_id)

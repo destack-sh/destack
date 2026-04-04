@@ -492,6 +492,7 @@ pub(crate) fn collect_existing_imports(session: &Session, file_id: FileId) -> Ve
             let path = ctx.ast().strings().get(*target).to_string();
             let span = ctx.ast().tree().source_map.get(node_id.id);
             let is_type_only = *kind == DependencyKind::Type;
+            let items = items.as_deref().unwrap_or(&[]);
 
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {

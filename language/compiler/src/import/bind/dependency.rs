@@ -1,9 +1,10 @@
 use destack_ast::{self as ast};
 use destack_core::StringId;
 use destack_dir::{
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeTree, NodeType, StaticKey,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
+    DependencyAttributeClauseKind, DependencyItem, DependencyKind, DependencyMode,
+    DependencySource, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
+    Mutability, NodeTree, NodeType, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    TypeTable,
 };
 
 use crate::Compiler;
@@ -42,6 +43,17 @@ impl Compiler {
         match dependency_type {
             ast::DependencyKind::Type => DependencyKind::Type,
             ast::DependencyKind::Value => DependencyKind::Value,
+        }
+    }
+
+    /// Bind one dependency attribute clause kind into DIR.
+    pub(super) fn bind_dependency_attribute_clause_kind(
+        &self,
+        kind: ast::DependencyAttributeClauseKind,
+    ) -> DependencyAttributeClauseKind {
+        match kind {
+            ast::DependencyAttributeClauseKind::With => DependencyAttributeClauseKind::With,
+            ast::DependencyAttributeClauseKind::Assert => DependencyAttributeClauseKind::Assert,
         }
     }
 

@@ -148,7 +148,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
             expression_id,
             import_kind: *kind,
             has_arguments: arguments.is_some(),
-            items: items.clone(),
+            items: items.clone().unwrap_or_default(),
         });
     }
 

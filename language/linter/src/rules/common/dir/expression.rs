@@ -61,6 +61,7 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
             target,
             target_module: _,
             items: _,
+            attributes: _,
             arguments: _,
         }
         | dir::Expression::ReExport {
@@ -68,19 +69,20 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
             target_module: _,
             kind: _,
             items: _,
-            arguments: _,
+            attributes: _,
         }
         | dir::Expression::UnresolvedReExport {
             target,
             kind: _,
             items: _,
-            arguments: _,
+            attributes: _,
         } => Some(*target),
         dir::Expression::UnresolvedImport {
             source: _,
             kind: _,
             target: dir::ImportTarget::String(target),
             items: _,
+            attributes: _,
             arguments: _,
         } => Some(*target),
         dir::Expression::UnresolvedImport {
@@ -88,6 +90,7 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
             kind: _,
             target: dir::ImportTarget::Expression { .. },
             items: _,
+            attributes: _,
             arguments: _,
         } => None,
         _ => None,

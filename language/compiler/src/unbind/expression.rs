@@ -55,6 +55,7 @@ impl Compiler {
                     kind,
                     target,
                     items,
+                    attributes,
                     arguments,
                 } => {
                     let source = self.unbind_import_source(*source);
@@ -78,77 +79,13 @@ impl Compiler {
                             ast::ImportTarget::Expression { target }
                         }
                     };
-                    let items = items.iter().map(|item| {
-                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
-                    }).collect();
-                    let arguments = arguments.as_ref().map(|args| {
-                        args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
-                        }).collect()
-                    });
-                    ast::Expression::Import {
-                        source,
-                        kind,
-                        target,
-                        items,
-                        arguments,
-                    }
-                }
-
-                dir::Expression::Import {
-                    source,
-                    kind,
-                    target,
-                    items,
-                    arguments,
-                    ..
-                } => {
-                    let source = self.unbind_import_source(*source);
-                    let kind = self.unbind_dependency_kind(context, *kind);
-                    let target = ast::ImportTarget::String(
-                        ast_strings.intern_from(&self.program.strings, *target),
-                    );
-                    let items = items.iter().map(|item| {
-                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
-                    }).collect();
-                    let arguments = arguments.as_ref().map(|args| {
-                        args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
-                        }).collect()
-                    });
-                    ast::Expression::Import {
-                        source,
-                        kind,
-                        target,
-                        items,
-                        arguments,
-                    }
-                }
-
-                dir::Expression::UnresolvedReExport {
-                    target,
-                    kind,
-                    items,
-                    arguments,
-                }
-                | dir::Expression::ReExport {
-                    target,
-                    kind,
-                    items,
-                    arguments,
-                    ..
-                } => {
-                    let kind = self.unbind_dependency_kind(context, *kind);
-                    let target = ast_strings.intern_from(&self.program.strings, *target);
-                    let items = items.iter().map(|item| {
-                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
-                    }).collect();
-                    let arguments = arguments.as_ref().map(|args| {
-                        args.iter()
-                            .map(|arg| {
-                                self.unbind_argument(
+                    let items = items.as_ref().map(|items| {
+                        items
+                            .iter()
+                            .map(|item| {
+                                self.unbind_dependency_item(
                                     module,
-                                    *arg,
+                                    *item,
                                     tree,
                                     symbols,
                                     ast_tree,
@@ -158,24 +95,190 @@ impl Compiler {
                             })
                             .collect()
                     });
-                    ast::Expression::Export {
+                    let attributes = attributes.as_ref().map(|attributes| {
+                        let kind =
+                            self.unbind_dependency_attribute_clause_kind(context, attributes.kind);
+                        let arguments = attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                self.unbind_argument(
+                                    module,
+                                    *argument,
+                                    tree,
+                                    symbols,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect();
+
+                        ast::DependencyAttributeClause { kind, arguments }
+                    });
+                    let arguments = arguments.as_ref().map(|args| {
+                        args.iter().map(|arg| {
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
+                        }).collect()
+                    });
+                    ast::Expression::Import {
+                        source,
                         kind,
-                        target: Some(target),
+                        target,
                         items,
+                        attributes,
                         arguments,
                     }
                 }
 
-                dir::Expression::Export { kind, items } => {
+                dir::Expression::Import {
+                    source,
+                    kind,
+                    target,
+                    items,
+                    attributes,
+                    arguments,
+                    ..
+                } => {
+                    let source = self.unbind_import_source(*source);
+                    let kind = self.unbind_dependency_kind(context, *kind);
+                    let target = ast::ImportTarget::String(
+                        ast_strings.intern_from(&self.program.strings, *target),
+                    );
+                    let items = items.as_ref().map(|items| {
+                        items
+                            .iter()
+                            .map(|item| {
+                                self.unbind_dependency_item(
+                                    module,
+                                    *item,
+                                    tree,
+                                    symbols,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect()
+                    });
+                    let attributes = attributes.as_ref().map(|attributes| {
+                        let kind =
+                            self.unbind_dependency_attribute_clause_kind(context, attributes.kind);
+                        let arguments = attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                self.unbind_argument(
+                                    module,
+                                    *argument,
+                                    tree,
+                                    symbols,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect();
+
+                        ast::DependencyAttributeClause { kind, arguments }
+                    });
+                    let arguments = arguments.as_ref().map(|args| {
+                        args.iter().map(|arg| {
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
+                        }).collect()
+                    });
+                    ast::Expression::Import {
+                        source,
+                        kind,
+                        target,
+                        items,
+                        attributes,
+                        arguments,
+                    }
+                }
+
+                dir::Expression::UnresolvedReExport {
+                    target,
+                    kind,
+                    items,
+                    attributes,
+                }
+                | dir::Expression::ReExport {
+                    target,
+                    kind,
+                    items,
+                    attributes,
+                    ..
+                } => {
+                    let kind = self.unbind_dependency_kind(context, *kind);
+                    let target = ast_strings.intern_from(&self.program.strings, *target);
+                    let items = items.iter().map(|item| {
+                        self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
+                    }).collect();
+                    let attributes = attributes.as_ref().map(|attributes| {
+                        let kind =
+                            self.unbind_dependency_attribute_clause_kind(context, attributes.kind);
+                        let arguments = attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                self.unbind_argument(
+                                    module,
+                                    *argument,
+                                    tree,
+                                    symbols,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect();
+
+                        ast::DependencyAttributeClause { kind, arguments }
+                    });
+                    ast::Expression::Export {
+                        kind,
+                        target: Some(target),
+                        items,
+                        attributes,
+                    }
+                }
+
+                dir::Expression::Export {
+                    kind,
+                    items,
+                    attributes,
+                } => {
                     let kind = self.unbind_dependency_kind(context, *kind);
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
+                    let attributes = attributes.as_ref().map(|attributes| {
+                        let kind =
+                            self.unbind_dependency_attribute_clause_kind(context, attributes.kind);
+                        let arguments = attributes
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                self.unbind_argument(
+                                    module,
+                                    *argument,
+                                    tree,
+                                    symbols,
+                                    ast_tree,
+                                    ast_strings,
+                                    context,
+                                )
+                            })
+                            .collect();
+
+                        ast::DependencyAttributeClause { kind, arguments }
+                    });
                     ast::Expression::Export {
                         kind,
                         target: None,
                         items,
-                        arguments: None,
+                        attributes,
                     }
                 }
                 dir::Expression::ExportNamespace { name } => {
