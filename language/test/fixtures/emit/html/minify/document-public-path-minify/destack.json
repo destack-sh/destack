@@ -1,5 +1,5 @@
 {
-  "name": "html-minify-document-public-path-minify",
+  "name": "emit-html-minify-document-public-path-minify",
   "targets": {
     "site": {
       "emit": "html",

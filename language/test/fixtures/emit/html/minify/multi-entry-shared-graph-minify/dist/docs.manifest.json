@@ -28,6 +28,18 @@
       "name": "docs",
       "input": "src/scripts/docs.ts",
       "isEntry": true,
+      "isDynamicEntry": false,
+      "imports": [
+        "./summary.js"
+      ]
+    },
+    {
+      "path": "summary.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "summary",
+      "input": "src/scripts/shared/summary.ts",
+      "isEntry": false,
       "isDynamicEntry": false
     }
   ]

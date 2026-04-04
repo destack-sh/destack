@@ -1,1 +1,0 @@
-var infinityWhitespaceSamples=[Infinity,-Infinity,Infinity+1,-Infinity-1,Infinity/0,-Infinity/0,Infinity*0,-Infinity*0,Infinity%1,-Infinity%1,Infinity**1,(-Infinity)**2,~Infinity,~-Infinity];export{infinityWhitespaceSamples};

@@ -1,0 +1,17 @@
+{
+  "name": "emit-js-dependency-html-string-import",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/entry.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "output": {
+        "assetFileNames": "assets/[name].[ext]",
+        "manifest": true
+      }
+    }
+  }
+}

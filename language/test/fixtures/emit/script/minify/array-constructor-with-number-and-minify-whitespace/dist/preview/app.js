@@ -1,1 +1,0 @@
-capture(new Array(0));capture(new Array(1));capture(new Array(2));capture(new Array(3));capture(new Array(4));capture(new Array(5));capture(new Array(6));capture(new Array(7));capture(new Array(8));capture(new Array(9));capture(new Array(10));capture(new Array(11));capture(new Array(4.5));

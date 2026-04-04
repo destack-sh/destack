@@ -15,6 +15,19 @@
       "isDynamicEntry": false
     },
     {
+      "path": "chunk-8f51a0ad.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "chunk",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "chunk-8f51a0ad.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
       "path": "pricing.html",
       "type": "asset",
       "loader": "html",
@@ -28,7 +41,10 @@
       "name": "pricing",
       "input": "src/scripts/pricing.ts",
       "isEntry": true,
-      "isDynamicEntry": false
+      "isDynamicEntry": false,
+      "imports": [
+        "./chunk-8f51a0ad.js"
+      ]
     },
     {
       "path": "pricing.js.map",

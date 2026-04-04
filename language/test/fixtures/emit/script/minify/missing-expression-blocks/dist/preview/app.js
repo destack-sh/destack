@@ -1,1 +1,0 @@
-var r=1,g;g=()=>{};g=()=>{};g=()=>{};g=()=>{};g=()=>{};g=()=>{};g=()=>{};g=()=>{};g=()=>{};g=()=>{for(;r;);};g=()=>{do;while(r)};g=()=>{for(;;);};g=()=>{for(let i=0;i<10;i++);};g=()=>{for(let i in[1,2,3]);};g=()=>{for(let i of[1,2,3]);};g=()=>{switch(r){case 1:case 23:}};g=()=>{let gg;gg=()=>{}};console.log("PASS");

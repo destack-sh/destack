@@ -1,0 +1,21 @@
+{
+  "name": "emit-js-minify-same-output-import-semicolon-insertion",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "syntax": true,
+        "whitespace": true,
+        "identifiers": true
+      },
+      "output": {
+        "manifest": true
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "emit-js-chunking-course-dashboard",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts",
+        "src/dashboard.ts"
+      ],
+      "outDir": "dist/site",
+      "assembly": "chunked",
+      "dependencies": {
+        "neverBundle": [
+          "react"
+        ]
+      },
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
+    }
+  }
+}

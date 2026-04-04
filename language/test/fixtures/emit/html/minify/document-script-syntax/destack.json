@@ -1,5 +1,5 @@
 {
-  "name": "html-minify-document-script-syntax",
+  "name": "emit-html-minify-document-script-syntax",
   "targets": {
     "site": {
       "emit": "html",

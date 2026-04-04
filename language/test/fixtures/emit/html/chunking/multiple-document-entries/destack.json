@@ -1,5 +1,5 @@
 {
-  "name": "html-chunking-multiple-document-entries",
+  "name": "emit-html-chunking-multiple-document-entries",
   "targets": {
     "site": {
       "emit": "html",

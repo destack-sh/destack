@@ -1,5 +1,5 @@
 {
-  "name": "html-minify-document-combined-minify",
+  "name": "emit-html-minify-document-combined-minify",
   "targets": {
     "site": {
       "emit": "html",

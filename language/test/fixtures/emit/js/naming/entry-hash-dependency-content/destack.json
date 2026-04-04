@@ -1,0 +1,20 @@
+{
+  "name": "emit-js-naming-entry-hash-dependency-content",
+  "targets": {
+    "site": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/marketing.ts",
+        "src/docs.ts"
+      ],
+      "outDir": "dist/site",
+      "assembly": "chunked",
+      "output": {
+        "entryFileNames": "entries/[name]-[hash].js",
+        "chunkFileNames": "chunks/[name]-[hash].js",
+        "manifest": true
+      }
+    }
+  }
+}

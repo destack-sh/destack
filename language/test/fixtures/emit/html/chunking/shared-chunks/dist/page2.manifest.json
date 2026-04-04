@@ -2,6 +2,19 @@
   "index": "page2.html",
   "files": [
     {
+      "path": "chunk-b763d624.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "chunk",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
+      "path": "chunk-b763d624.js.map",
+      "type": "asset",
+      "loader": "map"
+    },
+    {
       "path": "hero.svg",
       "type": "asset",
       "loader": "asset"
@@ -30,7 +43,7 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "./shared.js"
+        "./chunk-b763d624.js"
       ]
     },
     {
@@ -45,20 +58,6 @@
       "input": "src/styles/shared.css",
       "isEntry": true,
       "isDynamicEntry": false
-    },
-    {
-      "path": "shared.js",
-      "type": "chunk",
-      "loader": "js",
-      "name": "shared",
-      "input": "src/scripts/shared.ts",
-      "isEntry": false,
-      "isDynamicEntry": false
-    },
-    {
-      "path": "shared.js.map",
-      "type": "asset",
-      "loader": "map"
     }
   ]
 }

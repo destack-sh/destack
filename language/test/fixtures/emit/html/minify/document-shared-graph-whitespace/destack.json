@@ -1,5 +1,5 @@
 {
-  "name": "html-minify-document-shared-graph-whitespace",
+  "name": "emit-html-minify-document-shared-graph-whitespace",
   "targets": {
     "site": {
       "emit": "html",

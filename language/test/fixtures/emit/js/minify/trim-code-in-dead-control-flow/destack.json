@@ -1,0 +1,20 @@
+{
+  "name": "emit-js-minify-trim-code-in-dead-control-flow",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "syntax": true,
+        "whitespace": true
+      },
+      "output": {
+        "manifest": true
+      }
+    }
+  }
+}

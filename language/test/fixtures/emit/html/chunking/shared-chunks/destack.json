@@ -1,5 +1,5 @@
 {
-  "name": "html-chunking-shared-chunks",
+  "name": "emit-html-chunking-shared-chunks",
   "defaultTarget": "page1",
   "targets": {
     "page1": {

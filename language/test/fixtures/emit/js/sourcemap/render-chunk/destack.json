@@ -1,0 +1,17 @@
+{
+  "name": "emit-js-sourcemap-render-chunk",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/bundle/bundle.js",
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
+    }
+  }
+}
