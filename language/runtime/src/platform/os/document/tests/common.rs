@@ -4,9 +4,9 @@ use destack_vm as vm;
 
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
-use crate::host::macos::request::document::set_macos_document_test_pick_hook;
+use crate::host::os::macos::request::document::set_macos_document_test_pick_hook;
 #[cfg(windows)]
-use crate::host::windows::request::document::set_windows_document_test_pick_hook;
+use crate::host::os::windows::request::document::set_windows_document_test_pick_hook;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
 use crate::platform::os::tests::{HarnessContext, HarnessValue, with_harness_context};

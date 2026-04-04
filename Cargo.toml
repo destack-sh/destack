@@ -43,6 +43,7 @@ members = [
 	"language/query",
 	"language/resolver",
 	"language/runtime",
+	"language/runtime/abi",
 	"language/lsp",
 	"language/lsp/server",
 	"language/lsp/types",
@@ -98,6 +99,7 @@ destack_parser = { path = "language/parser" }
 destack_query = { path = "language/query" }
 destack_resolver = { path = "language/resolver" }
 destack_runtime = { path = "language/runtime" }
+destack_runtime_abi = { path = "language/runtime/abi" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_test_mirbench = { path = "language/test/mirbench" }

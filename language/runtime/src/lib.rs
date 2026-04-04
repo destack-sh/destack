@@ -7,14 +7,8 @@
 pub mod diagnostic;
 pub mod host;
 pub mod platform;
-#[cfg(not(feature = "generator"))]
 pub mod runtime;
-#[cfg(not(feature = "generator"))]
 pub mod simulation;
 
-#[cfg(all(not(feature = "generator"), feature = "execution"))]
 #[doc(hidden)]
 pub mod tests;
-
-#[cfg(all(not(feature = "generator"), test, not(feature = "execution")))]
-mod tests;

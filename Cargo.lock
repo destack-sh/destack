@@ -1829,6 +1829,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_runtime_abi"
+version = "0.55.4"
+dependencies = [
+ "destack_runtime",
+]
+
+[[package]]
 name = "destack_service"
 version = "0.55.4"
 dependencies = [

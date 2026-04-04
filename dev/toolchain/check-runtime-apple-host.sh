@@ -20,4 +20,6 @@ if [ "$(runtime_host_kernel)" = "Darwin" ]; then
 		"${repo_root}/language/runtime/apple/macos/Tests/RuntimeHostMacOSTests"
 fi
 
+"${script_directory}/build-runtime-host-apple-exports.sh"
+
 swift test --package-path "${repo_root}/language/runtime/apple"

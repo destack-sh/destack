@@ -7,7 +7,7 @@ use destack_workspace::{ExecutionMode, RandomMode, RandomOptions, RuntimeOptions
 
 #[cfg(test)]
 use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
-use crate::host::HostSession;
+use crate::host::Session;
 #[cfg(test)]
 use crate::platform::PlatformError;
 #[cfg(test)]
@@ -29,7 +29,7 @@ pub(crate) struct TestRuntime {
     /// Agent under test.
     pub agent: Box<Agent>,
     /// Host under test.
-    host: HostSession,
+    host: Session,
     /// VM isolate backing VM bindings in tests.
     vm_isolate: std::cell::RefCell<vm::Isolate>,
     /// Heap backing the VM isolate in tests.
@@ -120,9 +120,9 @@ impl TestRuntime {
             Agent::new_in_world(Vec::new(), &options, &world_ref, Box::new(agent_engine))
                 .expect("runtime test agent should build");
         let host = if is_native_ingress_enabled {
-            HostSession::from_runtime_options(&options, agent.runtime_id)
+            Session::from_runtime_options(&options, agent.runtime_id)
         } else {
-            HostSession::from_runtime_options_without_native_ingress(&options, agent.runtime_id)
+            Session::from_runtime_options_with_native_ingress(&options, agent.runtime_id, false)
         };
 
         // vm binding isolate
@@ -159,7 +159,7 @@ impl TestRuntime {
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
-        let host = &self.host as *const HostSession;
+        let host = &self.host as *const Session;
         let world_ptr = &world as *const _;
         let _agent_guard = enter_current_agent_context(
             runtime,
@@ -173,7 +173,7 @@ impl TestRuntime {
         let call_context = BindingCallContext::from_raw(
             self.agent.as_ref() as *const Agent,
             self.agent.event_loop.as_ref() as *const _,
-            &self.host as *const HostSession,
+            &self.host as *const Session,
             &world as *const WorldRef,
             BindingEngine::Native,
         );
@@ -186,9 +186,7 @@ impl TestRuntime {
     /// Drain queued host events for deterministic test setup.
     pub(crate) fn drain_host_events(&self) {
         // clear bootstrap host events before targeted assertions begin
-        self.host
-            .poll_events(Some(0))
-            .expect("host events should drain");
+        self.host.poll(Some(0)).expect("host events should drain");
     }
 
     /// Execute a VM binding within a runtime call context.
@@ -201,7 +199,7 @@ impl TestRuntime {
         // install current agent context for vm callback bridges
         let runtime = self.agent.as_ref() as *const Agent;
         let event_loop = self.agent.event_loop.as_ref() as *const _;
-        let host = &self.host as *const HostSession;
+        let host = &self.host as *const Session;
         let world_ptr = &world as *const _;
         let _agent_guard = enter_current_agent_context(
             runtime,
@@ -220,7 +218,7 @@ impl TestRuntime {
             let call_context = BindingCallContext::from_raw(
                 self.agent.as_ref() as *const Agent,
                 self.agent.event_loop.as_ref() as *const _,
-                &self.host as *const HostSession,
+                &self.host as *const Session,
                 &world as *const WorldRef,
                 BindingEngine::Vm,
             );

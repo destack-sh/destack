@@ -1,7 +1,4 @@
-#[cfg(not(feature = "generator"))]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-
-#[cfg(not(feature = "generator"))]
 use crate::runtime::BindingCallContext;
 
 /// Status code returned by native runtime bindings.
@@ -21,7 +18,6 @@ impl RuntimeStatus {
         error_id: 0,
     };
 
-    #[cfg(not(feature = "generator"))]
     /// Build an error status from a runtime error.
     pub fn from_error(error: Box<RuntimeError>, context: Option<&BindingCallContext>) -> Self {
         let code = error.sub_code().saturating_add(1);
@@ -31,7 +27,6 @@ impl RuntimeStatus {
         Self { code, error_id }
     }
 
-    #[cfg(not(feature = "generator"))]
     /// Convert a platform result into a status.
     pub fn from_result<T>(result: RuntimeResult<T>, context: Option<&BindingCallContext>) -> Self {
         match result {

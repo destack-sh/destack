@@ -3,8 +3,10 @@ use std::sync::{Mutex, OnceLock};
 use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostSessionId;
-use crate::host::macos::request::location::{MacosLocationHooks, set_macos_location_test_hooks};
+use crate::host::HostSessionId;
+use crate::host::os::macos::request::location::{
+    MacosLocationHooks, set_macos_location_test_hooks,
+};
 use crate::platform::os::tests::{
     decode_permission_entries_value, with_configured_harness_context,
 };

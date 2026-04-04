@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeError;
-use crate::host::core::HostStatus;
+use crate::host::HostStatus;
 use crate::platform::core as core_platform;
 use crate::platform::os::CredentialAuthenticationMechanism;
 use crate::platform::os::credentials::core::{invalid_data, permission_denied};
