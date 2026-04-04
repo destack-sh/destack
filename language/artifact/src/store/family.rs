@@ -47,17 +47,17 @@ pub enum PersistedImageValidation {
 }
 
 impl ArtifactFamily {
-    /// Return the validation contract for one persisted image in this family.
-    pub fn persisted_image_validation(self) -> PersistedImageValidation {
+    /// Return the validation contract for one persisted image in this family when one exists.
+    pub fn persisted_image_validation(self) -> Option<PersistedImageValidation> {
         match self {
             Self::ModuleGraph
             | Self::LanguageEnvironment
             | Self::IntrinsicEnvironment
             | Self::LibraryEnvironment
-            | Self::Ast
-            | Self::DirBase => PersistedImageValidation::SelfContained,
+            | Self::Ast => Some(PersistedImageValidation::SelfContained),
 
-            Self::DirPrepared
+            Self::DirBase
+            | Self::DirPrepared
             | Self::DirResolved
             | Self::DirDeclared
             | Self::DirInterface
@@ -67,7 +67,7 @@ impl ArtifactFamily {
             | Self::MirBase
             | Self::MirOptimized
             | Self::ModuleOutput
-            | Self::PackageOutput => PersistedImageValidation::DependencyValidated,
+            | Self::PackageOutput => Some(PersistedImageValidation::DependencyValidated),
         }
     }
 }

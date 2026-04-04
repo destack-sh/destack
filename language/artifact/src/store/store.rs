@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -6,10 +7,10 @@ use destack_core::StringPool;
 use destack_source::{FileId, ModuleId, ProfileId};
 
 use crate::{
-    ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase, DirDeclared,
-    DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment,
-    LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized, ModuleGraph, ModuleOutput,
-    PackageOutput,
+    ArtifactDependency, ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase,
+    DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved,
+    IntrinsicEnvironment, LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized,
+    ModuleGraph, ModuleOutput, PackageOutput,
 };
 
 /// One versioned artifact family map.
@@ -20,6 +21,10 @@ type ArtifactMap<T> = DashMap<ArtifactVersion, Arc<T>>;
 pub struct ArtifactStore {
     /// The live retain count for each exact artifact version.
     retained_versions: DashMap<ArtifactVersion, usize>,
+    /// The latest published exact version for each semantic artifact key.
+    latest_versions: DashMap<ArtifactKey, ArtifactVersion>,
+    /// The validated live dependencies for each exact published artifact version.
+    dependencies: DashMap<ArtifactVersion, Vec<ArtifactDependency>>,
     /// Module dependency graphs by profile.
     module_graphs: ArtifactMap<ModuleGraph>,
     /// Language environments by profile.
@@ -127,6 +132,14 @@ impl ArtifactStore {
     /// Evict one published artifact version.
     pub fn evict(&self, version: &ArtifactVersion) {
         self.retained_versions.remove(version);
+        self.dependencies.remove(version);
+        if self
+            .latest_versions
+            .get(&version.key)
+            .is_some_and(|current| *current == *version)
+        {
+            self.latest_versions.remove(&version.key);
+        }
 
         match &version.key {
             ArtifactKey::ModuleGraph { .. } => {
@@ -224,11 +237,11 @@ impl ArtifactStore {
 
     /// Release one exact live artifact version.
     pub fn release(&self, version: &ArtifactVersion) {
-        let mut should_evict = false;
+        let mut dropped_last_retain = false;
 
         if let Some(mut retain_count) = self.retained_versions.get_mut(version) {
             if *retain_count == 1 {
-                should_evict = true;
+                dropped_last_retain = true;
             } else {
                 *retain_count -= 1;
             }
@@ -236,9 +249,46 @@ impl ArtifactStore {
             return;
         }
 
-        if should_evict {
+        if !dropped_last_retain {
+            return;
+        }
+
+        self.retained_versions.remove(version);
+
+        let is_latest_version = self
+            .latest_versions
+            .get(&version.key)
+            .is_some_and(|current| *current == *version);
+
+        if !is_latest_version {
             self.evict(version);
         }
+    }
+
+    /// Store one canonical dependency proof list for one exact artifact version.
+    pub fn set_dependencies(
+        &self,
+        version: &ArtifactVersion,
+        dependencies: Vec<ArtifactDependency>,
+    ) {
+        if !self.contains(version) {
+            return;
+        }
+
+        let mut seen = HashSet::new();
+        let dependencies = dependencies
+            .into_iter()
+            .filter(|dependency| seen.insert((dependency.key, dependency.stamp)))
+            .collect();
+
+        self.dependencies.insert(*version, dependencies);
+    }
+
+    /// Return the recorded dependency proofs for one exact artifact version.
+    pub fn dependencies(&self, version: &ArtifactVersion) -> Option<Vec<ArtifactDependency>> {
+        self.dependencies
+            .get(version)
+            .map(|entry| entry.value().clone())
     }
 
     /// Return whether one exact artifact version is published.
@@ -702,6 +752,8 @@ impl ArtifactStore {
         self.module_output.clear();
         self.package_output.clear();
         self.retained_versions.clear();
+        self.latest_versions.clear();
+        self.dependencies.clear();
     }
 
     /// Collect profiles for one module from one versioned family map.
@@ -724,6 +776,7 @@ impl ArtifactStore {
     fn insert<T>(&self, map: &ArtifactMap<T>, version: ArtifactVersion, payload: Arc<T>) {
         // latest live version per key stays available by default
         map.insert(version, payload);
+        self.latest_versions.insert(version.key, version);
 
         // release alone controls older retained versions
         let superseded_versions = map
@@ -740,7 +793,7 @@ impl ArtifactStore {
             .collect::<Vec<_>>();
 
         for superseded_version in superseded_versions {
-            map.remove(&superseded_version);
+            self.evict(&superseded_version);
         }
     }
 
@@ -752,7 +805,7 @@ impl ArtifactStore {
             .collect();
 
         for version in versions {
-            map.remove(&version);
+            self.evict(&version);
         }
     }
 }
@@ -824,5 +877,24 @@ mod tests {
 
         assert!(!registry.contains(&version_1));
         assert!(registry.contains(&version_2));
+    }
+
+    /// Keep the latest published version alive after the last exact retain is released.
+    #[test]
+    fn test_release_keeps_latest_retained_version() {
+        let registry = ArtifactStore::new();
+        let module = ModuleId::EPHEMERAL;
+        let version = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
+
+        // latest version stays live by default
+        registry.publish_ast(version, Ast::new(module));
+        registry.retain(&version);
+
+        assert!(registry.contains(&version));
+
+        // releasing the last retain should not evict the current live version
+        registry.release(&version);
+
+        assert!(registry.contains(&version));
     }
 }
