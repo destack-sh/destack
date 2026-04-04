@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_core::StringId;
-use destack_dir::{self as dir};
+use destack_dir as dir;
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub type ImportedModuleTable =
 pub type ExportedSymbolTable = IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>;
 
 /// The bound base DIR for one module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirBase {
     /// The id of the Module.
     pub id: ModuleId,
@@ -139,7 +139,7 @@ impl DirBase {
 }
 
 /// The prepared DIR for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirPrepared {
     /// The profile id this is targeting.
     pub profile_id: ProfileId,
@@ -213,7 +213,7 @@ impl DirPrepared {
 }
 
 /// The resolved DIR for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirResolved {
     /// The profile id this is targeting.
     pub profile_id: ProfileId,
@@ -287,7 +287,7 @@ impl DirResolved {
 }
 
 /// The declared DIR for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirDeclared {
     /// The profile id this is targeting.
     pub profile_id: ProfileId,
@@ -341,7 +341,7 @@ impl DirDeclared {
 }
 
 /// The interface DIR for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirInterface {
     /// The profile id this is targeting.
     pub profile_id: ProfileId,
@@ -399,7 +399,7 @@ impl DirInterface {
 }
 
 /// The analyzed DIR for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirAnalyzed {
     /// The profile id this is targeting.
     pub profile_id: ProfileId,
@@ -453,7 +453,7 @@ impl DirAnalyzed {
 }
 
 /// The elaborated DIR for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirElaborated {
     /// The profile id this is targeting.
     pub profile_id: ProfileId,
@@ -498,7 +498,7 @@ impl DirElaborated {
 }
 
 /// The patched DIR for one profile-scoped module.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(destack_artifact_macros::Image, Debug, Clone, Serialize, Deserialize)]
 pub struct DirPatched {
     /// The profile id this is targeting.
     pub profile_id: ProfileId,
