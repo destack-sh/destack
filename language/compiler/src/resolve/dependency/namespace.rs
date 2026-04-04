@@ -375,10 +375,12 @@ impl Compiler {
 
         // read import attributes from the parent import or re-export expression
         let arguments = match tree.get(parent_id) {
-            Expression::UnresolvedImport { arguments, .. }
-            | Expression::UnresolvedReExport { arguments, .. }
-            | Expression::Import { arguments, .. }
-            | Expression::ReExport { arguments, .. } => arguments.as_ref(),
+            Expression::UnresolvedImport { attributes, .. }
+            | Expression::UnresolvedReExport { attributes, .. }
+            | Expression::Import { attributes, .. }
+            | Expression::ReExport { attributes, .. } => {
+                attributes.as_ref().map(|attributes| &attributes.arguments)
+            }
             _ => return Ok(None),
         };
 

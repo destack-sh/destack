@@ -249,7 +249,7 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
                 target: ast::ImportTarget::String(target),
                 items,
                 ..
-            } => Some((*target, items.is_empty())),
+            } => Some((*target, items.is_none())),
             _ => None,
         };
 

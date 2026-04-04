@@ -94,10 +94,12 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
 pub(crate) fn format_import_binding<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
     target: StringId,
-    items: &[LocalNodeId<DependencyItem>],
+    items: Option<&[LocalNodeId<DependencyItem>]>,
     target_span: Option<Span>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
+    let has_item_shell = items.is_some();
+    let items = items.unwrap_or(&[]);
     let first_item = items.first().map(|item| tree.get(*item));
 
     // namespace (like `import * as foo from "bar"`)
@@ -139,10 +141,14 @@ pub(crate) fn format_import_binding<'ast>(
             let items_vec: Vec<LocalNodeId<DependencyItem>> = items.to_vec();
             write!(f, [list_like("{", "}", ",", &items_vec).include_space()])?;
         }
+        // empty shell (like `import {} from "foo"`)
+        else if has_item_shell {
+            write!(f, [token("{"), token("}")])?;
+        }
     }
 
     // from target
-    if !items.is_empty() {
+    if has_item_shell {
         write!(f, [space(), Keyword::From, space()])?;
     }
 
@@ -187,6 +193,10 @@ pub(crate) fn format_export_binding<'ast>(
     else if !items.is_empty() {
         let items_vec: Vec<LocalNodeId<DependencyItem>> = items.to_vec();
         write!(f, [list_like("{", "}", ",", &items_vec).include_space()])?;
+    }
+    // empty shell (like `export {} from "foo"`)
+    else if target.is_some() {
+        write!(f, [token("{"), token("}")])?;
     }
 
     // from target

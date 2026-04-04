@@ -100,8 +100,14 @@ impl LintRule for NoUselessRename {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let (items, rename_kind) = match expression {
-                ast::Expression::Import { items, .. } => (items, RenameKind::Import),
-                ast::Expression::Export { items, .. } => (items, RenameKind::Export),
+                ast::Expression::Import { items, .. } => {
+                    let Some(items) = items.as_deref() else {
+                        continue;
+                    };
+
+                    (items, RenameKind::Import)
+                }
+                ast::Expression::Export { items, .. } => (items.as_slice(), RenameKind::Export),
                 _ => continue,
             };
 

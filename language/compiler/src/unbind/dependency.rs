@@ -21,6 +21,21 @@ impl Compiler {
         }
     }
 
+    /// Unbind a DIR dependency attribute clause kind to an AST clause kind.
+    #[inline]
+    pub(super) fn unbind_dependency_attribute_clause_kind(
+        &self,
+        _context: &mut UnbindContext,
+        kind: dir::DependencyAttributeClauseKind,
+    ) -> ast::DependencyAttributeClauseKind {
+        match kind {
+            dir::DependencyAttributeClauseKind::With => ast::DependencyAttributeClauseKind::With,
+            dir::DependencyAttributeClauseKind::Assert => {
+                ast::DependencyAttributeClauseKind::Assert
+            }
+        }
+    }
+
     /// Unbind a DIR dependency mode to an AST dependency mode.
     #[inline]
     pub(super) fn unbind_dependency_mode(

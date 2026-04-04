@@ -78,7 +78,7 @@ fn collect_imports(ctx: &LintAstContext<'_>) -> Vec<ImportInfo> {
             root_expression_id: *root_expression_id,
             import_expression_id,
             span: ctx.tree.get_span(*root_expression_id),
-            items: items.clone(),
+            items: items.clone().unwrap_or_default(),
         });
     }
 
