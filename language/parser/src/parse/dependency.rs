@@ -837,14 +837,23 @@ impl Parser {
     fn eat_dependency_target_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
         let token = *self.peek_token(TokenType::Literal)?;
 
-        // keep import/export target recovery alive for unterminated string paths
-        if !matches!(
+        // module targets accept:
+        // - regular string literals, including unterminated ones for recovery
+        // - single quoted one character literals in JS and TS compatibility mode
+        let is_valid_target = matches!(
             token.token.literal,
             Some(LiteralType::String {
                 has_invalid_escape: false,
                 ..
             })
-        ) {
+        ) || matches!(
+            token.token.literal,
+            Some(LiteralType::Character {
+                is_terminated: true,
+                ..
+            }) if self.language.is_typescript() || self.language.is_javascript()
+        );
+        if !is_valid_target {
             return Err(ParseError::expected(token.span, TokenType::Literal));
         }
 
@@ -2621,5 +2630,66 @@ export as namespace Foo"#,
         let mut parser = test.prepare();
         let result = parser.eat_export();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_root_import_named_binding_from_source_in_javascript() {
+        let mut test =
+            TestParser::new_with_options("import {a} from 'a';", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        test.assert_no_errors(&parser);
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Import { target, items, .. } => {
+            assert_import_target_string(&parser, target, "a");
+            assert_eq!(items.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_parse_root_import_default_and_namespace_in_javascript() {
+        let mut test =
+            TestParser::new_with_options("import a, * as b from 'a';", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        test.assert_no_errors(&parser);
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Import { target, items, .. } => {
+            assert_import_target_string(&parser, target, "a");
+            assert_eq!(items.len(), 2);
+        });
+    }
+
+    #[test]
+    fn test_parse_root_empty_type_import_in_typescript() {
+        let mut test =
+            TestParser::new_with_options("import type {} from 'a';", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        test.assert_no_errors(&parser);
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Import { kind, target, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Type);
+            assert_import_target_string(&parser, target, "a");
+            assert!(items.is_empty());
+        });
+    }
+
+    #[test]
+    fn test_parse_root_export_named_binding_from_source_in_javascript() {
+        let mut test =
+            TestParser::new_with_options("export {a} from 'a';", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        test.assert_no_errors(&parser);
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Export { target, items, .. } => {
+            assert!(target.is_some());
+            assert_eq!(items.len(), 1);
+        });
     }
 }
