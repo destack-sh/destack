@@ -1,12 +1,12 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::notification::HostNotificationRequest;
-use crate::host::android::abi::notification::{
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::not_supported;
+use crate::host::os::android::abi::notification::{
     destack_host_android_notification_cancel, destack_host_android_notification_cancel_all,
     destack_host_android_notification_post,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::error::not_supported;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::NotificationRequestValue;

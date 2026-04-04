@@ -10,7 +10,7 @@ use objc2_core_graphics::{kCGFloatingWindowLevel, kCGNormalWindowLevel};
 use objc2_foundation::{NSArray, NSSize, NSString};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
+use crate::host::os::apple::call::with_process_main_context_marker_if_needed;
 use crate::platform;
 use crate::platform::display::{WindowModeOptions, WindowOptions, WindowRole, WindowVisibility};
 use crate::platform::resource;

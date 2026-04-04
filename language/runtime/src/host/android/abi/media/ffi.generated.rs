@@ -6,7 +6,7 @@ use super::types::{
     HostMediaImportPathResponse, HostMediaListRequest, HostMediaListResponse,
     HostMediaReadResponse,
 };
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::NativeStringRef;
 
 /// Forward the `list` media request through the Android host ABI.

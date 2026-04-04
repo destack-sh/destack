@@ -3,38 +3,38 @@ use std::sync::Arc;
 use destack_artifact::Platform;
 use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 
-#[cfg(target_os = "android")]
-use crate::host::android::AndroidHost;
-#[cfg(target_os = "android")]
-use crate::host::android::abi::registry::unregister_android_bindings;
-#[cfg(target_os = "ios")]
-use crate::host::apple::abi::registry::unregister_ios_bindings;
-use crate::host::core::HostAdapter;
+use crate::host::HostAdapter;
 use crate::host::core::registry::HostCleanup;
-#[cfg(target_os = "dragonfly")]
-use crate::host::dragonfly::DragonflyHost;
-#[cfg(target_os = "freebsd")]
-use crate::host::freebsd::FreeBsdHost;
-#[cfg(target_os = "haiku")]
-use crate::host::haiku::HaikuHost;
-#[cfg(target_os = "illumos")]
-use crate::host::illumos::IllumosHost;
+#[cfg(target_os = "android")]
+use crate::host::os::android::AndroidHost;
+#[cfg(target_os = "android")]
+use crate::host::os::android::abi::registry::unregister_android_bindings;
 #[cfg(target_os = "ios")]
-use crate::host::ios::IosHost;
+use crate::host::os::apple::abi::registry::unregister_ios_bindings;
+#[cfg(target_os = "dragonfly")]
+use crate::host::os::dragonfly::DragonflyHost;
+#[cfg(target_os = "freebsd")]
+use crate::host::os::freebsd::FreeBsdHost;
+#[cfg(target_os = "haiku")]
+use crate::host::os::haiku::HaikuHost;
+#[cfg(target_os = "illumos")]
+use crate::host::os::illumos::IllumosHost;
+#[cfg(target_os = "ios")]
+use crate::host::os::ios::IosHost;
 #[cfg(target_os = "linux")]
-use crate::host::linux::LinuxHost;
+use crate::host::os::linux::LinuxHost;
 #[cfg(target_os = "linux")]
-use crate::host::linux::ingress::unregister_linux_runtime;
+use crate::host::os::linux::ingress::unregister_linux_runtime;
 #[cfg(target_os = "macos")]
-use crate::host::macos::MacosHost;
+use crate::host::os::macos::MacosHost;
 #[cfg(target_os = "macos")]
-use crate::host::macos::ingress::unregister_macos_runtime;
+use crate::host::os::macos::ingress::unregister_macos_runtime;
 #[cfg(target_os = "netbsd")]
-use crate::host::netbsd::NetBsdHost;
+use crate::host::os::netbsd::NetBsdHost;
 #[cfg(target_os = "openbsd")]
-use crate::host::openbsd::OpenBsdHost;
+use crate::host::os::openbsd::OpenBsdHost;
 #[cfg(target_os = "solaris")]
-use crate::host::solaris::SolarisHost;
+use crate::host::os::solaris::SolarisHost;
 #[cfg(not(any(
     target_os = "android",
     target_os = "dragonfly",
@@ -49,11 +49,11 @@ use crate::host::solaris::SolarisHost;
     target_os = "solaris",
     windows,
 )))]
-use crate::host::unsupported::UnsupportedHost;
+use crate::host::os::unsupported::UnsupportedHost;
 #[cfg(windows)]
-use crate::host::windows::WindowsHost;
+use crate::host::os::windows::WindowsHost;
 #[cfg(windows)]
-use crate::host::windows::ingress::unregister_windows_runtime;
+use crate::host::os::windows::ingress::unregister_windows_runtime;
 
 /// Return the default host integration parts for the active compile target.
 pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>, Option<HostCleanup>)

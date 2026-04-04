@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 
 use super::service::windows_calendar_service;
 
 /// Submit one Windows calendar request through the shared WinRT calendar service.
 pub(crate) fn submit_calendar_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let service = windows_calendar_service(request.operation_name())?;

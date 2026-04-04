@@ -1,5 +1,5 @@
 use crate::host::HostAdapter;
-use crate::host::windows::WindowsHost;
+use crate::host::os::windows::WindowsHost;
 use crate::runtime::capability::PlatformCapability;
 
 /// Report the static Windows host capabilities.

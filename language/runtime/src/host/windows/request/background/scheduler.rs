@@ -10,7 +10,7 @@ use windows::Win32::System::Variant::VARIANT;
 use windows::core::BSTR;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -96,7 +96,7 @@ pub(super) fn connect_task_service() -> RuntimeResult<(WindowsComApartment, ITas
 /// Return the Destack task folder, creating it when requested.
 pub(super) fn destack_task_folder(
     service: &ITaskService,
-    context: &HostRequestContext,
+    context: &RequestContext,
     create_if_missing: bool,
 ) -> RuntimeResult<Option<ITaskFolder>> {
     let folder_path = BSTR::from(windows_task_folder_path(context)?);
@@ -142,7 +142,7 @@ pub(super) fn destack_task_folder(
 /// Return one registered background task from the Destack folder.
 pub(super) fn registered_task(
     service: &ITaskService,
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
     operation: &'static str,
 ) -> RuntimeResult<IRegisteredTask> {
@@ -161,7 +161,7 @@ pub(super) fn registered_task(
 }
 
 /// Return one stable Task Scheduler folder path for the active app identity.
-fn windows_task_folder_path(context: &HostRequestContext) -> RuntimeResult<String> {
+fn windows_task_folder_path(context: &RequestContext) -> RuntimeResult<String> {
     let folder_name = windows_task_folder_name(context)?;
 
     Ok(format!(r"\{folder_name}"))

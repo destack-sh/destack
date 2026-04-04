@@ -3,7 +3,7 @@ use crate::host::abi::describe::host_abi_types;
 
 #[cfg(not(feature = "generator"))]
 #[allow(unused_imports)]
-pub(crate) use crate::host::android::abi::midi::types::{
+pub(crate) use crate::host::os::android::abi::midi::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiOutputRecordHeader, AndroidHostMidiPortDescriptorHeader,
 };

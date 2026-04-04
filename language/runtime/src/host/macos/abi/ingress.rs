@@ -2,7 +2,7 @@
 
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
-use crate::host::macos::ingress::notify::{
+use crate::host::os::macos::ingress::notify::{
     MacosApplicationLifecycle, macos_notify_application_lifecycle,
     macos_notify_intent_custom_action, macos_notify_intent_open_file, macos_notify_intent_open_url,
     macos_notify_intent_share_files, macos_notify_intent_share_text,

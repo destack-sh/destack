@@ -1,14 +1,14 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::unsupported_request_completion;
 use crate::host::core::request::HostRequestCompletion;
-use crate::host::core::{HostRequest, HostRequestOutcome};
+use crate::host::{HostRequest, HostRequestOutcome};
 
 /// Typed outbound host operation over the normalized host request transport.
 ///
 /// This pairs one normalized `HostRequest` with the typed decode step for the
 /// resulting `HostRequestOutcome`.
 pub(crate) struct HostOperation<T> {
-    /// Normalized request payload submitted through the active host adapter.
+    /// Normalized request payload submitted through the active session.
     request: HostRequest,
     /// Result decoder for the operation-specific output payload.
     decode: fn(HostRequestOutcome, &'static str) -> RuntimeResult<T>,
@@ -48,7 +48,7 @@ impl<T> HostOperation<T> {
 mod tests {
     use super::HostOperation;
 
-    use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+    use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 
     /// Reject deferred host completions in the sync operation path.
     #[test]
@@ -72,7 +72,7 @@ mod tests {
 
     /// Reject event-completing host completions in the sync operation path.
     #[test]
-    fn test_decode_outcome_rejects_event_completing_completion() {
+    fn test_decode_outcome_rejects_opened_resource_completion() {
         let operation = HostOperation::new(
             HostRequest::OsIntentCanOpenUrl {
                 url: "https://example.com".to_string(),
@@ -81,14 +81,14 @@ mod tests {
         );
 
         let error = operation
-            .decode_outcome(HostRequestOutcome::event_completing(
+            .decode_outcome(HostRequestOutcome::opened_resource(
                 HostRequestResult::Bool(true),
             ))
             .unwrap_err();
 
         assert_eq!(
             error.message(),
-            "destack.os.intent.canOpenUrl returned one event-completing host completion, but sync host decoding is still in use: move this request to one interactive host transaction path"
+            "destack.os.intent.canOpenUrl returned one opened-resource host completion, but sync host decoding is still in use: move this request to one interactive host transaction path"
         );
     }
 

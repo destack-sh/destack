@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeStatus;
-use crate::host::netbsd::ingress::notify::{
+use crate::host::os::netbsd::ingress::notify::{
     NetBsdApplicationLifecycle, netbsd_notify_application_lifecycle,
     netbsd_notify_interruption_changed, netbsd_notify_memory_pressure_changed,
     netbsd_notify_permission_result, netbsd_notify_power_mode_changed,
     netbsd_notify_thermal_state_changed, netbsd_notify_wake, netbsd_notify_wall_clock_changed,
 };
-use crate::host::unix::abi::ingress::{
+use crate::host::os::unix::abi::ingress::{
     decode_unix_application_lifecycle, decode_unix_memory_pressure_level,
     decode_unix_permission_name, decode_unix_power_mode, decode_unix_thermal_state,
     unix_runtime_status,

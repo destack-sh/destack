@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::not_supported;
 use crate::platform::os::PermissionEntry;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
@@ -32,7 +32,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Submit one normalized Windows host request.
 pub(crate) fn submit_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: HostRequest,
 ) -> RuntimeResult<HostRequestOutcome> {
     let operation_name = request.operation_name();

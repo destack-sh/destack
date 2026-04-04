@@ -3,8 +3,8 @@ use objc2_foundation::{NSArray, NSString};
 use objc2_uniform_type_identifiers::UTType;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
+use crate::host::os::apple::call::with_process_main_context_marker_if_needed;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
@@ -119,7 +119,7 @@ fn pick_documents_on_main(
 
 /// Pick documents from the macOS host request lane.
 pub(crate) fn pick_documents(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     pick_documents_on_main(options)

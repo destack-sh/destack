@@ -6,7 +6,7 @@ use super::types::{
     HostBackgroundTaskOptions, HostBackgroundTriggerTestRequest, HostBackgroundTriggerTestResponse,
     HostBackgroundUnregisterRequest,
 };
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 
 /// Forward the `status` background request through the iOS host ABI.
 #[unsafe(no_mangle)]

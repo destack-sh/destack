@@ -18,7 +18,7 @@ use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
 };
 use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::global_service;
+use crate::runtime::process::service::registry::global_service;
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// The Windows epoch offset from 1601 to 1970 in 100ns ticks.

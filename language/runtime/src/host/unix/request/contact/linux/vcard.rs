@@ -5,7 +5,7 @@ use super::page::{
     compare_contacts, display_contact_name, paginate_contacts, parse_contact_cursor,
 };
 use crate::diagnostic::RuntimeResult;
-use crate::host::unix::request::linux::eds::composite_eds_identifier;
+use crate::host::os::unix::request::linux::eds::composite_eds_identifier;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{

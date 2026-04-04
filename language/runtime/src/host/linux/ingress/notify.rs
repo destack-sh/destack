@@ -1,7 +1,7 @@
 use destack_artifact::Platform;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::unix::ingress::notify::{
+use crate::host::os::unix::ingress::notify::{
     UnixApplicationLifecycle, unix_notify_application_lifecycle, unix_notify_interruption_changed,
     unix_notify_location_sample, unix_notify_memory_pressure_changed,
     unix_notify_permission_result, unix_notify_power_mode_changed,

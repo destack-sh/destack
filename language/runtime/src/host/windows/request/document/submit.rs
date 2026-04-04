@@ -12,7 +12,7 @@ use windows::Win32::UI::Shell::{
 use windows::core::{Error as WindowsError, HRESULT, PCWSTR};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::PlatformError;
 use crate::platform::core::{io_operation_error, not_supported, wide_from_str};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -249,7 +249,7 @@ fn pick_documents_on_windows(
 
 /// Pick documents from the Windows host request lane.
 pub(crate) fn pick_documents(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     pick_documents_on_windows(options)

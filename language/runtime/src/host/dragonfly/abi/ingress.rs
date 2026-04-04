@@ -1,12 +1,12 @@
 use crate::diagnostic::RuntimeStatus;
-use crate::host::dragonfly::ingress::notify::{
+use crate::host::os::dragonfly::ingress::notify::{
     DragonflyApplicationLifecycle, dragonfly_notify_application_lifecycle,
     dragonfly_notify_interruption_changed, dragonfly_notify_memory_pressure_changed,
     dragonfly_notify_permission_result, dragonfly_notify_power_mode_changed,
     dragonfly_notify_thermal_state_changed, dragonfly_notify_wake,
     dragonfly_notify_wall_clock_changed,
 };
-use crate::host::unix::abi::ingress::{
+use crate::host::os::unix::abi::ingress::{
     decode_unix_application_lifecycle, decode_unix_memory_pressure_level,
     decode_unix_permission_name, decode_unix_power_mode, decode_unix_thermal_state,
     unix_runtime_status,

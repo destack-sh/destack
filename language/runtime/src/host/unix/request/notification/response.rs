@@ -10,15 +10,14 @@ use zbus::blocking::{Connection, MessageIterator};
 use zbus::message::Type as MessageType;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::Platform;
-use crate::host::core::HostSessionId;
+use crate::host::{HostSessionId, Platform};
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     NotificationInteractedPayloadValue, NotificationRequestValue,
 };
 use crate::platform::os::notification::runtime;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService, WorkerLoop};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, WorkerLoop};
 
 /// The Unix notification response interface.
 const UNIX_NOTIFICATION_INTERFACE: &str = "org.freedesktop.Notifications";
@@ -65,16 +64,21 @@ impl UnixNotificationResponseService {
         let state = Arc::new(Mutex::new(UnixNotificationResponseState::default()));
         let worker_state = Arc::clone(&state);
         let connection = unix_notification_signal_connection()?;
-        let worker = Self::worker_loop("destack-notification-unix", move || {
-            let shutdown_connection = connection.clone();
+        let worker = WorkerLoop::open(
+            "destack-notification-unix",
+            "platform.service.spawn",
+            Self::POLICY,
+            move || {
+                let shutdown_connection = connection.clone();
 
-            Ok((
-                Box::new(move || {
-                    let _ = shutdown_connection.close();
-                }),
-                Box::new(move || run_notification_response_loop(worker_state, connection)),
-            ))
-        })?;
+                Ok((
+                    Box::new(move || {
+                        let _ = shutdown_connection.close();
+                    }),
+                    Box::new(move || run_notification_response_loop(worker_state, connection)),
+                ))
+            },
+        )?;
 
         Ok(Self {
             state,
@@ -119,7 +123,7 @@ impl UnixNotificationResponseService {
     }
 }
 
-impl GlobalService for UnixNotificationResponseService {
+impl Service for UnixNotificationResponseService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
 }
 

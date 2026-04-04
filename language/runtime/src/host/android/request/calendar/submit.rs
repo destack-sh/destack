@@ -5,14 +5,14 @@ use crate::host::abi::calendar::{
     HostCalendarEventCreateResponse, HostCalendarEventDraft, HostCalendarEventListResponse,
     HostCalendarEventQuery, HostCalendarEventReadResponse, HostCalendarListResponse,
 };
-use crate::host::android::abi::calendar::{
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::invalid_argument_value;
+use crate::host::os::android::abi::calendar::{
     destack_host_android_calendar_event_create, destack_host_android_calendar_event_delete,
     destack_host_android_calendar_event_list, destack_host_android_calendar_event_read,
     destack_host_android_calendar_event_update, destack_host_android_calendar_list,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::error::invalid_argument_value;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::NativeAbiCodec;
 use crate::platform::abi::NativeStringRef;
 use crate::platform::os::abi_generated::{

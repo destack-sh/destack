@@ -8,7 +8,6 @@ use crate::platform::NativeAbiCodec;
 use crate::runtime::BindingCallContext;
 
 /// Process-global host-session handle passed through the host ABI.
-#[cfg(not(feature = "generator"))]
 #[cfg_attr(not(any(target_os = "android", target_os = "ios")), allow(dead_code))]
 pub(crate) type HostSessionHandle = u64;
 

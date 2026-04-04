@@ -4,8 +4,8 @@ use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
-use crate::host::unix::request::background::systemd::SystemdManager;
+use crate::host::RequestContext;
+use crate::host::os::unix::request::background::systemd::SystemdManager;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -39,7 +39,7 @@ pub(crate) fn background_status() -> RuntimeResult<BackgroundStatusValue> {
 
 /// Register one systemd-backed desktop background task.
 pub(crate) fn register_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     options: &BackgroundTaskOptionsValue,
 ) -> RuntimeResult<()> {
     let wrapper_path =
@@ -126,7 +126,7 @@ pub(crate) fn register_background_task(
 
 /// Remove one systemd-backed desktop background task.
 pub(crate) fn unregister_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<()> {
     let key = background_scheduler_key(identifier);

@@ -4,8 +4,7 @@ use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 use super::bindings::AndroidHostBindings;
-use crate::host::Platform;
-use crate::host::core::{HostSessionHandle, HostSessionId, HostSessionRegistry, HostStatus};
+use crate::host::{HostSessionHandle, HostSessionId, HostSessionRegistry, HostStatus, Platform};
 
 /// Shared Android bindings registry state.
 #[derive(Debug, Default)]
@@ -87,11 +86,11 @@ pub(crate) fn resolve_android_bindings(
 #[cfg(test)]
 mod tests {
     use super::ANDROID_BINDINGS_REGISTRY;
-    use crate::host::android::abi::bindings::AndroidHostBindings;
-    use crate::host::android::tests::{
+    use crate::host::HostStatus;
+    use crate::host::os::android::abi::bindings::AndroidHostBindings;
+    use crate::host::os::android::tests::{
         callback_test_lock, register_android_bindings, register_android_runtime,
     };
-    use crate::host::core::HostStatus;
 
     /// Return whether the shared Android bindings registry still contains one runtime id.
     fn registry_contains_runtime_id(runtime_id: u64) -> bool {

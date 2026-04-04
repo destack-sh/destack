@@ -5,7 +5,7 @@ use super::types::{
     AndroidHostCameraRecordingCapabilitiesHeader, AndroidHostCameraRecordingOptionsHeader,
     AndroidHostCameraStreamCapabilityHeader, AndroidHostCameraStreamConfigHeader,
 };
-use crate::host::android::abi::bindings::invoke_android_binding_callback;
+use crate::host::os::android::abi::bindings::invoke_android_binding_callback;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// The host callback for `device_list`.

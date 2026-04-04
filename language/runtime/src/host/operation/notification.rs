@@ -1,6 +1,6 @@
 use super::{HostOperation, decode};
 
-use crate::host::core::HostRequest;
+use crate::host::HostRequest;
 use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,

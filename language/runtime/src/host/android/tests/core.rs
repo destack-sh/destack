@@ -1,12 +1,11 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
-use crate::host::Platform;
-use crate::host::android::abi::bindings::AndroidHostBindings;
-use crate::host::android::abi::registry::{
+use crate::host::core::registry::HostSessionRegistrationGuard;
+use crate::host::os::android::abi::bindings::AndroidHostBindings;
+use crate::host::os::android::abi::registry::{
     register_android_bindings as register_android_bindings_payload, unregister_android_bindings,
 };
-use crate::host::core::registry::HostSessionRegistrationGuard;
-use crate::host::core::{HostQueue, HostSessionId, HostSessionRegistry};
+use crate::host::{HostQueue, HostSessionId, HostSessionRegistry, Platform};
 
 /// Return the shared test lock for Android bindings registration.
 pub(crate) fn callback_test_lock() -> &'static Mutex<()> {

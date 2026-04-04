@@ -1,11 +1,11 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::apple::abi::intent::{
+use crate::host::core::error::not_supported;
+use crate::host::os::apple::abi::intent::{
     destack_host_ios_intent_can_open_url, destack_host_ios_intent_open_path,
     destack_host_ios_intent_open_url, destack_host_ios_intent_share_paths,
     destack_host_ios_intent_share_text,
 };
-use crate::host::core::error::not_supported;
-use crate::host::core::{
+use crate::host::{
     HOST_STATUS_BUFFER_TOO_SMALL, HOST_STATUS_FAILED, HOST_STATUS_INVALID_ARGUMENT,
     HOST_STATUS_NOT_FOUND, HOST_STATUS_NOT_SUPPORTED, HOST_STATUS_OK,
     HOST_STATUS_PERMISSION_DENIED, HostRequest, HostRequestOutcome, HostRequestResult,

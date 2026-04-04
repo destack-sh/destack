@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use vobject::{Component, Property};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::unix::request::linux::eds::composite_eds_identifier;
+use crate::host::os::unix::request::linux::eds::composite_eds_identifier;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{

@@ -1,7 +1,8 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::ingress::core::ios_host_queue;
-use crate::host::core::HostSessionHandle;
-use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState};
+use crate::host::os::apple::ingress::core::ios_host_queue;
+use crate::host::{
+    HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState, HostSessionHandle,
+};
 
 /// iOS application lifecycle transitions from native callbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

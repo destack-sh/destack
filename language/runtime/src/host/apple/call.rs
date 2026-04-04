@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
-use crate::host::apple::core::message::is_process_main_context;
+use crate::host::os::apple::ingress::r#loop::is_process_main_context;
 
 /// Execute one callback on the process main context when the host requires it.
 #[allow(dead_code)]
@@ -28,7 +28,7 @@ where
     }
 }
 
-/// Execute one callback on the Apple process main context with one main-thread marker.
+/// Execute one callback on the Apple process main context with one main-context marker.
 #[cfg(target_os = "macos")]
 #[allow(dead_code)]
 pub(crate) fn with_process_main_context_marker_if_needed<R>(

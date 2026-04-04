@@ -2,7 +2,7 @@ use windows::Win32::UI::Notifications::NOTIFICATION_USER_INPUT_DATA;
 use windows_core::Interface;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostSessionId;
+use crate::host::HostSessionId;
 use crate::host::core::error::not_supported;
 use crate::platform::os::abi_generated::{
     NotificationActionValue, NotificationCategoryValue, NotificationInteractedPayloadValue,
@@ -614,8 +614,7 @@ mod tests {
         validate_windows_notification_category, windows_notification_activation_from_arguments,
         windows_notification_activation_payload, windows_toast_xml,
     };
-    use crate::host::Platform;
-    use crate::host::core::HostSessionId;
+    use crate::host::{HostSessionId, Platform};
     use crate::platform::os::NotificationActionStyle;
     use crate::platform::os::abi_generated::{
         NotificationActionValue, NotificationCategoryValue, NotificationImmediateTriggerValue,

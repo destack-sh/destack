@@ -5,7 +5,7 @@ use zbus::blocking::{Connection, Proxy};
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::{io_operation_error, pathbuf_from_file_uri};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
@@ -54,7 +54,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Submit one Unix desktop document request through the active backend.
 pub(crate) fn submit_document_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {
@@ -71,7 +71,7 @@ pub(crate) fn submit_document_request(
 
 /// Pick documents through the desktop portal file chooser.
 fn pick_documents(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     validate_document_pick_options(options)?;
@@ -194,7 +194,7 @@ fn desktop_portal_file_chooser_is_available() -> bool {
 }
 
 /// Build one desktop portal request-handle token for one picker invocation.
-fn portal_handle_token(context: &HostRequestContext) -> String {
+fn portal_handle_token(context: &RequestContext) -> String {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .ok()

@@ -2,15 +2,14 @@ use crate::host::abi::background::HostBackgroundEvent as HostAbiBackgroundEvent;
 use crate::host::abi::document::HostDocumentResult;
 use crate::host::abi::intent::HostIntentEvent as HostAbiIntentEvent;
 use crate::host::abi::notification::HostNotificationEvent as HostAbiNotificationEvent;
-use crate::host::android::ingress::{
+use crate::host::os::android::ingress::{
     android_notify_background_event, android_notify_document_result, android_notify_intent_event,
     android_notify_location_sample, android_notify_notification_event,
 };
-use crate::host::android::tests::register_android_runtime;
-use crate::host::core::HostRequestId;
+use crate::host::os::android::tests::register_android_runtime;
 use crate::host::{
-    HostBackgroundEvent, HostDocumentEvent, HostEvent, HostIntentEvent, HostIntentPayload,
-    HostLocationEvent, HostNotificationEvent,
+    HostBackgroundEvent, HostEvent, HostIntentEvent, HostIntentPayload, HostLocationEvent,
+    HostNotificationEvent, HostRequestCompletionEvent, HostRequestId, HostRequestResult,
 };
 use crate::platform::NativeAbiCodec;
 use crate::platform::os::{
@@ -26,7 +25,7 @@ use crate::tests::runtime::TestRuntime;
 #[test]
 fn test_notify_intent_event_enqueues_intent_event_for_runtime_bridge() {
     let (queue, _registration, runtime_id) = register_android_runtime();
-    let runtime = TestRuntime::deterministic_random();
+    let mut runtime = TestRuntime::deterministic_random();
     runtime.with_native_call_context(|binding| {
         let event = HostAbiIntentEvent::from_value(binding, test_intent_event());
 
@@ -65,7 +64,7 @@ fn test_intent_event() -> IntentEventValue {
 fn test_notify_notification_event_enqueues_notification_event_for_runtime_bridge() {
     let (queue, _registration, runtime_id) = register_android_runtime();
     let event = test_notification_event();
-    let runtime = TestRuntime::deterministic_random();
+    let mut runtime = TestRuntime::deterministic_random();
     runtime.with_native_call_context(|binding| {
         let event = HostAbiNotificationEvent::from_value(binding, event.clone());
 
@@ -86,7 +85,7 @@ fn test_notify_notification_event_enqueues_notification_event_for_runtime_bridge
 fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
     let (queue, _registration, runtime_id) = register_android_runtime();
     let event = test_background_event();
-    let runtime = TestRuntime::deterministic_random();
+    let mut runtime = TestRuntime::deterministic_random();
     runtime.with_native_call_context(|binding| {
         let event = HostAbiBackgroundEvent::from_value(binding, event.clone());
 
@@ -102,12 +101,12 @@ fn test_notify_background_event_enqueues_background_event_for_runtime_bridge() {
     );
 }
 
-/// Enqueue one Android document event for the registered runtime.
+/// Enqueue one Android document completion event for the registered runtime.
 #[test]
-fn test_notify_document_result_enqueues_document_event_for_runtime_bridge() {
+fn test_notify_document_result_enqueues_completion_event_for_runtime_bridge() {
     let (queue, _registration, runtime_id) = register_android_runtime();
     let documents = vec![test_document_descriptor()];
-    let runtime = TestRuntime::deterministic_random();
+    let mut runtime = TestRuntime::deterministic_random();
     runtime.with_native_call_context(|binding| {
         let result = HostDocumentResult {
             request_id: 7,
@@ -120,10 +119,10 @@ fn test_notify_document_result_enqueues_document_event_for_runtime_bridge() {
     let events = queue.poll_events(Some(0)).unwrap();
     assert_eq!(
         events.as_slice(),
-        [HostEvent::Document(Box::new(HostDocumentEvent {
+        [HostEvent::RequestCompletion(HostRequestCompletionEvent {
             request_id: HostRequestId(7),
-            documents,
-        }))],
+            result: HostRequestResult::DocumentDescriptors(documents),
+        })],
     );
 }
 

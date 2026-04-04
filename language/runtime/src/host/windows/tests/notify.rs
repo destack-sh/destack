@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use crate::host::core::{HostQueue, HostSessionRegistry};
-use crate::host::windows::ingress::notify::{
+use crate::host::os::windows::ingress::notify::{
     WindowsApplicationLifecycle, host_lifecycle_state_for_windows_application,
     windows_notify_intent_open_url, windows_notify_location_sample,
     windows_notify_permission_result,
 };
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostLocationEvent,
-    HostPermissionEvent, Platform,
+    HostPermissionEvent, HostQueue, HostSessionRegistry, Platform,
 };
 use crate::platform::os::Permission;
 use crate::platform::os::abi_generated::LocationSampleValue;

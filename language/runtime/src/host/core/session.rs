@@ -7,17 +7,15 @@ use destack_workspace::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::bootstrap::{default_compile_target_parts, host_options_for_target};
-use crate::host::core::adapter::{HostAdapter, HostPollOutcome};
+use crate::host::core::adapter::{HostAdapter, PollResult};
 use crate::host::core::queue::HostQueue;
 use crate::host::core::registry::{
     HostCleanup, HostSessionId, HostSessionRegistrationGuard, HostSessionRegistry,
 };
 use crate::host::core::request::{
-    HostRequest, HostRequestContext, HostRequestId, HostRequestOutcome, HostSessionContext,
+    HostRequest, HostRequestId, HostRequestOutcome, RequestContext, SessionContext,
 };
-#[cfg(any(test, feature = "execution"))]
-use crate::host::core::without_native_ingress;
+use crate::host::core::target::{default_compile_target_parts, host_options_for_target};
 use crate::host::operation::HostOperation;
 use crate::host::policy::require_declared_request;
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
@@ -25,7 +23,7 @@ use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
 /// Runtime-scoped session boundary between one runtime, one host adapter, and one host ingress queue.
-pub struct HostSession {
+pub struct Session {
     /// Active host adapter for this runtime session.
     adapter: Arc<dyn HostAdapter>,
     /// Shared ingress queue for this runtime instance.
@@ -36,9 +34,12 @@ pub struct HostSession {
     runtime_id: RuntimeId,
     /// Process-global routing id used for host ingress routing and queue servicing.
     host_session_id: HostSessionId,
+    /// Whether ambient native ingress should be advanced during poll.
+    is_native_ingress_enabled: bool,
     /// Session-scoped request id allocator for outbound host requests.
     next_host_request_id: AtomicU64,
-    /// Static host capability set reported by the adapter.
+
+    /// Static host capability set reported by the host adapter.
     adapter_capabilities: PlatformCapabilitySet,
     /// Resolved host integration options for this runtime target.
     host_options: PlatformHostOptions,
@@ -48,9 +49,9 @@ pub struct HostSession {
     app_declaration: RuntimeAppDeclaration,
 }
 
-impl std::fmt::Debug for HostSession {
+impl std::fmt::Debug for Session {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HostSession")
+        f.debug_struct("Session")
             .field("platform", &self.platform())
             .field("runtime_id", &self.runtime_id)
             .field("host_session_id", &self.host_session_id)
@@ -71,8 +72,8 @@ impl std::fmt::Debug for HostSession {
     }
 }
 
-impl HostSession {
-    /// Create one host session from one explicit adapter and host options.
+impl Session {
+    /// Create one session from one explicit host adapter and host options.
     pub(crate) fn new_with_options(
         adapter: Arc<dyn HostAdapter>,
         cleanup: Option<HostCleanup>,
@@ -80,6 +81,7 @@ impl HostSession {
         host_options: PlatformHostOptions,
         os_options: PlatformOsOptions,
         app_declaration: RuntimeAppDeclaration,
+        is_native_ingress_enabled: bool,
     ) -> Self {
         Self::new_with_options_inner(
             adapter,
@@ -88,10 +90,11 @@ impl HostSession {
             host_options,
             os_options,
             app_declaration,
+            is_native_ingress_enabled,
         )
     }
 
-    /// Create one host session from one explicit adapter and host options.
+    /// Create one session from one explicit host adapter and host options.
     fn new_with_options_inner(
         adapter: Arc<dyn HostAdapter>,
         cleanup: Option<HostCleanup>,
@@ -99,6 +102,7 @@ impl HostSession {
         host_options: PlatformHostOptions,
         os_options: PlatformOsOptions,
         app_declaration: RuntimeAppDeclaration,
+        is_native_ingress_enabled: bool,
     ) -> Self {
         let platform = adapter.platform();
         let host_session_id = HostSessionRegistry::allocate_session_id();
@@ -125,6 +129,7 @@ impl HostSession {
             registration_guard,
             runtime_id,
             host_session_id,
+            is_native_ingress_enabled,
             next_host_request_id: AtomicU64::new(1),
             adapter_capabilities,
             host_options,
@@ -133,7 +138,7 @@ impl HostSession {
         }
     }
 
-    /// Create one host session from runtime options and one explicit runtime id.
+    /// Create one session from runtime options and one explicit runtime id.
     pub fn from_runtime_options(options: &RuntimeOptions, runtime_id: RuntimeId) -> Self {
         // resolve compile-target host integration once
         let (platform, adapter, cleanup) = default_compile_target_parts();
@@ -148,21 +153,21 @@ impl HostSession {
             host_options,
             os_options,
             app_declaration,
+            true,
         )
     }
 
-    /// Create one host session from runtime options without native ambient ingress.
-    #[cfg(any(test, feature = "execution"))]
-    pub(crate) fn from_runtime_options_without_native_ingress(
+    /// Create one session from runtime options with one explicit native-ingress policy.
+    pub(crate) fn from_runtime_options_with_native_ingress(
         options: &RuntimeOptions,
         runtime_id: RuntimeId,
+        is_native_ingress_enabled: bool,
     ) -> Self {
         // resolve compile-target host integration once
         let (platform, adapter, cleanup) = default_compile_target_parts();
         let host_options = host_options_for_target(platform, options);
         let os_options = options.os.clone();
         let app_declaration = options.app.clone();
-        let adapter = without_native_ingress(adapter);
 
         Self::new_with_options_inner(
             adapter,
@@ -171,6 +176,7 @@ impl HostSession {
             host_options,
             os_options,
             app_declaration,
+            is_native_ingress_enabled,
         )
     }
 
@@ -179,30 +185,30 @@ impl HostSession {
         self.adapter.platform()
     }
 
-    /// Return effective host capabilities reported by adapter and session wiring.
+    /// Return effective host capabilities reported by the host adapter and session wiring.
     pub fn host_capabilities(&self) -> PlatformCapabilitySet {
         let session_capabilities = self.session_capabilities();
 
         merge_capabilities(self.adapter_capabilities.clone(), session_capabilities)
     }
 
-    /// Return the static host capabilities reported by this adapter.
+    /// Return the static host capabilities reported by this host adapter.
     pub fn adapter_capabilities(&self) -> &PlatformCapabilitySet {
         &self.adapter_capabilities
     }
 
-    /// Return the dynamic session capabilities reported by the active adapter.
+    /// Return the dynamic session capabilities reported by the active host adapter.
     pub fn session_capabilities(&self) -> PlatformCapabilitySet {
         self.adapter.session_capabilities(self.host_session_id)
     }
 
-    /// Return whether adapter and session wiring report one host capability id.
+    /// Return whether the host adapter and session wiring report one host capability id.
     pub fn has_host_capability_id(&self, capability_id: PlatformCapabilityId) -> bool {
         self.adapter_capabilities.contains_id(capability_id)
             || self.session_capabilities().contains_id(capability_id)
     }
 
-    /// Return whether adapter and session wiring report one host capability.
+    /// Return whether shell and session wiring report one host capability.
     pub fn has_host_capability(&self, capability: PlatformCapability) -> bool {
         self.has_host_capability_id(capability.id())
     }
@@ -213,9 +219,9 @@ impl HostSession {
         require_declared_request(self.platform(), &self.app_declaration, &request)?;
 
         // request context
-        let request_id = self.allocate_host_request_id();
+        let request_id = self.allocate_request_id();
 
-        self.submit_request_with_id(request_id, request)
+        self.submit_with_id(request_id, request)
     }
 
     /// Submit one typed host operation through the active session.
@@ -226,14 +232,17 @@ impl HostSession {
         operation.decode_outcome(outcome)
     }
 
-    /// Poll queued host ingress events using the active host session.
-    pub fn poll_events(&self, timeout_nanos: Option<u64>) -> RuntimeResult<HostPollOutcome> {
+    /// Poll host ingress and drain queued host events using the active session.
+    pub fn poll(&self, timeout_nanos: Option<u64>) -> RuntimeResult<PollResult> {
+        // advance host and session ingress before draining queued host events
+        self.advance_ingress()?;
+
         // drain the queued host event stream directly
         let events = self.queue.poll_events(timeout_nanos)?;
         // report queue pressure independently from the drained event batch
         let dropped_event_count = self.queue.take_dropped_event_count();
 
-        Ok(HostPollOutcome {
+        Ok(PollResult {
             events,
             dropped_event_count,
         })
@@ -244,7 +253,7 @@ impl HostSession {
         self.queue.poll_wake_handle()
     }
 
-    /// Return the logical runtime id for this host session.
+    /// Return the logical runtime id for this session.
     pub const fn runtime_id(&self) -> RuntimeId {
         self.runtime_id
     }
@@ -255,8 +264,8 @@ impl HostSession {
     }
 
     /// Build one host request context for this session.
-    fn host_session_context(&self) -> HostSessionContext {
-        HostSessionContext {
+    fn session_context(&self) -> SessionContext {
+        SessionContext {
             host_session_id: self.host_session_id,
             platform: self.platform(),
             os_options: self.os_options.clone(),
@@ -265,11 +274,11 @@ impl HostSession {
         }
     }
 
-    /// Build one host request context for one explicit request id.
-    fn host_request_context_with_id(&self, request_id: HostRequestId) -> HostRequestContext {
-        let session_context = self.host_session_context();
+    /// Build one request context for one explicit request id.
+    fn request_context_with_id(&self, request_id: HostRequestId) -> RequestContext {
+        let session_context = self.session_context();
 
-        HostRequestContext {
+        RequestContext {
             request_id,
             host_session_id: session_context.host_session_id,
             platform: session_context.platform,
@@ -280,7 +289,7 @@ impl HostSession {
     }
 
     /// Submit one normalized runtime-owned host request with one explicit request id.
-    pub(crate) fn submit_request_with_id(
+    pub(crate) fn submit_with_id(
         &self,
         request_id: HostRequestId,
         request: HostRequest,
@@ -289,13 +298,13 @@ impl HostSession {
         require_declared_request(self.platform(), &self.app_declaration, &request)?;
 
         // request context
-        let request_context = self.host_request_context_with_id(request_id);
+        let request_context = self.request_context_with_id(request_id);
 
         self.adapter.submit_request(&request_context, request)
     }
 
-    /// Allocate one fresh request id for this host session.
-    pub(crate) fn allocate_host_request_id(&self) -> HostRequestId {
+    /// Allocate one fresh request id for this session.
+    pub(crate) fn allocate_request_id(&self) -> HostRequestId {
         let request_id = self.next_host_request_id.fetch_add(1, Ordering::Relaxed);
 
         HostRequestId(request_id)
@@ -306,29 +315,17 @@ impl HostSession {
         self.adapter.is_process_main_context()
     }
 
-    /// Service host-owned native ingress for this runtime session.
-    pub fn service_native_ingress(&self) -> RuntimeResult<()> {
-        self.adapter.process_native_ingress()?;
+    /// Advance host-owned and session-owned ingress for this session.
+    pub(crate) fn advance_ingress(&self) -> RuntimeResult<()> {
+        // native ingress
+        if self.is_native_ingress_enabled {
+            self.adapter.advance_native_ingress()?;
+        }
 
-        Ok(())
-    }
-
-    /// Service runtime-owned ingress for this runtime session.
-    pub fn service_runtime_ingress(&self) -> RuntimeResult<()> {
-        // session context
-        let session_context = self.host_session_context();
-
-        // adapter-owned runtime ingress
-        self.adapter.process_runtime_ingress(&session_context)?;
-
-        // queue-owned ingress
-        HostSessionRegistry::service_session_ingress(self.host_session_id)
-    }
-
-    /// Service host-owned and runtime-owned ingress for this runtime session.
-    pub fn service_ingress(&self) -> RuntimeResult<()> {
-        self.service_native_ingress()?;
-        self.service_runtime_ingress()
+        // session ingress
+        let session_context = self.session_context();
+        self.adapter.advance_session_ingress(&session_context)?;
+        HostSessionRegistry::advance_session_ingress(self.host_session_id)
     }
 }
 
@@ -357,10 +354,10 @@ mod tests {
     };
 
     use super::{
-        HostAdapter, HostCleanup, HostRequest, HostRequestContext, HostRequestOutcome, HostSession,
-        Platform, PlatformHostOptions, RuntimeId, RuntimeResult,
+        HostAdapter, HostCleanup, HostRequest, HostRequestOutcome, Platform, PlatformHostOptions,
+        RequestContext, RuntimeId, RuntimeResult, Session,
     };
-    use crate::host::core::{HostRequestResult, HostSessionId};
+    use crate::host::{HostRequestResult, HostSessionId};
     use crate::platform::os::abi_generated::DocumentPickOptionsValue;
     use crate::platform::os::{NotificationPermissionState, Permission, PermissionState};
     use crate::runtime::capability::PlatformCapabilitySet;
@@ -393,7 +390,7 @@ mod tests {
         /// Submit one request and return one deterministic test payload.
         fn submit_request(
             &self,
-            _context: &HostRequestContext,
+            _context: &RequestContext,
             request: HostRequest,
         ) -> RuntimeResult<HostRequestOutcome> {
             // submission bookkeeping
@@ -421,11 +418,8 @@ mod tests {
         }
     }
 
-    /// Build one test host session with one explicit platform and app declaration.
-    fn test_host_session(
-        platform: Platform,
-        app: RuntimeAppDeclaration,
-    ) -> (HostSession, Arc<AtomicUsize>) {
+    /// Build one test session with one explicit platform and app declaration.
+    fn test_session(platform: Platform, app: RuntimeAppDeclaration) -> (Session, Arc<AtomicUsize>) {
         let submit_count = Arc::new(AtomicUsize::new(0));
         let adapter = Arc::new(TestHostAdapter {
             platform,
@@ -435,26 +429,27 @@ mod tests {
         let runtime_id = RuntimeId(91);
         let host_options = PlatformHostOptions::default();
         let os_options = PlatformOsOptions::default();
-        let host = HostSession::new_with_options(
+        let session = Session::new_with_options(
             adapter,
             cleanup,
             runtime_id,
             host_options,
             os_options,
             app,
+            true,
         );
 
-        (host, submit_count)
+        (session, submit_count)
     }
 
     /// Reject undeclared permission requests before adapter submission.
     #[test]
-    fn test_submit_request_rejects_undeclared_permission_before_adapter() {
-        let (host, submit_count) =
-            test_host_session(Platform::Android, RuntimeAppDeclaration::default());
+    fn test_submit_request_rejects_undeclared_permission_before_driver() {
+        let (session, submit_count) =
+            test_session(Platform::Android, RuntimeAppDeclaration::default());
 
         // submit one undeclared permission request
-        let error = host
+        let error = session
             .submit_request(HostRequest::OsPermissionRequest {
                 permission: Permission::Camera,
             })
@@ -471,12 +466,11 @@ mod tests {
 
     /// Reject undeclared iOS query schemes before adapter submission.
     #[test]
-    fn test_submit_request_rejects_undeclared_ios_query_scheme() {
-        let (host, submit_count) =
-            test_host_session(Platform::IOS, RuntimeAppDeclaration::default());
+    fn test_submit_request_rejects_undeclared_ios_query_scheme_before_driver() {
+        let (session, submit_count) = test_session(Platform::IOS, RuntimeAppDeclaration::default());
 
         // submit one undeclared query-scheme request
-        let error = host
+        let error = session
             .submit_request(HostRequest::OsIntentCanOpenUrl {
                 url: "mailto:test@example.com".to_string(),
             })
@@ -500,10 +494,10 @@ mod tests {
             },
             ..RuntimeAppDeclaration::default()
         };
-        let (host, submit_count) = test_host_session(Platform::IOS, app);
+        let (session, submit_count) = test_session(Platform::IOS, app);
 
         // submit one declared notification permission request
-        let outcome = host
+        let outcome = session
             .submit_request(HostRequest::OsNotificationRequestPermission)
             .expect("declared notification permission request should succeed");
         // ensure the adapter received the request
@@ -518,12 +512,12 @@ mod tests {
 
     /// Allow declaration-free document picker requests to reach the adapter.
     #[test]
-    fn test_submit_request_allows_declaration_free_document_pick() {
-        let (host, submit_count) =
-            test_host_session(Platform::MacOS, RuntimeAppDeclaration::default());
+    fn test_submit_request_allows_declaration_free_document_pick_adapter_path() {
+        let (session, submit_count) =
+            test_session(Platform::MacOS, RuntimeAppDeclaration::default());
 
         // submit one declaration-free document picker request
-        let outcome = host
+        let outcome = session
             .submit_request(HostRequest::OsDocumentPick {
                 options: DocumentPickOptionsValue {
                     mime_types: Vec::new(),
@@ -544,12 +538,12 @@ mod tests {
 
     /// Reject undeclared Android file sharing before adapter submission.
     #[test]
-    fn test_submit_request_rejects_undeclared_android_file_share() {
-        let (host, submit_count) =
-            test_host_session(Platform::Android, RuntimeAppDeclaration::default());
+    fn test_submit_request_rejects_undeclared_android_file_share_before_driver() {
+        let (session, submit_count) =
+            test_session(Platform::Android, RuntimeAppDeclaration::default());
 
         // submit one undeclared file-share request
-        let error = host
+        let error = session
             .submit_request(HostRequest::OsIntentSharePaths {
                 paths: Vec::new(),
                 content_type: Some("text/plain".to_string()),
@@ -564,7 +558,7 @@ mod tests {
 
     /// Allow declared Android file sharing to reach the adapter.
     #[test]
-    fn test_submit_request_allows_declared_android_file_share() {
+    fn test_submit_request_allows_declared_android_file_share_adapter_path() {
         let app = RuntimeAppDeclaration {
             intents: RuntimeAppIntentDeclaration {
                 shares_files: true,
@@ -572,10 +566,10 @@ mod tests {
             },
             ..RuntimeAppDeclaration::default()
         };
-        let (host, submit_count) = test_host_session(Platform::Android, app);
+        let (session, submit_count) = test_session(Platform::Android, app);
 
         // submit one declared file-share request
-        let outcome = host
+        let outcome = session
             .submit_request(HostRequest::OsIntentSharePaths {
                 paths: Vec::new(),
                 content_type: Some("text/plain".to_string()),

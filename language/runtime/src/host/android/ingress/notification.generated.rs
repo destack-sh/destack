@@ -2,9 +2,8 @@
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::notification::HostNotificationEvent as HostAbiNotificationEvent;
-use crate::host::android::ingress::core::android_host_queue;
-use crate::host::core::HostSessionHandle;
-use crate::host::{HostEvent, HostNotificationEvent};
+use crate::host::os::android::ingress::core::android_host_queue;
+use crate::host::{HostEvent, HostNotificationEvent, HostSessionHandle};
 use crate::platform::NativeAbiCodec;
 
 /// The runtime function that receives one notification event.

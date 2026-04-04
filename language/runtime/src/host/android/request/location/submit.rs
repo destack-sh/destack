@@ -2,13 +2,13 @@ use std::mem::MaybeUninit;
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::location::{LocationLastKnownResponse, LocationServicesResponse};
-use crate::host::android::abi::location::{
+use crate::host::core::callback::decode_callback_host_status;
+use crate::host::core::error::invalid_argument_value;
+use crate::host::os::android::abi::location::{
     destack_host_android_location_last_known, destack_host_android_location_services_enabled,
     destack_host_android_location_watch_close, destack_host_android_location_watch_open,
 };
-use crate::host::core::callback::decode_callback_host_status;
-use crate::host::core::error::invalid_argument_value;
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::abi::NativeStringRef;
 
 /// Return one Android location request outcome when supported.

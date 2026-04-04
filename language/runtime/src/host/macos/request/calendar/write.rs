@@ -11,7 +11,7 @@ use super::recurrence::{
     calendar_availability_to_native, recurrence_rule_to_native, reminder_to_native,
 };
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::call_process_main_context_if_needed;
+use crate::host::os::apple::call::call_process_main_context_if_needed;
 use crate::platform::os::abi_generated::CalendarEventDraftValue;
 
 /// Create one EventKit event and return its saved identifier.

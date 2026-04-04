@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::process::Command;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::{HostRequest, HostRequestOutcome, HostRequestResult};
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult};
 use crate::platform::core::{invalid_argument, io_operation_error, not_supported};
 use crate::platform::diagnostic::PlatformError;
 use crate::platform::fs;

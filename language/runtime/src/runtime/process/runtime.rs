@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::HostSession;
+use crate::host::{HostEvent, Session};
 use crate::platform::resource::ResourceRebinders;
 use crate::runtime::engine::{Engine, Entry, ExecutionOutput};
-use crate::runtime::poller::HostPoller;
+use crate::runtime::poller::{HostPoller, PollerEvent};
 use crate::runtime::scheduler::Timer;
 use crate::runtime::time::WorldInstant;
-use crate::runtime::world::{RuntimeId, RuntimeIngress, Wake, WorldRef};
+use crate::runtime::world::{RuntimeId, Wake, WorldRef};
 use crate::runtime::{DropCounts, DropReason};
 use destack_core::CaptureMode;
 use destack_heap as heap;
@@ -17,6 +17,21 @@ use std::sync::Arc;
 
 use super::poller::poller_for_options;
 use super::{Agent, AgentId, AgentImage};
+
+/// Runtime-local arrived work that is not caused by world time advancing.
+#[derive(Debug, Clone, PartialEq)]
+enum RuntimeIngress {
+    /// Runtime-wide host semantic arrival.
+    Host {
+        /// Host event payload.
+        event: HostEvent,
+    },
+    /// Runtime-wide poller arrival.
+    Poller {
+        /// Poller event payload.
+        event: PollerEvent,
+    },
+}
 
 /// Runtime container that owns one or more agents in one shared world.
 pub struct Runtime {
@@ -29,7 +44,7 @@ pub struct Runtime {
     /// Runtime options used for agent creation.
     options: RuntimeOptions,
     /// Shared host integration for all agents in this runtime.
-    host: HostSession,
+    host: Session,
     /// Shared platform poller for external events.
     poller: Option<Box<dyn HostPoller>>,
     /// Drop accounting at the runtime coordination boundary.
@@ -109,7 +124,7 @@ impl Runtime {
     }
 
     /// Return the shared host integration for this runtime.
-    pub fn host(&self) -> &HostSession {
+    pub fn host(&self) -> &Session {
         &self.host
     }
 
@@ -315,7 +330,7 @@ impl Runtime {
         let primary_agent = Box::new(primary_agent);
         let primary_agent_id = primary_agent.id;
         let runtime_id = primary_agent.runtime_id;
-        let host = HostSession::from_runtime_options(options, runtime_id);
+        let host = Session::from_runtime_options(options, runtime_id);
         let runtime_name = options
             .name
             .clone()
@@ -396,26 +411,20 @@ impl Runtime {
         let mut ingress = Vec::new();
 
         // host semantic ingress
-        let poll_result = self.host.poll_events(Some(0))?;
+        let poll_result = self.host.poll(Some(0))?;
         if poll_result.dropped_event_count > 0 {
             self.drop_counts
                 .record(DropReason::QueuePressure, poll_result.dropped_event_count);
         }
         for event in poll_result.events {
-            ingress.push(RuntimeIngress::Host {
-                runtime_id: self.id,
-                event,
-            });
+            ingress.push(RuntimeIngress::Host { event });
         }
 
         // poller ingress
         if let Some(poller) = self.poller.as_mut() {
             let events = poller.poll(Some(0))?;
             for event in events {
-                ingress.push(RuntimeIngress::Poller {
-                    runtime_id: self.id,
-                    event,
-                });
+                ingress.push(RuntimeIngress::Poller { event });
             }
         }
 
@@ -432,11 +441,7 @@ impl Runtime {
 
         for item in ingress {
             match item {
-                RuntimeIngress::Host { runtime_id, event } => {
-                    if runtime_id != self.id {
-                        continue;
-                    }
-
+                RuntimeIngress::Host { event } => {
                     let kind = event.kind();
                     let targets = self
                         .agent_ids()
@@ -468,11 +473,7 @@ impl Runtime {
                         handled_any = true;
                     }
                 }
-                RuntimeIngress::Poller { runtime_id, event } => {
-                    if runtime_id != self.id {
-                        continue;
-                    }
-
+                RuntimeIngress::Poller { event } => {
                     let targets = self
                         .agent_ids()
                         .into_iter()
@@ -593,7 +594,7 @@ impl Runtime {
     ) -> RuntimeResult<Self> {
         // runtime-wide reconstructed state
         let platform_args: Arc<[String]> = image.platform_args.clone().into();
-        let host = HostSession::from_runtime_options(&image.options, image.runtime_id);
+        let host = Session::from_runtime_options(&image.options, image.runtime_id);
         let poller = poller_for_options(&image.options)?;
         let mut agents = BTreeMap::new();
 

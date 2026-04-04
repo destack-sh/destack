@@ -11,7 +11,7 @@ use windows::core::implement;
 use windows_core::StaticComObject;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
+use crate::host::{HostSessionId, RequestContext, SessionContext};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::NotificationPermissionState;
@@ -132,7 +132,7 @@ impl Drop for WindowsPropVariant {
 
 /// Return the Windows notification permission state.
 pub(crate) fn request_permission(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<NotificationPermissionState> {
     use windows::UI::Notifications::NotificationSetting;
 
@@ -148,7 +148,7 @@ pub(crate) fn request_permission(
 
 /// Deliver one notification through the Windows desktop host.
 pub(crate) fn deliver_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -340,7 +340,7 @@ pub(crate) fn deliver_notification(
 
 /// Schedule one notification through the Windows toast scheduler.
 pub(crate) fn schedule_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -392,7 +392,7 @@ pub(crate) fn set_categories(categories: &[NotificationCategoryValue]) -> Runtim
 }
 
 /// Cancel one delivered Windows notification when toast history is available.
-pub(crate) fn cancel_notification(context: &HostRequestContext, id: &str) -> RuntimeResult<()> {
+pub(crate) fn cancel_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     use windows::core::HSTRING;
 
     unregister_active_notification(context.host_session_id, id);
@@ -406,10 +406,7 @@ pub(crate) fn cancel_notification(context: &HostRequestContext, id: &str) -> Run
 }
 
 /// Cancel one pending scheduled Windows notification by identifier.
-pub(crate) fn cancel_pending_notification(
-    context: &HostRequestContext,
-    id: &str,
-) -> RuntimeResult<()> {
+pub(crate) fn cancel_pending_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     let notifier = windows_toast_notifier(context)?;
     remove_scheduled_notification_by_id(&notifier, id)
 }
@@ -420,7 +417,7 @@ pub(crate) fn unregister_runtime(host_session_id: HostSessionId) {
 }
 
 /// Service Windows notification ingress.
-pub(crate) fn service_notification_ingress(context: &HostSessionContext) -> RuntimeResult<()> {
+pub(crate) fn service_notification_ingress(context: &SessionContext) -> RuntimeResult<()> {
     ensure_windows_notification_com_registration(context)?;
     drain_pending_windows_notification_activations(context.host_session_id)?;
 

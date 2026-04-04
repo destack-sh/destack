@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::host::apple::ingress::{IosApplicationLifecycle, ios_notify_application_lifecycle};
 use crate::host::core::error::invalid_argument_value;
+use crate::host::os::apple::ingress::{IosApplicationLifecycle, ios_notify_application_lifecycle};
 
 use super::core::runtime_status;
 

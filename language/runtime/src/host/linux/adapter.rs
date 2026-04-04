@@ -1,9 +1,9 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{
-    HostRequest, HostRequestContext, HostRequestOutcome, HostSessionContext, HostSessionId,
+use crate::host::os::linux::{ingress, request};
+use crate::host::{
+    HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
+    SessionContext,
 };
-use crate::host::linux::{ingress, request};
-use crate::host::{HostAdapter, Platform};
 use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
 
 /// Linux host implementation.
@@ -36,13 +36,13 @@ impl HostAdapter for LinuxHost {
         capabilities
     }
 
-    fn process_runtime_ingress(&self, context: &HostSessionContext) -> RuntimeResult<()> {
+    fn advance_session_ingress(&self, context: &SessionContext) -> RuntimeResult<()> {
         ingress::service_linux_ingress(context)
     }
 
     fn submit_request(
         &self,
-        context: &HostRequestContext,
+        context: &RequestContext,
         request: HostRequest,
     ) -> RuntimeResult<HostRequestOutcome> {
         request::submit_request(context, request)

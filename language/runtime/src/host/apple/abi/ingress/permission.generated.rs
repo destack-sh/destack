@@ -3,8 +3,8 @@
 use crate::diagnostic::RuntimeStatus;
 use crate::host::core::error::invalid_argument_value;
 use crate::host::abi::permission::{HostPermissionEvent};
-use crate::host::apple::abi::ingress::core::{runtime_status};
-use crate::host::apple::ingress::ios_notify_permission_result;
+use crate::host::os::apple::abi::ingress::core::{runtime_status};
+use crate::host::os::apple::ingress::ios_notify_permission_result;
 
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_ios_notify_permission_result(

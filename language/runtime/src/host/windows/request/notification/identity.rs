@@ -28,8 +28,8 @@ use windows::core::{HSTRING, PCWSTR};
 use windows_core::{IUnknownImpl, Interface};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
-use crate::host::windows::identity::{
+use crate::host::RequestContext;
+use crate::host::os::windows::identity::{
     current_executable_path, resolved_application_identifier, resolved_display_name,
     resolved_icon_path,
 };
@@ -37,7 +37,8 @@ use crate::platform::PlatformError;
 use crate::platform::core::windows_known_folder_path;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::service::spawn_service_thread;
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, Service};
 
 use super::core::{
     WINDOWS_NOTIFICATION_ACTIVATOR_FACTORY, WINDOWS_NOTIFICATION_APP_ID_MAX_LENGTH,
@@ -92,13 +93,13 @@ pub(super) struct WindowsNotificationComServerState {
 const WINDOWS_NOTIFICATION_COM_POLICY: ExecutionPolicy =
     ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 
-impl GlobalService for WindowsNotificationComService {
+impl Service for WindowsNotificationComService {
     const POLICY: ExecutionPolicy = WINDOWS_NOTIFICATION_COM_POLICY;
 }
 
 /// Return one Windows toast notifier configured for packaged or unpackaged hosts.
 pub(super) fn windows_toast_notifier(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<windows::UI::Notifications::ToastNotifier> {
     use windows::UI::Notifications::ToastNotificationManager;
 
@@ -114,7 +115,7 @@ pub(super) fn windows_toast_notifier(
 
 /// Return one Windows toast history object after ensuring desktop identity setup.
 pub(super) fn windows_toast_history(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<windows::UI::Notifications::ToastNotificationHistory> {
     use windows::UI::Notifications::ToastNotificationManager;
 
@@ -125,7 +126,7 @@ pub(super) fn windows_toast_history(
 
 /// Return the configured toast identity for the current Windows process.
 pub(super) fn windows_toast_identity(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<&'static WindowsToastIdentity> {
     let activator_clsid = windows_notification_activator_clsid(context)?;
     let explicit_app_id = if windows_process_has_package_identity()? {
@@ -197,7 +198,7 @@ pub(super) fn windows_process_has_package_identity() -> RuntimeResult<bool> {
 
 /// Register the current unpackaged process under one stable desktop toast app id.
 fn ensure_windows_desktop_notification_registration(
-    context: &HostRequestContext,
+    context: &RequestContext,
     app_id: &str,
     activator_clsid: &windows::core::GUID,
 ) -> RuntimeResult<()> {
@@ -221,7 +222,7 @@ fn ensure_windows_desktop_notification_registration(
 
 /// Register the unpackaged local-server COM activator for this process.
 fn ensure_windows_notification_local_server_registration(
-    context: &HostRequestContext,
+    context: &RequestContext,
     activator_clsid: &windows::core::GUID,
 ) -> RuntimeResult<()> {
     let clsid = windows_guid_string(activator_clsid);
@@ -243,7 +244,7 @@ fn ensure_windows_notification_local_server_registration(
 
 /// Create or update the Start Menu shortcut required for unpackaged desktop toasts.
 fn ensure_windows_notification_shortcut(
-    context: &HostRequestContext,
+    context: &RequestContext,
     app_id: &str,
     activator_clsid: &windows::core::GUID,
 ) -> RuntimeResult<()> {
@@ -309,7 +310,7 @@ fn ensure_windows_notification_shortcut(
 
 /// Return one shared COM registration for the Windows notification activator.
 pub(super) fn ensure_windows_notification_com_registration(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<()> {
     let identity = windows_toast_identity(context)?;
 
@@ -323,7 +324,7 @@ pub(super) fn ensure_windows_notification_com_registration(
 }
 
 /// Return one stable unpackaged toast app id for the current executable.
-pub(super) fn windows_notification_app_id(context: &HostRequestContext) -> RuntimeResult<String> {
+pub(super) fn windows_notification_app_id(context: &RequestContext) -> RuntimeResult<String> {
     let executable_path = current_executable_path()?;
     let path_hash = fnv1a64(executable_path.as_os_str().to_string_lossy().as_bytes());
     let declared_identifier = context.app_identity.identifier.as_deref().map(str::trim);
@@ -348,16 +349,12 @@ pub(super) fn windows_notification_app_id(context: &HostRequestContext) -> Runti
 }
 
 /// Return one display name for the current Windows notification host identity.
-pub(super) fn windows_notification_display_name(
-    context: &HostRequestContext,
-) -> RuntimeResult<String> {
+pub(super) fn windows_notification_display_name(context: &RequestContext) -> RuntimeResult<String> {
     resolved_display_name(context)
 }
 
 /// Return one UTF-16 icon path payload for the current executable.
-pub(super) fn windows_notification_icon_path(
-    context: &HostRequestContext,
-) -> RuntimeResult<Vec<u16>> {
+pub(super) fn windows_notification_icon_path(context: &RequestContext) -> RuntimeResult<Vec<u16>> {
     use std::os::windows::ffi::OsStrExt;
 
     let icon_path = resolved_icon_path(context)?;
@@ -533,9 +530,11 @@ pub(super) fn windows_notification_shortcut_path(app_id: &str) -> RuntimeResult<
 fn start_windows_notification_com_server(
     activator_clsid: windows::core::GUID,
 ) -> RuntimeResult<WindowsNotificationComService> {
-    let executor = WindowsNotificationComService::thread("destack-notification-com", move || {
-        run_windows_notification_com_server_state(activator_clsid)
-    })?;
+    let executor = spawn_service_thread(
+        "destack-notification-com",
+        WindowsNotificationComService::POLICY,
+        move || run_windows_notification_com_server_state(activator_clsid),
+    )?;
 
     Ok(WindowsNotificationComService {
         _executor: executor,
@@ -576,7 +575,7 @@ fn windows_notification_com_service(
 
 /// Return one deterministic activation CLSID for the current Windows app identity.
 pub(super) fn windows_notification_activator_clsid(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<windows::core::GUID> {
     use openssl::sha::sha1;
 

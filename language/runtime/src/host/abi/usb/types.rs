@@ -3,7 +3,7 @@ use crate::host::abi::describe::host_abi_types;
 
 #[cfg(not(feature = "generator"))]
 #[allow(unused_imports)]
-pub(crate) use crate::host::android::abi::usb::types::{
+pub(crate) use crate::host::os::android::abi::usb::types::{
     AndroidHostUsbDeviceDescriptorHeader, AndroidHostUsbHotplugEventHeader,
 };
 

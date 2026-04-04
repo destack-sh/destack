@@ -4,13 +4,13 @@ use block2::RcBlock;
 use objc2_contacts::{CNAuthorizationStatus, CNContactStore, CNEntityType};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::apple::core::execution::call_process_main_context_if_needed;
+use crate::host::os::apple::call::call_process_main_context_if_needed;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::{Permission, PermissionEntry, PermissionState};
 
 /// Request one supported macOS contact permission.
-pub(in crate::host::macos::request) fn request_contact_permission(
+pub(in crate::host::os::macos::request) fn request_contact_permission(
     permission: Permission,
 ) -> RuntimeResult<Option<PermissionState>> {
     if !matches!(
@@ -27,7 +27,7 @@ pub(in crate::host::macos::request) fn request_contact_permission(
 }
 
 /// Request one supported macOS contact permission batch.
-pub(in crate::host::macos::request) fn request_contact_permissions(
+pub(in crate::host::os::macos::request) fn request_contact_permissions(
     permissions: &[Permission],
 ) -> RuntimeResult<Option<Vec<PermissionEntry>>> {
     if permissions.iter().any(|permission| {

@@ -6,7 +6,7 @@ use super::types::{
     AndroidHostCameraRecordingCapabilitiesHeader, AndroidHostCameraRecordingOptionsHeader,
     AndroidHostCameraStreamCapabilityHeader, AndroidHostCameraStreamConfigHeader,
 };
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// Forward the `device_list` camera request through the Android host ABI.

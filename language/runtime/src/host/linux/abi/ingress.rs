@@ -1,13 +1,13 @@
 #![allow(unreachable_pub)]
 
 use crate::diagnostic::RuntimeStatus;
-use crate::host::linux::ingress::notify::{
+use crate::host::os::linux::ingress::notify::{
     LinuxApplicationLifecycle, linux_notify_application_lifecycle,
     linux_notify_interruption_changed, linux_notify_memory_pressure_changed,
     linux_notify_permission_result, linux_notify_power_mode_changed,
     linux_notify_thermal_state_changed, linux_notify_wake, linux_notify_wall_clock_changed,
 };
-use crate::host::unix::abi::ingress::{
+use crate::host::os::unix::abi::ingress::{
     decode_unix_application_lifecycle, decode_unix_memory_pressure_level,
     decode_unix_permission_name, decode_unix_power_mode, decode_unix_thermal_state,
     unix_runtime_status,

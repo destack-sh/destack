@@ -5,10 +5,9 @@ use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::HostEvent;
 use crate::host::core::error::{missing_host_queue, missing_host_queue_registration};
 use crate::host::core::queue::HostQueue;
-use crate::host::core::{HostSessionHandle, Platform};
+use crate::host::{HostEvent, HostSessionHandle, Platform};
 
 /// Shared allocator for process-global host session routing ids.
 static HOST_SESSION_ID_NEXT: AtomicU64 = AtomicU64::new(1);
@@ -26,7 +25,7 @@ static HOST_SESSION_REGISTRY: OnceLock<RwLock<HostSessionRegistry>> = OnceLock::
 /// Handler that services one runtime-owned ingress lane.
 pub(crate) trait RuntimeIngressHandler: std::fmt::Debug + Send + Sync {
     /// Service runtime-owned ingress.
-    fn service_session_ingress(&self) -> RuntimeResult<()>;
+    fn advance_session_ingress(&self) -> RuntimeResult<()>;
 }
 
 /// Observer notified when one host semantic event is enqueued for one runtime.
@@ -168,19 +167,18 @@ impl HostSessionRegistry {
     }
 
     /// Service ingress for one host session id.
-    pub(crate) fn service_session_ingress(host_session_id: HostSessionId) -> RuntimeResult<()> {
+    pub(crate) fn advance_session_ingress(host_session_id: HostSessionId) -> RuntimeResult<()> {
         let queue = {
             let mut registry = Self::shared().write();
             registry.queue_for_session_id_inner(host_session_id)?
         };
 
-        queue.service_session_ingress()?;
+        queue.advance_session_ingress()?;
 
         Ok(())
     }
 
     /// Service ingress for every registered runtime.
-    #[cfg(feature = "execution")]
     pub(crate) fn service_all_session_ingress() -> RuntimeResult<()> {
         let queues = {
             let mut registry = Self::shared().write();
@@ -188,7 +186,7 @@ impl HostSessionRegistry {
         };
 
         for queue in queues {
-            queue.service_session_ingress()?;
+            queue.advance_session_ingress()?;
         }
 
         Ok(())
@@ -239,7 +237,6 @@ impl HostSessionRegistry {
     }
 
     /// Collect registered ingress queues for every host session id.
-    #[cfg(feature = "execution")]
     fn collect_all_session_queues(&mut self) -> Vec<Arc<HostQueue>> {
         self.runtime_queues
             .values()
@@ -254,13 +251,13 @@ mod tests {
     use std::sync::{Arc, Mutex, OnceLock};
 
     use crate::diagnostic::RuntimeResult;
-    use crate::host::core::HostSessionId;
     use crate::host::core::queue::HostQueue;
     use crate::host::core::registry::{
         HostEventObserver, HostSessionRegistry, RuntimeIngressHandler,
     };
     use crate::host::{
-        HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState, Platform,
+        HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState, HostSessionId,
+        Platform,
     };
     /// Shared mutex that serializes registry tests.
     static TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
@@ -296,7 +293,7 @@ mod tests {
 
     impl RuntimeIngressHandler for TestIngressHandler {
         /// Count one ingress service call.
-        fn service_session_ingress(&self) -> RuntimeResult<()> {
+        fn advance_session_ingress(&self) -> RuntimeResult<()> {
             self.service_count.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
@@ -417,7 +414,7 @@ mod tests {
     }
 
     #[test]
-    fn test_service_runtime_ingress_notifies_registered_runtime() {
+    fn test_advance_session_ingress_notifies_registered_runtime() {
         let _guard = test_lock();
         let runtime_id = HostSessionRegistry::allocate_session_id();
         let service_count = Arc::new(AtomicU64::new(0));
@@ -434,7 +431,7 @@ mod tests {
         );
 
         HostSessionRegistry::register_session_ingress_handler(runtime_id, &handler).unwrap();
-        HostSessionRegistry::service_session_ingress(runtime_id).unwrap();
+        HostSessionRegistry::advance_session_ingress(runtime_id).unwrap();
 
         let service_count = service_count.load(Ordering::Relaxed);
         assert_eq!(service_count, 1);
@@ -475,7 +472,6 @@ mod tests {
         drop(registration);
     }
 
-    #[cfg(feature = "execution")]
     #[test]
     fn test_service_all_runtime_ingress_notifies_all_registered_runtimes() {
         let _guard = test_lock();

@@ -10,9 +10,9 @@ use objc2_core_location::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::HostSessionId;
-use crate::host::macos::ingress::notify::macos_notify_location_sample;
+use crate::host::HostSessionId;
+use crate::host::os::apple::call::with_process_main_context_marker_if_needed;
+use crate::host::os::macos::ingress::notify::macos_notify_location_sample;
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::LocationAccuracy;

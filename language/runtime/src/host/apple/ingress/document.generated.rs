@@ -2,9 +2,10 @@
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::abi::document::HostDocumentResult;
-use crate::host::apple::ingress::core::ios_host_queue;
-use crate::host::core::{HostRequestId, HostSessionHandle};
-use crate::host::{HostDocumentEvent, HostEvent};
+use crate::host::os::apple::ingress::core::ios_host_queue;
+use crate::host::{
+    HostEvent, HostRequestCompletionEvent, HostRequestId, HostRequestResult, HostSessionHandle,
+};
 use crate::platform::NativeAbiCodec;
 
 /// The runtime function that receives one document result.
@@ -18,11 +19,10 @@ pub(crate) fn ios_notify_document_result(
 
     let documents = unsafe { result.documents.into_value()? };
 
-    queue.enqueue(HostEvent::Document(Box::new(HostDocumentEvent {
+    queue.enqueue(HostEvent::RequestCompletion(HostRequestCompletionEvent {
         request_id: HostRequestId(request_id),
-
-        documents,
-    })));
+        result: HostRequestResult::DocumentDescriptors(documents),
+    }));
 
     Ok(())
 }

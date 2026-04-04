@@ -4,8 +4,8 @@ use crate::diagnostic::RuntimeStatus;
 use crate::host::core::error::invalid_argument_value;
 use crate::platform::abi::{NativeStringRef};
 use crate::host::abi::location::{LocationSample};
-use crate::host::android::abi::ingress::core::{decode_string, runtime_status};
-use crate::host::android::ingress::android_notify_location_sample;
+use crate::host::os::android::abi::ingress::core::{decode_string, runtime_status};
+use crate::host::os::android::ingress::android_notify_location_sample;
 
 #[unsafe(no_mangle)]
 pub(crate) unsafe extern "C" fn destack_host_android_notify_location_sample(

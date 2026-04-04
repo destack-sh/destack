@@ -1,14 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-use super::request::HostRequestId;
+use super::request::{HostRequestId, HostRequestResult};
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::platform::PlatformError;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::platform::fs::abi_generated::OsPathValue;
 use crate::platform::input::InputTextSessionStateValue;
 use crate::platform::os::Permission;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+use crate::platform::os::abi_generated::IntentEventValue;
 use crate::platform::os::abi_generated::{
-    BackgroundEventValue, DocumentDescriptorValue, IntentEventValue, LocationSampleValue,
-    NotificationEventValue,
+    BackgroundEventValue, LocationSampleValue, NotificationEventValue,
 };
 
 /// Host lifecycle state.
@@ -84,14 +88,14 @@ pub enum HostEventKind {
     Intent,
     /// Background task readiness or expiration events.
     Background,
-    /// Document picker completion events.
-    Document,
     /// Notification delivery or interaction events.
     Notification,
     /// Location watch sample events.
     Location,
     /// Permission result events.
     Permission,
+    /// Deferred request completion events.
+    RequestCompletion,
     /// Text session state events.
     Text,
     /// Interruption events.
@@ -107,7 +111,7 @@ pub enum HostEventKind {
 }
 
 /// Runtime-visible host ingress payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HostEvent {
     /// Host lifecycle transition event.
     Lifecycle(HostLifecycleEvent),
@@ -115,14 +119,14 @@ pub enum HostEvent {
     Intent(HostIntentEvent),
     /// Host background task readiness or expiration event.
     Background(Box<HostBackgroundEvent>),
-    /// Host document picker completion event.
-    Document(Box<HostDocumentEvent>),
     /// Host notification delivery or interaction event.
     Notification(Box<HostNotificationEvent>),
     /// Host location watch sample event.
     Location(Box<HostLocationEvent>),
     /// Host permission flow result event.
     Permission(HostPermissionEvent),
+    /// Host deferred request completion event.
+    RequestCompletion(HostRequestCompletionEvent),
     /// Host text session state event.
     Text(Box<HostTextEvent>),
     /// Host interruption event.
@@ -144,10 +148,10 @@ impl HostEvent {
             HostEvent::Lifecycle(_) => HostEventKind::Lifecycle,
             HostEvent::Intent(_) => HostEventKind::Intent,
             HostEvent::Background(_) => HostEventKind::Background,
-            HostEvent::Document(_) => HostEventKind::Document,
             HostEvent::Notification(_) => HostEventKind::Notification,
             HostEvent::Location(_) => HostEventKind::Location,
             HostEvent::Permission(_) => HostEventKind::Permission,
+            HostEvent::RequestCompletion(_) => HostEventKind::RequestCompletion,
             HostEvent::Text(_) => HostEventKind::Text,
             HostEvent::Interruption(_) => HostEventKind::Interruption,
             HostEvent::MemoryPressure(_) => HostEventKind::MemoryPressure,
@@ -194,17 +198,6 @@ pub struct HostBackgroundEvent {
 
 impl Eq for HostBackgroundEvent {}
 
-/// Host document picker completion payload.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct HostDocumentEvent {
-    /// Stable request identifier for the interactive document flow.
-    pub request_id: HostRequestId,
-    /// Selected document descriptors returned by the host.
-    pub documents: Vec<DocumentDescriptorValue>,
-}
-
-impl Eq for HostDocumentEvent {}
-
 /// Host location watch sample payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HostLocationEvent {
@@ -226,6 +219,15 @@ pub struct HostTextEvent {
 }
 
 impl Eq for HostTextEvent {}
+
+/// Host deferred request completion payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HostRequestCompletionEvent {
+    /// Stable request identifier for the completed host request.
+    pub request_id: HostRequestId,
+    /// Request result payload returned by the host.
+    pub result: HostRequestResult,
+}
 
 /// Host intent ingress variants.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -272,6 +274,7 @@ pub enum HostIntentPayload {
 }
 
 /// Decode one semantic path value into one queue-owned utf8 path string.
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 fn utf8_path_from_value(value: OsPathValue, label: &'static str) -> RuntimeResult<String> {
     #[cfg(unix)]
     {
@@ -309,6 +312,7 @@ fn utf8_path_from_value(value: OsPathValue, label: &'static str) -> RuntimeResul
 }
 
 /// Build one core host intent event from one semantic intent value payload.
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 pub(crate) fn host_intent_event_from_value(
     event: IntentEventValue,
 ) -> RuntimeResult<HostIntentEvent> {

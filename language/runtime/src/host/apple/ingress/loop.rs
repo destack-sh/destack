@@ -1,7 +1,5 @@
-#[cfg(feature = "execution")]
 use crate::diagnostic::RuntimeResult;
-#[cfg(feature = "execution")]
-use crate::host::core::HostSessionRegistry;
+use crate::host::HostSessionRegistry;
 
 /// CoreFoundation string reference type.
 type CFStringRef = *const libc::c_void;
@@ -15,11 +13,10 @@ const KCF_RUN_LOOP_RUN_FINISHED: i32 = 1;
 /// CoreFoundation run-loop stopped status code.
 const KCF_RUN_LOOP_RUN_STOPPED: i32 = 2;
 /// Slice duration for bounded Apple run-loop servicing.
-#[cfg(feature = "execution")]
-#[cfg_attr(feature = "execution", allow(dead_code))]
+#[allow(dead_code)]
 const APPLE_THREAD_MESSAGE_WAIT_SLICE_SECONDS: f64 = 0.001;
 
-// link corefoundation run-loop symbols used by host adapter message pumping
+// link corefoundation run-loop symbols used by host message pumping
 #[link(name = "CoreFoundation", kind = "framework")]
 unsafe extern "C" {
     /// Run one CoreFoundation run-loop mode for one bounded interval.
@@ -37,9 +34,8 @@ pub(crate) fn is_process_main_context() -> bool {
     unsafe { libc::pthread_main_np() == 1 }
 }
 
-/// Service immediately ready platform ingress without blocking.
-pub(crate) fn process_ingress_ready(_ignore_quit_message: bool) -> bool {
-    // ignore quit-message policy on run-loop platforms with no quit packets
+/// Drain immediately ready run-loop ingress without blocking.
+pub(crate) fn drain_ready_ingress() -> bool {
     let mut dispatched_any = false;
 
     loop {
@@ -64,13 +60,9 @@ pub(crate) fn process_ingress_ready(_ignore_quit_message: bool) -> bool {
     dispatched_any
 }
 
-/// Service Apple thread messages until one caller-provided stop condition becomes true.
-#[cfg(feature = "execution")]
-#[cfg_attr(feature = "execution", allow(dead_code))]
-pub(crate) fn service_registered_runtimes_until(
-    _ignore_quit_message: bool,
-    mut should_stop: impl FnMut() -> bool,
-) -> RuntimeResult<()> {
+/// Run Apple ingress until one caller-provided stop condition becomes true.
+#[allow(dead_code)]
+pub(crate) fn run_ingress_until(mut should_stop: impl FnMut() -> bool) -> RuntimeResult<()> {
     // keep the current run loop alive until the stop condition is satisfied
     while !should_stop() {
         let status = unsafe {

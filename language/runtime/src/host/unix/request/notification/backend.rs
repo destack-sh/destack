@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
+use crate::host::{HostSessionId, RequestContext, SessionContext};
 use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{NotificationCategoryValue, NotificationRequestValue};
 
@@ -10,14 +10,14 @@ use super::linux as notification_backend;
 
 /// Request one notification permission state through the active Unix backend.
 pub(crate) fn request_permission(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<NotificationPermissionState> {
     notification_backend::request_permission(context)
 }
 
 /// Deliver one notification through the active Unix backend.
 pub(crate) fn deliver_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -25,13 +25,13 @@ pub(crate) fn deliver_notification(
 }
 
 /// Cancel one delivered notification through the active Unix backend.
-pub(crate) fn cancel_notification(context: &HostRequestContext, id: &str) -> RuntimeResult<()> {
+pub(crate) fn cancel_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     notification_backend::cancel_notification(context, id)
 }
 
 /// Schedule one notification through the active Unix backend.
 pub(crate) fn schedule_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -39,10 +39,7 @@ pub(crate) fn schedule_notification(
 }
 
 /// Cancel one pending notification through the active Unix backend.
-pub(crate) fn cancel_pending_notification(
-    context: &HostRequestContext,
-    id: &str,
-) -> RuntimeResult<()> {
+pub(crate) fn cancel_pending_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     notification_backend::cancel_pending_notification(context, id)
 }
 
@@ -57,6 +54,6 @@ pub(crate) fn unregister_runtime(host_session_id: HostSessionId) {
 }
 
 /// Service notification ingress through the active Unix backend.
-pub(crate) fn service_notification_ingress(context: &HostSessionContext) -> RuntimeResult<()> {
+pub(crate) fn service_notification_ingress(context: &SessionContext) -> RuntimeResult<()> {
     notification_backend::service_notification_ingress(context)
 }

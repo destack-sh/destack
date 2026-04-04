@@ -1,5 +1,5 @@
 use crate::host::HostAdapter;
-use crate::host::android::AndroidHost;
+use crate::host::os::android::AndroidHost;
 use crate::runtime::capability::PlatformCapability;
 
 /// Report the static Android host capabilities.

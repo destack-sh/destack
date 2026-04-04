@@ -1,6 +1,6 @@
 use super::{HostOperation, decode};
 
-use crate::host::core::HostRequest;
+use crate::host::HostRequest;
 
 /// Build one open-settings operation.
 pub(crate) fn open_settings() -> HostOperation<()> {

@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
-use crate::host::windows::request::location::service::windows_location_service;
+use crate::host::os::windows::request::location::service::windows_location_service;
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::os::{Permission, PermissionState};
 
 /// Submit one Windows location request through the shared WinRT service.
 pub(crate) fn submit_location_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     let service = windows_location_service(request.operation_name())?;
@@ -58,7 +58,7 @@ pub(crate) fn submit_location_request(
 
 /// Request one supported Windows location permission selector.
 pub(crate) fn request_location_permission(
-    context: &HostRequestContext,
+    context: &RequestContext,
     permission: Permission,
 ) -> RuntimeResult<Option<PermissionState>> {
     if !matches!(permission, Permission::Location) {

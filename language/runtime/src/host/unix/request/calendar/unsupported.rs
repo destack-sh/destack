@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
 use crate::runtime::capability::PlatformCapabilitySet;
 
 /// Return no Unix calendar capabilities on unsupported hosts.
@@ -9,7 +9,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Reject Unix calendar requests on unsupported hosts.
 pub(crate) fn submit_calendar_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     Ok(None)

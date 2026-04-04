@@ -1,4 +1,4 @@
-use crate::host::windows::abi::ingress::{
+use crate::host::os::windows::abi::ingress::{
     WINDOWS_LIFECYCLE_ACTIVATED, WINDOWS_LIFECYCLE_CREATED, WINDOWS_LIFECYCLE_DESTROYED,
     WINDOWS_LIFECYCLE_RESUMED, WINDOWS_LIFECYCLE_STOPPING, WINDOWS_LIFECYCLE_SUSPENDED,
     WINDOWS_MEMORY_PRESSURE_CRITICAL, WINDOWS_MEMORY_PRESSURE_NORMAL,
@@ -7,7 +7,7 @@ use crate::host::windows::abi::ingress::{
     WINDOWS_THERMAL_SERIOUS, decode_windows_application_lifecycle,
     decode_windows_memory_pressure_level, decode_windows_power_mode, decode_windows_thermal_state,
 };
-use crate::host::windows::ingress::notify::WindowsApplicationLifecycle;
+use crate::host::os::windows::ingress::notify::WindowsApplicationLifecycle;
 use crate::host::{HostMemoryPressureLevel, HostPowerMode, HostThermalState};
 
 #[test]

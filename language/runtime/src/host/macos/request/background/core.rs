@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -37,7 +37,7 @@ pub(crate) fn background_status() -> RuntimeResult<BackgroundStatusValue> {
 
 /// Register one launchd-backed desktop background task.
 pub(crate) fn register_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     options: &BackgroundTaskOptionsValue,
 ) -> RuntimeResult<()> {
     let wrapper_path =
@@ -133,7 +133,7 @@ pub(crate) fn register_background_task(
 
 /// Remove one launchd-backed desktop background task.
 pub(crate) fn unregister_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<()> {
     let plist_path = background_launchd_plist_path(context, identifier)?;
@@ -162,7 +162,7 @@ pub(crate) fn unregister_background_task(
 
 /// Trigger one launchd-backed background task immediately.
 pub(crate) fn trigger_background_task(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<bool> {
     if desktop_background_test_mode_enabled() {

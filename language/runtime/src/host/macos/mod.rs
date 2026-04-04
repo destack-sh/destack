@@ -3,6 +3,8 @@ pub(crate) mod abi;
 #[cfg(target_os = "macos")]
 mod adapter;
 #[cfg(any(test, target_os = "macos"))]
+mod capability;
+#[cfg(any(test, target_os = "macos"))]
 pub(crate) mod identity;
 #[cfg(any(test, target_os = "macos"))]
 pub(crate) mod ingress;

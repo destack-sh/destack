@@ -8,7 +8,7 @@ use super::core::{
 use super::draft::apply_contact_draft;
 use super::query::resolve_contact;
 use crate::diagnostic::RuntimeResult;
-use crate::host::apple::core::execution::call_process_main_context_if_needed;
+use crate::host::os::apple::call::call_process_main_context_if_needed;
 use crate::platform::os::abi_generated::{ContactDraftValue, ContactQueryValue};
 
 /// Create one contact in the default native container.

@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
 use crate::platform::core::not_supported;
 use crate::runtime::capability::PlatformCapabilitySet;
 
@@ -10,7 +10,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Reject Unix location requests on hosts without a concrete provider.
 pub(crate) fn submit_location_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

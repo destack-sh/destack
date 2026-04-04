@@ -5,8 +5,8 @@ use jiff::tz::TimeZone;
 use tracing::warn;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
-use crate::host::unix::request::background::systemd::SystemdManager;
+use crate::host::RequestContext;
+use crate::host::os::unix::request::background::systemd::SystemdManager;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::NotificationPriority;
@@ -30,7 +30,7 @@ use crate::platform::os::notification::wrapper::{
 
 /// Schedule one notification through one Linux systemd user timer.
 pub(crate) fn schedule_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -119,7 +119,7 @@ pub(crate) fn schedule_notification(
 
 /// Return pending Linux scheduled notifications from persisted scheduler state.
 pub(crate) fn list_pending_notifications(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
     let records = read_notification_records(context)?;
     let descriptors = records
@@ -131,10 +131,7 @@ pub(crate) fn list_pending_notifications(
 }
 
 /// Cancel one pending Linux scheduled notification.
-pub(crate) fn cancel_pending_notification(
-    context: &HostRequestContext,
-    id: &str,
-) -> RuntimeResult<()> {
+pub(crate) fn cancel_pending_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     cancel_scheduled_notification(context, id, true, "destack.os.notification.pendingCancel")
 }
 
@@ -145,7 +142,7 @@ pub(super) fn cancel_all_pending_notifications() -> RuntimeResult<()> {
 
 /// Remove one scheduled Linux notification from systemd and persisted state.
 pub(super) fn cancel_scheduled_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     stop_loaded_service: bool,
     operation: &'static str,

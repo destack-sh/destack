@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use crate::host::core::{HostQueue, HostSessionRegistry};
-use crate::host::macos::ingress::notify::{
+use crate::host::os::macos::ingress::notify::{
     MacosApplicationLifecycle, host_lifecycle_state_for_application_lifecycle,
     macos_notify_intent_open_url, macos_notify_location_sample, macos_notify_permission_result,
 };
 use crate::host::{
     HostEvent, HostIntentEvent, HostIntentPayload, HostLifecycleState, HostLocationEvent,
-    HostPermissionEvent, Platform,
+    HostPermissionEvent, HostQueue, HostSessionRegistry, Platform,
 };
 use crate::platform::os::Permission;
 use crate::platform::os::abi_generated::LocationSampleValue;

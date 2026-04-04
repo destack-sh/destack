@@ -7,7 +7,7 @@ use super::types::{
     AndroidHostBluetoothGattServiceHeader, AndroidHostBluetoothScanEventHeader,
     AndroidHostBluetoothScanFilterHeader, AndroidHostBluetoothSessionEventHeader,
 };
-use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;
+use crate::host::HOST_STATUS_INVALID_ARGUMENT;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// Forward the `adapter_list` bluetooth request through the Android host ABI.

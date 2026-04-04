@@ -1,22 +1,22 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{NotificationCategoryValue, NotificationRequestValue};
 
-use crate::host::unix::request::notification::core as unix_notification;
+use crate::host::os::unix::request::notification::core as unix_notification;
 
 use super::schedule;
 
 /// Return the Linux desktop notification permission state.
 pub(crate) fn request_permission(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<NotificationPermissionState> {
     unix_notification::request_permission(context)
 }
 
 /// Deliver one notification through the Linux desktop host.
 pub(crate) fn deliver_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
     request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -24,7 +24,7 @@ pub(crate) fn deliver_notification(
 }
 
 /// Cancel one delivered Linux notification.
-pub(super) fn cancel_notification(context: &HostRequestContext, id: &str) -> RuntimeResult<()> {
+pub(super) fn cancel_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     unix_notification::cancel_notification(context, id)
 }
 

@@ -2,7 +2,7 @@
 
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::host::core::error::invalid_argument_value;
-use crate::host::windows::ingress::notify::{
+use crate::host::os::windows::ingress::notify::{
     WindowsApplicationLifecycle, windows_notify_application_lifecycle,
     windows_notify_intent_custom_action, windows_notify_intent_open_file,
     windows_notify_intent_open_url, windows_notify_intent_share_files,

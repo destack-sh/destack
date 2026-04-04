@@ -4,11 +4,11 @@ use super::address_book::{
 use super::page::{compare_contacts, paginate_contacts};
 use super::vcard::{contact_value_from_vcard, search_contacts_query, vcard_text_from_draft};
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostRequestResult};
-use crate::host::unix::request::linux::eds::{
+use crate::host::os::unix::request::linux::eds::{
     EdsSourceDescriptor, EdsSourceKind, composite_eds_identifier, list_eds_sources,
     parse_composite_eds_identifier,
 };
+use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
@@ -54,7 +54,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Submit one Linux contact request through EDS.
 pub(crate) fn submit_contact_request(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     request: &HostRequest,
 ) -> RuntimeResult<Option<HostRequestOutcome>> {
     match request {

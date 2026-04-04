@@ -1,9 +1,9 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 #[cfg(windows)]
-use crate::host::windows::tests::pick_documents as pick_documents_from_tests;
+use crate::host::os::windows::tests::pick_documents as pick_documents_from_tests;
 #[cfg(windows)]
-pub(crate) use crate::host::windows::tests::set_windows_document_test_pick_hook;
+pub(crate) use crate::host::os::windows::tests::set_windows_document_test_pick_hook;
 #[cfg(not(windows))]
 use crate::platform::core::not_supported;
 use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOptionsValue};
@@ -11,7 +11,7 @@ use crate::platform::os::abi_generated::{DocumentDescriptorValue, DocumentPickOp
 /// Pick documents through the active Windows request lane in tests.
 #[cfg(windows)]
 pub(crate) fn pick_documents(
-    context: &HostRequestContext,
+    context: &RequestContext,
     options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     pick_documents_from_tests(context, options)
@@ -20,7 +20,7 @@ pub(crate) fn pick_documents(
 /// Fail closed for non-Windows test builds that compile the Windows host tree.
 #[cfg(not(windows))]
 pub(crate) fn pick_documents(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _options: &DocumentPickOptionsValue,
 ) -> RuntimeResult<Vec<DocumentDescriptorValue>> {
     Err(not_supported("destack.os.document.pick"))

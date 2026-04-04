@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
-use crate::host::core::HostSessionId;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome};
+use crate::host::HostSessionId;
+use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
 use crate::runtime::capability::PlatformCapabilitySet;
 
 /// Return dynamic Unix desktop request capabilities.
@@ -46,7 +46,7 @@ pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
 
 /// Submit one normalized Unix desktop host request.
 pub(crate) fn submit_request(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: HostRequest,
 ) -> RuntimeResult<HostRequestOutcome> {
     #[cfg(target_os = "linux")]

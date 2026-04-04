@@ -6,8 +6,7 @@ use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
 use super::bindings::IosHostBindings;
-use crate::host::Platform;
-use crate::host::core::{HostSessionHandle, HostSessionId, HostSessionRegistry, HostStatus};
+use crate::host::{HostSessionHandle, HostSessionId, HostSessionRegistry, HostStatus, Platform};
 
 /// Shared iOS bindings registry state.
 #[derive(Debug, Default)]

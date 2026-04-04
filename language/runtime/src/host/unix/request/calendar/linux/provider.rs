@@ -2,7 +2,7 @@ use vobject::Component;
 use zbus::blocking::Proxy;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::unix::request::linux::eds::open_calendar_backend;
+use crate::host::os::unix::request::linux::eds::open_calendar_backend;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;
 

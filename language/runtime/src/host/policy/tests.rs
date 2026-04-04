@@ -1,5 +1,5 @@
 use super::{HostRequestRequirement, request_requirements};
-use crate::host::core::HostRequest;
+use crate::host::HostRequest;
 use crate::platform::os::abi_generated::{
     BackgroundConflictPolicyValue, BackgroundNetworkRequirementValue, BackgroundTaskOptionsValue,
     BackgroundTaskScheduleKindValue, BackgroundTaskScheduleValue, BackgroundTriggerKindValue,

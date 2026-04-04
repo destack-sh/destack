@@ -5,9 +5,9 @@ use objc2_core_location::{CLAuthorizationStatus, CLLocationManager};
 use objc2_foundation::{NSDate, NSDefaultRunLoopMode, NSRunLoop};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::apple::core::execution::with_process_main_context_marker_if_needed;
-use crate::host::core::HostSessionId;
-use crate::host::macos::ingress::notify::macos_notify_permission_result;
+use crate::host::HostSessionId;
+use crate::host::os::apple::call::with_process_main_context_marker_if_needed;
+use crate::host::os::macos::ingress::notify::macos_notify_permission_result;
 use crate::platform::PlatformError;
 use crate::platform::core::io_operation_error;
 use crate::platform::diagnostic::PlatformErrorCode;

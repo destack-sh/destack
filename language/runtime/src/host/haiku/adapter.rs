@@ -1,7 +1,8 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostRequest, HostRequestContext, HostRequestOutcome, HostSessionId};
-use crate::host::unix::request;
-use crate::host::{HostAdapter, Platform};
+use crate::host::os::unix::request;
+use crate::host::{
+    HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
+};
 use crate::runtime::capability::PlatformCapabilitySet;
 
 /// Haiku host implementation.
@@ -30,7 +31,7 @@ impl HostAdapter for HaikuHost {
 
     fn submit_request(
         &self,
-        context: &HostRequestContext,
+        context: &RequestContext,
         request: HostRequest,
     ) -> RuntimeResult<HostRequestOutcome> {
         request::submit_request(context, request)
