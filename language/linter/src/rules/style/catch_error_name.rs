@@ -308,6 +308,7 @@ fn first_callback_parameter_in_declaration(
             signature,
             scope: _,
             body: _,
+            ..
         } = declaration
         else {
             return None;

@@ -49,6 +49,7 @@ impl LintRule for PreferStruct {
                 heritage: _,
                 scope: _,
                 members: _,
+                ..
             } = declaration
             else {
                 continue;
@@ -101,6 +102,7 @@ fn class_is_struct_candidate(
         generics: _,
         heritage: _,
         scope: _,
+        ..
     } = declaration
     else {
         return false;

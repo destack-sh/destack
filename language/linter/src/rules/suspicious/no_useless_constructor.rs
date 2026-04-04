@@ -152,6 +152,7 @@ fn member_parent_class_has_super_class(
         heritage: _,
         scope: _,
         members: _,
+        ..
     } = declaration
     else {
         return false;
