@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "execution", allow(dead_code))]
+#![allow(dead_code)]
 
 use std::sync::{Mutex, OnceLock};
 

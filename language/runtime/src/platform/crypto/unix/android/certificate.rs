@@ -1,11 +1,11 @@
 use openssl::x509::X509;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::android::abi::crypto::ffi::{
+use crate::host::HostStatus;
+use crate::host::os::android::abi::crypto::ffi::{
     destack_host_android_crypto_delete_certificate, destack_host_android_crypto_import_certificate,
     destack_host_android_crypto_supports_certificate_write,
 };
-use crate::host::core::HostStatus;
 use crate::platform::abi::NativeSlice;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;

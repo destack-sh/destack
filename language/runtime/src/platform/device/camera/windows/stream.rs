@@ -2,9 +2,6 @@ use super::core::*;
 use super::metadata::*;
 use windows_future::{AsyncActionCompletedHandler, AsyncOperationCompletedHandler, AsyncStatus};
 
-/// One maximum wait slice for one Windows async camera operation.
-const WINDOWS_CAMERA_ASYNC_WAIT_SLICE_NS: u64 = 5_000_000;
-
 /// Return the supported Windows recording capability descriptor.
 fn windows_recording_capabilities_value() -> CameraRecordingCapabilitiesValue {
     CameraRecordingCapabilitiesValue {
@@ -284,7 +281,6 @@ where
         operation,
         timeout_message,
         deadline_ns,
-        WINDOWS_CAMERA_ASYNC_WAIT_SLICE_NS,
         || {
             let status = async_operation
                 .Status()
@@ -347,7 +343,6 @@ fn complete_async_action(
         operation,
         timeout_message,
         deadline_ns,
-        WINDOWS_CAMERA_ASYNC_WAIT_SLICE_NS,
         || {
             let status = async_action
                 .Status()

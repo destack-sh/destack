@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostStatus;
+use crate::host::HostStatus;
 use crate::platform::PlatformError;
 use crate::runtime::BindingCallContext;
 

@@ -22,7 +22,8 @@ use crate::platform::device::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::executor::periodic::periodic_service_executor;
+use crate::runtime::process::Service;
+use crate::runtime::process::service::executor::periodic::open_periodic_task;
 
 use super::core::{
     SnapshotKey, WindowsMidiEventDeliveryKind, WindowsMidiEventSession, WindowsMidiTopologyState,
@@ -30,7 +31,8 @@ use super::core::{
 };
 use super::resource::event_resource;
 use super::service::{
-    WindowsMidiNativeEventRegistry, register_native_event_session, unregister_native_event_session,
+    WindowsMidiNativeEventRegistry, WindowsMidiService, register_native_event_session,
+    unregister_native_event_session,
 };
 
 /// Build one current snapshot for one event subscription.
@@ -114,39 +116,46 @@ fn queue_backend_disconnected_event(
 
 /// Register one synthetic poll delivery for one Windows MIDI event subscription.
 fn register_poll_event_session(
-    topology: &Arc<Mutex<WindowsMidiTopologyState>>,
+    service: &Arc<WindowsMidiService>,
     session: &Arc<Mutex<WindowsMidiEventSession>>,
     poll_interval: Duration,
 ) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
-    let executor = periodic_service_executor()?;
-    let topology = topology.clone();
+    let topology = service.topology.clone();
     let session = Arc::downgrade(session);
     let is_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let failure_state = is_failed.clone();
 
-    let task = executor.register(poll_interval, move || {
-        if failure_state.load(std::sync::atomic::Ordering::Acquire) {
-            return Ok(());
-        }
+    let task = open_periodic_task(
+        "destack-midi-windows-midi-event",
+        WindowsMidiService::POLICY,
+        poll_interval,
+        move || {
+            if failure_state.load(std::sync::atomic::Ordering::Acquire) {
+                return Ok(());
+            }
 
-        let Some(session) = Weak::upgrade(&session) else {
-            return Ok(());
-        };
+            let Some(session) = Weak::upgrade(&session) else {
+                return Ok(());
+            };
 
-        let refresh_result = {
-            let mut session = session.lock();
-            refresh_poll_event_subscription(&topology, &mut session)
-        };
+            let refresh_result = {
+                let mut session = session.lock();
+                refresh_poll_event_subscription(&topology, &mut session)
+            };
 
-        if refresh_result.is_err() {
-            let mut session = session.lock();
-            let _ =
-                queue_backend_disconnected_event(&mut session, MidiEventSource::SyntheticPoll, 0);
-            failure_state.store(true, std::sync::atomic::Ordering::Release);
-        }
+            if refresh_result.is_err() {
+                let mut session = session.lock();
+                let _ = queue_backend_disconnected_event(
+                    &mut session,
+                    MidiEventSource::SyntheticPoll,
+                    0,
+                );
+                failure_state.store(true, std::sync::atomic::Ordering::Release);
+            }
 
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
 
     Ok(Arc::new(task))
 }
@@ -251,7 +260,7 @@ pub(crate) fn midi_event_open(
         session.lock().delivery_kind = delivery_kind;
     } else {
         let poll_interval = session.lock().poll_interval;
-        let poll_task = register_poll_event_session(&service.topology, &session, poll_interval)?;
+        let poll_task = register_poll_event_session(&service, &session, poll_interval)?;
         session.lock().poll_task = Some(poll_task);
     }
 

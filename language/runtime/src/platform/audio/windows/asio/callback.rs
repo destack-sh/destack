@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, Weak};
 use super::core::AsioStreamRuntime;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 // NOTE #Architecture: ASIO callback entry points do not carry user-data context, so callback
 // routing cannot recover a per-agent runtime-state handle, this service remains process-global
@@ -22,7 +22,7 @@ impl AsioCallbackService {
     }
 }
 
-impl GlobalService for AsioCallbackService {
+impl Service for AsioCallbackService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

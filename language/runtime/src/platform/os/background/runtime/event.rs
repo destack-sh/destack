@@ -1,6 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Platform;
-use crate::host::core::{HostBackgroundEvent, HostEvent, HostSessionId, HostSessionRegistry};
+use crate::host::{HostBackgroundEvent, HostEvent, HostSessionId, HostSessionRegistry, Platform};
 use crate::platform::PlatformError;
 use crate::platform::core::{monotonic_now_ns, not_supported};
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -106,7 +105,7 @@ pub(crate) fn publish_background_event(
 
 #[cfg(test)]
 mod tests {
-    use crate::host::core::HostSessionId;
+    use crate::host::HostSessionId;
     use crate::platform::diagnostic::PlatformErrorCode;
     use crate::tests::platform::assert_runtime_error_code;
 

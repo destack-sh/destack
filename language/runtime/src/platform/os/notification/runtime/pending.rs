@@ -8,7 +8,7 @@ use super::state::{
 #[cfg(test)]
 use super::state::{desktop_notification_test_mode_enabled, wall_clock_now_ns};
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::core::io_not_found;
 use crate::platform::os::abi_generated::{
     NotificationRequestValue, NotificationScheduledDescriptorValue,
@@ -23,7 +23,7 @@ use crate::platform::os::notification::time::calendar_date_trigger_unix_ns;
 
 /// Return pending scheduled notifications for one runtime.
 pub(crate) fn list_pending_notifications(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
     #[cfg(test)]
     if desktop_notification_test_mode_enabled() {
@@ -43,10 +43,7 @@ pub(crate) fn list_pending_notifications(
 }
 
 /// Cancel one pending scheduled notification for this runtime.
-pub(crate) fn cancel_pending_notification(
-    context: &HostRequestContext,
-    id: &str,
-) -> RuntimeResult<()> {
+pub(crate) fn cancel_pending_notification(context: &RequestContext, id: &str) -> RuntimeResult<()> {
     #[cfg(test)]
     if desktop_notification_test_mode_enabled() {
         let service = notification_runtime_service();
@@ -75,7 +72,7 @@ pub(crate) fn cancel_pending_notification(
 }
 
 /// Cancel every pending scheduled notification for this runtime.
-pub(crate) fn cancel_all_pending_notifications(context: &HostRequestContext) -> RuntimeResult<()> {
+pub(crate) fn cancel_all_pending_notifications(context: &RequestContext) -> RuntimeResult<()> {
     #[cfg(test)]
     if desktop_notification_test_mode_enabled() {
         let service = notification_runtime_service();
@@ -107,7 +104,7 @@ pub(crate) fn cancel_all_pending_notifications(context: &HostRequestContext) -> 
 
 /// Schedule one notification for later delivery.
 pub(crate) fn schedule_notification(
-    context: &HostRequestContext,
+    context: &RequestContext,
     request: NotificationRequestValue,
 ) -> RuntimeResult<String> {
     #[cfg(test)]

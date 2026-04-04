@@ -1,6 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostNotificationEvent, HostSessionId, HostSessionRegistry};
-use crate::host::{HostEvent, Platform};
+use crate::host::{HostEvent, HostNotificationEvent, HostSessionId, HostSessionRegistry, Platform};
 use crate::platform::core::monotonic_now_ns;
 use crate::platform::os::abi_generated::{
     NotificationDeliveredEventValue, NotificationEventMetadataValue, NotificationEventValue,

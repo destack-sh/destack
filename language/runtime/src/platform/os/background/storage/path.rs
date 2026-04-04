@@ -4,10 +4,9 @@ use std::path::PathBuf;
 use destack_core::fnv1a_64;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Platform;
-use crate::host::core::HostRequestContext;
 #[cfg(target_os = "macos")]
-use crate::host::macos::identity::resolved_application_identifier;
+use crate::host::os::macos::identity::resolved_application_identifier;
+use crate::host::{Platform, RequestContext};
 use crate::platform::PlatformError;
 use crate::platform::core::not_supported;
 use crate::platform::diagnostic::PlatformErrorCode;
@@ -18,9 +17,7 @@ use super::core::DESKTOP_BACKGROUND_SCHEDULER_PREFIX;
 pub(crate) const DESKTOP_BACKGROUND_RECORD_EXTENSION: &str = "record";
 
 /// Return the persisted scheduler artifact directory for one runtime.
-pub(crate) fn background_scheduler_directory(
-    context: &HostRequestContext,
-) -> RuntimeResult<PathBuf> {
+pub(crate) fn background_scheduler_directory(context: &RequestContext) -> RuntimeResult<PathBuf> {
     let root = background_state_directory(context)?;
 
     Ok(root.join("scheduler"))
@@ -28,7 +25,7 @@ pub(crate) fn background_scheduler_directory(
 
 /// Ensure the persisted scheduler artifact directory exists.
 pub(crate) fn ensure_background_scheduler_directory(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<PathBuf> {
     let directory = background_scheduler_directory(context)?;
 
@@ -55,7 +52,7 @@ pub(crate) fn background_scheduler_key(identifier: &str) -> String {
 
 /// Return one wrapper script path for one background task identifier.
 pub(crate) fn background_wrapper_script_path(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<PathBuf> {
     let directory = background_scheduler_directory(context)?;
@@ -72,7 +69,7 @@ pub(crate) fn background_wrapper_script_path(
 /// Return one launchd label for one background task identifier.
 #[cfg(target_os = "macos")]
 pub(crate) fn background_launchd_label(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<String> {
     let app_identifier = resolved_application_identifier(context)?;
@@ -84,7 +81,7 @@ pub(crate) fn background_launchd_label(
 /// Return the launchd plist path for one background task identifier.
 #[cfg(target_os = "macos")]
 pub(crate) fn background_launchd_plist_path(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<PathBuf> {
     let label = background_launchd_label(context, identifier)?;
@@ -117,7 +114,7 @@ pub(crate) fn background_systemd_timer_path(identifier: &str) -> RuntimeResult<P
 }
 
 /// Return the persisted background task directory for one runtime.
-pub(crate) fn background_task_directory(context: &HostRequestContext) -> RuntimeResult<PathBuf> {
+pub(crate) fn background_task_directory(context: &RequestContext) -> RuntimeResult<PathBuf> {
     let root = background_state_directory(context)?;
 
     Ok(root.join("tasks"))
@@ -125,7 +122,7 @@ pub(crate) fn background_task_directory(context: &HostRequestContext) -> Runtime
 
 /// Return the persisted record path for one background task identifier.
 pub(crate) fn background_task_record_path(
-    context: &HostRequestContext,
+    context: &RequestContext,
     identifier: &str,
 ) -> RuntimeResult<PathBuf> {
     let directory = background_task_directory(context)?;
@@ -135,7 +132,7 @@ pub(crate) fn background_task_record_path(
 }
 
 /// Return the effective state root for one runtime.
-fn background_state_directory(context: &HostRequestContext) -> RuntimeResult<PathBuf> {
+fn background_state_directory(context: &RequestContext) -> RuntimeResult<PathBuf> {
     let root = if let Some(state_directory) = &context.os_options.state_directory {
         state_directory.join("background")
     } else {

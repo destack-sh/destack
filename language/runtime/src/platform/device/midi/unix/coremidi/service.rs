@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::runtime::process::service::executor::inline::InlineExecutor;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 use super::abi::{
     MIDIClientCreateWithBlock, MIDIClientDispose, MIDIClientRef, MIDIGetNumberOfDestinations,
@@ -116,7 +116,7 @@ impl CoreMidiService {
     }
 }
 
-impl GlobalService for CoreMidiService {
+impl Service for CoreMidiService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

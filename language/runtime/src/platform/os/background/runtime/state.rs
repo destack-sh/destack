@@ -5,8 +5,8 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 
-use crate::host::core::HostSessionId;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::host::HostSessionId;
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 use super::launch::desktop_background_registry_launch_marker_state;
 
@@ -111,7 +111,7 @@ impl DesktopBackgroundRuntimeService {
     }
 }
 
-impl GlobalService for DesktopBackgroundRuntimeService {
+impl Service for DesktopBackgroundRuntimeService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

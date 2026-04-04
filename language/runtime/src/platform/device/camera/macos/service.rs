@@ -10,9 +10,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::device::CameraDeviceDescriptorValue;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, periodic_service_executor,
+    PeriodicTaskHandle, open_periodic_task,
 };
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy};
 
@@ -121,12 +121,16 @@ impl MacosCameraWatchService {
 
         // spawn one shared periodic snapshot worker
         let service = Arc::clone(self);
-        let executor = periodic_service_executor()?;
-        let next_task = executor.register(CAMERA_WATCH_POLL_INTERVAL, move || {
-            service.refresh_watches();
+        let next_task = open_periodic_task(
+            "destack-camera-macos-watch",
+            Self::POLICY,
+            CAMERA_WATCH_POLL_INTERVAL,
+            move || {
+                service.refresh_watches();
 
-            Ok(())
-        })?;
+                Ok(())
+            },
+        )?;
         *task = Some(next_task);
 
         Ok(())
@@ -165,7 +169,7 @@ impl MacosCameraWatchService {
     }
 }
 
-impl GlobalService for MacosCameraWatchService {
+impl Service for MacosCameraWatchService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
 }
 

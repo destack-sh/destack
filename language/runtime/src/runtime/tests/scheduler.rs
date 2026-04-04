@@ -6,7 +6,7 @@ use destack_heap as heap;
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode, TimeOptions};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::{HostEventKind, HostLifecycleState, HostSession};
+use crate::host::{HostEventKind, HostLifecycleState, Session};
 use crate::platform::time::TimerClock;
 use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{
@@ -1041,7 +1041,7 @@ fn test_virtual_sleep_binding_fails_loudly() {
         Box::new(TestEngine::default()),
     )
     .expect("agent should build");
-    let host = HostSession::from_runtime_options(&options, agent.runtime_id);
+    let host = Session::from_runtime_options(&options, agent.runtime_id);
     let binding = BindingCallContext::new(&agent, agent.event_loop.as_ref(), &host, &world_ref);
     let wall_before = binding.wall_nanos();
 

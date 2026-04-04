@@ -10,7 +10,7 @@ use super::state::UnixSerialDescriptorInfo;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 use super::super::core::SerialWatchEventState;
@@ -122,23 +122,30 @@ impl UnixSerialWatchService {
         let service = Arc::downgrade(self);
 
         // run one shared native monitor loop
-        let loop_runtime = Self::worker_loop("destack-serial-udev-watch", move || {
-            let monitor = udev::MonitorBuilder::new()
-                .map_err(|error| monitor_error("MonitorBuilder::new", &error))?
-                .match_subsystem("tty")
-                .map_err(|error| monitor_error("MonitorBuilder::match_subsystem", &error))?
-                .listen()
-                .map_err(|error| monitor_error("MonitorBuilder::listen", &error))?;
-            let (shutdown_read, shutdown_write) = shutdown_pipe("destack.device.serial.watchOpen")?;
+        let loop_runtime = WorkerLoop::open(
+            "destack-serial-udev-watch",
+            "platform.service.spawn",
+            Self::POLICY,
+            move || {
+                let monitor = udev::MonitorBuilder::new()
+                    .map_err(|error| monitor_error("MonitorBuilder::new", &error))?
+                    .match_subsystem("tty")
+                    .map_err(|error| monitor_error("MonitorBuilder::match_subsystem", &error))?
+                    .listen()
+                    .map_err(|error| monitor_error("MonitorBuilder::listen", &error))?;
+                let (shutdown_read, shutdown_write) =
+                    shutdown_pipe("destack.device.serial.watchOpen")?;
 
-            let shutdown = Box::new(move || {
-                let _ =
-                    unsafe { libc::write(shutdown_write.as_raw_fd(), [1u8].as_ptr().cast(), 1) };
-            });
-            let run = Box::new(move || watch_monitor_loop(service, monitor, shutdown_read));
+                let shutdown = Box::new(move || {
+                    let _ = unsafe {
+                        libc::write(shutdown_write.as_raw_fd(), [1u8].as_ptr().cast(), 1)
+                    };
+                });
+                let run = Box::new(move || watch_monitor_loop(service, monitor, shutdown_read));
 
-            Ok((shutdown, run))
-        })?;
+                Ok((shutdown, run))
+            },
+        )?;
 
         *watch_runtime = Some(UnixSerialWatchRuntime {
             _loop: loop_runtime,
@@ -180,7 +187,7 @@ impl UnixSerialWatchService {
     }
 }
 
-impl GlobalService for UnixSerialWatchService {
+impl Service for UnixSerialWatchService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
 }
 

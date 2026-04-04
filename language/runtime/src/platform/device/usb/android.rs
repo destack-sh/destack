@@ -5,15 +5,15 @@ use super::service::{
     ensure_usb_service_runtime, invalid_usb_handle,
 };
 use super::transfer::hotplug_event_from_record;
-use crate::host::android::abi::usb::ffi::{
+use crate::host::HostStatus;
+use crate::host::os::android::abi::usb::ffi::{
     destack_host_android_usb_device_list, destack_host_android_usb_open,
     destack_host_android_usb_watch_close, destack_host_android_usb_watch_open,
     destack_host_android_usb_watch_read, destack_host_android_usb_watch_try_read,
 };
-use crate::host::android::abi::usb::types::{
+use crate::host::os::android::abi::usb::types::{
     AndroidHostUsbDeviceDescriptorHeader, AndroidHostUsbHotplugEventHeader,
 };
-use crate::host::core::HostStatus;
 use crate::platform::core::android::{
     checked_u32_length, host_session_id, host_status_result, invalid_data,
 };

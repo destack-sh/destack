@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::not_supported;
-use crate::host::core::{HostRequestContext, HostSessionContext, HostSessionId};
+use crate::host::{HostSessionId, RequestContext, SessionContext};
 use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
@@ -8,14 +8,14 @@ use crate::platform::os::abi_generated::{
 
 /// Return the default unsupported notification permission state.
 pub(super) fn request_permission(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
 ) -> RuntimeResult<NotificationPermissionState> {
     Err(not_supported("destack.os.notification.requestPermission"))
 }
 
 /// Reject unsupported notification delivery.
 pub(super) fn deliver_notification(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _id: &str,
     _request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -23,13 +23,13 @@ pub(super) fn deliver_notification(
 }
 
 /// Reject unsupported notification cancellation.
-pub(super) fn cancel_notification(_context: &HostRequestContext, _id: &str) -> RuntimeResult<()> {
+pub(super) fn cancel_notification(_context: &RequestContext, _id: &str) -> RuntimeResult<()> {
     Err(not_supported("destack.os.notification.cancel"))
 }
 
 /// Reject unsupported notification scheduling.
 pub(super) fn schedule_notification(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _id: &str,
     _request: &NotificationRequestValue,
 ) -> RuntimeResult<()> {
@@ -38,14 +38,14 @@ pub(super) fn schedule_notification(
 
 /// Reject unsupported pending notification enumeration.
 pub(super) fn list_pending_notifications(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
 ) -> RuntimeResult<Vec<NotificationScheduledDescriptorValue>> {
     Err(not_supported("destack.os.notification.pendingList"))
 }
 
 /// Reject unsupported pending notification cancellation.
 pub(super) fn cancel_pending_notification(
-    _context: &HostRequestContext,
+    _context: &RequestContext,
     _id: &str,
 ) -> RuntimeResult<()> {
     Err(not_supported("destack.os.notification.pendingCancel"))
@@ -65,6 +65,6 @@ pub(super) fn set_categories(_categories: &[NotificationCategoryValue]) -> Runti
 pub(super) fn unregister_runtime(_host_runtime_id: HostSessionId) {}
 
 /// Service unsupported notification ingress.
-pub(super) fn service_notification_ingress(_context: &HostSessionContext) -> RuntimeResult<()> {
+pub(super) fn service_notification_ingress(_context: &SessionContext) -> RuntimeResult<()> {
     Ok(())
 }

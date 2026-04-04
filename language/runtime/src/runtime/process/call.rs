@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
-use crate::host::HostSession;
+use crate::host::Session;
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
 use crate::runtime::bindings::{
     BindingAffinity, BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload,
@@ -31,7 +31,7 @@ pub struct BindingCallContext {
     /// Event loop for task queues and timers.
     event_loop: *const EventLoop,
     /// Host state for platform callbacks.
-    host: *const HostSession,
+    host: *const Session,
     /// Shared world for replay, time, random, and policy.
     world: *const WorldRef,
     /// Engine kind for this binding call.
@@ -66,7 +66,7 @@ impl BindingCallContext {
     pub(crate) fn new(
         agent: &Agent,
         event_loop: &EventLoop,
-        host: &HostSession,
+        host: &Session,
         world: &WorldRef,
     ) -> Self {
         let execution_context = event_loop.execution_context(host.is_process_main_context());
@@ -86,7 +86,7 @@ impl BindingCallContext {
     pub(crate) fn from_raw(
         agent: *const Agent,
         event_loop: *const EventLoop,
-        host: *const HostSession,
+        host: *const Session,
         world: *const WorldRef,
         engine: BindingEngine,
     ) -> Self {
@@ -97,7 +97,7 @@ impl BindingCallContext {
         Self {
             agent,
             event_loop: event_loop as *const EventLoop,
-            host: host as *const HostSession,
+            host: host as *const Session,
             world,
             engine,
             scope: current_event_loop_scope(),
@@ -226,7 +226,7 @@ impl BindingCallContext {
 
     /// Borrow the runtime host state.
     #[inline]
-    pub fn host(&self) -> &HostSession {
+    pub fn host(&self) -> &Session {
         // safety: pointer is owned by the runtime caller
         unsafe { &*self.host }
     }
@@ -259,10 +259,10 @@ impl BindingCallContext {
         self.execution_context.id
     }
 
-    /// Service runtime-owned host ingress for the active runtime.
-    pub(crate) fn service_runtime_ingress(&self) -> RuntimeResult<()> {
+    /// Advance host and runtime wait progress for one blocked binding path.
+    pub(crate) fn advance_wait_progress(&self) -> RuntimeResult<()> {
         // host owned ingress
-        self.host().service_ingress()?;
+        self.host().advance_ingress()?;
 
         // agent local runtime callbacks
         self.agent().service_runtime_callbacks(self)
@@ -274,7 +274,6 @@ impl BindingCallContext {
         operation: &'static str,
         timeout_message: &'static str,
         deadline_ns: u64,
-        wait_slice_ns: u64,
         mut try_take: impl FnMut() -> RuntimeResult<Option<T>>,
         mut wait_once: impl FnMut(Duration),
     ) -> RuntimeResult<T> {
@@ -285,7 +284,7 @@ impl BindingCallContext {
             }
 
             // let the runtime and host own progress while the binding waits
-            self.service_runtime_ingress()?;
+            self.advance_wait_progress()?;
 
             if let Some(result) = try_take()? {
                 return Ok(result);
@@ -298,9 +297,9 @@ impl BindingCallContext {
                 return Err(core_platform::io_would_block(operation, timeout_message));
             }
 
-            // wait for the next backend publication within the remaining budget
+            // wait until the next backend publication or the overall deadline
             let remaining = deadline_ns.saturating_sub(now);
-            let duration = Duration::from_nanos(remaining.min(wait_slice_ns));
+            let duration = Duration::from_nanos(remaining);
             wait_once(duration);
         }
     }
@@ -550,7 +549,7 @@ impl BindingCallContext {
 
         // service runtime-owned host ingress before host bindings execute
         if decision.world == RuntimeWorld::Host {
-            self.service_runtime_ingress()?;
+            self.advance_wait_progress()?;
         }
 
         Ok(decision)

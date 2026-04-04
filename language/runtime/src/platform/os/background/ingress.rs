@@ -1,6 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Platform;
-use crate::host::core::HostSessionId;
+use crate::host::{HostSessionId, Platform};
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -152,8 +151,7 @@ pub(crate) fn unregister_background_runtime(host_session_id: HostSessionId) {
 mod tests {
     use std::sync::{Arc, Mutex, OnceLock};
 
-    use crate::host::core::{HostQueue, HostSessionRegistry};
-    use crate::host::{HostEvent, Platform};
+    use crate::host::{HostEvent, HostQueue, HostSessionRegistry, Platform};
 
     use super::{
         DesktopBackgroundLaunchMarker, RuntimeResult, service_background_ingress,

@@ -23,7 +23,7 @@ use super::constants::{
     STREAM_FLAG_REPORT_XRUN, STREAM_REQUIRE_BIT_EXACT_PCM, STREAM_REQUIRE_HARDWARE_TIMESTAMPS,
     STREAM_REQUIRE_NON_INTERLEAVED, STREAM_REQUIRE_PAUSE, STREAM_REQUIRE_SCHEDULED_WRITE,
     STREAM_STATUS_INPUT_OVERFLOW, STREAM_STATUS_OUTPUT_UNDERFLOW, host_monotonic_nanos,
-    resolved_max_queued_frames, resolved_stream_wait_slice_ns, resolved_worker_poll_period,
+    resolved_max_queued_frames, resolved_worker_poll_period,
 };
 use super::error::{stream_shutdown_error, stream_state_is_terminal};
 use super::event::publish::publish_stream_event_native;
@@ -101,8 +101,6 @@ pub(crate) fn wait_for_stream_presentation_time(
     operation: &'static str,
     presentation_time_ns: u64,
 ) -> RuntimeResult<()> {
-    let wait_slice_ns = resolved_stream_wait_slice_ns(ctx);
-
     loop {
         // stop waiting once the target presentation time is reached
         let now_ns = ctx.world().mono_nanos();
@@ -120,9 +118,9 @@ pub(crate) fn wait_for_stream_presentation_time(
             return Err(stream_shutdown_error(operation, &state));
         }
 
-        // wait for one bounded slice so stream wakeups can interrupt the schedule wait
+        // wait until one stream wake or the target presentation deadline
         let remaining_ns = presentation_time_ns.saturating_sub(now_ns);
-        let duration = Duration::from_nanos(remaining_ns.min(wait_slice_ns).max(1));
+        let duration = Duration::from_nanos(remaining_ns.max(1));
         let wait = stream
             .sync
             .wake

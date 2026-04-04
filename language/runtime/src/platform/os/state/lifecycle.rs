@@ -67,7 +67,7 @@ pub(crate) fn lifecycle_try_read(
     binding: &BindingCallContext,
     handle: resource::LifecycleEventHandle,
 ) -> RuntimeResult<LifecycleEventValue> {
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let stream = resolve_lifecycle_stream(binding, handle)?;
     let Some(event) = stream.try_take() else {
@@ -94,7 +94,6 @@ pub(crate) fn lifecycle_read(
         "destack.os.lifecycle.read",
         "timed out waiting for lifecycle event",
         deadline_ns,
-        OS_READ_WAIT_SLICE_NS,
         || {
             if stream.is_closed() {
                 return Err(invalid_handle("unknown lifecycle event stream handle"));

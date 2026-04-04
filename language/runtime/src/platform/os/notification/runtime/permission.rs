@@ -1,5 +1,5 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::os::NotificationPermissionState;
 
 use super::state::{DesktopNotificationRuntimeState, notification_runtime_service};
@@ -7,7 +7,7 @@ use crate::platform::os::notification::delivery;
 
 /// Return the default notification permission state for one platform.
 pub(crate) fn request_notification_permission(
-    context: &HostRequestContext,
+    context: &RequestContext,
 ) -> RuntimeResult<NotificationPermissionState> {
     let permission_state = delivery::request_notification_permission(context)?;
 

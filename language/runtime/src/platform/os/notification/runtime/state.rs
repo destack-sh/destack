@@ -9,8 +9,7 @@ use rustc_hash::FxHashMap;
 
 #[cfg(test)]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::Platform;
-use crate::host::core::HostSessionId;
+use crate::host::{HostSessionId, Platform};
 #[cfg(test)]
 use crate::platform::PlatformError;
 #[cfg(test)]
@@ -19,7 +18,7 @@ use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
 };
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
 
 #[cfg(test)]
 thread_local! {
@@ -102,7 +101,7 @@ impl DesktopNotificationRuntimeService {
     }
 }
 
-impl GlobalService for DesktopNotificationRuntimeService {
+impl Service for DesktopNotificationRuntimeService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

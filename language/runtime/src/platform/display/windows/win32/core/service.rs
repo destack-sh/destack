@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::runtime::BindingCallContext;
 use crate::runtime::process::service::executor::host::HostExecutor;
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, GlobalService};
+use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, Service};
 
 use super::runtime::Win32RuntimeState;
 
@@ -41,7 +41,7 @@ impl Win32DisplayService {
     }
 }
 
-impl GlobalService for Win32DisplayService {
+impl Service for Win32DisplayService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Host)
         .with_affinity(ExecutionAffinity::WindowsMessageLoop);
 }

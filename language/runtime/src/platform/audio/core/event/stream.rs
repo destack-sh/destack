@@ -392,13 +392,11 @@ pub(crate) unsafe fn read_event(
     let stream = resolve_event_stream(ctx, handle, "destack.audio.event.read")?;
     let runtime_state = runtime_state(ctx);
     let deadline = host_monotonic_nanos().saturating_add(timeoutns);
-    let wait_slice_ns = stream.options.poll_interval_ns.max(1);
 
     let event = ctx.wait_for_binding_result(
         "destack.audio.event.read",
         "event read timed out",
         deadline,
-        wait_slice_ns,
         || next_event_for_stream(ctx, &runtime_state, &stream, "destack.audio.event.read"),
         |duration| {
             let event_log = runtime_state
@@ -435,13 +433,11 @@ pub(crate) unsafe fn read_event_batch(
     let stream = resolve_event_stream(ctx, handle, "destack.audio.event.readBatch")?;
     let runtime_state = runtime_state(ctx);
     let deadline = host_monotonic_nanos().saturating_add(timeoutns);
-    let wait_slice_ns = stream.options.poll_interval_ns.max(1);
 
     let events = ctx.wait_for_binding_result(
         "destack.audio.event.readBatch",
         "event read timed out",
         deadline,
-        wait_slice_ns,
         || {
             let events = drain_events_for_stream(
                 ctx,

@@ -7,23 +7,23 @@ use super::core as input_core;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::host::HOST_STATUS_FAILED;
+#[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::host::abi::text::{
     HostTextInputCloseRequest, HostTextInputConfiguration, HostTextInputGeometry,
     HostTextInputGeometryRequest, HostTextInputOpenRequest, HostTextInputState,
     HostTextInputStateRequest, HostTextInputType,
 };
 #[cfg(target_os = "android")]
-use crate::host::android::abi::text::ffi::{
+use crate::host::os::android::abi::text::ffi::{
     destack_host_android_text_close, destack_host_android_text_open,
     destack_host_android_text_set_geometry, destack_host_android_text_set_state,
 };
 #[cfg(target_os = "ios")]
-use crate::host::apple::abi::text::ffi::{
+use crate::host::os::apple::abi::text::ffi::{
     destack_host_ios_text_close, destack_host_ios_text_open, destack_host_ios_text_set_geometry,
     destack_host_ios_text_set_state,
 };
-#[cfg(any(target_os = "android", target_os = "ios"))]
-use crate::host::core::HOST_STATUS_FAILED;
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(target_os = "macos")]
 use crate::platform::display::appkit;
@@ -2101,7 +2101,7 @@ pub(crate) unsafe fn destack_input_text_read_event(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let state_store = input_state(binding)?;
     let Some(queue) = state_store.host_text_session_queue(session.0.0) else {
@@ -2115,7 +2115,6 @@ pub(crate) unsafe fn destack_input_text_read_event(
         "destack.input.text.readEvent",
         "timed out waiting for text-session event",
         u64::MAX,
-        1_000_000,
         || {
             if queue.is_closed() {
                 return Err(text_session_not_found(
@@ -2195,7 +2194,7 @@ pub(crate) unsafe fn destack_input_text_try_read_event(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
 
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let state_store = input_state(binding)?;
     let Some(queue) = state_store.host_text_session_queue(session.0.0) else {

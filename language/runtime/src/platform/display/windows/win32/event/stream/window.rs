@@ -170,7 +170,6 @@ pub(crate) unsafe fn window_event_read(
         "destack.display.window.eventRead",
         "event read timed out",
         deadline,
-        display_options::event_wait_slice_ns(binding),
         || {
             next_window_event(
                 binding,
@@ -221,7 +220,6 @@ pub(crate) unsafe fn window_event_read_batch(
         "destack.display.window.eventReadBatch",
         "event read timed out",
         deadline,
-        display_options::event_wait_slice_ns(binding),
         || {
             let events = drain_window_events(
                 binding,

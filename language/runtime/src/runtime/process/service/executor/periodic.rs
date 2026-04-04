@@ -11,8 +11,7 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::runtime::process::service::global_service;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::process::{ExecutionPolicy, start_with_policy};
 
 use super::state::{ExecutorFailure, ExecutorFailureKind, ExecutorState};
 
@@ -52,7 +51,7 @@ struct PeriodicTask {
 }
 
 /// One shared periodic service executor.
-pub(crate) struct PeriodicExecutor {
+struct PeriodicExecutor {
     /// Logical executor name for diagnostics.
     name: String,
     /// Command sender for the executor thread.
@@ -68,17 +67,26 @@ pub(crate) struct PeriodicExecutor {
 }
 
 /// One owned registration in the periodic executor.
-#[derive(Debug)]
 pub(crate) struct PeriodicTaskHandle {
+    /// Executor retained for this task registration lifetime.
+    _executor: Arc<PeriodicExecutor>,
     /// Stable task id.
     task_id: u64,
     /// Command sender for task teardown.
     sender: Sender<PeriodicExecutorCommand>,
 }
 
+impl std::fmt::Debug for PeriodicTaskHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PeriodicTaskHandle")
+            .field("task_id", &self.task_id)
+            .finish()
+    }
+}
+
 impl PeriodicExecutor {
-    /// Spawn one periodic executor thread.
-    fn spawn(name: &str) -> RuntimeResult<Self> {
+    /// Open one periodic executor thread.
+    fn open(name: &str, policy: ExecutionPolicy) -> RuntimeResult<Arc<Self>> {
         let (sender, receiver) = channel::<PeriodicExecutorCommand>();
         let thread_name = name.to_string();
         let thread_id = Arc::new(OnceLock::new());
@@ -92,7 +100,7 @@ impl PeriodicExecutor {
         let handle = start_with_policy(
             thread_name.clone(),
             "platform.service.spawn",
-            ExecutionPolicy::global(ExecutionMode::Polling),
+            policy,
             move || {
                 let result = panic::catch_unwind(AssertUnwindSafe(|| {
                     Self::periodic_executor_main(
@@ -112,14 +120,14 @@ impl PeriodicExecutor {
             },
         )?;
 
-        Ok(Self {
+        Ok(Arc::new(Self {
             name: name.to_string(),
             sender,
             next_task_id: AtomicU64::new(1),
             thread_id,
             state,
             handle: Mutex::new(Some(handle)),
-        })
+        }))
     }
 
     /// Run the periodic executor command loop.
@@ -234,7 +242,7 @@ impl PeriodicExecutor {
 
     /// Register one periodic callback.
     pub(crate) fn register(
-        &self,
+        self: &Arc<Self>,
         interval: Duration,
         callback: impl Fn() -> RuntimeResult<()> + Send + Sync + 'static,
     ) -> RuntimeResult<PeriodicTaskHandle> {
@@ -293,6 +301,7 @@ impl PeriodicExecutor {
             })?;
 
         Ok(PeriodicTaskHandle {
+            _executor: Arc::clone(self),
             task_id,
             sender: self.sender.clone(),
         })
@@ -348,7 +357,14 @@ impl Drop for PeriodicTaskHandle {
     }
 }
 
-/// Return the shared process-global periodic executor.
-pub(crate) fn periodic_service_executor() -> RuntimeResult<Arc<PeriodicExecutor>> {
-    global_service(|| PeriodicExecutor::spawn("destack-periodic-service"))
+/// Open one named periodic task on one dedicated periodic worker.
+pub(crate) fn open_periodic_task(
+    name: &str,
+    policy: ExecutionPolicy,
+    interval: Duration,
+    callback: impl Fn() -> RuntimeResult<()> + Send + Sync + 'static,
+) -> RuntimeResult<PeriodicTaskHandle> {
+    let executor = PeriodicExecutor::open(name, policy)?;
+
+    executor.register(interval, callback)
 }

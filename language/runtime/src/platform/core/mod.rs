@@ -27,8 +27,6 @@ pub(crate) use backend::{
 };
 pub(crate) use clock::{monotonic_now_ns, timeout_deadline};
 pub(crate) use codec::*;
-#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
-pub(crate) use convert::option_u64_or_min;
 #[cfg(target_os = "macos")]
 pub(crate) use convert::u32_to_isize;
 pub(crate) use convert::{

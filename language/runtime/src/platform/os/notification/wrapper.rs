@@ -3,7 +3,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::core::HostRequestContext;
+use crate::host::RequestContext;
 use crate::platform::PlatformError;
 use crate::platform::diagnostic::PlatformErrorCode;
 
@@ -16,7 +16,7 @@ pub(crate) const DESKTOP_NOTIFICATION_IDENTIFIER_ENV: &str = "DESTACK_NOTIFICATI
 
 /// Write one persisted wrapper script for one scheduled notification.
 pub(crate) fn write_notification_wrapper_script(
-    context: &HostRequestContext,
+    context: &RequestContext,
     id: &str,
 ) -> RuntimeResult<PathBuf> {
     let path = notification_wrapper_script_path(context, id)?;

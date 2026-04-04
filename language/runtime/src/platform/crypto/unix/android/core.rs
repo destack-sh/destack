@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::diagnostic::RuntimeError;
-use crate::host::core::HostStatus;
+use crate::host::HostStatus;
 use crate::platform::core as core_platform;
 use crate::platform::crypto::CryptoStoreKind;
 use crate::platform::crypto::host::unix::core as unix_core;

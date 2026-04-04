@@ -2,7 +2,7 @@ use super::core::*;
 use super::descriptor::*;
 use super::ffi::{LibusbApi, ffi, libusb_library_candidates, load_libraryusb_api};
 use super::transfer::usb_hotplug_callback;
-use crate::runtime::process::service::GlobalService;
+use crate::runtime::process::service::Service;
 use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 /// One polling interval used for fallback hotplug snapshot diffs.
@@ -370,7 +370,7 @@ impl UsbService {
     }
 }
 
-impl GlobalService for UsbService {
+impl Service for UsbService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
 }
 
@@ -452,19 +452,24 @@ pub(crate) fn ensure_usb_service_runtime(service: &Arc<UsbService>) -> RuntimeRe
 
     // start the shared libusb event loop for transfers and hotplug callbacks
     let thread_state = service.state.clone();
-    let ingress_loop = match UsbService::worker_loop("destack-usb", move || {
-        let shutdown_state = thread_state.clone();
-        let run = Box::new(move || {
-            run_usb_service_loop(thread_state);
-            Ok(())
-        });
-        let shutdown = Box::new(move || {
-            shutdown_state.is_shutdown.store(true, Ordering::SeqCst);
-            signal_usb_service_runtime(&shutdown_state);
-        });
+    let ingress_loop = match WorkerLoop::open(
+        "destack-usb",
+        "platform.service.spawn",
+        UsbService::POLICY,
+        move || {
+            let shutdown_state = thread_state.clone();
+            let run = Box::new(move || {
+                run_usb_service_loop(thread_state);
+                Ok(())
+            });
+            let shutdown = Box::new(move || {
+                shutdown_state.is_shutdown.store(true, Ordering::SeqCst);
+                signal_usb_service_runtime(&shutdown_state);
+            });
 
-        Ok((shutdown, run))
-    }) {
+            Ok((shutdown, run))
+        },
+    ) {
         Ok(loop_runtime) => loop_runtime,
         Err(error) => {
             service

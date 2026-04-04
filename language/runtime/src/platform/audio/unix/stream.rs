@@ -185,8 +185,7 @@ pub(crate) unsafe fn destack_audio_stream_drain(
         }
 
         let remaining = deadline.saturating_sub(audio_core::host_monotonic_nanos());
-        let wait_slice_ns = audio_core::resolved_stream_wait_slice_ns(binding);
-        let duration = Duration::from_nanos(remaining.min(wait_slice_ns));
+        let duration = Duration::from_nanos(remaining.max(1));
         let wait = resolved_binding
             .sync
             .wake

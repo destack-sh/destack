@@ -1,25 +1,31 @@
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::HostTextEvent;
 #[cfg(any(target_os = "android", target_os = "ios"))]
-use crate::host::core::HostStatus;
-use crate::host::core::{HostEvent, HostQueue};
+use crate::host::HostStatus;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+use crate::host::{HostEvent, HostQueue, HostTextEvent};
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::platform::PlatformError;
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::platform::core as core_platform;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+use crate::platform::input::InputTextRange;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
+use crate::platform::input::InputTextSessionStateValue;
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::platform::input::{
     InputEventMetadataValue, InputTextSessionEventValue, InputTextSessionStateEventValue,
 };
-use crate::platform::input::{InputTextRange, InputTextSessionStateValue};
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::platform::resource;
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 use crate::runtime::RuntimeEventQueue;
 
 /// Build one io-not-found error for one missing text session.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg_attr(test, allow(dead_code))]
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 pub(crate) fn text_session_not_found(
     operation: &'static str,
     session: resource::InputTextSessionHandle,
@@ -28,11 +34,13 @@ pub(crate) fn text_session_not_found(
 }
 
 /// Return the UTF-16 code-unit length for one string.
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 fn utf16_length(text: &str) -> u32 {
     text.encode_utf16().count() as u32
 }
 
 /// Validate one text range against one UTF-16 text length.
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 fn validate_text_range(
     field: &'static str,
     range: InputTextRange,
@@ -60,6 +68,7 @@ fn validate_text_range(
 }
 
 /// Validate one full text-session state payload.
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 pub(crate) fn validate_text_session_state(state: &InputTextSessionStateValue) -> RuntimeResult<()> {
     let text_length = utf16_length(&state.text);
 
@@ -123,6 +132,7 @@ pub(crate) fn host_status_result(
 }
 
 /// Submit one host text-state event into the runtime host queue.
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 pub(crate) fn notify_text_input_state(
     queue: &HostQueue,
     session_id: u64,
@@ -139,7 +149,8 @@ pub(crate) fn notify_text_input_state(
 }
 
 /// Push one state-change event into one queued host text session.
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg_attr(test, allow(dead_code))]
+#[cfg(any(test, target_os = "android", target_os = "ios"))]
 pub(crate) fn push_host_text_state_event(
     queue: &RuntimeEventQueue<InputTextSessionEventValue>,
     next_sequence: &mut u64,

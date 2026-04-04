@@ -124,7 +124,7 @@ pub(crate) fn location_watch_try_read(
     binding: &BindingCallContext,
     handle: resource::LocationWatchHandle,
 ) -> RuntimeResult<LocationSampleValue> {
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let stream = resolve_location_stream(binding, handle)?;
     let Some(sample) = stream.try_take() else {
@@ -144,7 +144,7 @@ pub(crate) fn location_watch_read(
     timeout_ns: u64,
 ) -> RuntimeResult<LocationSampleValue> {
     // service ready ingress before waiting on the stream
-    binding.service_runtime_ingress()?;
+    binding.advance_wait_progress()?;
 
     let stream = resolve_location_stream(binding, handle)?;
     let now = monotonic_now_ns();
@@ -154,7 +154,6 @@ pub(crate) fn location_watch_read(
         "destack.os.location.watchRead",
         "timed out waiting for location sample",
         deadline_ns,
-        OS_READ_WAIT_SLICE_NS,
         || {
             if stream.is_closed() {
                 return Err(invalid_handle("unknown location watch stream handle"));

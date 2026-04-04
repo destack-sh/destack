@@ -7,7 +7,7 @@ use super::connection::X11ConnectionState;
 use super::ingress;
 use super::xlib::{X11InputContextHandle, destroy_input_context};
 use crate::diagnostic::{DiagnosticStore, RuntimeResult};
-use crate::host::core::{HostSessionRegistry, RuntimeIngressHandler};
+use crate::host::{HostSessionRegistry, RuntimeIngressHandler};
 use crate::platform::display::unix::x11::event::{
     self as x11_event, DisplayEventRecord, MonitorEventStream, WindowEventRecord, WindowEventStream,
 };
@@ -118,7 +118,7 @@ impl Drop for X11TextInputContextState {
 
 impl RuntimeIngressHandler for X11RuntimeIngressHandler {
     /// Service X11 ingress and publish runtime-owned event deltas.
-    fn service_session_ingress(&self) -> RuntimeResult<()> {
+    fn advance_session_ingress(&self) -> RuntimeResult<()> {
         let Some(runtime_state) = self.runtime_state.upgrade() else {
             return Ok(());
         };

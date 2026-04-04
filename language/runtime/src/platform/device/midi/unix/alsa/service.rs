@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform, BackendSupport};
 use crate::platform::device::{MidiEventSource, MidiPortDirection};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, GlobalService, start_with_policy};
+use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, start_with_policy};
 
 use super::abi::{
     POLLIN, SND_SEQ_CLIENT_SYSTEM, SND_SEQ_OPEN_INPUT, SND_SEQ_PORT_CAP_NO_EXPORT,
@@ -59,7 +59,7 @@ impl Drop for AlsaService {
     }
 }
 
-impl GlobalService for AlsaService {
+impl Service for AlsaService {
     const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
 }
 

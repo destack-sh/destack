@@ -17,8 +17,8 @@ use crate::platform::device::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::GlobalService;
 use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::process::service::{Service, spawn_service_thread};
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 use super::abi::{
@@ -489,7 +489,7 @@ impl WindowsMidiService {
     }
 }
 
-impl GlobalService for WindowsMidiService {
+impl Service for WindowsMidiService {
     const POLICY: ExecutionPolicy =
         ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 }
@@ -988,9 +988,11 @@ pub(crate) fn windows_midi_service(
         }));
         let build_topology = topology.clone();
         let build_registry = native_event_registry.clone();
-        let executor = WindowsMidiService::thread("destack-midi-windows-midi", move || {
-            build_windows_midi_service_state(build_topology, build_registry, operation)
-        })?;
+        let executor = spawn_service_thread(
+            "destack-midi-windows-midi",
+            WindowsMidiService::POLICY,
+            move || build_windows_midi_service_state(build_topology, build_registry, operation),
+        )?;
 
         Ok(WindowsMidiService {
             executor,

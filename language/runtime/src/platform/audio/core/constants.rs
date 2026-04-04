@@ -351,14 +351,6 @@ pub(crate) fn resolved_default_event_poll_interval_ns(ctx: &BindingCallContext) 
         .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
 }
 
-/// Return the configured wait-slice for blocking audio stream operations.
-pub(crate) fn resolved_stream_wait_slice_ns(ctx: &BindingCallContext) -> u64 {
-    let configured = ctx.agent().options.audio.stream_wait_slice_ns;
-    configured
-        .unwrap_or(resolved_default_event_poll_interval_ns(ctx))
-        .clamp(MIN_EVENT_POLL_INTERVAL_NS, MAX_EVENT_POLL_INTERVAL_NS)
-}
-
 #[cfg(unix)]
 /// Return the configured maximum bytes accepted per audio stream read call.
 pub(crate) fn resolved_max_stream_read_bytes(ctx: &BindingCallContext) -> u32 {

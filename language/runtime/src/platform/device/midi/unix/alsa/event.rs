@@ -20,7 +20,8 @@ use crate::platform::device::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::executor::periodic::periodic_service_executor;
+use crate::runtime::process::Service;
+use crate::runtime::process::service::executor::periodic::open_periodic_task;
 
 use super::core::{
     AlsaEventDeliveryKind, AlsaEventSession, AlsaTopologyState, SnapshotKey, insert_event_resource,
@@ -108,35 +109,42 @@ fn register_poll_event_session(
     session: &Arc<Mutex<AlsaEventSession>>,
     poll_interval: Duration,
 ) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
-    let executor = periodic_service_executor()?;
     let service = service.clone();
     let session = Arc::downgrade(session);
     let is_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let failure_state = is_failed.clone();
 
-    let task = executor.register(poll_interval, move || {
-        if failure_state.load(std::sync::atomic::Ordering::Acquire) {
-            return Ok(());
-        }
+    let task = open_periodic_task(
+        "destack-midi-alsa-event",
+        AlsaService::POLICY,
+        poll_interval,
+        move || {
+            if failure_state.load(std::sync::atomic::Ordering::Acquire) {
+                return Ok(());
+            }
 
-        let Some(session) = Weak::upgrade(&session) else {
-            return Ok(());
-        };
+            let Some(session) = Weak::upgrade(&session) else {
+                return Ok(());
+            };
 
-        let refresh_result = {
-            let mut session = session.lock();
-            refresh_poll_event_subscription(&service, &mut session)
-        };
+            let refresh_result = {
+                let mut session = session.lock();
+                refresh_poll_event_subscription(&service, &mut session)
+            };
 
-        if refresh_result.is_err() {
-            let mut session = session.lock();
-            let _ =
-                queue_backend_disconnected_event(&mut session, MidiEventSource::SyntheticPoll, 0);
-            failure_state.store(true, std::sync::atomic::Ordering::Release);
-        }
+            if refresh_result.is_err() {
+                let mut session = session.lock();
+                let _ = queue_backend_disconnected_event(
+                    &mut session,
+                    MidiEventSource::SyntheticPoll,
+                    0,
+                );
+                failure_state.store(true, std::sync::atomic::Ordering::Release);
+            }
 
-        Ok(())
-    })?;
+            Ok(())
+        },
+    )?;
 
     Ok(Arc::new(task))
 }
