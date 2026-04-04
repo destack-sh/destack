@@ -12,12 +12,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 #[cfg(target_os = "macos")]
 use std::sync::{Mutex, OnceLock};
-#[cfg(feature = "execution")]
+#[cfg(target_vendor = "apple")]
 use std::{panic, thread};
 
-#[cfg(feature = "execution")]
-use crate::host::apple::core::message as apple_host_message;
-#[cfg(feature = "execution")]
+#[cfg(target_vendor = "apple")]
+use crate::host::os::apple::ingress::r#loop as apple_ingress_loop;
 use crate::tests::registry as execution_registry;
 
 /// Environment marker for subprocess execution dispatch.
@@ -79,9 +78,19 @@ pub(crate) fn run_execution_case_or_return(_case_name: &str) -> bool {
 }
 
 /// Run one registered execution-sensitive test case on the correct process thread.
-#[cfg(feature = "execution")]
 pub fn run_execution_case(case_name: &str) {
+    #[cfg(not(target_vendor = "apple"))]
+    {
+        let handled = execution_registry::run_execution_case(case_name);
+
+        assert!(handled, "unknown execution case: {case_name}");
+        return;
+    }
+
+    #[cfg(target_vendor = "apple")]
     let case_name = case_name.to_string();
+
+    #[cfg(target_vendor = "apple")]
     run_with_apple_main_thread_service(move || {
         let handled = execution_registry::run_execution_case(case_name.as_str());
 
@@ -152,8 +161,6 @@ fn build_execution_helper_with_cargo() -> Option<PathBuf> {
         .arg("test")
         .arg("--manifest-path")
         .arg(&manifest_path)
-        .arg("--features")
-        .arg("execution")
         .arg("--test")
         .arg("runtime_execution")
         .arg("--no-run")
@@ -287,12 +294,12 @@ fn path_is_executable_file(path: &Path) -> bool {
 }
 
 /// Run one Apple-constrained case while the main thread continuously services the run loop.
-#[cfg(feature = "execution")]
+#[cfg(target_vendor = "apple")]
 pub(crate) fn run_with_apple_main_thread_service(run: impl FnOnce() + Send + 'static) {
     let worker = thread::spawn(run);
 
     // keep the process main thread free to service AppKit callbacks
-    apple_host_message::service_registered_runtimes_until(true, || worker.is_finished()).unwrap();
+    apple_ingress_loop::run_ingress_until(|| worker.is_finished()).unwrap();
 
     // propagate the worker result after the main-thread service loop exits
     if let Err(payload) = worker.join() {

@@ -82,10 +82,10 @@ fn render_bindings_file(platform: HostPlatform, lanes: &[CallbackLane]) -> Strin
     match platform {
         HostPlatform::Ios => {
             output.push_str("use crate::host::HOST_STATUS_NOT_SUPPORTED;\n");
-            output.push_str("use crate::host::core::HostSessionHandle;\n\n");
+            output.push_str("use crate::host::HostSessionHandle;\n\n");
         }
         HostPlatform::Android => {
-            output.push_str("use crate::host::core::{HostSessionHandle, HostStatus};\n\n");
+            output.push_str("use crate::host::{HostSessionHandle, HostStatus};\n\n");
         }
     }
 
@@ -217,10 +217,10 @@ fn render_bridge_file(platform: HostPlatform, lanes: &[CallbackLane]) -> String 
     ));
     match platform {
         HostPlatform::Ios => {
-            output.push_str("use crate::host::core::{HostSessionHandle, HostSessionId};\n\n");
+            output.push_str("use crate::host::{HostSessionHandle, HostSessionId};\n\n");
         }
         HostPlatform::Android => {
-            output.push_str("use crate::host::core::HostSessionHandle;\n\n");
+            output.push_str("use crate::host::HostSessionHandle;\n\n");
         }
     }
 

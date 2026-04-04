@@ -1,10 +1,10 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::android::abi::credentials::ffi::{
+use crate::host::HostStatus;
+use crate::host::os::android::abi::credentials::ffi::{
     destack_host_android_credentials_authenticate, destack_host_android_credentials_contains,
     destack_host_android_credentials_delete, destack_host_android_credentials_read,
     destack_host_android_credentials_write,
 };
-use crate::host::core::HostStatus;
 use crate::platform::abi::NativeSlice;
 use crate::platform::os::credentials::core::{
     CredentialAuthenticationOptionsOwned, CredentialQueryOwned, CredentialRecordOwned,

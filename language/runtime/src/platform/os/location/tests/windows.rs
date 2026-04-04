@@ -1,9 +1,9 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostSessionId;
-use crate::host::windows::ingress::notify::windows_notify_location_sample;
-use crate::host::windows::tests::{WindowsLocationHooks, set_windows_location_test_hooks};
+use crate::host::HostSessionId;
+use crate::host::os::windows::ingress::notify::windows_notify_location_sample;
+use crate::host::os::windows::tests::{WindowsLocationHooks, set_windows_location_test_hooks};
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
 use crate::platform::os::tests::with_configured_harness_context;
 

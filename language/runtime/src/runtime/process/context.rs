@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use super::agent::Agent;
 use super::call::BindingCallContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::HostSession;
+use crate::host::Session;
 use crate::platform::NativeArray;
 use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::runtime::bindings::BindingAffinity;
@@ -70,7 +70,7 @@ pub(crate) struct CurrentAgentContext {
     /// Event loop pointer for callback dispatch.
     pub event_loop: *const EventLoop,
     /// Host pointer for callback dispatch.
-    pub host: *const HostSession,
+    pub host: *const Session,
     /// World pointer for replay, time, random, and policy.
     pub world: *const WorldRef,
     /// Execution context identifier for callback dispatch.
@@ -709,7 +709,7 @@ pub const fn binding_affinity_name(affinity: BindingAffinity) -> &'static str {
 pub(crate) fn enter_current_agent_context(
     agent: *const Agent,
     event_loop: *const EventLoop,
-    host: *const HostSession,
+    host: *const Session,
     world: *const WorldRef,
     is_process_main: bool,
 ) -> CurrentAgentContextGuard {

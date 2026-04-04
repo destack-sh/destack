@@ -29,6 +29,5 @@ pub(crate) mod simulation;
 mod state;
 pub mod vm;
 
-#[cfg(any(test, feature = "execution"))]
 pub(crate) mod tests;
 pub(crate) use state::{PlatformOsState, invalid_data, parse_host_permission_name};

@@ -584,8 +584,8 @@ fn rust_simple_ingress_call_argument(name: &str, ty: &HostAbiType) -> String {
 /// Return the platform ingress module path.
 fn platform_ingress_module_path(platform: HostPlatform) -> &'static str {
     match platform {
-        HostPlatform::Android => "crate::host::android::ingress",
-        HostPlatform::Ios => "crate::host::apple::ingress",
+        HostPlatform::Android => "crate::host::os::android::ingress",
+        HostPlatform::Ios => "crate::host::os::apple::ingress",
     }
 }
 
@@ -600,8 +600,8 @@ fn rust_host_module_segment(platform: HostPlatform) -> &'static str {
 /// Return the ingress core module path.
 fn platform_ingress_core_path(platform: HostPlatform) -> &'static str {
     match platform {
-        HostPlatform::Android => "crate::host::android::abi::ingress::core",
-        HostPlatform::Ios => "crate::host::apple::abi::ingress::core",
+        HostPlatform::Android => "crate::host::os::android::abi::ingress::core",
+        HostPlatform::Ios => "crate::host::os::apple::abi::ingress::core",
     }
 }
 
@@ -645,7 +645,7 @@ fn render_ffi(module: &HostAbiModule, platform: HostPlatform) -> String {
         }
     }
     if module_uses_output_pointer(module) {
-        output.push_str("use crate::host::core::HOST_STATUS_INVALID_ARGUMENT;\n");
+        output.push_str("use crate::host::HOST_STATUS_INVALID_ARGUMENT;\n");
     }
     if module_uses_native_array(module) {
         output.push_str("use crate::platform::NativeArray;\n");

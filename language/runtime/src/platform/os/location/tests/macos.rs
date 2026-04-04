@@ -1,9 +1,11 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostSessionId;
-use crate::host::macos::ingress::notify::macos_notify_location_sample;
-use crate::host::macos::request::location::{MacosLocationHooks, set_macos_location_test_hooks};
+use crate::host::HostSessionId;
+use crate::host::os::macos::ingress::notify::macos_notify_location_sample;
+use crate::host::os::macos::request::location::{
+    MacosLocationHooks, set_macos_location_test_hooks,
+};
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
 use crate::platform::os::tests::with_configured_harness_context;
 

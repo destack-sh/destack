@@ -5,15 +5,15 @@ use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
-use crate::host::linux::tests::{
+use crate::host::os::linux::tests::{
     LinuxContactHooks as DesktopContactHooks, set_linux_contact_test_hooks,
 };
 #[cfg(target_os = "macos")]
-use crate::host::macos::request::contact::{
+use crate::host::os::macos::request::contact::{
     MacosContactHooks as DesktopContactHooks, set_macos_contact_test_hooks,
 };
 #[cfg(windows)]
-use crate::host::windows::request::contact::{
+use crate::host::os::windows::request::contact::{
     WindowsContactHooks as DesktopContactHooks, set_windows_contact_test_hooks,
 };
 use crate::platform::abi::NativeStringRef;

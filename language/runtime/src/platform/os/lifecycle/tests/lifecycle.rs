@@ -2,10 +2,9 @@ use std::thread;
 use std::time::Duration;
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::{HostSessionId, HostSessionRegistry};
 use crate::host::{
     HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState,
-    HostMemoryPressureLevel, HostPowerMode,
+    HostMemoryPressureLevel, HostPowerMode, HostSessionId, HostSessionRegistry,
 };
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::tests::{HarnessValue, with_harness_context};

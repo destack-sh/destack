@@ -455,16 +455,24 @@ fn expression_is_binding_decorator(
 /// Resolve a declaration node from a binding expression.
 fn declaration_from_expression(
     tree: &dir::NodeTree,
-    _expression_id: dir::LocalNodeId<Expression>,
+    expression_id: dir::LocalNodeId<Expression>,
     expression: &Expression,
 ) -> Option<dir::LocalNodeId<Declaration>> {
     match expression {
         Expression::Declaration { declaration } => Some(*declaration),
-        Expression::Statement { statement } => {
-            let inner = tree.get::<Expression>(*statement);
-            declaration_from_expression(tree, *statement, inner)
+        Expression::Labelled { body, .. } => {
+            let inner = tree.get::<Expression>(*body);
+            declaration_from_expression(tree, *body, inner)
         }
-        _ => None,
+        Expression::Parenthesized { expression } => {
+            let inner = tree.get::<Expression>(*expression);
+            declaration_from_expression(tree, *expression, inner)
+        }
+        Expression::Block { .. } => None,
+        _ => {
+            let _ = expression_id;
+            None
+        }
     }
 }
 

@@ -5,15 +5,15 @@ use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
-use crate::host::linux::tests::{
+use crate::host::os::linux::tests::{
     LinuxCalendarHooks as DesktopCalendarHooks, set_linux_calendar_test_hooks,
 };
 #[cfg(target_os = "macos")]
-use crate::host::macos::request::calendar::{
+use crate::host::os::macos::request::calendar::{
     MacosCalendarHooks as DesktopCalendarHooks, set_macos_calendar_test_hooks,
 };
 #[cfg(windows)]
-use crate::host::windows::request::calendar::{
+use crate::host::os::windows::request::calendar::{
     WindowsCalendarHooks as DesktopCalendarHooks, set_windows_calendar_test_hooks,
 };
 use crate::platform::abi::NativeStringRef;

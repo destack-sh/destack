@@ -1,8 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 
 use crate::diagnostic::RuntimeResult;
-use crate::host::core::HostSessionId;
-use crate::host::linux::tests::{
+use crate::host::HostSessionId;
+use crate::host::os::linux::tests::{
     LinuxLocationHooks, publish_location_sample, set_linux_location_test_hooks,
 };
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
