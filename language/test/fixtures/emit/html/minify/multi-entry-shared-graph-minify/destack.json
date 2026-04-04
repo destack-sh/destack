@@ -1,5 +1,5 @@
 {
-  "name": "html-minify-multi-entry-shared-graph-minify",
+  "name": "emit-html-minify-multi-entry-shared-graph-minify",
   "defaultTarget": "landing",
   "targets": {
     "landing": {

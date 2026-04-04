@@ -1,0 +1,19 @@
+{
+  "name": "emit-js-minify-string-addition-folding",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "syntax": true
+      },
+      "output": {
+        "manifest": true
+      }
+    }
+  }
+}

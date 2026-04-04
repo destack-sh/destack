@@ -1,0 +1,19 @@
+{
+  "name": "emit-js-minify-switch-undefined",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/app.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "minify": {
+        "whitespace": true
+      },
+      "output": {
+        "manifest": true
+      }
+    }
+  }
+}

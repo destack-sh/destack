@@ -1,1 +1,1 @@
-export function renderSummary(name){return`summary:${name}`;};console.log(renderSummary("landing"));
+import{renderSummary}from"./summary.js";console.log(renderSummary("landing"));

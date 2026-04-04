@@ -1,0 +1,17 @@
+{
+  "name": "emit-js-sourcemap-hidden-sourcemap-output",
+  "targets": {
+    "preview": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/preview/app.js",
+      "output": {
+        "sourcemap": "hidden",
+        "manifest": true
+      }
+    }
+  }
+}

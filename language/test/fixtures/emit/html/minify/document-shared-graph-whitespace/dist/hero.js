@@ -1,1 +1,1 @@
-import{largeModule}from"./large-module.js";import{sharedUtil}from"./large-module.js";console.log("Home page");console.log(largeModule());sharedUtil();
+import{largeModule}from"./chunk-9542b644.js";import{sharedUtil}from"./chunk-9542b644.js";console.log("Home page");console.log(largeModule());sharedUtil();

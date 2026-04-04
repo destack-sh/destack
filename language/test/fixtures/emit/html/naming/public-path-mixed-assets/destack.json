@@ -1,5 +1,5 @@
 {
-  "name": "html-naming-public-path-mixed-assets",
+  "name": "emit-html-naming-public-path-mixed-assets",
   "targets": {
     "site": {
       "emit": "html",

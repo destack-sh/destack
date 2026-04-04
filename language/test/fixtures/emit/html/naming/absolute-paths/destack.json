@@ -1,5 +1,5 @@
 {
-  "name": "html-naming-absolute-paths",
+  "name": "emit-html-naming-absolute-paths",
   "compiler": {
     "rootDir": "src"
   },

@@ -2,6 +2,14 @@
   "index": "index.html",
   "files": [
     {
+      "path": "chunk-9542b644.js",
+      "type": "chunk",
+      "loader": "js",
+      "name": "chunk",
+      "isEntry": false,
+      "isDynamicEntry": false
+    },
+    {
       "path": "dashboard.js",
       "type": "chunk",
       "loader": "js",
@@ -10,7 +18,7 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "./large-module.js"
+        "./chunk-9542b644.js"
       ]
     },
     {
@@ -22,7 +30,7 @@
       "isEntry": true,
       "isDynamicEntry": false,
       "imports": [
-        "./large-module.js"
+        "./chunk-9542b644.js"
       ]
     },
     {
@@ -30,15 +38,6 @@
       "type": "asset",
       "loader": "html",
       "isEntry": true,
-      "isDynamicEntry": false
-    },
-    {
-      "path": "large-module.js",
-      "type": "chunk",
-      "loader": "js",
-      "name": "large-module",
-      "input": "src/large-module.ts",
-      "isEntry": false,
       "isDynamicEntry": false
     },
     {

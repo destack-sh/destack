@@ -1,5 +1,5 @@
 {
-  "name": "html-minify-document-imported-css-minification",
+  "name": "emit-html-minify-document-imported-css-minification",
   "targets": {
     "site": {
       "emit": "html",

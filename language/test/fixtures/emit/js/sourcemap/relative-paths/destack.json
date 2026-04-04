@@ -1,0 +1,17 @@
+{
+  "name": "emit-js-sourcemap-relative-paths",
+  "targets": {
+    "bundle": {
+      "emit": "js",
+      "runtime": "browser",
+      "entry": [
+        "src/main.ts"
+      ],
+      "outFile": "dist/bundle/bundle.js",
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
+    }
+  }
+}

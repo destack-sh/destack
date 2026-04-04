@@ -1,0 +1,17 @@
+{
+  "name": "emit-html-entry-module-script-entry",
+  "targets": {
+    "site": {
+      "emit": "html",
+      "runtime": "browser",
+      "entry": [
+        "src/index.html"
+      ],
+      "outFile": "dist/index.html",
+      "output": {
+        "sourcemap": "external",
+        "manifest": true
+      }
+    }
+  }
+}
