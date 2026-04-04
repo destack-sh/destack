@@ -2,25 +2,22 @@ use std::collections::HashMap;
 
 use parking_lot::RwLock;
 
-use crate::{Diagnostic, FileId, FileVersion};
+use crate::{Diagnostic, FileId};
 
 /// Update payload for a file's diagnostics in the store.
 #[derive(Debug, Clone)]
 pub struct DiagnosticStoreUpdate {
     /// The file id being updated.
     pub file_id: FileId,
-    /// The file version for this update.
-    pub file_version: FileVersion,
     /// Diagnostics for the file.
     pub diagnostics: Vec<Diagnostic>,
 }
 
 impl DiagnosticStoreUpdate {
     /// Create a new diagnostic store update.
-    pub fn new(file_id: FileId, file_version: FileVersion, diagnostics: Vec<Diagnostic>) -> Self {
+    pub fn new(file_id: FileId, diagnostics: Vec<Diagnostic>) -> Self {
         Self {
             file_id,
-            file_version,
             diagnostics,
         }
     }
@@ -29,8 +26,6 @@ impl DiagnosticStoreUpdate {
 /// Entry for a single file in the diagnostic store.
 #[derive(Debug, Clone)]
 struct DiagnosticStoreEntry {
-    /// The file version captured for this entry.
-    file_version: FileVersion,
     /// Diagnostics stored for the file.
     diagnostics: Vec<Diagnostic>,
 }
@@ -55,18 +50,11 @@ impl DiagnosticStore {
         // lock the store for updates
         let mut entries = self.entries.write();
 
-        // apply updates while skipping stale versions
+        // apply updates for each file id
         for update in updates {
-            if let Some(existing) = entries.get(&update.file_id)
-                && update.file_version < existing.file_version
-            {
-                continue;
-            }
-
             entries.insert(
                 update.file_id,
                 DiagnosticStoreEntry {
-                    file_version: update.file_version,
                     diagnostics: update.diagnostics,
                 },
             );
@@ -126,7 +114,7 @@ impl DiagnosticStore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Diagnostic, DiagnosticSeverity, FileId, FileVersion, LabeledSpan, Span};
+    use crate::{Diagnostic, DiagnosticSeverity, FileId, LabeledSpan, Span};
 
     use super::{DiagnosticStore, DiagnosticStoreUpdate};
 
@@ -157,7 +145,7 @@ mod tests {
         let store = DiagnosticStore::new();
         let file_id = FileId::new(1);
         let diagnostic = make_diagnostic(file_id, "first");
-        let update = DiagnosticStoreUpdate::new(file_id, FileVersion::new(1), vec![diagnostic]);
+        let update = DiagnosticStoreUpdate::new(file_id, vec![diagnostic]);
 
         // apply the update
         store.apply_updates(vec![update]);
@@ -168,26 +156,26 @@ mod tests {
         assert_eq!(diagnostics[0].message, "first");
     }
 
-    /// Ensure stale updates do not overwrite newer diagnostics.
+    /// Ensure later updates overwrite earlier diagnostics.
     #[test]
-    fn test_store_skips_stale_updates() {
-        // keeps newer diagnostics when stale updates arrive
+    fn test_store_overwrites_updates() {
+        // keeps the latest diagnostics for the file
         let store = DiagnosticStore::new();
         let file_id = FileId::new(2);
         let newer = make_diagnostic(file_id, "newer");
         let older = make_diagnostic(file_id, "older");
 
-        // apply a newer update
-        let update = DiagnosticStoreUpdate::new(file_id, FileVersion::new(2), vec![newer]);
+        // apply one update
+        let update = DiagnosticStoreUpdate::new(file_id, vec![newer]);
         store.apply_updates(vec![update]);
 
-        // attempt to apply a stale update
-        let update = DiagnosticStoreUpdate::new(file_id, FileVersion::new(1), vec![older]);
+        // apply a later update
+        let update = DiagnosticStoreUpdate::new(file_id, vec![older]);
         store.apply_updates(vec![update]);
 
-        // assert the newer diagnostic remains
+        // assert the later diagnostic remains
         let diagnostics = store.diagnostics_for_file(file_id);
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].message, "newer");
+        assert_eq!(diagnostics[0].message, "older");
     }
 }

@@ -1,13 +1,17 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{FileType, Span, Uri, fnv1a_64, strip_json};
 
+fn normalize_logical_path(value: &str) -> String {
+    value.replace('\\', "/")
+}
+
 /// The id of a File.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct FileId(pub u32);
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct FileId(pub u64);
 
 impl std::fmt::Debug for FileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -21,73 +25,26 @@ impl std::fmt::Display for FileId {
     }
 }
 impl FileId {
-    /// Turn a u32 into a FileId.
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-}
-
-/// Stable identity for a file across sessions.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct FileKey(pub u64);
-
-impl std::fmt::Debug for FileKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:016x}", self.0)
-    }
-}
-
-impl std::fmt::Display for FileKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:016x}", self.0)
-    }
-}
-
-impl FileKey {
-    /// Well-known key for ephemeral files.
+    /// Well-known ID for ephemeral files.
     pub const EPHEMERAL: Self = Self(0);
 
-    /// Create a file key from a raw hash value.
-    pub fn new(key: u64) -> Self {
-        Self(key)
+    /// Turn a u64 into a FileId.
+    pub fn new(id: u64) -> Self {
+        Self(id)
     }
 
-    /// Create a file key from a stable uri.
-    pub fn from_uri(uri: &Uri) -> Self {
-        Self(fnv1a_64(uri.as_ref().as_bytes()))
-    }
-}
-
-/// Version of a file's content (increments on each change).
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct FileVersion(pub u64);
-
-impl std::fmt::Debug for FileVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl std::fmt::Display for FileVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl FileVersion {
-    /// Initial version.
-    pub const INITIAL: Self = Self(0);
-
-    /// Create a new FileVersion.
-    pub fn new(version: u64) -> Self {
-        Self(version)
+    /// Create a file id from one logical source path string.
+    ///
+    /// This should be one repository or import relative path for physical files,
+    /// or one explicit namespaced synthetic path for virtual files.
+    pub fn from_logical_str(path: &str) -> Self {
+        let path = normalize_logical_path(path);
+        Self(fnv1a_64(path.as_bytes()))
     }
 
-    /// Increment the version, returning the new value.
-    pub fn next(self) -> Self {
-        Self(self.0 + 1)
+    /// Create a file id from one logical source path.
+    pub fn from_logical_path(path: &Path) -> Self {
+        Self::from_logical_str(&path.to_string_lossy())
     }
 }
 
@@ -96,10 +53,6 @@ impl FileVersion {
 pub struct File {
     /// The id of the File.
     pub id: FileId,
-    /// The stable key of the File.
-    pub key: FileKey,
-    /// The version of the File (increments on each change).
-    pub version: FileVersion,
     /// The name of the source (usually the last segment of the URI).
     pub name: String,
     /// The URI of the File.
@@ -143,11 +96,8 @@ impl File {
         path: Option<PathBuf>,
         ty: FileType,
     ) -> Self {
-        let key = FileKey::from_uri(&uri);
         Self {
             id,
-            key,
-            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -166,11 +116,8 @@ impl File {
         path: Option<PathBuf>,
         ty: FileType,
     ) -> Self {
-        let key = FileKey::from_uri(&uri);
         Self {
             id,
-            key,
-            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -237,11 +184,8 @@ impl File {
         let content = Self::normalize_line_endings(content);
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
-        let key = FileKey::from_uri(&uri);
         Self {
             id,
-            key,
-            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -268,11 +212,8 @@ impl File {
         let json = serde_json::from_str(json_str)?;
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
-        let key = FileKey::from_uri(&uri);
         let file = Self {
             id,
-            key,
-            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -313,11 +254,8 @@ impl File {
         let json = serde_json::from_str(&json_str)?;
         let len = content.len() as u32;
         let line_start_offsets = Self::precompute_line_start_offsets(&content);
-        let key = FileKey::from_uri(&uri);
         let file = Self {
             id,
-            key,
-            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -342,11 +280,8 @@ impl File {
         content: Vec<u8>,
     ) -> Self {
         let len = content.len() as u32;
-        let key = FileKey::from_uri(&uri);
         Self {
             id,
-            key,
-            version: FileVersion::INITIAL,
             name,
             uri,
             path,
@@ -381,12 +316,6 @@ impl File {
     ) -> Result<Self, serde_json::Error> {
         let content = String::from_utf8(bytes).unwrap_or_else(|_| String::new());
         Self::from_text_as_jsonc(id, name, uri, path, ty, content)
-    }
-
-    /// Set the version of the file (builder pattern).
-    pub fn with_version(mut self, version: FileVersion) -> Self {
-        self.version = version;
-        self
     }
 
     /// Get the text content of the File (empty if not text).

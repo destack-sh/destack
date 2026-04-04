@@ -42,9 +42,6 @@ Severity can be remapped via `DiagnosticOptions` (e.g., treat specific warnings 
 
 ### Files
 
-`FileId` is the cheap live registry handle for source files.
-`FileKey` is the stable cross-session identity for persistence boundaries.
-Persisted `Ast` images now use `FileKey` and rebind back to live `FileId` on load.
 The file system abstraction supports both real files and virtual/in-memory sources (for tests, REPL, etc.).
 This crate does not own compiler artifact caching policy.
 It only provides the source identities and span machinery that persisted artifact images can bind back onto.

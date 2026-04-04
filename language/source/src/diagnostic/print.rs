@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_core::{Color, pluralize};
 
-use crate::{AnnotateOptions, DiagnosticCollection, FileRegistry, SourceColorizer, annotate_file};
+use crate::{AnnotateOptions, DiagnosticCollection, FileStore, SourceColorizer, annotate_file};
 
 /// Write a diagnostic line.
 type LineWriter = Arc<dyn Fn(&str) + Send + Sync>;
@@ -76,7 +76,7 @@ impl PrintOptions {
 ///
 /// Prints all diagnostics with source annotations and a summary line.
 pub fn print_diagnostics(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollection,
     options: PrintOptions,
 ) {

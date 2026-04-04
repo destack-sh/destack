@@ -7,88 +7,28 @@ use serde::{Deserialize, Serialize};
 /// profile, allowing them to share canonical DIR.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct ProfileId(pub u32);
+pub struct ProfileId(pub u64);
 
 impl std::fmt::Debug for ProfileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+        write!(f, "p{:016x}", self.0)
     }
 }
 
 impl std::fmt::Display for ProfileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.0)
+        write!(f, "p{:016x}", self.0)
     }
 }
 
 impl ProfileId {
     /// Wrap an id as a ProfileId.
-    pub fn new(id: u32) -> Self {
+    pub fn new(id: u64) -> Self {
         Self(id)
     }
 
     /// Get the raw id value.
-    pub fn raw(&self) -> u32 {
+    pub fn raw(&self) -> u64 {
         self.0
-    }
-}
-
-/// Version of a profile's compiled state (increments on recomputation).
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct ProfileVersion(pub u64);
-
-impl std::fmt::Debug for ProfileVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl std::fmt::Display for ProfileVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
-impl ProfileVersion {
-    /// Initial version.
-    pub const INITIAL: Self = Self(0);
-
-    /// Create a new ProfileVersion.
-    pub fn new(version: u64) -> Self {
-        Self(version)
-    }
-
-    /// Increment the version, returning the new value.
-    pub fn next(self) -> Self {
-        Self(self.0 + 1)
-    }
-}
-
-/// A profile id and version captured together.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ProfileStamp {
-    /// The profile id.
-    pub id: ProfileId,
-    /// The profile version.
-    pub version: ProfileVersion,
-}
-
-impl std::fmt::Debug for ProfileStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{id}@{version}", id = self.id, version = self.version)
-    }
-}
-
-impl std::fmt::Display for ProfileStamp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{id}@{version}", id = self.id, version = self.version)
-    }
-}
-
-impl ProfileStamp {
-    /// Create a new ProfileStamp.
-    pub fn new(id: ProfileId, version: ProfileVersion) -> Self {
-        Self { id, version }
     }
 }
