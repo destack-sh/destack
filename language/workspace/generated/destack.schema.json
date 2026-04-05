@@ -2526,8 +2526,8 @@
             }
           ]
         },
-        "managedRunBytes": {
-          "description": "The byte width for managed runs.",
+        "managedYoungBytes": {
+          "description": "The byte width for managed young space.",
           "type": [
             "integer",
             "null"
@@ -2535,8 +2535,8 @@
           "format": "uint",
           "minimum": 0
         },
-        "rawRunBytes": {
-          "description": "The byte width for raw runs.",
+        "managedSmallBytes": {
+          "description": "The byte width for managed small-object spans.",
           "type": [
             "integer",
             "null"
@@ -2544,8 +2544,17 @@
           "format": "uint",
           "minimum": 0
         },
-        "chunkBytes": {
-          "description": "The byte width for chunk-backed extent and shared leaves.",
+        "rawSmallBytes": {
+          "description": "The byte width for raw small-object spans.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "pageBytes": {
+          "description": "The byte width for local heap pages and page-sized chunks.",
           "type": [
             "integer",
             "null"
@@ -3167,50 +3176,6 @@
             }
           ]
         },
-        "dragonfly": {
-          "description": "DragonFly BSD-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "freebsd": {
-          "description": "FreeBSD-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "haiku": {
-          "description": "Haiku-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "illumos": {
-          "description": "illumos-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "ios": {
           "description": "iOS-specific runtime host overrides.",
           "anyOf": [
@@ -3235,39 +3200,6 @@
         },
         "macos": {
           "description": "macOS-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "netbsd": {
-          "description": "NetBSD-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "openbsd": {
-          "description": "OpenBSD-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "solaris": {
-          "description": "Solaris-specific runtime host overrides.",
           "anyOf": [
             {
               "$ref": "#/$defs/PlatformHostOptionsJson"
