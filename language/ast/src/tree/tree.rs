@@ -5,10 +5,9 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Annotation, AnnotationPosition, Arena, Argument, Blank, BlankTrivia, Block, Comment,
-    CommentTrivia, Declaration, Declarator, Decorator, DependencyItem, Doc, EnumField, Expression,
-    LocalNodeId, MatchCase, Member, Node, NodeType, Parameter, Pattern, PatternField, Property,
-    TriviaRef, WhereClause,
+    Annotation, AnnotationPosition, Arena, Argument, Block, Comment, Declaration, Declarator,
+    Decorator, DependencyItem, EnumField, Expression, LocalNodeId, MatchCase, Member, Node,
+    NodeType, Parameter, Pattern, PatternField, Property, WhereClause,
 };
 
 /// Dense metadata for one global node id.
@@ -59,10 +58,7 @@ impl NodeIndexEntry {
             12 => NodeType::PatternField,
             13 => NodeType::Declarator,
             14 => NodeType::Annotation,
-            15 => NodeType::Blank,
-            16 => NodeType::Doc,
-            17 => NodeType::Comment,
-            18 => NodeType::Decorator,
+            15 => NodeType::Decorator,
             _ => unreachable!("invalid node type tag in packed node index"),
         }
     }
@@ -104,20 +100,10 @@ pub struct NodeTreeMark {
     declarators_len: usize,
     /// The annotation arena length.
     annotations_len: usize,
-    /// The blank arena length.
-    blanks_len: usize,
-    /// The doc arena length.
-    docs_len: usize,
     /// The comment arena length.
     comments_len: usize,
     /// The decorator arena length.
     decorators_len: usize,
-    /// The comment trivia buffer length.
-    comment_trivia_len: usize,
-    /// The blank trivia buffer length.
-    blank_trivia_len: usize,
-    /// The source-order trivia refs length.
-    trivia_order_len: usize,
 }
 
 impl NodeTreeMark {
@@ -158,16 +144,8 @@ pub struct NodeTree {
     pub(crate) pattern_fields: Arena<PatternField>,
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) annotations: Arena<Annotation>,
-    pub(crate) blanks: Arena<Blank>,
-    pub(crate) docs: Arena<Doc>,
-    pub(crate) comments: Arena<Comment>,
+    pub(crate) comments: Vec<Comment>,
     pub(crate) decorators: Arena<Decorator>,
-    /// Comment trivia records in source order for comment-only iteration.
-    pub(crate) comment_trivia: Vec<CommentTrivia>,
-    /// Blank trivia records in source order for blank-only iteration.
-    pub(crate) blank_trivia: Vec<BlankTrivia>,
-    /// Stable source-order refs across split trivia buffers.
-    pub(crate) trivia_order: Vec<TriviaRef>,
 }
 
 impl Debug for NodeTree {
@@ -217,13 +195,8 @@ impl NodeTree {
             pattern_fields: Arena::with(capacity / 8),
             declarators: Arena::with(capacity / 8),
             annotations: Arena::with(capacity / 16),
-            blanks: Arena::with(capacity / 16),
-            docs: Arena::with(capacity / 16),
-            comments: Arena::with(capacity / 16),
+            comments: Vec::with_capacity(capacity / 16),
             decorators: Arena::with(capacity / 16),
-            comment_trivia: Vec::with_capacity(capacity / 8),
-            blank_trivia: Vec::with_capacity(capacity / 16),
-            trivia_order: Vec::with_capacity(capacity / 4),
         }
     }
 
@@ -300,13 +273,8 @@ impl NodeTree {
             pattern_fields_len: self.pattern_fields.len(),
             declarators_len: self.declarators.len(),
             annotations_len: self.annotations.len(),
-            blanks_len: self.blanks.len(),
-            docs_len: self.docs.len(),
             comments_len: self.comments.len(),
             decorators_len: self.decorators.len(),
-            comment_trivia_len: self.comment_trivia.len(),
-            blank_trivia_len: self.blank_trivia.len(),
-            trivia_order_len: self.trivia_order.len(),
         }
     }
 
@@ -333,13 +301,8 @@ impl NodeTree {
         self.pattern_fields.truncate(mark.pattern_fields_len);
         self.declarators.truncate(mark.declarators_len);
         self.annotations.truncate(mark.annotations_len);
-        self.blanks.truncate(mark.blanks_len);
-        self.docs.truncate(mark.docs_len);
         self.comments.truncate(mark.comments_len);
         self.decorators.truncate(mark.decorators_len);
-        self.comment_trivia.truncate(mark.comment_trivia_len);
-        self.blank_trivia.truncate(mark.blank_trivia_len);
-        self.trivia_order.truncate(mark.trivia_order_len);
 
         // drop annotation links that point outside the restored node range
         self.annotations_by_node_id
@@ -554,25 +517,6 @@ impl NodeTree {
         annotation_ids.push(annotation);
     }
 
-    /// Append a documentation attachment to a node by its global id.
-    #[inline]
-    pub fn append_documentation(
-        &mut self,
-        target_id: u32,
-        documentation: LocalNodeId<Doc>,
-        position: AnnotationPosition,
-    ) -> LocalNodeId<Annotation> {
-        let annotation = self.insert(
-            Annotation::Doc {
-                node: documentation,
-                position,
-            },
-            self.get_span(documentation),
-        );
-        self.append_annotation(target_id, annotation);
-        annotation
-    }
-
     /// Append a decorator attachment to a node by its global id.
     #[inline]
     pub fn append_decorator(
@@ -653,6 +597,24 @@ impl NodeTree {
     #[inline]
     pub fn get_all_annotations(&self) -> &FxHashMap<u32, Vec<LocalNodeId<Annotation>>> {
         &self.annotations_by_node_id
+    }
+
+    /// Return all raw comments in source order.
+    #[inline]
+    pub fn comments(&self) -> &[Comment] {
+        &self.comments
+    }
+
+    /// Return all raw comments in source order, mutably.
+    #[inline]
+    pub fn comments_mut(&mut self) -> &mut Vec<Comment> {
+        &mut self.comments
+    }
+
+    /// Append one raw comment.
+    #[inline]
+    pub fn push_comment(&mut self, comment: Comment) {
+        self.comments.push(comment);
     }
 
     /// Sort all annotations.
@@ -749,60 +711,6 @@ impl NodeTree {
     pub fn build_position_index(&mut self) {
         self.source_map.build_position_index();
     }
-
-    /// Get doc annotation attached to a node, cloned as a Vec.
-    #[inline]
-    pub fn get_docs_for(&self, node_id: u32) -> Vec<(LocalNodeId<Doc>, AnnotationPosition)> {
-        self.get_annotations_ref(node_id)
-            .iter()
-            .filter_map(|&id| match self.get(id) {
-                Annotation::Doc { node, position } => Some((*node, *position)),
-                _ => None,
-            })
-            .collect()
-    }
-
-    /// Push a comment trivia record and return its index.
-    #[inline]
-    pub fn push_comment_trivia(&mut self, trivia: CommentTrivia) -> u32 {
-        let index = self.comment_trivia.len() as u32;
-        self.comment_trivia.push(trivia);
-        self.trivia_order.push(TriviaRef::Comment(index));
-        index
-    }
-
-    /// Push a blank trivia record and return its index.
-    #[inline]
-    pub fn push_blank_trivia(&mut self, trivia: BlankTrivia) -> u32 {
-        let index = self.blank_trivia.len() as u32;
-        self.blank_trivia.push(trivia);
-        self.trivia_order.push(TriviaRef::Blank(index));
-        index
-    }
-
-    /// Get split comment trivia storage.
-    #[inline]
-    pub fn comment_trivia(&self) -> &[CommentTrivia] {
-        &self.comment_trivia
-    }
-
-    /// Get mutable split comment trivia storage.
-    #[inline]
-    pub fn comment_trivia_mut(&mut self) -> &mut [CommentTrivia] {
-        &mut self.comment_trivia
-    }
-
-    /// Get split blank trivia storage.
-    #[inline]
-    pub fn blank_trivia(&self) -> &[BlankTrivia] {
-        &self.blank_trivia
-    }
-
-    /// Get source-order trivia references.
-    #[inline]
-    pub fn trivia_refs(&self) -> &[TriviaRef] {
-        &self.trivia_order
-    }
 }
 
 /// Map node types to arenas.
@@ -858,8 +766,5 @@ impl_node_tree_stores! {
     PatternField => pattern_fields,
     Declarator => declarators,
     Annotation => annotations,
-    Blank => blanks,
-    Doc => docs,
-    Comment => comments,
     Decorator => decorators,
 }

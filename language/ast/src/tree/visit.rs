@@ -1,12 +1,12 @@
 #![allow(unused_variables)]
 
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Declaration, Declarator, Decorator,
-    DependencyItem, Doc, EnumField, Expression, LocalNodeId, MatchCase, Member, NodeTree, NodeType,
-    Parameter, Pattern, PatternField, Property, WhereClause, walk_annotation, walk_argument,
-    walk_blank, walk_block, walk_comment, walk_declaration, walk_declarator, walk_decorator,
-    walk_dependency_item, walk_doc, walk_enum_field, walk_expression, walk_match_case, walk_member,
-    walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_where_clause,
+    Annotation, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
+    Expression, LocalNodeId, MatchCase, Member, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, Property, WhereClause, walk_annotation, walk_argument, walk_block,
+    walk_declaration, walk_declarator, walk_decorator, walk_dependency_item, walk_enum_field,
+    walk_expression, walk_match_case, walk_member, walk_parameter, walk_pattern,
+    walk_pattern_field, walk_property, walk_where_clause,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -145,21 +145,6 @@ pub trait NodeVisitor {
         annotation: &Annotation,
     ) {
         walk_annotation(self, tree, id, annotation);
-    }
-
-    /// Visit a Blank.
-    fn visit_blank(&mut self, tree: &NodeTree, id: LocalNodeId<Blank>, blank: &Blank) {
-        walk_blank(self, tree, id, blank);
-    }
-
-    /// Visit a Doc.
-    fn visit_doc(&mut self, tree: &NodeTree, id: LocalNodeId<Doc>, doc: &Doc) {
-        walk_doc(self, tree, id, doc);
-    }
-
-    /// Visit a Comment.
-    fn visit_comment(&mut self, tree: &NodeTree, id: LocalNodeId<Comment>, comment: &Comment) {
-        walk_comment(self, tree, id, comment);
     }
 
     /// Visit a Decorator.
@@ -306,18 +291,6 @@ impl NodeVisitor for CapturingNodeVisitor {
         annotation: &Annotation,
     ) {
         self.visit_any(tree, NodeType::Annotation, id.id);
-    }
-
-    fn visit_blank(&mut self, tree: &NodeTree, id: LocalNodeId<Blank>, blank: &Blank) {
-        self.visit_any(tree, NodeType::Blank, id.id);
-    }
-
-    fn visit_doc(&mut self, tree: &NodeTree, id: LocalNodeId<Doc>, doc: &Doc) {
-        self.visit_any(tree, NodeType::Doc, id.id);
-    }
-
-    fn visit_comment(&mut self, tree: &NodeTree, id: LocalNodeId<Comment>, comment: &Comment) {
-        self.visit_any(tree, NodeType::Comment, id.id);
     }
 
     fn visit_decorator(

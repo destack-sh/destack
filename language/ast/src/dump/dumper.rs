@@ -3,7 +3,6 @@
 use crate::*;
 use destack_core::{Color, ImmutableStringPool, impl_dump_display, rebuild_tree_output};
 use smallvec::{Array, SmallVec};
-use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DumperOptions {
@@ -438,7 +437,6 @@ impl_dump_display! {
     DeclarationKind,
     NamespaceKind,
     DependencyKind,
-    DocStyle,
     DependencyMode,
     EnumKind,
     ForEachKind,
@@ -1809,11 +1807,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         annotation: &Annotation,
     ) {
         match annotation {
-            Annotation::Doc { node: _, position } => {
-                self.node("Annotation::Doc", _id.id)
-                    .field("position", position)
-                    .end();
-            }
             Annotation::Decorator { node: _, position } => {
                 self.node("Annotation::Decorator", _id.id)
                     .field("position", position)
@@ -1822,35 +1815,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         };
         self.with_depth(|dumper| {
             walk_annotation(dumper, _tree, _id, annotation);
-        });
-    }
-
-    fn visit_blank(&mut self, _tree: &NodeTree, _id: LocalNodeId<Blank>, blank: &Blank) {
-        self.node("Blank", _id.id)
-            .field("lines", &blank.lines)
-            .end();
-        self.with_depth(|dumper| {
-            walk_blank(dumper, _tree, _id, blank);
-        });
-    }
-
-    fn visit_doc(&mut self, _tree: &NodeTree, _id: LocalNodeId<Doc>, doc: &Doc) {
-        let string = truncate_string(self.strings.get(doc.string), 40, "...");
-        self.node("Doc", _id.id)
-            .field("string", &string.as_ref())
-            .field("style", &doc.style)
-            .end();
-        self.with_depth(|dumper| {
-            walk_doc(dumper, _tree, _id, doc);
-        });
-    }
-
-    fn visit_comment(&mut self, _tree: &NodeTree, _id: LocalNodeId<Comment>, comment: &Comment) {
-        self.node("Comment", _id.id)
-            .field("style", &comment.style)
-            .end();
-        self.with_depth(|dumper| {
-            walk_comment(dumper, _tree, _id, comment);
         });
     }
 
@@ -1866,22 +1830,5 @@ impl<'a> NodeVisitor for Dumper<'a> {
         self.with_depth(|dumper| {
             walk_decorator(dumper, _tree, _id, decorator);
         });
-    }
-}
-
-/// Truncate a string to n characters (with newlines replaced).
-fn truncate_string<'a>(string: &'a str, n: usize, newline_replacement: &str) -> Cow<'a, str> {
-    if string.len() > n || string.contains('\n') {
-        let truncated = if string.len() > n {
-            &string[..n]
-        } else {
-            string
-        };
-        Cow::Owned(format!(
-            "{} ...",
-            truncated.replace('\n', newline_replacement)
-        ))
-    } else {
-        Cow::Borrowed(string)
     }
 }

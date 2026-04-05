@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Declaration, Declarator, Decorator,
-    DependencyItem, Doc, EnumField, Expression, LocalNodeId, MatchCase, Member, Node, NodeTree,
-    NodeTreeImpl, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField,
-    Property, WhereClause, walk_any,
+    Annotation, Argument, Block, Declaration, Declarator, Decorator, DependencyItem, EnumField,
+    Expression, LocalNodeId, MatchCase, Member, Node, NodeTree, NodeTreeImpl, NodeType,
+    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property, WhereClause,
+    walk_any,
 };
 
 /// The NodeParentIndex is a side index of parent nodes into the AST NodeTree.
@@ -38,14 +38,6 @@ impl NodeParentIndex {
         let node_count = tree.node_index_by_node_id.len();
         let mut visitor = ParentIndexBuilderVisitor::new(node_count);
         for (parent_id, entry) in tree.node_index_by_node_id.iter().enumerate() {
-            // leaf trivia nodes cannot own children, so skip empty walks
-            if matches!(
-                entry.node_type(),
-                NodeType::Blank | NodeType::Doc | NodeType::Comment
-            ) {
-                continue;
-            }
-
             visitor.set_current_parent(parent_id as u32);
             walk_any(&mut visitor, tree, entry.node_type(), parent_id as u32);
         }
@@ -282,21 +274,6 @@ impl NodeVisitor for ParentIndexBuilderVisitor {
         id: LocalNodeId<Annotation>,
         _annotation: &Annotation,
     ) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_blank(&mut self, _tree: &NodeTree, id: LocalNodeId<Blank>, _blank: &Blank) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_doc(&mut self, _tree: &NodeTree, id: LocalNodeId<Doc>, _doc: &Doc) {
-        self.record_parent_for(id.id);
-    }
-
-    #[inline]
-    fn visit_comment(&mut self, _tree: &NodeTree, id: LocalNodeId<Comment>, _comment: &Comment) {
         self.record_parent_for(id.id);
     }
 

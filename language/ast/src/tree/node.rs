@@ -24,9 +24,6 @@ pub enum NodeType {
     PatternField,
     Declarator,
     Annotation,
-    Blank,
-    Doc,
-    Comment,
     Decorator,
 }
 
@@ -50,22 +47,13 @@ impl NodeType {
             NodeType::PatternField => "pattern field",
             NodeType::Declarator => "declarator",
             NodeType::Annotation => "annotation",
-            NodeType::Blank => "blank",
-            NodeType::Doc => "doc",
-            NodeType::Comment => "comment",
             NodeType::Decorator => "decorator",
         }
     }
 }
 
 /// Node types that are annotations.
-pub const ANNOTATION_NODE_TYPES: [NodeType; 5] = [
-    NodeType::Annotation,
-    NodeType::Blank,
-    NodeType::Doc,
-    NodeType::Comment,
-    NodeType::Decorator,
-];
+pub const ANNOTATION_NODE_TYPES: [NodeType; 2] = [NodeType::Annotation, NodeType::Decorator];
 
 /// Unique identifier for nodes with dynamic type in a local arena.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
