@@ -74,7 +74,7 @@ impl LintWorkspaceAstContext {
 
     /// Return the package ids in the active workspace.
     pub fn workspace_package_ids(&self) -> Vec<PackageId> {
-        self.workspace.package_ids.clone()
+        self.workspace.package_ids().collect()
     }
 
     /// Return all visible module ids in the active workspace.
@@ -233,7 +233,7 @@ impl LintWorkspaceDirContext {
 
     /// Return the package ids in the active workspace.
     pub fn workspace_package_ids(&self) -> Vec<PackageId> {
-        self.workspace.package_ids.clone()
+        self.workspace.package_ids().collect()
     }
 
     /// Return all visible module ids in the active workspace.
@@ -342,8 +342,8 @@ fn collect_workspace_module_ids(
 ) -> Vec<ModuleId> {
     let mut module_ids = Vec::new();
 
-    for package_id in &workspace.package_ids {
-        let Ok(package_module_ids) = repository.package_module_ids(revision, *package_id) else {
+    for package_id in workspace.package_ids() {
+        let Ok(package_module_ids) = repository.package_module_ids(revision, package_id) else {
             continue;
         };
         module_ids.extend(package_module_ids);

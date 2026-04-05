@@ -250,7 +250,7 @@ impl LintRunner {
 
     /// Return the active workspace view for one revision when present.
     fn repository_workspace(repository: &Repository, revision: Revision) -> Option<Arc<Workspace>> {
-        repository.workspace(revision).ok().map(Arc::new)
+        repository.workspace(revision).ok()
     }
 
     /// Lint a module at a specific IR level.
