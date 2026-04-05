@@ -6,24 +6,7 @@ use crate::platform::{PlatformError, VmArray, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
-/// Request a runtime debug break.
-///
-/// Trigger one debugger stop request for the current runtime execution context.
-/// Break behavior depends on whether a debugger session is attached.
-/// This is one low-level debugger hook rather than one general world control operation.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime debugger integration hooks, not direct host syscalls.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.inspect`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.core.breakNow`.
 pub(crate) fn destack_debug_break_now(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -34,24 +17,7 @@ pub(crate) fn destack_debug_break_now(
     .boxed())
 }
 
-/// Mark a debug timeline point.
-///
-/// Record one low-level debug or instrumentation marker with a user-provided label.
-/// Marker ordering follows the active runtime scheduler and may be mirrored into debug trace sinks.
-/// This is not the full causal runtime trace API.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime debug instrumentation, not direct host syscalls.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.trace`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.core.mark`.
 pub(crate) fn destack_debug_mark(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -64,23 +30,7 @@ pub(crate) fn destack_debug_mark(
     .boxed())
 }
 
-/// Read inspector endpoint metadata.
-///
-/// Return endpoint metadata for one active inspector session.
-/// Metadata shape is stable across transports and does not expose host-private handles.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspector session state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `debug.inspect`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.inspector.endpoint`.
 pub(crate) fn destack_debug_inspector_endpoint(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -93,23 +43,7 @@ pub(crate) fn destack_debug_inspector_endpoint(
     .boxed())
 }
 
-/// Start an inspector session.
-///
-/// Create one debugger inspector transport endpoint and attach it to the active runtime.
-/// Endpoint visibility and connection policy are controlled by runtime security settings.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspector transport, optionally backed by host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, netAddressInUse, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `debug.inspect`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.inspector.start`.
 pub(crate) fn destack_debug_inspector_start(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -123,23 +57,7 @@ pub(crate) fn destack_debug_inspector_start(
     .boxed())
 }
 
-/// Stop an inspector session.
-///
-/// Detach one inspector transport endpoint from the runtime.
-/// Active clients are disconnected according to runtime debugger policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspector transport teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `debug.inspect`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.inspector.stop`.
 pub(crate) fn destack_debug_inspector_stop(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -152,23 +70,7 @@ pub(crate) fn destack_debug_inspector_stop(
     .boxed())
 }
 
-/// Capture a profiling snapshot.
-///
-/// Export one profile snapshot as bytes for offline analysis.
-/// Output format is runtime-defined but versioned for tooling compatibility.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime profiler snapshot serialization.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.profile`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.profile.snapshot`.
 pub(crate) fn destack_debug_profile_snapshot(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -181,23 +83,7 @@ pub(crate) fn destack_debug_profile_snapshot(
     .boxed())
 }
 
-/// Start a profiling session.
-///
-/// Start one runtime profiler with the selected profile kind.
-/// Sampling cadence and event capture depend on runtime profiling policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime profiler integration, optionally backed by host perf APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.profile`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.profile.start`.
 pub(crate) fn destack_debug_profile_start(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -210,23 +96,7 @@ pub(crate) fn destack_debug_profile_start(
     .boxed())
 }
 
-/// Stop a profiling session.
-///
-/// Stop one active profiling session and release profiler resources.
-/// Profile data remains available for snapshot export until explicit cleanup.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime profiler teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `debug.profile`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.profile.stop`.
 pub(crate) fn destack_debug_profile_stop(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -239,24 +109,7 @@ pub(crate) fn destack_debug_profile_stop(
     .boxed())
 }
 
-/// Emit one debug trace event.
-///
-/// Append one structured diagnostic record to the active debug trace stream.
-/// Event ordering follows runtime scheduling and stream flush policy.
-/// This does not replace the structured causal trace and revision APIs.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime trace event encoder and sink.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.trace`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.trace.emit`.
 pub(crate) fn destack_debug_trace_emit(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -271,24 +124,7 @@ pub(crate) fn destack_debug_trace_emit(
     .boxed())
 }
 
-/// Start a debug trace stream.
-///
-/// Start one debug sink for runtime observation events with the requested level and destination.
-/// Destination routing is runtime-defined and may target file, socket, or collector backends.
-/// This stream is distinct from the world-owned causal trace used for deterministic replay, fork, and rewind.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime trace pipeline, optionally backed by host transports.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.trace`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.trace.start`.
 pub(crate) fn destack_debug_trace_start(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -302,23 +138,7 @@ pub(crate) fn destack_debug_trace_start(
     .boxed())
 }
 
-/// Stop a debug trace stream.
-///
-/// Stop one active trace stream and flush buffered events.
-/// Flush behavior and durability guarantees follow runtime trace backend policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime trace stream teardown and flush logic.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.trace`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.debug.trace.stop`.
 pub(crate) fn destack_debug_trace_stop(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,

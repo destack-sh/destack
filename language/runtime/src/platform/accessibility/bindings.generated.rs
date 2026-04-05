@@ -5245,7 +5245,7 @@ pub(crate) const ACCESSIBILITY_ACTION_CLOSE: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.action.open.
 pub(crate) const ACCESSIBILITY_ACTION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5259,7 +5259,7 @@ pub(crate) const ACCESSIBILITY_ACTION_OPEN: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.action.read.
 pub(crate) const ACCESSIBILITY_ACTION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5273,7 +5273,7 @@ pub(crate) const ACCESSIBILITY_ACTION_READ: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.action.tryRead.
 pub(crate) const ACCESSIBILITY_ACTION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5287,7 +5287,7 @@ pub(crate) const ACCESSIBILITY_ACTION_TRY_READ: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.clear.
 pub(crate) const ACCESSIBILITY_DOCUMENT_CLEAR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5301,7 +5301,7 @@ pub(crate) const ACCESSIBILITY_DOCUMENT_CLEAR: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.close.
 pub(crate) const ACCESSIBILITY_DOCUMENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5315,7 +5315,7 @@ pub(crate) const ACCESSIBILITY_DOCUMENT_CLOSE: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.open.
 pub(crate) const ACCESSIBILITY_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5329,7 +5329,7 @@ pub(crate) const ACCESSIBILITY_DOCUMENT_OPEN: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.read.
 pub(crate) const ACCESSIBILITY_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5343,7 +5343,7 @@ pub(crate) const ACCESSIBILITY_DOCUMENT_READ: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.respond.
 pub(crate) const ACCESSIBILITY_DOCUMENT_RESPOND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5357,7 +5357,7 @@ pub(crate) const ACCESSIBILITY_DOCUMENT_RESPOND: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.set.
 pub(crate) const ACCESSIBILITY_DOCUMENT_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5371,7 +5371,7 @@ pub(crate) const ACCESSIBILITY_DOCUMENT_SET: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.tryRead.
 pub(crate) const ACCESSIBILITY_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5385,7 +5385,7 @@ pub(crate) const ACCESSIBILITY_DOCUMENT_TRY_READ: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.notification.post.
 pub(crate) const ACCESSIBILITY_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5399,7 +5399,7 @@ pub(crate) const ACCESSIBILITY_NOTIFICATION_POST: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.tree.apply.
 pub(crate) const ACCESSIBILITY_TREE_APPLY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5413,7 +5413,7 @@ pub(crate) const ACCESSIBILITY_TREE_APPLY: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.tree.clear.
 pub(crate) const ACCESSIBILITY_TREE_CLEAR: BindingDescriptor =
@@ -5428,20 +5428,7 @@ pub(crate) const ACCESSIBILITY_TREE_CLEAR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("accessibility")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.tree.hitTest.
 pub(crate) const ACCESSIBILITY_TREE_HIT_TEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5455,7 +5442,7 @@ pub(crate) const ACCESSIBILITY_TREE_HIT_TEST: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for accessibility.
 pub(crate) const ACCESSIBILITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

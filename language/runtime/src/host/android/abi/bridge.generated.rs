@@ -3,20 +3,18 @@
 #![cfg_attr(not(target_os = "android"), allow(dead_code))]
 
 use crate::host::HostSessionHandle;
-use crate::host::os::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
-use crate::host::os::android::abi::bindings::AndroidHostBindings;
-use crate::host::os::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
-use crate::host::os::android::abi::contact::callbacks::AndroidHostContactCallbacks;
-use crate::host::os::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
-use crate::host::os::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
-use crate::host::os::android::abi::location::callbacks::AndroidHostLocationCallbacks;
-use crate::host::os::android::abi::media::callbacks::AndroidHostMediaCallbacks;
-use crate::host::os::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
-use crate::host::os::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
-use crate::host::os::android::abi::registry::{
-    register_android_bindings, unregister_android_bindings,
-};
-use crate::host::os::android::abi::text::callbacks::AndroidHostTextCallbacks;
+use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
+use crate::host::android::abi::bindings::AndroidHostBindings;
+use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
+use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
+use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
+use crate::host::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
+use crate::host::android::abi::location::callbacks::AndroidHostLocationCallbacks;
+use crate::host::android::abi::media::callbacks::AndroidHostMediaCallbacks;
+use crate::host::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
+use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
+use crate::host::android::abi::registry::{register_android_bindings, unregister_android_bindings};
+use crate::host::android::abi::text::callbacks::AndroidHostTextCallbacks;
 
 /// Android runtime-bridge bindings for the mobile host lanes.
 /// This layout must stay in lockstep with `AndroidRuntimeBridgeBindings` in `bridge/types.h`.

@@ -398,7 +398,7 @@ pub(crate) const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.capability.list.
 pub(crate) const SECURITY_CAPABILITY_LIST: BindingDescriptor =
@@ -411,20 +411,7 @@ pub(crate) const SECURITY_CAPABILITY_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("security")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSeal.
 pub(crate) const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
@@ -437,20 +424,7 @@ pub(crate) const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("security")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSetCapabilities.
 pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -462,7 +436,7 @@ pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = 
     BindingAffinity::Any,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.setWriteXorExecute.
 pub(crate) const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
@@ -475,20 +449,7 @@ pub(crate) const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("security")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.get.
 pub(crate) const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -500,7 +461,7 @@ pub(crate) const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::det
     BindingAffinity::Any,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.getRules.
 pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -512,7 +473,7 @@ pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.set.
 pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -524,7 +485,7 @@ pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::det
     BindingAffinity::Any,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.setRules.
 pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -536,7 +497,7 @@ pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.enter.
 pub(crate) const SECURITY_SANDBOX_ENTER: BindingDescriptor =
@@ -551,20 +512,7 @@ pub(crate) const SECURITY_SANDBOX_ENTER: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("security")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.exit.
 pub(crate) const SECURITY_SANDBOX_EXIT: BindingDescriptor =
@@ -579,20 +527,7 @@ pub(crate) const SECURITY_SANDBOX_EXIT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("security")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for security.
 pub(crate) const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

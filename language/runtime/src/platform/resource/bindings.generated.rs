@@ -223,21 +223,7 @@ pub(crate) const RESOURCE_ID_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("resource")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.resource.id.kind.
 pub(crate) const RESOURCE_ID_KIND: BindingDescriptor =
@@ -250,21 +236,7 @@ pub(crate) const RESOURCE_ID_KIND: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("resource")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.resource.id.remove.
 pub(crate) const RESOURCE_ID_REMOVE: BindingDescriptor =
@@ -277,21 +249,7 @@ pub(crate) const RESOURCE_ID_REMOVE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("resource")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.resource.id.transfer.
 pub(crate) const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -303,7 +261,7 @@ pub(crate) const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::de
     BindingAffinity::Any,
 )
     .with_namespace("resource")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Native binding set for resource.
 pub(crate) const RESOURCE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

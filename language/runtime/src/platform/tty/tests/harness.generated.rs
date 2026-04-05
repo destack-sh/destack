@@ -83,23 +83,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Close one terminal handle.
-    ///
-    /// Close one terminal endpoint and release runtime ownership.
-    /// Follow-up operations on the closed handle fail with invalid-handle errors.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses close(2) on Unix and CloseHandle-style finalization on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.handle`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_close(&mut self, handle: resource::TtyHandle) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => tty_vm::destack_tty_close(self.call_context, context, handle),
@@ -107,23 +91,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Return whether one file handle is attached to a terminal.
-    ///
-    /// Query one file handle and return true when it targets a terminal endpoint.
-    /// This can be used before converting process stdio streams into tty workflows.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses isatty(3) on Unix and GetConsoleMode on Windows console handles.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.handle`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_is_terminal_file(
         &mut self,
         handle: resource::FileHandle,
@@ -148,24 +116,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Open one standard error terminal handle.
-    ///
-    /// Open one terminal handle for the current process standard error stream.
-    /// The returned handle can be used with tty write, mode, and size operations.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
-    /// Fails when the standard stream is not attached to a terminal.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.handle`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_stdio_stderr(&mut self) -> RuntimeResult<resource::TtyHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -183,24 +134,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Open one standard input terminal handle.
-    ///
-    /// Open one terminal handle for the current process standard input stream.
-    /// The returned handle can be used with tty read, mode, and size operations.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
-    /// Fails when the standard stream is not attached to a terminal.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.handle`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_stdio_stdin(&mut self) -> RuntimeResult<resource::TtyHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -218,24 +152,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Open one standard output terminal handle.
-    ///
-    /// Open one terminal handle for the current process standard output stream.
-    /// The returned handle can be used with tty write, mode, and size operations.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
-    /// Fails when the standard stream is not attached to a terminal.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.handle`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_stdio_stdout(&mut self) -> RuntimeResult<resource::TtyHandle> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -253,23 +170,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Read bytes from a terminal.
-    ///
-    /// Read one byte sequence from one terminal handle into caller memory.
-    /// Read mode and canonical processing depend on active terminal mode settings.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses read(2) on Unix terminals and Windows handle I/O on terminal endpoints.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_read(
         &mut self,
         handle: resource::TtyHandle,
@@ -298,23 +199,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Write bytes to a terminal.
-    ///
-    /// Write one byte sequence from caller memory to one terminal handle.
-    /// Encoding and newline translation follow host terminal API behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses write(2) on Unix terminals and Windows handle I/O on terminal endpoints.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.write`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_write(
         &mut self,
         handle: resource::TtyHandle,
@@ -343,25 +228,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Read terminal mode flags.
-    ///
-    /// Read one terminal mode snapshot for one terminal handle.
-    /// Mode fields are projected from host terminal APIs.
-    /// Field-level behavior is host-specific, especially for non-POSIX backends.
-    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses termios get attributes on Unix and GetConsoleMode on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.mode`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_get_mode(
         &mut self,
         handle: resource::TtyHandle,
@@ -382,24 +249,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Apply terminal mode flags.
-    ///
-    /// Apply one terminal mode snapshot to one terminal handle.
-    /// Mode transition timing and unsupported bits follow host API behavior.
-    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses termios set attributes on Unix and SetConsoleMode on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.mode`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_set_mode(
         &mut self,
         handle: resource::TtyHandle,
@@ -417,24 +267,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Enable or disable raw terminal mode.
-    ///
-    /// Apply one host-defined raw-mode profile for one terminal handle.
-    /// This maps to cfmakeraw-style behavior on Unix and console-mode toggles on Windows.
-    /// Windows PTY worker handles may report `notSupported` because ConPTY pipes do not expose console-mode APIs.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses cfmakeraw plus tcsetattr on Unix and SetConsoleMode profile updates on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.mode`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_set_raw_mode(
         &mut self,
         handle: resource::TtyHandle,
@@ -450,23 +283,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Close one pseudo-terminal controller.
-    ///
-    /// Close one pseudo-terminal controller endpoint.
-    /// Worker endpoint behavior after close follows host pseudo-terminal semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host pseudo-terminal handle close APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.pty`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_pty_close(
         &mut self,
         handle: resource::PtyHandle,
@@ -477,23 +294,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Open one pseudo-terminal pair.
-    ///
-    /// Create one controller and worker terminal endpoint pair.
-    /// Endpoint ownership and inheritance follow host pseudo-terminal semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host pseudo-terminal APIs on Unix and ConPTY on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.pty`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_pty_open(
         &mut self,
         rows: u32,
@@ -523,23 +324,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Read terminal size.
-    ///
-    /// Read one terminal size snapshot for one terminal handle.
-    /// Pixel fields may be zero when host APIs do not provide pixel metrics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses TIOCGWINSZ on Unix and console buffer APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.size`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_get_size(
         &mut self,
         handle: resource::TtyHandle,
@@ -560,23 +345,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Apply terminal size.
-    ///
-    /// Apply one terminal size to one terminal handle.
-    /// Resize propagation to attached sessions follows host terminal semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses TIOCSWINSZ on Unix and console size APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.size`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_set_size(
         &mut self,
         handle: resource::TtyHandle,
@@ -594,23 +363,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Wait for pending output to drain on one terminal handle.
-    ///
-    /// Block until queued terminal output bytes are transmitted according to host device behavior.
-    /// This does not flush input data or modify mode flags.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcdrain(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_drain(
         &mut self,
         handle: resource::TtyHandle,
@@ -621,23 +374,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Apply terminal flow-control action.
-    ///
-    /// Pause or resume output transmission, or send start and stop flow-control characters.
-    /// Remote and local behavior follows host line-discipline configuration.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcflow(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_flow(
         &mut self,
         handle: resource::TtyHandle,
@@ -653,23 +390,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Flush one terminal queue.
-    ///
-    /// Discard buffered input, output, or both queues as selected by the queue parameter.
-    /// Queue semantics follow host terminal driver behavior.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcflush(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_flush(
         &mut self,
         handle: resource::TtyHandle,
@@ -685,23 +406,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Read full termios attributes for one terminal handle.
-    ///
-    /// Read one complete termios snapshot including flag groups, control characters, and speed codes.
-    /// Control-character ordering follows host `c_cc` layout for the active target.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcgetattr(3), cfgetispeed(3), and cfgetospeed(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_get_attributes(
         &mut self,
         handle: resource::TtyHandle,
@@ -727,23 +432,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Read controlling-terminal process-group id.
-    ///
-    /// Read the foreground process-group id currently associated with this terminal.
-    /// Foreground group semantics follow host session and job-control rules.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcgetpgrp(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_get_process_group(
         &mut self,
         handle: resource::TtyHandle,
@@ -772,23 +461,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Send one terminal break condition.
-    ///
-    /// Transmit one break condition on the terminal line with one host-defined duration unit.
-    /// A duration value of zero requests the host default break behavior.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcsendbreak(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_send_break(
         &mut self,
         handle: resource::TtyHandle,
@@ -804,23 +477,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Apply full termios attributes to one terminal handle.
-    ///
-    /// Apply one complete termios snapshot with caller-selected update timing semantics.
-    /// Unsupported flag bits and control-character lanes follow host kernel behavior.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcsetattr(3), cfsetispeed(3), and cfsetospeed(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_set_attributes(
         &mut self,
         handle: resource::TtyHandle,
@@ -850,23 +507,7 @@ impl<'call> TtyHarnessContext<'call> {
         }
     }
 
-    /// Set controlling-terminal process-group id.
-    ///
-    /// Set the foreground process-group id for this terminal to one existing process group.
-    /// Permission and session checks follow host kernel job-control rules.
-    ///
-    /// # Platform
-    /// Unix.
-    /// Uses tcsetpgrp(3).
-    ///
-    /// # Errors
-    /// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tty.termios`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tty_termios_set_process_group(
         &mut self,
         handle: resource::TtyHandle,

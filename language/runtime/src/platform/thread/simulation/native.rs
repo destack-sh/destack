@@ -9,23 +9,7 @@ use crate::runtime::BindingCallContext;
 use crate::platform::resource;
 use crate::platform::thread::{ThreadCpuSet, ThreadOptions};
 
-/// Create one thread-local key.
-///
-/// Allocate one runtime thread-local storage key.
-/// Key lifetime is explicit and must be released with delete.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS keys on Unix and TlsAlloc on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.local.create`.
 pub(crate) unsafe fn destack_thread_local_create(
     _binding: &BindingCallContext,
     out: *mut resource::ThreadLocalKey,
@@ -38,23 +22,7 @@ pub(crate) unsafe fn destack_thread_local_create(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.create")).boxed())
 }
 
-/// Delete one thread-local key.
-///
-/// Release one thread-local key and associated host resources.
-/// Existing per-thread values become invalid after deletion.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS key deletion on Unix and TlsFree on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.local.delete`.
 pub(crate) unsafe fn destack_thread_local_delete(
     _binding: &BindingCallContext,
     key: resource::ThreadLocalKey,
@@ -64,23 +32,7 @@ pub(crate) unsafe fn destack_thread_local_delete(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.delete")).boxed())
 }
 
-/// Read one thread-local value.
-///
-/// Read one machine-word value from one thread-local key.
-/// Value interpretation is caller-defined and ABI-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS storage on Unix and TlsGetValue on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.local.get`.
 pub(crate) unsafe fn destack_thread_local_get(
     _binding: &BindingCallContext,
     out: *mut u64,
@@ -94,23 +46,7 @@ pub(crate) unsafe fn destack_thread_local_get(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.get")).boxed())
 }
 
-/// Store one thread-local value.
-///
-/// Write one machine-word value into one thread-local key.
-/// Value interpretation is caller-defined and ABI-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS storage on Unix and TlsSetValue on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.local.set`.
 pub(crate) unsafe fn destack_thread_local_set(
     _binding: &BindingCallContext,
     key: resource::ThreadLocalKey,
@@ -121,24 +57,7 @@ pub(crate) unsafe fn destack_thread_local_set(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.local.set")).boxed())
 }
 
-/// Read thread CPU affinity.
-///
-/// Read one thread logical-processor affinity set.
-/// Unix targets always report group `0`.
-/// Windows reports group-local logical processors for the active thread affinity.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread affinity APIs on Unix and GetThreadGroupAffinity on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.sched.getAffinity`.
 pub(crate) unsafe fn destack_thread_get_affinity(
     _binding: &BindingCallContext,
     out: *mut ThreadCpuSet,
@@ -155,23 +74,7 @@ pub(crate) unsafe fn destack_thread_get_affinity(
     .boxed())
 }
 
-/// Read thread priority.
-///
-/// Read one thread priority value from host scheduler state.
-/// Priority value normalization is runtime-defined per host.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread scheduling APIs on Unix and GetThreadPriority on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.sched.getPriority`.
 pub(crate) unsafe fn destack_thread_get_priority(
     _binding: &BindingCallContext,
     out: *mut i32,
@@ -188,24 +91,7 @@ pub(crate) unsafe fn destack_thread_get_priority(
     .boxed())
 }
 
-/// Set thread CPU affinity.
-///
-/// Bind one thread to one set of logical processors.
-/// Unix targets interpret every entry with group `0`.
-/// Windows maps entries to processor groups and group-local logical processors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread affinity APIs on Unix and SetThreadGroupAffinity on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.sched.setAffinity`.
 pub(crate) unsafe fn destack_thread_set_affinity(
     _binding: &BindingCallContext,
     handle: resource::ThreadHandle,
@@ -219,23 +105,7 @@ pub(crate) unsafe fn destack_thread_set_affinity(
     .boxed())
 }
 
-/// Set thread priority.
-///
-/// Set one thread priority value using host scheduler controls.
-/// Priority range and interpretation are host-specific.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread scheduling APIs on Unix and SetThreadPriority on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.sched.setPriority`.
 pub(crate) unsafe fn destack_thread_set_priority(
     _binding: &BindingCallContext,
     handle: resource::ThreadHandle,
@@ -249,23 +119,7 @@ pub(crate) unsafe fn destack_thread_set_priority(
     .boxed())
 }
 
-/// Detach one host thread.
-///
-/// Detach one thread from join tracking.
-/// Detached thread lifecycle and cleanup are host-managed.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread_detach on Unix and handle-release semantics on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.spawn`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.spawn.detach`.
 pub(crate) unsafe fn destack_thread_detach(
     _binding: &BindingCallContext,
     handle: resource::ThreadHandle,
@@ -275,23 +129,7 @@ pub(crate) unsafe fn destack_thread_detach(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.detach")).boxed())
 }
 
-/// Join one host thread.
-///
-/// Wait for one joinable thread to exit and return its machine-word result.
-/// Join lifecycle follows host thread rules, but the returned value is runtime-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host thread joins plus one runtime-managed completion slot.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.spawn`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.spawn.join`.
 pub(crate) unsafe fn destack_thread_join(
     _binding: &BindingCallContext,
     out: *mut u64,
@@ -305,24 +143,7 @@ pub(crate) unsafe fn destack_thread_join(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.join")).boxed())
 }
 
-/// Spawn one host thread.
-///
-/// Spawn one host thread that enters one runtime-provided thread entry handle.
-/// The runtime resolves `entry` against its thread-entry table and passes `argument` as one machine-word payload.
-/// Thread entry creation and argument interpretation are runtime ABI contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host thread creation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.spawn`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.spawn.start`.
 pub(crate) unsafe fn destack_thread_spawn(
     _binding: &BindingCallContext,
     out: *mut resource::ThreadHandle,
@@ -338,24 +159,7 @@ pub(crate) unsafe fn destack_thread_spawn(
     Err(RuntimeError::from(PlatformError::not_supported("destack.thread.spawn.start")).boxed())
 }
 
-/// Wait on one memory address value.
-///
-/// Wait while the target memory word matches the expected value.
-/// Address must identify one valid aligned 32 bit word that remains live for the full wait.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wait on Linux and WaitOnAddress on Windows.
-/// Other Unix targets currently return notSupported.
-///
-/// # Errors
-/// Returns invalidArgument, ioTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.wait`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.wait.addressWait`.
 pub(crate) unsafe fn destack_thread_address_wait(
     _binding: &BindingCallContext,
     address: u64,
@@ -370,24 +174,7 @@ pub(crate) unsafe fn destack_thread_address_wait(
     .boxed())
 }
 
-/// Wake all waiters on one memory address.
-///
-/// Wake all waiters blocked on the target memory address.
-/// Wake ordering follows the host wait-address primitive.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wake on Linux and WakeByAddressAll on Windows.
-/// Other Unix targets currently return notSupported.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.wait`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.wait.addressWakeAll`.
 pub(crate) unsafe fn destack_thread_address_wake_all(
     _binding: &BindingCallContext,
     address: u64,
@@ -400,24 +187,7 @@ pub(crate) unsafe fn destack_thread_address_wake_all(
     .boxed())
 }
 
-/// Wake one waiter on one memory address.
-///
-/// Wake one waiter blocked on the target memory address.
-/// Wake ordering follows the host wait-address primitive.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wake on Linux and WakeByAddressSingle on Windows.
-/// Other Unix targets currently return notSupported.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.wait`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.thread.wait.addressWakeOne`.
 pub(crate) unsafe fn destack_thread_address_wake_one(
     _binding: &BindingCallContext,
     address: u64,

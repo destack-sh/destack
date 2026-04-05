@@ -467,20 +467,7 @@ pub(crate) const THREAD_LOCAL_CREATE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.local.delete.
 pub(crate) const THREAD_LOCAL_DELETE: BindingDescriptor =
@@ -495,20 +482,7 @@ pub(crate) const THREAD_LOCAL_DELETE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.local.get.
 pub(crate) const THREAD_LOCAL_GET: BindingDescriptor =
@@ -523,20 +497,7 @@ pub(crate) const THREAD_LOCAL_GET: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.local.set.
 pub(crate) const THREAD_LOCAL_SET: BindingDescriptor =
@@ -551,20 +512,7 @@ pub(crate) const THREAD_LOCAL_SET: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.getAffinity.
 pub(crate) const THREAD_SCHED_GET_AFFINITY: BindingDescriptor =
@@ -579,20 +527,7 @@ pub(crate) const THREAD_SCHED_GET_AFFINITY: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.getPriority.
 pub(crate) const THREAD_SCHED_GET_PRIORITY: BindingDescriptor =
@@ -607,20 +542,7 @@ pub(crate) const THREAD_SCHED_GET_PRIORITY: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.setAffinity.
 pub(crate) const THREAD_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -634,7 +556,7 @@ pub(crate) const THREAD_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.setPriority.
 pub(crate) const THREAD_SCHED_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -648,7 +570,7 @@ pub(crate) const THREAD_SCHED_SET_PRIORITY: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.detach.
 pub(crate) const THREAD_SPAWN_DETACH: BindingDescriptor =
@@ -663,20 +585,7 @@ pub(crate) const THREAD_SPAWN_DETACH: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.join.
 pub(crate) const THREAD_SPAWN_JOIN: BindingDescriptor =
@@ -691,20 +600,7 @@ pub(crate) const THREAD_SPAWN_JOIN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.start.
 pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -718,7 +614,7 @@ pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.wait.addressWait.
 pub(crate) const THREAD_WAIT_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -732,7 +628,7 @@ pub(crate) const THREAD_WAIT_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("thread")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.wait.addressWakeAll.
 pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ALL: BindingDescriptor =
@@ -747,20 +643,7 @@ pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ALL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.wait.addressWakeOne.
 pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ONE: BindingDescriptor =
@@ -775,20 +658,7 @@ pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ONE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("thread")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for thread.
 pub(crate) const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

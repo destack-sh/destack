@@ -11891,7 +11891,7 @@ pub(crate) const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchClose.
 pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11905,7 +11905,7 @@ pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_CLOSE: BindingDescriptor = Bindi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchOpen.
 pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11919,7 +11919,7 @@ pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_OPEN: BindingDescriptor = Bindin
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchRead.
 pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11933,7 +11933,7 @@ pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_READ: BindingDescriptor = Bindin
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchTryRead.
 pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11947,7 +11947,7 @@ pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_TRY_READ: BindingDescriptor = Bi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.characteristicList.
 pub(crate) const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11961,7 +11961,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = 
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.descriptorList.
 pub(crate) const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11975,7 +11975,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = Bind
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.mtu.
 pub(crate) const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11989,7 +11989,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.read.
 pub(crate) const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12003,7 +12003,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readDescriptor.
 pub(crate) const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12017,7 +12017,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = Bind
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readEvent.
 pub(crate) const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12031,7 +12031,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.serviceList.
 pub(crate) const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12045,7 +12045,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = Binding
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.subscribe.
 pub(crate) const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12059,7 +12059,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.tryReadEvent.
 pub(crate) const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12073,7 +12073,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = Bindi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.unsubscribe.
 pub(crate) const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12087,7 +12087,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingD
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.write.
 pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12101,7 +12101,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.writeDescriptor.
 pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12115,7 +12115,7 @@ pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = Bin
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.close.
 pub(crate) const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12129,7 +12129,7 @@ pub(crate) const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.open.
 pub(crate) const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12143,7 +12143,7 @@ pub(crate) const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.readEvent.
 pub(crate) const DEVICE_BLUETOOTH_SCAN_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12157,7 +12157,7 @@ pub(crate) const DEVICE_BLUETOOTH_SCAN_READ_EVENT: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.tryReadEvent.
 pub(crate) const DEVICE_BLUETOOTH_SCAN_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12171,7 +12171,7 @@ pub(crate) const DEVICE_BLUETOOTH_SCAN_TRY_READ_EVENT: BindingDescriptor = Bindi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.close.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12185,7 +12185,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.descriptor.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12199,7 +12199,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_DESCRIPTOR: BindingDescriptor = Bindin
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.open.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12213,7 +12213,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.pair.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12227,7 +12227,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.readEvent.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12241,7 +12241,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_READ_EVENT: BindingDescriptor = Bindin
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.rssi.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12255,7 +12255,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.tryReadEvent.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12269,7 +12269,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_TRY_READ_EVENT: BindingDescriptor = Bi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.unpair.
 pub(crate) const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12283,7 +12283,7 @@ pub(crate) const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.close.
 pub(crate) const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12297,7 +12297,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.list.
 pub(crate) const DEVICE_CAMERA_DEVICE_LIST: BindingDescriptor =
@@ -12312,20 +12312,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.open.
 pub(crate) const DEVICE_CAMERA_DEVICE_OPEN: BindingDescriptor =
@@ -12340,20 +12327,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.streamCapabilityList.
 pub(crate) const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12367,7 +12341,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor 
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchClose.
 pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12381,7 +12355,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_CLOSE: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchOpen.
 pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_OPEN: BindingDescriptor =
@@ -12396,20 +12370,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchRead.
 pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12423,7 +12384,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_READ: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchTryRead.
 pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12437,7 +12398,7 @@ pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_TRY_READ: BindingDescriptor = Bindin
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.close.
 pub(crate) const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12451,7 +12412,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.config.
 pub(crate) const DEVICE_CAMERA_STREAM_CONFIG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12465,7 +12426,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_CONFIG: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.configureControls.
 pub(crate) const DEVICE_CAMERA_STREAM_CONFIGURE_CONTROLS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12479,7 +12440,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_CONFIGURE_CONTROLS: BindingDescriptor = Bi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.controlCapabilities.
 pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12493,7 +12454,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_CAPABILITIES: BindingDescriptor = 
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.controlState.
 pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12507,7 +12468,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_STATE: BindingDescriptor = Binding
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.open.
 pub(crate) const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12521,7 +12482,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.pauseRecording.
 pub(crate) const DEVICE_CAMERA_STREAM_PAUSE_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12535,7 +12496,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_PAUSE_RECORDING: BindingDescriptor = Bindi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.photoCapabilities.
 pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12549,7 +12510,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_CAPABILITIES: BindingDescriptor = Bi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.photoState.
 pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12563,7 +12524,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_STATE: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.read.
 pub(crate) const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12577,7 +12538,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.recordingCapabilities.
 pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12591,7 +12552,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_CAPABILITIES: BindingDescriptor 
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.recordingState.
 pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12605,7 +12566,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_STATE: BindingDescriptor = Bindi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.resumeRecording.
 pub(crate) const DEVICE_CAMERA_STREAM_RESUME_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12619,7 +12580,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_RESUME_RECORDING: BindingDescriptor = Bind
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.start.
 pub(crate) const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12633,7 +12594,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.startRecording.
 pub(crate) const DEVICE_CAMERA_STREAM_START_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12647,7 +12608,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_START_RECORDING: BindingDescriptor = Bindi
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stop.
 pub(crate) const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
@@ -12662,20 +12623,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stopRecording.
 pub(crate) const DEVICE_CAMERA_STREAM_STOP_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12689,7 +12637,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_STOP_RECORDING: BindingDescriptor = Bindin
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.takePhoto.
 pub(crate) const DEVICE_CAMERA_STREAM_TAKE_PHOTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12703,7 +12651,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_TAKE_PHOTO: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.tryRead.
 pub(crate) const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12717,7 +12665,7 @@ pub(crate) const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.backend.list.
 pub(crate) const DEVICE_MIDI_BACKEND_LIST: BindingDescriptor =
@@ -12732,20 +12680,7 @@ pub(crate) const DEVICE_MIDI_BACKEND_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.close.
 pub(crate) const DEVICE_MIDI_EVENT_CLOSE: BindingDescriptor =
@@ -12760,20 +12695,7 @@ pub(crate) const DEVICE_MIDI_EVENT_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.open.
 pub(crate) const DEVICE_MIDI_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12787,7 +12709,7 @@ pub(crate) const DEVICE_MIDI_EVENT_OPEN: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.read.
 pub(crate) const DEVICE_MIDI_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12801,7 +12723,7 @@ pub(crate) const DEVICE_MIDI_EVENT_READ: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.readBatch.
 pub(crate) const DEVICE_MIDI_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12815,7 +12737,7 @@ pub(crate) const DEVICE_MIDI_EVENT_READ_BATCH: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.tryRead.
 pub(crate) const DEVICE_MIDI_EVENT_TRY_READ: BindingDescriptor =
@@ -12830,20 +12752,7 @@ pub(crate) const DEVICE_MIDI_EVENT_TRY_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.tryReadBatch.
 pub(crate) const DEVICE_MIDI_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12857,7 +12766,7 @@ pub(crate) const DEVICE_MIDI_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.close.
 pub(crate) const DEVICE_MIDI_INPUT_PORT_CLOSE: BindingDescriptor =
@@ -12872,20 +12781,7 @@ pub(crate) const DEVICE_MIDI_INPUT_PORT_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.descriptor.
 pub(crate) const DEVICE_MIDI_INPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12899,7 +12795,7 @@ pub(crate) const DEVICE_MIDI_INPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingD
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.list.
 pub(crate) const DEVICE_MIDI_INPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12913,7 +12809,7 @@ pub(crate) const DEVICE_MIDI_INPUT_PORT_LIST: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.open.
 pub(crate) const DEVICE_MIDI_INPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12927,7 +12823,7 @@ pub(crate) const DEVICE_MIDI_INPUT_PORT_OPEN: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.read.
 pub(crate) const DEVICE_MIDI_INPUT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12941,7 +12837,7 @@ pub(crate) const DEVICE_MIDI_INPUT_READ: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.readBatch.
 pub(crate) const DEVICE_MIDI_INPUT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12955,7 +12851,7 @@ pub(crate) const DEVICE_MIDI_INPUT_READ_BATCH: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.tryRead.
 pub(crate) const DEVICE_MIDI_INPUT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12969,7 +12865,7 @@ pub(crate) const DEVICE_MIDI_INPUT_TRY_READ: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.tryReadBatch.
 pub(crate) const DEVICE_MIDI_INPUT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12983,7 +12879,7 @@ pub(crate) const DEVICE_MIDI_INPUT_TRY_READ_BATCH: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.virtual.create.
 pub(crate) const DEVICE_MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12997,7 +12893,7 @@ pub(crate) const DEVICE_MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.close.
 pub(crate) const DEVICE_MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13011,7 +12907,7 @@ pub(crate) const DEVICE_MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.descriptor.
 pub(crate) const DEVICE_MIDI_OUTPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13025,7 +12921,7 @@ pub(crate) const DEVICE_MIDI_OUTPUT_PORT_DESCRIPTOR: BindingDescriptor = Binding
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.list.
 pub(crate) const DEVICE_MIDI_OUTPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13039,7 +12935,7 @@ pub(crate) const DEVICE_MIDI_OUTPUT_PORT_LIST: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.open.
 pub(crate) const DEVICE_MIDI_OUTPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13053,7 +12949,7 @@ pub(crate) const DEVICE_MIDI_OUTPUT_PORT_OPEN: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.virtual.create.
 pub(crate) const DEVICE_MIDI_OUTPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13067,7 +12963,7 @@ pub(crate) const DEVICE_MIDI_OUTPUT_VIRTUAL_CREATE: BindingDescriptor = BindingD
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.write.
 pub(crate) const DEVICE_MIDI_OUTPUT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13081,7 +12977,7 @@ pub(crate) const DEVICE_MIDI_OUTPUT_WRITE: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.close.
 pub(crate) const DEVICE_SERIAL_CLOSE: BindingDescriptor =
@@ -13096,20 +12992,7 @@ pub(crate) const DEVICE_SERIAL_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.config.
 pub(crate) const DEVICE_SERIAL_CONFIG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13123,7 +13006,7 @@ pub(crate) const DEVICE_SERIAL_CONFIG: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.configure.
 pub(crate) const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13137,7 +13020,7 @@ pub(crate) const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.descriptor.
 pub(crate) const DEVICE_SERIAL_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13151,7 +13034,7 @@ pub(crate) const DEVICE_SERIAL_DESCRIPTOR: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.discardInput.
 pub(crate) const DEVICE_SERIAL_DISCARD_INPUT: BindingDescriptor =
@@ -13166,20 +13049,7 @@ pub(crate) const DEVICE_SERIAL_DISCARD_INPUT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.discardOutput.
 pub(crate) const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13193,7 +13063,7 @@ pub(crate) const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.drain.
 pub(crate) const DEVICE_SERIAL_DRAIN: BindingDescriptor =
@@ -13208,20 +13078,7 @@ pub(crate) const DEVICE_SERIAL_DRAIN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.getSignals.
 pub(crate) const DEVICE_SERIAL_GET_SIGNALS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13235,7 +13092,7 @@ pub(crate) const DEVICE_SERIAL_GET_SIGNALS: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.list.
 pub(crate) const DEVICE_SERIAL_LIST: BindingDescriptor =
@@ -13250,20 +13107,7 @@ pub(crate) const DEVICE_SERIAL_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.open.
 pub(crate) const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13277,7 +13121,7 @@ pub(crate) const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.readEvent.
 pub(crate) const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13291,7 +13135,7 @@ pub(crate) const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.readInto.
 pub(crate) const DEVICE_SERIAL_READ_INTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13305,7 +13149,7 @@ pub(crate) const DEVICE_SERIAL_READ_INTO: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.setSignals.
 pub(crate) const DEVICE_SERIAL_SET_SIGNALS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13319,7 +13163,7 @@ pub(crate) const DEVICE_SERIAL_SET_SIGNALS: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.tryReadEvent.
 pub(crate) const DEVICE_SERIAL_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13333,7 +13177,7 @@ pub(crate) const DEVICE_SERIAL_TRY_READ_EVENT: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.tryReadInto.
 pub(crate) const DEVICE_SERIAL_TRY_READ_INTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13347,7 +13191,7 @@ pub(crate) const DEVICE_SERIAL_TRY_READ_INTO: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchClose.
 pub(crate) const DEVICE_SERIAL_WATCH_CLOSE: BindingDescriptor =
@@ -13362,20 +13206,7 @@ pub(crate) const DEVICE_SERIAL_WATCH_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchOpen.
 pub(crate) const DEVICE_SERIAL_WATCH_OPEN: BindingDescriptor =
@@ -13390,20 +13221,7 @@ pub(crate) const DEVICE_SERIAL_WATCH_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchRead.
 pub(crate) const DEVICE_SERIAL_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13417,7 +13235,7 @@ pub(crate) const DEVICE_SERIAL_WATCH_READ: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchTryRead.
 pub(crate) const DEVICE_SERIAL_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13431,7 +13249,7 @@ pub(crate) const DEVICE_SERIAL_WATCH_TRY_READ: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.write.
 pub(crate) const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13445,7 +13263,7 @@ pub(crate) const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bosCapabilityList.
 pub(crate) const DEVICE_USB_BOS_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13459,7 +13277,7 @@ pub(crate) const DEVICE_USB_BOS_CAPABILITY_LIST: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkRead.
 pub(crate) const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13473,7 +13291,7 @@ pub(crate) const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkWrite.
 pub(crate) const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13487,7 +13305,7 @@ pub(crate) const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.claimInterface.
 pub(crate) const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13501,7 +13319,7 @@ pub(crate) const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.clearHalt.
 pub(crate) const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13515,7 +13333,7 @@ pub(crate) const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.close.
 pub(crate) const DEVICE_USB_CLOSE: BindingDescriptor =
@@ -13530,20 +13348,7 @@ pub(crate) const DEVICE_USB_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationGet.
 pub(crate) const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13557,7 +13362,7 @@ pub(crate) const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationList.
 pub(crate) const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13571,7 +13376,7 @@ pub(crate) const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationSet.
 pub(crate) const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13585,7 +13390,7 @@ pub(crate) const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlRead.
 pub(crate) const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13599,7 +13404,7 @@ pub(crate) const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlWrite.
 pub(crate) const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13613,7 +13418,7 @@ pub(crate) const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.descriptor.
 pub(crate) const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13627,7 +13432,7 @@ pub(crate) const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptRead.
 pub(crate) const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13641,7 +13446,7 @@ pub(crate) const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptWrite.
 pub(crate) const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13655,7 +13460,7 @@ pub(crate) const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousRead.
 pub(crate) const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13669,7 +13474,7 @@ pub(crate) const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousWrite.
 pub(crate) const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13683,7 +13488,7 @@ pub(crate) const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.list.
 pub(crate) const DEVICE_USB_LIST: BindingDescriptor =
@@ -13698,20 +13503,7 @@ pub(crate) const DEVICE_USB_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.open.
 pub(crate) const DEVICE_USB_OPEN: BindingDescriptor =
@@ -13726,20 +13518,7 @@ pub(crate) const DEVICE_USB_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.releaseInterface.
 pub(crate) const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13753,7 +13532,7 @@ pub(crate) const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.reset.
 pub(crate) const DEVICE_USB_RESET: BindingDescriptor =
@@ -13768,20 +13547,7 @@ pub(crate) const DEVICE_USB_RESET: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.setInterfaceAlternateSetting.
 pub(crate) const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13795,7 +13561,7 @@ pub(crate) const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor =
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringDescriptor.
 pub(crate) const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13809,7 +13575,7 @@ pub(crate) const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringLanguageList.
 pub(crate) const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13823,7 +13589,7 @@ pub(crate) const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancel.
 pub(crate) const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13837,7 +13603,7 @@ pub(crate) const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancelAll.
 pub(crate) const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13851,7 +13617,7 @@ pub(crate) const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchClose.
 pub(crate) const DEVICE_USB_WATCH_CLOSE: BindingDescriptor =
@@ -13866,20 +13632,7 @@ pub(crate) const DEVICE_USB_WATCH_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchOpen.
 pub(crate) const DEVICE_USB_WATCH_OPEN: BindingDescriptor =
@@ -13894,20 +13647,7 @@ pub(crate) const DEVICE_USB_WATCH_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("device")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchRead.
 pub(crate) const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13921,7 +13661,7 @@ pub(crate) const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchTryRead.
 pub(crate) const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13935,7 +13675,7 @@ pub(crate) const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for device.
 pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

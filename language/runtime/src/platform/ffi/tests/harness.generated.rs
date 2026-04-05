@@ -77,23 +77,7 @@ impl<'call> FfiHarnessContext<'call> {
         }
     }
 
-    /// Call one foreign symbol using raw ABI argument and result buffers.
-    ///
-    /// Invoke one host symbol trampoline with caller-provided ABI payload bytes and explicit ABI selectors.
-    /// ABI packing, alignment, and calling convention semantics are runtime-defined and backend-specific.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host ABI trampolines over process calling conventions.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `ffi.call`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_ffi_call(
         &mut self,
         symbol: resource::SymbolHandle,
@@ -120,23 +104,7 @@ impl<'call> FfiHarnessContext<'call> {
         }
     }
 
-    /// Close a dynamic library.
-    ///
-    /// Release one loaded dynamic library handle.
-    /// Unload timing and symbol invalidation follow host loader semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses dlclose on Unix and FreeLibrary on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `ffi.load`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_ffi_close(
         &mut self,
         handle: resource::LibraryHandle,
@@ -151,23 +119,7 @@ impl<'call> FfiHarnessContext<'call> {
         }
     }
 
-    /// Open a dynamic library.
-    ///
-    /// Load one host dynamic library and return a stable runtime handle.
-    /// Symbol visibility and loader flags follow host dynamic loader semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses dlopen on Unix and LoadLibraryExW on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `ffi.load`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_ffi_open(
         &mut self,
         path: HarnessValue<fs::OsPath, fs::OsPathVm>,
@@ -191,23 +143,7 @@ impl<'call> FfiHarnessContext<'call> {
         }
     }
 
-    /// Return the raw address for an opaque pointer.
-    ///
-    /// Unwrap one foreign pointer into a raw machine address.
-    /// Address interpretation depends on caller ABI and target architecture.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host-process pointer wrapper logic.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `ffi.pointer`.
-    ///
-    /// # Replay
-    /// Deterministic.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_ffi_address(
         &mut self,
         pointer: FfiPointer,
@@ -228,23 +164,7 @@ impl<'call> FfiHarnessContext<'call> {
         }
     }
 
-    /// Create a pointer from a raw address.
-    ///
-    /// Wrap one raw machine address as an opaque foreign pointer value.
-    /// Pointer validity and lifetime are controlled by caller and host ABI contracts.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host-process pointer wrapper logic.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `ffi.pointer`.
-    ///
-    /// # Replay
-    /// Deterministic.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_ffi_from_address(
         &mut self,
         address: u64,
@@ -265,23 +185,7 @@ impl<'call> FfiHarnessContext<'call> {
         }
     }
 
-    /// Return a raw address for a resolved symbol handle.
-    ///
-    /// Return one raw process address for a previously resolved symbol.
-    /// Address lifetime is tied to the owning dynamic library handle.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime symbol table state after host resolution.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `ffi.symbol`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_ffi_symbol_address(
         &mut self,
         symbol: resource::SymbolHandle,
@@ -302,23 +206,7 @@ impl<'call> FfiHarnessContext<'call> {
         }
     }
 
-    /// Resolve a symbol from a loaded library.
-    ///
-    /// Resolve one symbol name in one loaded library and return a stable symbol handle.
-    /// Symbol lookup rules follow host dynamic loader name resolution behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses dlsym on Unix and GetProcAddress on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `ffi.symbol`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_ffi_symbol_lookup(
         &mut self,
         library: resource::LibraryHandle,

@@ -732,20 +732,7 @@ pub(crate) const TIME_CLOCK_METADATA: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.monoNs.
 pub(crate) const TIME_CLOCK_MONO_NS: BindingDescriptor =
@@ -760,20 +747,7 @@ pub(crate) const TIME_CLOCK_MONO_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.nowNs.
 pub(crate) const TIME_CLOCK_NOW_NS: BindingDescriptor =
@@ -788,20 +762,7 @@ pub(crate) const TIME_CLOCK_NOW_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.processCpuNs.
 pub(crate) const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
@@ -816,20 +777,7 @@ pub(crate) const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.threadCpuNs.
 pub(crate) const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
@@ -844,20 +792,7 @@ pub(crate) const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.wallNs.
 pub(crate) const TIME_CLOCK_WALL_NS: BindingDescriptor =
@@ -872,20 +807,7 @@ pub(crate) const TIME_CLOCK_WALL_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.ns.
 pub(crate) const TIME_SLEEP_NS: BindingDescriptor =
@@ -900,20 +822,7 @@ pub(crate) const TIME_SLEEP_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.onNs.
 pub(crate) const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -927,7 +836,7 @@ pub(crate) const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("time")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilNs.
 pub(crate) const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
@@ -942,20 +851,7 @@ pub(crate) const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilOnNs.
 pub(crate) const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -969,7 +865,7 @@ pub(crate) const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("time")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.timer.at.
 pub(crate) const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -983,7 +879,7 @@ pub(crate) const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("time")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.cancel.
 pub(crate) const TIME_TIMER_CANCEL: BindingDescriptor =
@@ -998,21 +894,7 @@ pub(crate) const TIME_TIMER_CANCEL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.interval.
 pub(crate) const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1026,7 +908,7 @@ pub(crate) const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("time")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.isActive.
 pub(crate) const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
@@ -1041,21 +923,7 @@ pub(crate) const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.once.
 pub(crate) const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1069,7 +937,7 @@ pub(crate) const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("time")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.pause.
 pub(crate) const TIME_TIMER_PAUSE: BindingDescriptor =
@@ -1084,21 +952,7 @@ pub(crate) const TIME_TIMER_PAUSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.remainingNs.
 pub(crate) const TIME_TIMER_REMAINING_NS: BindingDescriptor =
@@ -1113,21 +967,7 @@ pub(crate) const TIME_TIMER_REMAINING_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.reset.
 pub(crate) const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1141,7 +981,7 @@ pub(crate) const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("time")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.resume.
 pub(crate) const TIME_TIMER_RESUME: BindingDescriptor =
@@ -1156,21 +996,7 @@ pub(crate) const TIME_TIMER_RESUME: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("time")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.time.timer.updateInterval.
 pub(crate) const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1184,7 +1010,7 @@ pub(crate) const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("time")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Native binding set for time.
 pub(crate) const TIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

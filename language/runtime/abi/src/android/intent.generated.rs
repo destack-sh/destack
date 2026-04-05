@@ -3,14 +3,13 @@
 use crate::diagnostic::RuntimeStatus;
 use crate::host::abi::intent::HostIntentEvent;
 use crate::host::android::abi::ingress::destack_host_android_notify_intent_event as runtime_notify_intent_event;
-use crate::host::android::abi::intent::{
-    destack_host_android_intent_can_open_url as runtime_intent_can_open_url,
-    destack_host_android_intent_open_path as runtime_intent_open_path,
-    destack_host_android_intent_open_url as runtime_intent_open_url,
-    destack_host_android_intent_share_paths as runtime_intent_share_paths,
-    destack_host_android_intent_share_text as runtime_intent_share_text,
-};
-use crate::platform::abi::{NativeStringRef, NativeStringSlice};
+use crate::host::android::abi::intent::destack_host_android_intent_can_open_url as runtime_intent_can_open_url;
+use crate::host::android::abi::intent::destack_host_android_intent_open_path as runtime_intent_open_path;
+use crate::host::android::abi::intent::destack_host_android_intent_open_url as runtime_intent_open_url;
+use crate::host::android::abi::intent::destack_host_android_intent_share_paths as runtime_intent_share_paths;
+use crate::host::android::abi::intent::destack_host_android_intent_share_text as runtime_intent_share_text;
+use crate::platform::abi::NativeStringRef;
+use crate::platform::abi::NativeStringSlice;
 
 /// Forward the `can_open_url` intent request through the ABI crate.
 #[unsafe(no_mangle)]
@@ -19,7 +18,13 @@ pub unsafe extern "C" fn destack_host_android_intent_can_open_url(
     url: NativeStringRef,
     is_supported: *mut bool,
 ) -> u32 {
-    unsafe { runtime_intent_can_open_url(session_handle, url, is_supported) }
+    unsafe {
+        runtime_intent_can_open_url(
+            session_handle,
+            url,
+            is_supported,
+        )
+    }
 }
 
 /// Forward the `open_url` intent request through the ABI crate.
@@ -28,7 +33,12 @@ pub unsafe extern "C" fn destack_host_android_intent_open_url(
     session_handle: u64,
     url: NativeStringRef,
 ) -> u32 {
-    unsafe { runtime_intent_open_url(session_handle, url) }
+    unsafe {
+        runtime_intent_open_url(
+            session_handle,
+            url,
+        )
+    }
 }
 
 /// Forward the `open_path` intent request through the ABI crate.
@@ -37,7 +47,12 @@ pub unsafe extern "C" fn destack_host_android_intent_open_path(
     session_handle: u64,
     path: NativeStringRef,
 ) -> u32 {
-    unsafe { runtime_intent_open_path(session_handle, path) }
+    unsafe {
+        runtime_intent_open_path(
+            session_handle,
+            path,
+        )
+    }
 }
 
 /// Forward the `share_text` intent request through the ABI crate.
@@ -47,7 +62,13 @@ pub unsafe extern "C" fn destack_host_android_intent_share_text(
     text: NativeStringRef,
     mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32 {
-    unsafe { runtime_intent_share_text(session_handle, text, mime_type) }
+    unsafe {
+        runtime_intent_share_text(
+            session_handle,
+            text,
+            mime_type,
+        )
+    }
 }
 
 /// Forward the `share_paths` intent request through the ABI crate.
@@ -57,7 +78,13 @@ pub unsafe extern "C" fn destack_host_android_intent_share_paths(
     paths: NativeStringSlice,
     mime_type: crate::host::abi::core::HostAbiOptional<NativeStringRef>,
 ) -> u32 {
-    unsafe { runtime_intent_share_paths(session_handle, paths, mime_type) }
+    unsafe {
+        runtime_intent_share_paths(
+            session_handle,
+            paths,
+            mime_type,
+        )
+    }
 }
 
 /// Forward the `notify_intent_event` ingress through the ABI crate.
@@ -66,5 +93,8 @@ pub unsafe extern "C" fn destack_host_android_notify_intent_event(
     runtime_id: u64,
     event: HostIntentEvent,
 ) -> RuntimeStatus {
-    unsafe { runtime_notify_intent_event(runtime_id, event) }
+    unsafe { runtime_notify_intent_event(
+        runtime_id,
+        event,
+    ) }
 }

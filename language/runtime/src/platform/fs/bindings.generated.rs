@@ -5095,20 +5095,7 @@ pub(crate) const FS_ATTRS_ACCESS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.accessat.
 pub(crate) const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5122,7 +5109,7 @@ pub(crate) const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.chmod.
 pub(crate) const FS_ATTRS_CHMOD: BindingDescriptor =
@@ -5137,20 +5124,7 @@ pub(crate) const FS_ATTRS_CHMOD: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.chown.
 pub(crate) const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5164,7 +5138,7 @@ pub(crate) const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchmod.
 pub(crate) const FS_ATTRS_FCHMOD: BindingDescriptor =
@@ -5179,20 +5153,7 @@ pub(crate) const FS_ATTRS_FCHMOD: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchmodat.
 pub(crate) const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5206,7 +5167,7 @@ pub(crate) const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchown.
 pub(crate) const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5220,7 +5181,7 @@ pub(crate) const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchownat.
 pub(crate) const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5234,7 +5195,7 @@ pub(crate) const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.futimes.
 pub(crate) const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5248,7 +5209,7 @@ pub(crate) const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.lutimes.
 pub(crate) const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5262,7 +5223,7 @@ pub(crate) const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimensat.
 pub(crate) const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5276,7 +5237,7 @@ pub(crate) const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimes.
 pub(crate) const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5290,7 +5251,7 @@ pub(crate) const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.closedir.
 pub(crate) const FS_DIR_CLOSEDIR: BindingDescriptor =
@@ -5305,20 +5266,7 @@ pub(crate) const FS_DIR_CLOSEDIR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.dirfd.
 pub(crate) const FS_DIR_DIRFD: BindingDescriptor =
@@ -5333,20 +5281,7 @@ pub(crate) const FS_DIR_DIRFD: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdir.
 pub(crate) const FS_DIR_MKDIR: BindingDescriptor =
@@ -5361,20 +5296,7 @@ pub(crate) const FS_DIR_MKDIR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdirat.
 pub(crate) const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5388,7 +5310,7 @@ pub(crate) const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdtemp.
 pub(crate) const FS_DIR_MKDTEMP: BindingDescriptor =
@@ -5403,20 +5325,7 @@ pub(crate) const FS_DIR_MKDTEMP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.opendir.
 pub(crate) const FS_DIR_OPENDIR: BindingDescriptor =
@@ -5431,20 +5340,7 @@ pub(crate) const FS_DIR_OPENDIR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.readdir.
 pub(crate) const FS_DIR_READDIR: BindingDescriptor =
@@ -5459,20 +5355,7 @@ pub(crate) const FS_DIR_READDIR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.readdirNext.
 pub(crate) const FS_DIR_READDIR_NEXT: BindingDescriptor =
@@ -5487,20 +5370,7 @@ pub(crate) const FS_DIR_READDIR_NEXT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.rewinddir.
 pub(crate) const FS_DIR_REWINDDIR: BindingDescriptor =
@@ -5515,20 +5385,7 @@ pub(crate) const FS_DIR_REWINDDIR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.rmdir.
 pub(crate) const FS_DIR_RMDIR: BindingDescriptor =
@@ -5543,20 +5400,7 @@ pub(crate) const FS_DIR_RMDIR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.close.
 pub(crate) const FS_FILE_CLOSE: BindingDescriptor =
@@ -5571,20 +5415,7 @@ pub(crate) const FS_FILE_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.copyFileRange.
 pub(crate) const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5598,7 +5429,7 @@ pub(crate) const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup.
 pub(crate) const FS_FILE_DUP: BindingDescriptor =
@@ -5613,20 +5444,7 @@ pub(crate) const FS_FILE_DUP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup2.
 pub(crate) const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5640,7 +5458,7 @@ pub(crate) const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup3.
 pub(crate) const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5654,7 +5472,7 @@ pub(crate) const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fadvise.
 pub(crate) const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5668,7 +5486,7 @@ pub(crate) const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fallocate.
 pub(crate) const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5682,7 +5500,7 @@ pub(crate) const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fdatasync.
 pub(crate) const FS_FILE_FDATASYNC: BindingDescriptor =
@@ -5697,20 +5515,7 @@ pub(crate) const FS_FILE_FDATASYNC: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fsync.
 pub(crate) const FS_FILE_FSYNC: BindingDescriptor =
@@ -5725,20 +5530,7 @@ pub(crate) const FS_FILE_FSYNC: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.ftruncate.
 pub(crate) const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5752,7 +5544,7 @@ pub(crate) const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.getFdFlags.
 pub(crate) const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
@@ -5767,20 +5559,7 @@ pub(crate) const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.getStatusFlags.
 pub(crate) const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
@@ -5795,20 +5574,7 @@ pub(crate) const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.lock.
 pub(crate) const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5822,7 +5588,7 @@ pub(crate) const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.open.
 pub(crate) const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5836,7 +5602,7 @@ pub(crate) const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat.
 pub(crate) const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5850,7 +5616,7 @@ pub(crate) const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat2.
 pub(crate) const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5864,7 +5630,7 @@ pub(crate) const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pread.
 pub(crate) const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5878,7 +5644,7 @@ pub(crate) const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv.
 pub(crate) const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5892,7 +5658,7 @@ pub(crate) const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv2.
 pub(crate) const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5906,7 +5672,7 @@ pub(crate) const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwrite.
 pub(crate) const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5920,7 +5686,7 @@ pub(crate) const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev.
 pub(crate) const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5934,7 +5700,7 @@ pub(crate) const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev2.
 pub(crate) const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5948,7 +5714,7 @@ pub(crate) const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.read.
 pub(crate) const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5962,7 +5728,7 @@ pub(crate) const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.readv.
 pub(crate) const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5976,7 +5742,7 @@ pub(crate) const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.seek.
 pub(crate) const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5990,7 +5756,7 @@ pub(crate) const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.sendfile.
 pub(crate) const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6004,7 +5770,7 @@ pub(crate) const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setFdFlags.
 pub(crate) const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6018,7 +5784,7 @@ pub(crate) const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setStatusFlags.
 pub(crate) const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6032,7 +5798,7 @@ pub(crate) const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.splice.
 pub(crate) const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6046,7 +5812,7 @@ pub(crate) const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncFileRange.
 pub(crate) const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6060,7 +5826,7 @@ pub(crate) const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncfs.
 pub(crate) const FS_FILE_SYNCFS: BindingDescriptor =
@@ -6075,20 +5841,7 @@ pub(crate) const FS_FILE_SYNCFS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.tee.
 pub(crate) const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6102,7 +5855,7 @@ pub(crate) const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_wi
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.truncate.
 pub(crate) const FS_FILE_TRUNCATE: BindingDescriptor =
@@ -6117,20 +5870,7 @@ pub(crate) const FS_FILE_TRUNCATE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.vmsplice.
 pub(crate) const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6144,7 +5884,7 @@ pub(crate) const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.write.
 pub(crate) const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6158,7 +5898,7 @@ pub(crate) const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.writev.
 pub(crate) const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6172,7 +5912,7 @@ pub(crate) const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.madvise.
 pub(crate) const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6186,7 +5926,7 @@ pub(crate) const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapAnonymous.
 pub(crate) const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6200,7 +5940,7 @@ pub(crate) const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapFile.
 pub(crate) const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6214,7 +5954,7 @@ pub(crate) const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mprotect.
 pub(crate) const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6228,7 +5968,7 @@ pub(crate) const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.msync.
 pub(crate) const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6242,7 +5982,7 @@ pub(crate) const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.munmap.
 pub(crate) const FS_MMAP_MUNMAP: BindingDescriptor =
@@ -6257,20 +5997,7 @@ pub(crate) const FS_MMAP_MUNMAP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.copyfile.
 pub(crate) const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6284,7 +6011,7 @@ pub(crate) const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.link.
 pub(crate) const FS_PATH_LINK: BindingDescriptor =
@@ -6299,20 +6026,7 @@ pub(crate) const FS_PATH_LINK: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.linkat.
 pub(crate) const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6326,7 +6040,7 @@ pub(crate) const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.mkfifo.
 pub(crate) const FS_PATH_MKFIFO: BindingDescriptor =
@@ -6341,19 +6055,7 @@ pub(crate) const FS_PATH_MKFIFO: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.mkfifoat.
 pub(crate) const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6367,7 +6069,7 @@ pub(crate) const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.mknod.
 pub(crate) const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6381,7 +6083,7 @@ pub(crate) const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.mknodat.
 pub(crate) const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6395,7 +6097,7 @@ pub(crate) const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.readlink.
 pub(crate) const FS_PATH_READLINK: BindingDescriptor =
@@ -6410,20 +6112,7 @@ pub(crate) const FS_PATH_READLINK: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.readlinkat.
 pub(crate) const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6437,7 +6126,7 @@ pub(crate) const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.realpath.
 pub(crate) const FS_PATH_REALPATH: BindingDescriptor =
@@ -6452,20 +6141,7 @@ pub(crate) const FS_PATH_REALPATH: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.rename.
 pub(crate) const FS_PATH_RENAME: BindingDescriptor =
@@ -6480,20 +6156,7 @@ pub(crate) const FS_PATH_RENAME: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.renameat.
 pub(crate) const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6507,7 +6170,7 @@ pub(crate) const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.renameat2.
 pub(crate) const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6521,7 +6184,7 @@ pub(crate) const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlink.
 pub(crate) const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6535,7 +6198,7 @@ pub(crate) const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlinkat.
 pub(crate) const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6549,7 +6212,7 @@ pub(crate) const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.unlink.
 pub(crate) const FS_PATH_UNLINK: BindingDescriptor =
@@ -6564,20 +6227,7 @@ pub(crate) const FS_PATH_UNLINK: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.unlinkat.
 pub(crate) const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6591,7 +6241,7 @@ pub(crate) const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.fstat.
 pub(crate) const FS_STAT_FSTAT: BindingDescriptor =
@@ -6606,20 +6256,7 @@ pub(crate) const FS_STAT_FSTAT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.fstatfs.
 pub(crate) const FS_STAT_FSTATFS: BindingDescriptor =
@@ -6634,20 +6271,7 @@ pub(crate) const FS_STAT_FSTATFS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.lstat.
 pub(crate) const FS_STAT_LSTAT: BindingDescriptor =
@@ -6662,20 +6286,7 @@ pub(crate) const FS_STAT_LSTAT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.path.
 pub(crate) const FS_STAT_PATH: BindingDescriptor =
@@ -6690,20 +6301,7 @@ pub(crate) const FS_STAT_PATH: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathat.
 pub(crate) const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6717,7 +6315,7 @@ pub(crate) const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathfs.
 pub(crate) const FS_STAT_PATHFS: BindingDescriptor =
@@ -6732,20 +6330,7 @@ pub(crate) const FS_STAT_PATHFS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathx.
 pub(crate) const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6759,7 +6344,7 @@ pub(crate) const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.open.
 pub(crate) const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6773,7 +6358,7 @@ pub(crate) const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openClose.
 pub(crate) const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
@@ -6788,20 +6373,7 @@ pub(crate) const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openRead.
 pub(crate) const FS_WATCH_OPEN_READ: BindingDescriptor =
@@ -6816,20 +6388,7 @@ pub(crate) const FS_WATCH_OPEN_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openat.
 pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6843,7 +6402,7 @@ pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
 pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6857,7 +6416,7 @@ pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
 pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6871,7 +6430,7 @@ pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattr.
 pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
@@ -6886,20 +6445,7 @@ pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattrBytes.
 pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
@@ -6914,20 +6460,7 @@ pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattr.
 pub(crate) const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6941,7 +6474,7 @@ pub(crate) const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattrBytes.
 pub(crate) const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6955,7 +6488,7 @@ pub(crate) const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattr.
 pub(crate) const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6969,7 +6502,7 @@ pub(crate) const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattrBytes.
 pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -6983,7 +6516,7 @@ pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.getxattr.
 pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
@@ -6998,20 +6531,7 @@ pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.getxattrBytes.
 pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7025,7 +6545,7 @@ pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
 pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor =
@@ -7040,20 +6560,7 @@ pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattrBytes.
 pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7067,7 +6574,7 @@ pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.listxattr.
 pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
@@ -7082,20 +6589,7 @@ pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.listxattrBytes.
 pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
@@ -7110,20 +6604,7 @@ pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattr.
 pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
@@ -7138,20 +6619,7 @@ pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattrBytes.
 pub(crate) const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
@@ -7166,20 +6634,7 @@ pub(crate) const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattr.
 pub(crate) const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
@@ -7194,20 +6649,7 @@ pub(crate) const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattrBytes.
 pub(crate) const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7221,7 +6663,7 @@ pub(crate) const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattr.
 pub(crate) const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7235,7 +6677,7 @@ pub(crate) const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattrBytes.
 pub(crate) const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7249,7 +6691,7 @@ pub(crate) const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.removexattr.
 pub(crate) const FS_XATTR_REMOVEXATTR: BindingDescriptor =
@@ -7264,20 +6706,7 @@ pub(crate) const FS_XATTR_REMOVEXATTR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("fs")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.removexattrBytes.
 pub(crate) const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7291,7 +6720,7 @@ pub(crate) const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattr.
 pub(crate) const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7305,7 +6734,7 @@ pub(crate) const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattrBytes.
 pub(crate) const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7319,7 +6748,7 @@ pub(crate) const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("fs")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for fs.
 pub(crate) const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

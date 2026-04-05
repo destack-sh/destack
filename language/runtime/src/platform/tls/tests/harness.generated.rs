@@ -83,23 +83,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Close one tls context object.
-    ///
-    /// Release one backend-backed tls context and associated runtime resources.
-    /// Existing sessions created from this context keep their current runtime state.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls context teardown semantics.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_close(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -110,23 +94,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Open one tls context object.
-    ///
-    /// Create one rustls-backed tls context with explicit role and version bounds.
-    /// Cipher suite, group, signature, and resumption policy are runtime-owned rather than delegated to host provider state.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses the runtime tls engine over host sockets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_open(
         &mut self,
         options: HarnessValue<TlsContextOptions, TlsContextOptionsVm>,
@@ -153,24 +121,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set allowed tls cipher suites for one context.
-    ///
-    /// Apply one ordered list of cipher-suite names to one context policy.
-    /// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls cipher-suite names.
-    /// Unsupported names fail immediately, even when other entries are valid.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls policy filtering.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`, `tls.policy`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_set_cipher_suites(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -193,24 +144,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set allowed tls key exchange groups for one context.
-    ///
-    /// Apply one ordered list of key exchange groups to one context policy.
-    /// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls key-exchange group names.
-    /// Unsupported names fail immediately, even when other entries are valid.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls policy filtering.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`, `tls.policy`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_set_groups(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -228,24 +162,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set hostname verification mode for one context.
-    ///
-    /// Configure hostname verification behavior for sessions created by this context.
-    /// Verification defaults match strict hostname checks unless explicitly overridden.
-    /// This setting applies to client contexts, and server contexts ignore it.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls verification policy.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`, `tls.hostname.verify`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_set_hostname_verification_mode(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -268,23 +185,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set one local certificate chain and private key on a tls context.
-    ///
-    /// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
-    /// PEM parsing is strict and malformed inputs fail immediately.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses provider identity import APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.identity.use`, `tls.identity.write`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_set_identity_pem(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -316,23 +217,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set session resumption policy for one context.
-    ///
-    /// Configure whether sessions use stateful cache, stateless tickets, or both.
-    /// Cache size, lifetime, and ticket semantics follow bounded runtime policy.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls resumption controls.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`, `tls.resumption`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_set_session_resumption(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -355,24 +240,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set allowed tls signature algorithms for one context.
-    ///
-    /// Apply one ordered list of signature algorithms to one context policy.
-    /// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls signature-scheme names.
-    /// Unsupported names and schemes outside the active runtime tls policy fail immediately.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls policy filtering.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.context`, `tls.policy`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_set_signature_algorithms(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -399,23 +267,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Set trust anchors on a tls context from one PEM bundle.
-    ///
-    /// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
-    /// Bundle parsing is strict and malformed trust anchors fail immediately.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses provider trust-store APIs or runtime trust bundle loading.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.trust.write`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_context_set_trust_anchors_pem(
         &mut self,
         handle: resource::TlsContextHandle,
@@ -442,23 +294,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Close one tls session object.
-    ///
-    /// Release one session object and runtime tls state.
-    /// Socket ownership remains with the caller and is not implicitly closed by this operation.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls session teardown.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_close(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -469,24 +305,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Export keying material bytes for one tls session.
-    ///
-    /// Derive exporter keying material for one label and one explicit context value.
-    /// Empty context bytes remain distinct input and are not treated as absence.
-    /// Exporter derivation follows RFC 5705 and RFC 8446 runtime tls rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls exporter support.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`, `tls.exporter`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_export_keying_material(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -528,23 +347,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Advance one tls handshake state machine.
-    ///
-    /// Drive one handshake step for one session and return readiness requirements for continuation.
-    /// Handshake transitions follow rustls state-machine semantics for the selected protocol version.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls handshake state.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.handshake`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_handshake(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -570,23 +373,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Return negotiated alpn protocol bytes.
-    ///
-    /// Read one negotiated application protocol value selected during handshake.
-    /// Empty bytes indicate no protocol was negotiated by the peer and runtime.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls negotiated-protocol state.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_negotiated_alpn(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -615,24 +402,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Open one tls session over one connected socket.
-    ///
-    /// Bind one tls session object to one connected socket using one tls context.
-    /// Transport ownership remains with the caller, and tls uses the socket for encrypted record I/O.
-    /// `serverName` is required for client contexts and ignored for server contexts.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses the runtime tls engine over host sockets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_open(
         &mut self,
         argument_context: resource::TlsContextHandle,
@@ -669,23 +439,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Return the peer certificate chain bytes in pem encoding.
-    ///
-    /// Read one peer certificate chain as normalized PEM bytes for verification and inspection.
-    /// Chain ordering and included intermediates follow peer presentation order.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls peer-certificate state.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.certificate.read`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_peer_certificates_pem(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -714,23 +468,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Read decrypted application bytes from one tls session.
-    ///
-    /// Read plaintext bytes into one caller-provided buffer after record decryption.
-    /// Decrypt and read semantics follow runtime buffering behavior and transport readiness.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls record processing over host sockets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_read(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -760,23 +498,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Return whether one session resumed from cached state or ticket.
-    ///
-    /// Report resumption state as observed by the runtime after handshake completion.
-    /// State semantics follow runtime cache and ticket policy behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls session-state inspection.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`, `tls.resumption`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_resumption_state(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -805,23 +527,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Shutdown one tls session.
-    ///
-    /// Emit closure alerts and transition one session to closed state.
-    /// Half-close behavior and alert sequencing follow rustls close-notify semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls shutdown state.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_shutdown(
         &mut self,
         handle: resource::TlsSessionHandle,
@@ -834,23 +540,7 @@ impl<'call> TlsHarnessContext<'call> {
         }
     }
 
-    /// Write plaintext application bytes to one tls session.
-    ///
-    /// Encrypt and write plaintext bytes from one caller-provided buffer into tls records.
-    /// Record emission and flush behavior follow runtime buffering and transport readiness.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses runtime tls record processing over host sockets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `tls.session`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_tls_session_write(
         &mut self,
         handle: resource::TlsSessionHandle,

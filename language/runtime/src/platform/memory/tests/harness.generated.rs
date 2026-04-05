@@ -83,23 +83,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Apply memory access advice.
-    ///
-    /// Apply one access-pattern hint to one memory range.
-    /// Advice behavior is host-specific and may be ignored.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses madvise family on Unix and host advisory equivalents on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.advise`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_advise(
         &mut self,
         address: u64,
@@ -120,23 +104,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Discard memory contents.
-    ///
-    /// Discard pages in one memory range while keeping mapping metadata.
-    /// Future reads after discard are host-defined zero-fill or fault-on-demand behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses madvise discard-style flags on Unix and discard page hints on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.advise`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_discard(
         &mut self,
         address: u64,
@@ -152,23 +120,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Lock one memory range into physical memory.
-    ///
-    /// Prevent one memory range from being paged out when supported by the host.
-    /// Lock behavior and resource limits follow host memory-lock policy.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mlock family on Unix and VirtualLock on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.lock`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_lock(&mut self, address: u64, length: u64) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -180,23 +132,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Unlock one memory range.
-    ///
-    /// Release one previously locked memory range.
-    /// Unlock behavior and accounting follow host memory-lock policy.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses munlock family on Unix and VirtualUnlock on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.lock`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_unlock(&mut self, address: u64, length: u64) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -208,23 +144,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Allocate one mapped range.
-    ///
-    /// Reserve and commit one virtual memory range in a single host operation.
-    /// Allocation-time policy flags such as large pages are applied here when supported.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mmap allocation paths on Unix and VirtualAlloc reserve-plus-commit on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.map`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_allocate(
         &mut self,
         length: u64,
@@ -262,23 +182,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Commit one reserved range.
-    ///
-    /// Commit physical backing for one reserved address range.
-    /// Commit granularity and zero-fill behavior follow host memory manager semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mprotect or mmap commit semantics on Unix and VirtualAlloc commit on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.map`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_commit(
         &mut self,
         address: u64,
@@ -299,23 +203,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Decommit one range.
-    ///
-    /// Decommit physical backing while preserving virtual address reservation.
-    /// Decommit effects on dirty pages follow host memory manager semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses madvise or mmap replacement patterns on Unix and VirtualFree decommit on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.map`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_decommit(
         &mut self,
         address: u64,
@@ -331,24 +219,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Release one reserved range.
-    ///
-    /// Release one virtual memory reservation back to the host allocator.
-    /// Released ranges become invalid for future access by caller code.
-    /// On Windows the length must cover the full reserved allocation span.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses munmap on Unix and VirtualFree release on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.map`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_release(
         &mut self,
         address: u64,
@@ -364,24 +235,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Reserve one virtual memory range.
-    ///
-    /// Reserve one address range without committing physical backing.
-    /// A zero address hint lets the host choose placement.
-    /// Explicit address hints follow host allocation-granularity alignment rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mmap reserve patterns on Unix and VirtualAlloc reserve on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.map`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_reserve(
         &mut self,
         length: u64,
@@ -416,23 +270,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Flush instruction cache for one range.
-    ///
-    /// Flush host instruction caches after writing executable code bytes.
-    /// Cache flush granularity and barriers follow host architecture rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses built-in cache flush intrinsics and host process APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.execute`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_flush_instruction_cache(
         &mut self,
         address: u64,
@@ -455,23 +293,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Change memory protection for one range.
-    ///
-    /// Apply one protection mask to one virtual memory range.
-    /// Execute, read, and write semantics follow host protection rules.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mprotect on Unix and VirtualProtect on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.protect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_protect(
         &mut self,
         address: u64,
@@ -497,23 +319,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Resize one mapped range.
-    ///
-    /// Remap one existing mapping to a new length.
-    /// Move behavior and address stability are host-defined when remap cannot grow in place.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses mremap on Linux and reserve-plus-copy fallback on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.protect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_remap(
         &mut self,
         address: u64,
@@ -551,23 +357,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Read the host allocation granularity.
-    ///
-    /// Read one allocation-granularity value used for reserve and map base alignment.
-    /// On Unix this usually equals page size, while Windows commonly reports larger granularity.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses page-size queries on Unix and GetSystemInfo on Windows.
-    ///
-    /// # Errors
-    /// Returns ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.query`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_allocation_granularity(&mut self) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -589,23 +379,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Read the host huge-page allocation size when available.
-    ///
-    /// Read one huge-page size if the host exposes this value.
-    /// Returns `void` when huge pages are unavailable or not queryable on this platform.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host large-page query APIs where available.
-    ///
-    /// # Errors
-    /// Returns ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.query`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_huge_page_size(&mut self) -> RuntimeResult<Option<u64>> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -626,23 +400,7 @@ impl<'call> MemoryHarnessContext<'call> {
         }
     }
 
-    /// Read the host virtual-memory page size.
-    ///
-    /// Read one page-size value used for page-aligned memory operations.
-    /// This is the minimum mapping and protection granularity on the host.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses sysconf(_SC_PAGESIZE) on Unix and GetSystemInfo on Windows.
-    ///
-    /// # Errors
-    /// Returns ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `memory.query`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_memory_page_size(&mut self) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {

@@ -532,21 +532,7 @@ pub(crate) const DEBUG_CORE_BREAK_NOW: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.core.mark.
 pub(crate) const DEBUG_CORE_MARK: BindingDescriptor =
@@ -561,21 +547,7 @@ pub(crate) const DEBUG_CORE_MARK: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.endpoint.
 pub(crate) const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -589,7 +561,7 @@ pub(crate) const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.start.
 pub(crate) const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -603,7 +575,7 @@ pub(crate) const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.inspector.stop.
 pub(crate) const DEBUG_INSPECTOR_STOP: BindingDescriptor =
@@ -618,21 +590,7 @@ pub(crate) const DEBUG_INSPECTOR_STOP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.profile.snapshot.
 pub(crate) const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
@@ -647,21 +605,7 @@ pub(crate) const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.profile.start.
 pub(crate) const DEBUG_PROFILE_START: BindingDescriptor =
@@ -676,21 +620,7 @@ pub(crate) const DEBUG_PROFILE_START: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.profile.stop.
 pub(crate) const DEBUG_PROFILE_STOP: BindingDescriptor =
@@ -705,21 +635,7 @@ pub(crate) const DEBUG_PROFILE_STOP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.emit.
 pub(crate) const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -733,7 +649,7 @@ pub(crate) const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.start.
 pub(crate) const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -747,7 +663,7 @@ pub(crate) const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.debug.trace.stop.
 pub(crate) const DEBUG_TRACE_STOP: BindingDescriptor =
@@ -762,21 +678,7 @@ pub(crate) const DEBUG_TRACE_STOP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("debug")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Native binding set for debug.
 pub(crate) const DEBUG_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

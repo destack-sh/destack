@@ -1378,21 +1378,7 @@ pub(crate) const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("error")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Native binding set for error.
 pub(crate) const ERROR_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

@@ -10,23 +10,7 @@ use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
-/// Cancel queued operations for one target.
-///
-/// Cancel queued completion operations associated with one runtime resource target.
-/// Cancellation count reflects host backend cancellation behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring cancel requests on Unix and CancelIoEx style APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.completion.cancel`.
 pub(crate) fn destack_io_completion_cancel(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -40,23 +24,7 @@ pub(crate) fn destack_io_completion_cancel(
     .boxed())
 }
 
-/// Close a completion queue.
-///
-/// Close one completion queue and release host queue resources.
-/// Pending operations are canceled or drained by host policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host completion backend teardown semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.completion.close`.
 pub(crate) fn destack_io_completion_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -69,23 +37,7 @@ pub(crate) fn destack_io_completion_close(
     .boxed())
 }
 
-/// Enter the completion backend with submit and wait hints.
-///
-/// Ask the backend to flush pending submissions and optionally wait for completions.
-/// Enter semantics and wake behavior follow host backend contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring_enter on Unix and runtime-entered wait-and-drain loop on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.completion.enter`.
 pub(crate) fn destack_io_completion_enter(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -101,23 +53,7 @@ pub(crate) fn destack_io_completion_enter(
     .boxed())
 }
 
-/// Open a completion queue.
-///
-/// Create one completion queue instance with backend-defined capacity.
-/// Queue behavior and worker-thread integration follow host completion APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring or AIO style completion backends on Unix and IOCP on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.completion.open`.
 pub(crate) fn destack_io_completion_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -130,23 +66,7 @@ pub(crate) fn destack_io_completion_open(
     .boxed())
 }
 
-/// Submit one completion operation.
-///
-/// Submit one operation descriptor into the completion backend queue.
-/// Submission semantics follow host backend operation encoding rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring SQE submission on Unix and overlapped I/O submission on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.completion.submit`.
 pub(crate) fn destack_io_completion_submit(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -160,23 +80,7 @@ pub(crate) fn destack_io_completion_submit(
     .boxed())
 }
 
-/// Submit a batch of completion operations.
-///
-/// Submit multiple operation descriptors in one backend transaction.
-/// Batch ordering is preserved as provided by the caller.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring SQE batch submission on Unix and runtime batched overlapped submission on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.completion.submitBatch`.
 pub(crate) fn destack_io_completion_submit_batch(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -192,23 +96,7 @@ pub(crate) fn destack_io_completion_submit_batch(
     .boxed())
 }
 
-/// Wait for completion events.
-///
-/// Wait for one batch of completion events and return normalized completion records.
-/// Timeout units are nanoseconds and follow host completion wait semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring CQ waits on Unix and IOCP dequeue waits on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.completion.wait`.
 pub(crate) fn destack_io_completion_wait(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -223,23 +111,7 @@ pub(crate) fn destack_io_completion_wait(
     .boxed())
 }
 
-/// Execute one fcntl-style descriptor command.
-///
-/// Forward one descriptor control command to the host kernel for the target resource.
-/// Command semantics and valid arguments follow the active host ABI.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
-/// Uses fcntl(2) style controls on Unix and host descriptor control adapters on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `io.control`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.control.fcntl`.
 pub(crate) fn destack_io_control_fcntl(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -255,23 +127,7 @@ pub(crate) fn destack_io_control_fcntl(
     .boxed())
 }
 
-/// Execute one ioctl-style descriptor request.
-///
-/// Forward one ioctl request with opaque payload bytes to the host kernel for the target resource.
-/// Request code semantics and payload layout follow the active host ABI.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
-/// Uses ioctl(2) style controls on Unix and DeviceIoControl or ioctlsocket adapters on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.control`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.control.ioctl`.
 pub(crate) fn destack_io_control_ioctl(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -285,23 +141,7 @@ pub(crate) fn destack_io_control_ioctl(
     .boxed())
 }
 
-/// Close one raw device endpoint.
-///
-/// Close one previously opened raw device handle.
-/// Close semantics for in-flight operations follow host backend behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.read`, `io.device.write`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.device.close`.
 pub(crate) fn destack_io_device_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -314,23 +154,7 @@ pub(crate) fn destack_io_device_close(
     .boxed())
 }
 
-/// Run one device-specific control request.
-///
-/// Execute one opaque control request with caller-provided bytes and return host output bytes.
-/// Request code semantics and payload layout are device-specific by design.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ioctl(2) on Unix and DeviceIoControl on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.control`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.device.control`.
 pub(crate) fn destack_io_device_control(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -344,23 +168,7 @@ pub(crate) fn destack_io_device_control(
     .boxed())
 }
 
-/// Open one raw device endpoint.
-///
-/// Open one host device node or device path with explicit open flags.
-/// Access checks and device availability are enforced by the host kernel and device policy.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts without a compatible raw-device namespace.
-/// Uses open(2) on Unix and CreateFileW on Windows device paths.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.read`, `io.device.write`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.device.open`.
 pub(crate) fn destack_io_device_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -375,23 +183,7 @@ pub(crate) fn destack_io_device_open(
     .boxed())
 }
 
-/// Read bytes from one raw device endpoint.
-///
-/// Read bytes into caller-provided memory and return the number of bytes transferred.
-/// Partial reads are preserved exactly as reported by the host.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses read(2) on Unix and ReadFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.device.read`.
 pub(crate) fn destack_io_device_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -405,23 +197,7 @@ pub(crate) fn destack_io_device_read(
     .boxed())
 }
 
-/// Write bytes to one raw device endpoint.
-///
-/// Write bytes from caller-provided memory and return the number of bytes transferred.
-/// Partial writes are preserved exactly as reported by the host.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses write(2) on Unix and WriteFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.write`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.device.write`.
 pub(crate) fn destack_io_device_write(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -435,23 +211,7 @@ pub(crate) fn destack_io_device_write(
     .boxed())
 }
 
-/// Attach an event token to a poll target key.
-///
-/// Associate one event token with one runtime resource for explicit wakeup wiring.
-/// Association behavior is backend-specific and intended for runtime internals.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime event routing over host poll infrastructure.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.event`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.event.attach`.
 pub(crate) fn destack_io_event_attach(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -466,23 +226,7 @@ pub(crate) fn destack_io_event_attach(
     .boxed())
 }
 
-/// Close a user-event token.
-///
-/// Close one user-event token and release host resources.
-/// Closing behavior for waiters follows host wakeup semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close semantics for eventfd, pipe-backed events, or event objects.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.event`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.event.close`.
 pub(crate) fn destack_io_event_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -495,23 +239,7 @@ pub(crate) fn destack_io_event_close(
     .boxed())
 }
 
-/// Create a user-event token.
-///
-/// Create one runtime user-event token for explicit wakeups and cross-task signaling.
-/// Token semantics are stable across runtime backends.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses eventfd on Linux, pipe-backed events on other Unix hosts, and event objects on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.event`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.event.open`.
 pub(crate) fn destack_io_event_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -524,24 +252,7 @@ pub(crate) fn destack_io_event_open(
     .boxed())
 }
 
-/// Signal a user-event token.
-///
-/// Increment one user-event token and wake waiters.
-/// Value must be greater than zero.
-/// Counter saturation and coalescing are host-backend defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses eventfd writes on Linux, pipe writes on other Unix hosts, and SetEvent on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.event`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.event.signal`.
 pub(crate) fn destack_io_event_signal(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -555,23 +266,7 @@ pub(crate) fn destack_io_event_signal(
     .boxed())
 }
 
-/// Close a poll instance.
-///
-/// Close one readiness poller and release host resources.
-/// Registered targets are detached as part of host poller teardown.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host poller close semantics for the selected backend.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.poll`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.poll.close`.
 pub(crate) fn destack_io_poll_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -584,23 +279,7 @@ pub(crate) fn destack_io_poll_close(
     .boxed())
 }
 
-/// Remove one target from a poll instance.
-///
-/// Deregister one runtime resource from readiness polling.
-/// Pending readiness events may still be observed depending on host backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses epoll_ctl del, kevent delete, poll table delete, or Windows readiness teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.poll`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.poll.deregister`.
 pub(crate) fn destack_io_poll_deregister(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -614,23 +293,7 @@ pub(crate) fn destack_io_poll_deregister(
     .boxed())
 }
 
-/// Open a poll instance.
-///
-/// Create one readiness poller with the selected backend.
-/// Backend selection is validated against host capability support.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses epoll, kqueue, poll, or the Windows readiness backend depending on backend.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.poll`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.poll.open`.
 pub(crate) fn destack_io_poll_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -643,23 +306,7 @@ pub(crate) fn destack_io_poll_open(
     .boxed())
 }
 
-/// Register one target with a poll instance.
-///
-/// Register one runtime resource and interest mask with the poll backend.
-/// Resource ownership remains unchanged and key values are returned in wait events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses epoll_ctl add, kevent add, poll table add, or Windows readiness association.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.poll`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.poll.register`.
 pub(crate) fn destack_io_poll_register(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -675,23 +322,7 @@ pub(crate) fn destack_io_poll_register(
     .boxed())
 }
 
-/// Update one target in a poll instance.
-///
-/// Replace the registered interest mask and key for one poll target.
-/// Target identity remains stable while readiness subscription changes.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses epoll_ctl mod, kevent update, poll table update, or Windows readiness metadata update.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.poll`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.poll.update`.
 pub(crate) fn destack_io_poll_update(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -707,23 +338,7 @@ pub(crate) fn destack_io_poll_update(
     .boxed())
 }
 
-/// Wait for poll events.
-///
-/// Wait for readiness events and return one batch of normalized poll events.
-/// Timeout units are nanoseconds and follow host backend wait semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses epoll_wait, kevent wait, poll wait, or Windows readiness wait operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.poll`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.poll.wait`.
 pub(crate) fn destack_io_poll_wait(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -738,23 +353,7 @@ pub(crate) fn destack_io_poll_wait(
     .boxed())
 }
 
-/// Close one timerfd descriptor.
-///
-/// Close one descriptor and release host timer queue resources.
-/// Pending expirations are discarded according to host close semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Linux and returns `notSupported` where timerfd is unavailable.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.timerfd`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.timerfd.close`.
 pub(crate) fn destack_io_timer_fd_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -767,23 +366,7 @@ pub(crate) fn destack_io_timer_fd_close(
     .boxed())
 }
 
-/// Read the active timerfd schedule.
-///
-/// Return one normalized schedule snapshot for the descriptor.
-/// Returned values are measured in nanoseconds using host timerfd conversion rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses timerfd_gettime(2) on Linux and returns `notSupported` where timerfd is unavailable.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.timerfd`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.timerfd.get`.
 pub(crate) fn destack_io_timer_fd_get(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -796,23 +379,7 @@ pub(crate) fn destack_io_timer_fd_get(
     .boxed())
 }
 
-/// Open one timerfd style descriptor.
-///
-/// Create one descriptor-backed timer queue in the requested clock domain.
-/// Timerfd behavior and descriptor flags follow host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses timerfd_create(2) on Linux and returns `notSupported` where timerfd is unavailable.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.timerfd`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.timerfd.open`.
 pub(crate) fn destack_io_timer_fd_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -826,23 +393,7 @@ pub(crate) fn destack_io_timer_fd_open(
     .boxed())
 }
 
-/// Read one timerfd expiration counter.
-///
-/// Consume one pending expiration counter value from the descriptor.
-/// Counter semantics follow host timerfd read behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses read(2) on timerfd descriptors on Linux and returns `notSupported` where timerfd is unavailable.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.timerfd`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.timerfd.read`.
 pub(crate) fn destack_io_timer_fd_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -855,23 +406,7 @@ pub(crate) fn destack_io_timer_fd_read(
     .boxed())
 }
 
-/// Update one timerfd schedule.
-///
-/// Replace the timer schedule with one initial deadline and one interval period.
-/// Absolute or relative interpretation is controlled by the provided set flags.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses timerfd_settime(2) on Linux and returns `notSupported` where timerfd is unavailable.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.timerfd`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.timerfd.set`.
 pub(crate) fn destack_io_timer_fd_set(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -886,23 +421,7 @@ pub(crate) fn destack_io_timer_fd_set(
     .boxed())
 }
 
-/// Close one io_uring ring.
-///
-/// Tear down one io_uring instance and unmap ring memory.
-/// Pending entries are canceled or drained by kernel behavior.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring ring teardown and unmap operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.uring`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.uring.close`.
 pub(crate) fn destack_io_uring_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -915,23 +434,7 @@ pub(crate) fn destack_io_uring_close(
     .boxed())
 }
 
-/// Query io_uring feature support.
-///
-/// Probe one ring instance for normalized feature support metadata.
-/// Feature flags are derived from host kernel capability bits.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring register and probe primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.uring`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.uring.features`.
 pub(crate) fn destack_io_uring_features(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -944,23 +447,7 @@ pub(crate) fn destack_io_uring_features(
     .boxed())
 }
 
-/// Open one io_uring ring.
-///
-/// Create one io_uring instance with explicit setup parameters.
-/// Kernel feature availability is validated during setup.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring_setup and associated ring mappings.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.uring`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.uring.open`.
 pub(crate) fn destack_io_uring_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -973,23 +460,7 @@ pub(crate) fn destack_io_uring_open(
     .boxed())
 }
 
-/// Register fixed buffers with a ring.
-///
-/// Register one fixed-buffer table from address and length lanes.
-/// Buffer registration semantics follow io_uring fixed-buffer contracts.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring register buffers operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.uring.registerBuffers`.
 pub(crate) fn destack_io_uring_register_buffers(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1004,23 +475,7 @@ pub(crate) fn destack_io_uring_register_buffers(
     .boxed())
 }
 
-/// Register fixed files with a ring.
-///
-/// Register one fixed-file table from runtime resource identifiers.
-/// File registration semantics follow io_uring fixed-file contracts.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring register files operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.uring.registerFiles`.
 pub(crate) fn destack_io_uring_register_files(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1034,23 +489,7 @@ pub(crate) fn destack_io_uring_register_files(
     .boxed())
 }
 
-/// Unregister fixed buffers for a ring.
-///
-/// Remove the fixed-buffer table for one ring.
-/// Pending operations that reference fixed buffers follow kernel cancellation semantics.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring unregister buffers operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.uring.unregisterBuffers`.
 pub(crate) fn destack_io_uring_unregister_buffers(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1063,23 +502,7 @@ pub(crate) fn destack_io_uring_unregister_buffers(
     .boxed())
 }
 
-/// Unregister fixed files for a ring.
-///
-/// Remove the fixed-file table for one ring.
-/// Pending operations that reference fixed files follow kernel cancellation semantics.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring unregister files operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
+/// Binding for `destack.io.uring.unregisterFiles`.
 pub(crate) fn destack_io_uring_unregister_files(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
