@@ -11,6 +11,7 @@ mod workspace;
 pub use error::LanguageServiceError;
 pub use service::LanguageService;
 pub use types::{
-    AnalyzeOutcome, FileSnapshot, LanguageServiceResult, RescanReason, WorkspaceHandleId,
-    WorkspaceMessage, WorkspaceMessageKind, WorkspaceUpdateRecord,
+    AnalyzeOutcome, DocumentDiagnosticSnapshot, FileSnapshot, FileUpdate, LanguageServiceResult,
+    RescanReason, UpdateImpact, UpdateImpactKind, WorkspaceDiagnosticSnapshot, WorkspaceMessage,
+    WorkspaceMessageKind, WorkspaceUpdateRecord,
 };

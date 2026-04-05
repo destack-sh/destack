@@ -1,23 +1,13 @@
 use std::path::PathBuf;
 
+use destack_compiler::RequirementError;
 use destack_query::{QueryExecutionMode, QueryMethodId};
-use destack_source::FileId;
-
-use super::WorkspaceHandleId;
+use destack_source::{FileId, ModuleId};
+use destack_workspace::{RepositoryError, Revision};
 
 /// Errors produced by workspace service operations.
 #[derive(Debug)]
 pub enum LanguageServiceError {
-    /// The workspace handle was not found.
-    UnknownWorkspaceHandle {
-        /// The unknown handle id.
-        handle: WorkspaceHandleId,
-    },
-    /// The workspace handle was missing after opening a root.
-    WorkspaceHandleMissingAfterOpen {
-        /// The root path that failed to map.
-        root: PathBuf,
-    },
     /// Cache clearing failed for a path.
     CacheClearFailed {
         /// Cache directory path.
@@ -32,7 +22,7 @@ pub enum LanguageServiceError {
         /// The failure detail.
         detail: String,
     },
-    /// Invalidation failed for a path.
+    /// Impact calculation failed for a path.
     InvalidatePathFailed {
         /// The path that failed.
         path: PathBuf,
@@ -49,17 +39,31 @@ pub enum LanguageServiceError {
         /// The missing file id.
         file_id: FileId,
     },
+    /// The module id is not tracked.
+    ModuleIdNotTracked {
+        /// The missing module id.
+        module_id: ModuleId,
+    },
     /// The path is outside all opened workspace roots.
     PathNotInWorkspace {
         /// The path that failed workspace routing.
         path: PathBuf,
+    },
+    /// The incoming document version is not newer than the tracked version.
+    StaleDocumentVersion {
+        /// The tracked document path.
+        path: PathBuf,
+        /// The incoming client document version.
+        incoming: i32,
+        /// The current tracked client document version.
+        current: i32,
     },
     /// The query expected revision is missing for mutating requests.
     MissingExpectedRevision,
     /// The read query path received an unexpected revision precondition.
     UnexpectedExpectedRevisionOnRead {
         /// The unexpected revision carried on the request.
-        expected_revision: u64,
+        expected_revision: Revision,
     },
     /// The query execution mode does not match the called API.
     QueryExecutionModeMismatch {
@@ -70,17 +74,12 @@ pub enum LanguageServiceError {
         /// The actual query execution mode.
         actual: QueryExecutionMode,
     },
-    /// The query read path is blocked by an active workspace mutation.
-    QueryBusy {
-        /// The workspace handle that is currently mutating.
-        handle: WorkspaceHandleId,
-    },
-    /// The query expected revision does not match the current workspace revision.
+    /// The query expected revision does not match the current semantic revision.
     StaleRevision {
         /// The caller expected revision.
-        expected: u64,
-        /// The current workspace revision.
-        current: u64,
+        expected: Revision,
+        /// The current semantic revision.
+        current: Revision,
     },
     /// The semantic revision entry is missing for a workspace root.
     RevisionNotTracked {
@@ -97,6 +96,11 @@ pub enum LanguageServiceError {
         /// The failure detail.
         detail: String,
     },
+    /// Analyze operation failed due to an artifact requirement.
+    AnalyzeRequirement {
+        /// The compiler requirement failure.
+        error: RequirementError,
+    },
     /// Internal workspace service failure.
     Internal {
         /// The failure detail.
@@ -107,16 +111,6 @@ pub enum LanguageServiceError {
 impl std::fmt::Display for LanguageServiceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LanguageServiceError::UnknownWorkspaceHandle { handle } => {
-                write!(formatter, "unknown workspace handle: {handle:?}")
-            }
-            LanguageServiceError::WorkspaceHandleMissingAfterOpen { root } => {
-                write!(
-                    formatter,
-                    "workspace handle missing after open: {}",
-                    root.display()
-                )
-            }
             LanguageServiceError::CacheClearFailed { path, detail } => {
                 write!(
                     formatter,
@@ -140,10 +134,24 @@ impl std::fmt::Display for LanguageServiceError {
             LanguageServiceError::FileIdNotTracked { file_id } => {
                 write!(formatter, "file id not tracked: {file_id:?}")
             }
+            LanguageServiceError::ModuleIdNotTracked { module_id } => {
+                write!(formatter, "module id not tracked: {module_id:?}")
+            }
             LanguageServiceError::PathNotInWorkspace { path } => {
                 write!(
                     formatter,
                     "path is not in a workspace root: {}",
+                    path.display()
+                )
+            }
+            LanguageServiceError::StaleDocumentVersion {
+                path,
+                incoming,
+                current,
+            } => {
+                write!(
+                    formatter,
+                    "stale document version for {}: incoming {incoming}, current {current}",
                     path.display()
                 )
             }
@@ -166,9 +174,6 @@ impl std::fmt::Display for LanguageServiceError {
                     "query execution mode mismatch for {method:?}: expected {expected:?}, actual {actual:?}"
                 )
             }
-            LanguageServiceError::QueryBusy { handle } => {
-                write!(formatter, "query busy for workspace handle: {handle:?}")
-            }
             LanguageServiceError::StaleRevision { expected, current } => {
                 write!(
                     formatter,
@@ -188,6 +193,9 @@ impl std::fmt::Display for LanguageServiceError {
             LanguageServiceError::AnalyzeFailed { detail } => {
                 write!(formatter, "analyze failed: {detail}")
             }
+            LanguageServiceError::AnalyzeRequirement { error } => {
+                write!(formatter, "analyze requirement failed: {error:?}")
+            }
             LanguageServiceError::Internal { detail } => {
                 write!(formatter, "workspace service internal error: {detail}")
             }
@@ -196,3 +204,17 @@ impl std::fmt::Display for LanguageServiceError {
 }
 
 impl std::error::Error for LanguageServiceError {}
+
+impl From<RepositoryError> for LanguageServiceError {
+    fn from(error: RepositoryError) -> Self {
+        LanguageServiceError::Internal {
+            detail: error.to_string(),
+        }
+    }
+}
+
+impl From<RequirementError> for LanguageServiceError {
+    fn from(error: RequirementError) -> Self {
+        LanguageServiceError::AnalyzeRequirement { error }
+    }
+}

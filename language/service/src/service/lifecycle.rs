@@ -1,77 +1,152 @@
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
-use dashmap::mapref::entry::Entry;
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_query::SessionQueryIndexExt;
-use destack_workspace::{Program, Session};
+use destack_source::OverlayFileSystem;
+use destack_workspace::{Ref, Repository, Revision};
 
-use super::workspace::WorkspaceHandle;
-use super::{LanguageService, LanguageServiceError, WorkspaceHandleId};
+use super::workspace::{WorkspaceSession, tracked_document_key};
+use super::{LanguageService, LanguageServiceError};
 
 impl LanguageService {
+    /// Resolve the owning workspace root for any workspace-scoped path.
+    fn workspace_root_for_owned_path(&self, path: &Path) -> Option<PathBuf> {
+        let canonical_path = tracked_document_key(path);
+        let mut best_root = None;
+        let mut best_depth = 0usize;
+
+        for entry in self.workspaces_by_root.iter() {
+            let root = entry.key();
+            let canonical_root = tracked_document_key(root);
+
+            let matches_root =
+                path.starts_with(root) || canonical_path.starts_with(&canonical_root);
+            if !matches_root {
+                continue;
+            }
+
+            let depth = canonical_root.components().count();
+            if depth <= best_depth {
+                continue;
+            }
+
+            best_depth = depth;
+            best_root = Some(root.clone());
+        }
+
+        best_root
+    }
+
+    /// Resolve the owning workspace root for any workspace-owned path.
+    pub fn workspace_root_for_path(&self, path: &Path) -> Result<PathBuf, LanguageServiceError> {
+        self.workspace_root_for_owned_path(path).ok_or_else(|| {
+            LanguageServiceError::PathNotInWorkspace {
+                path: path.to_path_buf(),
+            }
+        })
+    }
+
+    /// Resolve the owning workspace root for a semantic path.
+    fn workspace_root_for_semantic_path(&self, path: &Path) -> Option<PathBuf> {
+        let canonical_path = tracked_document_key(path);
+        let mut best_root = None;
+        let mut best_depth = 0usize;
+
+        for workspace in self.workspaces_by_root.iter() {
+            let is_member = workspace.value().owns_semantic_path(path)
+                || (canonical_path != path
+                    && workspace.value().owns_semantic_path(&canonical_path));
+            if !is_member {
+                continue;
+            }
+
+            let canonical_root = tracked_document_key(&workspace.value().root);
+            let depth = canonical_root.components().count();
+            if depth <= best_depth {
+                continue;
+            }
+
+            best_depth = depth;
+            best_root = Some(workspace.value().root.clone());
+        }
+
+        best_root
+    }
+
+    /// Resolve the workspace that already owns one tracked document.
+    pub(super) fn tracked_workspace_for_path(&self, path: &Path) -> Option<Arc<WorkspaceSession>> {
+        let canonical_path = tracked_document_key(path);
+
+        for workspace in self.workspaces_by_root.iter() {
+            if workspace
+                .value()
+                .has_tracked_document_for_path(&canonical_path)
+            {
+                return Some(Arc::clone(workspace.value()));
+            }
+        }
+
+        None
+    }
+
+    /// Resolve the workspace that should own one tracked document path.
+    pub(super) fn workspace_for_document_path(
+        &self,
+        path: &Path,
+    ) -> Result<Arc<WorkspaceSession>, LanguageServiceError> {
+        // prefer the existing tracked owner before rediscovering semantic routing
+        if let Some(workspace) = self.tracked_workspace_for_path(path) {
+            return Ok(workspace);
+        }
+
+        // then use workspace root ownership for config and newly created files
+        if let Some(root) = self.workspace_root_for_owned_path(path) {
+            return self.workspace_for_root(&root);
+        }
+
+        self.workspace_for_path(path)
+    }
+
     /// Create a local workspace service with explicit compiler options.
     pub fn with_options(
-        session: Arc<Session>,
+        repository: Arc<Repository>,
+        overlay_fs: Option<Arc<OverlayFileSystem>>,
         roots: Vec<PathBuf>,
         compiler_options: CompilerOptions,
     ) -> Result<Self, LanguageServiceError> {
-        // construct the service shell
-        let workspace = Self {
-            session,
+        let service = Self {
+            repository,
+            overlay_fs,
             compiler_execution_options: compiler_options,
-            handles_by_id: dashmap::DashMap::new(),
-            handle_ids_by_root: dashmap::DashMap::new(),
-            next_handle_id: std::sync::atomic::AtomicU64::new(1),
+            workspaces_by_root: dashmap::DashMap::new(),
         };
 
-        // register each workspace root
         for root in roots {
-            workspace.open_workspace_root(root)?;
+            service.open_workspace_root(root)?;
         }
 
-        Ok(workspace)
+        Ok(service)
     }
 
     /// Ensure the workspace root is opened.
     pub fn open_workspace_root(&self, root: PathBuf) -> Result<(), LanguageServiceError> {
-        // ensure handle registration is atomic per root
-        let (handle_id, created_program) = match self.handle_ids_by_root.entry(root.clone()) {
-            Entry::Occupied(_) => {
-                return Ok(());
-            }
-            Entry::Vacant(entry) => {
-                // allocate and register a stable handle id
-                let handle_id = self.next_handle_id.fetch_add(1, Ordering::Relaxed);
-                let handle_id = WorkspaceHandleId(handle_id);
-                let created_program = self.session.get_program(root.as_path()).is_none();
+        if self.workspaces_by_root.contains_key(&root) {
+            return Ok(());
+        }
 
-                // create a workspace handle for this root
-                let handle = self.build_workspace_handle(handle_id, root.clone());
-                self.handles_by_id.insert(handle_id, Arc::new(handle));
-                entry.insert(handle_id);
-                (handle_id, created_program)
-            }
-        };
+        let workspace = Arc::new(self.build_workspace_session(root.clone())?);
+        self.workspaces_by_root
+            .insert(root.clone(), Arc::clone(&workspace));
 
-        // prime the root before serving any queries
-        let handle = self.workspace_handle_for_id(handle_id)?;
-        let _mutation_guard = handle.enter_mutation();
-        let rescan = self.rescan_program(&handle, true);
-        let Err(error) = rescan else {
-            handle.bump_revision();
+        // synchronize the current file system state for the new workspace ref
+        let _mutation_guard = workspace.enter_mutation();
+        let result = workspace.sync_file_system();
+        let Err(error) = result else {
             return Ok(());
         };
 
-        // rollback a failed root open so service and session state stay consistent
-        self.handles_by_id.remove(&handle_id);
-        self.handle_ids_by_root.remove(root.as_path());
-
-        if created_program {
-            self.session.remove_root(root.as_path());
-        }
+        // rollback a failed root open so service state stays consistent
+        self.workspaces_by_root.remove(root.as_path());
 
         Err(error)
     }
@@ -79,72 +154,32 @@ impl LanguageService {
     /// Close an opened workspace root.
     pub fn close_workspace_root(&self, root: &Path) -> Result<(), LanguageServiceError> {
         let root = root.to_path_buf();
-
-        // ignore roots that are not open
-        let Some((_, handle_id)) = self.handle_ids_by_root.remove(root.as_path()) else {
-            return Ok(());
-        };
-
-        // remove cached workspace handle
-        self.handles_by_id.remove(&handle_id);
-
-        // drop the root and rebuild shared query slices for remaining programs
-        let Some(program) = self.session.remove_root(root.as_path()) else {
-            return Ok(());
-        };
-
-        self.session
-            .remove_query_imports_for_program(root.as_path());
-
-        let removed_module_ids: HashSet<_> =
-            program.modules.iter().map(|module| module.id).collect();
-        self.session
-            .remove_query_modules(removed_module_ids.iter().copied());
-
-        let mut remaining_module_ids = HashSet::new();
-        for program in self.session.programs() {
-            for module in program.modules.iter() {
-                remaining_module_ids.insert(module.id);
-            }
-        }
-        self.session
-            .index_query_modules(remaining_module_ids.iter().copied());
-
-        for program in self.session.programs() {
-            self.session.index_query_imports_for_program(&program);
-        }
+        let _workspace = self.workspaces_by_root.remove(root.as_path());
 
         Ok(())
     }
 
-    /// Return true when a workspace root handle is active.
+    /// Return true when a workspace root is active.
     pub fn has_workspace_root(&self, root: &Path) -> bool {
         let root = root.to_path_buf();
-        self.handle_ids_by_root.contains_key(root.as_path())
+        self.workspaces_by_root.contains_key(root.as_path())
     }
 
     /// Remove an opened workspace root and report whether it existed.
     pub fn remove_workspace_root(&self, root: &Path) -> Result<bool, LanguageServiceError> {
-        // capture presence before closing
         let existed = self.has_workspace_root(root);
-
-        // close the root mapping
         self.close_workspace_root(root)?;
 
         Ok(existed)
     }
 
-    /// Clear all cache entries for every workspace handle.
+    /// Clear all cache entries for every workspace root.
     pub fn clear_cache_all(&self) -> Result<(), LanguageServiceError> {
-        // resolve the cache directory for this session
-        let cache_dir = self.session.workspace_cache_dir();
-
-        // return when there is no cache directory yet
+        let cache_dir = self.repository.cache_directory();
         if !cache_dir.exists() {
             return Ok(());
         }
 
-        // remove the full cache tree
         std::fs::remove_dir_all(&cache_dir).map_err(|error| {
             LanguageServiceError::CacheClearFailed {
                 path: cache_dir.clone(),
@@ -160,180 +195,124 @@ impl LanguageService {
         // no persistent connection to shut down
     }
 
-    /// Return the compiler handle for a workspace root.
+    /// Return the compiler for a workspace root.
     pub fn compiler_for_workspace_root(
         &self,
         root: &Path,
     ) -> Result<Arc<Compiler>, LanguageServiceError> {
-        let handle = self.workspace_handle_for_root(root)?;
-        Ok(handle.compiler.clone())
+        let workspace = self.workspace_for_root(root)?;
+        Ok(workspace.compiler().clone())
     }
 
-    /// Return the number of active workspace handles.
-    pub fn workspace_handle_count(&self) -> usize {
-        self.handles_by_id.len()
+    /// Return the number of active workspace roots.
+    pub fn workspace_root_count(&self) -> usize {
+        self.workspaces_by_root.len()
     }
 
-    /// Resolve the workspace handle id for a path.
-    pub(crate) fn workspace_handle_id_for_path(
-        &self,
-        path: &Path,
-    ) -> Result<WorkspaceHandleId, LanguageServiceError> {
-        // resolve the owning root from session routing
-        let Some(program) = self.session.find_program_for_path_maybe(path) else {
-            return Err(LanguageServiceError::PathNotInWorkspace {
-                path: path.to_path_buf(),
-            });
-        };
-        let root = program.cwd.clone();
-
-        self.workspace_handle_id_for_root(&root)
-    }
-
-    /// Resolve the workspace handle id for a root.
-    pub fn workspace_handle_id_for_root(
+    /// Resolve or create a workspace for a root.
+    pub(super) fn workspace_for_root(
         &self,
         root: &Path,
-    ) -> Result<WorkspaceHandleId, LanguageServiceError> {
+    ) -> Result<Arc<WorkspaceSession>, LanguageServiceError> {
         let root = root.to_path_buf();
 
-        // return early when the root is already opened
-        if let Some(handle_id) = self.handle_ids_by_root.get(root.as_path()) {
-            return Ok(*handle_id.value());
+        if !self.workspaces_by_root.contains_key(&root) {
+            self.open_workspace_root(root.clone())?;
         }
 
-        // lazily register the root when not opened yet
-        self.open_workspace_root(root.clone())?;
-
-        // resolve the newly registered handle id
-        self.handle_ids_by_root
-            .get(&root)
-            .map(|entry| *entry.value())
-            .ok_or(LanguageServiceError::WorkspaceHandleMissingAfterOpen { root })
-    }
-
-    /// Resolve a workspace handle by id.
-    pub(super) fn workspace_handle_for_id(
-        &self,
-        handle: WorkspaceHandleId,
-    ) -> Result<Arc<WorkspaceHandle>, LanguageServiceError> {
-        self.handles_by_id
-            .get(&handle)
-            .map(|entry| Arc::clone(entry.value()))
-            .ok_or(LanguageServiceError::UnknownWorkspaceHandle { handle })
-    }
-
-    /// Resolve or create a workspace handle for a root.
-    pub(super) fn workspace_handle_for_root(
-        &self,
-        root: &Path,
-    ) -> Result<Arc<WorkspaceHandle>, LanguageServiceError> {
-        let root = root.to_path_buf();
-        let handle_id = self.workspace_handle_id_for_root(&root)?;
-        let handle = self.workspace_handle_for_id(handle_id)?;
-
-        // ensure the root to handle mapping has not drifted
-        if handle.root != root {
-            return Err(LanguageServiceError::Internal {
-                detail: format!(
-                    "workspace handle root mismatch: expected {}, found {}",
-                    root.display(),
-                    handle.root.display(),
-                ),
-            });
-        }
-
-        // ensure the id to handle mapping has not drifted
-        if handle.id != handle_id {
-            return Err(LanguageServiceError::Internal {
-                detail: format!(
-                    "workspace handle id mismatch: expected {handle_id:?}, found {:?}",
-                    handle.id,
-                ),
-            });
-        }
-
-        Ok(handle)
-    }
-
-    /// Resolve or create a workspace handle for a path.
-    pub(super) fn workspace_handle_for_path(
-        &self,
-        path: &Path,
-    ) -> Result<Arc<WorkspaceHandle>, LanguageServiceError> {
-        // resolve the owning root for this path
-        let Some(program) = self.session.find_program_for_path_maybe(path) else {
-            return Err(LanguageServiceError::PathNotInWorkspace {
-                path: path.to_path_buf(),
-            });
-        };
-
-        self.workspace_handle_for_root(&program.cwd)
-    }
-
-    /// Return the session backing this service.
-    pub(crate) fn session_ref(&self) -> &Session {
-        self.session.as_ref()
-    }
-
-    /// Increment the semantic revision for a workspace root.
-    pub(crate) fn bump_revision_for_root(&self, root: &Path) -> Result<u64, LanguageServiceError> {
-        let root = root.to_path_buf();
-        let handle_id = self
-            .handle_ids_by_root
+        let workspace = self
+            .workspaces_by_root
             .get(root.as_path())
-            .map(|entry| *entry.value())
-            .ok_or(LanguageServiceError::RevisionNotTracked { root })?;
-        let handle = self.workspace_handle_for_id(handle_id)?;
+            .map(|entry| Arc::clone(entry.value()))
+            .ok_or(LanguageServiceError::RevisionNotTracked { root: root.clone() })?;
 
-        Ok(handle.bump_revision())
+        if workspace.root != root {
+            return Err(LanguageServiceError::Internal {
+                detail: format!(
+                    "workspace root mismatch: expected {}, found {}",
+                    root.display(),
+                    workspace.root.display()
+                ),
+            });
+        }
+
+        Ok(workspace)
+    }
+
+    /// Resolve or create a workspace for a path.
+    pub(super) fn workspace_for_path(
+        &self,
+        path: &Path,
+    ) -> Result<Arc<WorkspaceSession>, LanguageServiceError> {
+        let Some(root) = self.workspace_root_for_semantic_path(path) else {
+            return Err(LanguageServiceError::PathNotInWorkspace {
+                path: path.to_path_buf(),
+            });
+        };
+
+        self.workspace_for_root(&root)
+    }
+
+    /// Return the repository backing this service.
+    pub(crate) fn repository_ref(&self) -> &Repository {
+        self.repository.as_ref()
     }
 
     /// Resolve the current semantic revision for the workspace that owns a path.
-    pub fn revision_for_path(&self, path: &Path) -> Result<u64, LanguageServiceError> {
-        // resolve the workspace handle for this path
-        let handle = self.workspace_handle_id_for_path(path)?;
-        self.revision_for_handle(handle)
+    pub fn revision_for_path(&self, path: &Path) -> Result<Revision, LanguageServiceError> {
+        let root = self.workspace_root_for_path(path)?;
+        self.revision_for_root(&root)
     }
 
-    /// Resolve the current semantic revision for a workspace handle.
-    pub fn revision_for_handle(
-        &self,
-        handle: WorkspaceHandleId,
-    ) -> Result<u64, LanguageServiceError> {
-        let handle = self.workspace_handle_for_id(handle)?;
-        Ok(handle.revision())
+    /// Resolve the current semantic revision for a workspace root.
+    pub fn revision_for_root(&self, root: &Path) -> Result<Revision, LanguageServiceError> {
+        let workspace = self.workspace_for_root(root)?;
+        Ok(workspace.revision())
     }
 
-    /// Execute a callback with workspace program and compiler handles while holding the compile lock.
-    pub fn with_workspace_handles_for_path<T, F>(
+    /// Execute a callback with workspace repository and compiler handles while holding the compile lock.
+    pub fn with_workspace_for_root<T, F>(
         &self,
-        path: &Path,
+        root: &Path,
         callback: F,
     ) -> Result<T, LanguageServiceError>
     where
-        F: FnOnce(Arc<Program>, Arc<Compiler>) -> T,
+        F: FnOnce(Arc<Repository>, Arc<Compiler>) -> T,
     {
-        // resolve and lock the owning workspace handle
-        let handle = self.workspace_handle_for_path(path)?;
-        let _compile_guard = handle.enter_mutation();
+        let workspace = self.workspace_for_root(root)?;
+        let _compile_guard = workspace.enter_mutation();
 
-        // run the callback with shared program and compiler handles
-        Ok(callback(handle.program.clone(), handle.compiler.clone()))
+        Ok(callback(
+            workspace.repository().clone(),
+            workspace.compiler().clone(),
+        ))
     }
 
-    /// Build a workspace handle for a root and id.
-    fn build_workspace_handle(&self, id: WorkspaceHandleId, root: PathBuf) -> WorkspaceHandle {
-        // resolve or create the program for this root
-        let program = self.session.get_or_create_program(root.clone());
+    /// Build a workspace for a root.
+    fn build_workspace_session(
+        &self,
+        root: PathBuf,
+    ) -> Result<WorkspaceSession, LanguageServiceError> {
+        let revision_ref = Ref::for_workspace_root(root.as_path());
 
-        // create a compiler bound to this program
+        if self.repository.current(&revision_ref).is_err() {
+            let repository_root_ref = Ref::for_workspace_root(self.repository.workspace_root());
+            self.repository
+                .fork(&repository_root_ref, revision_ref.clone())
+                .map_err(LanguageServiceError::from)?;
+        }
+
         let compiler = Arc::new(Compiler::new(
-            self.session.clone(),
-            program.clone(),
+            self.repository.clone(),
             self.compiler_execution_options.clone(),
         ));
 
-        WorkspaceHandle::new(id, root, program, compiler)
+        Ok(WorkspaceSession::new(
+            root,
+            self.repository.clone(),
+            revision_ref,
+            self.overlay_fs.clone(),
+            compiler,
+        ))
     }
 }

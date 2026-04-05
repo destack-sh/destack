@@ -3,13 +3,24 @@ use std::path::Path;
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
-use destack_source::{Diagnostic, DiagnosticStoreUpdate, FileId, ModuleId};
-use destack_workspace::{InvalidationKind, InvalidationPlan, Program};
+use destack_source::{Diagnostic, DiagnosticCollection, FileId, ModuleId};
+use destack_workspace::{Repository, Revision};
 
 use super::workspace::{ServiceUpdate, build_update};
-use super::{AnalyzeOutcome, LanguageService, LanguageServiceError};
+use super::{
+    AnalyzeOutcome, LanguageService, LanguageServiceError, UpdateImpact, UpdateImpactKind,
+};
 
 impl LanguageService {
+    /// Return true when update analysis should expand through the full workspace dependency graph.
+    fn should_expand_workspace_dependencies(
+        &self,
+        session: &super::workspace::WorkspaceSession,
+        repository: &Repository,
+    ) -> bool {
+        session.root == repository.workspace_root()
+    }
+
     /// Ensure the path is analyzed and semantic-query ready.
     pub fn ensure_analyzed_for_path(&self, path: &Path) -> Result<(), LanguageServiceError> {
         // run a focused analysis for the path
@@ -29,47 +40,71 @@ impl LanguageService {
 
     /// Analyze a path and update diagnostics.
     pub fn analyze_path(&self, path: &Path) -> Result<AnalyzeOutcome, LanguageServiceError> {
-        // resolve and lock the owning workspace handle
-        let handle = self.workspace_handle_for_path(path)?;
-        let _compile_guard = handle.enter_mutation();
-        let program = handle.program.clone();
-        let compiler = handle.compiler.clone();
+        // resolve and lock the owning workspace session
+        let session = self.workspace_for_path(path)?;
+        let _compile_guard = session.enter_mutation();
+        let repository = session.repository().clone();
+        let compiler = session.compiler().clone();
+        let revision = session.revision();
 
+        self.analyze_path_in_repository(&session, &repository, &compiler, revision, path)
+    }
+
+    /// Analyze one path inside an already selected workspace repository.
+    pub(super) fn analyze_path_in_repository(
+        &self,
+        session: &super::workspace::WorkspaceSession,
+        repository: &Repository,
+        compiler: &Compiler,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<AnalyzeOutcome, LanguageServiceError> {
         // resolve the module for the requested path
         let module_id = compiler
-            .resolve_path_to_module(&path.to_path_buf())
-            .map_err(|error| LanguageServiceError::ResolvePathFailed {
-                path: path.to_path_buf(),
-                detail: error.to_string(),
+            .resolve_path_to_module(revision, &path.to_path_buf())
+            .map_err(|error: destack_compiler::ImportError| {
+                LanguageServiceError::ResolvePathFailed {
+                    path: path.to_path_buf(),
+                    detail: error.to_string(),
+                }
             })?;
 
-        // clear pending diagnostics before analysis
-        let _ = program.diagnostics.drain();
-
         // enqueue and run the module analysis task
-        let profile_id = program.default_profile_id_for_module(module_id);
-        compiler.enqueue(ArtifactKey::dir_analyzed(module_id, profile_id));
-        compiler.compile();
+        let context = compiler
+            .context(revision)
+            .map_err(LanguageServiceError::from)?;
+        let profile_id = context.default_profile_id_for_module(module_id);
+        let profile_id = compiler.run_to_completion(revision, |compiler, _context| {
+            compiler.require_dir_analyzed(revision, module_id, profile_id)?;
+
+            Ok::<_, destack_compiler::RequirementError>(profile_id)
+        })?;
 
         // group fresh diagnostics by file id
-        let diagnostics = program.diagnostics.collect();
+        let diagnostics = compiler.take_diagnostics();
         let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
         for diagnostic in diagnostics.iter() {
             diagnostics_by_file
                 .entry(diagnostic.file_id)
                 .or_default()
-                .push(diagnostic.clone());
+                .push(diagnostic);
         }
 
         // compute semantic query readiness for the analyzed module
-        let module = program.modules.get(module_id);
-        let module = module.as_ref();
+        let module = repository
+            .module(revision, module_id)
+            .map_err(LanguageServiceError::from)?
+            .ok_or(LanguageServiceError::ModuleIdNotTracked { module_id })?;
         let module_file_id = module.file_id;
-        let module_source_version = program.modules.source_version(module.id);
-        let ast_ready = compiler.artifacts.ast(module_id).is_some();
-        let dir_ready = compiler
-            .artifacts
-            .dir_analyzed(module_id, profile_id)
+        let _module_file = repository
+            .file(revision, module_file_id)
+            .map_err(LanguageServiceError::from)?
+            .ok_or(LanguageServiceError::FileIdNotTracked {
+                file_id: module_file_id,
+            })?;
+        let ast_ready = repository.ast(revision, module_id).is_some();
+        let dir_ready = repository
+            .dir_analyzed(revision, module_id, profile_id)
             .is_some();
         let semantic_query_ready = ast_ready && dir_ready;
         let detail = if semantic_query_ready {
@@ -86,10 +121,9 @@ impl LanguageService {
         };
 
         // build diagnostic store updates for the primary module file
-        let mut store_updates = Vec::new();
-        store_updates.push(DiagnosticStoreUpdate::new(
+        let mut diagnostic_updates = Vec::new();
+        diagnostic_updates.push((
             module_file_id,
-            module_source_version,
             diagnostics_by_file
                 .remove(&module_file_id)
                 .unwrap_or_default(),
@@ -97,19 +131,15 @@ impl LanguageService {
 
         // build diagnostic store updates for related files
         for (file_id, diagnostics) in diagnostics_by_file {
-            let file = program
-                .files
-                .get_maybe(file_id)
+            let _file = repository
+                .file(revision, file_id)
+                .map_err(LanguageServiceError::from)?
                 .ok_or(LanguageServiceError::FileIdNotTracked { file_id })?;
-            store_updates.push(DiagnosticStoreUpdate::new(
-                file_id,
-                file.version,
-                diagnostics,
-            ));
+            diagnostic_updates.push((file_id, diagnostics));
         }
 
-        // commit diagnostic updates
-        program.diagnostic_store.apply_updates(store_updates);
+        // publish diagnostic updates
+        self.publish_diagnostic_updates(&session.root, repository, revision, diagnostic_updates)?;
 
         Ok(AnalyzeOutcome {
             semantic_query_ready,
@@ -120,107 +150,116 @@ impl LanguageService {
     /// Analyze updates and attach diagnostics.
     pub(super) fn analyze_updates(
         &self,
-        program: &Program,
+        session: &super::workspace::WorkspaceSession,
+        program: &Repository,
         compiler: &Compiler,
+        revision: Revision,
         updates: &mut Vec<ServiceUpdate>,
     ) -> Result<(), LanguageServiceError> {
         // collect directly updated modules and files
         let mut module_ids = HashSet::new();
         let mut file_ids = HashSet::new();
+        let mut collected_diagnostics = DiagnosticCollection::new();
         for update in updates.iter() {
             if let Some(module_id) = update.module_id
-                && self.is_workspace_module_id(program, module_id)
+                && self.is_workspace_module_id(program, revision, module_id)
             {
                 module_ids.insert(module_id);
             }
             file_ids.insert(update.file_id);
         }
 
-        // collect modules reported by invalidation fanout
-        let mut extra_updates = Vec::new();
-        for update in updates.iter() {
-            for module_id in update.invalidation.modules.iter().copied() {
-                if !self.is_workspace_module_id(program, module_id) {
-                    continue;
-                }
+        // secondary handles only analyze directly touched modules
+        let should_expand_dependencies =
+            self.should_expand_workspace_dependencies(session, program);
 
-                module_ids.insert(module_id);
-                let module = program.modules.get(module_id);
-                let file_id = module.file_id;
-                if file_ids.insert(file_id) {
-                    let extra_update = build_update(
-                        program,
-                        Some(module_id),
-                        file_id,
-                        update.invalidation.clone(),
-                    )?;
-                    extra_updates.push(extra_update);
-                }
-            }
-        }
-        updates.extend(extra_updates);
-
-        // clear diagnostics when at least one module will be analyzed
-        if !module_ids.is_empty() {
-            let _ = program.diagnostics.drain();
-        }
-
-        // ensure module graph state is ready for dependency fanout
-        self.ensure_module_graphs_ready(program, compiler, &module_ids);
-
-        // include dependent modules with matching graph versions
-        if module_ids.len() < program.modules.len() {
-            let mut queue: VecDeque<ModuleId> = module_ids.iter().copied().collect();
-            while let Some(module_id) = queue.pop_front() {
-                let profile_id = program.default_profile_id_for_module(module_id);
-                let Some(graph) = compiler.artifacts.module_graph(profile_id) else {
-                    continue;
-                };
-
-                let module = program.modules.get(module_id);
-                let module_version = program.modules.version(module.id);
-                let Some(graph_version) = graph.module_versions.get(&module_id) else {
-                    continue;
-                };
-                if *graph_version != module_version {
-                    continue;
-                }
-
-                for dependent in graph.dependents_for(module_id) {
-                    if !self.is_workspace_module_id(program, dependent) {
+        // collect modules reported by impact fanout
+        if should_expand_dependencies {
+            let mut extra_updates = Vec::new();
+            for update in updates.iter() {
+                for module_id in update.impact.modules.iter().copied() {
+                    if !self.is_workspace_module_id(program, revision, module_id) {
                         continue;
                     }
 
-                    if module_ids.insert(dependent) {
-                        queue.push_back(dependent);
+                    module_ids.insert(module_id);
+                    let module = program
+                        .module(revision, module_id)
+                        .map_err(LanguageServiceError::from)?
+                        .ok_or(LanguageServiceError::ModuleIdNotTracked { module_id })?;
+                    let file_id = module.file_id;
+                    if file_ids.insert(file_id) {
+                        let extra_update = build_update(
+                            program,
+                            revision,
+                            Some(module_id),
+                            file_id,
+                            update.impact.clone(),
+                        )?;
+                        extra_updates.push(extra_update);
+                    }
+                }
+            }
+            updates.extend(extra_updates);
+        }
+
+        if should_expand_dependencies {
+            // ensure module graph state is ready for dependency fanout
+            self.ensure_module_graphs_ready(program, compiler, revision, &module_ids)?;
+            collected_diagnostics.merge_from(&compiler.take_diagnostics());
+
+            // include dependent modules with matching graph versions
+            let workspace_module_ids = program
+                .workspace_module_ids(revision)
+                .map_err(LanguageServiceError::from)?;
+            if module_ids.len() < workspace_module_ids.len() {
+                let mut queue: VecDeque<ModuleId> = module_ids.iter().copied().collect();
+                while let Some(module_id) = queue.pop_front() {
+                    let profile_id = program
+                        .default_profile_id_for_module(revision, module_id)
+                        .map_err(LanguageServiceError::from)?;
+                    let Some(graph) = program.module_graph(revision, profile_id) else {
+                        continue;
+                    };
+
+                    for dependent in graph.dependents_for(module_id) {
+                        if !self.is_workspace_module_id(program, revision, dependent) {
+                            continue;
+                        }
+
+                        if module_ids.insert(dependent) {
+                            queue.push_back(dependent);
+                        }
                     }
                 }
             }
         }
 
         // materialize update records for dependency files
-        if !updates.is_empty() {
-            let merged_invalidation = merge_invalidation_plans(updates);
+        if should_expand_dependencies && !updates.is_empty() {
+            let merged_impact = merge_update_impacts(updates);
             let mut dependency_updates = Vec::new();
             for module_id in module_ids.iter().copied() {
-                let module = program.modules.get(module_id);
+                let module = program
+                    .module(revision, module_id)
+                    .map_err(LanguageServiceError::from)?
+                    .ok_or(LanguageServiceError::ModuleIdNotTracked { module_id })?;
                 let file_id = module.file_id;
                 if file_ids.insert(file_id) {
-                    let file = program
-                        .files
-                        .get_maybe(file_id)
+                    let _file = program
+                        .file(revision, file_id)
+                        .map_err(LanguageServiceError::from)?
                         .ok_or(LanguageServiceError::FileIdNotTracked { file_id })?;
-                    let invalidation = InvalidationPlan {
+                    let impact = UpdateImpact {
                         file_id,
-                        file_version: file.version,
-                        kinds: merged_invalidation.kinds.clone(),
-                        modules: merged_invalidation.modules.clone(),
-                        packages: merged_invalidation.packages.clone(),
-                        profiles: merged_invalidation.profiles.clone(),
-                        graphs_dropped: merged_invalidation.graphs_dropped.clone(),
+                        kinds: merged_impact.kinds.clone(),
+                        modules: merged_impact.modules.clone(),
+                        packages: merged_impact.packages.clone(),
+                        profiles: merged_impact.profiles.clone(),
+                        graphs_dropped: merged_impact.graphs_dropped.clone(),
                     };
                     let dependency_update =
-                        build_update(program, Some(module_id), file_id, invalidation)?;
+                        build_update(program, revision, Some(module_id), file_id, impact)?;
                     dependency_updates.push(dependency_update);
                 }
             }
@@ -229,20 +268,28 @@ impl LanguageService {
 
         // run analysis for the full affected module set
         if !module_ids.is_empty() {
-            for module_id in &module_ids {
-                let profile = program.default_profile_id_for_module(*module_id);
-                compiler.enqueue(ArtifactKey::dir_analyzed(*module_id, profile));
-            }
-            compiler.compile();
+            let compiler_context = compiler
+                .context(revision)
+                .map_err(LanguageServiceError::from)?;
 
-            // group emitted diagnostics by file id
+            // enqueue analyzed dir builds for the affected modules
+            for module_id in &module_ids {
+                let profile_id = compiler_context.default_profile_id_for_module(*module_id);
+                let artifact_key = ArtifactKey::dir_analyzed(*module_id, profile_id);
+
+                compiler.enqueue(revision, artifact_key);
+            }
+
+            // build the queued analysis tasks and collect fresh diagnostics
+            compiler.compile();
             let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
-            for diagnostic in program.diagnostics.iter() {
+            collected_diagnostics.merge_from(&compiler.take_diagnostics());
+            for diagnostic in collected_diagnostics.iter() {
                 if file_ids.contains(&diagnostic.file_id) {
                     diagnostics_by_file
                         .entry(diagnostic.file_id)
                         .or_default()
-                        .push(diagnostic.clone());
+                        .push(diagnostic);
                 }
             }
 
@@ -255,20 +302,31 @@ impl LanguageService {
         }
 
         // publish diagnostic store updates for all touched files
-        let mut store_updates = Vec::new();
+        let mut diagnostic_updates = Vec::new();
         for update in updates.iter() {
-            let file = program.files.get_maybe(update.file_id).ok_or(
-                LanguageServiceError::FileIdNotTracked {
+            let _file = program
+                .file(revision, update.file_id)
+                .map_err(LanguageServiceError::from)?
+                .ok_or(LanguageServiceError::FileIdNotTracked {
                     file_id: update.file_id,
-                },
-            )?;
-            store_updates.push(DiagnosticStoreUpdate::new(
-                update.file_id,
-                file.version,
-                update.diagnostics.clone(),
-            ));
+                })?;
+            diagnostic_updates.push((update.file_id, update.diagnostics.clone()));
         }
-        program.diagnostic_store.apply_updates(store_updates);
+        self.publish_diagnostic_updates(&session.root, program, revision, diagnostic_updates)?;
+
+        Ok(())
+    }
+
+    /// Publish diagnostic updates for one workspace root and repository revision.
+    fn publish_diagnostic_updates(
+        &self,
+        root: &Path,
+        _repository: &Repository,
+        _revision: Revision,
+        updates: Vec<(FileId, Vec<Diagnostic>)>,
+    ) -> Result<(), LanguageServiceError> {
+        // publish current root diagnostics
+        self.update_diagnostics_for_root(root, updates)?;
 
         Ok(())
     }
@@ -276,90 +334,101 @@ impl LanguageService {
     /// Ensure module graph entries exist for dependency fanout.
     fn ensure_module_graphs_ready(
         &self,
-        program: &Program,
+        program: &Repository,
         compiler: &Compiler,
+        revision: Revision,
         module_ids: &HashSet<ModuleId>,
-    ) {
+    ) -> Result<(), LanguageServiceError> {
         // return early when there are no modules to resolve
         if module_ids.is_empty() {
-            return;
+            return Ok(());
         }
+
+        let context = compiler
+            .context(revision)
+            .map_err(LanguageServiceError::from)?;
 
         // collect resolve tasks for stale or missing graphs
         let mut resolve_tasks = Vec::new();
         let mut queued = HashSet::new();
         for module_id in module_ids.iter().copied() {
-            let profile_id = program.default_profile_id_for_module(module_id);
-            if let Some(graph) = compiler.artifacts.module_graph(profile_id) {
-                let module = program.modules.get(module_id);
-                let module = module.as_ref();
-                let graph_version = graph.module_versions.get(&module_id).copied();
-                if graph_version == Some(program.modules.version(module.id)) {
-                    continue;
-                }
+            let profile_id = context.default_profile_id_for_module(module_id);
 
-                if queued.insert((module_id, profile_id)) {
-                    resolve_tasks.push(ArtifactKey::dir_resolved(module_id, profile_id));
-                }
-
+            // keep the existing graph when it already covers this module
+            if let Some(graph) = program.module_graph(revision, profile_id)
+                && (graph.dependents.contains_key(&module_id)
+                    || graph.dependencies.contains_key(&module_id))
+            {
                 continue;
             }
 
-            for module in program.modules.iter() {
-                let module = module.as_ref();
+            // otherwise rebuild the profile graph from the current workspace slice
+            let Ok(workspace_module_ids) = program.workspace_module_ids(revision) else {
+                continue;
+            };
+            for workspace_module_id in workspace_module_ids {
+                let Ok(Some(module)) = program.module(revision, workspace_module_id) else {
+                    continue;
+                };
                 if !self.is_workspace_module(&module) {
                     continue;
                 }
-                if program.default_profile_id_for_module(module.id) != profile_id {
+                let module_profile_id = context.default_profile_id_for_module(module.id);
+                if module_profile_id != profile_id {
                     continue;
                 }
 
                 if queued.insert((module.id, profile_id)) {
-                    resolve_tasks.push(ArtifactKey::dir_resolved(module.id, profile_id));
+                    resolve_tasks.push(module.id);
                 }
             }
         }
 
         // return when no graph refresh is needed
         if resolve_tasks.is_empty() {
-            return;
+            return Ok(());
         }
 
         // enqueue and run resolve tasks
-        for task in resolve_tasks {
-            compiler.enqueue(task);
+        for module_id in resolve_tasks {
+            let profile_id = context.default_profile_id_for_module(module_id);
+            let artifact_key = ArtifactKey::dir_resolved(module_id, profile_id);
+
+            compiler.enqueue(revision, artifact_key);
         }
+
         compiler.compile();
+
+        Ok(())
     }
 }
 
-/// Merge invalidation metadata from a set of updates.
-fn merge_invalidation_plans(updates: &[ServiceUpdate]) -> InvalidationPlan {
+/// Merge impact metadata from a set of updates.
+fn merge_update_impacts(updates: &[ServiceUpdate]) -> UpdateImpact {
     let mut kinds = HashSet::new();
     let mut modules = HashSet::new();
     let mut packages = HashSet::new();
     let mut profiles = HashSet::new();
     let mut graphs_dropped = HashSet::new();
 
-    // aggregate invalidation sets from all updates
+    // aggregate impact sets from all updates
     for update in updates {
-        kinds.extend(update.invalidation.kinds.iter().copied());
-        modules.extend(update.invalidation.modules.iter().copied());
-        packages.extend(update.invalidation.packages.iter().copied());
-        profiles.extend(update.invalidation.profiles.iter().copied());
-        graphs_dropped.extend(update.invalidation.graphs_dropped.iter().copied());
+        kinds.extend(update.impact.kinds.iter().copied());
+        modules.extend(update.impact.modules.iter().copied());
+        packages.extend(update.impact.packages.iter().copied());
+        profiles.extend(update.impact.profiles.iter().copied());
+        graphs_dropped.extend(update.impact.graphs_dropped.iter().copied());
     }
 
     // preserve a stable default kind when no kinds are present
     if kinds.is_empty() {
-        kinds.insert(InvalidationKind::Unknown);
+        kinds.insert(UpdateImpactKind::Unknown);
     }
 
     // seed identity values from the first update
-    let first = &updates[0].invalidation;
-    InvalidationPlan {
+    let first = &updates[0].impact;
+    UpdateImpact {
         file_id: first.file_id,
-        file_version: first.file_version,
         kinds: kinds.into_iter().collect(),
         modules: modules.into_iter().collect(),
         packages: packages.into_iter().collect(),

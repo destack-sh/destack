@@ -1,8 +1,9 @@
 pub mod service;
 
 pub use service::{
-    AnalyzeOutcome, FileSnapshot, LanguageService, LanguageServiceError, LanguageServiceResult,
-    RescanReason, WorkspaceHandleId, WorkspaceMessage, WorkspaceMessageKind, WorkspaceUpdateRecord,
+    AnalyzeOutcome, FileSnapshot, FileUpdate, LanguageService, LanguageServiceError,
+    LanguageServiceResult, RescanReason, UpdateImpact, UpdateImpactKind, WorkspaceMessage,
+    WorkspaceMessageKind, WorkspaceUpdateRecord,
 };
 
 #[cfg(test)]

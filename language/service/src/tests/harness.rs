@@ -1,14 +1,14 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
-use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
     TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::{Session, Workspace};
+use destack_workspace::Repository;
 
 use crate::{LanguageService, LanguageServiceResult};
 
@@ -36,34 +36,27 @@ impl TestLanguageService {
         let roots = build_roots(&fs, root_count.max(1));
         let root = roots[0].clone();
 
-        // create a session with an overlay over physical fs
+        // create a repository with an overlay over physical fs
         let overlay = Arc::new(OverlayFileSystem::with_inner(Arc::new(
             PhysicalFileSystem::new(),
         )));
-        let session = Session::new(root.clone())
-            .with_fs(overlay)
-            .with_cache_store(Arc::new(MemoryCacheStore::new()));
-
-        // discover workspace metadata when possible
-        let resolver = Resolver::from_session(&session, ResolveOptions::default());
-        let workspace = resolver
-            .discover_workspace(&root)
-            .unwrap_or_else(|_| Workspace::single_package(root.clone()));
-
-        // initialize session and service
-        let session = Arc::new(session.with_workspace(workspace));
-        for root in &roots {
-            session.add_root(root.clone());
-        }
-
+        let repository = Arc::new(
+            Repository::open_detected_from_fs(root.clone(), overlay.clone())
+                .expect("failed to import repository from overlay fs")
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         // keep compiler execution deterministic for service tests
         let compiler_options = CompilerOptions {
             workers: 1,
             ..CompilerOptions::default()
         };
-        let service =
-            LanguageService::with_options(session.clone(), roots.clone(), compiler_options)
-                .expect("expected workspace service");
+        let service = LanguageService::with_options(
+            repository.clone(),
+            Some(overlay),
+            roots.clone(),
+            compiler_options,
+        )
+        .expect("expected workspace service");
 
         Self { fs, service, roots }
     }
@@ -84,7 +77,7 @@ impl TestLanguageService {
 
     /// Build a source uri for a path.
     pub(super) fn uri_for_path(&self, path: &Path) -> Uri {
-        Uri::from_file_path(path.to_path_buf())
+        Uri::from_file_path(path)
     }
 
     /// Write text under the default root.
@@ -126,7 +119,7 @@ impl TestLanguageService {
         };
 
         self.service
-            .apply_watch_events(vec![event])
+            .apply_watch_events(vec![event], HashMap::new())
             .unwrap_or_else(|error| panic!("failed watch apply for {}: {error}", path.display()))
     }
 }

@@ -1,6 +1,7 @@
 use crate::LanguageServiceError;
 use crate::tests::harness::TestLanguageService;
 use destack_query as query;
+use destack_workspace::Revision;
 
 /// Resolve document symbols through workspace queries.
 #[test]
@@ -30,6 +31,53 @@ fn test_workspace_service_query_document_symbols() {
     assert!(
         !document_symbols.symbols.is_empty(),
         "expected at least one document symbol"
+    );
+}
+
+/// Preserve inferred inlay type hints after virtual edits remove explicit annotations.
+#[test]
+fn test_workspace_service_query_inlay_hints_after_virtual_annotation_removal() {
+    let test = TestLanguageService::new("workspace_service_inlay_hints_virtual_update");
+    let source_a = r#"function greet(name: string, greeting: string): string {
+    return greeting + ", " + name;
+}
+const msg: string = greet("World", "Hello");
+"#;
+    let source_b = r#"function greet(name: string, greeting: string): string {
+    return greeting + ", " + name;
+}
+const msg = greet("World", "Hello");
+"#;
+    let path = test.write_text("main.ds", source_a);
+    let uri = test.uri_for_path(&path);
+
+    let _ = test.update_virtual_text(&path, source_a);
+    let _ = test.update_virtual_text(&path, source_b);
+
+    // query the full file so the binding and call-site hints are both in range
+    let response = test
+        .service
+        .execute_read_query_for_path(
+            &path,
+            query::QueryRequest::InlayHints(query::InlayHintsRequest {
+                uri,
+                start: 0,
+                end: source_b.len() as u32,
+            }),
+        )
+        .expect("expected inlay hints query response");
+    let query::QueryResponse::InlayHints(query::InlayHintsResponse { hints }) = response.response
+    else {
+        panic!("expected inlay hints query response payload");
+    };
+
+    // keep the inferred binding type after the annotation disappears
+    let type_hint = hints
+        .iter()
+        .any(|hint| hint.kind == query::InlayHintKind::Type);
+    assert!(
+        type_hint,
+        "expected one inferred type hint after the virtual update"
     );
 }
 
@@ -87,7 +135,7 @@ fn test_workspace_service_query_requires_revision_for_mutation() {
         .revision_for_path(&path)
         .expect("expected current revision");
     let stale_revision = query::QueryRequestEnvelope {
-        expected_revision: Some(current_revision.saturating_sub(1)),
+        expected_revision: Some(Revision::new(current_revision.0.saturating_sub(1))),
         request: query::QueryRequest::RenameFiles(query::RenameFilesRequest {
             renames: Vec::new(),
         }),
@@ -154,7 +202,7 @@ fn test_workspace_service_read_query_rejects_expected_revision() {
     let _ = test.update_virtual_text(&path, source);
 
     let envelope = query::QueryRequestEnvelope {
-        expected_revision: Some(1),
+        expected_revision: Some(Revision::INITIAL),
         request: query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest { uri }),
     };
     let error = test
@@ -164,7 +212,7 @@ fn test_workspace_service_read_query_rejects_expected_revision() {
     assert!(matches!(
         error,
         LanguageServiceError::UnexpectedExpectedRevisionOnRead {
-            expected_revision: 1
+            expected_revision: Revision::INITIAL
         }
     ));
 }
@@ -253,36 +301,4 @@ fn test_workspace_service_query_rename_cross_module() {
     // assert scope: two files touched, three symbol edits total
     assert_eq!(result.edits.file_count(), 2);
     assert_eq!(result.edits.total_edits(), 3);
-}
-
-/// Return a busy error when a read query arrives during an active mutation guard.
-#[test]
-fn test_workspace_service_read_query_returns_busy_during_mutation() {
-    let test = TestLanguageService::new("workspace_service_read_busy");
-    let source = "export const value = 1;\n";
-    let path = test.write_text("main.ds", source);
-    let uri = test.uri_for_path(&path);
-
-    let _ = test.update_virtual_text(&path, source);
-
-    let query_error = test
-        .service
-        .with_workspace_handles_for_path(&path, |_program, _compiler| {
-            let envelope = query::QueryRequestEnvelope {
-                expected_revision: None,
-                request: query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest {
-                    uri: uri.clone(),
-                }),
-            };
-
-            test.service
-                .execute_read_query_envelope_for_path(&path, envelope)
-                .expect_err("expected read query busy error")
-        })
-        .expect("expected mutation guard callback result");
-
-    assert!(matches!(
-        query_error,
-        LanguageServiceError::QueryBusy { .. }
-    ));
 }

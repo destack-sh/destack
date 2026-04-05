@@ -1,32 +1,81 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 
 use dashmap::DashMap;
 use destack_compiler::CompilerOptions;
-use destack_workspace::Session;
+use destack_source::{Diagnostic, OverlayFileSystem, Uri};
+use destack_workspace::Repository;
 
-use super::workspace::WorkspaceHandle;
-use super::{LanguageServiceError, WorkspaceHandleId};
+use super::LanguageServiceError;
+use super::workspace::WorkspaceSession;
 
 /// Local workspace backed service used by tooling integrations.
 #[derive(Debug)]
 pub struct LanguageService {
-    /// Session for workspace resolution.
-    pub(super) session: Arc<Session>,
+    /// Repository for workspace resolution.
+    pub(super) repository: Arc<Repository>,
+    /// Overlay filesystem for tracked document reads when available.
+    pub(super) overlay_fs: Option<Arc<OverlayFileSystem>>,
     /// Compiler execution options for local analysis work.
     pub(super) compiler_execution_options: CompilerOptions,
-    /// Workspace handles keyed by stable handle id.
-    pub(super) handles_by_id: DashMap<WorkspaceHandleId, Arc<WorkspaceHandle>>,
-    /// Workspace handle ids keyed by root path.
-    pub(super) handle_ids_by_root: DashMap<PathBuf, WorkspaceHandleId>,
-    /// Next handle id.
-    pub(super) next_handle_id: AtomicU64,
+    /// Workspace state keyed by root path.
+    pub(super) workspaces_by_root: DashMap<PathBuf, Arc<WorkspaceSession>>,
 }
 
 impl LanguageService {
     /// Create a local workspace service for the provided roots.
-    pub fn new(session: Arc<Session>, roots: Vec<PathBuf>) -> Result<Self, LanguageServiceError> {
-        Self::with_options(session, roots, CompilerOptions::default())
+    pub fn new(
+        repository: Arc<Repository>,
+        roots: Vec<PathBuf>,
+    ) -> Result<Self, LanguageServiceError> {
+        Self::with_options(repository, None, roots, CompilerOptions::default())
+    }
+
+    /// Return true when a path is tracked as one open document.
+    pub fn has_tracked_document_for_path(&self, path: &Path) -> bool {
+        let Some(session) = self.tracked_workspace_for_path(path) else {
+            return false;
+        };
+
+        session.has_tracked_document_for_path(path)
+    }
+
+    /// Return one tracked document snapshot for a path.
+    pub fn tracked_document_for_path(&self, path: &Path) -> Option<(Uri, i32, String)> {
+        let session = self.tracked_workspace_for_path(path)?;
+        session.tracked_document_for_path(path)
+    }
+
+    /// Return the tracked open documents keyed by path.
+    pub fn tracked_documents(&self) -> Vec<(PathBuf, Uri, i32)> {
+        let mut documents = Vec::new();
+        for session in self.workspaces_by_root.iter() {
+            documents.extend(session.value().tracked_document_identities());
+        }
+
+        documents
+    }
+
+    /// Return diagnostics for one file on one workspace root.
+    pub(super) fn current_diagnostics_for_file(
+        &self,
+        root: &Path,
+        file_id: destack_source::FileId,
+    ) -> Result<Vec<Diagnostic>, LanguageServiceError> {
+        let session = self.workspace_for_root(root)?;
+
+        Ok(session.diagnostics_for_file(file_id))
+    }
+
+    /// Publish file diagnostic updates for one workspace root.
+    pub fn update_diagnostics_for_root(
+        &self,
+        root: &Path,
+        updates: Vec<(destack_source::FileId, Vec<Diagnostic>)>,
+    ) -> Result<(), LanguageServiceError> {
+        let session = self.workspace_for_root(root)?;
+        session.apply_diagnostics(updates);
+
+        Ok(())
     }
 }
