@@ -5,13 +5,12 @@ use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_lsp_server::UriExt;
 use destack_lsp_server::jsonrpc::{ErrorCode, Response};
-use destack_lsp_types as lsp;
-use destack_resolver::{ResolveOptions, Resolver};
 use destack_service::LanguageService as LspLanguageService;
 use destack_source::{
-    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
+    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::{Session, Workspace};
+use destack_workspace::Repository;
+use {destack_lsp_types as lsp, destack_query as query};
 
 use super::fixture::TestLsp;
 use super::harness::{LspHarness, harness_for_fs, request_with_params, test_fs, uri_for_path};
@@ -39,24 +38,23 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
         PhysicalFileSystem::new(),
     )));
     let root = fs.root().to_path_buf();
-    let session = Session::new(root.clone())
-        .with_fs(overlay)
-        .with_cache_store(Arc::new(MemoryCacheStore::new()));
-    let resolver = Resolver::from_session(&session, ResolveOptions::default());
-    let workspace = resolver
-        .discover_workspace(&root)
-        .unwrap_or_else(|_| Workspace::single_package(root.clone()));
-    let session = Arc::new(session.with_workspace(workspace));
-    session.add_root(root.clone());
-
+    let repository = Arc::new(
+        Repository::open_detected_from_fs(root.clone(), overlay.clone())
+            .expect("failed to import repository from overlay fs")
+            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+    );
     // keep lsp workspace-service test deterministic: use a single compiler worker
     let compiler_options = CompilerOptions {
         workers: 1,
         ..CompilerOptions::default()
     };
-    let workspace_service =
-        LspLanguageService::with_options(session.clone(), vec![root.clone()], compiler_options)
-            .expect("expected workspace service");
+    let workspace_service = LspLanguageService::with_options(
+        repository.clone(),
+        Some(overlay),
+        vec![root.clone()],
+        compiler_options,
+    )
+    .expect("expected workspace service");
 
     let path = root.join("main.ds");
     let _ = fs.write_text("main.ds", "export const x: number = 1;\n");
@@ -80,6 +78,80 @@ fn test_lsp_workspace_service_virtual_update_emits_diagnostics() {
             .iter()
             .any(|update| !update.diagnostics.is_empty()),
         "expected diagnostics for invalid content"
+    );
+
+    workspace_service.shutdown();
+}
+
+/// LSP workspace-style service setup preserves inferred inlay type hints after virtual edits.
+#[test]
+fn test_lsp_workspace_service_virtual_update_preserves_inlay_type_hints() {
+    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_workspace_inlay_hints");
+    let overlay = Arc::new(OverlayFileSystem::with_inner(Arc::new(
+        PhysicalFileSystem::new(),
+    )));
+    let root = fs.root().to_path_buf();
+    let repository = Arc::new(
+        Repository::open_detected_from_fs(root.clone(), overlay.clone())
+            .expect("failed to import repository from overlay fs")
+            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+    );
+    // keep lsp workspace-service test deterministic: use a single compiler worker
+    let compiler_options = CompilerOptions {
+        workers: 1,
+        ..CompilerOptions::default()
+    };
+    let workspace_service = LspLanguageService::with_options(
+        repository.clone(),
+        Some(overlay),
+        vec![root.clone()],
+        compiler_options,
+    )
+    .expect("expected workspace service");
+
+    let source_a = r#"function greet(name: string, greeting: string): string {
+    return greeting + ", " + name;
+}
+const msg: string = greet("World", "Hello");
+"#;
+    let source_b = r#"function greet(name: string, greeting: string): string {
+    return greeting + ", " + name;
+}
+const msg = greet("World", "Hello");
+"#;
+    let path = fs
+        .write_text("main.ds", source_a)
+        .expect("failed to write main.ds");
+    let uri = Uri::from_file_path(path.clone());
+
+    let _ = workspace_service
+        .update_virtual_file(&path, source_a.to_string())
+        .expect("expected initial update");
+    let _ = workspace_service
+        .update_virtual_file(&path, source_b.to_string())
+        .expect("expected second update");
+
+    let response = workspace_service
+        .execute_read_query_for_path(
+            &path,
+            query::QueryRequest::InlayHints(query::InlayHintsRequest {
+                uri,
+                start: 0,
+                end: source_b.len() as u32,
+            }),
+        )
+        .expect("expected inlay hints query response");
+    let query::QueryResponse::InlayHints(query::InlayHintsResponse { hints }) = response.response
+    else {
+        panic!("expected inlay hints query response payload");
+    };
+
+    let type_hint = hints
+        .iter()
+        .any(|hint| hint.kind == query::InlayHintKind::Type);
+    assert!(
+        type_hint,
+        "expected one inferred type hint after the virtual update"
     );
 
     workspace_service.shutdown();
@@ -187,6 +259,65 @@ async fn test_lsp_did_change_incremental_recovery_publishes_diagnostics() {
     assert!(!updated.diagnostics.is_empty());
 }
 
+/// LSP inlay hints refresh against the coherent post-change semantic state.
+#[tokio::test]
+async fn test_lsp_inlay_hints_refresh_after_annotation_removal() {
+    let fs = test_fs("did_change_inlay_hint_refresh");
+    let mut harness = harness_for_fs(&fs).await;
+
+    let source_a = r#"function greet(name: string, greeting: string): string {
+    return greeting + ", " + name;
+}
+const msg: string = greet("World", "Hello");
+"#;
+    let source_b = r#"function greet(name: string, greeting: string): string {
+    return greeting + ", " + name;
+}
+const msg = greet("World", "Hello");
+"#;
+    let path = fs
+        .write_text("main.ds", source_a)
+        .expect("failed to write main.ds");
+    let uri = uri_for_path(&path);
+
+    // open the annotated source and drain initial diagnostics
+    harness.did_open(uri.clone(), source_a).await;
+    harness.wait_for_mutation_idle().await;
+
+    // remove the annotation and wait for the semantic mutation lane
+    harness.did_change(uri.clone(), source_b, 2).await;
+    harness.wait_for_mutation_idle().await;
+
+    // request inlay hints from the updated open document
+    let last_line_length = source_b.lines().last().expect("expected final line").len() as u32;
+    let range = lsp::Range::new(
+        lsp::Position::new(0, 0),
+        lsp::Position::new(3, last_line_length),
+    );
+    let hints: Option<Vec<lsp::InlayHint>> = harness
+        .request_result(
+            "textDocument/inlayHint",
+            lsp::InlayHintParams {
+                text_document: lsp::TextDocumentIdentifier::new(uri),
+                range,
+                work_done_progress_params: lsp::WorkDoneProgressParams {
+                    work_done_token: None,
+                },
+            },
+        )
+        .await;
+    let hints = hints.expect("expected inlay hints response");
+
+    // keep the inferred binding type after the annotation disappears
+    assert!(
+        hints.iter().any(|hint| {
+            hint.kind == Some(lsp::InlayHintKind::TYPE)
+                && matches!(&hint.label, lsp::InlayHintLabel::String(label) if label == ": string")
+        }),
+        "expected one inferred type hint after the didChange update, actual hints: {hints:#?}"
+    );
+}
+
 /// Definition and hover resolve for simple local symbols.
 #[tokio::test]
 async fn test_lsp_navigation_resolves_local_symbols() {
@@ -266,14 +397,14 @@ async fn test_lsp_navigation_resolves_nested_import_symbol() {
     let mut test = TestLsp::new("navigation_nested_import_symbol").await;
     let main_text = "import { value } from \"./lib\";\nfunction compute(input: number): number {\n    return input + value;\n}\nconst output = compute(1);\n";
     let lib_text = "export const value = 1;\n";
-    let main_path = test.write_text("nested/main.ds", &main_text);
-    let lib_path = test.write_text("nested/lib.ds", &lib_text);
+    let main_path = test.write_text("nested/main.ds", main_text);
+    let lib_path = test.write_text("nested/lib.ds", lib_text);
     let main_uri = uri_for_path(&main_path);
     let lib_uri = uri_for_path(&lib_path);
 
     // open both files and drain diagnostics before querying definitions
-    test.harness.did_open(main_uri.clone(), &main_text).await;
-    test.harness.did_open(lib_uri.clone(), &lib_text).await;
+    test.harness.did_open(main_uri.clone(), main_text).await;
+    test.harness.did_open(lib_uri.clone(), lib_text).await;
     let _ = test.harness.next_diagnostics_for(&main_uri).await;
     let _ = test.harness.next_diagnostics_for(&lib_uri).await;
 
@@ -304,14 +435,14 @@ async fn test_lsp_navigation_resolves_nested_import_symbol_after_create() {
     let lib_text = "export const value = 1;\n";
 
     // write files after server initialize to mirror real host workflow
-    let main_path = test.write_text("nested-create/main.ds", &main_text);
-    let lib_path = test.write_text("nested-create/lib.ds", &lib_text);
+    let main_path = test.write_text("nested-create/main.ds", main_text);
+    let lib_path = test.write_text("nested-create/lib.ds", lib_text);
     let main_uri = uri_for_path(&main_path);
     let lib_uri = uri_for_path(&lib_path);
 
     // open both files and drain diagnostics before querying definitions
-    test.harness.did_open(main_uri.clone(), &main_text).await;
-    test.harness.did_open(lib_uri.clone(), &lib_text).await;
+    test.harness.did_open(main_uri.clone(), main_text).await;
+    test.harness.did_open(lib_uri.clone(), lib_text).await;
     let _ = test.harness.next_diagnostics_for(&main_uri).await;
     let _ = test.harness.next_diagnostics_for(&lib_uri).await;
 
@@ -543,6 +674,27 @@ async fn test_lsp_document_diagnostic_reflects_open_virtual_content() {
     assert!(!full.full_document_diagnostic_report.items.is_empty());
 }
 
+/// Closing a document restores filesystem backed diagnostics.
+#[tokio::test]
+async fn test_lsp_did_close_restores_filesystem_diagnostics() {
+    let fs = test_fs("did_close_restore");
+    let path = fs
+        .write_text("main.ds", "export const x: number = 1;\n")
+        .expect("write main");
+
+    let mut harness = harness_for_fs(&fs).await;
+    let uri = uri_for_path(&path);
+    harness.did_open(uri.clone(), "export const x = ;\n").await;
+
+    let opened = harness.next_diagnostics_for(&uri).await;
+    assert!(!opened.diagnostics.is_empty());
+
+    harness.did_close(uri.clone()).await;
+
+    let closed = harness.next_diagnostics_for(&uri).await;
+    assert!(closed.diagnostics.is_empty());
+}
+
 /// LSP watched file changes publish diagnostics.
 #[tokio::test]
 async fn test_lsp_watched_file_change_publishes_diagnostics() {
@@ -628,16 +780,9 @@ async fn test_lsp_did_rename_updates_diagnostics() {
 
     harness.did_rename(old_uri.clone(), new_uri.clone()).await;
 
-    let mut diagnostics = Vec::new();
-    diagnostics.push(harness.next_diagnostics().await);
-    diagnostics.push(harness.next_diagnostics().await);
-
     // check that the old is cleared, new has diagnostics
-    assert_eq!(diagnostics.len(), 2);
-    let old_diagnostics = diagnostics.iter().find(|diag| diag.uri == old_uri);
-    let new_diagnostics = diagnostics.iter().find(|diag| diag.uri == new_uri);
-    let old_diagnostics = old_diagnostics.expect("missing old diagnostics");
-    let new_diagnostics = new_diagnostics.expect("missing new diagnostics");
+    let old_diagnostics = harness.next_diagnostics_for(&old_uri).await;
+    let new_diagnostics = harness.next_diagnostics_for(&new_uri).await;
     assert!(old_diagnostics.diagnostics.is_empty());
     assert!(!new_diagnostics.diagnostics.is_empty());
 }
@@ -1117,15 +1262,16 @@ async fn test_lsp_selection_range_streams_partial_results() {
 /// Workspace diagnostics honor cancel requests.
 #[tokio::test]
 async fn test_lsp_workspace_diagnostic_cancels() {
-    let mut test = TestLsp::new("workspace_cancel").await;
+    let fs = test_fs("workspace_cancel");
 
-    // open many invalid files to keep workspace diagnostics work in flight
+    // seed many invalid files before initialize so cancellation timing
+    // reflects workspace diagnostics work, not repeated didOpen recompiles
     for index in 0..256 {
         let name = format!("file_{index}.ds");
-        let path = test.write_text(&name, "export const x = ;\n");
-        let uri = uri_for_path(&path);
-        test.harness.did_open(uri, "export const x = ;\n").await;
+        fs.write_text(&name, "export const x = ;\n")
+            .expect("write invalid workspace file");
     }
+    let harness = harness_for_fs(&fs).await;
 
     // request workspace diagnostics with work done cancellation
     let work_done_token = lsp::ProgressToken::Number(2);
@@ -1140,8 +1286,7 @@ async fn test_lsp_workspace_diagnostic_cancels() {
         },
     };
 
-    let result = test
-        .harness
+    let result = harness
         .workspace_diagnostic_with_cancellation(
             diag_params,
             work_done_token,
@@ -1161,7 +1306,6 @@ async fn test_lsp_workspace_diagnostic_cancels() {
 async fn test_lsp_references_progress_cancel_cancels_before_chunk_boundary() {
     // set up a large references workload in one open file
     let fs = test_fs("references_progress_cancel");
-    let mut harness = harness_for_fs(&fs).await;
 
     let mut source = String::new();
     source.push_str("function target_value(): number {\n");
@@ -1171,8 +1315,11 @@ async fn test_lsp_references_progress_cancel_cancels_before_chunk_boundary() {
         source.push_str(&format!("const ref_{index} = target_value();\n"));
     }
 
-    let path = fs.path_for("main.ds");
+    let path = fs
+        .write_text("main.ds", &source)
+        .expect("write large references source");
     let uri = uri_for_path(&path);
+    let mut harness = harness_for_fs(&fs).await;
     harness.did_open(uri.clone(), &source).await;
     let _ = harness.next_diagnostics_for(&uri).await;
 

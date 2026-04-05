@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use destack_dir::{GlobalSymbolId, LocalSymbolId, SymbolType};
 use destack_query as query;
-use destack_source::{File, FileId, FileType, ModuleId, PackageId, Span, Uri};
-use destack_workspace::Session;
+use destack_source::{FileId, ModuleId, PackageId, Span};
+use destack_workspace::{Change, Ref, Repository};
 
 use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 
@@ -18,37 +18,38 @@ fn test_symbol_id() -> GlobalSymbolId {
 /// Return none for workspace symbols with unknown file ids.
 #[test]
 fn test_workspace_symbol_to_lsp_returns_none_for_unknown_file() {
-    // create a session and keep the symbol file id unresolved
-    let session = Session::new(PathBuf::from("."));
+    // create a repository and keep the symbol file id unresolved
+    let repository = Repository::open_root(PathBuf::from("."));
     let symbol = query::WorkspaceSymbol {
         name: "foo".to_string(),
         kind: query::SymbolKind::Function,
-        file: FileId::new(u32::MAX),
-        range: Span::new(FileId::new(u32::MAX), 0, 0),
+        file: FileId::new(u64::MAX),
+        range: Span::new(FileId::new(u64::MAX), 0, 0),
         container: None,
     };
 
     // ensure conversion does not panic on missing files
-    let result = workspace_symbol_to_lsp(&session, &symbol);
+    let revision = repository
+        .current(&Ref::for_workspace_root(repository.workspace_root()))
+        .expect("expected workspace root revision");
+    let result = workspace_symbol_to_lsp(&repository, revision, &symbol);
     assert!(result.is_none());
 }
 
 /// Skip outgoing call ranges that point to missing files.
 #[test]
 fn test_outgoing_call_to_lsp_skips_missing_from_ranges() {
-    // create a session with a single known file for the hierarchy item
-    let session = Session::new(PathBuf::from("."));
-    let file_id = session.files.next_id();
+    // create a repository with a single known file for the hierarchy item
+    let repository = Repository::open_root(PathBuf::from("."));
     let path = PathBuf::from("/tmp/destack_lsp_navigation_call_hierarchy.ds");
-    let file = File::from_text(
-        file_id,
-        "destack_lsp_navigation_call_hierarchy.ds".to_string(),
-        Uri::from_file_path(&path),
-        Some(path),
-        FileType::Destack,
-        "export function foo() {}\n".to_string(),
-    );
-    session.files.insert(file);
+    let file_id = repository.file_id_for_workspace_path(&path);
+    let logical_path = repository.normalize_workspace_path(&path);
+    let revision = repository
+        .apply(
+            &Ref::for_workspace_root(repository.workspace_root()),
+            Change::set_text(&logical_path, "export function foo() {}\n"),
+        )
+        .expect("expected revision write");
 
     // build an outgoing call with a missing call site span
     let item = query::CallHierarchyItem {
@@ -62,10 +63,11 @@ fn test_outgoing_call_to_lsp_skips_missing_from_ranges() {
     };
     let call = query::CallHierarchyOutgoingCall {
         to: item,
-        from_ranges: vec![Span::new(FileId::new(u32::MAX), 0, 1)],
+        from_ranges: vec![Span::new(FileId::new(u64::MAX), 0, 1)],
     };
 
     // ensure conversion succeeds and drops unresolved ranges
-    let lsp_call = outgoing_call_to_lsp(&session, &call).expect("expected outgoing call");
+    let lsp_call =
+        outgoing_call_to_lsp(&repository, revision, &call).expect("expected outgoing call");
     assert!(lsp_call.from_ranges.is_empty());
 }

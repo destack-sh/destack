@@ -9,59 +9,21 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_parser::Parser;
 use destack_service::{FileSnapshot, LanguageService as LspLanguageService, LanguageServiceError};
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, LanguageType, Span, WATCHABLE_FILE_TYPES,
+    DiagnosticSeverity, File, FileId, FileType, LanguageType, OverlayFileSystem, Span,
+    WATCHABLE_FILE_TYPES,
 };
-use destack_workspace::{FormatterOptions, Session};
+use destack_workspace::{FormatterOptions, Repository, Revision};
 use {destack_lsp_types as lsp, destack_query as query};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/destack.json", "**/tsconfig*.json"];
 
-/// Upsert a file in the session registry from a snapshot.
-pub(super) fn upsert_file_from_snapshot(
-    session: &Session,
-    snapshot: &FileSnapshot,
-) -> Option<Arc<File>> {
-    // resolve the existing file id when possible
-    let registry = &session.files;
-    let existing_id = snapshot
-        .path
-        .as_ref()
-        .and_then(|path| registry.get_id_by_path(path))
-        .or_else(|| registry.get_id_by_uri(&snapshot.uri));
+/// Build a standalone file from a snapshot without mutating the repository.
+pub(super) fn file_from_snapshot_for_diagnostics(snapshot: &FileSnapshot) -> Option<Arc<File>> {
+    let content = snapshot.content.as_ref()?;
+    let file = file_from_snapshot(snapshot, snapshot.id, content);
 
-    // allocate a new id when the file is not tracked
-    let file_id = existing_id.unwrap_or_else(|| registry.next_id());
-
-    // return early when no content is available and the file already exists
-    let Some(content) = snapshot.content.as_ref() else {
-        if let Some(existing_id) = existing_id {
-            return registry.get_maybe(existing_id);
-        }
-
-        // register an unloaded file to keep ids stable
-        let file = File::unloaded(
-            file_id,
-            snapshot.name.clone(),
-            snapshot.uri.clone(),
-            snapshot.path.clone(),
-            snapshot.file_type,
-        );
-        registry.insert(file);
-        return registry.get_maybe(file_id);
-    };
-
-    // build a file from the snapshot content
-    let file = file_from_snapshot(snapshot, file_id, content);
-
-    // replace or insert the file into the registry
-    if existing_id.is_some() {
-        registry.replace(file);
-    } else {
-        registry.insert(file);
-    }
-
-    registry.get_maybe(file_id)
+    Some(Arc::new(file))
 }
 
 /// Build a file from a snapshot payload.
@@ -157,13 +119,14 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
     patterns
 }
 
-/// Create a workspace service for the LSP session.
-pub(super) fn create_workspace_service(
-    session: Arc<Session>,
+/// Create the language service for one LSP repository.
+pub(super) fn create_language_service(
+    repository: Arc<Repository>,
+    overlay_fs: Arc<OverlayFileSystem>,
     roots: Vec<PathBuf>,
     compiler_options: CompilerOptions,
 ) -> Result<LspLanguageService, LanguageServiceError> {
-    LspLanguageService::with_options(session, roots, compiler_options)
+    LspLanguageService::with_options(repository, Some(overlay_fs), roots, compiler_options)
 }
 
 /// Convert completion kind to LSP completion item kind.
@@ -219,7 +182,8 @@ pub(super) fn diagnostic_result_id(diagnostics: &[destack_source::Diagnostic]) -
 /// Format a file and return the formatted content.
 /// Requires module AST state from the workspace graph.
 pub(super) fn format_file(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     file: &Arc<File>,
     formatter: FormatterOptions,
@@ -231,15 +195,9 @@ pub(super) fn format_file(
     };
 
     // resolve module state for this file
-    let module_lock = session.modules.get_by_file_id(file_id)?;
-    let module = module_lock.as_ref();
-    let program = if let Some(path) = file.path.as_ref() {
-        session.find_program_for_path(path)
-    } else {
-        session.get_or_create_program(session.cwd.clone())
-    };
-    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
-    let ast = artifacts.ast(module.id)?;
+    let module_id = repository.module_id_for_file(revision, file_id).ok()??;
+    repository.file(revision, file_id).ok().flatten()?;
+    let ast = repository.ast(revision, module_id)?;
 
     // build format context from committed semantic state
     let side_span = Parser::compute_side_span_from_tree(&ast.tree);

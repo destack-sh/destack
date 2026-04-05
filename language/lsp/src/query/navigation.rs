@@ -1,6 +1,6 @@
 use destack_dir::GlobalSymbolId;
 use destack_source::{File, ModuleId, PackageId};
-use destack_workspace::Session;
+use destack_workspace::{Repository, Revision};
 use serde_json::{from_value, json, to_value};
 use {destack_lsp_types as lsp, destack_query as query};
 
@@ -8,36 +8,42 @@ use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
 use crate::uri::{lsp_uri_for_file, lsp_uri_for_path};
 
 /// Resolve a typed symbol id from LSP item data.
-fn symbol_id_from_lsp_data(session: &Session, data: &serde_json::Value) -> Option<GlobalSymbolId> {
+fn symbol_id_from_lsp_data(
+    repository: &Repository,
+    revision: Revision,
+    data: &serde_json::Value,
+) -> Option<GlobalSymbolId> {
     let package = data.get("package")?.as_u64()?;
     let module = data.get("module")?.as_u64()? as u32;
     let symbol = data.get("symbol")?.as_u64()? as u32;
 
     let module_id = ModuleId::new(PackageId(package), module);
-    query::resolve_global_symbol_id(session, module_id, symbol)
+    query::resolve_global_symbol_id(repository, revision, module_id, symbol)
 }
 
 /// Convert a definition result to an LSP location.
 ///
 /// Returns the first location if multiple exist.
 pub fn definition_to_location(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     result: &query::DefinitionResult,
 ) -> Option<lsp::Location> {
     let span = result.locations.first()?;
-    span_to_location(session, *span)
+    span_to_location(repository, revision, *span)
 }
 
 /// Convert an implementation result to LSP locations.
 pub fn implementation_to_locations(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     result: &query::ImplementationResult,
 ) -> Vec<lsp::Location> {
     result
         .locations
         .iter()
         .copied()
-        .filter_map(|span| span_to_location(session, span))
+        .filter_map(|span| span_to_location(repository, revision, span))
         .collect()
 }
 
@@ -133,10 +139,11 @@ fn file_position_uri_from_path_string(path: &str, line: u32, column: u32) -> Opt
 
 /// Convert a call hierarchy item to an LSP call hierarchy item.
 pub fn call_hierarchy_item_to_lsp(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     item: &query::CallHierarchyItem,
 ) -> Option<lsp::CallHierarchyItem> {
-    let file = session.files.get_maybe(item.file)?;
+    let file = repository.file(revision, item.file).ok().flatten()?;
     let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, item.range);
     let selection_range = byte_span_to_range(&file, item.selection_range);
@@ -169,11 +176,12 @@ pub fn call_hierarchy_item_to_lsp(
 
 /// Extract symbol_id from LSP call hierarchy item data.
 pub fn call_hierarchy_item_symbol_id(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     item: &lsp::CallHierarchyItem,
 ) -> Option<GlobalSymbolId> {
     let data = item.data.as_ref()?;
-    symbol_id_from_lsp_data(session, data)
+    symbol_id_from_lsp_data(repository, revision, data)
 }
 
 /// Extract a query call hierarchy item from lsp item data.
@@ -187,11 +195,12 @@ pub fn query_call_hierarchy_item_from_lsp(
 
 /// Convert an incoming call to LSP format.
 pub fn incoming_call_to_lsp(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     call: &query::CallHierarchyIncomingCall,
 ) -> Option<lsp::CallHierarchyIncomingCall> {
-    let from = call_hierarchy_item_to_lsp(session, &call.from)?;
-    let file = session.files.get_maybe(call.from.file)?;
+    let from = call_hierarchy_item_to_lsp(repository, revision, &call.from)?;
+    let file = repository.file(revision, call.from.file).ok().flatten()?;
     let from_ranges = call
         .from_ranges
         .iter()
@@ -203,10 +212,11 @@ pub fn incoming_call_to_lsp(
 
 /// Convert an outgoing call to LSP format.
 pub fn outgoing_call_to_lsp(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     call: &query::CallHierarchyOutgoingCall,
 ) -> Option<lsp::CallHierarchyOutgoingCall> {
-    let to = call_hierarchy_item_to_lsp(session, &call.to)?;
+    let to = call_hierarchy_item_to_lsp(repository, revision, &call.to)?;
 
     // from_ranges are in the caller's file, need to look up via symbol
     // for now, just convert the spans as-is (they should have file info)
@@ -214,9 +224,10 @@ pub fn outgoing_call_to_lsp(
         .from_ranges
         .iter()
         .filter_map(|span| {
-            session
-                .files
-                .get_maybe(span.file)
+            repository
+                .file(revision, span.file)
+                .ok()
+                .flatten()
                 .map(|file| byte_span_to_range(&file, *span))
         })
         .collect();
@@ -226,10 +237,11 @@ pub fn outgoing_call_to_lsp(
 
 /// Convert a type hierarchy item to an LSP type hierarchy item.
 pub fn type_hierarchy_item_to_lsp(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     item: &query::TypeHierarchyItem,
 ) -> Option<lsp::TypeHierarchyItem> {
-    let file = session.files.get_maybe(item.file)?;
+    let file = repository.file(revision, item.file).ok().flatten()?;
     let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, item.range);
     let selection_range = byte_span_to_range(&file, item.selection_range);
@@ -264,11 +276,12 @@ pub fn type_hierarchy_item_to_lsp(
 
 /// Extract symbol_id from LSP type hierarchy item data.
 pub fn type_hierarchy_item_symbol_id(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     item: &lsp::TypeHierarchyItem,
 ) -> Option<GlobalSymbolId> {
     let data = item.data.as_ref()?;
-    symbol_id_from_lsp_data(session, data)
+    symbol_id_from_lsp_data(repository, revision, data)
 }
 
 /// Extract a query type hierarchy item from lsp item data.
@@ -283,10 +296,11 @@ pub fn query_type_hierarchy_item_from_lsp(
 /// Convert a workspace symbol to an LSP workspace symbol.
 #[allow(deprecated)]
 pub fn workspace_symbol_to_lsp(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol: &query::WorkspaceSymbol,
 ) -> Option<lsp::SymbolInformation> {
-    let file = session.files.get_maybe(symbol.file)?;
+    let file = repository.file(revision, symbol.file).ok().flatten()?;
     let uri = lsp_uri_for_file(&file)?;
     let range = byte_span_to_range(&file, symbol.range);
     let kind = symbol_kind_to_lsp(symbol.kind);

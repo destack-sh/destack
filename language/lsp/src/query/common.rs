@@ -3,7 +3,7 @@ use std::cmp;
 
 use destack_ast::TokenSpan;
 use destack_source::{File, Span};
-use destack_workspace::Session;
+use destack_workspace::{Repository, Revision};
 use {destack_lsp_types as lsp, destack_query as query};
 
 use crate::uri::lsp_uri_for_file;
@@ -139,8 +139,12 @@ pub fn token_length_utf16(source: &File, token: &TokenSpan) -> u32 {
 }
 
 /// Convert a span to an LSP location.
-pub fn span_to_location(session: &Session, span: Span) -> Option<lsp::Location> {
-    let file = session.files.get_maybe(span.file)?;
+pub fn span_to_location(
+    repository: &Repository,
+    revision: Revision,
+    span: Span,
+) -> Option<lsp::Location> {
+    let file = repository.file(revision, span.file).ok().flatten()?;
     let range = byte_span_to_range(&file, span);
     let uri = lsp_uri_for_file(&file)?;
     Some(lsp::Location { uri, range })
