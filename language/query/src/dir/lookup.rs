@@ -288,14 +288,6 @@ fn find_symbol_at_offset_impl(
         return None;
     }
 
-    // check if we're in a doc or comment first
-    for enclosing_span in &enclosing {
-        let node_type = ast.tree().get_node_type(enclosing_span.idx);
-        if matches!(node_type, ast::NodeType::Doc | ast::NodeType::Comment) {
-            return None;
-        }
-    }
-
     let dir_tree = dir.tree();
 
     // check static parameters first to avoid capturing the enclosing declaration

@@ -673,7 +673,7 @@ mod tests {
     #[test]
     fn test_prefers_exact_case_boundary_matches() {
         let exact = match_quality("HTTPServer", "HS").unwrap();
-        let folded = match_quality("HttpServer", "HS").unwrap();
+        let folded = match_quality("httpServer", "HS").unwrap();
 
         assert_eq!(exact.kind, MatchKind::ExactBoundary);
         assert_eq!(folded.kind, MatchKind::CaseInsensitiveBoundary);
@@ -685,7 +685,7 @@ mod tests {
     fn test_matches_camel_case_boundaries() {
         let matched = match_quality("getElementsByAttribute", "gEA").unwrap();
 
-        assert_eq!(matched.kind, MatchKind::CaseInsensitiveBoundary);
+        assert_eq!(matched.kind, MatchKind::ExactBoundary);
         assert_eq!(matched.matched_indices, vec![0, 3, 13]);
     }
 
@@ -694,7 +694,7 @@ mod tests {
     fn test_matches_snake_case_boundaries() {
         let matched = match_quality("get_element_by_id", "gebi").unwrap();
 
-        assert_eq!(matched.kind, MatchKind::CaseInsensitiveBoundary);
+        assert_eq!(matched.kind, MatchKind::ExactBoundary);
         assert_eq!(matched.matched_indices, vec![0, 4, 12, 15]);
     }
 

@@ -352,9 +352,7 @@ fn decorator_on_node(ast: AstQuery<'_>, node_id: u32, name: &str) -> bool {
     let annotations = ast.tree().get_annotations(node_id);
     for annotation_id in annotations {
         let annotation = ast.tree().get::<ast::Annotation>(annotation_id);
-        let ast::Annotation::Decorator { node, .. } = annotation else {
-            continue;
-        };
+        let ast::Annotation::Decorator { node, .. } = annotation;
 
         let decorator = ast.tree().get::<ast::Decorator>(*node);
         let Some(decorator_name_id) = decorator_name_id(ast, decorator) else {
