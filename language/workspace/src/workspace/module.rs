@@ -115,12 +115,7 @@ impl ModuleFormat {
             | ModuleTarget::Es2022
             | ModuleTarget::EsNext
             | ModuleTarget::Preserve => Some(Self::Esm),
-            ModuleTarget::Amd
-            | ModuleTarget::Umd
-            | ModuleTarget::System
-            | ModuleTarget::Node16
-            | ModuleTarget::NodeNext
-            | ModuleTarget::None => None,
+            ModuleTarget::Node16 | ModuleTarget::NodeNext | ModuleTarget::None => None,
         }
     }
 
