@@ -883,8 +883,7 @@ fn parse_host_platform_name(name: &str, parsed: &mut BTreeSet<String>) {
     }
 
     if normalized == "bsd" {
-        append_bsd_platform_selector(parsed);
-        return;
+        panic!("unsupported @binding platforms value {name}: bsd hosts are no longer supported");
     }
 
     // parse the platform selector through the target platform enum
@@ -900,27 +899,12 @@ fn parse_host_platform_name(name: &str, parsed: &mut BTreeSet<String>) {
     parsed.insert(canonical.to_string());
 }
 
-/// Append all canonical Unix host platform tags.
+/// Append all canonical supported Unix host platform tags.
 fn append_unix_platform_selector(parsed: &mut BTreeSet<String>) {
     parsed.insert(Platform::MacOS.canonical_tag().to_string());
     parsed.insert(Platform::Linux.canonical_tag().to_string());
-    parsed.insert(Platform::FreeBsd.canonical_tag().to_string());
-    parsed.insert(Platform::OpenBsd.canonical_tag().to_string());
-    parsed.insert(Platform::NetBsd.canonical_tag().to_string());
-    parsed.insert(Platform::DragonFly.canonical_tag().to_string());
-    parsed.insert(Platform::Solaris.canonical_tag().to_string());
-    parsed.insert(Platform::Illumos.canonical_tag().to_string());
-    parsed.insert(Platform::Haiku.canonical_tag().to_string());
     parsed.insert(Platform::IOS.canonical_tag().to_string());
     parsed.insert(Platform::Android.canonical_tag().to_string());
-}
-
-/// Append all canonical BSD host platform tags.
-fn append_bsd_platform_selector(parsed: &mut BTreeSet<String>) {
-    parsed.insert(Platform::FreeBsd.canonical_tag().to_string());
-    parsed.insert(Platform::OpenBsd.canonical_tag().to_string());
-    parsed.insert(Platform::NetBsd.canonical_tag().to_string());
-    parsed.insert(Platform::DragonFly.canonical_tag().to_string());
 }
 
 /// Validate one capability name in canonical dotted form.
