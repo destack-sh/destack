@@ -219,27 +219,6 @@ impl RuntimeGenerator {
         if cfg!(target_os = "linux") {
             return Platform::Linux;
         }
-        if cfg!(target_os = "freebsd") {
-            return Platform::FreeBsd;
-        }
-        if cfg!(target_os = "openbsd") {
-            return Platform::OpenBsd;
-        }
-        if cfg!(target_os = "netbsd") {
-            return Platform::NetBsd;
-        }
-        if cfg!(target_os = "dragonfly") {
-            return Platform::DragonFly;
-        }
-        if cfg!(target_os = "solaris") {
-            return Platform::Solaris;
-        }
-        if cfg!(target_os = "illumos") {
-            return Platform::Illumos;
-        }
-        if cfg!(target_os = "haiku") {
-            return Platform::Haiku;
-        }
         if cfg!(target_os = "fuchsia") {
             return Platform::Fuchsia;
         }
