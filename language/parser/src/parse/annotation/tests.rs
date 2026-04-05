@@ -1,15 +1,11 @@
 use destack_ast::{
     Annotation, AnnotationPosition, Argument, BinaryOperator, Block, BlockContext, BlockFormat,
-    Comment, CommentDirective, CommentStyle, CommentTrivia, Declaration, Decorator, Doc, DocStyle,
-    Expression, LocalNodeId, TokenType, TriviaRef, normalize_comment_payload,
+    Comment, CommentDirective, CommentStyle, Declaration, Decorator, Expression, LocalNodeId,
+    TokenType, normalize_comment_payload,
 };
 use destack_source::LanguageType;
 
-use crate::{
-    Parser, TestParser, assert_comment_trivia, assert_expression_path, assert_node, assert_string,
-};
-
-const NO_TOKEN_INDEX: u32 = u32::MAX;
+use crate::{Parser, TestParser, assert_comment, assert_expression_path, assert_node};
 
 fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let mut test = TestParser::new_with_options(source, language);
@@ -28,58 +24,69 @@ fn parse_block_source(source: &str, language: LanguageType) -> (Parser, LocalNod
     (parser, block_id)
 }
 
-fn comment_text(parser: &Parser, comment_id: LocalNodeId<Comment>) -> String {
-    let source = parser.get_span_str(parser.tree.get_span(comment_id));
+fn comment_text(parser: &Parser, comment: Comment) -> String {
+    let source = parser.get_span_str(comment.span);
     normalize_comment_payload(source).into_owned()
 }
 
-fn doc_text(parser: &Parser, doc_id: LocalNodeId<Doc>) -> String {
+fn previous_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenType> {
     parser
-        .strings
-        .get(parser.tree.get(doc_id).string)
-        .to_string()
+        .tokens()
+        .iter()
+        .rev()
+        .find(|token| {
+            token.span.end <= comment.span.start
+                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+        })
+        .copied()
+        .map(|token| token.token.ty)
 }
 
-fn boundary_token_type(parser: &Parser, token_index: u32) -> Option<TokenType> {
-    if token_index == NO_TOKEN_INDEX {
-        return None;
+fn next_boundary_token_type(parser: &Parser, comment: Comment) -> Option<TokenType> {
+    if comment.is_leading() && comment.attached_to != 0 {
+        return parser
+            .tokens()
+            .iter()
+            .find(|token| token.span.start == comment.attached_to)
+            .copied()
+            .map(|token| token.token.ty);
     }
 
     parser
         .tokens()
-        .get(token_index as usize)
+        .iter()
+        .find(|token| {
+            token.span.start >= comment.span.end
+                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+        })
+        .copied()
         .map(|token| token.token.ty)
 }
 
 fn assert_comment_boundary_tokens(
     parser: &Parser,
-    trivia: CommentTrivia,
+    comment: Comment,
     token_before: Option<TokenType>,
     token_after: Option<TokenType>,
 ) {
-    assert_eq!(
-        boundary_token_type(parser, trivia.boundary.token_before),
-        token_before
-    );
-    assert_eq!(
-        boundary_token_type(parser, trivia.boundary.token_after),
-        token_after
-    );
+    assert_eq!(previous_boundary_token_type(parser, comment), token_before);
+    assert_eq!(next_boundary_token_type(parser, comment), token_after);
 }
 
 fn assert_comment_newline_shape(
-    trivia: CommentTrivia,
+    comment: Comment,
     has_leading_newline: bool,
     has_trailing_newline: bool,
 ) {
+    assert_eq!(comment.newlines.has_leading_newline(), has_leading_newline);
     assert_eq!(
-        trivia.boundary.newlines.has_leading_newline(),
-        has_leading_newline
-    );
-    assert_eq!(
-        trivia.boundary.newlines.has_trailing_newline(),
+        comment.newlines.has_trailing_newline(),
         has_trailing_newline
     );
+}
+
+fn comments(parser: &Parser) -> &[Comment] {
+    parser.tree.comments()
 }
 
 #[test]
@@ -87,11 +94,10 @@ fn test_parse_runs_attach_trivia_for_comments() {
     let (parser, expressions) = parse_source("// lead\nvalue", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    assert_eq!(parser.tree.blank_trivia().len(), 0);
+    assert_eq!(parser.tree.comments().len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "lead");
+    let comment = parser.tree.comments()[0];
+    assert_eq!(comment_text(&parser, comment), "lead");
 
     let expression_annotations = parser.tree.get_annotations(expressions[0].id);
     assert!(expression_annotations.is_empty());
@@ -104,12 +110,10 @@ fn test_parse_without_trivia_leaves_trivia_empty_until_attach() {
 
     let expressions = parser.parse_without_trivia();
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.tree.comment_trivia().len(), 0);
-    assert_eq!(parser.tree.blank_trivia().len(), 0);
+    assert_eq!(parser.tree.comments().len(), 0);
 
     parser.attach_trivia();
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    assert_eq!(parser.tree.blank_trivia().len(), 1);
+    assert_eq!(parser.tree.comments().len(), 1);
 }
 
 #[test]
@@ -119,13 +123,11 @@ fn test_attach_trivia_on_direct_entrypoint_emits_output() {
 
     let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.tree.comment_trivia().len(), 0);
-    assert_eq!(parser.tree.blank_trivia().len(), 0);
+    assert_eq!(parser.tree.comments().len(), 0);
 
     parser.attach_trivia();
 
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    assert_eq!(parser.tree.blank_trivia().len(), 1);
+    assert_eq!(parser.tree.comments().len(), 1);
 }
 
 #[test]
@@ -137,12 +139,10 @@ fn test_attach_trivia_is_idempotent() {
     assert_eq!(expressions.len(), 2);
 
     parser.attach_trivia();
-    let first_comment_count = parser.tree.comment_trivia().len();
-    let first_blank_count = parser.tree.blank_trivia().len();
+    let first_comment_count = parser.tree.comments().len();
 
     parser.attach_trivia();
-    assert_eq!(parser.tree.comment_trivia().len(), first_comment_count);
-    assert_eq!(parser.tree.blank_trivia().len(), first_blank_count);
+    assert_eq!(parser.tree.comments().len(), first_comment_count);
 }
 
 #[test]
@@ -155,9 +155,9 @@ fn test_comment_only_file_gets_stub_expression_and_trivia() {
     let annotations = parser.tree.get_annotations(expressions[0].id);
     assert!(annotations.is_empty());
 
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "only");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "only");
 }
 
 #[test]
@@ -168,30 +168,27 @@ fn test_comment_trivia_directive_classification() {
     );
 
     assert_eq!(expressions.len(), 5);
-    assert_eq!(parser.tree.comment_trivia().len(), 5);
+    assert_eq!(comments(&parser).len(), 5);
 
-    let first = parser.tree.comment_trivia()[0];
-    let second = parser.tree.comment_trivia()[1];
-    let third = parser.tree.comment_trivia()[2];
-    let fourth = parser.tree.comment_trivia()[3];
-    let fifth = parser.tree.comment_trivia()[4];
+    let first = comments(&parser)[0];
+    let second = comments(&parser)[1];
+    let third = comments(&parser)[2];
+    let fourth = comments(&parser)[3];
+    let fifth = comments(&parser)[4];
 
-    assert_eq!(comment_text(&parser, first.comment), "@ts-ignore");
+    assert_eq!(comment_text(&parser, first), "@ts-ignore");
     assert_eq!(first.directive, CommentDirective::TypeScript);
 
-    assert_eq!(comment_text(&parser, second.comment), " @__PURE__");
+    assert_eq!(comment_text(&parser, second), " @__PURE__");
     assert_eq!(second.directive, CommentDirective::Pure);
 
-    assert_eq!(comment_text(&parser, third.comment), "prettier-ignore");
+    assert_eq!(comment_text(&parser, third), "prettier-ignore");
     assert_eq!(third.directive, CommentDirective::FormatIgnore);
 
-    assert_eq!(
-        comment_text(&parser, fourth.comment),
-        "prettier-ignore-start"
-    );
+    assert_eq!(comment_text(&parser, fourth), "prettier-ignore-start");
     assert_eq!(fourth.directive, CommentDirective::FormatIgnoreStart);
 
-    assert_eq!(comment_text(&parser, fifth.comment), "prettier-ignore-end");
+    assert_eq!(comment_text(&parser, fifth), "prettier-ignore-end");
     assert_eq!(fifth.directive, CommentDirective::FormatIgnoreEnd);
 }
 
@@ -201,27 +198,23 @@ fn test_comment_trivia_normalizes_payload_and_style() {
         parse_source("// line\n/* block */\nvalue", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_eq!(comments(&parser).len(), 2);
 
-    let first = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, first.comment), "line");
-    assert_node!(parser.tree, first.comment, Comment { style, .. } => {
-        assert_eq!(*style, CommentStyle::Slash);
-    });
+    let first = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, first), "line");
+    assert_eq!(first.style, CommentStyle::Slash);
 
-    let second = parser.tree.comment_trivia()[1];
-    assert_eq!(comment_text(&parser, second.comment), " block");
-    assert_node!(parser.tree, second.comment, Comment { style, .. } => {
-        assert_eq!(*style, CommentStyle::Star);
-    });
+    let second = comments(&parser)[1];
+    assert_eq!(comment_text(&parser, second), " block");
+    assert_eq!(second.style, CommentStyle::Star);
 }
 
 #[test]
-fn test_doc_comments_attach_semantically_and_skip_comment_trivia() {
+fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
     let (parser, expressions) = parse_source("/// docs\nfunction f() {}", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 0);
+    assert_eq!(comments(&parser).len(), 1);
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -229,14 +222,12 @@ fn test_doc_comments_attach_semantically_and_skip_comment_trivia() {
         assert!(expression_annotations.is_empty());
 
         let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
-        assert_eq!(declaration_annotations.len(), 1);
-        assert_node!(parser.tree, declaration_annotations[0], Annotation::Doc { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePrefix);
-            assert_node!(parser.tree, *node, Doc { string, style } => {
-                assert_eq!(*style, DocStyle::Slash);
-                assert_string!(parser, *string, "docs");
-            });
-        });
+        assert!(declaration_annotations.is_empty());
+
+        let comment = comments(&parser)[0];
+        assert!(comment.is_leading());
+        assert_eq!(comment_text(&parser, comment), "docs");
+        assert_eq!(comment.attached_to, parser.tree.get_span(*declaration_id).start);
     });
 }
 
@@ -254,14 +245,18 @@ fn test_doc_comment_attaches_to_parameter() {
             assert_eq!(signature.dynamic_parameters.len(), 1);
             let parameter_id = signature.dynamic_parameters[0];
             let annotations = parser.tree.get_annotations(parameter_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePrefix);
-                assert_node!(parser.tree, *node, Doc { string, style } => {
-                    assert_eq!(*style, DocStyle::Star);
-                    assert_string!(parser, *string, " parameter-doc");
-                });
-            });
+            assert!(annotations.is_empty());
+
+            assert_eq!(comments(&parser).len(), 1);
+            let comment = comments(&parser)[0];
+            assert!(comment.is_leading());
+            assert_eq!(comment_text(&parser, comment), " parameter-doc");
+            assert_comment_boundary_tokens(
+                &parser,
+                comment,
+                Some(TokenType::OpenParenthesis),
+                Some(TokenType::Identifier),
+            );
         });
     });
 }
@@ -276,26 +271,75 @@ fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        let declaration_annotations = parser.tree.get_annotations(declaration_id.id);
-        assert!(declaration_annotations.is_empty());
-
         assert_node!(parser.tree, *declaration_id, Declaration::Type { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Binary { left, operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::ElementwiseOr);
 
                 let left_annotations = parser.tree.get_annotations(left.id);
-                assert_eq!(left_annotations.len(), 1);
-                assert_node!(parser.tree, left_annotations[0], Annotation::Doc { node, position } => {
-                    assert_eq!(*position, AnnotationPosition::LinePrefix);
-                    assert_node!(parser.tree, *node, Doc { style, .. } => {
-                        assert_eq!(*style, DocStyle::Star);
-                    });
+                assert!(left_annotations.is_empty());
 
-                    let text = doc_text(&parser, *node);
-                    assert!(text.contains("keep-doc"));
-                });
+                assert_eq!(comments(&parser).len(), 1);
+                let comment = comments(&parser)[0];
+                assert!(comment.is_leading());
+                assert!(parser.get_span_str(comment.span).starts_with("/**"));
+                assert!(comment_text(&parser, comment).contains("keep-doc"));
+                assert_comment_boundary_tokens(
+                    &parser,
+                    comment,
+                    Some(TokenType::Assign),
+                    Some(TokenType::ElementwiseOr),
+                );
             });
         });
+    });
+}
+
+#[test]
+fn test_comment_after_type_assignment_attaches_to_type_value() {
+    let (parser, expressions) = parse_source(
+        "export type Value = /* keep */ number;",
+        LanguageType::TypeScript,
+    );
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type { value: _, .. } => {
+            let comment = comments(&parser)[0];
+            assert_eq!(comment_text(&parser, comment), " keep");
+            assert!(comment.is_leading());
+            assert_comment_boundary_tokens(
+                &parser,
+                comment,
+                Some(TokenType::Assign),
+                Some(TokenType::Identifier),
+            );
+        });
+    });
+}
+
+#[test]
+fn test_comment_after_open_parenthesis_attaches_to_parenthesized_wrapper() {
+    let (parser, expressions) = parse_source("(/* keep */ value)", LanguageType::TypeScript);
+
+    assert_eq!(expressions.len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+        let comment = comments(&parser)[0];
+        assert_eq!(comment_text(&parser, comment), " keep");
+        assert_ne!(expression_id.id, expression.id);
+        assert!(comment.is_leading());
+        assert_comment_boundary_tokens(
+            &parser,
+            comment,
+            Some(TokenType::OpenParenthesis),
+            Some(TokenType::Identifier),
+        );
+        assert_comment_newline_shape(comment, false, false);
     });
 }
 
@@ -310,14 +354,18 @@ fn test_doc_comment_attaches_to_call_argument() {
         assert_eq!(dynamic_arguments.len(), 1);
         let argument_id = dynamic_arguments[0];
         let argument_annotations = parser.tree.get_annotations(argument_id.id);
-        assert_eq!(argument_annotations.len(), 1);
-        assert_node!(parser.tree, argument_annotations[0], Annotation::Doc { node, position } => {
-            assert_eq!(*position, AnnotationPosition::LinePrefix);
-            assert_node!(parser.tree, *node, Doc { string, style } => {
-                assert_eq!(*style, DocStyle::Star);
-                assert_string!(parser, *string, " argument-doc");
-            });
-        });
+        assert!(argument_annotations.is_empty());
+
+        assert_eq!(comments(&parser).len(), 1);
+        let comment = comments(&parser)[0];
+        assert!(comment.is_leading());
+        assert_eq!(comment_text(&parser, comment), " argument-doc");
+        assert_comment_boundary_tokens(
+            &parser,
+            comment,
+            Some(TokenType::OpenParenthesis),
+            Some(TokenType::Identifier),
+        );
 
         assert_node!(parser.tree, argument_id, Argument::Positional { value, .. } => {
             let value_annotations = parser.tree.get_annotations(value.id);
@@ -335,16 +383,16 @@ fn test_comment_between_export_and_declaration_head_emits_unowned_seam_trivia() 
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "seam");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "seam");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::Identifier),
         Some(TokenType::Identifier),
     );
-    assert_comment_newline_shape(trivia, false, true);
+    assert_comment_newline_shape(comment, false, true);
 }
 
 #[test]
@@ -355,16 +403,16 @@ fn test_comment_after_satisfies_keyword_emits_unowned_seam_trivia() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "seam");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "seam");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::Identifier),
         Some(TokenType::Identifier),
     );
-    assert_comment_newline_shape(trivia, false, true);
+    assert_comment_newline_shape(comment, false, true);
 }
 
 #[test]
@@ -375,16 +423,16 @@ fn test_comment_before_as_keyword_emits_unowned_seam_trivia() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), " seam");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), " seam");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::Identifier),
         Some(TokenType::Identifier),
     );
-    assert_comment_newline_shape(trivia, false, false);
+    assert_comment_newline_shape(comment, false, false);
 }
 
 #[test]
@@ -395,16 +443,16 @@ fn test_comment_after_as_keyword_emits_unowned_seam_trivia() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "seam");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "seam");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::Identifier),
         Some(TokenType::Identifier),
     );
-    assert_comment_newline_shape(trivia, false, true);
+    assert_comment_newline_shape(comment, false, true);
 }
 
 #[test]
@@ -413,16 +461,16 @@ fn test_multiline_block_comment_between_as_and_const_emits_unowned_seam_trivia()
         parse_source("1 as /*\nblock-comment\n*/ const", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "\nblock-comment\n");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "\nblock-comment\n");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::Identifier),
         Some(TokenType::Identifier),
     );
-    assert_comment_newline_shape(trivia, false, false);
+    assert_comment_newline_shape(comment, false, false);
 }
 
 #[test]
@@ -441,17 +489,17 @@ fn test_variable_trailing_marker_comment_emits_unowned_seam_trivia() {
         !expressions.is_empty(),
         "expected at least one parsed expression"
     );
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "<- keep-marker");
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "<- keep-marker");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::Identifier),
         Some(TokenType::Semicolon),
     );
-    assert_comment_newline_shape(trivia, true, true);
+    assert_comment_newline_shape(comment, true, true);
 }
 
 #[test]
@@ -460,16 +508,16 @@ fn test_comment_after_if_head_emits_unowned_seam_trivia() {
         parse_source("if (ready) // if-head\nrun()", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), "if-head");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), "if-head");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::CloseParenthesis),
         Some(TokenType::Identifier),
     );
-    assert_comment_newline_shape(trivia, false, true);
+    assert_comment_newline_shape(comment, false, true);
 }
 
 #[test]
@@ -480,16 +528,16 @@ fn test_comment_between_ternary_then_and_colon_emits_unowned_seam_trivia() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), " left-note");
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), " left-note");
     assert_comment_boundary_tokens(
         &parser,
-        trivia,
+        comment,
         Some(TokenType::Identifier),
         Some(TokenType::Colon),
     );
-    assert_comment_newline_shape(trivia, false, false);
+    assert_comment_newline_shape(comment, false, false);
 }
 
 #[test]
@@ -510,13 +558,10 @@ else {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_eq!(comments(&parser).len(), 2);
 
-    let first_trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(
-        comment_text(&parser, first_trivia.comment),
-        "comment before cond2"
-    );
+    let first_trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, first_trivia), "comment before cond2");
     assert_comment_boundary_tokens(
         &parser,
         first_trivia,
@@ -525,11 +570,8 @@ else {
     );
     assert_comment_newline_shape(first_trivia, true, true);
 
-    let second_trivia = parser.tree.comment_trivia()[1];
-    assert_eq!(
-        comment_text(&parser, second_trivia.comment),
-        "comment before else"
-    );
+    let second_trivia = comments(&parser)[1];
+    assert_eq!(comment_text(&parser, second_trivia), "comment before else");
     assert_comment_boundary_tokens(
         &parser,
         second_trivia,
@@ -547,10 +589,10 @@ fn test_multiline_trailing_block_comment_inside_block_emits_unowned_seam_trivia(
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let trivia = parser.tree.comment_trivia()[0];
+    assert_eq!(comments(&parser).len(), 1);
+    let trivia = comments(&parser)[0];
     assert_eq!(
-        comment_text(&parser, trivia.comment),
+        comment_text(&parser, trivia),
         "some comment\nover multiple lines yo"
     );
     assert_comment_boundary_tokens(
@@ -569,9 +611,9 @@ fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_s
         LanguageType::TypeScript,
     );
 
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
+    let trivia = comments(&parser)[0];
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -589,9 +631,9 @@ fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_destack_emits_u
         LanguageType::Destack,
     );
 
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
+    let trivia = comments(&parser)[0];
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -609,9 +651,9 @@ fn test_comment_inside_empty_lambda_block_attaches_to_block_infix() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
-    let trivia = parser.tree.comment_trivia()[1];
-    assert_eq!(comment_text(&parser, trivia.comment), "");
+    assert_eq!(comments(&parser).len(), 2);
+    let trivia = comments(&parser)[1];
+    assert_eq!(comment_text(&parser, trivia), "");
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -629,22 +671,12 @@ fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 0);
-    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 1);
+    assert_eq!(comments(&parser).len(), 1);
     assert_eq!(parser.tree.iter_nodes::<Decorator>().count(), 1);
 
-    let doc_annotation = parser
-        .tree
-        .iter_nodes::<Annotation>()
-        .find(|annotation_id| matches!(parser.tree.get(*annotation_id), Annotation::Doc { .. }))
-        .expect("missing doc annotation");
-    assert_node!(parser.tree, doc_annotation, Annotation::Doc { node, position } => {
-        assert_eq!(*position, AnnotationPosition::LinePrefix);
-        assert_node!(parser.tree, *node, Doc { string, style } => {
-            assert_eq!(*style, DocStyle::Star);
-            assert_string!(parser, *string, " docs");
-        });
-    });
+    let doc_comment = comments(&parser)[0];
+    assert!(doc_comment.is_leading());
+    assert_eq!(comment_text(&parser, doc_comment), " docs");
 
     let decorator_annotation = parser
         .tree
@@ -665,18 +697,14 @@ fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
 }
 
 #[test]
-fn test_empty_doc_block_comment_falls_back_to_comment_trivia() {
+fn test_empty_doc_block_comment_falls_back_to_raw_comments() {
     let (parser, expressions) = parse_source("/**/\nvalue", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_node!(parser.tree, trivia.comment, Comment { style, .. } => {
-        assert_eq!(*style, CommentStyle::Star);
-    });
-
-    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 0);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment.style, CommentStyle::Star);
 }
 
 #[test]
@@ -797,41 +825,11 @@ fn test_decorator_attaches_to_call_argument() {
 }
 
 #[test]
-fn test_blank_trivia_emits_for_blank_line_runs_only() {
-    let (parser, expressions) = parse_source("a\n\nb\nc\n\n\nd", LanguageType::TypeScript);
-
-    assert_eq!(expressions.len(), 4);
-    assert_eq!(parser.tree.blank_trivia().len(), 2);
-
-    let first_blank = parser.tree.blank_trivia()[0];
-    let second_blank = parser.tree.blank_trivia()[1];
-
-    assert_eq!(parser.tree.get(first_blank.blank).lines, 1);
-    assert_eq!(parser.tree.get(second_blank.blank).lines, 2);
-}
-
-#[test]
-fn test_trivia_refs_preserve_source_order() {
-    let (parser, expressions) = parse_source("// first\n\n// second\nx", LanguageType::TypeScript);
-
-    assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
-    assert_eq!(parser.tree.blank_trivia().len(), 1);
-
-    let refs = parser.tree.trivia_refs();
-    assert_eq!(refs.len(), 3);
-    assert_eq!(refs[0], TriviaRef::Comment(0));
-    assert_eq!(refs[1], TriviaRef::Comment(1));
-    assert_eq!(refs[2], TriviaRef::Blank(0));
-}
-
-#[test]
 fn test_comments_and_blanks_are_not_semantic_annotations() {
     let (parser, expressions) = parse_source("a // tail\n\nb", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    assert_eq!(parser.tree.blank_trivia().len(), 1);
+    assert_eq!(parser.tree.comments().len(), 1);
 
     let first_annotations = parser.tree.get_annotations(expressions[0].id);
     let second_annotations = parser.tree.get_annotations(expressions[1].id);
@@ -845,10 +843,10 @@ fn test_comment_inside_function_body_attaches_to_block_infix() {
         parse_source("function foo() { /* empty */ }", LanguageType::TypeScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), " empty");
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " empty");
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -866,10 +864,10 @@ fn test_comment_between_parameter_name_and_type_emits_unowned_seam_trivia() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
-    assert_eq!(comment_text(&parser, trivia.comment), " a");
+    let trivia = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, trivia), " a");
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -895,30 +893,48 @@ fn test_comments_around_member_decorator_chain_remain_raw_trivia() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 4);
+    assert_eq!(comments(&parser).len(), 4);
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Class { members, .. } => {
             assert_eq!(members.len(), 1);
+            let member_id = members[0];
+            let member_annotations = parser.tree.get_annotations(member_id.id);
+            assert_eq!(member_annotations.len(), 2);
 
-            let trivia = parser.tree.comment_trivia();
+            assert_node!(parser.tree, member_annotations[0], Annotation::Decorator { node, .. } => {
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_expression_path!(parser, parser.tree.get(*expression), "entity");
+                });
+            });
 
-            assert_eq!(comment_text(&parser, trivia[0].comment), "comment before entity");
-            assert_eq!(boundary_token_type(&parser, trivia[0].boundary.token_after), Some(TokenType::At));
+            assert_node!(parser.tree, member_annotations[1], Annotation::Decorator { node, .. } => {
+                assert_node!(parser.tree, *node, Decorator { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::Call { left, dynamic_arguments, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "foo");
+                        assert_eq!(dynamic_arguments.len(), 3);
+                    });
+                });
+            });
+
+            let trivia = comments(&parser);
+
+            assert_eq!(comment_text(&parser, trivia[0]), "comment before entity");
+            assert_eq!(next_boundary_token_type(&parser, trivia[0]), Some(TokenType::At));
             assert_comment_newline_shape(trivia[0], true, true);
 
-            assert_eq!(comment_text(&parser, trivia[1].comment), "comment after entity");
-            assert!(boundary_token_type(&parser, trivia[1].boundary.token_after).is_some());
+            assert_eq!(comment_text(&parser, trivia[1]), "comment after entity");
+            assert!(next_boundary_token_type(&parser, trivia[1]).is_some());
             assert_comment_newline_shape(trivia[1], true, true);
 
-            assert_eq!(comment_text(&parser, trivia[2].comment), "comment before foo");
-            assert!(boundary_token_type(&parser, trivia[2].boundary.token_after).is_some());
+            assert_eq!(comment_text(&parser, trivia[2]), "comment before foo");
+            assert!(next_boundary_token_type(&parser, trivia[2]).is_some());
             assert_comment_newline_shape(trivia[2], true, true);
 
-            assert_eq!(comment_text(&parser, trivia[3].comment), "comment after foo");
+            assert_eq!(comment_text(&parser, trivia[3]), "comment after foo");
             assert_eq!(
-                boundary_token_type(&parser, trivia[3].boundary.token_after),
+                next_boundary_token_type(&parser, trivia[3]),
                 Some(TokenType::Identifier)
             );
             assert_comment_newline_shape(trivia[3], true, true);
@@ -938,9 +954,9 @@ call // optional
     );
 
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_eq!(comments(&parser).len(), 2);
 
-    let trivia = parser.tree.comment_trivia();
+    let trivia = comments(&parser);
 
     assert_comment_boundary_tokens(
         &parser,
@@ -949,7 +965,7 @@ call // optional
         Some(TokenType::OpenParenthesis),
     );
     assert_comment_newline_shape(trivia[0], false, true);
-    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "direct");
+    assert_comment!(parser, 0, CommentStyle::Slash, "direct");
 
     assert_comment_boundary_tokens(
         &parser,
@@ -958,7 +974,7 @@ call // optional
         Some(TokenType::Maybe),
     );
     assert_comment_newline_shape(trivia[1], false, true);
-    assert_comment_trivia!(parser, 1, CommentStyle::Slash, "optional");
+    assert_comment!(parser, 1, CommentStyle::Slash, "optional");
 }
 
 #[test]
@@ -970,9 +986,9 @@ call/* optional */?.()"#,
     );
 
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_eq!(comments(&parser).len(), 2);
 
-    let trivia = parser.tree.comment_trivia();
+    let trivia = comments(&parser);
 
     assert_comment_boundary_tokens(
         &parser,
@@ -981,7 +997,7 @@ call/* optional */?.()"#,
         Some(TokenType::OpenParenthesis),
     );
     assert_comment_newline_shape(trivia[0], false, false);
-    assert_comment_trivia!(parser, 0, CommentStyle::Star, " direct");
+    assert_comment!(parser, 0, CommentStyle::Star, " direct");
 
     assert_comment_boundary_tokens(
         &parser,
@@ -990,7 +1006,7 @@ call/* optional */?.()"#,
         Some(TokenType::Maybe),
     );
     assert_comment_newline_shape(trivia[1], false, false);
-    assert_comment_trivia!(parser, 1, CommentStyle::Star, " optional");
+    assert_comment!(parser, 1, CommentStyle::Star, " optional");
 }
 
 #[test]
@@ -1002,14 +1018,14 @@ call?.(); // optional"#,
     );
 
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_eq!(comments(&parser).len(), 2);
 
-    for (index, trivia) in parser.tree.comment_trivia().iter().copied().enumerate() {
+    for (index, trivia) in comments(&parser).iter().copied().enumerate() {
         assert_eq!(
-            boundary_token_type(&parser, trivia.boundary.token_before),
+            previous_boundary_token_type(&parser, trivia),
             Some(TokenType::Semicolon)
         );
-        assert_comment_trivia!(
+        assert_comment!(
             parser,
             index,
             CommentStyle::Slash,
@@ -1028,18 +1044,18 @@ if (base.endsWith(".js") || base === `/worker-entries`) a; // for dev"#,
     );
 
     assert_eq!(expressions.len(), 3);
-    assert_eq!(parser.tree.comment_trivia().len(), 3);
+    assert_eq!(comments(&parser).len(), 3);
 
     for (index, expression_id) in expressions.iter().copied().enumerate() {
         let expression_id = parser.unwrap_labelled_expression(expression_id);
         assert_node!(parser.tree, expression_id, Expression::If { .. });
 
-        let trivia = parser.tree.comment_trivia()[index];
+        let trivia = comments(&parser)[index];
         assert_eq!(
-            boundary_token_type(&parser, trivia.boundary.token_before),
+            previous_boundary_token_type(&parser, trivia),
             Some(TokenType::Semicolon)
         );
-        assert_comment_trivia!(parser, index, CommentStyle::Slash, "for dev");
+        assert_comment!(parser, index, CommentStyle::Slash, "for dev");
     }
 }
 
@@ -1056,13 +1072,13 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
+    assert_eq!(comments(&parser).len(), 2);
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::ArrayExpression { elements } => {
         assert_eq!(elements.len(), 2);
 
-        let first_trivia = parser.tree.comment_trivia()[0];
+        let first_trivia = comments(&parser)[0];
         assert_comment_boundary_tokens(
             &parser,
             first_trivia,
@@ -1070,9 +1086,9 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
             Some(TokenType::Literal),
         );
         assert_comment_newline_shape(first_trivia, true, true);
-        assert_comment_trivia!(parser, 0, CommentStyle::Slash, "first");
+        assert_comment!(parser, 0, CommentStyle::Slash, "first");
 
-        let second_trivia = parser.tree.comment_trivia()[1];
+        let second_trivia = comments(&parser)[1];
         assert_comment_boundary_tokens(
             &parser,
             second_trivia,
@@ -1080,7 +1096,7 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
             Some(TokenType::Literal),
         );
         assert_comment_newline_shape(second_trivia, true, true);
-        assert_comment_trivia!(parser, 1, CommentStyle::Slash, "second");
+        assert_comment!(parser, 1, CommentStyle::Slash, "second");
     });
 }
 
@@ -1089,13 +1105,13 @@ fn test_inline_separator_comments_preserve_raw_separator_boundaries() {
     let (parser, expressions) = parse_source("[a, /* keep */ b]", LanguageType::JavaScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::ArrayExpression { elements } => {
         assert_eq!(elements.len(), 2);
 
-        let trivia = parser.tree.comment_trivia()[0];
+        let trivia = comments(&parser)[0];
         assert_comment_boundary_tokens(
             &parser,
             trivia,
@@ -1103,7 +1119,7 @@ fn test_inline_separator_comments_preserve_raw_separator_boundaries() {
             Some(TokenType::Identifier),
         );
         assert_comment_newline_shape(trivia, false, false);
-        assert_comment_trivia!(parser, 0, CommentStyle::Star, " keep");
+        assert_comment!(parser, 0, CommentStyle::Star, " keep");
     });
 }
 
@@ -1118,9 +1134,9 @@ fn test_trailing_collection_comments_before_close_remain_unowned() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
-    let trivia = parser.tree.comment_trivia()[0];
+    let trivia = comments(&parser)[0];
     assert_comment_boundary_tokens(
         &parser,
         trivia,
@@ -1128,7 +1144,7 @@ fn test_trailing_collection_comments_before_close_remain_unowned() {
         Some(TokenType::CloseBracket),
     );
     assert_comment_newline_shape(trivia, true, true);
-    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "tail");
+    assert_comment!(parser, 0, CommentStyle::Slash, "tail");
 }
 
 #[test]
@@ -1141,13 +1157,13 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
             let _body_id = body.expect("missing lambda body");
-            let trivia = parser.tree.comment_trivia()[0];
+            let trivia = comments(&parser)[0];
             assert_comment_boundary_tokens(
                 &parser,
                 trivia,
@@ -1155,7 +1171,7 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
                 Some(TokenType::OpenBracket),
             );
             assert_comment_newline_shape(trivia, true, true);
-            assert_comment_trivia!(parser, 0, CommentStyle::Slash, "body");
+            assert_comment!(parser, 0, CommentStyle::Slash, "body");
         });
     });
 }
@@ -1165,13 +1181,13 @@ fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
     let (parser, expressions) = parse_source("() => /* body */ []", LanguageType::JavaScript);
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
             let _body_id = body.expect("missing lambda body");
-            let trivia = parser.tree.comment_trivia()[0];
+            let trivia = comments(&parser)[0];
             assert_comment_boundary_tokens(
                 &parser,
                 trivia,
@@ -1179,22 +1195,25 @@ fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
                 Some(TokenType::OpenBracket),
             );
             assert_comment_newline_shape(trivia, false, false);
-            assert_comment_trivia!(parser, 0, CommentStyle::Star, " body");
+            assert_comment!(parser, 0, CommentStyle::Star, " body");
         });
     });
 }
 
 #[test]
-fn test_docs_and_decorators_remain_semantic_annotations() {
+fn test_doc_comment_and_decorator_emit_raw_comment_and_decorator_node() {
     let (parser, expressions) = parse_source(
         "/** docs */\n@memo\nfunction f() {}",
         LanguageType::TypeScript,
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 1);
     assert_eq!(parser.tree.iter_nodes::<Decorator>().count(), 1);
-    assert_eq!(parser.tree.comment_trivia().len(), 0);
+    assert_eq!(comments(&parser).len(), 1);
+
+    let comment = comments(&parser)[0];
+    assert!(comment.is_leading());
+    assert_eq!(comment_text(&parser, comment), " docs");
 }
 
 #[test]
@@ -1205,7 +1224,7 @@ fn test_doc_comment_attaches_to_class_extends_expression() {
     );
 
     assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.iter_nodes::<Doc>().count(), 1);
+    assert_eq!(comments(&parser).len(), 1);
 
     let expression_id = parser.unwrap_labelled_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1214,13 +1233,18 @@ fn test_doc_comment_attaches_to_class_extends_expression() {
             assert_eq!(extends_types.len(), 1);
             let extends_id = extends_types[0];
             let annotations = parser.tree.get_annotations(extends_id.id);
-            assert_eq!(annotations.len(), 1);
-            assert_node!(parser.tree, annotations[0], Annotation::Doc { node, position } => {
-                assert_eq!(*position, AnnotationPosition::LinePrefix);
-                assert_node!(parser.tree, *node, Doc { style, .. } => {
-                    assert_eq!(*style, DocStyle::Star);
-                });
-            });
+            assert!(annotations.is_empty());
+
+            let comment = comments(&parser)[0];
+            assert!(comment.is_trailing());
+            assert_eq!(comment.attached_to, 0);
+            assert_comment_boundary_tokens(
+                &parser,
+                comment,
+                Some(TokenType::Identifier),
+                Some(TokenType::OpenParenthesis),
+            );
+            assert!(parser.get_span_str(comment.span).starts_with("/**"));
         });
     });
 }

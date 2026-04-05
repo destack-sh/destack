@@ -6,7 +6,7 @@ use destack_ast::{
     FunctionSignature, Generics, Key, Keyword, LocalNodeId, Member, Name, NodeType, Parameter,
     Property, Timing, TokenType, Visibility,
 };
-use destack_source::NodeSpanType;
+use destack_source::{NodeSpanType, Span};
 
 use super::annotation::PendingDecorators;
 use crate::parse::timing::tags;
@@ -145,7 +145,7 @@ impl Parser {
 
     /// Eat a key with private hash parsing enabled.
     #[inline]
-    fn eat_property_key_with_span(&mut self) -> ParseResult<Option<(Key, destack_source::Span)>> {
+    fn eat_property_key_with_span(&mut self) -> ParseResult<Option<(Key, Span)>> {
         let ambient_context = self.options.with_allow_private_hash_key(true);
         self.with_options(
             self.options.with_ambient_context(ambient_context),
@@ -552,29 +552,27 @@ impl Parser {
         // field
         else {
             // value (type annotation)
-            let (value, type_span): (
-                Option<LocalNodeId<Expression>>,
-                Option<destack_source::Span>,
-            ) = if self.peek_colon_is() {
-                let type_start = self.mark_span();
-                self.bump(); // eat colon
-                self.eat_newlines_maybe()?;
+            let (value, type_span): (Option<LocalNodeId<Expression>>, Option<Span>) =
+                if self.peek_colon_is() {
+                    let type_start = self.mark_span();
+                    self.bump(); // eat colon
+                    self.eat_newlines_maybe()?;
 
-                // parse type annotations in type or variant contexts
-                let is_type_context = self.options.is_in_variant() || self.options.is_in_type();
-                let value = if self.peek_is(TokenType::Assign)
-                    || self.peek_is(TokenType::Comma)
-                    || self.peek_is(TokenType::CloseBrace)
-                    || self.is_any_stop()
-                {
-                    self.recover_missing_expression_here(NodeType::Property)
+                    // parse type annotations in type or variant contexts
+                    let is_type_context = self.options.is_in_variant() || self.options.is_in_type();
+                    let value = if self.peek_is(TokenType::Assign)
+                        || self.peek_is(TokenType::Comma)
+                        || self.peek_is(TokenType::CloseBrace)
+                        || self.is_any_stop()
+                    {
+                        self.recover_missing_expression_here(NodeType::Property)
+                    } else {
+                        self.eat_property_field_type(is_type_context)?
+                    };
+                    (Some(value), Some(self.get_span_from(&type_start)))
                 } else {
-                    self.eat_property_field_type(is_type_context)?
+                    (None, None)
                 };
-                (Some(value), Some(self.get_span_from(&type_start)))
-            } else {
-                (None, None)
-            };
 
             // default
             let default = if self.peek_is(TokenType::Assign) {
@@ -1355,7 +1353,8 @@ mod tests {
 
     use crate::tests::TestParser;
     use crate::{
-        assert_expression_path, assert_node, assert_path, assert_string, block_expression_ids,
+        assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+        block_expression_ids,
     };
 
     #[test]
@@ -1661,8 +1660,8 @@ port2 = {
                 });
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "method-body");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "method-body");
     }
 
     #[test]
@@ -2233,8 +2232,8 @@ foo(): string;"#,
                 assert!(second_annotations.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 2);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "first-tail");
-        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "second-tail");
+        assert_eq!(parser.tree.comments().len(), 2);
+        assert_comment!(parser, 0, CommentStyle::Slash, "first-tail");
+        assert_comment!(parser, 1, CommentStyle::Slash, "second-tail");
     }
 }

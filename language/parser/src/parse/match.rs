@@ -424,7 +424,8 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_expression_path, assert_node, assert_string, block_expression_ids,
+        TestParser, assert_comment, assert_expression_path, assert_node, assert_string,
+        block_expression_ids,
     };
 
     #[test]
@@ -900,11 +901,11 @@ switch (value) {
                 assert!(default_annotations.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 3);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "before-ready");
+        assert_eq!(parser.tree.comments().len(), 3);
+        assert_comment!(parser, 0, CommentStyle::Slash, "before-ready");
 
-        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "ready-tail");
+        assert_comment!(parser, 1, CommentStyle::Slash, "ready-tail");
 
-        crate::assert_comment_trivia!(parser, 2, CommentStyle::Slash, "default-tail");
+        assert_comment!(parser, 2, CommentStyle::Slash, "default-tail");
     }
 }

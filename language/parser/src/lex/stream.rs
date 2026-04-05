@@ -772,13 +772,13 @@ impl TokenStream {
 
     /// Return true when comment style side annotation tokens were seen.
     #[inline]
-    pub fn has_comment_trivia_tokens(&self) -> bool {
+    pub fn has_comment_tokens(&self) -> bool {
         self.has_comment_side_tokens
     }
 
     /// Return true when semantic newline tokens were seen.
     #[inline]
-    pub fn has_blank_trivia_tokens(&self) -> bool {
+    pub fn has_blank_line_tokens(&self) -> bool {
         self.has_semantic_newline_tokens
     }
 

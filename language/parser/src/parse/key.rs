@@ -1,6 +1,7 @@
 use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{Key, Keyword, LiteralType, Name, ScalarLiteral, TokenSpan, TokenType};
 use destack_core::StringId;
+use destack_source::Span;
 
 impl Parser {
     /// Peek an identifier.
@@ -24,7 +25,7 @@ impl Parser {
 
     /// Eat an identifier and return both the identifier and its span.
     #[inline]
-    pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+    pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         let index = self.pos_index();
         let token = *self.eat_token(TokenType::Identifier)?;
         let has_active_split = self.has_active_split();
@@ -65,17 +66,13 @@ impl Parser {
 
     /// Eat a binding identifier and return both the identifier and its span.
     #[inline]
-    pub fn eat_binding_identifier_with_span(
-        &mut self,
-    ) -> ParseResult<(StringId, destack_source::Span)> {
+    pub fn eat_binding_identifier_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         self.eat_identifier_with_span()
     }
 
     /// Eat a string literal and return both the content and its span.
     #[inline]
-    pub fn eat_string_literal_with_span(
-        &mut self,
-    ) -> ParseResult<(StringId, destack_source::Span)> {
+    pub fn eat_string_literal_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         let token = *self.peek_string_literal()?;
         let content = self.get_string_literal_str(token).to_owned();
         let string_id = self.strings.intern(&content);
@@ -222,9 +219,7 @@ impl Parser {
 
     /// Eat a name maybe, returning both the name and its span.
     #[inline]
-    pub fn eat_name_maybe_with_span(
-        &mut self,
-    ) -> ParseResult<Option<(Name, destack_source::Span)>> {
+    pub fn eat_name_maybe_with_span(&mut self) -> ParseResult<Option<(Name, Span)>> {
         if self.peek_name_is() {
             Ok(Some(self.eat_name_with_span()?))
         } else {
@@ -241,9 +236,7 @@ impl Parser {
 
     /// Eat a tree literal identifier and return both the identifier and its span.
     #[inline]
-    pub fn eat_tree_literal_identifier_with_span(
-        &mut self,
-    ) -> ParseResult<(StringId, destack_source::Span)> {
+    pub fn eat_tree_literal_identifier_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         let mut identifier = String::new();
         let token = *self.eat_token(TokenType::Identifier)?;
         let mut last_span = token.span;
@@ -489,7 +482,7 @@ impl Parser {
 
     /// Eat a name and return both the name and its span.
     #[inline]
-    pub fn eat_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
+    pub fn eat_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         // regular identifier
         if self.peek_is(TokenType::Identifier) {
             let (name, span) = self.eat_identifier_with_span()?;
@@ -550,7 +543,7 @@ impl Parser {
 
     /// Eat a key name and return both the parsed name and its span.
     #[inline]
-    fn eat_key_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
+    fn eat_key_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         // identifier or string key name
         if self.peek_name_is() {
             return self.eat_name_with_span();
@@ -659,7 +652,7 @@ impl Parser {
     }
 
     /// Eat a name or a dynamic key, returning both the key and its span.
-    pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, destack_source::Span)> {
+    pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, Span)> {
         let start = self.mark_span();
         // private hash key
         if self.peek_private_hash_key_is() {
@@ -725,7 +718,7 @@ impl Parser {
     }
 
     /// Eat a name or a dynamic key maybe, returning both the key and its span.
-    pub fn eat_key_maybe_with_span(&mut self) -> ParseResult<Option<(Key, destack_source::Span)>> {
+    pub fn eat_key_maybe_with_span(&mut self) -> ParseResult<Option<(Key, Span)>> {
         if self.peek_key_is() {
             Ok(Some(self.eat_key_with_span()?))
         } else {
@@ -734,7 +727,7 @@ impl Parser {
     }
 
     /// Eat a numeric key token and return the raw key text with its span.
-    fn eat_numeric_key_name_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+    fn eat_numeric_key_name_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         // capture the original numeric token text for key identity
         let token = *self.peek_numeric_literal()?;
         let key_string = self.file.span_str(token.span).to_string();

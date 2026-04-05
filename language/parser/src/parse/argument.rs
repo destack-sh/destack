@@ -11,11 +11,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 /// Parsed parameter head as either one pattern or one named binding.
-type ParsedParameterPatternOrName = (
-    Option<LocalNodeId<Pattern>>,
-    Option<StringId>,
-    Option<destack_source::Span>,
-);
+type ParsedParameterPatternOrName = (Option<LocalNodeId<Pattern>>, Option<StringId>, Option<Span>);
 
 impl Parser {
     /// Eat a committed static argument close token or recover one missing `>`.
@@ -844,7 +840,7 @@ impl Parser {
     /// Try to eat a variadic tuple label name in the shape `...[name]: T`.
     fn try_eat_variadic_tuple_label_name_with_span(
         &mut self,
-    ) -> ParseResult<Option<(StringId, destack_source::Span)>> {
+    ) -> ParseResult<Option<(StringId, Span)>> {
         if !self.peek_is(TokenType::OpenBracket) {
             return Ok(None);
         }

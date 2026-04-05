@@ -38,20 +38,17 @@ let Component = <Component<T<"button.press">> />.Child<T>; // what even is this?
 
 ## Annotations
 
-The parser treats semantic annotations and layout trivia as different classes with different owners.
- 1. Decorators and documentation are semantic attachments.
- 2. Comments and blanks are layout trivia records.
+The parser treats decorators and comments as different classes.
+ 1. Decorators are semantic attachments.
+ 2. Comments stay raw and token-relative.
 
-**However**, we still parse documentation as regular trivia, and then post-hoc assert it into the main AST IR because that turned out to be much easier.
-This happens via `Parser::parse()`'s call out to `attach_trivia()`.
-(If a test or direct parser entrypoint bypasses `parse()`, it must call `attach_trivia()` before checking docs or trivia output. Decorators are fine without.)
+Comments are emitted during `attach_trivia()`.
+If a test or direct parser entrypoint bypasses `Parser::parse()`, it must call `attach_trivia()` before checking comment output.
 
 ### Trivia Stream
 
-Comment and blank trivia are emitted in source order into split buffers:
- - Comment trivia is stored in `NodeTree::comment_trivia()`.
- - Blank trivia is stored in `NodeTree::blank_trivia()`.
- - Mixed source iteration uses `NodeTree::trivia_refs()`.
+Raw comments are stored in `NodeTree::comments()`.
+Blank lines are not stored as trivia records.
 
 ## Testing
 

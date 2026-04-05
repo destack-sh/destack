@@ -246,7 +246,7 @@ impl Parser {
         let target_has_annotations = !self.tree.get_annotations(target_expression.id).is_empty();
         let target = match self.tree.get(target_expression) {
             Expression::ScalarLiteral(ScalarLiteral::String(target))
-                if !target_has_annotations && !self.token_stream.has_comment_trivia_tokens() =>
+                if !target_has_annotations && !self.token_stream.has_comment_tokens() =>
             {
                 ImportTarget::String(*target)
             }
@@ -464,9 +464,7 @@ impl Parser {
     }
 
     /// Eat an import equals binding name and return its span.
-    fn eat_import_equals_name_with_span(
-        &mut self,
-    ) -> ParseResult<(StringId, destack_source::Span)> {
+    fn eat_import_equals_name_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         // identifier alias
         if self.peek_is(TokenType::Identifier) {
             return self.eat_identifier_with_span();
@@ -480,9 +478,7 @@ impl Parser {
     }
 
     /// Eat `require("a")` and return its target.
-    fn try_eat_import_equals_require_target(
-        &mut self,
-    ) -> ParseResult<Option<(StringId, destack_source::Span)>> {
+    fn try_eat_import_equals_require_target(&mut self) -> ParseResult<Option<(StringId, Span)>> {
         if !(self.peek_identifier_str_is("require")
             && self.peek_next_is(TokenType::OpenParenthesis)
             && self.peek_next_next_is(TokenType::Literal)
@@ -562,7 +558,7 @@ impl Parser {
         mut descriptor: DeclarationDescriptor,
         kind: Option<DependencyKind>,
         name: StringId,
-        name_span: destack_source::Span,
+        name_span: Span,
         target: ImportAliasTarget,
     ) -> LocalNodeId<Expression> {
         descriptor.name = Some(Name::Identifier(name));
@@ -844,7 +840,7 @@ impl Parser {
     /// "foo"
     /// "foo/bar:something"
     /// ```
-    fn eat_dependency_target_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+    fn eat_dependency_target_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         let token = *self.peek_token(TokenType::Literal)?;
 
         // module targets accept:
@@ -1161,7 +1157,7 @@ impl Parser {
     }
 
     /// Eat a dependency item name (identifier or string literal) and its span.
-    fn eat_dependency_item_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
+    fn eat_dependency_item_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         if self.peek_is(TokenType::Identifier) {
             let (name, span) = self.eat_identifier_with_span()?;
             return Ok((Name::Identifier(name), span));
@@ -1182,7 +1178,7 @@ impl Parser {
     fn eat_dependency_item_alias_with_span(
         &mut self,
         allow_literal_alias: bool,
-    ) -> ParseResult<(StringId, destack_source::Span)> {
+    ) -> ParseResult<(StringId, Span)> {
         // identifier aliases are always valid
         if self.peek_is(TokenType::Identifier) {
             return self.eat_identifier_with_span();
@@ -1224,9 +1220,9 @@ mod tests {
     };
     use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_string};
+    use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_string};
 
-    fn assert_import_target_string(parser: &crate::Parser, target: &ImportTarget, expected: &str) {
+    fn assert_import_target_string(parser: &Parser, target: &ImportTarget, expected: &str) {
         assert_node!(target, ImportTarget::String(target) => {
             assert_string!(parser, *target, expected);
         });

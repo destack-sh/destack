@@ -1064,7 +1064,8 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_expression_path, assert_node, assert_string, block_expression_ids,
+        TestParser, assert_comment, assert_expression_path, assert_node, assert_string,
+        block_expression_ids,
     };
 
     #[test]
@@ -1887,8 +1888,8 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
         let annotations = parser.tree.get_annotations(throw_id.id);
         assert!(annotations.is_empty());
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "throw-tail");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "throw-tail");
     }
 
     #[test]
@@ -1912,8 +1913,8 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
         let annotations = parser.tree.get_annotations(throw_id.id);
         assert!(annotations.is_empty());
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "throw-tail");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "throw-tail");
     }
 
     #[test]
@@ -1939,8 +1940,8 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
         let annotations = parser.tree.get_annotations(return_id.id);
         assert!(annotations.is_empty());
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "return-tail");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "return-tail");
     }
 
     #[test]
@@ -2093,8 +2094,8 @@ const value = 1
 
                     let annotations = parser.tree.get_annotations(throw_id.id);
                     assert!(annotations.is_empty());
-                    assert_eq!(parser.tree.comment_trivia().len(), 1);
-                    crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "throw-tail");
+                    assert_eq!(parser.tree.comments().len(), 1);
+                    assert_comment!(parser, 0, CommentStyle::Slash, "throw-tail");
                 });
             });
         });
@@ -2160,8 +2161,8 @@ const value = 1
 
         let first_annotations = parser.tree.get_annotations(expressions[0].id);
         assert!(first_annotations.is_empty());
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "<- keep-marker");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "<- keep-marker");
     }
 
     /// Parse deeply nested JavaScript if statements without overflowing the parser stack.

@@ -5,6 +5,7 @@ use destack_ast::{
     Expression, LiteralType, LocalNodeId, Name, NodeType, Pattern, PatternField, ScalarLiteral,
     TokenType, TypeLiteral,
 };
+use destack_source::Span;
 
 impl Parser {
     /// Eat a pattern that might be paranthesized (skip the parenthesis if present).
@@ -564,7 +565,7 @@ impl Parser {
     fn eat_pattern_field_name_with_span(
         &mut self,
         terminator: TokenType,
-    ) -> ParseResult<(Name, destack_source::Span)> {
+    ) -> ParseResult<(Name, Span)> {
         let is_numeric_object_key =
             terminator == TokenType::CloseBrace && self.peek_numeric_literal_is();
         if is_numeric_object_key {
@@ -580,7 +581,7 @@ impl Parser {
     }
 
     // eat a numeric pattern field name as Name::Number
-    fn eat_numeric_pattern_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
+    fn eat_numeric_pattern_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         let token = *self.peek_numeric_literal()?;
         let key_string = self.file.span_str(token.span).to_string();
 
@@ -597,7 +598,7 @@ impl Parser {
     }
 
     // eat a boolean pattern field name as Name::Identifier
-    fn eat_boolean_pattern_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
+    fn eat_boolean_pattern_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
         let token = *self.peek()?;
         if token.token.ty != TokenType::Literal
             || !matches!(token.token.literal, Some(LiteralType::Boolean { .. }))
