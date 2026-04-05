@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_lsp_server::UriExt;
 use destack_lsp_types as lsp;
-use destack_source::File;
+use destack_source::{File, Uri};
 
 /// Build an LSP uri for a file system path.
 pub(crate) fn lsp_uri_for_path(path: impl AsRef<Path>) -> Option<lsp::Uri> {
@@ -11,8 +11,25 @@ pub(crate) fn lsp_uri_for_path(path: impl AsRef<Path>) -> Option<lsp::Uri> {
 
 /// Build an LSP uri for a file.
 pub(crate) fn lsp_uri_for_file(file: &File) -> Option<lsp::Uri> {
-    // require canonical file paths for lsp locations
-    let path = file.path.as_ref()?;
+    // prefer the file uri identity because it preserves the original path variant
+    if let Some(uri) = lsp_uri_for_source_uri(&file.uri) {
+        return Some(uri);
+    }
 
-    lsp_uri_for_path(path)
+    // otherwise accept the source-uri path fallback used by older file snapshots
+    if let Some(path) = file.uri.to_path_buf() {
+        return lsp_uri_for_path(path);
+    }
+
+    file.path.as_ref().and_then(lsp_uri_for_path)
+}
+
+/// Parse one source uri into an LSP uri.
+pub(crate) fn lsp_uri_for_source_uri(uri: &Uri) -> Option<lsp::Uri> {
+    uri.as_ref().parse().ok()
+}
+
+/// Convert one LSP uri into the source uri representation.
+pub(crate) fn source_uri_from_lsp(uri: &lsp::Uri) -> Uri {
+    Uri::from_string(uri.to_string())
 }

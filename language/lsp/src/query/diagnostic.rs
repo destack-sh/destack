@@ -1,5 +1,5 @@
 use destack_source::{Diagnostic, DiagnosticSeverity, File};
-use destack_workspace::Session;
+use destack_workspace::{Repository, Revision};
 use serde_json::Value;
 use {destack_lsp_types as lsp, destack_query as query};
 
@@ -67,13 +67,18 @@ pub fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeActionKi
 
 /// Convert a code action to an LSP code action.
 pub fn code_action_to_lsp(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     action: &query::CodeAction,
     include_edit: bool,
     data: Option<Value>,
 ) -> Option<lsp::CodeActionOrCommand> {
     let edit = if include_edit && !action.edits.is_empty() {
-        Some(batch_edit_to_workspace_edit(session, &action.edits))
+        Some(batch_edit_to_workspace_edit(
+            repository,
+            revision,
+            &action.edits,
+        ))
     } else {
         None
     };

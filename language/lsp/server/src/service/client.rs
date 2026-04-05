@@ -26,6 +26,9 @@ pub mod progress;
 mod pending;
 mod socket;
 
+/// The buffered request capacity for the in-process client loopback.
+const CLIENT_REQUEST_QUEUE_CAPACITY: usize = 256;
+
 struct ClientInner {
     tx: Sender<Request>,
     request_id: AtomicU32,
@@ -47,7 +50,7 @@ pub struct Client {
 
 impl Client {
     pub(super) fn new(state: Arc<ServerState>) -> (Self, ClientSocket) {
-        let (tx, rx) = mpsc::channel(1);
+        let (tx, rx) = mpsc::channel(CLIENT_REQUEST_QUEUE_CAPACITY);
         let pending = Arc::new(Pending::new());
 
         let client = Self {
