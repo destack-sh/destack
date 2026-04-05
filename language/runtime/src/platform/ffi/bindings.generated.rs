@@ -316,7 +316,7 @@ pub(crate) const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.close.
 pub(crate) const FFI_LIBRARY_CLOSE: BindingDescriptor =
@@ -331,20 +331,7 @@ pub(crate) const FFI_LIBRARY_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.open.
 pub(crate) const FFI_LIBRARY_OPEN: BindingDescriptor =
@@ -359,20 +346,7 @@ pub(crate) const FFI_LIBRARY_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.pointer.address.
 pub(crate) const FFI_POINTER_ADDRESS: BindingDescriptor =
@@ -385,20 +359,7 @@ pub(crate) const FFI_POINTER_ADDRESS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.pointer.fromAddress.
 pub(crate) const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
@@ -411,20 +372,7 @@ pub(crate) const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.symbol.address.
 pub(crate) const FFI_SYMBOL_ADDRESS: BindingDescriptor =
@@ -439,20 +387,7 @@ pub(crate) const FFI_SYMBOL_ADDRESS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.symbol.lookup.
 pub(crate) const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -466,7 +401,7 @@ pub(crate) const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for ffi.
 pub(crate) const FFI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

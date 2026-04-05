@@ -4384,20 +4384,7 @@ pub(crate) const AUDIO_BACKEND_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.clock.now.
 pub(crate) const AUDIO_CLOCK_NOW: BindingDescriptor =
@@ -4412,20 +4399,7 @@ pub(crate) const AUDIO_CLOCK_NOW: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.clock.stream.
 pub(crate) const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4439,7 +4413,7 @@ pub(crate) const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.close.
 pub(crate) const AUDIO_DEVICE_CLOSE: BindingDescriptor =
@@ -4454,20 +4428,7 @@ pub(crate) const AUDIO_DEVICE_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.default.
 pub(crate) const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4481,7 +4442,7 @@ pub(crate) const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.descriptor.
 pub(crate) const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4495,7 +4456,7 @@ pub(crate) const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.list.
 pub(crate) const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4509,7 +4470,7 @@ pub(crate) const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.open.
 pub(crate) const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4523,7 +4484,7 @@ pub(crate) const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.rescan.
 pub(crate) const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4537,7 +4498,7 @@ pub(crate) const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.close.
 pub(crate) const AUDIO_EVENT_CLOSE: BindingDescriptor =
@@ -4552,20 +4513,7 @@ pub(crate) const AUDIO_EVENT_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.open.
 pub(crate) const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4579,7 +4527,7 @@ pub(crate) const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.read.
 pub(crate) const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4593,7 +4541,7 @@ pub(crate) const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.readBatch.
 pub(crate) const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4607,7 +4555,7 @@ pub(crate) const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.tryRead.
 pub(crate) const AUDIO_EVENT_TRY_READ: BindingDescriptor =
@@ -4622,20 +4570,7 @@ pub(crate) const AUDIO_EVENT_TRY_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.tryReadBatch.
 pub(crate) const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4649,7 +4584,7 @@ pub(crate) const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.abort.
 pub(crate) const AUDIO_STREAM_ABORT: BindingDescriptor =
@@ -4664,20 +4599,7 @@ pub(crate) const AUDIO_STREAM_ABORT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.availability.
 pub(crate) const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4691,7 +4613,7 @@ pub(crate) const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.close.
 pub(crate) const AUDIO_STREAM_CLOSE: BindingDescriptor =
@@ -4706,20 +4628,7 @@ pub(crate) const AUDIO_STREAM_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.descriptor.
 pub(crate) const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4733,7 +4642,7 @@ pub(crate) const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.drain.
 pub(crate) const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4747,7 +4656,7 @@ pub(crate) const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.flush.
 pub(crate) const AUDIO_STREAM_FLUSH: BindingDescriptor =
@@ -4762,20 +4671,7 @@ pub(crate) const AUDIO_STREAM_FLUSH: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.open.
 pub(crate) const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4789,7 +4685,7 @@ pub(crate) const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.pause.
 pub(crate) const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4803,7 +4699,7 @@ pub(crate) const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.read.
 pub(crate) const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4817,7 +4713,7 @@ pub(crate) const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.readv.
 pub(crate) const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4831,7 +4727,7 @@ pub(crate) const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setMute.
 pub(crate) const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4845,7 +4741,7 @@ pub(crate) const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setName.
 pub(crate) const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4859,7 +4755,7 @@ pub(crate) const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setVolume.
 pub(crate) const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4873,7 +4769,7 @@ pub(crate) const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.start.
 pub(crate) const AUDIO_STREAM_START: BindingDescriptor =
@@ -4888,20 +4784,7 @@ pub(crate) const AUDIO_STREAM_START: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.state.
 pub(crate) const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4915,7 +4798,7 @@ pub(crate) const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.stop.
 pub(crate) const AUDIO_STREAM_STOP: BindingDescriptor =
@@ -4930,20 +4813,7 @@ pub(crate) const AUDIO_STREAM_STOP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("audio")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.support.
 pub(crate) const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4957,7 +4827,7 @@ pub(crate) const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.timing.
 pub(crate) const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4971,7 +4841,7 @@ pub(crate) const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryRead.
 pub(crate) const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4985,7 +4855,7 @@ pub(crate) const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryReadv.
 pub(crate) const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -4999,7 +4869,7 @@ pub(crate) const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryWrite.
 pub(crate) const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5013,7 +4883,7 @@ pub(crate) const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryWritev.
 pub(crate) const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5027,7 +4897,7 @@ pub(crate) const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.write.
 pub(crate) const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5041,7 +4911,7 @@ pub(crate) const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writeAt.
 pub(crate) const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5055,7 +4925,7 @@ pub(crate) const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writeAtv.
 pub(crate) const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5069,7 +4939,7 @@ pub(crate) const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writev.
 pub(crate) const AUDIO_STREAM_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -5083,7 +4953,7 @@ pub(crate) const AUDIO_STREAM_WRITEV: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("audio")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for audio.
 pub(crate) const AUDIO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

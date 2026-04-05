@@ -2982,21 +2982,7 @@ pub(crate) const RUNTIME_CORE_AGENT_CLOSE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.agentCreate.
 pub(crate) const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3008,7 +2994,7 @@ pub(crate) const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescripto
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.agentDescribe.
 pub(crate) const RUNTIME_CORE_AGENT_DESCRIBE: BindingDescriptor =
@@ -3021,21 +3007,7 @@ pub(crate) const RUNTIME_CORE_AGENT_DESCRIBE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.runtimeClose.
 pub(crate) const RUNTIME_CORE_RUNTIME_CLOSE: BindingDescriptor =
@@ -3048,21 +3020,7 @@ pub(crate) const RUNTIME_CORE_RUNTIME_CLOSE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.runtimeCreate.
 pub(crate) const RUNTIME_CORE_RUNTIME_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3074,7 +3032,7 @@ pub(crate) const RUNTIME_CORE_RUNTIME_CREATE: BindingDescriptor = BindingDescrip
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.runtimeDescribe.
 pub(crate) const RUNTIME_CORE_RUNTIME_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3086,7 +3044,7 @@ pub(crate) const RUNTIME_CORE_RUNTIME_DESCRIBE: BindingDescriptor = BindingDescr
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.worldClose.
 pub(crate) const RUNTIME_CORE_WORLD_CLOSE: BindingDescriptor =
@@ -3099,21 +3057,7 @@ pub(crate) const RUNTIME_CORE_WORLD_CLOSE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.worldCreate.
 pub(crate) const RUNTIME_CORE_WORLD_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3125,7 +3069,7 @@ pub(crate) const RUNTIME_CORE_WORLD_CREATE: BindingDescriptor = BindingDescripto
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.worldDescribe.
 pub(crate) const RUNTIME_CORE_WORLD_DESCRIBE: BindingDescriptor =
@@ -3138,21 +3082,7 @@ pub(crate) const RUNTIME_CORE_WORLD_DESCRIBE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.core.worldTick.
 pub(crate) const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
@@ -3165,21 +3095,7 @@ pub(crate) const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.agentList.
 pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3191,7 +3107,7 @@ pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescript
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.agentView.
 pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3203,7 +3119,7 @@ pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescript
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.edgeList.
 pub(crate) const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3215,7 +3131,7 @@ pub(crate) const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescripto
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.edgeView.
 pub(crate) const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3227,7 +3143,7 @@ pub(crate) const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescripto
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.engineView.
 pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3239,7 +3155,7 @@ pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescrip
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.entityList.
 pub(crate) const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3251,7 +3167,7 @@ pub(crate) const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescrip
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.entityView.
 pub(crate) const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3263,7 +3179,7 @@ pub(crate) const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescrip
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.eventLoopView.
 pub(crate) const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3275,7 +3191,7 @@ pub(crate) const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDes
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.heapView.
 pub(crate) const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3287,7 +3203,7 @@ pub(crate) const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescripto
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.imageView.
 pub(crate) const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
@@ -3300,21 +3216,7 @@ pub(crate) const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.resourceList.
 pub(crate) const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3326,7 +3228,7 @@ pub(crate) const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescr
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.resourceView.
 pub(crate) const RUNTIME_INSPECT_RESOURCE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3338,7 +3240,7 @@ pub(crate) const RUNTIME_INSPECT_RESOURCE_VIEW: BindingDescriptor = BindingDescr
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.revisionView.
 pub(crate) const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3350,7 +3252,7 @@ pub(crate) const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescr
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.runtimeList.
 pub(crate) const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3362,7 +3264,7 @@ pub(crate) const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescri
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.runtimeView.
 pub(crate) const RUNTIME_INSPECT_RUNTIME_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3374,7 +3276,7 @@ pub(crate) const RUNTIME_INSPECT_RUNTIME_VIEW: BindingDescriptor = BindingDescri
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.traceView.
 pub(crate) const RUNTIME_INSPECT_TRACE_VIEW: BindingDescriptor =
@@ -3387,21 +3289,7 @@ pub(crate) const RUNTIME_INSPECT_TRACE_VIEW: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.worldView.
 pub(crate) const RUNTIME_INSPECT_WORLD_VIEW: BindingDescriptor =
@@ -3414,21 +3302,7 @@ pub(crate) const RUNTIME_INSPECT_WORLD_VIEW: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.worldViewClose.
 pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_CLOSE: BindingDescriptor =
@@ -3441,21 +3315,7 @@ pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_CLOSE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.inspect.worldViewOpen.
 pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3467,7 +3327,7 @@ pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_OPEN: BindingDescriptor = BindingDes
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.branchDescribe.
 pub(crate) const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3479,7 +3339,7 @@ pub(crate) const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDes
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.branchList.
 pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3491,7 +3351,7 @@ pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescrip
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointCreate.
 pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3503,7 +3363,7 @@ pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingD
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointDescribe.
 pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3515,7 +3375,7 @@ pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = Bindin
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointList.
 pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3527,7 +3387,7 @@ pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDes
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageCapture.
 pub(crate) const RUNTIME_LINEAGE_IMAGE_CAPTURE: BindingDescriptor =
@@ -3540,21 +3400,7 @@ pub(crate) const RUNTIME_LINEAGE_IMAGE_CAPTURE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageDescribe.
 pub(crate) const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3566,7 +3412,7 @@ pub(crate) const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDesc
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageList.
 pub(crate) const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3578,7 +3424,7 @@ pub(crate) const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescript
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.revisionDescribe.
 pub(crate) const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3590,7 +3436,7 @@ pub(crate) const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingD
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.revisionList.
 pub(crate) const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3602,7 +3448,7 @@ pub(crate) const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescr
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldBranch.
 pub(crate) const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
@@ -3615,21 +3461,7 @@ pub(crate) const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldFork.
 pub(crate) const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3641,7 +3473,7 @@ pub(crate) const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescript
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRevision.
 pub(crate) const RUNTIME_LINEAGE_WORLD_REVISION: BindingDescriptor =
@@ -3654,21 +3486,7 @@ pub(crate) const RUNTIME_LINEAGE_WORLD_REVISION: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRewindCheckpoint.
 pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3680,7 +3498,7 @@ pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT: BindingDescriptor = Bi
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRewindRevision.
 pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3692,7 +3510,7 @@ pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_REVISION: BindingDescriptor = Bind
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.observation.close.
 pub(crate) const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
@@ -3705,21 +3523,7 @@ pub(crate) const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.observation.next.
 pub(crate) const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3731,7 +3535,7 @@ pub(crate) const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.observation.open.
 pub(crate) const RUNTIME_OBSERVATION_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3743,7 +3547,7 @@ pub(crate) const RUNTIME_OBSERVATION_OPEN: BindingDescriptor = BindingDescriptor
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.create.
 pub(crate) const RUNTIME_SNAPSHOT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3755,7 +3559,7 @@ pub(crate) const RUNTIME_SNAPSHOT_CREATE: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.describe.
 pub(crate) const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3767,7 +3571,7 @@ pub(crate) const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescripto
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.import.
 pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3779,7 +3583,7 @@ pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.list.
 pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3791,7 +3595,7 @@ pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::d
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.read.
 pub(crate) const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3803,7 +3607,7 @@ pub(crate) const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::d
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.restoreImage.
 pub(crate) const RUNTIME_SNAPSHOT_RESTORE_IMAGE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3815,7 +3619,7 @@ pub(crate) const RUNTIME_SNAPSHOT_RESTORE_IMAGE: BindingDescriptor = BindingDesc
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.snapshot.restoreSnapshot.
 pub(crate) const RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3827,7 +3631,7 @@ pub(crate) const RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT: BindingDescriptor = BindingD
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.close.
 pub(crate) const RUNTIME_TRACE_CLOSE: BindingDescriptor =
@@ -3840,21 +3644,7 @@ pub(crate) const RUNTIME_TRACE_CLOSE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.describe.
 pub(crate) const RUNTIME_TRACE_DESCRIBE: BindingDescriptor =
@@ -3867,21 +3657,7 @@ pub(crate) const RUNTIME_TRACE_DESCRIBE: BindingDescriptor =
         BindingAffinity::Owner,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "wasi",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.mark.
 pub(crate) const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3893,7 +3669,7 @@ pub(crate) const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::dete
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.next.
 pub(crate) const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3905,7 +3681,7 @@ pub(crate) const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::dete
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.open.
 pub(crate) const RUNTIME_TRACE_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3917,7 +3693,7 @@ pub(crate) const RUNTIME_TRACE_OPEN: BindingDescriptor = BindingDescriptor::dete
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.seekCheckpoint.
 pub(crate) const RUNTIME_TRACE_SEEK_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3929,7 +3705,7 @@ pub(crate) const RUNTIME_TRACE_SEEK_CHECKPOINT: BindingDescriptor = BindingDescr
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.seekRevision.
 pub(crate) const RUNTIME_TRACE_SEEK_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3941,7 +3717,7 @@ pub(crate) const RUNTIME_TRACE_SEEK_REVISION: BindingDescriptor = BindingDescrip
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.seekSequence.
 pub(crate) const RUNTIME_TRACE_SEEK_SEQUENCE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3953,7 +3729,7 @@ pub(crate) const RUNTIME_TRACE_SEEK_SEQUENCE: BindingDescriptor = BindingDescrip
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Binding descriptor for destack.runtime.trace.tell.
 pub(crate) const RUNTIME_TRACE_TELL: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
@@ -3965,7 +3741,7 @@ pub(crate) const RUNTIME_TRACE_TELL: BindingDescriptor = BindingDescriptor::dete
     BindingAffinity::Owner,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "wasi", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
 
 /// Native binding set for runtime.
 pub(crate) const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

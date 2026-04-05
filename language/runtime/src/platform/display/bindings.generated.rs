@@ -11817,20 +11817,7 @@ pub(crate) const DISPLAY_BACKEND_LIST: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.begin.
 pub(crate) const DISPLAY_DRAG_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11844,7 +11831,7 @@ pub(crate) const DISPLAY_DRAG_BEGIN: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionClose.
 pub(crate) const DISPLAY_DRAG_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11858,7 +11845,7 @@ pub(crate) const DISPLAY_DRAG_SESSION_CLOSE: BindingDescriptor = BindingDescript
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionReadBytes.
 pub(crate) const DISPLAY_DRAG_SESSION_READ_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11872,7 +11859,7 @@ pub(crate) const DISPLAY_DRAG_SESSION_READ_BYTES: BindingDescriptor = BindingDes
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionReadPath.
 pub(crate) const DISPLAY_DRAG_SESSION_READ_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11886,7 +11873,7 @@ pub(crate) const DISPLAY_DRAG_SESSION_READ_PATH: BindingDescriptor = BindingDesc
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionReadText.
 pub(crate) const DISPLAY_DRAG_SESSION_READ_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11900,7 +11887,7 @@ pub(crate) const DISPLAY_DRAG_SESSION_READ_TEXT: BindingDescriptor = BindingDesc
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionSetOperation.
 pub(crate) const DISPLAY_DRAG_SESSION_SET_OPERATION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11914,7 +11901,7 @@ pub(crate) const DISPLAY_DRAG_SESSION_SET_OPERATION: BindingDescriptor = Binding
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginClose.
 pub(crate) const DISPLAY_FRAME_BEGIN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11928,7 +11915,7 @@ pub(crate) const DISPLAY_FRAME_BEGIN_CLOSE: BindingDescriptor = BindingDescripto
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginOpen.
 pub(crate) const DISPLAY_FRAME_BEGIN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11942,7 +11929,7 @@ pub(crate) const DISPLAY_FRAME_BEGIN_OPEN: BindingDescriptor = BindingDescriptor
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginRead.
 pub(crate) const DISPLAY_FRAME_BEGIN_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11956,7 +11943,7 @@ pub(crate) const DISPLAY_FRAME_BEGIN_READ: BindingDescriptor = BindingDescriptor
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginReadBatch.
 pub(crate) const DISPLAY_FRAME_BEGIN_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11970,7 +11957,7 @@ pub(crate) const DISPLAY_FRAME_BEGIN_READ_BATCH: BindingDescriptor = BindingDesc
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginTryRead.
 pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11984,7 +11971,7 @@ pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ: BindingDescriptor = BindingDescri
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginTryReadBatch.
 pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -11998,7 +11985,7 @@ pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ_BATCH: BindingDescriptor = Binding
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.close.
 pub(crate) const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
@@ -12013,20 +12000,7 @@ pub(crate) const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.closestMode.
 pub(crate) const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12040,7 +12014,7 @@ pub(crate) const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescri
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.colorState.
 pub(crate) const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12054,7 +12028,7 @@ pub(crate) const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescrip
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.currentMode.
 pub(crate) const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12068,7 +12042,7 @@ pub(crate) const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescri
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.descriptor.
 pub(crate) const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12082,7 +12056,7 @@ pub(crate) const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescript
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.desktopMode.
 pub(crate) const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12096,7 +12070,7 @@ pub(crate) const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescri
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventClose.
 pub(crate) const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12110,7 +12084,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescrip
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventOpen.
 pub(crate) const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12124,7 +12098,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescript
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventRead.
 pub(crate) const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12138,7 +12112,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescript
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventReadBatch.
 pub(crate) const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12152,7 +12126,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDe
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryRead.
 pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12166,7 +12140,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDesc
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryReadBatch.
 pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12180,7 +12154,7 @@ pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = Bindi
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.gammaRamp.
 pub(crate) const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12194,7 +12168,7 @@ pub(crate) const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescript
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.hdrMode.
 pub(crate) const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12208,7 +12182,7 @@ pub(crate) const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.list.
 pub(crate) const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12222,7 +12196,7 @@ pub(crate) const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.modes.
 pub(crate) const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12236,7 +12210,7 @@ pub(crate) const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.open.
 pub(crate) const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12250,7 +12224,7 @@ pub(crate) const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.primary.
 pub(crate) const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12264,7 +12238,7 @@ pub(crate) const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor:
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setGammaRamp.
 pub(crate) const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12278,7 +12252,7 @@ pub(crate) const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDesc
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setHdrMode.
 pub(crate) const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12292,7 +12266,7 @@ pub(crate) const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescri
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setMode.
 pub(crate) const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12306,7 +12280,7 @@ pub(crate) const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.beginMoveDrag.
 pub(crate) const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor =
@@ -12321,20 +12295,7 @@ pub(crate) const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.beginResizeDrag.
 pub(crate) const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12348,7 +12309,7 @@ pub(crate) const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDe
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.capabilities.
 pub(crate) const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12362,7 +12323,7 @@ pub(crate) const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescrip
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.close.
 pub(crate) const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
@@ -12377,20 +12338,7 @@ pub(crate) const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.contentRect.
 pub(crate) const DISPLAY_WINDOW_CONTENT_RECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12404,7 +12352,7 @@ pub(crate) const DISPLAY_WINDOW_CONTENT_RECT: BindingDescriptor = BindingDescrip
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.descriptor.
 pub(crate) const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12418,7 +12366,7 @@ pub(crate) const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescripto
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventClose.
 pub(crate) const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
@@ -12433,20 +12381,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventOpen.
 pub(crate) const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12460,7 +12395,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescripto
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventRead.
 pub(crate) const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12474,7 +12409,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescripto
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventReadBatch.
 pub(crate) const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12488,7 +12423,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDes
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryRead.
 pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12502,7 +12437,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescr
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryReadBatch.
 pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12516,7 +12451,7 @@ pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = Bindin
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.focus.
 pub(crate) const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
@@ -12531,20 +12466,7 @@ pub(crate) const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.framebufferSize.
 pub(crate) const DISPLAY_WINDOW_FRAMEBUFFER_SIZE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12558,7 +12480,7 @@ pub(crate) const DISPLAY_WINDOW_FRAMEBUFFER_SIZE: BindingDescriptor = BindingDes
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.invalidate.
 pub(crate) const DISPLAY_WINDOW_INVALIDATE: BindingDescriptor =
@@ -12573,20 +12495,7 @@ pub(crate) const DISPLAY_WINDOW_INVALIDATE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.maximize.
 pub(crate) const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor =
@@ -12601,20 +12510,7 @@ pub(crate) const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.minimize.
 pub(crate) const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor =
@@ -12629,20 +12525,7 @@ pub(crate) const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.opacity.
 pub(crate) const DISPLAY_WINDOW_OPACITY: BindingDescriptor =
@@ -12657,20 +12540,7 @@ pub(crate) const DISPLAY_WINDOW_OPACITY: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.open.
 pub(crate) const DISPLAY_WINDOW_OPEN: BindingDescriptor =
@@ -12685,20 +12555,7 @@ pub(crate) const DISPLAY_WINDOW_OPEN: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.raise.
 pub(crate) const DISPLAY_WINDOW_RAISE: BindingDescriptor =
@@ -12713,20 +12570,7 @@ pub(crate) const DISPLAY_WINDOW_RAISE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.renderState.
 pub(crate) const DISPLAY_WINDOW_RENDER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12740,7 +12584,7 @@ pub(crate) const DISPLAY_WINDOW_RENDER_STATE: BindingDescriptor = BindingDescrip
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.requestAttention.
 pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12754,7 +12598,7 @@ pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDe
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.restore.
 pub(crate) const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
@@ -12769,20 +12613,7 @@ pub(crate) const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setAlwaysOnTop.
 pub(crate) const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12796,7 +12627,7 @@ pub(crate) const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDe
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setAspectRatio.
 pub(crate) const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12810,7 +12641,7 @@ pub(crate) const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDes
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setChrome.
 pub(crate) const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12824,7 +12655,7 @@ pub(crate) const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescripto
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorIcon.
 pub(crate) const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12838,7 +12669,7 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDesc
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorMode.
 pub(crate) const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12852,7 +12683,7 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDesc
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorPosition.
 pub(crate) const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12866,7 +12697,7 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = Binding
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorVisible.
 pub(crate) const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12880,7 +12711,7 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingD
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setDecorated.
 pub(crate) const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12894,7 +12725,7 @@ pub(crate) const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescri
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setIcons.
 pub(crate) const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12908,7 +12739,7 @@ pub(crate) const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setModal.
 pub(crate) const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12922,7 +12753,7 @@ pub(crate) const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMode.
 pub(crate) const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12936,7 +12767,7 @@ pub(crate) const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor:
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMousePassthrough.
 pub(crate) const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12950,7 +12781,7 @@ pub(crate) const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = Bindi
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setOpacity.
 pub(crate) const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12964,7 +12795,7 @@ pub(crate) const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescript
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setParent.
 pub(crate) const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12978,7 +12809,7 @@ pub(crate) const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescripto
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setPosition.
 pub(crate) const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -12992,7 +12823,7 @@ pub(crate) const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescrip
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setResizable.
 pub(crate) const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13006,7 +12837,7 @@ pub(crate) const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescri
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeConstraints.
 pub(crate) const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13020,7 +12851,7 @@ pub(crate) const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = Bindin
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeLogical.
 pub(crate) const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13034,7 +12865,7 @@ pub(crate) const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDes
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizePhysical.
 pub(crate) const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13048,7 +12879,7 @@ pub(crate) const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDe
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTaskbarVisible.
 pub(crate) const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13062,7 +12893,7 @@ pub(crate) const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = Binding
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTitle.
 pub(crate) const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13076,7 +12907,7 @@ pub(crate) const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTransientFor.
 pub(crate) const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13090,7 +12921,7 @@ pub(crate) const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDe
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setVisibility.
 pub(crate) const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -13104,7 +12935,7 @@ pub(crate) const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescr
     BindingAffinity::EventLoop,
 )
     .with_namespace("display")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.state.
 pub(crate) const DISPLAY_WINDOW_STATE: BindingDescriptor =
@@ -13119,20 +12950,7 @@ pub(crate) const DISPLAY_WINDOW_STATE: BindingDescriptor =
         BindingAffinity::EventLoop,
     )
     .with_namespace("display")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for display.
 pub(crate) const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

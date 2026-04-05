@@ -19,22 +19,7 @@ use crate::platform::{PlatformError, VmArray, VmSlice, fs, resource};
 use crate::runtime::BindingCallContext;
 use destack_vm as vm;
 
-/// Report completion for one scheduled background-task execution.
-///
-/// Submit final execution status for one scheduled task execution token.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler completion APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.background.complete`.
 pub(crate) fn destack_os_background_complete(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -48,22 +33,7 @@ pub(crate) fn destack_os_background_complete(
     .boxed())
 }
 
-/// Close one background-task event stream.
-///
-/// Close one opened event stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host callback unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.background.event.close`.
 pub(crate) fn destack_os_background_event_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -76,22 +46,7 @@ pub(crate) fn destack_os_background_event_close(
     .boxed())
 }
 
-/// Open one background-task event stream.
-///
-/// Open one event stream for task-ready and expiration callbacks.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler callback bridges.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.background.event.open`.
 pub(crate) fn destack_os_background_event_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -104,22 +59,7 @@ pub(crate) fn destack_os_background_event_open(
     .boxed())
 }
 
-/// Wait for one background-task event.
-///
-/// Wait for one queued background-task event from one opened event stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.background.event.read`.
 pub(crate) fn destack_os_background_event_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -133,22 +73,7 @@ pub(crate) fn destack_os_background_event_read(
     .boxed())
 }
 
-/// Poll one background-task event without blocking.
-///
-/// Poll one queued background-task event from one opened event stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking background event queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.background.event.tryRead`.
 pub(crate) fn destack_os_background_event_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -161,22 +86,7 @@ pub(crate) fn destack_os_background_event_try_read(
     .boxed())
 }
 
-/// List background-task registrations.
-///
-/// Enumerate background-task registrations for this runtime identity.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler registration queries.
-///
-/// # Errors
-/// Returns ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.background.list`.
 pub(crate) fn destack_os_background_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -184,22 +94,7 @@ pub(crate) fn destack_os_background_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.background.list")).boxed())
 }
 
-/// Register one background task.
-///
-/// Create one background-task registration or resolve one existing identifier according to the selected registration policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler registration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.background.register`.
 pub(crate) fn destack_os_background_register(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -212,22 +107,7 @@ pub(crate) fn destack_os_background_register(
     .boxed())
 }
 
-/// Read background-task scheduler status.
-///
-/// Read the current background-task scheduler status for this host runtime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduler bridges on supported desktop platforms.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.background.status`.
 pub(crate) fn destack_os_background_status(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -235,22 +115,7 @@ pub(crate) fn destack_os_background_status(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.background.status")).boxed())
 }
 
-/// Trigger one background task for testing.
-///
-/// Ask the host scheduler to trigger one registered task immediately for development validation where supported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host developer test hooks where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.background.triggerTest`.
 pub(crate) fn destack_os_background_trigger_test(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -263,22 +128,7 @@ pub(crate) fn destack_os_background_trigger_test(
     .boxed())
 }
 
-/// Unregister one background task.
-///
-/// Remove one background-task registration by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.background.unregister`.
 pub(crate) fn destack_os_background_unregister(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -291,22 +141,7 @@ pub(crate) fn destack_os_background_unregister(
     .boxed())
 }
 
-/// Create one calendar event.
-///
-/// Create one host calendar event and return its stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar-write APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.calendar.eventCreate`.
 pub(crate) fn destack_os_calendar_event_create(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -319,22 +154,7 @@ pub(crate) fn destack_os_calendar_event_create(
     .boxed())
 }
 
-/// Delete one calendar event.
-///
-/// Delete one existing host calendar event by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar-delete APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.calendar.eventDelete`.
 pub(crate) fn destack_os_calendar_event_delete(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -347,22 +167,7 @@ pub(crate) fn destack_os_calendar_event_delete(
     .boxed())
 }
 
-/// List host calendar events.
-///
-/// Enumerate host calendar events over one selected UTC time range.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.calendar.eventList`.
 pub(crate) fn destack_os_calendar_event_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -375,22 +180,7 @@ pub(crate) fn destack_os_calendar_event_list(
     .boxed())
 }
 
-/// Read one host calendar event.
-///
-/// Read one host calendar event payload by stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.calendar.eventRead`.
 pub(crate) fn destack_os_calendar_event_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -403,22 +193,7 @@ pub(crate) fn destack_os_calendar_event_read(
     .boxed())
 }
 
-/// Update one calendar event.
-///
-/// Update one existing host calendar event by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar-write APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.calendar.eventUpdate`.
 pub(crate) fn destack_os_calendar_event_update(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -432,22 +207,7 @@ pub(crate) fn destack_os_calendar_event_update(
     .boxed())
 }
 
-/// List host calendars.
-///
-/// Enumerate readable host calendars and return descriptor metadata.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.calendar.list`.
 pub(crate) fn destack_os_calendar_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -455,22 +215,7 @@ pub(crate) fn destack_os_calendar_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.calendar.list")).boxed())
 }
 
-/// Create one contact.
-///
-/// Create one host contact record and return its stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host contact-write APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.contact.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.contact.create`.
 pub(crate) fn destack_os_contact_create(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -480,22 +225,7 @@ pub(crate) fn destack_os_contact_create(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.create")).boxed())
 }
 
-/// Delete one contact.
-///
-/// Delete one existing host contact by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host contact-delete APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.contact.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.contact.delete`.
 pub(crate) fn destack_os_contact_delete(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -505,22 +235,7 @@ pub(crate) fn destack_os_contact_delete(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.delete")).boxed())
 }
 
-/// List contacts.
-///
-/// Return one page of host contacts with one selected field set.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Contacts framework on Apple platforms, ContactsContract on Android, and address-book provider APIs on desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.contact.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.contact.list`.
 pub(crate) fn destack_os_contact_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -530,22 +245,7 @@ pub(crate) fn destack_os_contact_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.list")).boxed())
 }
 
-/// Read one contact by identifier.
-///
-/// Read one host contact payload by stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host contact read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.contact.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.contact.read`.
 pub(crate) fn destack_os_contact_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -555,22 +255,7 @@ pub(crate) fn destack_os_contact_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.read")).boxed())
 }
 
-/// Search contacts.
-///
-/// Return one page of host contacts matching one backend query string.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host contact search APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.contact.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.contact.search`.
 pub(crate) fn destack_os_contact_search(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -581,22 +266,7 @@ pub(crate) fn destack_os_contact_search(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.search")).boxed())
 }
 
-/// Update one contact.
-///
-/// Update one existing host contact by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host contact-write APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.contact.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.contact.update`.
 pub(crate) fn destack_os_contact_update(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -607,25 +277,7 @@ pub(crate) fn destack_os_contact_update(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.contact.update")).boxed())
 }
 
-/// Request one host credential authentication challenge.
-///
-/// Request one host authentication challenge and return challenge outcome.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses keychain authentication prompts on Apple platforms, host callback bridge lanes on Android, and Windows CredUI prompt lanes for `BiometricOrDeviceCredential`.
-/// Windows `Biometric` requests use Windows Biometric Framework lanes where available.
-/// Windows `DeviceCredential` requests use CredUI prompt plus host logon verification lanes.
-/// Linux and other unsupported Unix hosts return `notSupported`.
-///
-/// # Errors
-/// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.credentials.auth`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.credentials.authenticate`.
 pub(crate) fn destack_os_credentials_authenticate(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -638,24 +290,7 @@ pub(crate) fn destack_os_credentials_authenticate(
     .boxed())
 }
 
-/// Query credential presence.
-///
-/// Return whether one credential record exists for one service and account pair.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host credential-query APIs.
-/// Optional access-group routing is honored on Apple keychain backends and Android host callback backends.
-/// Returns `notSupported` on backends without access-group lanes.
-///
-/// # Errors
-/// Returns invalidArgumentValue, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.credentials.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.credentials.contains`.
 pub(crate) fn destack_os_credentials_contains(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -670,24 +305,7 @@ pub(crate) fn destack_os_credentials_contains(
     .boxed())
 }
 
-/// Delete one credential record.
-///
-/// Delete one secure credential payload from host credential store.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host credential-delete APIs.
-/// Optional access-group routing is honored on Apple keychain backends and Android host callback backends.
-/// Returns `notSupported` on backends without access-group lanes.
-///
-/// # Errors
-/// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.credentials.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.credentials.delete`.
 pub(crate) fn destack_os_credentials_delete(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -702,22 +320,7 @@ pub(crate) fn destack_os_credentials_delete(
     .boxed())
 }
 
-/// Read one credential record.
-///
-/// Read one secure credential payload from host credential store.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Keychain on Apple platforms, host callback bridge lanes on Android, Windows Credential Manager, and Linux keyutils plus Secret Service credential stores where available.
-///
-/// # Errors
-/// Returns invalidArgumentValue, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.credentials.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.credentials.read`.
 pub(crate) fn destack_os_credentials_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -727,23 +330,7 @@ pub(crate) fn destack_os_credentials_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.credentials.read")).boxed())
 }
 
-/// Write one credential record.
-///
-/// Create or replace one secure credential payload in host credential store.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host credential-write APIs.
-/// `replaceExisting=false` is strict within one runtime process and best effort across concurrent external writers.
-///
-/// # Errors
-/// Returns invalidArgumentValue, ioAlreadyExists, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.credentials.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.credentials.write`.
 pub(crate) fn destack_os_credentials_write(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -753,22 +340,7 @@ pub(crate) fn destack_os_credentials_write(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.credentials.write")).boxed())
 }
 
-/// Close one opened document handle.
-///
-/// Close one opened document-provider handle and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host descriptor close APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.close`.
 pub(crate) fn destack_os_document_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -778,22 +350,7 @@ pub(crate) fn destack_os_document_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.close")).boxed())
 }
 
-/// Flush one opened document handle.
-///
-/// Flush buffered outbound document bytes for one opened handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider flush APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.flush`.
 pub(crate) fn destack_os_document_flush(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -803,22 +360,7 @@ pub(crate) fn destack_os_document_flush(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.flush")).boxed())
 }
 
-/// Open one document URI.
-///
-/// Open one host document-provider URI from one prior picker result with one selected access mode.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider open APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.open`.
 pub(crate) fn destack_os_document_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -829,22 +371,7 @@ pub(crate) fn destack_os_document_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.open")).boxed())
 }
 
-/// Close one document-picker transaction.
-///
-/// Close one document-picker transaction handle and release host routing state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host picker callback unregistration and runtime resource cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.pickClose`.
 pub(crate) fn destack_os_document_pick_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -857,22 +384,7 @@ pub(crate) fn destack_os_document_pick_close(
     .boxed())
 }
 
-/// Open one document-picker transaction.
-///
-/// Start one host document-picker interaction and return one transaction handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, common file dialogs on Windows, and desktop file-picker bridges or portals on Unix desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.pickOpen`.
 pub(crate) fn destack_os_document_pick_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -882,22 +394,7 @@ pub(crate) fn destack_os_document_pick_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.pickOpen")).boxed())
 }
 
-/// Wait for one document-picker result.
-///
-/// Wait for the completion of one earlier document-picker transaction.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host picker completion queues and runtime transaction state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.pickRead`.
 pub(crate) fn destack_os_document_pick_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -908,22 +405,7 @@ pub(crate) fn destack_os_document_pick_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.pickRead")).boxed())
 }
 
-/// Poll one document-picker result without blocking.
-///
-/// Poll the completion of one earlier document-picker transaction without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host picker completion queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.pickTryRead`.
 pub(crate) fn destack_os_document_pick_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -936,22 +418,7 @@ pub(crate) fn destack_os_document_pick_try_read(
     .boxed())
 }
 
-/// Read one chunk of document bytes.
-///
-/// Read up to `maxBytes` from one opened document handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.document.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.read`.
 pub(crate) fn destack_os_document_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -963,22 +430,7 @@ pub(crate) fn destack_os_document_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.read")).boxed())
 }
 
-/// Poll one chunk of document bytes without blocking.
-///
-/// Read up to `maxBytes` from one opened document handle without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking document-provider read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.tryRead`.
 pub(crate) fn destack_os_document_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -989,22 +441,7 @@ pub(crate) fn destack_os_document_try_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.tryRead")).boxed())
 }
 
-/// Write one chunk of document bytes.
-///
-/// Write one byte chunk into one opened document handle and return written byte count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.document.write`.
 pub(crate) fn destack_os_document_write(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1016,23 +453,7 @@ pub(crate) fn destack_os_document_write(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.document.write")).boxed())
 }
 
-/// Read host identity.
-///
-/// Return one normalized host identity payload.
-/// Identity fields are sourced from host kernel and runtime normalization rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses uname and hostname APIs on Unix and host identity APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.hostname`, `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.host.identity`.
 pub(crate) fn destack_os_host_identity(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1040,23 +461,7 @@ pub(crate) fn destack_os_host_identity(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.host.identity")).boxed())
 }
 
-/// Read host boot time.
-///
-/// Return the Unix timestamp for host boot time in nanoseconds.
-/// Timestamp origin and precision follow host timekeeping interfaces.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses boot-time sysctl or procfs style sources on Unix and boot-time system info on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.info.bootTimeUnixNs`.
 pub(crate) fn destack_os_boot_time_unix_ns(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1067,23 +472,7 @@ pub(crate) fn destack_os_boot_time_unix_ns(
     .boxed())
 }
 
-/// Read host load averages.
-///
-/// Return host load averages over one, five, and fifteen minute windows.
-/// Values reflect host scheduler accounting and may be unavailable on some kernels.
-///
-/// # Platform
-/// Unix only.
-/// Uses getloadavg style interfaces or kernel load-average exports.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.info.loadAverage`.
 pub(crate) fn destack_os_load_average(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1091,23 +480,7 @@ pub(crate) fn destack_os_load_average(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.info.loadAverage")).boxed())
 }
 
-/// Read host system information.
-///
-/// Return one normalized system-information payload.
-/// Topology and capacity fields are sampled from host APIs at call time.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sysconf/sysinfo-style APIs on Unix and GlobalMemoryStatusEx plus processor APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.info.systemSnapshot`.
 pub(crate) fn destack_os_system_snapshot(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1118,23 +491,7 @@ pub(crate) fn destack_os_system_snapshot(
     .boxed())
 }
 
-/// Read host uptime.
-///
-/// Return host uptime in nanoseconds from system boot.
-/// Uptime source follows host monotonic uptime facilities.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses clock_gettime style uptime on Unix and GetTickCount64 style uptime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.info.uptimeNs`.
 pub(crate) fn destack_os_uptime_ns(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1142,22 +499,7 @@ pub(crate) fn destack_os_uptime_ns(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.info.uptimeNs")).boxed())
 }
 
-/// Query whether host can route one URL target.
-///
-/// Ask host routing policy whether one URL target can be opened.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host routing queries where the current target exposes them and launcher discovery elsewhere.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.intent.canOpenUrl`.
 pub(crate) fn destack_os_intent_can_open_url(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1167,22 +509,7 @@ pub(crate) fn destack_os_intent_can_open_url(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.canOpenUrl")).boxed())
 }
 
-/// Close one host intent stream.
-///
-/// Close one opened host intent stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent bridge unregistration where the active host exposes one inbound stream.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.intent.close`.
 pub(crate) fn destack_os_intent_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1192,22 +519,7 @@ pub(crate) fn destack_os_intent_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.close")).boxed())
 }
 
-/// Open one host intent stream.
-///
-/// Open one inbound host intent stream for activation and share payload events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent bridges where the active host integrates activation or share ingress.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.intent.open`.
 pub(crate) fn destack_os_intent_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1217,22 +529,7 @@ pub(crate) fn destack_os_intent_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.open")).boxed())
 }
 
-/// Request host to open one file path target.
-///
-/// Ask host shell or app framework to open one file path with default routing.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host default path routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.intent.openPath`.
 pub(crate) fn destack_os_intent_open_path(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1242,22 +539,7 @@ pub(crate) fn destack_os_intent_open_path(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.openPath")).boxed())
 }
 
-/// Request host to open one URL target.
-///
-/// Ask host shell or app framework to open one URL with default routing.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host default URL routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.intent.openUrl`.
 pub(crate) fn destack_os_intent_open_url(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1267,22 +549,7 @@ pub(crate) fn destack_os_intent_open_url(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.openUrl")).boxed())
 }
 
-/// Wait for one inbound intent event.
-///
-/// Wait for one queued inbound intent event from one opened intent stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent queues where the active host delivers activation or share ingress.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.intent.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.intent.read`.
 pub(crate) fn destack_os_intent_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1293,22 +560,7 @@ pub(crate) fn destack_os_intent_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.read")).boxed())
 }
 
-/// Share file paths through host share routing.
-///
-/// Ask host share infrastructure to present one file list to target applications.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host share routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.intent.sharePaths`.
 pub(crate) fn destack_os_intent_share_paths(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1319,22 +571,7 @@ pub(crate) fn destack_os_intent_share_paths(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.sharePaths")).boxed())
 }
 
-/// Share one text payload through host share routing.
-///
-/// Ask host share infrastructure to present one text payload to target applications.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host share routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.intent.shareText`.
 pub(crate) fn destack_os_intent_share_text(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1345,22 +582,7 @@ pub(crate) fn destack_os_intent_share_text(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.shareText")).boxed())
 }
 
-/// Poll one inbound intent event without blocking.
-///
-/// Poll one queued inbound intent event from one opened intent stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent queues where the active host delivers activation or share ingress.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.intent.tryRead`.
 pub(crate) fn destack_os_intent_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1370,22 +592,7 @@ pub(crate) fn destack_os_intent_try_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.intent.tryRead")).boxed())
 }
 
-/// Close lifecycle event stream.
-///
-/// Close one lifecycle event stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host callback unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.lifecycle.close`.
 pub(crate) fn destack_os_lifecycle_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1395,22 +602,7 @@ pub(crate) fn destack_os_lifecycle_close(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.close")).boxed())
 }
 
-/// Open lifecycle event stream.
-///
-/// Open one lifecycle event stream for runtime lifecycle transitions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host application lifecycle callback bridges.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.lifecycle.open`.
 pub(crate) fn destack_os_lifecycle_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1418,22 +610,7 @@ pub(crate) fn destack_os_lifecycle_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.open")).boxed())
 }
 
-/// Wait for one lifecycle event.
-///
-/// Wait for one lifecycle event from one opened stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host lifecycle event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.lifecycle.read`.
 pub(crate) fn destack_os_lifecycle_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1444,22 +621,7 @@ pub(crate) fn destack_os_lifecycle_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.read")).boxed())
 }
 
-/// Read current lifecycle state.
-///
-/// Return the current runtime lifecycle state from the host integration layer.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host application lifecycle bridges on desktop and mobile platforms.
-///
-/// # Errors
-/// Returns ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.lifecycle.state`.
 pub(crate) fn destack_os_lifecycle_state(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1467,22 +629,7 @@ pub(crate) fn destack_os_lifecycle_state(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.state")).boxed())
 }
 
-/// Poll one lifecycle event without blocking.
-///
-/// Poll one lifecycle event from one opened stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host lifecycle event queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.lifecycle.tryRead`.
 pub(crate) fn destack_os_lifecycle_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1492,22 +639,7 @@ pub(crate) fn destack_os_lifecycle_try_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.lifecycle.tryRead")).boxed())
 }
 
-/// Read last known location sample.
-///
-/// Read one cached location sample from the host location service.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses CoreLocation on Apple platforms, FusedLocationProvider or LocationManager on Android, and Geolocator on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.location.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.location.lastKnown`.
 pub(crate) fn destack_os_location_last_known(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1518,22 +650,7 @@ pub(crate) fn destack_os_location_last_known(
     .boxed())
 }
 
-/// Read whether host location services are enabled.
-///
-/// Read global host location-service availability before per-runtime authorization checks.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location service-status APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.location.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.location.servicesEnabled`.
 pub(crate) fn destack_os_location_services_enabled(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1544,22 +661,7 @@ pub(crate) fn destack_os_location_services_enabled(
     .boxed())
 }
 
-/// Close location watch stream.
-///
-/// Close one location watch stream and release host subscription resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location unsubscription APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.location.watchClose`.
 pub(crate) fn destack_os_location_watch_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1572,22 +674,7 @@ pub(crate) fn destack_os_location_watch_close(
     .boxed())
 }
 
-/// Open location watch stream.
-///
-/// Open one location watch stream with one selected update policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location subscription APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.location.watchOpen`.
 pub(crate) fn destack_os_location_watch_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1600,22 +687,7 @@ pub(crate) fn destack_os_location_watch_open(
     .boxed())
 }
 
-/// Wait for one location sample.
-///
-/// Wait for one location sample from one opened location watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location update queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.location.watchRead`.
 pub(crate) fn destack_os_location_watch_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1629,22 +701,7 @@ pub(crate) fn destack_os_location_watch_read(
     .boxed())
 }
 
-/// Poll one location sample without blocking.
-///
-/// Poll one location sample from one opened location watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host location update queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.location.watchTryRead`.
 pub(crate) fn destack_os_location_watch_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1657,22 +714,7 @@ pub(crate) fn destack_os_location_watch_try_read(
     .boxed())
 }
 
-/// Delete media assets by identifier.
-///
-/// Delete host media assets and return deleted asset count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library delete APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.media.delete`.
 pub(crate) fn destack_os_media_delete(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1682,22 +724,7 @@ pub(crate) fn destack_os_media_delete(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.delete")).boxed())
 }
 
-/// Import one file path into host media library.
-///
-/// Import one file from one runtime-visible path and return one created media identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.write`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.media.importPath`.
 pub(crate) fn destack_os_media_import_path(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1708,22 +735,7 @@ pub(crate) fn destack_os_media_import_path(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.importPath")).boxed())
 }
 
-/// List media assets.
-///
-/// Return one page of host media assets for one query.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.media.list`.
 pub(crate) fn destack_os_media_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1733,22 +745,7 @@ pub(crate) fn destack_os_media_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.list")).boxed())
 }
 
-/// Read one media asset descriptor.
-///
-/// Read one host media asset descriptor by stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.media.read`.
 pub(crate) fn destack_os_media_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1758,23 +755,7 @@ pub(crate) fn destack_os_media_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.media.read")).boxed())
 }
 
-/// Enumerate mount table entries.
-///
-/// Return one snapshot of the current host mount table.
-/// Entry shape is normalized but field availability and flag bit layout are host-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mount table APIs on Unix and volume enumeration APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.mount`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.mount.list`.
 pub(crate) fn destack_os_mount_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1782,22 +763,7 @@ pub(crate) fn destack_os_mount_list(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.mount.list")).boxed())
 }
 
-/// Read host network state.
-///
-/// Read one point-in-time host network state snapshot.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host network state facilities.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.network.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.network.state`.
 pub(crate) fn destack_os_network_state(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1805,22 +771,7 @@ pub(crate) fn destack_os_network_state(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.network.state")).boxed())
 }
 
-/// Close host network watch stream.
-///
-/// Close one host network watch stream and release host subscription resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime watch state cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.network.watchClose`.
 pub(crate) fn destack_os_network_watch_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1833,22 +784,7 @@ pub(crate) fn destack_os_network_watch_close(
     .boxed())
 }
 
-/// Open host network watch stream.
-///
-/// Open one host network watch stream for connectivity state transitions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host network state facilities and runtime watch state.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.network.watchOpen`.
 pub(crate) fn destack_os_network_watch_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1856,22 +792,7 @@ pub(crate) fn destack_os_network_watch_open(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.network.watchOpen")).boxed())
 }
 
-/// Wait for one host network event.
-///
-/// Wait for one queued host network event from one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime network watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.network.watchRead`.
 pub(crate) fn destack_os_network_watch_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1882,22 +803,7 @@ pub(crate) fn destack_os_network_watch_read(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.network.watchRead")).boxed())
 }
 
-/// Poll one host network event without blocking.
-///
-/// Poll one queued host network event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime network watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.network.watchTryRead`.
 pub(crate) fn destack_os_network_watch_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1910,22 +816,7 @@ pub(crate) fn destack_os_network_watch_try_read(
     .boxed())
 }
 
-/// Cancel host notification.
-///
-/// Cancel one previously posted host notification by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification cancellation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.cancel`.
 pub(crate) fn destack_os_notification_cancel(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1938,22 +829,7 @@ pub(crate) fn destack_os_notification_cancel(
     .boxed())
 }
 
-/// Cancel all host notifications for this runtime context.
-///
-/// Cancel all currently posted host notifications owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification cancellation APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.cancelAll`.
 pub(crate) fn destack_os_notification_cancel_all(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1964,22 +840,7 @@ pub(crate) fn destack_os_notification_cancel_all(
     .boxed())
 }
 
-/// List notification categories.
-///
-/// Enumerate registered host notification categories for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification category query APIs where available.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.notification.categoryList`.
 pub(crate) fn destack_os_notification_category_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -1990,22 +851,7 @@ pub(crate) fn destack_os_notification_category_list(
     .boxed())
 }
 
-/// Register notification categories.
-///
-/// Register host notification categories and actions for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification category registration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.categorySet`.
 pub(crate) fn destack_os_notification_category_set(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2018,22 +864,7 @@ pub(crate) fn destack_os_notification_category_set(
     .boxed())
 }
 
-/// Close one notification event stream.
-///
-/// Close one opened event stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host callback unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.event.close`.
 pub(crate) fn destack_os_notification_event_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2046,22 +877,7 @@ pub(crate) fn destack_os_notification_event_close(
     .boxed())
 }
 
-/// Open one notification event stream.
-///
-/// Open one event stream for delivered, interacted, and dismissed notification events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification callback bridges.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.event.open`.
 pub(crate) fn destack_os_notification_event_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2074,22 +890,7 @@ pub(crate) fn destack_os_notification_event_open(
     .boxed())
 }
 
-/// Wait for one notification event.
-///
-/// Wait for one queued notification event from one opened event stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.event.read`.
 pub(crate) fn destack_os_notification_event_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2103,22 +904,7 @@ pub(crate) fn destack_os_notification_event_read(
     .boxed())
 }
 
-/// Poll one notification event without blocking.
-///
-/// Poll one queued notification event from one opened event stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking notification event queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.event.tryRead`.
 pub(crate) fn destack_os_notification_event_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2131,22 +917,7 @@ pub(crate) fn destack_os_notification_event_try_read(
     .boxed())
 }
 
-/// Cancel pending scheduled notification.
-///
-/// Cancel one pending scheduled host notification by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduled-notification cancellation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.pendingCancel`.
 pub(crate) fn destack_os_notification_pending_cancel(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2159,22 +930,7 @@ pub(crate) fn destack_os_notification_pending_cancel(
     .boxed())
 }
 
-/// Cancel all pending scheduled notifications.
-///
-/// Cancel all pending scheduled notifications owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduled-notification cancellation APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.pendingCancelAll`.
 pub(crate) fn destack_os_notification_pending_cancel_all(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2185,22 +941,7 @@ pub(crate) fn destack_os_notification_pending_cancel_all(
     .boxed())
 }
 
-/// List pending scheduled notifications.
-///
-/// Enumerate pending notification requests owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host pending-notification query APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.notification.pendingList`.
 pub(crate) fn destack_os_notification_pending_list(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2211,22 +952,7 @@ pub(crate) fn destack_os_notification_pending_list(
     .boxed())
 }
 
-/// Read host notification permission state.
-///
-/// Return current host notification permission state for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification authorization APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.notification.permissionState`.
 pub(crate) fn destack_os_notification_permission_state(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2237,22 +963,7 @@ pub(crate) fn destack_os_notification_permission_state(
     .boxed())
 }
 
-/// Post host notification.
-///
-/// Submit one host notification request and return one host notification identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification center APIs on each platform.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.post`.
 pub(crate) fn destack_os_notification_post(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2262,22 +973,7 @@ pub(crate) fn destack_os_notification_post(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.notification.post")).boxed())
 }
 
-/// Close one notification-permission request transaction.
-///
-/// Close one notification-permission request transaction handle and release host routing state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification callback unregistration and runtime resource cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.requestPermissionClose`.
 pub(crate) fn destack_os_notification_request_permission_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2290,22 +986,7 @@ pub(crate) fn destack_os_notification_request_permission_close(
     .boxed())
 }
 
-/// Open one notification-permission request transaction.
-///
-/// Start one host notification authorization request and return one transaction handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification permission request APIs where supported.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.requestPermissionOpen`.
 pub(crate) fn destack_os_notification_request_permission_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2316,22 +997,7 @@ pub(crate) fn destack_os_notification_request_permission_open(
     .boxed())
 }
 
-/// Wait for one notification-permission result.
-///
-/// Wait for the completion of one earlier notification-permission transaction.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification permission completion queues and runtime transaction state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.requestPermissionRead`.
 pub(crate) fn destack_os_notification_request_permission_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2345,22 +1011,7 @@ pub(crate) fn destack_os_notification_request_permission_read(
     .boxed())
 }
 
-/// Poll one notification-permission result without blocking.
-///
-/// Poll the completion of one earlier notification-permission transaction without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host notification permission completion queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.requestPermissionTryRead`.
 pub(crate) fn destack_os_notification_request_permission_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2373,22 +1024,7 @@ pub(crate) fn destack_os_notification_request_permission_try_read(
     .boxed())
 }
 
-/// Schedule host notification.
-///
-/// Schedule one host notification request for deferred delivery according to trigger policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification scheduling APIs on each platform.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.notification.schedule`.
 pub(crate) fn destack_os_notification_schedule(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2401,22 +1037,7 @@ pub(crate) fn destack_os_notification_schedule(
     .boxed())
 }
 
-/// Open host settings for runtime permissions.
-///
-/// Request host navigation to the runtime permission settings page.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host settings-intent APIs when available.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.permission.openSettings`.
 pub(crate) fn destack_os_permission_open_settings(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2427,22 +1048,7 @@ pub(crate) fn destack_os_permission_open_settings(
     .boxed())
 }
 
-/// Close one permission-request transaction.
-///
-/// Close one permission-request transaction handle and release host routing state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission callback unregistration and runtime resource cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.permission.requestClose`.
 pub(crate) fn destack_os_permission_request_close(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2455,22 +1061,7 @@ pub(crate) fn destack_os_permission_request_close(
     .boxed())
 }
 
-/// Open one multi-permission request transaction.
-///
-/// Start one host authorization request for one permission selector list and return one transaction handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission-request dialogs and policy APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.permission.requestManyOpen`.
 pub(crate) fn destack_os_permission_request_many_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2483,22 +1074,7 @@ pub(crate) fn destack_os_permission_request_many_open(
     .boxed())
 }
 
-/// Open one permission-request transaction.
-///
-/// Start one host authorization request for one permission selector and return one transaction handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission-request dialogs and policy APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.permission.requestOpen`.
 pub(crate) fn destack_os_permission_request_open(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2511,22 +1087,7 @@ pub(crate) fn destack_os_permission_request_open(
     .boxed())
 }
 
-/// Wait for one permission-request result.
-///
-/// Wait for the completion of one earlier permission-request transaction.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission completion queues and runtime transaction state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.permission.requestRead`.
 pub(crate) fn destack_os_permission_request_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2540,22 +1101,7 @@ pub(crate) fn destack_os_permission_request_read(
     .boxed())
 }
 
-/// Poll one permission-request result without blocking.
-///
-/// Poll the completion of one earlier permission-request transaction without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host permission completion queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.permission.request`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.permission.requestTryRead`.
 pub(crate) fn destack_os_permission_request_try_read(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2568,22 +1114,7 @@ pub(crate) fn destack_os_permission_request_try_read(
     .boxed())
 }
 
-/// Read one permission state.
-///
-/// Read the current host permission state for one permission selector.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission-state APIs on Android and Apple platforms, and host policy bridges on desktop platforms.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.permission.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.permission.state`.
 pub(crate) fn destack_os_permission_state(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2593,22 +1124,7 @@ pub(crate) fn destack_os_permission_state(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.permission.state")).boxed())
 }
 
-/// Read permission states.
-///
-/// Read current host permission states for one selector list.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host permission-state APIs and policy bridges.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.permission.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.permission.stateMany`.
 pub(crate) fn destack_os_permission_state_many(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2621,24 +1137,7 @@ pub(crate) fn destack_os_permission_state_many(
     .boxed())
 }
 
-/// Read current host power state.
-///
-/// Return one normalized host power-state classification.
-/// State mapping follows runtime normalization over host power APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host power-management APIs where supported by the active backend.
-/// Unsupported Unix hosts may return `notSupported` until a host integration exists.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.power`.
-///
-/// # Replay
-/// External, recordable.
+/// Simulation binding for `destack.os.power.state`.
 pub(crate) fn destack_os_power_state(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,
@@ -2646,26 +1145,7 @@ pub(crate) fn destack_os_power_state(
     Err(RuntimeError::from(PlatformError::not_supported("destack.os.power.state")).boxed())
 }
 
-/// Request host suspend.
-///
-/// Request one host suspend transition through platform power APIs.
-/// Request acceptance and timing are host-policy and privilege dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host power-management APIs where supported.
-/// macOS and Windows desktop hosts support suspend.
-/// Linux hosts may support suspend through the kernel power-state interface when available.
-/// Android and other Unix hosts may return `notSupported` where no suspend integration exists.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.power`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Simulation binding for `destack.os.power.suspend`.
 pub(crate) fn destack_os_suspend(
     _binding: &BindingCallContext,
     _context: &mut vm::ExternalCallContext<'_>,

@@ -955,20 +955,7 @@ pub(crate) const TTY_HANDLE_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.isTerminalFile.
 pub(crate) const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
@@ -983,20 +970,7 @@ pub(crate) const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.stdioStderr.
 pub(crate) const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
@@ -1011,20 +985,7 @@ pub(crate) const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.stdioStdin.
 pub(crate) const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
@@ -1039,20 +1000,7 @@ pub(crate) const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.stdioStdout.
 pub(crate) const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
@@ -1067,20 +1015,7 @@ pub(crate) const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.io.read.
 pub(crate) const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1094,7 +1029,7 @@ pub(crate) const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_wi
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.io.write.
 pub(crate) const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1108,7 +1043,7 @@ pub(crate) const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.mode.getMode.
 pub(crate) const TTY_MODE_GET_MODE: BindingDescriptor =
@@ -1123,20 +1058,7 @@ pub(crate) const TTY_MODE_GET_MODE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.mode.setMode.
 pub(crate) const TTY_MODE_SET_MODE: BindingDescriptor =
@@ -1151,20 +1073,7 @@ pub(crate) const TTY_MODE_SET_MODE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.mode.setRawMode.
 pub(crate) const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1178,7 +1087,7 @@ pub(crate) const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.pty.close.
 pub(crate) const TTY_PTY_CLOSE: BindingDescriptor =
@@ -1193,20 +1102,7 @@ pub(crate) const TTY_PTY_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.pty.open.
 pub(crate) const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1220,7 +1116,7 @@ pub(crate) const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_w
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.size.getSize.
 pub(crate) const TTY_SIZE_GET_SIZE: BindingDescriptor =
@@ -1235,20 +1131,7 @@ pub(crate) const TTY_SIZE_GET_SIZE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.size.setSize.
 pub(crate) const TTY_SIZE_SET_SIZE: BindingDescriptor =
@@ -1263,20 +1146,7 @@ pub(crate) const TTY_SIZE_SET_SIZE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.termios.drain.
 pub(crate) const TTY_TERMIOS_DRAIN: BindingDescriptor =
@@ -1291,19 +1161,7 @@ pub(crate) const TTY_TERMIOS_DRAIN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tty")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.flow.
 pub(crate) const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1317,7 +1175,7 @@ pub(crate) const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.flush.
 pub(crate) const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1331,7 +1189,7 @@ pub(crate) const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.getAttributes.
 pub(crate) const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1345,7 +1203,7 @@ pub(crate) const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.getProcessGroup.
 pub(crate) const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1359,7 +1217,7 @@ pub(crate) const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.sendBreak.
 pub(crate) const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1373,7 +1231,7 @@ pub(crate) const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.setAttributes.
 pub(crate) const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1387,7 +1245,7 @@ pub(crate) const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.setProcessGroup.
 pub(crate) const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1401,7 +1259,7 @@ pub(crate) const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Native binding set for tty.
 pub(crate) const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

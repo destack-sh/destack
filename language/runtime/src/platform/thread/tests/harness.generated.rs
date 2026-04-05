@@ -82,23 +82,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Create one thread-local key.
-    ///
-    /// Allocate one runtime thread-local storage key.
-    /// Key lifetime is explicit and must be released with delete.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread TLS keys on Unix and TlsAlloc on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.local`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_local_create(
         &mut self,
     ) -> RuntimeResult<resource::ThreadLocalKey> {
@@ -121,23 +105,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Delete one thread-local key.
-    ///
-    /// Release one thread-local key and associated host resources.
-    /// Existing per-thread values become invalid after deletion.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread TLS key deletion on Unix and TlsFree on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.local`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_local_delete(
         &mut self,
         key: resource::ThreadLocalKey,
@@ -150,23 +118,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Read one thread-local value.
-    ///
-    /// Read one machine-word value from one thread-local key.
-    /// Value interpretation is caller-defined and ABI-dependent.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread TLS storage on Unix and TlsGetValue on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.local`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_local_get(
         &mut self,
         key: resource::ThreadLocalKey,
@@ -191,23 +143,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Store one thread-local value.
-    ///
-    /// Write one machine-word value into one thread-local key.
-    /// Value interpretation is caller-defined and ABI-dependent.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread TLS storage on Unix and TlsSetValue on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.local`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_local_set(
         &mut self,
         key: resource::ThreadLocalKey,
@@ -223,24 +159,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Read thread CPU affinity.
-    ///
-    /// Read one thread logical-processor affinity set.
-    /// Unix targets always report group `0`.
-    /// Windows reports group-local logical processors for the active thread affinity.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread affinity APIs on Unix and GetThreadGroupAffinity on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sched`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_get_affinity(
         &mut self,
         handle: resource::ThreadHandle,
@@ -266,23 +185,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Read thread priority.
-    ///
-    /// Read one thread priority value from host scheduler state.
-    /// Priority value normalization is runtime-defined per host.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread scheduling APIs on Unix and GetThreadPriority on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sched`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_get_priority(
         &mut self,
         handle: resource::ThreadHandle,
@@ -308,24 +211,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Set thread CPU affinity.
-    ///
-    /// Bind one thread to one set of logical processors.
-    /// Unix targets interpret every entry with group `0`.
-    /// Windows maps entries to processor groups and group-local logical processors.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread affinity APIs on Unix and SetThreadGroupAffinity on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sched`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_set_affinity(
         &mut self,
         handle: resource::ThreadHandle,
@@ -343,23 +229,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Set thread priority.
-    ///
-    /// Set one thread priority value using host scheduler controls.
-    /// Priority range and interpretation are host-specific.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread scheduling APIs on Unix and SetThreadPriority on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.sched`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_set_priority(
         &mut self,
         handle: resource::ThreadHandle,
@@ -375,23 +245,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Detach one host thread.
-    ///
-    /// Detach one thread from join tracking.
-    /// Detached thread lifecycle and cleanup are host-managed.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses pthread_detach on Unix and handle-release semantics on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.spawn`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_detach(
         &mut self,
         handle: resource::ThreadHandle,
@@ -402,23 +256,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Join one host thread.
-    ///
-    /// Wait for one joinable thread to exit and return its machine-word result.
-    /// Join lifecycle follows host thread rules, but the returned value is runtime-defined.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host thread joins plus one runtime-managed completion slot.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.spawn`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_join(
         &mut self,
         handle: resource::ThreadHandle,
@@ -443,24 +281,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Spawn one host thread.
-    ///
-    /// Spawn one host thread that enters one runtime-provided thread entry handle.
-    /// The runtime resolves `entry` against its thread-entry table and passes `argument` as one machine-word payload.
-    /// Thread entry creation and argument interpretation are runtime ABI contracts.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host thread creation APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.spawn`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_spawn(
         &mut self,
         entry: resource::ThreadEntryHandle,
@@ -497,24 +318,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Wait on one memory address value.
-    ///
-    /// Wait while the target memory word matches the expected value.
-    /// Address must identify one valid aligned 32 bit word that remains live for the full wait.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses futex wait on Linux and WaitOnAddress on Windows.
-    /// Other Unix targets currently return notSupported.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioTimedOut, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.wait`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_address_wait(
         &mut self,
         address: u64,
@@ -540,24 +344,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Wake all waiters on one memory address.
-    ///
-    /// Wake all waiters blocked on the target memory address.
-    /// Wake ordering follows the host wait-address primitive.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses futex wake on Linux and WakeByAddressAll on Windows.
-    /// Other Unix targets currently return notSupported.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.wait`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_address_wake_all(&mut self, address: u64) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -569,24 +356,7 @@ impl<'call> ThreadHarnessContext<'call> {
         }
     }
 
-    /// Wake one waiter on one memory address.
-    ///
-    /// Wake one waiter blocked on the target memory address.
-    /// Wake ordering follows the host wait-address primitive.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses futex wake on Linux and WakeByAddressSingle on Windows.
-    /// Other Unix targets currently return notSupported.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `thread.wait`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_thread_address_wake_one(&mut self, address: u64) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => {

@@ -7201,7 +7201,7 @@ pub(crate) const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.close.
 pub(crate) const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7215,7 +7215,7 @@ pub(crate) const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.open.
 pub(crate) const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7229,7 +7229,7 @@ pub(crate) const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.read.
 pub(crate) const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7243,7 +7243,7 @@ pub(crate) const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.tryRead.
 pub(crate) const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7257,7 +7257,7 @@ pub(crate) const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.list.
 pub(crate) const OS_BACKGROUND_LIST: BindingDescriptor =
@@ -7272,20 +7272,7 @@ pub(crate) const OS_BACKGROUND_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.register.
 pub(crate) const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7299,7 +7286,7 @@ pub(crate) const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.status.
 pub(crate) const OS_BACKGROUND_STATUS: BindingDescriptor =
@@ -7314,20 +7301,7 @@ pub(crate) const OS_BACKGROUND_STATUS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.triggerTest.
 pub(crate) const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
@@ -7342,20 +7316,7 @@ pub(crate) const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.unregister.
 pub(crate) const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
@@ -7370,20 +7331,7 @@ pub(crate) const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventCreate.
 pub(crate) const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7397,7 +7345,7 @@ pub(crate) const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventDelete.
 pub(crate) const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
@@ -7412,20 +7360,7 @@ pub(crate) const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventList.
 pub(crate) const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7439,7 +7374,7 @@ pub(crate) const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventRead.
 pub(crate) const OS_CALENDAR_EVENT_READ: BindingDescriptor =
@@ -7454,20 +7389,7 @@ pub(crate) const OS_CALENDAR_EVENT_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventUpdate.
 pub(crate) const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7481,7 +7403,7 @@ pub(crate) const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.list.
 pub(crate) const OS_CALENDAR_LIST: BindingDescriptor =
@@ -7496,20 +7418,7 @@ pub(crate) const OS_CALENDAR_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.create.
 pub(crate) const OS_CONTACT_CREATE: BindingDescriptor =
@@ -7524,20 +7433,7 @@ pub(crate) const OS_CONTACT_CREATE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.delete.
 pub(crate) const OS_CONTACT_DELETE: BindingDescriptor =
@@ -7552,20 +7448,7 @@ pub(crate) const OS_CONTACT_DELETE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.list.
 pub(crate) const OS_CONTACT_LIST: BindingDescriptor =
@@ -7580,20 +7463,7 @@ pub(crate) const OS_CONTACT_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.read.
 pub(crate) const OS_CONTACT_READ: BindingDescriptor =
@@ -7608,20 +7478,7 @@ pub(crate) const OS_CONTACT_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.search.
 pub(crate) const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7635,7 +7492,7 @@ pub(crate) const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.update.
 pub(crate) const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7649,7 +7506,7 @@ pub(crate) const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.authenticate.
 pub(crate) const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7663,7 +7520,7 @@ pub(crate) const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.contains.
 pub(crate) const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7677,7 +7534,7 @@ pub(crate) const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.delete.
 pub(crate) const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7691,7 +7548,7 @@ pub(crate) const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.read.
 pub(crate) const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7705,7 +7562,7 @@ pub(crate) const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.write.
 pub(crate) const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7719,7 +7576,7 @@ pub(crate) const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.close.
 pub(crate) const OS_DOCUMENT_CLOSE: BindingDescriptor =
@@ -7734,20 +7591,7 @@ pub(crate) const OS_DOCUMENT_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.flush.
 pub(crate) const OS_DOCUMENT_FLUSH: BindingDescriptor =
@@ -7762,20 +7606,7 @@ pub(crate) const OS_DOCUMENT_FLUSH: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.open.
 pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7789,7 +7620,7 @@ pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickClose.
 pub(crate) const OS_DOCUMENT_PICK_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7803,7 +7634,7 @@ pub(crate) const OS_DOCUMENT_PICK_CLOSE: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickOpen.
 pub(crate) const OS_DOCUMENT_PICK_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7817,7 +7648,7 @@ pub(crate) const OS_DOCUMENT_PICK_OPEN: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickRead.
 pub(crate) const OS_DOCUMENT_PICK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7831,7 +7662,7 @@ pub(crate) const OS_DOCUMENT_PICK_READ: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickTryRead.
 pub(crate) const OS_DOCUMENT_PICK_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7845,7 +7676,7 @@ pub(crate) const OS_DOCUMENT_PICK_TRY_READ: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.read.
 pub(crate) const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7859,7 +7690,7 @@ pub(crate) const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.tryRead.
 pub(crate) const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7873,7 +7704,7 @@ pub(crate) const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.write.
 pub(crate) const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7887,7 +7718,7 @@ pub(crate) const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.host.identity.
 pub(crate) const OS_HOST_IDENTITY: BindingDescriptor =
@@ -7902,20 +7733,7 @@ pub(crate) const OS_HOST_IDENTITY: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.info.bootTimeUnixNs.
 pub(crate) const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
@@ -7930,20 +7748,7 @@ pub(crate) const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.info.loadAverage.
 pub(crate) const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
@@ -7958,19 +7763,7 @@ pub(crate) const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.os.info.systemSnapshot.
 pub(crate) const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
@@ -7985,20 +7778,7 @@ pub(crate) const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.info.uptimeNs.
 pub(crate) const OS_INFO_UPTIME_NS: BindingDescriptor =
@@ -8013,20 +7793,7 @@ pub(crate) const OS_INFO_UPTIME_NS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.canOpenUrl.
 pub(crate) const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
@@ -8041,20 +7808,7 @@ pub(crate) const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.close.
 pub(crate) const OS_INTENT_CLOSE: BindingDescriptor =
@@ -8069,20 +7823,7 @@ pub(crate) const OS_INTENT_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.open.
 pub(crate) const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8096,7 +7837,7 @@ pub(crate) const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.openPath.
 pub(crate) const OS_INTENT_OPEN_PATH: BindingDescriptor =
@@ -8111,20 +7852,7 @@ pub(crate) const OS_INTENT_OPEN_PATH: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.openUrl.
 pub(crate) const OS_INTENT_OPEN_URL: BindingDescriptor =
@@ -8139,20 +7867,7 @@ pub(crate) const OS_INTENT_OPEN_URL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.read.
 pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8166,7 +7881,7 @@ pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.sharePaths.
 pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8180,7 +7895,7 @@ pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.shareText.
 pub(crate) const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8194,7 +7909,7 @@ pub(crate) const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.tryRead.
 pub(crate) const OS_INTENT_TRY_READ: BindingDescriptor =
@@ -8209,20 +7924,7 @@ pub(crate) const OS_INTENT_TRY_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.close.
 pub(crate) const OS_LIFECYCLE_CLOSE: BindingDescriptor =
@@ -8237,20 +7939,7 @@ pub(crate) const OS_LIFECYCLE_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.open.
 pub(crate) const OS_LIFECYCLE_OPEN: BindingDescriptor =
@@ -8265,20 +7954,7 @@ pub(crate) const OS_LIFECYCLE_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.read.
 pub(crate) const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8292,7 +7968,7 @@ pub(crate) const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.state.
 pub(crate) const OS_LIFECYCLE_STATE: BindingDescriptor =
@@ -8307,20 +7983,7 @@ pub(crate) const OS_LIFECYCLE_STATE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.tryRead.
 pub(crate) const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8334,7 +7997,7 @@ pub(crate) const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.lastKnown.
 pub(crate) const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
@@ -8349,20 +8012,7 @@ pub(crate) const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.servicesEnabled.
 pub(crate) const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
@@ -8377,20 +8027,7 @@ pub(crate) const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchClose.
 pub(crate) const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8404,7 +8041,7 @@ pub(crate) const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchOpen.
 pub(crate) const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8418,7 +8055,7 @@ pub(crate) const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchRead.
 pub(crate) const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8432,7 +8069,7 @@ pub(crate) const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchTryRead.
 pub(crate) const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8446,7 +8083,7 @@ pub(crate) const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.delete.
 pub(crate) const OS_MEDIA_DELETE: BindingDescriptor =
@@ -8461,20 +8098,7 @@ pub(crate) const OS_MEDIA_DELETE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.importPath.
 pub(crate) const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8488,7 +8112,7 @@ pub(crate) const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.list.
 pub(crate) const OS_MEDIA_LIST: BindingDescriptor =
@@ -8503,20 +8127,7 @@ pub(crate) const OS_MEDIA_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.read.
 pub(crate) const OS_MEDIA_READ: BindingDescriptor =
@@ -8531,20 +8142,7 @@ pub(crate) const OS_MEDIA_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.mount.list.
 pub(crate) const OS_MOUNT_LIST: BindingDescriptor =
@@ -8559,20 +8157,7 @@ pub(crate) const OS_MOUNT_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.state.
 pub(crate) const OS_NETWORK_STATE: BindingDescriptor =
@@ -8587,20 +8172,7 @@ pub(crate) const OS_NETWORK_STATE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchClose.
 pub(crate) const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8614,7 +8186,7 @@ pub(crate) const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchOpen.
 pub(crate) const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
@@ -8629,20 +8201,7 @@ pub(crate) const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchRead.
 pub(crate) const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8656,7 +8215,7 @@ pub(crate) const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchTryRead.
 pub(crate) const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8670,7 +8229,7 @@ pub(crate) const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.cancel.
 pub(crate) const OS_NOTIFICATION_CANCEL: BindingDescriptor =
@@ -8685,20 +8244,7 @@ pub(crate) const OS_NOTIFICATION_CANCEL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.cancelAll.
 pub(crate) const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
@@ -8713,20 +8259,7 @@ pub(crate) const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.categoryList.
 pub(crate) const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
@@ -8741,20 +8274,7 @@ pub(crate) const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.categorySet.
 pub(crate) const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8768,7 +8288,7 @@ pub(crate) const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.close.
 pub(crate) const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8782,7 +8302,7 @@ pub(crate) const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.open.
 pub(crate) const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8796,7 +8316,7 @@ pub(crate) const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.read.
 pub(crate) const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8810,7 +8330,7 @@ pub(crate) const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.tryRead.
 pub(crate) const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8824,7 +8344,7 @@ pub(crate) const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingCancel.
 pub(crate) const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
@@ -8839,20 +8359,7 @@ pub(crate) const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingCancelAll.
 pub(crate) const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
@@ -8867,20 +8374,7 @@ pub(crate) const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingList.
 pub(crate) const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8894,7 +8388,7 @@ pub(crate) const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.permissionState.
 pub(crate) const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8908,7 +8402,7 @@ pub(crate) const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDe
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.post.
 pub(crate) const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8922,7 +8416,7 @@ pub(crate) const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionClose.
 pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8936,7 +8430,7 @@ pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE: BindingDescriptor = B
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionOpen.
 pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8950,7 +8444,7 @@ pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_OPEN: BindingDescriptor = Bi
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionRead.
 pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8964,7 +8458,7 @@ pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_READ: BindingDescriptor = Bi
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionTryRead.
 pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8978,7 +8472,7 @@ pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ: BindingDescriptor 
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.schedule.
 pub(crate) const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8992,7 +8486,7 @@ pub(crate) const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.openSettings.
 pub(crate) const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
@@ -9007,20 +8501,7 @@ pub(crate) const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestClose.
 pub(crate) const OS_PERMISSION_REQUEST_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -9034,7 +8515,7 @@ pub(crate) const OS_PERMISSION_REQUEST_CLOSE: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestManyOpen.
 pub(crate) const OS_PERMISSION_REQUEST_MANY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -9048,7 +8529,7 @@ pub(crate) const OS_PERMISSION_REQUEST_MANY_OPEN: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestOpen.
 pub(crate) const OS_PERMISSION_REQUEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -9062,7 +8543,7 @@ pub(crate) const OS_PERMISSION_REQUEST_OPEN: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestRead.
 pub(crate) const OS_PERMISSION_REQUEST_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -9076,7 +8557,7 @@ pub(crate) const OS_PERMISSION_REQUEST_READ: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestTryRead.
 pub(crate) const OS_PERMISSION_REQUEST_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -9090,7 +8571,7 @@ pub(crate) const OS_PERMISSION_REQUEST_TRY_READ: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.state.
 pub(crate) const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -9104,7 +8585,7 @@ pub(crate) const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.stateMany.
 pub(crate) const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -9118,7 +8599,7 @@ pub(crate) const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.power.state.
 pub(crate) const OS_POWER_STATE: BindingDescriptor =
@@ -9133,20 +8614,7 @@ pub(crate) const OS_POWER_STATE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.power.suspend.
 pub(crate) const OS_POWER_SUSPEND: BindingDescriptor =
@@ -9161,20 +8629,7 @@ pub(crate) const OS_POWER_SUSPEND: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("os")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for os.
 pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

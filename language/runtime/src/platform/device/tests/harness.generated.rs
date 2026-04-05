@@ -165,23 +165,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List Bluetooth adapters.
-    ///
-    /// Enumerate Bluetooth adapters that can perform BLE scan or session work and return stable descriptor snapshots for them.
-    /// Adapter identity is topology based so callers can correlate scan and session operations across process lifetimes.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothAdapter discovery, one logical CoreBluetooth central adapter on iOS and macOS, BlueZ adapter objects on Linux-class Unix, and BluetoothAdapter plus Radio class topology on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_adapter_list(
         &mut self,
     ) -> RuntimeResult<
@@ -211,23 +195,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a Bluetooth adapter watch stream.
-    ///
-    /// Close one opened Bluetooth adapter watch stream and release its host subscription state.
-    /// Closing an adapter watch does not affect active scans or device sessions.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android broadcast unregistration, CoreBluetooth central-manager callback teardown on iOS and macOS, BlueZ adapter signal unsubscription on Linux-class Unix, and notification teardown on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_adapter_watch_close(
         &mut self,
         handle: resource::BluetoothAdapterWatchHandle,
@@ -247,23 +215,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a Bluetooth adapter watch stream.
-    ///
-    /// Open a watch stream for Bluetooth adapter attach, detach, and state-change events.
-    /// The stream reports adapter topology and state transitions independently from device scan and session work.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android Bluetooth adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter-manager signals on Linux-class Unix, and adapter device notifications on Windows.
-    ///
-    /// # Errors
-    /// Returns ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_adapter_watch_open(
         &mut self,
     ) -> RuntimeResult<resource::BluetoothAdapterWatchHandle> {
@@ -290,23 +242,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one Bluetooth adapter event.
-    ///
-    /// Wait for the next typed Bluetooth adapter event from one opened adapter watch stream.
-    /// The event carries a full adapter descriptor snapshot so callers can react without racing a separate list call.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_adapter_watch_read(
         &mut self,
         handle: resource::BluetoothAdapterWatchHandle,
@@ -338,23 +274,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one Bluetooth adapter event without blocking.
-    ///
-    /// Read the next typed Bluetooth adapter event from one opened adapter watch stream without waiting.
-    /// This operation only consumes already published adapter events.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses adapter event queues fed by Android adapter broadcasts, CoreBluetooth central-manager state callbacks on iOS and macOS, BlueZ adapter signals on Linux-class Unix, and adapter notifications on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
         &mut self,
         handle: resource::BluetoothAdapterWatchHandle,
@@ -383,23 +303,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List discovered GATT characteristics for one service.
-    ///
-    /// Enumerate the GATT characteristics in one selected service.
-    /// Characteristic identifiers are session stable so reads, writes, and subscriptions can address them directly afterward.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothGatt characteristic discovery, CoreBluetooth characteristic discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT characteristic enumeration on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -439,23 +343,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List discovered GATT descriptors for one characteristic.
-    ///
-    /// Enumerate the GATT descriptors in one selected characteristic.
-    /// Descriptor identifiers are session stable so later descriptor reads and writes can address them directly.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothGatt descriptor discovery, CoreBluetooth descriptor discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT descriptor enumeration on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -492,23 +380,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read current ATT MTU.
-    ///
-    /// Read the current negotiated ATT MTU for one connected device session.
-    /// This reports live transport state and does not force a rediscovery of the GATT graph.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses live GATT session transport metadata on Android, returns `notSupported` on CoreBluetooth where ATT MTU is not exposed, BlueZ on Linux-class Unix, and WinRT on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_mtu(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -537,23 +409,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one GATT characteristic value.
-    ///
-    /// Read one characteristic value from one connected Bluetooth device session.
-    /// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothGatt characteristic reads, CoreBluetooth characteristic reads on iOS and macOS, BlueZ GATT characteristic value reads on Linux-class Unix, and WinRT GATT characteristic reads on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_read(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -590,23 +446,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one GATT descriptor value.
-    ///
-    /// Read one descriptor value from one connected Bluetooth device session.
-    /// Value bytes are returned exactly as reported by the ATT layer with no profile specific reinterpretation.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothGatt descriptor reads, CoreBluetooth descriptor reads on iOS and macOS, BlueZ GATT descriptor value reads on Linux-class Unix, and WinRT GATT descriptor reads on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -643,23 +483,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one GATT value event.
-    ///
-    /// Wait for the next characteristic value event from one subscription.
-    /// Event payloads preserve the originating service and characteristic identity so multiplexed callers can route updates precisely.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_read_event(
         &mut self,
         handle: resource::BluetoothSubscriptionHandle,
@@ -691,23 +515,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List discovered GATT services.
-    ///
-    /// Enumerate the current GATT service graph for one connected device session.
-    /// Service identifiers are session stable so later characteristic and descriptor lookups can be routed without rediscovery churn.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothGatt service discovery, CoreBluetooth service discovery on iOS and macOS, BlueZ GATT object discovery on Linux-class Unix, and WinRT GATT service enumeration on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_service_list(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -738,23 +546,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Subscribe one GATT characteristic.
-    ///
-    /// Open one subscription for characteristic value notifications or indications.
-    /// The returned subscription owns its own event queue and remains separate from direct characteristic reads.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android notification registration, CoreBluetooth notification registration on iOS and macOS, BlueZ notification registration on Linux-class Unix, and WinRT characteristic value subscriptions on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_subscribe(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -789,23 +581,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one GATT value event without blocking.
-    ///
-    /// Read the next characteristic value event from one subscription without waiting.
-    /// This operation only consumes already published notification or indication events.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses subscription event queues fed by Android characteristic callbacks, CoreBluetooth characteristic callbacks on iOS and macOS, BlueZ characteristic callbacks on Linux-class Unix, and WinRT value-changed callbacks on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
         &mut self,
         handle: resource::BluetoothSubscriptionHandle,
@@ -834,23 +610,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Unsubscribe one GATT characteristic.
-    ///
-    /// Close one characteristic value subscription.
-    /// Closing a subscription disables its host callback path when no remaining subscription requires that source.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android notification disablement, CoreBluetooth notification disablement on iOS and macOS, BlueZ subscription teardown on Linux-class Unix, and WinRT subscription teardown on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
         &mut self,
         handle: resource::BluetoothSubscriptionHandle,
@@ -867,23 +627,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write one GATT characteristic value.
-    ///
-    /// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
-    /// The write mode is caller controlled so response semantics remain explicit rather than inferred from characteristic properties.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothGatt characteristic writes, CoreBluetooth characteristic writes on iOS and macOS, BlueZ GATT characteristic value writes on Linux-class Unix, and WinRT GATT characteristic writes on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_write(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -921,23 +665,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write one GATT descriptor value.
-    ///
-    /// Write one descriptor value on one connected Bluetooth device session.
-    /// Value bytes are passed through exactly so CCCD and vendor descriptor policy remains explicit to the caller.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothGatt descriptor writes, CoreBluetooth descriptor writes on iOS and macOS, BlueZ GATT descriptor value writes on Linux-class Unix, and WinRT GATT descriptor writes on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.gatt`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -972,23 +700,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a Bluetooth scan session.
-    ///
-    /// Close one scan session and release its host discovery state.
-    /// Closing a scan session never closes or mutates any separately opened device session.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothLeScanner stopScan, CoreBluetooth stopScan on iOS and macOS, discovery-subscription release on Linux-class Unix, and scan watcher teardown on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_scan_close(
         &mut self,
         handle: resource::BluetoothScanHandle,
@@ -1003,23 +715,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a Bluetooth scan session.
-    ///
-    /// Open one BLE scan session on one adapter with one optional advertisement filter.
-    /// Scan state is session local so repeated callers can apply independent filters without conflating their event streams.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothLeScanner, CoreBluetooth scanForPeripherals on iOS and macOS, BlueZ discovery filters and signal subscriptions on Linux-class Unix, and BluetoothLEAdvertisementWatcher on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_scan_open(
         &mut self,
         adapterid: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -1055,23 +751,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one Bluetooth scan event.
-    ///
-    /// Wait for the next typed scan event from one opened scan session.
-    /// The event carries a full device descriptor snapshot so callers can react without racing a separate descriptor read.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_scan_read_event(
         &mut self,
         handle: resource::BluetoothScanHandle,
@@ -1103,23 +783,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one Bluetooth scan event without blocking.
-    ///
-    /// Read the next typed scan event from one opened scan session without waiting.
-    /// This operation only consumes already published scan events.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses scan event queues fed by Android scan callbacks, CoreBluetooth discovery callbacks on iOS and macOS, BlueZ discovery signals on Linux-class Unix, and advertisement watcher callbacks on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.scan`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_scan_try_read_event(
         &mut self,
         handle: resource::BluetoothScanHandle,
@@ -1148,23 +812,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a Bluetooth device session.
-    ///
-    /// Close one opened Bluetooth device session and release its host resources.
-    /// Closing a session also terminates its session event stream and any GATT subscriptions derived from it.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android GATT session close, CoreBluetooth peripheral-session teardown on iOS and macOS, BlueZ device-session teardown on Linux-class Unix, and BluetoothLEDevice or GattSession release on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_close(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -1179,23 +827,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read the current Bluetooth device descriptor.
-    ///
-    /// Read the current device descriptor snapshot for one opened Bluetooth device session.
-    /// The snapshot may change across reads as pairing, signal strength, or advertisement-backed metadata evolves.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothDevice and scan-cache properties, CoreBluetooth peripheral state plus advertisement cache on iOS and macOS, BlueZ device properties on Linux-class Unix, and BluetoothLEDevice properties plus cached advertisement metadata on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_descriptor(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -1224,23 +856,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a Bluetooth device session.
-    ///
-    /// Open one BLE device session for link, pairing, and GATT operations.
-    /// Session identity is separate from scan identity so a device can continue streaming GATT state after advertisement visibility changes.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android BluetoothDevice and BluetoothGatt sessions, CoreBluetooth peripheral sessions on iOS and macOS, BlueZ device objects and GATT sessions on Linux-class Unix, and BluetoothLEDevice plus GattSession on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_open(
         &mut self,
         adapterid: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -1276,23 +892,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Pair one Bluetooth device.
-    ///
-    /// Pair one opened Bluetooth device session with the host bonding mechanism.
-    /// Pairing is explicit because it mutates external trust state and may trigger user mediated authentication flows.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android Bluetooth bond flows, returns `notSupported` on CoreBluetooth where explicit bonding is not exposed, BlueZ device pairing flows on Linux-class Unix, and DeviceInformation pairing APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_pair(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -1311,23 +911,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one Bluetooth session event.
-    ///
-    /// Wait for the next typed session event from one opened Bluetooth device session.
-    /// Session events report connection, bond, and GATT database transitions without requiring polling of descriptor state.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_session_read_event(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -1359,23 +943,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read link RSSI for one Bluetooth device session.
-    ///
-    /// Read the current RSSI for one Bluetooth device session when the host exposes live link strength.
-    /// This is a point-in-time signal sample and does not consume the session event stream.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android RSSI reads or callback state, CoreBluetooth readRSSI on iOS and macOS, BlueZ device property reads on Linux-class Unix, and live BluetoothLEDevice signal queries on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_read_rssi(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -1407,23 +975,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one Bluetooth session event without blocking.
-    ///
-    /// Read the next typed session event from one opened Bluetooth device session without waiting.
-    /// This operation only consumes already published session events.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses session event queues fed by Android GATT callbacks, CoreBluetooth delegate callbacks on iOS and macOS, BlueZ device and GATT callbacks on Linux-class Unix, and WinRT device and GATT callbacks on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_session_try_read_event(
         &mut self,
         handle: resource::BluetoothDeviceHandle,
@@ -1452,23 +1004,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Remove one Bluetooth device bond.
-    ///
-    /// Remove persistent host bond state for one Bluetooth device on one adapter.
-    /// Unpairing is explicit because it mutates external trust state and may invalidate future encrypted sessions.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android bond removal, returns `notSupported` on CoreBluetooth where explicit unpairing is not exposed, BlueZ bond removal on Linux-class Unix, and DeviceInformation unpairing APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.bluetooth.connect`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_bluetooth_unpair(
         &mut self,
         adapterid: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -1497,23 +1033,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a camera endpoint.
-    ///
-    /// Close one opened camera endpoint and release its host resources.
-    /// Closing a device also invalidates any stream handles that were created from that device session.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android CameraDevice close, AVFoundation capture-device session teardown on iOS and macOS, V4L2 device handle release on Linux-class Unix, and Media Foundation source teardown on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_close(
         &mut self,
         handle: resource::CameraDeviceHandle,
@@ -1528,23 +1048,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List camera endpoints.
-    ///
-    /// Enumerate camera endpoints that are currently reachable from the host media stack and return stable descriptor snapshots for them.
-    /// Descriptor identity is topology based so callers can correlate enumeration, watch, and open results across stream lifetimes.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android CameraManager discovery, AVFoundation device discovery on iOS and macOS, V4L2 class camera discovery on Linux-class Unix, and Media Foundation device discovery on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_list(
         &mut self,
     ) -> RuntimeResult<
@@ -1570,23 +1074,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a camera endpoint.
-    ///
-    /// Open one camera endpoint for capability discovery and stream creation.
-    /// Opening a device establishes a control authority boundary that can outlive any individual stream session created from it.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android CameraDevice sessions, AVFoundation capture-device sessions on iOS and macOS, V4L2 style device nodes on Linux-class Unix, and Media Foundation capture sources on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -1614,23 +1102,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List stream capabilities for one opened camera endpoint.
-    ///
-    /// Enumerate stream capability descriptors for one opened camera endpoint.
-    /// Each capability combines the stream configuration envelope with the control capability snapshot for that negotiated format family.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android CameraCharacteristics stream and control discovery, AVFoundation format negotiation on iOS and macOS, V4L2 format and control discovery on Linux-class Unix, and Media Foundation stream capability discovery on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_stream_capability_list(
         &mut self,
         handle: resource::CameraDeviceHandle,
@@ -1662,23 +1134,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a camera topology watch stream.
-    ///
-    /// Close one opened camera topology watch stream and release its host subscription state.
-    /// Closing a watch does not affect any separately opened camera device or camera stream.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android camera-availability callback teardown, topology notification teardown on iOS, macOS, and Windows, and monitor teardown on Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_watch_close(
         &mut self,
         handle: resource::CameraWatchHandle,
@@ -1695,23 +1151,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a camera topology watch stream.
-    ///
-    /// Open a watch stream for camera endpoint attach and detach events.
-    /// The stream reports device topology changes independently from any opened device or stream session.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android camera availability callbacks, media-device topology notifications on iOS, macOS, and Windows, and device monitor subscriptions on Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_watch_open(
         &mut self,
     ) -> RuntimeResult<resource::CameraWatchHandle> {
@@ -1735,23 +1175,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one camera topology event.
-    ///
-    /// Wait for the next queued camera topology event from one opened watch stream.
-    /// The returned event carries a full descriptor snapshot so attach consumers do not need a separate enumeration race.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_watch_read(
         &mut self,
         handle: resource::CameraWatchHandle,
@@ -1783,23 +1207,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one camera topology event without blocking.
-    ///
-    /// Read the next queued camera topology event from one opened watch stream without waiting.
-    /// This operation only consumes already published attach or detach events.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.device`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_device_watch_try_read(
         &mut self,
         handle: resource::CameraWatchHandle,
@@ -1828,23 +1236,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a camera stream.
-    ///
-    /// Close one opened camera stream and release its host resources.
-    /// Closing a stream also terminates its frame queue and any pending frame waits owned by that stream session.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android capture-session teardown, AVFoundation stream-session teardown on iOS and macOS, queue teardown on Linux-class Unix, and Media Foundation stream teardown on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_close(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -1859,23 +1251,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read the active camera stream configuration.
-    ///
-    /// Read the active stream configuration for one opened camera stream.
-    /// The returned snapshot reflects the negotiated running format rather than only the originally requested configuration.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android capture-session format state, AVFoundation live stream-format queries on iOS and macOS, negotiated queue state on Linux-class Unix, and Media Foundation stream descriptors on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_config(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -1904,23 +1280,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Apply camera control updates.
-    ///
-    /// Apply one partial control patch to one opened camera stream.
-    /// Fields that are omitted leave the corresponding control unchanged so callers can update related settings incrementally.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android Camera2 request updates, AVFoundation grouped control updates on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_configure_controls(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -1947,23 +1307,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera control capabilities.
-    ///
-    /// Read the control-capability descriptor for one opened camera stream.
-    /// Capability reporting groups modes and ranges into one structure so callers can validate patches before issuing them.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android CameraCharacteristics control discovery, AVFoundation control capability queries on iOS and macOS, V4L2 class control enumeration on Linux-class Unix, and Media Foundation camera control discovery on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_control_capabilities(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -1992,23 +1336,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read camera control state.
-    ///
-    /// Read the current control-state snapshot for one opened camera stream.
-    /// State is grouped into one snapshot so callers can reason about interacting controls coherently rather than field by field.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android Camera2 capture-request state, AVFoundation live device-control reads on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_control_state(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2037,23 +1365,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a camera stream.
-    ///
-    /// Open one camera stream with an explicit stream configuration.
-    /// The stream owns frame delivery state independently from device enumeration and topology watching.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android CameraCaptureSession plus ImageReader configuration, AVFoundation capture-output configuration on iOS and macOS, negotiated streaming queues on Linux-class Unix, and Media Foundation stream sinks on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_open(
         &mut self,
         device: resource::CameraDeviceHandle,
@@ -2087,23 +1399,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Pause recording for one opened camera stream.
-    ///
-    /// Pause one active recording on one opened camera stream.
-    /// Backends that cannot pause recording report `notSupported` instead of synthesizing segmented output.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android recorder pause, AVFoundation movie-output pause or asset-writer pause on iOS and macOS where available, pipeline pause on Linux-class Unix when supported, and Media Foundation recording pause on Windows when supported.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_pause_recording(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2123,23 +1419,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read still-photo capabilities for one opened camera stream.
-    ///
-    /// Read the still-photo capability descriptor for one opened camera stream.
-    /// Photo capabilities are separated from stream capabilities because still capture commonly supports different formats, sizes, and flash policy than the video stream itself.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android CameraCharacteristics still-capture discovery, AVFoundation still-photo capability queries on iOS and macOS, V4L2 plus codec capability discovery on Linux-class Unix, and Media Foundation still-image capability discovery on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_photo_capabilities(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2168,23 +1448,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read still-photo state for one opened camera stream.
-    ///
-    /// Read the current still-photo state snapshot for one opened camera stream.
-    /// Still-photo state remains separate from stream control state because photo output commonly uses different size, flash, and encoding policy than the live stream itself.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android still-capture template state, AVFoundation live photo-output state on iOS and macOS, V4L2 plus codec still-image state on Linux-class Unix, and Media Foundation still-image state on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_photo_state(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2213,23 +1477,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one camera frame.
-    ///
-    /// Wait for the next camera frame from one running stream.
-    /// Frame payloads preserve timestamp, plane layout, and metadata exactly so higher layers can implement their own buffering and color policy.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_read(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2261,23 +1509,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read recording capabilities for one opened camera stream.
-    ///
-    /// Read the recording capability descriptor for one opened camera stream.
-    /// Recording capabilities stay separate from still-photo and live-frame capabilities because container, codec, audio, and pause support follow a different backend pipeline.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android Recorder or MediaCodec capture capability discovery, AVFoundation movie-output capability queries on iOS and macOS, V4L2 plus codec pipeline discovery on Linux-class Unix, and Media Foundation sink-writer capability discovery on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_recording_capabilities(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2307,23 +1539,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read recording state for one opened camera stream.
-    ///
-    /// Read the current recording state snapshot for one opened camera stream.
-    /// Recording state remains separate from stream control and still-photo state because recording has its own lifecycle and sink policy.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android recorder state, AVFoundation movie-output state on iOS and macOS, V4L2 plus codec recording state on Linux-class Unix, and Media Foundation recording state on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_recording_state(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2352,23 +1568,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Resume recording for one opened camera stream.
-    ///
-    /// Resume one paused recording on one opened camera stream.
-    /// Resuming continues the active recording session rather than starting a new output file.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android recorder resume, AVFoundation movie-output resume or asset-writer resume on iOS and macOS where available, pipeline resume on Linux-class Unix when supported, and Media Foundation recording resume on Windows when supported.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_resume_recording(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2388,23 +1588,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Start a camera stream.
-    ///
-    /// Start one opened camera stream.
-    /// Starting transitions the stream into active frame production without changing its negotiated format or control contract.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android repeating-request start, AVFoundation capture-session start on iOS and macOS, queue streaming start on Linux-class Unix, and Media Foundation source start on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_start(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2419,23 +1603,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Start recording from one opened camera stream.
-    ///
-    /// Start one video recording using one recording options object.
-    /// Recording is separate from frame reads because encoded capture has its own sink, codec, duration, and audio policy.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android recorder start with camera-session surfaces, AVFoundation movie-file or asset-writer start on iOS and macOS, V4L2 plus codec recording pipelines on Linux-class Unix, and Media Foundation sink-writer start on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`, `audio.capture`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_start_recording(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2462,23 +1630,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Stop a camera stream.
-    ///
-    /// Stop one running camera stream.
-    /// Stopping halts frame production while preserving the stream handle for later restart or control queries.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android repeating-request stop, AVFoundation capture-session stop on iOS and macOS, queue streaming stop on Linux-class Unix, and Media Foundation source stop on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_stop(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2493,23 +1645,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Stop recording for one opened camera stream.
-    ///
-    /// Stop one active recording on one opened camera stream and return the finalized recording descriptor.
-    /// Stop finalizes encoded output and preserves the produced file path and encoded format metadata.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android recorder stop with finalized output metadata, AVFoundation movie-output or asset-writer finalize on iOS and macOS, V4L2 plus codec pipeline finalize on Linux-class Unix, and Media Foundation sink-writer finalize on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_stop_recording(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2541,23 +1677,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Capture one still photo from one opened camera stream.
-    ///
-    /// Capture one still photo using one still-photo settings object.
-    /// Fields omitted from the settings object leave photo policy at host defaults, and still capture stays separate from streaming frame reads because photo output often uses different exposure, flash, resolution, and encoding policy than the live stream.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses Android still-capture requests with ImageReader outputs, AVFoundation photo capture on iOS and macOS, V4L2 plus codec capture pipelines on Linux-class Unix, and Media Foundation still-image capture on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_take_photo(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2594,23 +1714,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one camera frame without blocking.
-    ///
-    /// Read the next queued camera frame from one running stream without waiting for new capture work.
-    /// This operation only consumes frames that have already been published into the stream queue.
-    ///
-    /// # Platform
-    /// Android, iOS, macOS, Linux-class Unix, and Windows.
-    /// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.camera.capture`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_camera_stream_try_read(
         &mut self,
         handle: resource::CameraStreamHandle,
@@ -2639,21 +1743,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List host MIDI backends.
-    ///
-    /// Enumerate backend selectors, support state, and backend-level feature flags.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_backend_list(
         &mut self,
     ) -> RuntimeResult<
@@ -2678,22 +1768,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close one MIDI topology event subscription.
-    ///
-    /// Close one MIDI event subscription and release backend notification resources.
-    /// Pending events are discarded.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_event_close(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -2708,22 +1783,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open one MIDI topology event subscription.
-    ///
-    /// Open one backend event subscription for MIDI topology changes.
-    /// Subscription routing and queue depth follow host backend behavior.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_event_open(
         &mut self,
         options: HarnessValue<MidiEventSubscriptionOptions, MidiEventSubscriptionOptionsVm>,
@@ -2751,22 +1811,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Wait for one MIDI topology event.
-    ///
-    /// Wait for one pending event from one subscription queue.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_event_read(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -2798,22 +1843,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Wait for one batch of MIDI topology events.
-    ///
-    /// Wait for pending events from one subscription queue and return up to `maxEvents`.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_event_read_batch(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -2848,22 +1878,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one MIDI topology event without blocking.
-    ///
-    /// Poll one pending event from one subscription queue.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_event_try_read(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -2892,22 +1907,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one batch of MIDI topology events without blocking.
-    ///
-    /// Poll pending events from one subscription queue and return up to `maxEvents`.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_event_try_read_batch(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -2939,21 +1939,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close one opened MIDI input endpoint.
-    ///
-    /// Close one opened MIDI input session and release host resources.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_port_close(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -2968,22 +1954,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Describe one opened MIDI input endpoint.
-    ///
-    /// Resolve the current descriptor for one opened MIDI input session.
-    /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_port_descriptor(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -3012,22 +1983,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List available MIDI input endpoints.
-    ///
-    /// Enumerate host MIDI input endpoints for one selected backend.
-    /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_port_list(
         &mut self,
         options: HarnessValue<MidiPortListOptions, MidiPortListOptionsVm>,
@@ -3059,22 +2015,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open one MIDI input endpoint.
-    ///
-    /// Open one host MIDI input endpoint for queued transport-record reads.
-    /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_port_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -3110,24 +2051,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one MIDI input record.
-    ///
-    /// Wait for one queued inbound MIDI transport record from one opened input endpoint.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_read(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -3159,24 +2083,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one batch of MIDI input records.
-    ///
-    /// Wait for queued inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_read_batch(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -3211,24 +2118,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one MIDI input record without blocking.
-    ///
-    /// Poll one pending inbound MIDI transport record from one opened input endpoint.
-    /// Empty queue state is reported through ioWouldBlock.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_try_read(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -3257,24 +2147,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one batch of MIDI input records without blocking.
-    ///
-    /// Poll pending inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
-    /// Empty queue state is reported through ioWouldBlock.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_try_read_batch(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -3306,21 +2179,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Create one virtual MIDI input endpoint.
-    ///
-    /// Create one host-visible virtual MIDI input endpoint and return one opened input handle for reads.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.virtual`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_input_virtual_create(
         &mut self,
         options: HarnessValue<MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm>,
@@ -3351,21 +2210,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close one opened MIDI output endpoint.
-    ///
-    /// Close one opened MIDI output session and release host resources.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_output_port_close(
         &mut self,
         handle: resource::MidiOutputPortHandle,
@@ -3380,22 +2225,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Describe one opened MIDI output endpoint.
-    ///
-    /// Resolve the current descriptor for one opened MIDI output session.
-    /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_output_port_descriptor(
         &mut self,
         handle: resource::MidiOutputPortHandle,
@@ -3424,22 +2254,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List available MIDI output endpoints.
-    ///
-    /// Enumerate host MIDI output endpoints for one selected backend.
-    /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_output_port_list(
         &mut self,
         options: HarnessValue<MidiPortListOptions, MidiPortListOptionsVm>,
@@ -3471,22 +2286,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open one MIDI output endpoint.
-    ///
-    /// Open one host MIDI output endpoint for outbound transport-record writes.
-    /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_output_port_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -3522,21 +2322,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Create one virtual MIDI output endpoint.
-    ///
-    /// Create one host-visible virtual MIDI output endpoint and return one opened output handle for writes.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.virtual`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_output_virtual_create(
         &mut self,
         options: HarnessValue<MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm>,
@@ -3567,23 +2353,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write one batch of outbound MIDI records.
-    ///
-    /// Submit one batch of outbound MIDI transport records to one opened output endpoint.
-    /// Scheduled timestamps are advisory unless the backend advertises scheduled output support and the opened endpoint accepts them.
-    /// Record framing and payload encoding must match the selected transport data format.
-    ///
-    /// # Platform
-    /// Android, Unix, Windows, and iOS.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.midi.write`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_midi_output_write(
         &mut self,
         handle: resource::MidiOutputPortHandle,
@@ -3617,23 +2387,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a serial endpoint.
-    ///
-    /// Close one opened serial endpoint and release its underlying host session.
-    /// Closing a port also terminates its event stream and any pending read or write waits owned by that session.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses handle teardown and wait cancellation on Windows and file-descriptor close on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_close(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3648,23 +2402,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read serial endpoint configuration.
-    ///
-    /// Read the current line configuration for one opened serial endpoint.
-    /// The returned snapshot reflects the active host serial driver state rather than only the original open options.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses GetCommState on Windows and tcgetattr on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_config(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3690,23 +2428,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Reconfigure a serial endpoint.
-    ///
-    /// Apply one complete serial line configuration to one opened endpoint.
-    /// Configuration updates take effect on the live session and govern subsequent I/O and event behavior.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses SetCommState and related serial control calls on Windows and termios attribute updates on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_configure(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3729,23 +2451,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read a serial endpoint descriptor.
-    ///
-    /// Read the stable descriptor associated with one opened serial endpoint.
-    /// The descriptor reports topology identity and metadata, not transient line state.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses the session's bound topology identity with metadata gathered from SetupAPI on Windows, IOKit on macOS, and sysfs or udev on Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_descriptor(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3774,23 +2480,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Discard queued inbound serial bytes.
-    ///
-    /// Drop queued unread inbound bytes for one opened serial endpoint.
-    /// This affects host receive buffers only and does not synthesize a disconnect or error condition.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses PurgeComm receive-flush flags on Windows and tcflush with TCIFLUSH on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_discard_input(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3805,23 +2495,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Discard queued outbound serial bytes.
-    ///
-    /// Drop queued unwritten outbound bytes for one opened serial endpoint.
-    /// This operation aborts buffered transmit data without modifying the line configuration.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses PurgeComm transmit-flush flags on Windows and tcflush with TCOFLUSH on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_discard_output(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3836,23 +2510,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Drain serial output.
-    ///
-    /// Wait until queued outbound bytes for one opened serial endpoint have left the host transmit queue.
-    /// This is a transport flush barrier, not a close or cancellation operation.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses transmit-empty waits on Windows and tcdrain on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.write`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_drain(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3867,23 +2525,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read serial input signal state.
-    ///
-    /// Return the current modem input signal state for one opened endpoint.
-    /// Signal sampling is instantaneous and does not consume the serial event stream.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses GetCommModemStatus on Windows and modem-bit reads such as TIOCMGET on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_get_signals(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -3912,23 +2554,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List serial endpoints.
-    ///
-    /// Enumerate serial endpoints that are currently reachable from the host namespace and return stable descriptor snapshots for them.
-    /// Descriptor identity is topology based rather than open-handle based, so callers can compare enumeration results across watch and open lifetimes.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses SetupAPI serial device interfaces on Windows, IOKit serial-service enumeration on macOS, and tty enumeration with sysfs or udev identity enrichment on Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_list(
         &mut self,
     ) -> RuntimeResult<
@@ -3950,23 +2576,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a serial endpoint.
-    ///
-    /// Open one serial endpoint with explicit line configuration and host buffering policy.
-    /// Opening establishes a long lived session whose configuration, events, and I/O remain isolated from later topology churn.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses overlapped serial handles with DCB and timeout configuration on Windows and POSIX open plus termios session setup on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -3998,23 +2608,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one serial event.
-    ///
-    /// Wait for the next queued serial event for one opened endpoint.
-    /// Events report readiness, modem transitions, disconnects, line errors, and queue overflow without forcing callers to poll control state.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses queued session ingress on every supported backend: WaitCommEvent driven ingress on Windows and dedicated readiness monitors plus modem-status sampling on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_read_event(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -4046,23 +2640,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read serial bytes.
-    ///
-    /// Read bytes directly into caller memory from one opened serial endpoint.
-    /// Partial completion is preserved exactly so callers can build their own framing and buffering policy.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses overlapped ReadFile on Windows and blocking or deadline-bounded reads on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_read_into(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -4099,23 +2677,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Update serial output signal state.
-    ///
-    /// Apply one partial output signal update for one opened endpoint.
-    /// Fields that are omitted leave the corresponding line state unchanged.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses EscapeCommFunction and serial control ioctls on Windows and modem-control ioctls on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_set_signals(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -4138,23 +2700,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one serial event without blocking.
-    ///
-    /// Read the next queued serial event for one opened endpoint without waiting for new host activity.
-    /// This operation only consumes events that have already been published into the session queue.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses session event queues fed by WaitCommEvent on Windows and readiness monitors on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_try_read_event(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -4183,23 +2729,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll serial bytes without blocking.
-    ///
-    /// Read bytes directly into caller memory from one opened serial endpoint without waiting for new input.
-    /// This operation only reports bytes that are already buffered by the host serial stack.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses nonblocking overlapped completion checks on Windows and nonblocking read paths on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_try_read_into(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -4233,23 +2763,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close a serial topology watch stream.
-    ///
-    /// Close one opened serial topology watch stream and release its host subscription state.
-    /// Closing a watch never closes or mutates any separately opened serial port session.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses Configuration Manager notification teardown on Windows and native device-namespace watcher teardown on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_watch_close(
         &mut self,
         handle: resource::SerialWatchHandle,
@@ -4264,23 +2778,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open a serial topology watch stream.
-    ///
-    /// Open a watch stream that reports serial endpoint attach and detach transitions as ordered topology events.
-    /// The stream is scoped to host namespace changes rather than to any individual open port session.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses Configuration Manager device-interface notifications on Windows and native device-namespace watchers paired with IOKit or sysfs descriptor snapshots on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_watch_open(
         &mut self,
     ) -> RuntimeResult<resource::SerialWatchHandle> {
@@ -4303,24 +2801,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one serial topology event.
-    ///
-    /// Wait for the next queued serial topology event from one opened watch stream.
-    /// The returned event carries the full descriptor snapshot so callers do not need to race a follow-up list call.
-    /// Overflow events report dropped topology transitions and tell callers to resynchronize with `serialList`.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_watch_read(
         &mut self,
         handle: resource::SerialWatchHandle,
@@ -4352,23 +2833,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one serial topology event without blocking.
-    ///
-    /// Read the next queued serial topology event from one opened watch stream without waiting.
-    /// This operation only consumes already published watch events, including overflow markers.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_watch_try_read(
         &mut self,
         handle: resource::SerialWatchHandle,
@@ -4397,23 +2862,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write serial bytes.
-    ///
-    /// Write one byte sequence to one opened serial endpoint.
-    /// Partial completion is preserved exactly so callers can retry or pace writes explicitly.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, and Windows.
-    /// Uses overlapped WriteFile on Windows and write or writev class serial output on macOS and Linux-class Unix.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.serial.write`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_serial_write(
         &mut self,
         handle: resource::SerialPortHandle,
@@ -4450,23 +2899,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List USB BOS capabilities.
-    ///
-    /// Enumerate BOS capability descriptors for one opened USB device.
-    /// Raw BOS payload bytes are preserved so callers can interpret platform and vendor capabilities without data loss.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses standard BOS descriptor reads on the default control pipe through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_bos_capability_list(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4501,23 +2934,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read bulk endpoint bytes.
-    ///
-    /// Read up to `maxBytes` from one bulk IN endpoint and return transfer status with payload bytes.
-    /// Completion may be partial, which preserves host transfer semantics for high volume streaming protocols.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses bulk IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_bulk_read(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4557,23 +2974,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write bulk endpoint bytes.
-    ///
-    /// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
-    /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses bulk OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_bulk_write(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4615,23 +3016,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Claim USB interface.
-    ///
-    /// Claim one interface on one opened USB device.
-    /// Claimed interfaces become the authority boundary for subsequent endpoint transfers and alternate-setting changes.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses libusb interface claims on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_claim_interface(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4654,23 +3039,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Clear halt condition on one endpoint.
-    ///
-    /// Clear a STALL condition on one endpoint for one opened USB device.
-    /// This is the explicit pipe recovery operation and does not imply transfer cancellation or interface release.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses CLEAR_FEATURE endpoint-halt requests through the active device session via libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_clear_halt(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4693,23 +3062,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close USB device.
-    ///
-    /// Close one opened USB device and release its underlying host session.
-    /// Closing a device also releases any claimed interfaces and pending transfer ownership for that session.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses libusb device-session teardown on macOS, Linux-class Unix, and Windows, and wrapped libusb session teardown on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_close(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4722,23 +3075,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read active USB configuration value.
-    ///
-    /// Read the currently selected configuration value for one opened USB device.
-    /// This reports live device state rather than the first configuration in descriptor order.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses live configuration queries through the device control path on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_configuration_get(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4767,23 +3104,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List USB configurations.
-    ///
-    /// Enumerate USB configurations and their nested interface and endpoint descriptors for one opened device.
-    /// The returned tree is a descriptor snapshot and does not imply that any configuration or interface is currently active.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses standard configuration-descriptor reads and host descriptor parsing through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_configuration_list(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4818,23 +3139,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Set active USB configuration value.
-    ///
-    /// Select the active configuration value for one opened USB device.
-    /// Configuration changes are device state transitions and may invalidate previously claimed interfaces.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses SET_CONFIGURATION control requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_configuration_set(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4857,23 +3162,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read control-transfer response bytes.
-    ///
-    /// Execute one control-transfer read and return both transfer status and response bytes.
-    /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_control_read(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4910,23 +3199,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write control-transfer request bytes.
-    ///
-    /// Execute one control-transfer write and return both transfer status and transferred byte count.
-    /// The setup packet is passed through without higher-level interpretation so callers can issue standard, class, or vendor requests explicitly.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses synchronous or deadline-bounded default-control transfers through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_control_write(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -4968,23 +3241,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read active USB device descriptor.
-    ///
-    /// Read the active device descriptor and host topology metadata for one opened USB device.
-    /// This snapshot describes the device itself and is independent from any currently claimed interface state.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses cached standard device-descriptor reads with host topology metadata on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_descriptor(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5010,23 +3267,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read interrupt endpoint bytes.
-    ///
-    /// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status with payload bytes.
-    /// Poll interval semantics remain device defined, so this call does not synthesize any additional pacing policy.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses interrupt IN transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_interrupt_read(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5066,23 +3307,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write interrupt endpoint bytes.
-    ///
-    /// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
-    /// Completion may be partial, which preserves host transfer semantics for explicit higher-level retry policy.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses interrupt OUT transfer submissions on claimed interfaces through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_interrupt_write(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5124,23 +3349,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read one isochronous transfer.
-    ///
-    /// Read one isochronous transfer and return flattened bytes with per-packet completion results.
-    /// Packet boundaries are preserved explicitly so callers can reason about drop, underrun, and partial completion at the host cadence.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_isochronous_read(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5183,23 +3392,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Write one isochronous transfer.
-    ///
-    /// Write one isochronous transfer and return per-packet completion results.
-    /// Packet boundaries are preserved explicitly so callers can reason about bandwidth pressure and partial completion at the host cadence.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses scheduled isochronous transfer submissions with per-packet completion reporting through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_isochronous_write(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5247,23 +3440,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List USB devices.
-    ///
-    /// Enumerate attached USB devices and return stable descriptors for the current bus topology.
-    /// Descriptor identity is bus or topology based so callers can correlate list and hotplug results without opening devices.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses libusb topology enumeration on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_list(
         &mut self,
     ) -> RuntimeResult<HarnessValue<NativeSlice<UsbDeviceDescriptor>, VmSlice<UsbDeviceDescriptorVm>>>
@@ -5284,23 +3461,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open USB device.
-    ///
-    /// Open one USB device for descriptor, configuration, interface, and transfer operations.
-    /// Opening creates a device session whose lifetime and claimed interfaces are independent from further topology events.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses libusb device sessions on macOS, Linux-class Unix, and Windows, and Android host open plus libusb session wrapping on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -5327,23 +3488,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Release USB interface.
-    ///
-    /// Release one interface previously claimed on one opened USB device.
-    /// Releasing an interface ends the session's authority over its endpoints without closing the device itself.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses libusb interface release calls on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_release_interface(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5366,23 +3511,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Reset one USB device.
-    ///
-    /// Request one bus-level reset for one opened USB device.
-    /// Reset is a disruptive device state transition whose effects on active configuration and interfaces are intentionally left explicit.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses device reset requests through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android session after host open handoff on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_reset(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5395,23 +3524,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Set USB interface alternate setting.
-    ///
-    /// Select one alternate setting for one claimed interface.
-    /// Alternate-setting changes are session local and immediately redefine the active endpoint layout for that interface.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses SET_INTERFACE style interface reconfiguration through libusb on macOS, Linux-class Unix, and Windows, and the wrapped Android libusb session after host open handoff on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_set_interface_alternate_setting(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5437,23 +3550,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Read USB string descriptors.
-    ///
-    /// Read manufacturer, product, and serial-number string descriptors for one selected language identifier.
-    /// Missing strings remain absent rather than being synthesized from transport-specific fallback metadata.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses standard string-descriptor control transfers on the default control pipe through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_string_descriptor(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5485,23 +3582,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// List USB string-descriptor language identifiers.
-    ///
-    /// Enumerate the language identifiers that the device exposes for string-descriptor reads.
-    /// Callers can use the returned identifiers to select deterministic manufacturer, product, and serial text reads.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses standard GET_DESCRIPTOR string-language queries on the default control pipe through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_string_language_list(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5530,23 +3611,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Cancel pending transfers on one endpoint.
-    ///
-    /// Cancel pending transfers for one endpoint on one opened USB device.
-    /// Cancellation is scoped to outstanding transfer state and does not clear stalls or reset the device.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses transfer cancellation on the session's async request queue through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_transfer_cancel(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5573,23 +3638,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Cancel all pending transfers on one opened USB device.
-    ///
-    /// Cancel pending transfers on all endpoints for one opened USB device.
-    /// Cancellation is scoped to outstanding transfer state and does not release interfaces or close the device session.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses transfer cancellation on the device session's async request queues through libusb, including the wrapped Android session after host open handoff.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.transfer`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_transfer_cancel_all(
         &mut self,
         handle: resource::UsbDeviceHandle,
@@ -5606,23 +3655,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Close USB hotplug watch stream.
-    ///
-    /// Close one opened USB hotplug watch stream and release its host subscription state.
-    /// Closing a watch does not affect any separately opened USB device handle.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses libusb hotplug watch teardown on macOS, Linux-class Unix, and Windows, and Android host watch teardown on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_watch_close(
         &mut self,
         handle: resource::UsbWatchHandle,
@@ -5637,23 +3670,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Open USB hotplug watch stream.
-    ///
-    /// Open one hotplug watch stream for USB attach and detach events.
-    /// The stream reports topology changes independently from any later opened device session.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and the Android USB host bridge on Android.
-    ///
-    /// # Errors
-    /// Returns ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_watch_open(
         &mut self,
     ) -> RuntimeResult<resource::UsbWatchHandle> {
@@ -5676,23 +3693,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Wait for one USB hotplug event.
-    ///
-    /// Wait for the next queued USB hotplug event from one opened watch stream.
-    /// The returned event carries a full descriptor snapshot so attach consumers do not need a follow-up enumeration race.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_watch_read(
         &mut self,
         handle: resource::UsbWatchHandle,
@@ -5724,23 +3725,7 @@ impl<'call> DeviceHarnessContext<'call> {
         }
     }
 
-    /// Poll one USB hotplug event without blocking.
-    ///
-    /// Read the next queued USB hotplug event from one opened watch stream without waiting.
-    /// This operation only consumes already published attach or detach events.
-    ///
-    /// # Platform
-    /// macOS, Linux-class Unix, Windows, and Android.
-    /// Uses watch queues fed by libusb hotplug callbacks or snapshot polling on macOS, Linux-class Unix, and Windows, and host watch streams on Android.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `device.usb.enumerate`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_device_usb_watch_try_read(
         &mut self,
         handle: resource::UsbWatchHandle,

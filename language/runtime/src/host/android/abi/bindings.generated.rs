@@ -2,23 +2,23 @@
 
 #![allow(unreachable_pub)]
 
-use crate::host::os::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
-use crate::host::os::android::abi::bluetooth::callbacks::AndroidHostBluetoothCallbacks;
-use crate::host::os::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
-use crate::host::os::android::abi::camera::callbacks::AndroidHostCameraCallbacks;
-use crate::host::os::android::abi::contact::callbacks::AndroidHostContactCallbacks;
-use crate::host::os::android::abi::credentials::callbacks::AndroidHostCredentialsCallbacks;
-use crate::host::os::android::abi::crypto::callbacks::AndroidHostCryptoCallbacks;
-use crate::host::os::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
-use crate::host::os::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
-use crate::host::os::android::abi::location::callbacks::AndroidHostLocationCallbacks;
-use crate::host::os::android::abi::media::callbacks::AndroidHostMediaCallbacks;
-use crate::host::os::android::abi::midi::callbacks::AndroidHostMidiCallbacks;
-use crate::host::os::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
-use crate::host::os::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
-use crate::host::os::android::abi::registry::resolve_android_bindings;
-use crate::host::os::android::abi::text::callbacks::AndroidHostTextCallbacks;
-use crate::host::os::android::abi::usb::callbacks::AndroidHostUsbCallbacks;
+use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
+use crate::host::android::abi::bluetooth::callbacks::AndroidHostBluetoothCallbacks;
+use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
+use crate::host::android::abi::camera::callbacks::AndroidHostCameraCallbacks;
+use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
+use crate::host::android::abi::credentials::callbacks::AndroidHostCredentialsCallbacks;
+use crate::host::android::abi::crypto::callbacks::AndroidHostCryptoCallbacks;
+use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;
+use crate::host::android::abi::intent::callbacks::AndroidHostIntentCallbacks;
+use crate::host::android::abi::location::callbacks::AndroidHostLocationCallbacks;
+use crate::host::android::abi::media::callbacks::AndroidHostMediaCallbacks;
+use crate::host::android::abi::midi::callbacks::AndroidHostMidiCallbacks;
+use crate::host::android::abi::notification::callbacks::AndroidHostNotificationCallbacks;
+use crate::host::android::abi::permission::callbacks::AndroidHostPermissionCallbacks;
+use crate::host::android::abi::registry::resolve_android_bindings;
+use crate::host::android::abi::text::callbacks::AndroidHostTextCallbacks;
+use crate::host::android::abi::usb::callbacks::AndroidHostUsbCallbacks;
 use crate::host::{HostSessionHandle, HostStatus};
 
 /// Android host bindings container for callback-backed lanes.

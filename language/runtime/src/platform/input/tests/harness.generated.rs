@@ -125,21 +125,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Clear clipboard payload.
-    ///
-    /// Clear current host clipboard ownership or payload contents.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.write`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_clear(&mut self) -> RuntimeResult<()> {
         match self.generated_vm_context_mut() {
             Some(context) => input_vm::destack_input_clipboard_clear(self.call_context, context),
@@ -147,21 +133,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Query whether text clipboard payload exists.
-    ///
-    /// Return whether one text payload is currently available on the host clipboard.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_has_text(&mut self) -> RuntimeResult<bool> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -182,21 +154,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// List clipboard items.
-    ///
-    /// Return the itemized clipboard payload in provider order.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_list_items(
         &mut self,
     ) -> RuntimeResult<
@@ -222,21 +180,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one binary clipboard item representation.
-    ///
-    /// Read one selected clipboard representation identified by item and representation index.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_read_item_bytes(
         &mut self,
         itemindex: u32,
@@ -268,21 +212,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one filesystem clipboard item representation.
-    ///
-    /// Read one local filesystem representation from one clipboard item when the host exposes one path-based item.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_read_item_path(
         &mut self,
         itemindex: u32,
@@ -314,21 +244,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one text clipboard item representation.
-    ///
-    /// Read one textual representation from one clipboard item.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_read_item_text(
         &mut self,
         itemindex: u32,
@@ -360,21 +276,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one text clipboard payload.
-    ///
-    /// Read the preferred `text/plain` payload from the host clipboard.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_read_text(
         &mut self,
     ) -> RuntimeResult<HarnessValue<NativeStringRef, vm::StringHandle>> {
@@ -397,21 +299,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read clipboard sequence number.
-    ///
-    /// Read one monotonic sequence marker for host clipboard contents.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_sequence(&mut self) -> RuntimeResult<u64> {
         match self.generated_vm_context_mut() {
             Some(context) => {
@@ -432,21 +320,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Write clipboard items.
-    ///
-    /// Replace the host clipboard contents with the supplied items and representations.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.write`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_write_items(
         &mut self,
         items: HarnessValue<NativeSlice<ClipboardItem>, VmSlice<ClipboardItemVm>>,
@@ -463,21 +337,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Write one text clipboard payload.
-    ///
-    /// Write one preferred `text/plain` payload into the host clipboard.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.clipboard.write`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_clipboard_write_text(
         &mut self,
         text: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -494,26 +354,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Query capabilities for one opened input device.
-    ///
-    /// Return detailed axis, button, and feature capability metadata for one opened device.
-    /// Metadata values are backend-derived and may be partially unavailable.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses evdev and libinput-style capability tables on Linux.
-    /// Uses HID and raw-input capability queries on Windows.
-    /// Uses backend capability tables when available.
-    /// Falls back to deriving capabilities from available device summary metadata.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_capabilities(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -538,23 +379,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Close one input device.
-    ///
-    /// Close one opened input device endpoint and release host resources.
-    /// Pending unread events are discarded according to host backend behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses close(2) on Unix and CloseHandle on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_close(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -565,27 +390,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// List available input devices.
-    ///
-    /// Enumerate host input devices and return stable identifiers and typed device metadata.
-    /// Device ordering and hotplug visibility follow host input subsystem semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Returns operation-level `notSupported` on hosts that do not expose one discoverable input backend.
-    /// Uses evdev device-node enumeration on Linux.
-    /// Uses global-session and terminal discovery on macOS.
-    /// Uses terminal input discovery on other Unix hosts.
-    /// Uses console and raw-state discovery on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_list(
         &mut self,
     ) -> RuntimeResult<
@@ -607,26 +412,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Open one input device.
-    ///
-    /// Open one input device endpoint for event reads and optional control operations.
-    /// Exclusive-grab behavior and permission checks are host-defined.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
-    /// Uses evdev device-node open on Linux.
-    /// Uses global-session or terminal-device open on macOS.
-    /// Uses terminal-device open on other Unix hosts.
-    /// Uses duplicated console-input handles or raw-state handles on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -649,23 +435,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Close one global input event monitor.
-    ///
-    /// Close one opened monitor stream and release host subscription resources.
-    /// Pending unread monitor events are discarded.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses close(2) on Unix and CloseHandle on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_monitor_close(
         &mut self,
         handle: resource::InputMonitorHandle,
@@ -678,26 +448,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Open one global input event monitor.
-    ///
-    /// Open one monitor stream that reports host input topology events, including connect and disconnect.
-    /// Monitor streams are independent from per-device data streams.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-    /// Uses inotify-backed `/dev/input` monitor events on Linux.
-    /// Falls back to snapshot scans on Linux when watcher setup is unavailable.
-    /// Uses session and terminal-device scans on macOS and other Unix hosts.
-    /// Uses raw-input device-change subscriptions on Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_monitor_open(
         &mut self,
     ) -> RuntimeResult<resource::InputMonitorHandle> {
@@ -717,26 +468,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one global input monitor event.
-    ///
-    /// Read one pending monitor event from the global input monitor stream.
-    /// This stream is the canonical source for device connect, disconnect, and metadata-change events.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-    /// Uses blocking reads from inotify-backed Linux monitor queues.
-    /// Falls back to snapshot scans on Linux when watcher setup is unavailable.
-    /// Uses terminal or session monitor streams on Unix hosts.
-    /// Uses raw-input monitor queues on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_monitor_read(
         &mut self,
         handle: resource::InputMonitorHandle,
@@ -761,26 +493,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Poll one global input monitor event without blocking.
-    ///
-    /// Poll one pending monitor event and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-    /// Uses nonblocking reads from inotify-backed Linux monitor queues.
-    /// Falls back to snapshot scans on Linux when watcher setup is unavailable.
-    /// Uses terminal or session monitor streams on Unix hosts.
-    /// Uses raw-input monitor queues on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_monitor_try_read(
         &mut self,
         handle: resource::InputMonitorHandle,
@@ -806,27 +519,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one input event.
-    ///
-    /// Read one pending input event from one opened device stream.
-    /// Per-device streams report control and motion events for that device and exclude global device topology events.
-    /// Backend framing packets are filtered from this semantic stream.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-    /// Uses evdev event reads on Linux.
-    /// Uses event-tap queue reads on macOS.
-    /// Uses terminal-byte event reads on other Unix hosts.
-    /// Uses `ReadConsoleInputW` queue reads or raw-state polling on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_read(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -847,24 +540,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one batch of input events.
-    ///
-    /// Read up to `maxEvents` events from one opened device stream in one call.
-    /// Batch ordering matches backend delivery order and excludes global device topology events.
-    /// Backend framing packets are filtered from this semantic stream.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-    /// Uses batched reads when supported and runtime looped reads otherwise.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_read_batch(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -896,25 +572,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Enable or disable exclusive device grab.
-    ///
-    /// Toggle exclusive-grab mode for one input device when the host backend supports it.
-    /// This is one device-wide exclusivity control and is distinct from pointer confinement or locking modes.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where exclusive grab is not defined by host policy.
-    /// Uses `EVIOCGRAB` on Linux.
-    /// Returns `notSupported` for global-session and terminal-backed Unix input.
-    /// Uses `SetConsoleMode` capture toggles on Windows console input.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.grab`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_set_exclusive_grab(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -933,25 +591,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Select event decoding mode for one input stream.
-    ///
-    /// Select translated or raw decoding mode for one opened input endpoint.
-    /// Hosts can return notSupported when raw mode is unavailable for the selected endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses per-stream runtime mode selection on Linux evdev and macOS session backends.
-    /// Uses termios raw and cooked mode updates on Unix TTY paths.
-    /// Uses `SetConsoleMode` updates on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_set_read_mode(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -967,27 +607,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Poll one input event without blocking.
-    ///
-    /// Poll one pending input event from one opened device stream and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
-    /// Backend framing packets are filtered from this semantic stream.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-    /// Uses nonblocking evdev reads on Linux.
-    /// Uses nonblocking event-tap queue reads on macOS.
-    /// Uses nonblocking terminal-byte reads on other Unix hosts.
-    /// Uses nonblocking console queue reads or raw-state polling on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_try_read(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1012,22 +632,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Set one gamepad light color.
-    ///
-    /// Apply one rgb light color for one opened gamepad-capable device when supported.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where gamepad light control is unavailable.
-    /// Uses backend-specific gamepad light-control APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_gamepad_set_light(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1056,21 +661,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Set the gamepad motion sensor sample rate.
-    ///
-    /// Apply one motion sensor sample rate hint in hertz for one opened gamepad-capable device when supported.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where configurable motion sensors are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_gamepad_set_motion_sensor_sample_rate(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1093,21 +684,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Enable or disable gamepad motion sensors.
-    ///
-    /// Toggle motion sensor delivery for one opened gamepad-capable device when supported.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where motion sensors are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_gamepad_set_motion_sensors_enabled(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1130,22 +707,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Set one gamepad player index.
-    ///
-    /// Apply one player index hint for one opened gamepad-capable device.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where player-index assignment is unavailable.
-    /// Uses backend-specific gamepad player-index assignment APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_gamepad_set_player_index(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1168,23 +730,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one gamepad state snapshot.
-    ///
-    /// Return one full gamepad state snapshot for one opened gamepad-capable device.
-    /// Snapshot fields mirror backend-standardized gamepad semantics for axes, buttons, touches, battery, and motion metadata.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where gamepad snapshots are unavailable.
-    /// Uses backend-specific gamepad state APIs with normalized axes, buttons, touch contacts, battery metadata, and motion sensors when available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_gamepad_state(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1210,22 +756,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// List supported haptic effects.
-    ///
-    /// Return supported haptic effect kinds for one opened haptics-capable device.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where haptics is unavailable.
-    /// Uses backend-specific haptic capability queries for controller and endpoint actuators.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.haptics`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_haptics_effects(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1253,23 +784,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Play one haptic effect.
-    ///
-    /// Schedule one haptic effect on one opened haptics-capable device.
-    /// Effect playback timing and motor resolution follow backend capabilities.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where one effect type is unavailable.
-    /// Uses backend-specific rumble and haptics APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.haptics`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_haptics_play(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1306,22 +821,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Stop active haptic effects.
-    ///
-    /// Stop active haptic playback on one opened haptics-capable device.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific haptic stop operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.haptics`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_haptics_stop(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1334,21 +834,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Query keyboard layout metadata.
-    ///
-    /// Return the active layout metadata for one opened keyboard-capable device when the backend exposes it.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where layout metadata is unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_keyboard_layout(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1374,24 +860,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one keyboard state snapshot.
-    ///
-    /// Return one current keyboard key and modifier snapshot for one opened keyboard-capable device.
-    /// Snapshot values represent one point-in-time backend state and can change immediately after read.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where keyboard snapshots are unavailable.
-    /// Uses backend-specific key-state tables from evdev or terminal backends on Unix.
-    /// Uses console or raw-input key-state paths on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_keyboard_state(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1417,23 +886,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Enable or disable pointer capture.
-    ///
-    /// Toggle pointer capture for one opened pointer-capable device and one optional window target.
-    /// Captured pointers can continue delivering events outside focused bounds when supported for that target scope.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where capture or one window scope is unavailable.
-    /// Uses backend-specific pointer capture primitives for global or window-scoped paths.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.grab`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_pointer_capture(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1463,23 +916,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one relative pointer state snapshot.
-    ///
-    /// Return one relative motion and button state snapshot for one opened pointer-capable device.
-    /// Relative mode must be enabled before this lane becomes readable.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend pointer snapshots plus runtime-managed relative baselines.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_pointer_relative_state(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1508,23 +945,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Set pointer grab mode.
-    ///
-    /// Apply one grab mode for one opened pointer-capable device and one optional window target.
-    /// Grab modes can confine or lock pointer movement depending on backend support and target scope.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where one grab mode or one window scope is unavailable.
-    /// Uses backend-specific pointer grab or lock primitives for global or window-scoped paths.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.grab`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_pointer_set_grab_mode(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1554,23 +975,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Enable or disable relative pointer mode.
-    ///
-    /// Toggle relative pointer mode for one opened pointer-capable device.
-    /// Relative mode semantics follow backend pointer-lock behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where relative mode is unavailable.
-    /// Uses backend-specific relative mode toggles for active input endpoints.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_pointer_set_relative_mode(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1593,24 +998,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one absolute pointer state snapshot.
-    ///
-    /// Return one current pointer position and button state snapshot for one opened pointer-capable device.
-    /// Position values follow the coordinate space reported in the snapshot.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific pointer state queries from evdev or libinput-style streams on Unix.
-    /// Uses raw-input or console pointer state snapshots on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_pointer_state(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1636,23 +1024,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Warp pointer position.
-    ///
-    /// Set one pointer position for one opened pointer-capable device and one optional window target.
-    /// Warped coordinates are interpreted in backend-native window or surface space for the selected target scope.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where pointer warping or one window scope is unavailable.
-    /// Uses backend-specific pointer warp operations for global or window-scoped paths.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_pointer_warp(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1679,22 +1051,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one raw-hid feature report.
-    ///
-    /// Read one feature report from one opened raw-hid-capable input endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where raw-hid feature reports are unavailable.
-    /// Uses hid feature-report query APIs on Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_raw_hid_get_feature(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1729,23 +1086,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one raw-hid report.
-    ///
-    /// Read one pending raw-hid report from one opened raw-hid-capable input endpoint.
-    /// Timeout and blocking behavior follow backend raw-hid queue semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where raw-hid reports are unavailable.
-    /// Uses hidraw or equivalent raw report APIs on Unix and raw-input hid report APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_raw_hid_read(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1780,22 +1121,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Write one raw-hid feature report.
-    ///
-    /// Write one feature report to one opened raw-hid-capable input endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where raw-hid feature reports are unavailable.
-    /// Uses hid feature-report set APIs on Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_raw_hid_set_feature(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1825,24 +1151,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Poll one raw-hid report without blocking.
-    ///
-    /// Poll one pending raw-hid report and return immediately when none is available.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where raw-hid reports are unavailable.
-    /// Uses nonblocking hidraw or equivalent raw report APIs on Unix.
-    /// Uses nonblocking raw-input hid report APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_raw_hid_try_read(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1874,23 +1183,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Write one raw-hid output report.
-    ///
-    /// Submit one raw-hid output report to one opened raw-hid-capable input endpoint.
-    /// Short writes can occur based on backend transport behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where raw-hid output reports are unavailable.
-    /// Uses hidraw or equivalent raw report write APIs on Unix and raw-input hid report write APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.write`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_raw_hid_write(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1927,25 +1220,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Configure one sensor stream.
-    ///
-    /// Apply one enable and sample-rate configuration for one sensor stream on one opened input device.
-    /// Backends can negotiate one effective sample rate and one effective batching latency.
-    /// When host sensor stacks expose only fixed-rate delivery, this lane tracks the effective runtime stream configuration.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where sensor stream configuration is unavailable.
-    /// Uses backend-specific sensor configuration APIs where available.
-    /// Falls back to runtime-managed effective stream configuration when the host stream is fixed-rate.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.control`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_sensor_configure(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -1982,23 +1257,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// List supported sensors for one opened input device.
-    ///
-    /// Return sensor capability metadata for one opened sensor-capable device.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-    /// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix.
-    /// Uses HID sensor or controller APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_sensor_list(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -2025,23 +1284,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one sensor sample.
-    ///
-    /// Read one pending sample from one configured sensor stream.
-    /// Timeout and blocking behavior follow backend stream semantics.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-    /// Uses backend-specific blocking sensor queue reads on Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_sensor_read(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -2069,22 +1312,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Poll one sensor sample without blocking.
-    ///
-    /// Poll one pending sample from one configured sensor stream and return immediately when none is available.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-    /// Uses backend-specific nonblocking sensor queue reads on Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_sensor_try_read(
         &mut self,
         handle: resource::InputDeviceHandle,
@@ -2116,23 +1344,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Close one text input session.
-    ///
-    /// Close one active text input session and detach any host IME or editing services.
-    /// Pending composition updates are finalized or canceled according to backend policy.
-    ///
-    /// # Platform
-    /// Android, iOS, Unix, and Windows.
-    /// Returns operation-level `notSupported` where text input sessions are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_text_close(
         &mut self,
         session: resource::InputTextSessionHandle,
@@ -2145,25 +1357,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Get text input geometry.
-    ///
-    /// Return the currently configured text input geometry hint.
-    /// Resolve state for one active text input session.
-    ///
-    /// # Platform
-    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where one window scope is unavailable.
-    /// Uses backend-specific text-geometry state tracking.
-    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    /// Returns `ioWouldBlock` until one renderer geometry hint has been supplied for the session.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_text_get_geometry(
         &mut self,
         session: resource::InputTextSessionHandle,
@@ -2189,26 +1383,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Open one text input session.
-    ///
-    /// Open one focused text input session for the active renderer editor and initial text state.
-    /// The host uses this session to attach platform IME or editing services for the selected target scope.
-    ///
-    /// # Platform
-    /// Android, iOS, Unix, and Windows.
-    /// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-    /// Android and iOS use the focused host text target and do not support explicit window routing.
-    /// Unix terminal and Windows console backends currently route committed cooked text through session edit-intent events.
-    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_text_open(
         &mut self,
         config: HarnessValue<InputTextSessionConfig, InputTextSessionConfigVm>,
@@ -2240,26 +1415,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one text-session event.
-    ///
-    /// Read one pending text-session event for one active text input session.
-    /// Session events include host state changes, composition events, edit intents, and clipboard commands.
-    ///
-    /// # Platform
-    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
-    /// Uses backend-specific IME, editing, and clipboard event queues.
-    /// Android and iOS deliver host text-state events through the focused mobile text lane.
-    /// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
-    /// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_text_read_event(
         &mut self,
         session: resource::InputTextSessionHandle,
@@ -2285,25 +1441,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Set text input geometry.
-    ///
-    /// Set one text input geometry hint for one active text input session.
-    /// Geometry hints are used by host IME placement when supported for the selected target scope.
-    ///
-    /// # Platform
-    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-geometry hints or one window scope are unavailable.
-    /// Android and iOS use the focused host text target and do not support explicit window routing.
-    /// Uses backend-specific text-geometry tracking.
-    /// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_text_set_geometry(
         &mut self,
         session: resource::InputTextSessionHandle,
@@ -2326,23 +1464,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Set text input state.
-    ///
-    /// Update one active text input session with renderer-owned text, selection, and composition state.
-    /// Hosts use this state to synchronize platform IME or editing services with the focused editor.
-    ///
-    /// # Platform
-    /// Android, iOS, Unix, and Windows.
-    /// Returns operation-level `notSupported` where text input sessions are unavailable.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_text_set_state(
         &mut self,
         session: resource::InputTextSessionHandle,
@@ -2360,26 +1482,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Poll one text-session event without blocking.
-    ///
-    /// Poll one pending text-session event and return immediately when no event is queued.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
-    /// Uses backend-specific nonblocking IME, editing, and clipboard queue reads.
-    /// Android and iOS deliver host text-state events through the focused mobile text lane.
-    /// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
-    /// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.text`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_text_try_read_event(
         &mut self,
         session: resource::InputTextSessionHandle,
@@ -2408,24 +1511,7 @@ impl<'call> InputHarnessContext<'call> {
         }
     }
 
-    /// Read one touch state snapshot.
-    ///
-    /// Return one current touch-contact snapshot for one opened touch-capable device.
-    /// Contact ordering follows backend delivery order.
-    ///
-    /// # Platform
-    /// Unix and Windows, with operation-level `notSupported` where touch snapshots are unavailable.
-    /// Uses backend-specific contact tables from evdev or libinput-style paths on Unix.
-    /// Uses pointer-contact APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `input.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_input_touch_state(
         &mut self,
         handle: resource::InputDeviceHandle,

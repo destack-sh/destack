@@ -772,20 +772,7 @@ pub(crate) const TLS_CONTEXT_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tls")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.open.
 pub(crate) const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -799,7 +786,7 @@ pub(crate) const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setCipherSuites.
 pub(crate) const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -813,7 +800,7 @@ pub(crate) const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setGroups.
 pub(crate) const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -827,7 +814,7 @@ pub(crate) const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setHostnameVerificationMode.
 pub(crate) const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -841,7 +828,7 @@ pub(crate) const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor =
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setIdentityPem.
 pub(crate) const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -855,7 +842,7 @@ pub(crate) const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setSessionResumption.
 pub(crate) const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -869,7 +856,7 @@ pub(crate) const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = Binding
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setSignatureAlgorithms.
 pub(crate) const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -883,7 +870,7 @@ pub(crate) const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = Bindi
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setTrustAnchorsPem.
 pub(crate) const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -897,7 +884,7 @@ pub(crate) const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingD
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.close.
 pub(crate) const TLS_SESSION_CLOSE: BindingDescriptor =
@@ -912,20 +899,7 @@ pub(crate) const TLS_SESSION_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tls")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.exportKeyingMaterial.
 pub(crate) const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -939,7 +913,7 @@ pub(crate) const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = Binding
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.handshake.
 pub(crate) const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -953,7 +927,7 @@ pub(crate) const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.negotiatedAlpn.
 pub(crate) const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -967,7 +941,7 @@ pub(crate) const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.open.
 pub(crate) const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -981,7 +955,7 @@ pub(crate) const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.peerCertificatesPem.
 pub(crate) const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -995,7 +969,7 @@ pub(crate) const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingD
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.read.
 pub(crate) const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1009,7 +983,7 @@ pub(crate) const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::extern
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.resumptionState.
 pub(crate) const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1023,7 +997,7 @@ pub(crate) const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.shutdown.
 pub(crate) const TLS_SESSION_SHUTDOWN: BindingDescriptor =
@@ -1038,20 +1012,7 @@ pub(crate) const TLS_SESSION_SHUTDOWN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("tls")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.write.
 pub(crate) const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -1065,7 +1026,7 @@ pub(crate) const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("tls")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for tls.
 pub(crate) const TLS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

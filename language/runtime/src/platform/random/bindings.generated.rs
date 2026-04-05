@@ -526,20 +526,7 @@ pub(crate) const RANDOM_SECURE_BYTES: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.secure.bytesTry.
 pub(crate) const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
@@ -554,20 +541,7 @@ pub(crate) const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.secure.metadata.
 pub(crate) const RANDOM_SECURE_METADATA: BindingDescriptor =
@@ -582,20 +556,7 @@ pub(crate) const RANDOM_SECURE_METADATA: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.create.
 pub(crate) const RANDOM_STREAM_CREATE: BindingDescriptor =
@@ -610,20 +571,7 @@ pub(crate) const RANDOM_STREAM_CREATE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.export.
 pub(crate) const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -637,7 +585,7 @@ pub(crate) const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("random")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.fillBytes.
 pub(crate) const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
@@ -652,20 +600,7 @@ pub(crate) const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.fillBytesFrom.
 pub(crate) const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -679,7 +614,7 @@ pub(crate) const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescr
     BindingAffinity::Any,
 )
     .with_namespace("random")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.import.
 pub(crate) const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -693,7 +628,7 @@ pub(crate) const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("random")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.in.
 pub(crate) const RANDOM_STREAM_IN: BindingDescriptor =
@@ -708,20 +643,7 @@ pub(crate) const RANDOM_STREAM_IN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.jump.
 pub(crate) const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -735,7 +657,7 @@ pub(crate) const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("random")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.nextU64.
 pub(crate) const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
@@ -750,20 +672,7 @@ pub(crate) const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.nextU64From.
 pub(crate) const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
@@ -778,20 +687,7 @@ pub(crate) const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.split.
 pub(crate) const RANDOM_STREAM_SPLIT: BindingDescriptor =
@@ -806,20 +702,7 @@ pub(crate) const RANDOM_STREAM_SPLIT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("random")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for random.
 pub(crate) const RANDOM_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

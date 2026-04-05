@@ -7684,20 +7684,7 @@ pub(crate) const INPUT_CLIPBOARD_CLEAR: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.hasText.
 pub(crate) const INPUT_CLIPBOARD_HAS_TEXT: BindingDescriptor =
@@ -7712,20 +7699,7 @@ pub(crate) const INPUT_CLIPBOARD_HAS_TEXT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.listItems.
 pub(crate) const INPUT_CLIPBOARD_LIST_ITEMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7739,7 +7713,7 @@ pub(crate) const INPUT_CLIPBOARD_LIST_ITEMS: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readItemBytes.
 pub(crate) const INPUT_CLIPBOARD_READ_ITEM_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7753,7 +7727,7 @@ pub(crate) const INPUT_CLIPBOARD_READ_ITEM_BYTES: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readItemPath.
 pub(crate) const INPUT_CLIPBOARD_READ_ITEM_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7767,7 +7741,7 @@ pub(crate) const INPUT_CLIPBOARD_READ_ITEM_PATH: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readItemText.
 pub(crate) const INPUT_CLIPBOARD_READ_ITEM_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7781,7 +7755,7 @@ pub(crate) const INPUT_CLIPBOARD_READ_ITEM_TEXT: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readText.
 pub(crate) const INPUT_CLIPBOARD_READ_TEXT: BindingDescriptor =
@@ -7796,20 +7770,7 @@ pub(crate) const INPUT_CLIPBOARD_READ_TEXT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.sequence.
 pub(crate) const INPUT_CLIPBOARD_SEQUENCE: BindingDescriptor =
@@ -7824,20 +7785,7 @@ pub(crate) const INPUT_CLIPBOARD_SEQUENCE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.writeItems.
 pub(crate) const INPUT_CLIPBOARD_WRITE_ITEMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7851,7 +7799,7 @@ pub(crate) const INPUT_CLIPBOARD_WRITE_ITEMS: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.writeText.
 pub(crate) const INPUT_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
@@ -7866,20 +7814,7 @@ pub(crate) const INPUT_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.capabilities.
 pub(crate) const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -7893,7 +7828,7 @@ pub(crate) const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.close.
 pub(crate) const INPUT_DEVICE_CLOSE: BindingDescriptor =
@@ -7908,20 +7843,7 @@ pub(crate) const INPUT_DEVICE_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.list.
 pub(crate) const INPUT_DEVICE_LIST: BindingDescriptor =
@@ -7936,20 +7858,7 @@ pub(crate) const INPUT_DEVICE_LIST: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.open.
 pub(crate) const INPUT_DEVICE_OPEN: BindingDescriptor =
@@ -7964,20 +7873,7 @@ pub(crate) const INPUT_DEVICE_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorClose.
 pub(crate) const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor =
@@ -7992,20 +7888,7 @@ pub(crate) const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorOpen.
 pub(crate) const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
@@ -8020,20 +7903,7 @@ pub(crate) const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorRead.
 pub(crate) const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8047,7 +7917,7 @@ pub(crate) const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorTryRead.
 pub(crate) const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8061,7 +7931,7 @@ pub(crate) const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.read.
 pub(crate) const INPUT_EVENT_READ: BindingDescriptor =
@@ -8076,20 +7946,7 @@ pub(crate) const INPUT_EVENT_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.readBatch.
 pub(crate) const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8103,7 +7960,7 @@ pub(crate) const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.setExclusiveGrab.
 pub(crate) const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8117,7 +7974,7 @@ pub(crate) const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.setReadMode.
 pub(crate) const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8131,7 +7988,7 @@ pub(crate) const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.tryRead.
 pub(crate) const INPUT_EVENT_TRY_READ: BindingDescriptor =
@@ -8146,20 +8003,7 @@ pub(crate) const INPUT_EVENT_TRY_READ: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setLight.
 pub(crate) const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8173,7 +8017,7 @@ pub(crate) const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setMotionSensorSampleRate.
 pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSOR_SAMPLE_RATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8187,7 +8031,7 @@ pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSOR_SAMPLE_RATE: BindingDescriptor 
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setMotionSensorsEnabled.
 pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSORS_ENABLED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8201,7 +8045,7 @@ pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSORS_ENABLED: BindingDescriptor = B
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setPlayerIndex.
 pub(crate) const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8215,7 +8059,7 @@ pub(crate) const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDesc
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.state.
 pub(crate) const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8229,7 +8073,7 @@ pub(crate) const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.effects.
 pub(crate) const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8243,7 +8087,7 @@ pub(crate) const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.play.
 pub(crate) const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8257,7 +8101,7 @@ pub(crate) const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.stop.
 pub(crate) const INPUT_HAPTICS_STOP: BindingDescriptor =
@@ -8272,20 +8116,7 @@ pub(crate) const INPUT_HAPTICS_STOP: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.keyboard.layout.
 pub(crate) const INPUT_KEYBOARD_LAYOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8299,7 +8130,7 @@ pub(crate) const INPUT_KEYBOARD_LAYOUT: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.keyboard.state.
 pub(crate) const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8313,7 +8144,7 @@ pub(crate) const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.capture.
 pub(crate) const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8327,7 +8158,7 @@ pub(crate) const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.relativeState.
 pub(crate) const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8341,7 +8172,7 @@ pub(crate) const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.setGrabMode.
 pub(crate) const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8355,7 +8186,7 @@ pub(crate) const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescrip
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.setRelativeMode.
 pub(crate) const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8369,7 +8200,7 @@ pub(crate) const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDes
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.state.
 pub(crate) const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8383,7 +8214,7 @@ pub(crate) const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.warp.
 pub(crate) const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8397,7 +8228,7 @@ pub(crate) const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.getFeature.
 pub(crate) const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8411,7 +8242,7 @@ pub(crate) const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.read.
 pub(crate) const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8425,7 +8256,7 @@ pub(crate) const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.setFeature.
 pub(crate) const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8439,7 +8270,7 @@ pub(crate) const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.tryRead.
 pub(crate) const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8453,7 +8284,7 @@ pub(crate) const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.write.
 pub(crate) const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8467,7 +8298,7 @@ pub(crate) const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.configure.
 pub(crate) const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8481,7 +8312,7 @@ pub(crate) const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.list.
 pub(crate) const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8495,7 +8326,7 @@ pub(crate) const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.read.
 pub(crate) const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8509,7 +8340,7 @@ pub(crate) const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.tryRead.
 pub(crate) const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8523,7 +8354,7 @@ pub(crate) const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.close.
 pub(crate) const INPUT_TEXT_CLOSE: BindingDescriptor =
@@ -8538,20 +8369,7 @@ pub(crate) const INPUT_TEXT_CLOSE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("input")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.getGeometry.
 pub(crate) const INPUT_TEXT_GET_GEOMETRY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8565,7 +8383,7 @@ pub(crate) const INPUT_TEXT_GET_GEOMETRY: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.open.
 pub(crate) const INPUT_TEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8579,7 +8397,7 @@ pub(crate) const INPUT_TEXT_OPEN: BindingDescriptor = BindingDescriptor::externa
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.readEvent.
 pub(crate) const INPUT_TEXT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8593,7 +8411,7 @@ pub(crate) const INPUT_TEXT_READ_EVENT: BindingDescriptor = BindingDescriptor::e
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.setGeometry.
 pub(crate) const INPUT_TEXT_SET_GEOMETRY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8607,7 +8425,7 @@ pub(crate) const INPUT_TEXT_SET_GEOMETRY: BindingDescriptor = BindingDescriptor:
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.setState.
 pub(crate) const INPUT_TEXT_SET_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8621,7 +8439,7 @@ pub(crate) const INPUT_TEXT_SET_STATE: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.tryReadEvent.
 pub(crate) const INPUT_TEXT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8635,7 +8453,7 @@ pub(crate) const INPUT_TEXT_TRY_READ_EVENT: BindingDescriptor = BindingDescripto
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.touch.state.
 pub(crate) const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -8649,7 +8467,7 @@ pub(crate) const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("input")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for input.
 pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

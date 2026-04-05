@@ -149,21 +149,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// List host display backends.
-    ///
-    /// List known display backends with support state and capability flags.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_backend_list(
         &mut self,
     ) -> RuntimeResult<
@@ -189,22 +175,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Begin one source-side drag session.
-    ///
-    /// Start one host drag session from the selected window.
-    /// The call returns the operation chosen by the destination, or `None` when the session is cancelled or rejected.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_drag_begin(
         &mut self,
         options: HarnessValue<DisplayDragBeginOptions, DisplayDragBeginOptionsVm>,
@@ -232,21 +203,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close one drag session handle.
-    ///
-    /// Release one drag session and any cached transfer payloads that were materialized for it.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_drag_session_close(
         &mut self,
         session: resource::DisplayDragSessionHandle,
@@ -261,21 +218,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one binary item from one drag session.
-    ///
-    /// Read one binary payload for the selected drag item.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_drag_session_read_bytes(
         &mut self,
         session: resource::DisplayDragSessionHandle,
@@ -307,21 +250,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one filesystem item from one drag session.
-    ///
-    /// Read one filesystem payload for the selected drag item when the backend exposes one local path.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_drag_session_read_path(
         &mut self,
         session: resource::DisplayDragSessionHandle,
@@ -353,21 +282,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read one text item from one drag session.
-    ///
-    /// Read one text payload for the selected drag item.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_drag_session_read_text(
         &mut self,
         session: resource::DisplayDragSessionHandle,
@@ -399,22 +314,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Select one accepted operation for one drag session.
-    ///
-    /// Update the destination-selected operation for the current drag session.
-    /// `None` rejects the current drop target.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_drag_session_set_operation(
         &mut self,
         session: resource::DisplayDragSessionHandle,
@@ -437,22 +337,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close a begin-frame stream.
-    ///
-    /// Close a begin-frame stream and release host routing resources.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland frame-callback deregistration, X11 redraw queue cleanup, and Win32 paint-routing teardown.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_begin_frame_close(
         &mut self,
         handle: resource::DisplayBeginFrameHandle,
@@ -467,24 +352,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open a global begin-frame stream.
-    ///
-    /// Open the host begin-frame stream for windows in this runtime.
-    /// Events are delivered after `windowInvalidate(...)` or host invalidations that schedule another frame.
-    /// Window-state changes are reported separately through `display.window_event`.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland frame callbacks, X11 expose and invalidate delivery, and Win32 paint and redraw message delivery.
-    ///
-    /// # Errors
-    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_begin_frame_open(
         &mut self,
         options: HarnessValue<DisplayBeginFrameOpenOptions, DisplayBeginFrameOpenOptionsVm>,
@@ -515,23 +383,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for a begin-frame event.
-    ///
-    /// Wait for the next event from a begin-frame stream.
-    /// Hidden, occluded, suspended, and zero-sized windows can suppress delivery until the window becomes renderable again.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland frame-callback dispatch, X11 expose queue waits, and Win32 paint and redraw message waits.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_begin_frame_read(
         &mut self,
         handle: resource::DisplayBeginFrameHandle,
@@ -563,22 +415,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for a batch of begin-frame events.
-    ///
-    /// Wait for pending events from a begin-frame stream and return up to `maxEvents` events.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland frame-callback batch dispatch, X11 expose queue waits, and Win32 paint and redraw batch waits.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_begin_frame_read_batch(
         &mut self,
         handle: resource::DisplayBeginFrameHandle,
@@ -616,23 +453,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll a begin-frame event without blocking.
-    ///
-    /// Poll a pending event from a begin-frame stream without waiting.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses nonblocking Wayland frame-callback dispatch, X11 expose polling, and Win32 paint and redraw polling.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_begin_frame_try_read(
         &mut self,
         handle: resource::DisplayBeginFrameHandle,
@@ -661,22 +482,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll a batch of begin-frame events without blocking.
-    ///
-    /// Poll pending events from a begin-frame stream and return up to `maxEvents` events.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses nonblocking Wayland frame-callback batch dispatch, X11 expose polling, and Win32 paint and redraw batch polling.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_begin_frame_try_read_batch(
         &mut self,
         handle: resource::DisplayBeginFrameHandle,
@@ -711,22 +517,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close a display endpoint.
-    ///
-    /// Close a display endpoint and release host resources.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific display close operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_close(
         &mut self,
         handle: resource::DisplayHandle,
@@ -741,22 +532,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Resolve one requested mode to the closest supported mode.
-    ///
-    /// Return the closest backend-selected mode for the requested mode.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend mode-matching queries where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.mode`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_closest_mode(
         &mut self,
         handle: resource::DisplayHandle,
@@ -790,22 +566,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read a display color-state snapshot.
-    ///
-    /// Read the current display color state for a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific color-state and colorspace query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_color_state(
         &mut self,
         handle: resource::DisplayHandle,
@@ -834,22 +595,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the current mode for a display.
-    ///
-    /// Read the active mode for a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific current-mode queries.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.mode`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_current_mode(
         &mut self,
         handle: resource::DisplayHandle,
@@ -878,22 +624,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read display descriptor metadata.
-    ///
-    /// Read the current descriptor snapshot for a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific monitor metadata queries.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_descriptor(
         &mut self,
         handle: resource::DisplayHandle,
@@ -922,22 +653,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the desktop-preferred mode for a display.
-    ///
-    /// Read the platform desktop mode for a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend desktop-mode queries where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.mode`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_desktop_mode(
         &mut self,
         handle: resource::DisplayHandle,
@@ -966,22 +682,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close a global monitor-event stream.
-    ///
-    /// Close a monitor-event stream and release host routing resources.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific event-stream close operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_event_close(
         &mut self,
         handle: resource::DisplayEventHandle,
@@ -996,23 +697,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open a global monitor-event stream.
-    ///
-    /// Open the host monitor-event stream for display hotplug and descriptor changes.
-    /// Events follow host event-loop delivery and use stable display identifiers when available.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host monitor callback and message subscription APIs.
-    ///
-    /// # Errors
-    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_event_open(
         &mut self,
         options: HarnessValue<DisplayMonitorEventOpenOptions, DisplayMonitorEventOpenOptionsVm>,
@@ -1043,22 +728,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for a monitor event.
-    ///
-    /// Wait for the next event from a monitor-event stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host event queue wait operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_event_read(
         &mut self,
         handle: resource::DisplayEventHandle,
@@ -1090,22 +760,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for a batch of monitor events.
-    ///
-    /// Wait for pending events from a monitor-event stream and return up to `maxEvents` events.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host event queue batch wait operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_event_read_batch(
         &mut self,
         handle: resource::DisplayEventHandle,
@@ -1141,23 +796,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll a monitor event without blocking.
-    ///
-    /// Poll a pending event from a monitor-event stream without waiting.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses nonblocking host event queue polling.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_event_try_read(
         &mut self,
         handle: resource::DisplayEventHandle,
@@ -1186,22 +825,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll a batch of monitor events without blocking.
-    ///
-    /// Poll pending events from a monitor-event stream and return up to `maxEvents` events.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses nonblocking host event queue batch polling.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_event_try_read_batch(
         &mut self,
         handle: resource::DisplayEventHandle,
@@ -1234,22 +858,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read a display gamma ramp.
-    ///
-    /// Read the gamma-ramp table for a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend gamma-ramp query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_gamma_ramp(
         &mut self,
         handle: resource::DisplayHandle,
@@ -1278,22 +887,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read a display HDR policy mode.
-    ///
-    /// Read the current HDR policy mode for a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific HDR query APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_hdr_mode(
         &mut self,
         handle: resource::DisplayHandle,
@@ -1322,23 +916,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// List available displays.
-    ///
-    /// List host display outputs with stable identifiers and physical metadata.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Declared backend kinds include mobile and Apple backends, while this host runtime currently implements one subset.
-    /// Uses host display-enumeration APIs on Unix and Windows targets.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_list(
         &mut self,
         request: HarnessValue<DisplayMonitorListRequest, DisplayMonitorListRequestVm>,
@@ -1367,23 +945,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read available display modes.
-    ///
-    /// Read all host-supported modes for a display endpoint.
-    /// Mode ordering follows backend reporting behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses host mode-enumeration APIs on Unix and Windows targets.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.mode`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_modes(
         &mut self,
         handle: resource::DisplayHandle,
@@ -1409,22 +971,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open a display endpoint.
-    ///
-    /// Open a display endpoint by identifier for mode queries and updates.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific display open handles.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -1460,23 +1007,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the current primary display handle.
-    ///
-    /// Return the current primary display handle when available.
-    /// Returns `void` when the backend has no discoverable primary display.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses compositor and system-display primary-output selection.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_primary(
         &mut self,
         request: HarnessValue<DisplayMonitorListRequest, DisplayMonitorListRequestVm>,
@@ -1507,22 +1038,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a display gamma ramp.
-    ///
-    /// Apply a gamma-ramp table to a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend gamma-ramp control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.mode`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_set_gamma_ramp(
         &mut self,
         handle: resource::DisplayHandle,
@@ -1549,22 +1065,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a display HDR policy mode.
-    ///
-    /// Apply an HDR policy mode to a display endpoint.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific HDR control APIs where available.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.mode`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_set_hdr_mode(
         &mut self,
         handle: resource::DisplayHandle,
@@ -1587,23 +1088,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Apply a display mode.
-    ///
-    /// Apply a mode to a display endpoint.
-    /// Mode-set behavior and rollback semantics are host-defined.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses KMS mode setting on Unix-like hosts and display mode APIs on Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.mode`.
-    ///
-    /// # Replay
-    /// External, nonrecordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_monitor_set_mode(
         &mut self,
         handle: resource::DisplayHandle,
@@ -1626,22 +1111,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Begin a native move-drag interaction.
-    ///
-    /// Start a host-controlled move-drag interaction for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific interactive move-drag operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_begin_move_drag(
         &mut self,
         window: resource::WindowHandle,
@@ -1658,22 +1128,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Begin a native resize-drag interaction.
-    ///
-    /// Start a host-controlled resize-drag interaction for a window and the selected edge.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific interactive resize-drag operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_begin_resize_drag(
         &mut self,
         window: resource::WindowHandle,
@@ -1696,23 +1151,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the effective capability set for a window.
-    ///
-    /// Read the effective capability set after backend and role negotiation.
-    /// This can be a strict subset of the backend descriptor capability flags.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend and role specific capability resolution.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_capabilities(
         &mut self,
         window: resource::WindowHandle,
@@ -1741,22 +1180,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close a window.
-    ///
-    /// Close a host window and release associated resources.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific window close and destroy operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_close(
         &mut self,
         window: resource::WindowHandle,
@@ -1771,23 +1195,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the logical content rectangle for a window.
-    ///
-    /// Read the current logical content rectangle.
-    /// This excludes host chrome and uses window-local coordinates.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Win32 client-rect queries, X11 window geometry, and Wayland configured content-area tracking.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_content_rect(
         &mut self,
         window: resource::WindowHandle,
@@ -1816,22 +1224,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read window descriptor metadata.
-    ///
-    /// Read the current descriptor snapshot for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific window metadata queries.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_descriptor(
         &mut self,
         window: resource::WindowHandle,
@@ -1860,22 +1253,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Close a global window-event stream.
-    ///
-    /// Close a window-event stream and release host routing resources.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland event-stream deregistration, X11 queue cleanup, and Win32 message-routing teardown.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_event_close(
         &mut self,
         handle: resource::WindowEventHandle,
@@ -1890,24 +1268,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open a global window-event stream.
-    ///
-    /// Open the host window-event stream for all windows in this runtime.
-    /// Events report lifecycle, state, and drop transitions as the host event loop delivers them.
-    /// Begin-frame delivery is exposed separately through `display.frame`.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland event dispatch, X11 event queue dispatch, and Win32 message-loop delivery with stable window-handle routing.
-    ///
-    /// # Errors
-    /// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_event_open(
         &mut self,
         options: HarnessValue<WindowEventOpenOptions, WindowEventOpenOptionsVm>,
@@ -1938,22 +1299,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for a window event.
-    ///
-    /// Wait for the next event from a window-event stream.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland event waits, X11 event queue waits, and Win32 message waits.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_event_read(
         &mut self,
         handle: resource::WindowEventHandle,
@@ -1985,22 +1331,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Wait for a batch of window events.
-    ///
-    /// Wait for pending events from a window-event stream and return up to `maxEvents` events.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland batch dispatch, X11 event queue waits, and Win32 message batch waits.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_event_read_batch(
         &mut self,
         handle: resource::WindowEventHandle,
@@ -2035,23 +1366,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll a window event without blocking.
-    ///
-    /// Poll a pending event from a window-event stream without waiting.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses nonblocking Wayland dispatch, X11 event polling, and Win32 message polling.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_event_try_read(
         &mut self,
         handle: resource::WindowEventHandle,
@@ -2080,22 +1395,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Poll a batch of window events without blocking.
-    ///
-    /// Poll pending events from a window-event stream and return up to `maxEvents` events.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses nonblocking Wayland batch dispatch, X11 event polling, and Win32 message batch polling.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.events`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_event_try_read_batch(
         &mut self,
         handle: resource::WindowEventHandle,
@@ -2127,22 +1427,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Focus a window.
-    ///
-    /// Request keyboard focus for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific focus request operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_focus(
         &mut self,
         window: resource::WindowHandle,
@@ -2157,23 +1442,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the drawable framebuffer size for a window.
-    ///
-    /// Read the current drawable framebuffer size.
-    /// This is the canonical render and present size for the window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses drawable pixel-size queries derived from client geometry, compositor scale, and backing-surface extent.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_framebuffer_size(
         &mut self,
         window: resource::WindowHandle,
@@ -2202,24 +1471,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Invalidate a window for redraw.
-    ///
-    /// Enqueue a host invalidation for a window.
-    /// Multiple outstanding invalidations can be coalesced by the backend.
-    /// Call this after scene, layout, animation, or state changes when no host invalidation already guarantees another begin frame.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses Wayland frame callbacks, X11 redraw invalidation, and Win32 `InvalidateRect` or equivalent redraw requests.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_invalidate(
         &mut self,
         window: resource::WindowHandle,
@@ -2234,22 +1486,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Maximize a window.
-    ///
-    /// Transition a window to maximized host state.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific maximize operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_maximize(
         &mut self,
         window: resource::WindowHandle,
@@ -2264,22 +1501,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Minimize a window.
-    ///
-    /// Transition a window to minimized host state.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific minimize operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_minimize(
         &mut self,
         window: resource::WindowHandle,
@@ -2294,22 +1516,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read a window opacity value.
-    ///
-    /// Read the current whole-window opacity value in `[0.0, 1.0]`.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific whole-window opacity queries.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_opacity(
         &mut self,
         window: resource::WindowHandle,
@@ -2335,23 +1542,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Open a window.
-    ///
-    /// Create a host window from an explicit configuration payload.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Declared backend kinds include mobile and Apple backends, while this host runtime currently implements one subset.
-    /// Uses host window-system APIs on Win32, X11, and Wayland desktop backends.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_open(
         &mut self,
         options: HarnessValue<WindowOptions, WindowOptionsVm>,
@@ -2379,22 +1570,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Raise a window.
-    ///
-    /// Request that a window moves to the top of its stack group.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific raise and stack-order operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_raise(
         &mut self,
         window: resource::WindowHandle,
@@ -2409,24 +1585,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read the render state for a window.
-    ///
-    /// Read the current renderability state.
-    /// When the state is `SurfaceLost`, stop presenting until the window becomes renderable again.
-    /// Then use `gpu.surfaceStatus(...)` to decide whether to reconfigure or reopen the present surface.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses visibility, occlusion, lifecycle suspension, and host-surface state derived from compositor and window-system state.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_render_state(
         &mut self,
         window: resource::WindowHandle,
@@ -2455,22 +1614,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Request user attention for a window.
-    ///
-    /// Request host-specific user attention signaling for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific request-attention primitives.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_request_attention(
         &mut self,
         window: resource::WindowHandle,
@@ -2493,22 +1637,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Restore a window.
-    ///
-    /// Restore a minimized or maximized window to standard visible state.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific restore operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_restore(
         &mut self,
         window: resource::WindowHandle,
@@ -2523,22 +1652,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set always-on-top state.
-    ///
-    /// Enable or disable host always-on-top policy for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific topmost-window flags.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_always_on_top(
         &mut self,
         window: resource::WindowHandle,
@@ -2561,23 +1675,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window aspect-ratio lock.
-    ///
-    /// Apply an aspect-ratio lock for a window.
-    /// Passing `void` clears any currently active aspect-ratio lock.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific aspect-ratio lock operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_aspect_ratio(
         &mut self,
         window: resource::WindowHandle,
@@ -2604,22 +1702,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window chrome style.
-    ///
-    /// Apply a backend chrome style policy for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific window style and type operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_chrome(
         &mut self,
         window: resource::WindowHandle,
@@ -2638,22 +1721,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor icon for a window.
-    ///
-    /// Apply a standard system cursor icon for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific cursor-shape operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_cursor_icon(
         &mut self,
         window: resource::WindowHandle,
@@ -2676,22 +1744,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor interaction mode for a window.
-    ///
-    /// Apply a cursor mode policy for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific cursor lock and confine and hide operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_cursor_mode(
         &mut self,
         window: resource::WindowHandle,
@@ -2714,24 +1767,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor position for a window.
-    ///
-    /// Warp cursor position relative to a window.
-    /// This is a window-scoped convenience API for UI and tooling interactions.
-    /// Use `input.pointer.warp` for device-target scoped pointer control.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific cursor warp operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_cursor_position(
         &mut self,
         window: resource::WindowHandle,
@@ -2758,22 +1794,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set cursor visibility for a window.
-    ///
-    /// Show or hide the window cursor without changing lock or confinement state.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific cursor visibility operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_cursor_visible(
         &mut self,
         window: resource::WindowHandle,
@@ -2796,22 +1817,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set window decoration state.
-    ///
-    /// Enable or disable host decorations for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific decorated-window flags.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_decorated(
         &mut self,
         window: resource::WindowHandle,
@@ -2834,24 +1840,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window icon set.
-    ///
-    /// Apply a host window icon set from packed pixel bytes.
-    /// Backends can select the closest icon size per host surface.
-    /// Passing `void` clears custom icons and restores host default behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific window icon APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_icons(
         &mut self,
         window: resource::WindowHandle,
@@ -2874,23 +1863,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window modal relationship.
-    ///
-    /// Enable or disable a modal relationship where backend policy allows.
-    /// Modal mode requires an active `transientFor` or `parent` relationship.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific modal-window operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.modal`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_modal(
         &mut self,
         window: resource::WindowHandle,
@@ -2909,22 +1882,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window mode.
-    ///
-    /// Apply a host window mode transition for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific fullscreen and borderless and windowed mode operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_mode(
         &mut self,
         window: resource::WindowHandle,
@@ -2947,22 +1905,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set mouse passthrough behavior for a window.
-    ///
-    /// Enable or disable pointer hit-test passthrough for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific hit-test and pointer-input region operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_mouse_passthrough(
         &mut self,
         window: resource::WindowHandle,
@@ -2985,22 +1928,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window opacity.
-    ///
-    /// Apply a whole-window opacity value in `[0.0, 1.0]`.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific whole-window opacity APIs.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_opacity(
         &mut self,
         window: resource::WindowHandle,
@@ -3023,24 +1951,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a parent window relationship.
-    ///
-    /// Apply a parent relationship where backend policy allows.
-    /// This relationship is ignored when `transientFor` is also set.
-    /// Passing `void` removes the parent relationship.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific parent-window relationship operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.parenting`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_parent(
         &mut self,
         window: resource::WindowHandle,
@@ -3059,22 +1970,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window position.
-    ///
-    /// Apply a host window position in desktop coordinates.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific window move operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_position(
         &mut self,
         window: resource::WindowHandle,
@@ -3101,22 +1997,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set window resizable state.
-    ///
-    /// Enable or disable host resize affordances for a window.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific resizable-window flags.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_resizable(
         &mut self,
         window: resource::WindowHandle,
@@ -3139,23 +2020,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set logical size constraints.
-    ///
-    /// Apply minimum and maximum logical size constraints for a window.
-    /// Passing `void` clears current constraints.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific size-constraint operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_size_constraints(
         &mut self,
         window: resource::WindowHandle,
@@ -3182,22 +2047,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a logical window size.
-    ///
-    /// Apply a host window size in logical platform points.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific window resize operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_size_logical(
         &mut self,
         window: resource::WindowHandle,
@@ -3224,22 +2074,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a physical window size.
-    ///
-    /// Apply a host window size in physical pixels.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific pixel-size resize operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_size_physical(
         &mut self,
         window: resource::WindowHandle,
@@ -3266,22 +2101,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set taskbar visibility for a window.
-    ///
-    /// Control whether a window is visible in task switching and taskbar surfaces.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific taskbar and dock visibility operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_taskbar_visible(
         &mut self,
         window: resource::WindowHandle,
@@ -3304,22 +2124,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window title string.
-    ///
-    /// Update a host window title.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific title update operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_title(
         &mut self,
         window: resource::WindowHandle,
@@ -3342,24 +2147,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a transient-owner relationship.
-    ///
-    /// Apply a transient-owner relationship where backend policy allows.
-    /// This relationship takes precedence over `parent`.
-    /// Passing `void` removes the transient-owner relationship.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific transient-window relationship operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window.parenting`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_transient_for(
         &mut self,
         window: resource::WindowHandle,
@@ -3382,22 +2170,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Set a window visibility state.
-    ///
-    /// Apply a window visibility state transition.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific show and hide and minimize and maximize operations.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_set_visibility(
         &mut self,
         window: resource::WindowHandle,
@@ -3420,22 +2193,7 @@ impl<'call> DisplayHarnessContext<'call> {
         }
     }
 
-    /// Read a window state snapshot.
-    ///
-    /// Read the current host window state snapshot.
-    ///
-    /// # Platform
-    /// Unix and Windows.
-    /// Uses backend-specific window state queries.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `display.window`.
-    ///
-    /// # Replay
-    /// External, recordable.
+    /// Call one generated platform test harness binding.
     pub(crate) fn destack_display_window_state(
         &mut self,
         window: resource::WindowHandle,

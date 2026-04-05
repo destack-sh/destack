@@ -618,7 +618,7 @@ pub(crate) const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescript
     BindingAffinity::Any,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.advise.discard.
 pub(crate) const MEMORY_ADVISE_DISCARD: BindingDescriptor =
@@ -633,20 +633,7 @@ pub(crate) const MEMORY_ADVISE_DISCARD: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.lock.lockRange.
 pub(crate) const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
@@ -661,20 +648,7 @@ pub(crate) const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.lock.unlock.
 pub(crate) const MEMORY_LOCK_UNLOCK: BindingDescriptor =
@@ -689,20 +663,7 @@ pub(crate) const MEMORY_LOCK_UNLOCK: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.allocate.
 pub(crate) const MEMORY_MAP_ALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -716,7 +677,7 @@ pub(crate) const MEMORY_MAP_ALLOCATE: BindingDescriptor = BindingDescriptor::ext
     BindingAffinity::Any,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.commit.
 pub(crate) const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -730,7 +691,7 @@ pub(crate) const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::exter
     BindingAffinity::Any,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.decommit.
 pub(crate) const MEMORY_MAP_DECOMMIT: BindingDescriptor =
@@ -745,20 +706,7 @@ pub(crate) const MEMORY_MAP_DECOMMIT: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.release.
 pub(crate) const MEMORY_MAP_RELEASE: BindingDescriptor =
@@ -773,20 +721,7 @@ pub(crate) const MEMORY_MAP_RELEASE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.reserve.
 pub(crate) const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -800,7 +735,7 @@ pub(crate) const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::exte
     BindingAffinity::Any,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.flushInstructionCache.
 pub(crate) const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -814,7 +749,7 @@ pub(crate) const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = Bin
     BindingAffinity::Any,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.protectRange.
 pub(crate) const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -828,7 +763,7 @@ pub(crate) const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescri
     BindingAffinity::Any,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.remap.
 pub(crate) const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
@@ -842,7 +777,7 @@ pub(crate) const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::ex
     BindingAffinity::Any,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "dragonfly", "freebsd", "haiku", "illumos", "ios", "linux", "macos", "netbsd", "openbsd", "solaris", "windows"]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.query.allocationGranularity.
 pub(crate) const MEMORY_QUERY_ALLOCATION_GRANULARITY: BindingDescriptor =
@@ -857,20 +792,7 @@ pub(crate) const MEMORY_QUERY_ALLOCATION_GRANULARITY: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.query.hugePageSize.
 pub(crate) const MEMORY_QUERY_HUGE_PAGE_SIZE: BindingDescriptor =
@@ -885,20 +807,7 @@ pub(crate) const MEMORY_QUERY_HUGE_PAGE_SIZE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.query.pageSize.
 pub(crate) const MEMORY_QUERY_PAGE_SIZE: BindingDescriptor =
@@ -913,20 +822,7 @@ pub(crate) const MEMORY_QUERY_PAGE_SIZE: BindingDescriptor =
         BindingAffinity::Any,
     )
     .with_namespace("memory")
-    .with_host_platforms(&[
-        "android",
-        "dragonfly",
-        "freebsd",
-        "haiku",
-        "illumos",
-        "ios",
-        "linux",
-        "macos",
-        "netbsd",
-        "openbsd",
-        "solaris",
-        "windows",
-    ]);
+    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for memory.
 pub(crate) const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
