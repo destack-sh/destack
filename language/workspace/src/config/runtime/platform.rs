@@ -6,26 +6,12 @@ use serde::{Deserialize, Serialize};
 pub struct PlatformOptions {
     /// Android runtime host overrides.
     pub android: PlatformHostOptions,
-    /// DragonFly BSD runtime host overrides.
-    pub dragonfly: PlatformHostOptions,
-    /// FreeBSD runtime host overrides.
-    pub freebsd: PlatformHostOptions,
-    /// Haiku runtime host overrides.
-    pub haiku: PlatformHostOptions,
-    /// illumos runtime host overrides.
-    pub illumos: PlatformHostOptions,
     /// iOS runtime host overrides.
     pub ios: PlatformHostOptions,
     /// Linux runtime host overrides.
     pub linux: PlatformHostOptions,
     /// macOS runtime host overrides.
     pub macos: PlatformHostOptions,
-    /// NetBSD runtime host overrides.
-    pub netbsd: PlatformHostOptions,
-    /// OpenBSD runtime host overrides.
-    pub openbsd: PlatformHostOptions,
-    /// Solaris runtime host overrides.
-    pub solaris: PlatformHostOptions,
     /// Windows runtime host overrides.
     pub windows: PlatformWindowsOptions,
 }
@@ -275,26 +261,12 @@ impl PlatformWindowsOptions {
 pub struct PlatformOptionsJson {
     /// Android-specific runtime host overrides.
     pub android: Option<PlatformHostOptionsJson>,
-    /// DragonFly BSD-specific runtime host overrides.
-    pub dragonfly: Option<PlatformHostOptionsJson>,
-    /// FreeBSD-specific runtime host overrides.
-    pub freebsd: Option<PlatformHostOptionsJson>,
-    /// Haiku-specific runtime host overrides.
-    pub haiku: Option<PlatformHostOptionsJson>,
-    /// illumos-specific runtime host overrides.
-    pub illumos: Option<PlatformHostOptionsJson>,
     /// iOS-specific runtime host overrides.
     pub ios: Option<PlatformHostOptionsJson>,
     /// Linux-specific runtime host overrides.
     pub linux: Option<PlatformHostOptionsJson>,
     /// macOS-specific runtime host overrides.
     pub macos: Option<PlatformHostOptionsJson>,
-    /// NetBSD-specific runtime host overrides.
-    pub netbsd: Option<PlatformHostOptionsJson>,
-    /// OpenBSD-specific runtime host overrides.
-    pub openbsd: Option<PlatformHostOptionsJson>,
-    /// Solaris-specific runtime host overrides.
-    pub solaris: Option<PlatformHostOptionsJson>,
     /// Windows-specific runtime host overrides.
     pub windows: Option<PlatformWindowsOptionsJson>,
 }
@@ -305,26 +277,6 @@ impl PlatformOptionsJson {
         // apply android overrides
         if let Some(android) = &self.android {
             android.apply_to(&mut options.android);
-        }
-
-        // apply dragonfly overrides
-        if let Some(dragonfly) = &self.dragonfly {
-            dragonfly.apply_to(&mut options.dragonfly);
-        }
-
-        // apply freebsd overrides
-        if let Some(freebsd) = &self.freebsd {
-            freebsd.apply_to(&mut options.freebsd);
-        }
-
-        // apply haiku overrides
-        if let Some(haiku) = &self.haiku {
-            haiku.apply_to(&mut options.haiku);
-        }
-
-        // apply illumos overrides
-        if let Some(illumos) = &self.illumos {
-            illumos.apply_to(&mut options.illumos);
         }
 
         // apply ios overrides
@@ -340,21 +292,6 @@ impl PlatformOptionsJson {
         // apply macos overrides
         if let Some(macos) = &self.macos {
             macos.apply_to(&mut options.macos);
-        }
-
-        // apply netbsd overrides
-        if let Some(netbsd) = &self.netbsd {
-            netbsd.apply_to(&mut options.netbsd);
-        }
-
-        // apply openbsd overrides
-        if let Some(openbsd) = &self.openbsd {
-            openbsd.apply_to(&mut options.openbsd);
-        }
-
-        // apply solaris overrides
-        if let Some(solaris) = &self.solaris {
-            solaris.apply_to(&mut options.solaris);
         }
 
         // apply windows overrides
