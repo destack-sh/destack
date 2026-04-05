@@ -145,7 +145,9 @@ mod tests {
     };
     use destack_source::{LanguageType, NodeSpanType};
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+    };
 
     #[test]
     fn test_parse_struct_requires_name() {
@@ -432,8 +434,8 @@ class Counter extends {}
                 assert!(member_annotations.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "extends-tail");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "extends-tail");
     }
 
     #[test]
@@ -476,9 +478,9 @@ Second // impl-second
                 assert!(member_annotations.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 2);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "impl-first");
-        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "impl-second");
+        assert_eq!(parser.tree.comments().len(), 2);
+        assert_comment!(parser, 0, CommentStyle::Slash, "impl-first");
+        assert_comment!(parser, 1, CommentStyle::Slash, "impl-second");
     }
 
     #[test]
@@ -514,8 +516,8 @@ Second // impl-second
             let annotations = parser.tree.get_annotations(first_static_parameter_id.id);
             assert!(annotations.is_empty());
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "box-head");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "box-head");
     }
 
     #[test]

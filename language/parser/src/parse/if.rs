@@ -1,3 +1,4 @@
+use crate::parse::parser::ParserOptions;
 use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{
     Block, BlockContext, BlockFormat, Expression, IfCondition, IfKind, Keyword, LocalNodeId,
@@ -7,12 +8,7 @@ use destack_ast::{
 impl Parser {
     /// Return parser contexts for `if` conditions.
     #[inline]
-    fn if_condition_contexts(
-        &self,
-    ) -> (
-        crate::parse::parser::ParserOptions,
-        crate::parse::parser::ParserOptions,
-    ) {
+    fn if_condition_contexts(&self) -> (ParserOptions, ParserOptions) {
         let ambient_context = self.options.nested().with_before_block(true);
         let expression_context = self.options.nested();
         (ambient_context, expression_context)
@@ -239,7 +235,8 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, block_expression_ids,
+        TestParser, assert_comment, assert_expression_path, assert_name, assert_node,
+        block_expression_ids,
     };
 
     #[test]
@@ -861,8 +858,8 @@ else
             });
         });
 
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "if-head");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "if-head");
     }
 
     #[test]
@@ -888,8 +885,8 @@ else
             assert!(annotations.is_empty());
         });
 
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "else-boundary");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "else-boundary");
     }
 
     #[test]

@@ -1347,13 +1347,15 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+    };
     use destack_ast::{
-        Annotation, AnnotationPosition, Argument, BinaryOperator, BindingKind, BindingModifier,
-        BindingOperator, CommentStyle, Declaration, DeclarationKind, Doc, DocStyle, Expression,
-        FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
-        Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
-        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+        Argument, BinaryOperator, BindingKind, BindingModifier, BindingOperator, CommentStyle,
+        Declaration, DeclarationKind, Expression, FunctionAbstraction, FunctionKind, FunctionMode,
+        IntType, IntrinsicType, Key, Mutability, Name, Parameter, Property, ScalarLiteral,
+        TypeBinaryOperator, TypeLiteral, TypeMappedModifiers, TypeModifier, TypePredicateSubject,
+        TypeUnaryOperator, UnaryOperator, normalize_comment_payload,
     };
     use destack_source::LanguageType;
 
@@ -4607,8 +4609,8 @@ mod tests {
                 });
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "union-line");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "union-line");
     }
 
     #[test]
@@ -4635,8 +4637,8 @@ mod tests {
                 });
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "intersection-line");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "intersection-line");
     }
 
     #[test]
@@ -4662,8 +4664,8 @@ mod tests {
                 });
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "left-union");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "left-union");
     }
 
     #[test]
@@ -4712,8 +4714,8 @@ mod tests {
                 });
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "left-intersection");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "left-intersection");
     }
 
     #[test]
@@ -4751,10 +4753,10 @@ mod tests {
                 });
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 3);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "null-arm");
-        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "object-arm");
-        crate::assert_comment_trivia!(parser, 2, CommentStyle::Slash, "void-arm");
+        assert_eq!(parser.tree.comments().len(), 3);
+        assert_comment!(parser, 0, CommentStyle::Slash, "null-arm");
+        assert_comment!(parser, 1, CommentStyle::Slash, "object-arm");
+        assert_comment!(parser, 2, CommentStyle::Slash, "void-arm");
     }
 
     #[test]
@@ -4780,18 +4782,13 @@ mod tests {
                 });
             });
         });
-        let mut documentation_nodes = Vec::new();
-        for annotation_id in parser.tree.iter_nodes::<Annotation>() {
-            if let Annotation::Doc { node, position } = parser.tree.get(annotation_id) {
-                assert_eq!(*position, AnnotationPosition::LinePrefix);
-                documentation_nodes.push(*node);
-            }
-        }
-        assert_eq!(documentation_nodes.len(), 1);
-        assert_node!(parser.tree, documentation_nodes[0], Doc { string, style } => {
-            assert_eq!(*style, DocStyle::Star);
-            assert_string!(parser, *string, "union-doc\n");
-        });
+        assert_eq!(parser.tree.comments().len(), 1);
+        let comment = parser.tree.comments()[0];
+        assert!(comment.is_leading());
+        assert_eq!(
+            normalize_comment_payload(parser.get_span_str(comment.span)),
+            "union-doc\n"
+        );
     }
 
     /// Parse declaration-file conditional aliases with generic parameter constraints.

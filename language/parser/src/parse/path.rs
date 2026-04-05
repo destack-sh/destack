@@ -9,9 +9,9 @@ use destack_ast::{Expression, LocalNodeId, Path, TokenType};
 impl Parser {
     /// Return true when a semantic token has leading comment trivia.
     #[inline]
-    fn token_has_leading_comment_trivia(&mut self, token_index: usize) -> bool {
+    fn token_has_leading_comment(&mut self, token_index: usize) -> bool {
         // fast path: no comment side tokens have been seen yet
-        if !self.token_stream.has_comment_trivia_tokens() {
+        if !self.token_stream.has_comment_tokens() {
             return false;
         }
 
@@ -46,8 +46,8 @@ impl Parser {
                 // comment boundaries around `.` must stay in expression continuation parsing
                 let dot_index = self.pos_index();
                 let segment_index = dot_index.saturating_add(1);
-                if self.token_has_leading_comment_trivia(dot_index)
-                    || self.token_has_leading_comment_trivia(segment_index)
+                if self.token_has_leading_comment(dot_index)
+                    || self.token_has_leading_comment(segment_index)
                 {
                     break;
                 }
@@ -118,8 +118,8 @@ impl Parser {
                 // comment boundaries around `.` must stay in expression continuation parsing
                 let dot_index = self.pos_index();
                 let segment_index = dot_index.saturating_add(1);
-                if self.token_has_leading_comment_trivia(dot_index)
-                    || self.token_has_leading_comment_trivia(segment_index)
+                if self.token_has_leading_comment(dot_index)
+                    || self.token_has_leading_comment(segment_index)
                 {
                     break;
                 }
@@ -185,8 +185,8 @@ impl Parser {
                 // comment boundaries around `.` must stay in expression continuation parsing
                 let dot_index = self.pos_index();
                 let segment_index = dot_index.saturating_add(1);
-                if self.token_has_leading_comment_trivia(dot_index)
-                    || self.token_has_leading_comment_trivia(segment_index)
+                if self.token_has_leading_comment(dot_index)
+                    || self.token_has_leading_comment(segment_index)
                 {
                     break;
                 }
@@ -251,8 +251,8 @@ impl Parser {
                 // comment boundaries around `.` must stay in expression continuation parsing
                 let dot_index = self.pos_index();
                 let segment_index = dot_index.saturating_add(1);
-                if self.token_has_leading_comment_trivia(dot_index)
-                    || self.token_has_leading_comment_trivia(segment_index)
+                if self.token_has_leading_comment(dot_index)
+                    || self.token_has_leading_comment(segment_index)
                 {
                     break;
                 }

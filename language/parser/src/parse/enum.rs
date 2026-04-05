@@ -277,7 +277,7 @@ mod tests {
         WhereClause,
     };
 
-    use crate::{TestParser, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_enum_with_extends_types() {
@@ -591,10 +591,10 @@ Entry
                 });
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 3);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "before-first");
-        crate::assert_comment_trivia!(parser, 1, CommentStyle::Slash, "between");
-        crate::assert_comment_trivia!(parser, 2, CommentStyle::Slash, "before-name");
+        assert_eq!(parser.tree.comments().len(), 3);
+        assert_comment!(parser, 0, CommentStyle::Slash, "before-first");
+        assert_comment!(parser, 1, CommentStyle::Slash, "between");
+        assert_comment!(parser, 2, CommentStyle::Slash, "before-name");
     }
 
     #[test]
@@ -629,17 +629,8 @@ B
                 assert!(second_annotations.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "a-tail");
-        assert_eq!(parser.tree.blank_trivia().len(), 2);
-        assert_eq!(
-            parser.tree.get(parser.tree.blank_trivia()[0].blank).lines,
-            1
-        );
-        assert_eq!(
-            parser.tree.get(parser.tree.blank_trivia()[1].blank).lines,
-            1
-        );
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "a-tail");
     }
 
     #[test]
@@ -660,7 +651,7 @@ B
             let annotations = parser.tree.get_annotations(expression_id.id);
             assert!(annotations.is_empty());
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Star, " enum-body");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Star, " enum-body");
     }
 }

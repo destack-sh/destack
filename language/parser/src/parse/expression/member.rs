@@ -4,6 +4,7 @@ use destack_ast::{
     Expression, Keyword, LiteralType, LocalNodeId, NumberBase, ScalarLiteral, TokenType,
 };
 use destack_core::StringId;
+use destack_source::Span;
 
 impl Parser {
     /// Return true when an expression is a decimal integer token directly before `.`.
@@ -70,9 +71,7 @@ impl Parser {
 
     /// Eat a static member name and return both the name and its span.
     #[inline]
-    pub(super) fn eat_member_name_with_span(
-        &mut self,
-    ) -> ParseResult<(StringId, destack_source::Span)> {
+    pub(super) fn eat_member_name_with_span(&mut self) -> ParseResult<(StringId, Span)> {
         // identifier member name
         if self.peek_is(TokenType::Identifier) {
             self.eat_identifier_with_span()

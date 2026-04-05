@@ -148,7 +148,9 @@ mod tests {
         Parameter, ScalarLiteral, TypeKind, TypeLiteral, VarianceModifier, WhereClause,
     };
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{
+        TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
+    };
     use destack_source::LanguageType;
 
     #[test]
@@ -964,8 +966,8 @@ interface Add<T, R = Self> {
             let annotations = parser.tree.get_annotations(declaration_id.id);
             assert!(annotations.is_empty());
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "interface-head");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "interface-head");
     }
 
     #[test]

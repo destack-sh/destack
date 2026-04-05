@@ -10,12 +10,12 @@ use destack_ast::{
 use destack_source::LanguageType;
 
 use crate::{
-    TestParser, assert_comment_trivia, assert_expression_path, assert_name, assert_node,
+    Parser, TestParser, assert_comment, assert_expression_path, assert_name, assert_node,
     assert_path, assert_qualified_reference_path, assert_string, assert_value_expression_path,
     block_expression_ids,
 };
 
-fn assert_import_target_string(parser: &crate::Parser, target: &ImportTarget, expected: &str) {
+fn assert_import_target_string(parser: &Parser, target: &ImportTarget, expected: &str) {
     assert_node!(target, ImportTarget::String(target) => {
         assert_string!(parser, *target, expected);
     });
@@ -247,9 +247,9 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
         });
     });
 
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
-    assert_comment_trivia!(parser, 0, CommentStyle::Star, " hop-a");
-    assert_comment_trivia!(parser, 1, CommentStyle::Star, " hop-b");
+    assert_eq!(parser.tree.comments().len(), 2);
+    assert_comment!(parser, 0, CommentStyle::Star, " hop-a");
+    assert_comment!(parser, 1, CommentStyle::Star, " hop-b");
 }
 
 /// Parse private member access with a newline before dot in TypeScript.
@@ -293,18 +293,24 @@ fn test_parse_member_expression_with_line_comment_before_dot_typescript() {
         }
     );
 
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let comment_trivia = parser.tree.comment_trivia()[0];
-    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "marker");
+    assert_eq!(parser.tree.comments().len(), 1);
+    let comment = parser.tree.comments()[0];
+    assert_comment!(parser, 0, CommentStyle::Slash, "marker");
 
     let token_before = parser
         .tokens()
-        .get(comment_trivia.boundary.token_before as usize)
+        .iter()
+        .rev()
+        .find(|token| token.span.end <= comment.span.start)
         .copied()
         .expect("line comment should have one preceding token");
     let token_after = parser
         .tokens()
-        .get(comment_trivia.boundary.token_after as usize)
+        .iter()
+        .find(|token| {
+            token.span.start >= comment.span.end
+                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+        })
         .copied()
         .expect("line comment should have one following token");
     assert_eq!(token_before.token.ty, TokenType::Identifier);
@@ -323,18 +329,24 @@ fn test_parse_function_member_comment_seam_before_dot_typescript() {
     parser.attach_trivia();
 
     assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
-    assert_eq!(parser.tree.comment_trivia().len(), 1);
-    let comment_trivia = parser.tree.comment_trivia()[0];
-    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "marker");
+    assert_eq!(parser.tree.comments().len(), 1);
+    let comment = parser.tree.comments()[0];
+    assert_comment!(parser, 0, CommentStyle::Slash, "marker");
 
     let token_before = parser
         .tokens()
-        .get(comment_trivia.boundary.token_before as usize)
+        .iter()
+        .rev()
+        .find(|token| token.span.end <= comment.span.start)
         .copied()
         .expect("line comment should have one preceding token");
     let token_after = parser
         .tokens()
-        .get(comment_trivia.boundary.token_after as usize)
+        .iter()
+        .find(|token| {
+            token.span.start >= comment.span.end
+                && !matches!(token.token.ty, TokenType::Newline | TokenType::End)
+        })
         .copied()
         .expect("line comment should have one following token");
     assert_eq!(token_before.token.ty, TokenType::Identifier);
@@ -1732,9 +1744,9 @@ fn test_parse_if_ternary_seam_comments_attach_to_branch_owners() {
         assert!(else_annotations.is_empty());
     });
 
-    assert_eq!(parser.tree.comment_trivia().len(), 2);
-    assert_comment_trivia!(parser, 0, CommentStyle::Slash, "then-seam");
-    assert_comment_trivia!(parser, 1, CommentStyle::Slash, "else-seam");
+    assert_eq!(parser.tree.comments().len(), 2);
+    assert_comment!(parser, 0, CommentStyle::Slash, "then-seam");
+    assert_comment!(parser, 1, CommentStyle::Slash, "else-seam");
 }
 
 /// Parse a ternary if expression with parenthesis (disambiguate from call expression).
@@ -7195,15 +7207,14 @@ fn test_parse_no_semi_for_of_fixture_slice_trailing_block_comment_is_not_duplica
 
     let trailing_block_comment_count = parser
         .tree
-        .comment_trivia()
+        .comments()
         .iter()
-        .filter(|trivia| {
-            let comment = parser.tree.get(trivia.comment);
+        .filter(|comment| {
             if comment.style != CommentStyle::Star {
                 return false;
             }
 
-            parser.get_span_str(parser.tree.get_span(trivia.comment)) == "/* comment */"
+            parser.get_span_str(comment.span) == "/* comment */"
         })
         .count();
     assert_eq!(trailing_block_comment_count, 1);

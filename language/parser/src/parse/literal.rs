@@ -8,6 +8,7 @@ use destack_ast::{
     Argument, Expression, Keyword, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property,
     ScalarLiteral, StringId, TemplateLiteral, TokenSpan, TokenType,
 };
+use destack_source::Span;
 
 impl Parser {
     /// Return true when the current token starts a template literal.
@@ -778,7 +779,7 @@ impl Parser {
     /// Reject template chunks with legacy octal escapes when the mode does not allow them.
     fn validate_template_literal_chunk_maybe(
         &self,
-        span: destack_source::Span,
+        span: Span,
         string: &str,
         allow_legacy_octal_escapes: bool,
     ) -> ParseResult<()> {
@@ -1423,8 +1424,8 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_expression_path, assert_node, assert_path, assert_string,
-        block_expression_ids,
+        TestParser, assert_comment, assert_expression_path, assert_node, assert_path,
+        assert_string, block_expression_ids,
     };
 
     /// Parse integer literals in various formats.
@@ -3697,8 +3698,8 @@ function app() {
                 assert!(second_annotations.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 2);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "first-tail");
-        crate::assert_comment_trivia!(parser, 1, CommentStyle::Star, " second-tail");
+        assert_eq!(parser.tree.comments().len(), 2);
+        assert_comment!(parser, 0, CommentStyle::Slash, "first-tail");
+        assert_comment!(parser, 1, CommentStyle::Star, " second-tail");
     }
 }

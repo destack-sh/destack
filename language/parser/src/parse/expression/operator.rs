@@ -10,11 +10,12 @@ use destack_ast::{
     AssignOperator, BinaryOperator, Expression, InfixOperator, Keyword, LocalNodeId, TokenSpan,
     TokenType, TypeBinaryOperator, TypeUnaryOperator, UnaryOperator,
 };
+use destack_source::Span;
 
 impl Parser {
     /// Return the current token span or EOF span when unavailable.
     #[inline]
-    fn current_span_or_eof(&mut self) -> destack_source::Span {
+    fn current_span_or_eof(&mut self) -> Span {
         self.peek()
             .map(|token| token.span)
             .unwrap_or(self.eof_span())
@@ -22,7 +23,7 @@ impl Parser {
 
     /// Return the next token span or EOF span when unavailable.
     #[inline]
-    fn next_span_or_eof(&mut self) -> destack_source::Span {
+    fn next_span_or_eof(&mut self) -> Span {
         self.peek_next()
             .map(|token| token.span)
             .unwrap_or(self.eof_span())

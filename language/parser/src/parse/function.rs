@@ -1084,7 +1084,8 @@ mod tests {
     use destack_source::LanguageType;
 
     use crate::{
-        TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+        TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
+        assert_string,
     };
 
     #[test]
@@ -2289,8 +2290,8 @@ function onResolve(
             let annotations = parser.tree.get_annotations(function_id.id);
             assert!(annotations.is_empty());
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Star, " lambda-head");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Star, " lambda-head");
     }
 
     #[test]
@@ -2309,8 +2310,8 @@ function onResolve(
                 assert!(annotations.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Slash, "lambda-body");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Slash, "lambda-body");
     }
 
     /// Parse empty parenthesized lambda heads that only contain comments.
@@ -2329,8 +2330,8 @@ function onResolve(
                 assert!(signature.dynamic_parameters.is_empty());
             });
         });
-        assert_eq!(parser.tree.comment_trivia().len(), 1);
-        crate::assert_comment_trivia!(parser, 0, CommentStyle::Star, " empty");
+        assert_eq!(parser.tree.comments().len(), 1);
+        assert_comment!(parser, 0, CommentStyle::Star, " empty");
     }
 
     /// Reject direct calls on unparenthesized arrow functions.
