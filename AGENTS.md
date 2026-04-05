@@ -132,7 +132,8 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 
 ## Rust
 
-Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`)
+Toolchain: `nightly-2025-11-27` (see `rust-toolchain.toml`).
+- If you encounter an ICE, just do `cargo clean` (same if you run out of disk space)
 
 Imports:
 - Comments/documentation goes before *all* attributes (like `#[inline]`, `#[derive]`, etc.)
