@@ -86,6 +86,18 @@ pub fn is_identifier(string: &str) -> bool {
     }
 }
 
+/// Checks if the passed string is an identifier under the formatter compatibility rules.
+#[inline]
+pub fn is_identifier_compat(string: &str) -> bool {
+    is_identifier(string) && !string.chars().any(is_compat_rejected_identifier_continue)
+}
+
+/// Return whether one identifier continuation character is rejected for compatibility.
+#[inline]
+fn is_compat_rejected_identifier_continue(c: char) -> bool {
+    matches!(c, '\u{30FB}' | '\u{FF65}')
+}
+
 /// Converts a string into a valid identifier by replacing invalid characters.
 ///
 /// If the first character is not a valid identifier start, `replacement` is prepended.
@@ -201,6 +213,16 @@ mod tests {
         assert!(!is_identifier("hello-world"));
         assert!(!is_identifier("hello world"));
         assert!(!is_identifier("$ foo"));
+    }
+
+    /// Compatibility identifier checks should reject katakana middle dots.
+    #[test]
+    fn test_is_identifier_compat_rejects_katakana_middle_dot() {
+        assert!(is_identifier("x\u{30FB}"));
+        assert!(is_identifier("x\u{FF65}"));
+        assert!(!is_identifier_compat("x\u{30FB}"));
+        assert!(!is_identifier_compat("x\u{FF65}"));
+        assert!(is_identifier_compat("foo"));
     }
 
     /// Already valid identifiers should remain unchanged.

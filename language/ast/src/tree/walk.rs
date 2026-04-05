@@ -1,9 +1,9 @@
 use crate::{
-    Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Declarator,
-    Decorator, DependencyItem, Doc, EnumField, Expression, ForEachBinding, FunctionSignature,
-    Generics, Heritage, IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId, MatchCase,
-    MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField,
-    Property, TemplateLiteral, WhereClause,
+    Annotation, Argument, Block, Declaration, DeclarationDescriptor, Declarator, Decorator,
+    DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, Generics, Heritage,
+    IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId, MatchCase, MatchSelector,
+    Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
+    TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -92,18 +92,6 @@ pub fn walk_any<V: NodeVisitor + ?Sized>(
         NodeType::Annotation => {
             let annotation = tree.annotations.get(local_idx);
             walk_annotation(visitor, tree, LocalNodeId::new(node_id), annotation);
-        }
-        NodeType::Blank => {
-            let blank = tree.blanks.get(local_idx);
-            walk_blank(visitor, tree, LocalNodeId::new(node_id), blank);
-        }
-        NodeType::Doc => {
-            let doc = tree.docs.get(local_idx);
-            walk_doc(visitor, tree, LocalNodeId::new(node_id), doc);
-        }
-        NodeType::Comment => {
-            let comment = tree.comments.get(local_idx);
-            walk_comment(visitor, tree, LocalNodeId::new(node_id), comment);
         }
         NodeType::Decorator => {
             let decorator = tree.decorators.get(local_idx);
@@ -1546,43 +1534,10 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::Annotation, id.id);
     match annotation {
-        Annotation::Doc { node, position: _ } => {
-            visitor.visit_doc(tree, *node, tree.get(*node));
-        }
         Annotation::Decorator { node, position: _ } => {
             visitor.visit_decorator(tree, *node, tree.get(*node));
         }
     }
-}
-
-/// Walk the Blank.
-pub fn walk_blank<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: LocalNodeId<Blank>,
-    _blank: &Blank,
-) {
-    visitor.visit_any(tree, NodeType::Blank, id.id);
-}
-
-/// Walk the Doc.
-pub fn walk_doc<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: LocalNodeId<Doc>,
-    _doc: &Doc,
-) {
-    visitor.visit_any(tree, NodeType::Doc, id.id);
-}
-
-/// Walk the Comment.
-pub fn walk_comment<V: NodeVisitor + ?Sized>(
-    visitor: &mut V,
-    tree: &NodeTree,
-    id: LocalNodeId<Comment>,
-    _comment: &Comment,
-) {
-    visitor.visit_any(tree, NodeType::Comment, id.id);
 }
 
 /// Walk the Decorator.
