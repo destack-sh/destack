@@ -65,12 +65,6 @@ impl ModuleResolution {
 pub enum ModuleTarget {
     /// CommonJS modules.
     CommonJs,
-    /// AMD modules.
-    Amd,
-    /// UMD modules.
-    Umd,
-    /// SystemJS modules.
-    System,
     /// ES2015 modules.
     Es2015,
     /// ES2020 modules.
@@ -95,9 +89,6 @@ impl ModuleTarget {
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "commonjs" => Some(Self::CommonJs),
-            "amd" => Some(Self::Amd),
-            "umd" => Some(Self::Umd),
-            "system" => Some(Self::System),
             "es2015" | "es6" => Some(Self::Es2015),
             "es2020" => Some(Self::Es2020),
             "es2022" => Some(Self::Es2022),
