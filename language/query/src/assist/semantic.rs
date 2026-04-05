@@ -517,7 +517,7 @@ pub fn semantic_tokens(
         }
     }
 
-    // collect annotation tokens (decorators, docs)
+    // collect decorator tokens
     for (annotation_id, annotation) in dir_tree.iter_nodes_of_type::<dir::Annotation>() {
         let ast_node_id = dir_tree.get_source(annotation_id.id);
         let span = ctx.ast().tree().get_span_by_id(ast_node_id);
@@ -535,13 +535,22 @@ pub fn semantic_tokens(
                     tokens.push(SemanticToken::new(span, SemanticTokenType::Decorator));
                 }
             }
-            dir::Annotation::Doc { .. } => {
-                tokens.push(
-                    SemanticToken::new(span, SemanticTokenType::Comment)
-                        .with_modifiers(SemanticTokenModifiers::DOCUMENTATION),
-                );
-            }
         }
+    }
+
+    // collect documentation comment tokens
+    let file = session.files.get(ctx.file_id());
+    for comment in ctx.ast().tree().comments().iter().copied() {
+        let raw_text = file.span_str(comment.span);
+        let raw_text = raw_text.trim_start();
+        if !raw_text.starts_with("///") && !raw_text.starts_with("/**") {
+            continue;
+        }
+
+        tokens.push(
+            SemanticToken::new(comment.span, SemanticTokenType::Comment)
+                .with_modifiers(SemanticTokenModifiers::DOCUMENTATION),
+        );
     }
 
     // collect dependency item tokens (imports/exports)

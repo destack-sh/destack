@@ -1,32 +1,33 @@
 use std::collections::HashMap;
 
-use destack_ast::{AnnotationPosition, Doc};
+use destack_ast::normalize_comment_payload;
 use destack_dir as dir;
 use destack_workspace::{Repository, Revision};
 
 use crate::core::{AstQuery, query_context_for_module_id};
 
 /// Collect documentation strings attached to a node.
-pub(crate) fn doc_strings_for_node(ast: AstQuery<'_>, node_id: u32) -> Vec<String> {
-    // get doc annotations attached to this AST node
-    let docs = ast.tree().get_docs_for(node_id);
+pub(crate) fn doc_strings_for_node(ast: AstQuery<'_>, source: &str, node_id: u32) -> Vec<String> {
+    let node_span = ast.source_map().get_main_or_enclosing(node_id);
 
-    // bail when there are no docs
-    if docs.is_empty() {
-        return Vec::new();
-    }
-
-    // filter to prefix docs and return their text
-    docs.into_iter()
-        .filter(|(_, pos)| {
-            matches!(
-                pos,
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            )
+    ast.tree()
+        .comments()
+        .iter()
+        .copied()
+        .filter(|comment| {
+            comment.is_leading()
+                && comment.span.file == node_span.file
+                && comment.attached_to == node_span.start
         })
-        .map(|(doc_id, _)| {
-            let doc = ast.tree().get::<Doc>(doc_id);
-            ast.strings().get(doc.string).to_string()
+        .filter_map(|comment| {
+            let start = usize::try_from(comment.span.start).ok()?;
+            let end = usize::try_from(comment.span.end).ok()?;
+            let raw_comment = source.get(start..end)?;
+            if !is_doc_comment(raw_comment) {
+                return None;
+            }
+
+            Some(normalize_comment_payload(raw_comment).into_owned())
         })
         .collect()
 }
@@ -38,7 +39,7 @@ pub(crate) fn doc_strings_for_node_with_fallback(
     node_id: u32,
 ) -> Vec<String> {
     // collect doc strings from AST
-    let mut doc_strings = doc_strings_for_node(ast, node_id);
+    let mut doc_strings = doc_strings_for_node(ast, source, node_id);
 
     // fall back to line docs when AST docs are missing
     if doc_strings.is_empty() {
@@ -57,7 +58,7 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
     node_id: u32,
 ) -> Vec<String> {
     // gather docs on the node or enclosing nodes
-    let mut doc_strings = doc_strings_for_node(ast, node_id);
+    let mut doc_strings = doc_strings_for_node(ast, source, node_id);
 
     // fall back to enclosing nodes when no docs are attached
     if doc_strings.is_empty() {
@@ -72,7 +73,7 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
             if entry.idx == node_id {
                 continue;
             }
-            doc_strings = doc_strings_for_node(ast, entry.idx);
+            doc_strings = doc_strings_for_node(ast, source, entry.idx);
             if !doc_strings.is_empty() {
                 break;
             }
@@ -87,6 +88,11 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
 
     // return the collected docs
     doc_strings
+}
+
+/// Return whether one raw comment is documentation shaped.
+fn is_doc_comment(raw_comment: &str) -> bool {
+    raw_comment.starts_with("///") || raw_comment.starts_with("/**")
 }
 
 /// Join documentation strings for a symbol declaration or enclosing declaration nodes.
