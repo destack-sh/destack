@@ -17,8 +17,6 @@ pub enum BundleFormat {
     Cjs,
     /// Emit one self executing bundle.
     Iife,
-    /// Emit one UMD bundle.
-    Umd,
 }
 
 /// Assembly mode for one script target.
@@ -275,7 +273,7 @@ pub struct TargetGeneratedCodeOptions {
 pub struct TargetOutputPolicy {
     /// Bundle format for assembled JavaScript outputs.
     pub format: Option<BundleFormat>,
-    /// Global name for IIFE and UMD bundles.
+    /// Global name for IIFE bundles.
     pub name: Option<String>,
     /// Output naming template for entry chunks.
     pub entry_file_names: Option<String>,
@@ -315,7 +313,7 @@ pub struct TargetOutputPolicy {
     pub sourcemap_exclude_sources: bool,
     /// Whether to include debug ids in source maps.
     pub sourcemap_debug_ids: bool,
-    /// Global names for externals in IIFE and UMD formats.
+    /// Global names for externals in IIFE format.
     pub globals: IndexMap<String, String>,
 }
 
@@ -554,7 +552,7 @@ impl From<&TargetGeneratedCodeOptionsJson> for TargetGeneratedCodeOptions {
 pub struct TargetOutputPolicyJson {
     /// Bundle format for assembled JavaScript outputs.
     pub format: Option<BundleFormat>,
-    /// Global name for IIFE and UMD bundles.
+    /// Global name for IIFE bundles.
     pub name: Option<String>,
     /// Output naming template for entry chunks.
     pub entry_file_names: Option<String>,
@@ -600,7 +598,7 @@ pub struct TargetOutputPolicyJson {
     /// Whether to include debug ids in source maps.
     #[serde(default)]
     pub sourcemap_debug_ids: bool,
-    /// Global names for externals in IIFE and UMD formats.
+    /// Global names for externals in IIFE format.
     pub globals: Option<IndexMap<String, String>>,
 }
 

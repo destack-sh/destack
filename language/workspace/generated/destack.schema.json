@@ -1203,20 +1203,6 @@
             "null"
           ]
         },
-        "esModuleInterop": {
-          "description": "Enable TypeScript CommonJS default import interop semantics.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowSyntheticDefaultImports": {
-          "description": "Allow synthetic default imports from modules without explicit defaults.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "verbatimModuleSyntax": {
           "description": "Preserve import and export syntax verbatim.",
           "type": [
@@ -6632,7 +6618,7 @@
           ]
         },
         "name": {
-          "description": "Global name for IIFE and UMD bundles.",
+          "description": "Global name for IIFE bundles.",
           "type": [
             "string",
             "null"
@@ -6784,7 +6770,7 @@
           "default": false
         },
         "globals": {
-          "description": "Global names for externals in IIFE and UMD formats.",
+          "description": "Global names for externals in IIFE format.",
           "type": [
             "object",
             "null"
@@ -6812,11 +6798,6 @@
           "description": "Emit one self executing bundle.",
           "type": "string",
           "const": "iife"
-        },
-        {
-          "description": "Emit one UMD bundle.",
-          "type": "string",
-          "const": "umd"
         }
       ]
     },
