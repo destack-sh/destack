@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use crate::tests::harness::TestLanguageService;
 use destack_query as query;
+use destack_workspace::Revision;
 
 /// Route file queries across multiple workspace roots.
 #[test]
@@ -37,8 +38,14 @@ fn test_workspace_service_routes_queries_across_roots() {
         )
         .expect("expected root b query response");
 
-    assert!(response_a.revision >= 1, "expected a valid root a revision");
-    assert!(response_b.revision >= 1, "expected a valid root b revision");
+    assert!(
+        response_a.revision >= Revision::INITIAL,
+        "expected a valid root a revision"
+    );
+    assert!(
+        response_b.revision >= Revision::INITIAL,
+        "expected a valid root b revision"
+    );
 }
 
 /// Serialize compiler callbacks for concurrent root handle initialization.
@@ -61,8 +68,11 @@ fn test_workspace_service_serializes_concurrent_program_callbacks() {
         let max_active = max_active.clone();
         handles.push(thread::spawn(move || {
             barrier.wait();
+            let root = service
+                .workspace_root_for_path(&path)
+                .expect("expected workspace root");
             service
-                .with_workspace_handles_for_path(&path, |_program, _compiler| {
+                .with_workspace_for_root(&root, |_program, _compiler| {
                     let current = active.fetch_add(1, Ordering::SeqCst) + 1;
                     loop {
                         let observed = max_active.load(Ordering::SeqCst);

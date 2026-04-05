@@ -1,24 +1,109 @@
+use std::collections::HashSet;
 use std::io;
 use std::path::Path;
 
-use destack_resolver::{CachePolicy, ResolveError, Resolver};
 use destack_source::{File, FileContent, FileId, FileType, ModuleId};
-use destack_workspace::{
-    FileUpdate, InvalidationKind, InvalidationPlan, Module, Program, TargetId,
-};
+use destack_workspace::{Module, Repository, Revision};
 
-use super::workspace::warning_message;
-use super::{LanguageService, WorkspaceMessage};
+use super::workspace::{WorkspaceSession, warning_message};
+use super::{FileUpdate, LanguageService, UpdateImpact, UpdateImpactKind, WorkspaceMessage};
 
 impl LanguageService {
+    /// Discover workspace module files for one session before rescanning tracked state.
+    pub(super) fn discover_workspace_modules(
+        &self,
+        session: &WorkspaceSession,
+    ) -> Vec<WorkspaceMessage> {
+        let mut messages = Vec::new();
+        let mut pending_directories = vec![session.root.clone()];
+        let mut visited_directories = HashSet::new();
+        let compiler = session.compiler().clone();
+        let repository = session.repository().clone();
+        let revision = session.revision();
+
+        while let Some(directory) = pending_directories.pop() {
+            if !visited_directories.insert(directory.clone()) {
+                continue;
+            }
+
+            let entries = match repository.file_system().read_dir(&directory) {
+                Ok(entries) => entries,
+                Err(error) => {
+                    messages.push(warning_message(
+                        "workspace_discovery_read_dir_failed",
+                        &format!(
+                            "workspace: failed to read directory {}: {error}",
+                            directory.display(),
+                        ),
+                    ));
+                    continue;
+                }
+            };
+
+            for entry in entries {
+                let metadata = match repository.file_system().metadata(&entry) {
+                    Ok(metadata) => metadata,
+                    Err(error) => {
+                        messages.push(warning_message(
+                            "workspace_discovery_metadata_failed",
+                            &format!(
+                                "workspace: failed to read metadata {}: {error}",
+                                entry.display(),
+                            ),
+                        ));
+                        continue;
+                    }
+                };
+
+                if metadata.is_directory {
+                    if self.should_descend_workspace_directory(&entry) {
+                        pending_directories.push(entry);
+                    }
+                    continue;
+                }
+
+                if !metadata.is_file {
+                    continue;
+                }
+
+                if !self.should_discover_workspace_module_path(&entry) {
+                    continue;
+                }
+
+                if repository
+                    .module_id_for_path(revision, &entry)
+                    .ok()
+                    .flatten()
+                    .is_some()
+                {
+                    continue;
+                }
+
+                let result = compiler.resolve_path_to_module(revision, &entry.to_path_buf());
+                if let Err(error) = result {
+                    messages.push(warning_message(
+                        "workspace_discovery_module_failed",
+                        &format!(
+                            "workspace: failed to discover module {}: {error}",
+                            entry.display(),
+                        ),
+                    ));
+                }
+            }
+        }
+
+        messages
+    }
+
     /// Build a file update by reading the latest content from disk.
     pub(super) fn rescan_file_update(
         &self,
-        program: &Program,
+        repository: &Repository,
+        revision: Revision,
         file_id: FileId,
     ) -> Result<Option<FileUpdate>, WorkspaceMessage> {
         // resolve the tracked file
-        let Some(file) = program.files.get_maybe(file_id) else {
+        let Some(file) = repository.file(revision, file_id).ok().flatten() else {
             return Ok(None);
         };
 
@@ -29,7 +114,7 @@ impl LanguageService {
 
         // read binary files as bytes
         if file.ty.is_binary() {
-            let bytes = match program.fs.read(&path) {
+            let bytes = match repository.file_system().read(&path) {
                 Ok(bytes) => bytes,
                 Err(error) => {
                     return self.handle_rescan_read_error(&file, &path, error);
@@ -45,7 +130,7 @@ impl LanguageService {
         }
 
         // read non-binary files as text
-        let content = match program.fs.read_to_string(&path) {
+        let content = match repository.file_system().read_to_string(&path) {
             Ok(content) => content,
             Err(error) => {
                 return self.handle_rescan_read_error(&file, &path, error);
@@ -104,119 +189,20 @@ impl LanguageService {
         ))
     }
 
-    /// Refresh package and workspace configuration for a program.
-    pub(super) fn refresh_program_configs(
+    /// Refresh package and workspace configuration for a repository.
+    pub(super) fn refresh_repository_configs(
         &self,
-        resolver: &Resolver,
-        program: &Program,
+        repository: &Repository,
+        revision: Revision,
     ) -> Vec<WorkspaceMessage> {
         let mut messages = Vec::new();
+        if let Err(error) = repository.workspace_module_ids(revision) {
+            messages.push(warning_message(
+                "config_reload_workspace_modules_failed",
+                &format!("config: failed to collect workspace modules: {error}"),
+            ));
 
-        // reload the workspace config
-        let workspace_root = self.session.workspace_root();
-        match resolver.read_destack_config(&workspace_root, CachePolicy::Reload) {
-            Ok(config) => {
-                self.session.update_workspace_config(Some(config));
-            }
-            Err(ResolveError::DestackNotFound { .. }) => {
-                self.session.update_workspace_config(None);
-            }
-            Err(error) => {
-                messages.push(warning_message(
-                    "config_reload_workspace_failed",
-                    &format!("config: failed to refresh workspace config: {error}"),
-                ));
-            }
-        }
-
-        // reload package configs and rebuild package targets
-        for package in program.packages.iter() {
-            let package_guard = package.read();
-            let package_id = package_guard.id;
-            let package_path = package_guard.path.clone();
-            drop(package_guard);
-
-            let Some(package_path) = package_path else {
-                continue;
-            };
-
-            let next_config = match resolver.read_destack_config(&package_path, CachePolicy::Reload)
-            {
-                Ok(config) => Some(config),
-                Err(ResolveError::DestackNotFound { .. }) => None,
-                Err(error) => {
-                    messages.push(warning_message(
-                        "config_reload_package_failed",
-                        &format!(
-                            "config: failed to refresh package {}: {error}",
-                            package_path.display()
-                        ),
-                    ));
-                    continue;
-                }
-            };
-
-            let package = program.packages.get(package_id);
-            let mut package = package.write();
-            package.config = next_config.clone();
-            package.targets.clear();
-            if let Some(config) = next_config {
-                for (name, options) in config.options.targets.iter() {
-                    let target = options.to_target(name);
-                    let target_id = TargetId::new(package_id, name);
-                    package.targets.insert(target_id, target);
-                }
-            }
-        }
-
-        // reload tracked tsconfig files
-        let mut tsconfig_paths = Vec::new();
-        for tsconfig in program.tsconfigs.iter() {
-            let tsconfig = tsconfig.read();
-            tsconfig_paths.push(tsconfig.path.clone());
-        }
-        for path in tsconfig_paths {
-            if let Err(error) = resolver.reload_tsconfig(&path) {
-                if matches!(error, ResolveError::TsConfigNotFound { .. }) {
-                    continue;
-                }
-                messages.push(warning_message(
-                    "config_reload_tsconfig_failed",
-                    &format!(
-                        "config: failed to refresh tsconfig {}: {error}",
-                        path.display()
-                    ),
-                ));
-            }
-        }
-
-        // refresh module to tsconfig mapping
-        let mut module_updates: Vec<(ModuleId, _)> = Vec::new();
-        for module in program.modules.iter() {
-            let module = module.as_ref();
-            let Some(path) = module.path.as_ref() else {
-                continue;
-            };
-            let next_tsconfig = match resolver.find_tsconfig_for_file(path) {
-                Ok(tsconfig_id) => tsconfig_id,
-                Err(error) => {
-                    messages.push(warning_message(
-                        "config_reload_tsconfig_failed",
-                        &format!(
-                            "config: failed to refresh tsconfig {}: {error}",
-                            path.display()
-                        ),
-                    ));
-                    continue;
-                }
-            };
-            if program.modules.tsconfig_id(module.id) != next_tsconfig {
-                module_updates.push((module.id, next_tsconfig));
-            }
-        }
-
-        for (module_id, tsconfig_id) in module_updates {
-            program.modules.set_tsconfig_id(module_id, tsconfig_id);
+            return messages;
         }
 
         messages
@@ -235,15 +221,48 @@ impl LanguageService {
             || self.is_config_filename(path)
     }
 
+    /// Return true when workspace discovery should descend into one directory.
+    fn should_descend_workspace_directory(&self, path: &Path) -> bool {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            return true;
+        };
+
+        !matches!(name, ".git" | "node_modules" | "target")
+    }
+
+    /// Return true when workspace discovery should admit one file as a module.
+    fn should_discover_workspace_module_path(&self, path: &Path) -> bool {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            return false;
+        };
+
+        if matches!(name, "package.json" | "destack.json") {
+            return false;
+        }
+
+        if name.starts_with("tsconfig") && name.ends_with(".json") {
+            return false;
+        }
+
+        self.is_watchable_path(path)
+    }
+
     /// Return true when a module is part of the user workspace surface.
     pub(super) fn is_workspace_module(&self, module: &Module) -> bool {
         module.is_user() && module.path.is_some()
     }
 
     /// Return true when the module id maps to a workspace module.
-    pub(super) fn is_workspace_module_id(&self, program: &Program, module_id: ModuleId) -> bool {
-        let module = program.modules.get(module_id);
-        let module = module.as_ref();
+    pub(super) fn is_workspace_module_id(
+        &self,
+        repository: &Repository,
+        revision: Revision,
+        module_id: ModuleId,
+    ) -> bool {
+        let Some(module) = repository.module(revision, module_id).ok().flatten() else {
+            return false;
+        };
+
         self.is_workspace_module(&module)
     }
 
@@ -260,54 +279,28 @@ impl LanguageService {
         file_name.starts_with("tsconfig") && file_name.ends_with(".json")
     }
 
-    /// Check if a config file is already tracked by this program.
-    fn is_tracked_config_path(&self, program: &Program, path: &Path) -> bool {
-        // check workspace level config
-        if let Some(workspace_config) = self.session.workspace_config()
-            && workspace_config.path.as_path() == path
-        {
-            return true;
-        }
-
-        // check package level config files
-        for package in program.packages.iter() {
-            let package = package.read();
-            let Some(config) = package.config.as_ref() else {
-                continue;
-            };
-            if config.path.as_path() == path {
-                return true;
-            }
-        }
-
-        // check tracked tsconfig files
-        for tsconfig in program.tsconfigs.iter() {
-            let tsconfig = tsconfig.read();
-            if tsconfig.path.as_path() == path {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// Check whether a config refresh is required for an invalidation.
+    /// Check whether a config refresh is required for an impact.
     pub(super) fn should_refresh_configs(
         &self,
-        program: &Program,
-        invalidation: &InvalidationPlan,
+        _repository: &Repository,
+        _revision: Revision,
+        impact: &UpdateImpact,
         path: &Path,
     ) -> bool {
-        // refresh when invalidation already reports config kinds
-        if invalidation
+        // refresh when impact already reports config kinds
+        if impact
             .kinds
             .iter()
-            .any(|kind| matches!(kind, InvalidationKind::Destack | InvalidationKind::TsConfig))
+            .any(|kind| matches!(kind, UpdateImpactKind::Destack | UpdateImpactKind::TsConfig))
         {
             return true;
         }
 
-        // refresh when the updated path is a tracked config
-        self.is_tracked_config_path(program, path)
+        // ordinary source updates cannot affect config state
+        if !self.is_config_filename(path) {
+            return false;
+        }
+
+        true
     }
 }

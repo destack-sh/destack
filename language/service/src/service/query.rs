@@ -1,13 +1,191 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use destack_query as query;
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::Program;
+use destack_source::{File, FileId, Span, Uri};
+use destack_workspace::{Repository, RepositorySnapshot, Revision};
 
-use super::{LanguageService, LanguageServiceError, WorkspaceHandleId};
+use super::workspace::WorkspaceSession;
+use super::{
+    DocumentDiagnosticSnapshot, LanguageService, LanguageServiceError, WorkspaceDiagnosticSnapshot,
+};
 
 impl LanguageService {
+    /// Run one callback under the coherent read lock for a workspace root.
+    fn with_workspace_read<T, F>(&self, root: &Path, callback: F) -> Result<T, LanguageServiceError>
+    where
+        F: FnOnce(&WorkspaceSession, &RepositorySnapshot) -> Result<T, LanguageServiceError>,
+    {
+        // resolve the owning workspace and repository
+        let workspace = self.workspace_for_root(root)?;
+
+        // hold the workspace read section for the full query
+        let _query_guard = workspace.enter_query();
+        let snapshot = workspace.snapshot();
+
+        callback(workspace.as_ref(), &snapshot)
+    }
+
+    /// Run one callback with a coherent semantic-ready file snapshot for a path.
+    pub fn with_query_file_for_path<T, F>(
+        &self,
+        path: &Path,
+        callback: F,
+    ) -> Result<T, LanguageServiceError>
+    where
+        F: FnOnce(&Repository, FileId, Arc<File>, Revision) -> Result<T, LanguageServiceError>,
+    {
+        // resolve the workspace root once before entering the read section
+        let root = self.workspace_root_for_path(path)?;
+
+        self.with_workspace_read(&root, |workspace, snapshot| {
+            let repository = snapshot.repository();
+            let revision = snapshot.revision();
+
+            // require one tracked semantic-ready file for the request
+            let file_id = workspace.resolve_file_id_for_path(path).ok_or_else(|| {
+                LanguageServiceError::FileNotTracked {
+                    path: path.to_path_buf(),
+                }
+            })?;
+            let file_id = self.ensure_semantic_query_ready(repository, revision, file_id)?;
+            let file = workspace.file_for_id(file_id)?;
+
+            callback(repository, file_id, file, revision)
+        })
+    }
+
+    /// Return a current diagnostic snapshot for one document path.
+    pub fn document_diagnostics_for_path(
+        &self,
+        path: &Path,
+    ) -> Result<Option<DocumentDiagnosticSnapshot>, LanguageServiceError> {
+        let root = self.workspace_root_for_path(path)?;
+
+        self.with_workspace_read(&root, |workspace, _snapshot| {
+            let Some((file_id, file)) = workspace.file_for_path(path)? else {
+                return Ok(None);
+            };
+            let diagnostics = workspace.diagnostics_for_file(file_id);
+
+            Ok(Some(DocumentDiagnosticSnapshot { file, diagnostics }))
+        })
+    }
+
+    /// Return current diagnostic snapshots for every workspace-owned file.
+    pub fn workspace_diagnostics(
+        &self,
+    ) -> Result<Vec<WorkspaceDiagnosticSnapshot>, LanguageServiceError> {
+        let mut roots: Vec<_> = self
+            .workspaces_by_root
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect();
+        roots.sort();
+
+        let mut snapshots = Vec::new();
+        for root in roots {
+            let handle_snapshots = self.diagnostics_for_root(&root)?;
+
+            snapshots.extend(handle_snapshots);
+        }
+
+        Ok(snapshots)
+    }
+
+    /// Return current diagnostic snapshots for one workspace root.
+    pub fn diagnostics_for_root(
+        &self,
+        root: &Path,
+    ) -> Result<Vec<WorkspaceDiagnosticSnapshot>, LanguageServiceError> {
+        self.with_workspace_read(root, |workspace, _snapshot| {
+            let mut diagnostics_by_file = std::collections::HashMap::new();
+
+            // current diagnostics
+            for (file_id, diagnostics) in workspace.diagnostics_by_file() {
+                diagnostics_by_file.entry(file_id).or_insert(diagnostics);
+            }
+
+            // tracked documents
+            let mut tracked_documents = std::collections::HashMap::new();
+            for (path, uri, version) in workspace.tracked_document_identities() {
+                let Some(file_id) = workspace.resolve_file_id_for_path(&path) else {
+                    continue;
+                };
+
+                diagnostics_by_file.entry(file_id).or_insert(Vec::new());
+                tracked_documents.insert(file_id, (uri, version));
+            }
+
+            let mut snapshots = Vec::new();
+            for (file_id, diagnostics) in diagnostics_by_file {
+                let Ok(file) = workspace.file_for_id(file_id) else {
+                    continue;
+                };
+                let tracked_document = tracked_documents.get(&file_id);
+                let publish_uri = tracked_document
+                    .map(|(uri, _)| uri.clone())
+                    .or_else(|| file.path.as_ref().map(Uri::from_file_path))
+                    .unwrap_or_else(|| file.uri.clone());
+                let publish_version = tracked_document.map(|(_, version)| *version);
+
+                snapshots.push(WorkspaceDiagnosticSnapshot {
+                    file,
+                    publish_uri,
+                    publish_version,
+                    diagnostics,
+                });
+            }
+
+            snapshots.sort_by(|left, right| {
+                let left_key = left
+                    .file
+                    .path
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| left.file.uri.to_string());
+                let right_key = right
+                    .file
+                    .path
+                    .as_ref()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| right.file.uri.to_string());
+
+                left_key.cmp(&right_key)
+            });
+
+            Ok(snapshots)
+        })
+    }
+
+    /// Execute one coherent file-backed read query for a path.
+    pub fn execute_file_read_query_for_path<F>(
+        &self,
+        path: &Path,
+        build_request: F,
+    ) -> Result<Option<(FileId, Arc<File>, QueryResponseEnvelope)>, LanguageServiceError>
+    where
+        F: FnOnce(FileId, &File) -> Option<query::QueryRequest>,
+    {
+        let root = self.workspace_root_for_path(path)?;
+
+        self.with_query_file_for_path(path, |program, file_id, file, revision| {
+            // build the request from the exact file snapshot used for result conversion
+            let Some(request) = build_request(file_id, &file) else {
+                return Ok(None);
+            };
+            let response =
+                self.execute_query_request(&root, program, revision, Some(file_id), request)?;
+
+            Ok(Some((
+                file_id,
+                file,
+                QueryResponseEnvelope { revision, response },
+            )))
+        })
+    }
+
     /// Execute a read query for the workspace that owns the path.
     pub fn execute_read_query_for_path(
         &self,
@@ -30,17 +208,25 @@ impl LanguageService {
         path: &Path,
         envelope: QueryRequestEnvelope,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        // resolve the workspace handle for this path
-        let handle = self.workspace_handle_id_for_path(path)?;
+        let root = self.workspace_root_for_path(path)?;
 
-        // route to handle based read query execution
-        self.execute_read_query_envelope_for_workspace_handle(handle, envelope)
+        self.execute_read_query_envelope_for_workspace_root(&root, envelope)
     }
 
-    /// Execute a read query for a specific workspace handle.
-    pub fn execute_read_query_for_workspace_handle(
+    /// Execute a read query envelope for any workspace-owned path.
+    pub fn execute_read_query_envelope_for_owned_path(
         &self,
-        handle: WorkspaceHandleId,
+        path: &Path,
+        envelope: QueryRequestEnvelope,
+    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+        let root = self.workspace_root_for_path(path)?;
+        self.execute_read_query_envelope_for_workspace_root(&root, envelope)
+    }
+
+    /// Execute a read query for a specific workspace root.
+    pub fn execute_read_query_for_workspace_root(
+        &self,
+        root: &Path,
         request: query::QueryRequest,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
         // read queries never carry revision preconditions
@@ -50,13 +236,13 @@ impl LanguageService {
         };
 
         // route through read envelope execution
-        self.execute_read_query_envelope_for_workspace_handle(handle, envelope)
+        self.execute_read_query_envelope_for_workspace_root(root, envelope)
     }
 
-    /// Execute a read query envelope for a specific workspace handle.
-    pub fn execute_read_query_envelope_for_workspace_handle(
+    /// Execute a read query envelope for a specific workspace root.
+    pub fn execute_read_query_envelope_for_workspace_root(
         &self,
-        handle: WorkspaceHandleId,
+        root: &Path,
         envelope: QueryRequestEnvelope,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
         // reject any non-read requests on the read path
@@ -76,20 +262,15 @@ impl LanguageService {
             });
         }
 
-        // resolve the owning workspace handle and program
-        let workspace = self.workspace_handle_for_id(handle)?;
+        self.with_workspace_read(root, |_workspace, snapshot| {
+            // dispatch pure read query execution
+            let program = snapshot.repository();
+            let revision = snapshot.revision();
+            let response =
+                self.execute_query_request(root, program, revision, None, envelope.request)?;
 
-        // fail fast when a mutation is currently active on this workspace
-        let _query_guard = workspace
-            .try_enter_query()
-            .ok_or(LanguageServiceError::QueryBusy { handle })?;
-        let program = workspace.program.as_ref();
-
-        // dispatch pure read query execution
-        let response = self.execute_query_request(program, envelope.request)?;
-        let revision = workspace.revision();
-
-        Ok(QueryResponseEnvelope { revision, response })
+            Ok(QueryResponseEnvelope { revision, response })
+        })
     }
 
     /// Execute a write query envelope for the workspace that owns the path.
@@ -98,17 +279,25 @@ impl LanguageService {
         path: &Path,
         envelope: QueryRequestEnvelope,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
-        // resolve the workspace handle for this path
-        let handle = self.workspace_handle_id_for_path(path)?;
+        let root = self.workspace_root_for_path(path)?;
 
-        // route to handle based write query execution
-        self.execute_write_query_envelope_for_workspace_handle(handle, envelope)
+        self.execute_write_query_envelope_for_workspace_root(&root, envelope)
     }
 
-    /// Execute a write query envelope for a specific workspace handle.
-    pub fn execute_write_query_envelope_for_workspace_handle(
+    /// Execute a write query envelope for any workspace-owned path.
+    pub fn execute_write_query_envelope_for_owned_path(
         &self,
-        handle: WorkspaceHandleId,
+        path: &Path,
+        envelope: QueryRequestEnvelope,
+    ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
+        let root = self.workspace_root_for_path(path)?;
+        self.execute_write_query_envelope_for_workspace_root(&root, envelope)
+    }
+
+    /// Execute a write query envelope for a specific workspace root.
+    pub fn execute_write_query_envelope_for_workspace_root(
+        &self,
+        root: &Path,
         envelope: QueryRequestEnvelope,
     ) -> Result<QueryResponseEnvelope, LanguageServiceError> {
         // reject any non-write requests on the write path
@@ -121,12 +310,12 @@ impl LanguageService {
             });
         }
 
-        // resolve the owning workspace handle and current revision
-        let workspace = self.workspace_handle_for_id(handle)?;
+        // resolve the owning workspace session and current revision
+        let workspace = self.workspace_for_root(root)?;
 
         // serialize write queries with all other workspace mutations
         let _mutation_guard = workspace.enter_mutation();
-        let program = workspace.program.as_ref();
+        let repository = workspace.repository();
         let current_revision = workspace.revision();
 
         // require a matching revision precondition for write requests
@@ -140,8 +329,19 @@ impl LanguageService {
             });
         }
 
+        // root the checked revision for the full request
+        let snapshot = repository
+            .snapshot(current_revision)
+            .map_err(LanguageServiceError::from)?;
+
         // dispatch mutating query execution
-        let response = self.execute_query_request(program, envelope.request)?;
+        let response = self.execute_query_request(
+            root,
+            snapshot.repository(),
+            current_revision,
+            None,
+            envelope.request,
+        )?;
         let revision = workspace.revision();
 
         Ok(QueryResponseEnvelope { revision, response })
@@ -150,20 +350,32 @@ impl LanguageService {
     /// Build a query response for a request payload.
     fn execute_query_request(
         &self,
-        program: &Program,
+        root: &Path,
+        program: &Repository,
+        revision: Revision,
+        bound_file_id: Option<FileId>,
         request: query::QueryRequest,
     ) -> Result<query::QueryResponse, LanguageServiceError> {
-        // resolve the shared session for query helpers
-        let session = self.session_ref();
+        // resolve the shared repository for query helpers
+        let repository = self.repository_ref();
 
         // dispatch by query request variant
         let response = match request {
             query::QueryRequest::Completion(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let mut items = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::completions(session, file_id, params.offset, params.trigger)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::completions(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                            params.trigger,
+                        )
                     }
                     None => Vec::new(),
                 };
@@ -178,11 +390,13 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::Hover(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let hover = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::hover(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::hover(repository, program, revision, file_id, params.offset)
                     }
                     None => None,
                 };
@@ -190,11 +404,13 @@ impl LanguageService {
                 query::QueryResponse::Hover(query::HoverResponse { hover })
             }
             query::QueryRequest::SignatureHelp(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let help = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::signature_help(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::signature_help(repository, program, revision, file_id, params.offset)
                     }
                     None => None,
                 };
@@ -202,12 +418,14 @@ impl LanguageService {
                 query::QueryResponse::SignatureHelp(query::SignatureHelpResponse { help })
             }
             query::QueryRequest::InlayHints(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let hints = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
-                        query::inlay_hints(session, file_id, range)
+                        query::inlay_hints(repository, program, revision, file_id, range)
                     }
                     None => Vec::new(),
                 };
@@ -215,11 +433,13 @@ impl LanguageService {
                 query::QueryResponse::InlayHints(query::InlayHintsResponse { hints })
             }
             query::QueryRequest::CodeLenses(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let lenses = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::code_lenses(session, file_id)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::code_lenses(repository, revision, file_id)
                     }
                     None => Vec::new(),
                 };
@@ -227,15 +447,17 @@ impl LanguageService {
                 query::QueryResponse::CodeLenses(query::CodeLensesResponse { lenses })
             }
             query::QueryRequest::ResolveCodeLens(params) => {
-                let lens = query::resolve_code_lens(session, &params.lens);
+                let lens = query::resolve_code_lens(&params.lens);
                 query::QueryResponse::ResolveCodeLens(query::ResolveCodeLensResponse { lens })
             }
             query::QueryRequest::FoldingRanges(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let ranges = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::folding_ranges(session, file_id)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::folding_ranges(repository, program, revision, file_id)
                     }
                     None => Vec::new(),
                 };
@@ -243,11 +465,13 @@ impl LanguageService {
                 query::QueryResponse::FoldingRanges(query::FoldingRangesResponse { ranges })
             }
             query::QueryRequest::SemanticTokens(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let tokens = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::semantic_tokens(session, file_id)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::semantic_tokens(repository, program, revision, file_id)
                     }
                     None => Vec::new(),
                 };
@@ -255,12 +479,14 @@ impl LanguageService {
                 query::QueryResponse::SemanticTokens(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::SemanticTokensRange(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let tokens = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
-                        query::semantic_tokens_range(session, file_id, range)
+                        query::semantic_tokens_range(repository, program, revision, file_id, range)
                     }
                     None => Vec::new(),
                 };
@@ -268,11 +494,13 @@ impl LanguageService {
                 query::QueryResponse::SemanticTokensRange(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::DocumentSymbols(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let symbols = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::document_symbols(session, file_id)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::document_symbols(repository, program, revision, file_id)
                     }
                     None => Vec::new(),
                 };
@@ -280,16 +508,21 @@ impl LanguageService {
                 query::QueryResponse::DocumentSymbols(query::DocumentSymbolsResponse { symbols })
             }
             query::QueryRequest::WorkspaceSymbols(params) => {
-                let symbols =
-                    query::workspace_symbols(session, &params.query, params.max_results as usize);
+                let symbols = query::workspace_symbols(
+                    repository,
+                    &params.query,
+                    params.max_results as usize,
+                );
                 query::QueryResponse::WorkspaceSymbols(query::WorkspaceSymbolsResponse { symbols })
             }
             query::QueryRequest::DocumentLinks(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let links = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::document_links(session, file_id)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::document_links(repository, program, revision, file_id)
                     }
                     None => Vec::new(),
                 };
@@ -297,17 +530,25 @@ impl LanguageService {
                 query::QueryResponse::DocumentLinks(query::DocumentLinksResponse { links })
             }
             query::QueryRequest::ResolveDocumentLink(params) => {
-                let link = query::resolve_document_link(session, &params.link);
+                let link = query::resolve_document_link(&params.link);
                 query::QueryResponse::ResolveDocumentLink(query::ResolveDocumentLinkResponse {
                     link,
                 })
             }
             query::QueryRequest::DocumentHighlight(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let highlights = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::document_highlights(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::document_highlights(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                        )
                     }
                     None => Vec::new(),
                 };
@@ -317,11 +558,13 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::SelectionRanges(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let ranges = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::selection_ranges(session, file_id, &params.offsets)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::selection_ranges(program, revision, file_id, &params.offsets)
                     }
                     None => Vec::new(),
                 };
@@ -329,11 +572,19 @@ impl LanguageService {
                 query::QueryResponse::SelectionRanges(query::SelectionRangesResponse { ranges })
             }
             query::QueryRequest::GotoDefinition(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::goto_definition(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::goto_definition(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                        )
                     }
                     None => None,
                 };
@@ -341,11 +592,19 @@ impl LanguageService {
                 query::QueryResponse::GotoDefinition(query::GotoDefinitionResponse { result })
             }
             query::QueryRequest::GotoDeclaration(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::goto_declaration(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::goto_declaration(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                        )
                     }
                     None => None,
                 };
@@ -353,11 +612,19 @@ impl LanguageService {
                 query::QueryResponse::GotoDeclaration(query::GotoDeclarationResponse { result })
             }
             query::QueryRequest::GotoTypeDefinition(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::goto_type_definition(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::goto_type_definition(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                        )
                     }
                     None => None,
                 };
@@ -367,11 +634,19 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::GotoImplementation(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::goto_implementation(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::goto_implementation(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                        )
                     }
                     None => None,
                 };
@@ -381,12 +656,15 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::FindReferences(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
                         query::find_references(
-                            session,
+                            repository,
+                            revision,
                             file_id,
                             params.offset,
                             params.include_declaration,
@@ -398,11 +676,19 @@ impl LanguageService {
                 query::QueryResponse::FindReferences(query::FindReferencesResponse { result })
             }
             query::QueryRequest::PrepareCallHierarchy(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let item = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::prepare_call_hierarchy(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::prepare_call_hierarchy(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                        )
                     }
                     None => None,
                 };
@@ -412,23 +698,31 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::CallHierarchyIncoming(params) => {
-                let calls = query::incoming_calls(session, &params.item);
+                let calls = query::incoming_calls(repository, program, revision, &params.item);
                 query::QueryResponse::CallHierarchyIncoming(query::CallHierarchyIncomingResponse {
                     calls,
                 })
             }
             query::QueryRequest::CallHierarchyOutgoing(params) => {
-                let calls = query::outgoing_calls(session, &params.item);
+                let calls = query::outgoing_calls(repository, program, revision, &params.item);
                 query::QueryResponse::CallHierarchyOutgoing(query::CallHierarchyOutgoingResponse {
                     calls,
                 })
             }
             query::QueryRequest::PrepareTypeHierarchy(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let item = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::prepare_type_hierarchy(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::prepare_type_hierarchy(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                        )
                     }
                     None => None,
                 };
@@ -438,23 +732,25 @@ impl LanguageService {
                 })
             }
             query::QueryRequest::TypeHierarchySupertypes(params) => {
-                let items = query::supertypes(session, &params.item);
+                let items = query::supertypes(repository, program, revision, &params.item);
                 query::QueryResponse::TypeHierarchySupertypes(
                     query::TypeHierarchySupertypesResponse { items },
                 )
             }
             query::QueryRequest::TypeHierarchySubtypes(params) => {
-                let items = query::subtypes(session, &params.item);
+                let items = query::subtypes(repository, program, revision, &params.item);
                 query::QueryResponse::TypeHierarchySubtypes(query::TypeHierarchySubtypesResponse {
                     items,
                 })
             }
             query::QueryRequest::PrepareRename(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::prepare_rename(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::prepare_rename(repository, program, revision, file_id, params.offset)
                     }
                     None => None,
                 };
@@ -462,11 +758,20 @@ impl LanguageService {
                 query::QueryResponse::PrepareRename(query::PrepareRenameResponse { result })
             }
             query::QueryRequest::Rename(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::rename(session, file_id, params.offset, &params.new_name)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::rename(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            params.offset,
+                            &params.new_name,
+                        )
                     }
                     None => None,
                 };
@@ -474,16 +779,25 @@ impl LanguageService {
                 query::QueryResponse::Rename(query::RenameResponse { result })
             }
             query::QueryRequest::RenameFiles(params) => {
-                let result = query::rename_files(session, &params.renames);
+                let result = query::rename_files(repository, program, revision, &params.renames);
                 query::QueryResponse::RenameFiles(query::RenameFilesResponse { result })
             }
             query::QueryRequest::ExtractFunction(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
                         let selection = self.span_for_offsets(file_id, params.start, params.end);
-                        query::extract_function(session, file_id, selection, &params.new_name)
+                        query::extract_function(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            selection,
+                            &params.new_name,
+                        )
                     }
                     None => None,
                 };
@@ -491,12 +805,21 @@ impl LanguageService {
                 query::QueryResponse::ExtractFunction(query::ExtractFunctionResponse { result })
             }
             query::QueryRequest::ExtractVariable(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
                         let selection = self.span_for_offsets(file_id, params.start, params.end);
-                        query::extract_variable(session, file_id, selection, &params.new_name)
+                        query::extract_variable(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            selection,
+                            &params.new_name,
+                        )
                     }
                     None => None,
                 };
@@ -504,11 +827,13 @@ impl LanguageService {
                 query::QueryResponse::ExtractVariable(query::ExtractVariableResponse { result })
             }
             query::QueryRequest::Inline(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
-                        query::inline_symbol(session, file_id, params.offset)
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
+                        query::inline_symbol(repository, program, revision, file_id, params.offset)
                     }
                     None => None,
                 };
@@ -516,12 +841,16 @@ impl LanguageService {
                 query::QueryResponse::Inline(query::InlineResponse { result })
             }
             query::QueryRequest::ChangeSignature(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let result = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
                         query::change_signature(
-                            session,
+                            repository,
+                            program,
+                            revision,
                             file_id,
                             params.offset,
                             &params.new_parameters,
@@ -534,12 +863,23 @@ impl LanguageService {
                 query::QueryResponse::ChangeSignature(query::ChangeSignatureResponse { result })
             }
             query::QueryRequest::CodeActions(params) => {
-                let file_id = self.resolve_file_id(program, &params.uri);
+                let file_id =
+                    self.resolve_request_file_id(program, revision, &params.uri, bound_file_id);
                 let actions = match file_id {
                     Some(file_id) => {
-                        let file_id = self.ensure_semantic_query_ready(program, file_id)?;
+                        let file_id =
+                            self.ensure_semantic_query_ready(program, revision, file_id)?;
                         let range = self.span_for_offsets(file_id, params.start, params.end);
-                        query::code_actions(session, file_id, range, &params.context)
+                        let diagnostics = self.current_diagnostics_for_file(root, file_id)?;
+                        query::code_actions(
+                            repository,
+                            program,
+                            revision,
+                            file_id,
+                            range,
+                            &diagnostics,
+                            &params.context,
+                        )
                     }
                     None => Vec::new(),
                 };
@@ -551,76 +891,92 @@ impl LanguageService {
         Ok(response)
     }
 
+    /// Resolve the file id for one query request.
+    fn resolve_request_file_id(
+        &self,
+        program: &Repository,
+        revision: Revision,
+        uri: &Uri,
+        bound_file_id: Option<FileId>,
+    ) -> Option<FileId> {
+        bound_file_id.or_else(|| self.resolve_file_id(program, revision, uri))
+    }
+
     /// Resolve a file id for a query uri.
-    fn resolve_file_id(&self, program: &Program, uri: &Uri) -> Option<FileId> {
+    fn resolve_file_id(
+        &self,
+        program: &Repository,
+        revision: Revision,
+        uri: &Uri,
+    ) -> Option<FileId> {
         // prefer module lookups by uri
-        if let Some(module_id) = program.modules.get_id_by_uri(uri) {
-            let module = program.modules.get(module_id);
+        if let Ok(Some(module_id)) = program.module_id_for_uri(revision, uri)
+            && let Ok(Some(module)) = program.module(revision, module_id)
+        {
             return Some(module.file_id);
         }
 
         // fall back to module lookups by path
         if let Some(path) = uri.to_path_buf()
-            && let Some(module_id) = program.modules.get_id_by_path(&path)
+            && let Ok(Some(module_id)) = program.module_id_for_path(revision, &path)
+            && let Ok(Some(module)) = program.module(revision, module_id)
         {
-            let module = program.modules.get(module_id);
             return Some(module.file_id);
         }
 
-        // fall back to file registry lookups by uri
-        if let Some(file_id) = program.files.get_id_by_uri(uri) {
+        // fall back to direct file identity by uri
+        let file_id = FileId::from_logical_str(uri.as_ref());
+        if program.file(revision, file_id).ok().flatten().is_some() {
             return Some(file_id);
         }
 
-        // finally try file registry lookups by path
+        // finally try direct workspace file identity by path
         let path = uri.to_path_buf()?;
-        program.files.get_id_by_path(&path)
+        let file_id = program.file_id_for_workspace_path(&path);
+        if program.file(revision, file_id).ok().flatten().is_some() {
+            return Some(file_id);
+        }
+
+        None
     }
 
     /// Ensure semantic query state is ready for a file.
     fn ensure_semantic_query_ready(
         &self,
-        program: &Program,
+        program: &Repository,
+        revision: Revision,
         file_id: FileId,
     ) -> Result<FileId, LanguageServiceError> {
         // return early when semantic query state is already ready
-        if self.semantic_query_ready(program, file_id) {
+        if self.semantic_query_ready(program, revision, file_id) {
             return Ok(file_id);
         }
 
-        // read paths must fail loudly instead of running fallback mutation
-        let session = self.session_ref();
-
         // build a detailed failure summary for diagnostics
-        let detail = session
-            .modules
-            .get_by_file_id(file_id)
-            .map(|module| {
-                let module = module.as_ref();
-                let profile_id = program.default_profile_id_for_module(module.id);
-                let artifacts = session.get_artifacts_for_program(program);
-                let ast_ready = artifacts
-                    .as_ref()
-                    .and_then(|artifacts| artifacts.ast(module.id))
-                    .is_some();
-                let base_dir_ready = artifacts
-                    .as_ref()
-                    .and_then(|artifacts| artifacts.dir_base(module.id))
-                    .is_some();
-                let dir_ready = artifacts
-                    .as_ref()
-                    .and_then(|artifacts| artifacts.dir_analyzed(module.id, profile_id))
-                    .is_some();
+        let detail = program
+            .module_id_for_file(revision, file_id)
+            .ok()
+            .flatten()
+            .and_then(|module_id| {
+                let module = program.module(revision, module_id).ok().flatten()?;
+                let Ok(profile_id) = program.default_profile_id_for_module(revision, module.id)
+                else {
+                    return None;
+                };
+                let ast_ready = program.ast(revision, module.id).is_some();
+                let base_dir_ready = program.dir_base(revision, module.id).is_some();
+                let dir_ready = program.dir_analyzed(revision, module.id, profile_id).is_some();
                 let path = module
                     .path
                     .as_ref()
                     .map(|path| path.display().to_string())
                     .unwrap_or_else(|| "<none>".to_string());
-                format!(
+
+                Some(format!(
                     "file_id={file_id:?} module_id={:?} profile_id={:?} ast_ready={ast_ready} base_dir_ready={base_dir_ready} dir_ready={dir_ready} path={path}",
                     module.id,
                     profile_id
-                )
+                ))
             })
             .unwrap_or_else(|| format!("file_id={file_id:?} module_id=<missing>"));
 
@@ -628,21 +984,23 @@ impl LanguageService {
     }
 
     /// Check if semantic query state is ready for the file.
-    fn semantic_query_ready(&self, program: &Program, file_id: FileId) -> bool {
+    fn semantic_query_ready(
+        &self,
+        program: &Repository,
+        revision: Revision,
+        file_id: FileId,
+    ) -> bool {
         // resolve the module for this file id
-        let session = self.session_ref();
-        let Some(module) = session.modules.get_by_file_id(file_id) else {
+        let Some(module_id) = program.module_id_for_file(revision, file_id).ok().flatten() else {
             return false;
         };
 
         // require both ast and profile dir state
-        let module = module.as_ref();
-        let profile = program.default_profile_id_for_module(module.id);
-        let Some(artifacts) = session.get_artifacts_for_program(program) else {
+        let Ok(profile) = program.default_profile_id_for_module(revision, module_id) else {
             return false;
         };
-
-        artifacts.ast(module.id).is_some() && artifacts.dir_analyzed(module.id, profile).is_some()
+        program.ast(revision, module_id).is_some()
+            && program.dir_analyzed(revision, module_id, profile).is_some()
     }
 
     /// Build a span from offsets for a file.
