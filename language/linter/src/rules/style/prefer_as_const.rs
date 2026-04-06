@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Declarator, Expression, Member, ScalarLiteral, Ty
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::span_has_comment;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -163,7 +163,7 @@ fn declarator_literal_annotation_fix(
 
     // avoid rewriting commented declarators
     let declarator_span = ctx.tree.get_span(declarator_id);
-    if span_has_comment_trivia(ctx.tree, declarator_span) {
+    if span_has_comment(ctx.tree, declarator_span) {
         return None;
     }
 
@@ -208,7 +208,7 @@ fn member_field_literal_annotation_fix(
 
     // avoid rewriting commented fields
     let member_span = ctx.tree.get_span(member_id);
-    if span_has_comment_trivia(ctx.tree, member_span) {
+    if span_has_comment(ctx.tree, member_span) {
         return None;
     }
 

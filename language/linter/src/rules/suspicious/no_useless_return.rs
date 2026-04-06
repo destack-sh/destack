@@ -1,8 +1,9 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    CallableOwnerId, callable_owner_span, for_each_callable_signature, span_has_comment_trivia,
+    CallableOwnerId, callable_owner_span, for_each_callable_signature, span_has_comment,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -82,7 +83,7 @@ fn report_trailing_bare_return(
 
     // keep source parity: avoid deleting commented returns
     if ctx.compute_fixes
-        && !span_has_comment_trivia(ctx.tree, return_span)
+        && !span_has_comment(ctx.tree, return_span)
         && !return_has_trailing_comment(ctx, return_span)
     {
         let edits = ctx.edit_builder().delete(return_span).into_edits();
@@ -94,10 +95,7 @@ fn report_trailing_bare_return(
 }
 
 /// Return true when source text has a trailing comment after one return span.
-fn return_has_trailing_comment(
-    ctx: &LintAstContext<'_>,
-    return_span: destack_source::Span,
-) -> bool {
+fn return_has_trailing_comment(ctx: &LintAstContext<'_>, return_span: Span) -> bool {
     let source = ctx.source_text().as_bytes();
     let mut cursor = return_span.end as usize;
     while cursor < source.len() && (source[cursor] == b' ' || source[cursor] == b'\t') {

@@ -1,7 +1,8 @@
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::span_has_comment;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -196,13 +197,13 @@ impl RenameKind {
 /// Build one safe fix for a useless destructuring alias.
 fn useless_destructuring_rename_fix(
     ctx: &LintAstContext<'_>,
-    field_span: destack_source::Span,
+    field_span: Span,
     mutability: Option<ast::Mutability>,
     name_text: String,
     default_expression_id: Option<ast::LocalNodeId<ast::Expression>>,
 ) -> Option<LintFix> {
     // keep source parity: avoid touching commented nodes
-    if span_has_comment_trivia(ctx.tree, field_span) {
+    if span_has_comment(ctx.tree, field_span) {
         return None;
     }
 
@@ -233,10 +234,10 @@ fn useless_destructuring_rename_fix(
 /// Build one safe fix for a useless import or export rename item.
 fn useless_dependency_item_rename_fix(
     ctx: &LintAstContext<'_>,
-    item_span: destack_source::Span,
+    item_span: Span,
 ) -> Option<LintFix> {
     // keep source parity: avoid touching commented items
-    if span_has_comment_trivia(ctx.tree, item_span) {
+    if span_has_comment(ctx.tree, item_span) {
         return None;
     }
 

@@ -3,8 +3,8 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    first_alphabetic_character, is_directive_comment, is_non_prose_doc_line, is_separator_comment,
-    is_separator_heading_line, parse_keyword_comment_with_options,
+    first_alphabetic_character, is_directive_comment, is_doc_comment_source, is_non_prose_doc_line,
+    is_separator_comment, is_separator_heading_line, parse_keyword_comment_with_options,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -39,17 +39,24 @@ impl LintRule for CommentCasing {
         let meta = self.meta();
 
         // non doc comments should start with lowercase
-        let comment_trivia = ctx.tree.comment_trivia();
-        for (index, trivia) in comment_trivia.iter().copied().enumerate() {
-            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
+        let inline_comments: Vec<_> = ctx
+            .tree
+            .comments()
+            .iter()
+            .copied()
+            .filter(|comment| !is_doc_comment_source(ctx.get_span_text(comment.span)))
+            .collect();
+
+        for (index, comment) in inline_comments.iter().copied().enumerate() {
+            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
             let comment_text = comment_text.as_ref().trim();
             let previous_comment_text = index.checked_sub(1).map(|previous_index| {
                 ast::normalize_comment_payload(
-                    ctx.get_span_text(comment_trivia[previous_index].span),
+                    ctx.get_span_text(inline_comments[previous_index].span),
                 )
             });
-            let next_comment_text = comment_trivia.get(index + 1).map(|next_trivia| {
-                ast::normalize_comment_payload(ctx.get_span_text(next_trivia.span))
+            let next_comment_text = inline_comments.get(index + 1).map(|next_comment| {
+                ast::normalize_comment_payload(ctx.get_span_text(next_comment.span))
             });
             let is_separator_heading_triplet = is_separator_heading_line(
                 previous_comment_text.as_deref(),
@@ -81,7 +88,7 @@ impl LintRule for CommentCasing {
             if let Some(first_character) = first_alphabetic_character(comment_text)
                 && first_character.is_uppercase()
             {
-                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -93,14 +100,14 @@ impl LintRule for CommentCasing {
                     severity,
                     "inline comment should start with lowercase",
                     ctx.module.file_id,
-                    trivia.span,
+                    comment.span,
                 )
                 .with_label("use lowercase for inline comments");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
                     && let Some(fix) =
-                        comment_casing_fix(ctx, trivia.span, CasingFixKind::LowercaseInline)
+                        comment_casing_fix(ctx, comment.span, CasingFixKind::LowercaseInline)
                 {
                     diagnostic = diagnostic.with_fix(fix);
                 }
@@ -110,16 +117,13 @@ impl LintRule for CommentCasing {
         }
 
         // doc comments should start with uppercase
-        for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
-            let annotation = ctx.tree.get(node_id);
-            let ast::Annotation::Doc { node, .. } = annotation else {
+        for comment in ctx.tree.comments().iter().copied() {
+            if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
-            };
-
-            let doc = ctx.tree.get(*node);
-            let doc_text = ctx.strings.get(doc.string);
+            }
 
             // find the first prose line
+            let doc_text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
             let first_line = doc_text
                 .as_ref()
                 .lines()
@@ -133,12 +137,12 @@ impl LintRule for CommentCasing {
             if let Some(first_character) = first_alphabetic_character(first_line)
                 && first_character.is_lowercase()
             {
-                let severity = ctx.get_effective_severity(meta, node_id);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
 
-                let annotation_span = ctx.tree.get_span(node_id);
+                let comment_span = comment.span;
                 let mut diagnostic = LintDiagnostic::new(
                     COMMENT_CASING.id,
                     COMMENT_CASING.code,
@@ -146,14 +150,14 @@ impl LintRule for CommentCasing {
                     severity,
                     "doc comment should start with uppercase",
                     ctx.module.file_id,
-                    annotation_span,
+                    comment_span,
                 )
                 .with_label("use uppercase for doc comments");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
                     && let Some(fix) =
-                        comment_casing_fix(ctx, annotation_span, CasingFixKind::UppercaseDoc)
+                        comment_casing_fix(ctx, comment_span, CasingFixKind::UppercaseDoc)
                 {
                     diagnostic = diagnostic.with_fix(fix);
                 }

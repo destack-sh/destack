@@ -2,7 +2,7 @@ use destack_ast::{self as ast, NodeVisitor};
 use destack_source::Span;
 
 use crate::rules::common::{
-    span_has_comment_trivia, stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value,
+    span_has_comment, stable_hash_debug, stable_hash_token, stable_hash_token_hashed_value,
 };
 use crate::{ConstValue, LintAstContext};
 
@@ -187,6 +187,34 @@ pub fn expression_is_direct_statement(
 ) -> bool {
     let outer_expression_id = expression_outer_parenthesized_syntax(tree, parents, expression_id);
     expression_statement_ancestor(tree, parents, expression_id) == Some(outer_expression_id)
+}
+
+/// Return true when one expression is a direct leading expression in a block.
+pub fn expression_is_direct_block_leading_expression(
+    tree: &ast::NodeTree,
+    parents: &ast::NodeParentIndex,
+    expression_id: ast::LocalNodeId<ast::Expression>,
+) -> bool {
+    // normalize outer syntax first
+    let outer_expression_id = expression_outer_parenthesized_syntax(tree, parents, expression_id);
+    let Some(parent_id) = parents.get(outer_expression_id) else {
+        return false;
+    };
+
+    // require one enclosing block
+    if tree.get_node_type(parent_id) != ast::NodeType::Block {
+        return false;
+    }
+
+    // keep only leading block expressions, not value tails
+    let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
+    let block = tree.get(block_id);
+
+    block
+        .leading_expressions
+        .iter()
+        .copied()
+        .any(|child_id| child_id == outer_expression_id)
 }
 
 /// Return true when one expression can safely start an expression statement.
@@ -751,7 +779,7 @@ pub fn block_is_empty_without_comment(
     }
 
     let block_span = tree.get_span(block_id);
-    !span_has_comment_trivia(tree, block_span)
+    !span_has_comment(tree, block_span)
 }
 
 /// Return the block expression id for one block node.

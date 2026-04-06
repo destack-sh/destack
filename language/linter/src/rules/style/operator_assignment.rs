@@ -3,7 +3,7 @@ use destack_workspace::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
     expression_is_equal, expression_path_segments, expression_unwrap_parenthesized_syntax,
-    span_has_comment_trivia,
+    span_has_comment,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -122,7 +122,7 @@ impl LintRule for OperatorAssignment {
             if ctx.compute_fixes
                 && left_matches_left
                 && can_fix_assignment_target(ctx, normalized_assignment_left_id)
-                && !span_has_comment_trivia(ctx.tree, expression_span)
+                && !span_has_comment(ctx.tree, expression_span)
             {
                 let left_text = ctx.get_span_text(ctx.tree.get_span(*left));
                 let right_text = ctx.get_span_text(ctx.tree.get_span(*binary_right_id));

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::span_has_comment;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -97,7 +97,7 @@ impl LintRule for NoLonelyIf {
                 .with_label("use `else if` instead");
 
                 // avoid rewrites when else block contains trivia
-                if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, else_span) {
+                if ctx.compute_fixes && !span_has_comment(ctx.tree, else_span) {
                     let edits = ctx
                         .edit_builder()
                         .replace(else_span, lonely_text)

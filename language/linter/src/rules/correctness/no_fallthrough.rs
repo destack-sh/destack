@@ -1,6 +1,7 @@
 use regex::Regex;
 
 use destack_ast as ast;
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{compiled_no_fallthrough_comment_pattern, fallthrough_comment_matches};
@@ -182,7 +183,7 @@ fn fallthrough_comment_between_cases(
     current_case_id: ast::LocalNodeId<ast::MatchCase>,
     next_case_id: ast::LocalNodeId<ast::MatchCase>,
     fallthrough_comment_pattern: Option<&Regex>,
-) -> Option<destack_source::Span> {
+) -> Option<Span> {
     let current_span = ctx.tree.get_span(current_case_id);
     let next_span = ctx.tree.get_span(next_case_id);
     if current_span.end > next_span.start {
@@ -190,8 +191,8 @@ fn fallthrough_comment_between_cases(
     }
 
     // search all comments in the case gap for intent markers
-    ctx.tree.comment_trivia().iter().find_map(|comment_trivia| {
-        let comment_span = comment_trivia.span;
+    ctx.tree.comments().iter().find_map(|comment| {
+        let comment_span = comment.span;
         if comment_span.file != ctx.module.file_id {
             return None;
         }
@@ -211,7 +212,7 @@ fn report_unused_fallthrough_comment(
     ctx: &mut LintAstContext<'_>,
     meta: &LintMeta,
     case_id: ast::LocalNodeId<ast::MatchCase>,
-    comment_span: destack_source::Span,
+    comment_span: Span,
 ) {
     let severity = ctx.get_effective_severity(meta, case_id);
     if !severity.is_enabled() {

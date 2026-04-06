@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::span_has_comment;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -70,7 +70,7 @@ impl LintRule for NoUselessComputedKey {
 
             if ctx.compute_fixes
                 && let Some(key_span) = computed_key_bracket_span(ctx, *expr_id)
-                && !span_has_comment_trivia(ctx.tree, key_span)
+                && !span_has_comment(ctx.tree, key_span)
             {
                 let edits = ctx
                     .edit_builder()

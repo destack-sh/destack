@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     expression_reference_path, expression_unwrap_parenthesized, expressions_have_equivalent_syntax,
     has_non_nullish_falsy_type, infix_operator_window_contains, is_maybe_nullish_type,
-    is_strict_boolean_type, span_has_comment_trivia,
+    is_strict_boolean_type, span_has_comment,
 };
 use crate::{
     ConstValue, LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint,
@@ -412,7 +412,7 @@ fn make_nullish_fix(
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     let expression_span = ctx.get_span(expression_id);
-    if span_has_comment_trivia(ctx.ast, expression_span) {
+    if span_has_comment(ctx.ast, expression_span) {
         return None;
     }
 
@@ -449,7 +449,7 @@ fn make_nullish_assignment_fix(
     right_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<LintFix> {
     let expression_span = ctx.get_span(expression_id);
-    if span_has_comment_trivia(ctx.ast, expression_span) {
+    if span_has_comment(ctx.ast, expression_span) {
         return None;
     }
 

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use destack_ast::{self as ast, BindingAnchor, Declaration, FunctionMode, Key, Member};
+use destack_source::Span;
 use destack_workspace::{GroupedAccessorPairsOrder, LintSeverity};
 
-use crate::rules::common::{expression_structural_signature, span_has_comment_trivia};
+use crate::rules::common::{expression_structural_signature, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -392,12 +393,12 @@ fn grouped_member_accessor_fix(
 
     let first_member_span = ctx.tree.get_span(*members.first()?);
     let last_member_span = ctx.tree.get_span(*members.last()?);
-    let full_span = destack_source::Span::new(
+    let full_span = Span::new(
         first_member_span.file,
         first_member_span.start,
         last_member_span.end,
     );
-    if span_has_comment_trivia(ctx.tree, full_span) {
+    if span_has_comment(ctx.tree, full_span) {
         return None;
     }
 
@@ -431,12 +432,12 @@ fn grouped_property_accessor_fix(
 
     let first_property_span = ctx.tree.get_span(*properties.first()?);
     let last_property_span = ctx.tree.get_span(*properties.last()?);
-    let full_span = destack_source::Span::new(
+    let full_span = Span::new(
         first_property_span.file,
         first_property_span.start,
         last_property_span.end,
     );
-    if span_has_comment_trivia(ctx.tree, full_span) {
+    if span_has_comment(ctx.tree, full_span) {
         return None;
     }
 

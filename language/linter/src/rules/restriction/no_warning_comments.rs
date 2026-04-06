@@ -36,9 +36,9 @@ impl LintRule for NoWarningComments {
         let warning_location = ctx.options.restriction.warning_comment_location;
         let warning_decoration = &ctx.options.restriction.warning_comment_decoration;
 
-        // iterate over all comment trivia records
-        for trivia in ctx.tree.comment_trivia().iter().copied() {
-            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
+        // iterate over all raw comments
+        for comment in ctx.tree.comments().iter().copied() {
+            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
             let comment_text = comment_text.into_owned();
             if is_directive_comment(&comment_text)
                 && comment_contains_warning_term(
@@ -54,25 +54,7 @@ impl LintRule for NoWarningComments {
             report_warning_comment(
                 ctx,
                 meta,
-                trivia.comment,
-                trivia.span,
-                &comment_text,
-                warning_terms,
-                warning_location,
-                warning_decoration,
-            );
-        }
-
-        // docs are modeled as dedicated ast::Doc nodes, not comment trivia
-        for doc_id in ctx.tree.iter_nodes::<ast::Doc>() {
-            let span = ctx.tree.get_span(doc_id);
-            let comment_text = ast::normalize_comment_payload(ctx.get_span_text(span));
-            let comment_text = comment_text.into_owned();
-            report_warning_comment(
-                ctx,
-                meta,
-                doc_id,
-                span,
+                comment.span,
                 &comment_text,
                 warning_terms,
                 warning_location,
@@ -83,10 +65,9 @@ impl LintRule for NoWarningComments {
 }
 
 /// Report one warning comment diagnostic when the text matches configured terms.
-fn report_warning_comment<T: ast::Node>(
+fn report_warning_comment(
     ctx: &mut LintAstContext<'_>,
     meta: &LintMeta,
-    node_id: ast::LocalNodeId<T>,
     span: Span,
     comment_text: &str,
     warning_terms: &[String],
@@ -100,7 +81,7 @@ fn report_warning_comment<T: ast::Node>(
             continue;
         }
 
-        let severity = ctx.get_effective_severity(meta, node_id);
+        let severity = ctx.get_severity(meta);
         if !severity.is_enabled() {
             break;
         }
@@ -131,7 +112,7 @@ fn report_warning_comment<T: ast::Node>(
 /// Build a suggestion by removing one warning comment.
 fn warning_comment_fix(
     ctx: &LintAstContext<'_>,
-    comment_span: destack_source::Span,
+    comment_span: Span,
 ) -> Option<LintFix> {
     let edits = ctx.edit_builder().delete(comment_span).into_edits();
     Some(LintFix::suggestion("Remove warning comment").with_edits(edits))

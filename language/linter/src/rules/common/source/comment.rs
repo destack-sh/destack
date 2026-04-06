@@ -19,6 +19,12 @@ pub fn first_alphabetic_character(text: &str) -> Option<char> {
     text.chars().find(|character| character.is_alphabetic())
 }
 
+/// Return true when one raw source comment is a documentation comment.
+pub fn is_doc_comment_source(text: &str) -> bool {
+    let trimmed = text.trim_start();
+    trimmed.starts_with("///") || trimmed.starts_with("/**")
+}
+
 /// Return true when one source text may contain line or block comments.
 pub fn source_text_contains_comment_token(text: &str) -> bool {
     text.contains("//") || text.contains("/*")

@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, Block};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_parenthesized_syntax, span_has_comment_trivia};
+use crate::rules::common::{expression_unwrap_parenthesized_syntax, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -108,7 +108,7 @@ impl LintRule for NoCollapsibleIf {
             .with_label("combine conditions using `&&`");
 
             // skip fixes when nested if range includes comment trivia
-            if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, outer_span) {
+            if ctx.compute_fixes && !span_has_comment(ctx.tree, outer_span) {
                 let outer_cond_text = and_condition_operand_text(ctx, outer_condition_id);
                 let inner_cond_text = and_condition_operand_text(ctx, inner_condition_id);
                 let inner_then_span = ctx.tree.get_span(*inner_then_id);

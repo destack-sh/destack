@@ -4,7 +4,8 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     has_hyphen_separator, has_multiple_sentence_starts, is_directive_comment,
-    is_non_prose_doc_line, is_separator_comment, parse_keyword_comment_with_options,
+    is_doc_comment_source, is_non_prose_doc_line, is_separator_comment,
+    parse_keyword_comment_with_options,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -39,18 +40,16 @@ impl LintRule for CommentLayout {
         let meta = self.meta();
 
         // check doc comments
-        for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
-            let annotation = ctx.tree.get(node_id);
-            let ast::Annotation::Doc { node, .. } = annotation else {
+        for comment in ctx.tree.comments().iter().copied() {
+            if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
-            };
+            }
 
-            let doc = ctx.tree.get(*node);
-            let text = ctx.strings.get(doc.string);
+            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span)).into_owned();
             let mut has_multiple_sentence_line = false;
 
             // check each prose line for multiple sentence starts
-            for line in text.as_ref().lines() {
+            for line in text.lines() {
                 let trimmed = line.trim();
 
                 // skip non prose lines
@@ -67,7 +66,7 @@ impl LintRule for CommentLayout {
 
             // report multi sentence doc lines
             if has_multiple_sentence_line {
-                let severity = ctx.get_effective_severity(meta, node_id);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -80,15 +79,15 @@ impl LintRule for CommentLayout {
                         severity,
                         "doc comment should have one sentence per line",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        comment.span,
                     )
                     .with_label("split sentences across multiple lines"),
                 );
             }
 
             // check for problematic hyphen separators
-            if has_hyphen_separator(text.as_ref()) {
-                let severity = ctx.get_effective_severity(meta, node_id);
+            if has_hyphen_separator(&text) {
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -101,7 +100,7 @@ impl LintRule for CommentLayout {
                         severity,
                         "prefer colons or commas over hyphens in comments",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        comment.span,
                     )
                     .with_label("replace hyphen with colon or comma"),
                 );
@@ -109,8 +108,12 @@ impl LintRule for CommentLayout {
         }
 
         // check inline comments
-        for trivia in ctx.tree.comment_trivia().iter().copied() {
-            let text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span)).into_owned();
+        for comment in ctx.tree.comments().iter().copied() {
+            if is_doc_comment_source(ctx.get_span_text(comment.span)) {
+                continue;
+            }
+
+            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span)).into_owned();
             let text = text.trim();
 
             // skip empty, directive, and separator comments
@@ -124,7 +127,7 @@ impl LintRule for CommentLayout {
                 &ctx.options.style.comment_keywords,
                 &ctx.options.style.comment_keyword_tags,
             ) {
-                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -138,14 +141,14 @@ impl LintRule for CommentLayout {
                         severity,
                         "keyword comments should use uppercase keywords",
                         ctx.module.file_id,
-                        trivia.span,
+                        comment.span,
                     )
                     .with_label(known_comment_tag_label(&ctx.options.style.comment_keywords));
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
                         && let Some(fix) =
-                            uppercase_keyword_comment_fix(ctx, trivia.span, &keyword_info.keyword)
+                            uppercase_keyword_comment_fix(ctx, comment.span, &keyword_info.keyword)
                     {
                         diagnostic = diagnostic.with_fix(fix);
                     }
@@ -163,7 +166,7 @@ impl LintRule for CommentLayout {
                             severity,
                             "keyword comments should use known AGENTS tags only",
                             ctx.module.file_id,
-                            trivia.span,
+                            comment.span,
                         )
                         .with_label(known_comment_tag_label(
                             &ctx.options.style.comment_keyword_tags,
@@ -181,7 +184,7 @@ impl LintRule for CommentLayout {
                             severity,
                             "keyword comments should include at least one known tag",
                             ctx.module.file_id,
-                            trivia.span,
+                            comment.span,
                         )
                         .with_label("add a tag like #Cleanup or #Suspicious"),
                     );
@@ -190,7 +193,7 @@ impl LintRule for CommentLayout {
 
             // check for multiple sentences on one comment line
             if has_multiple_sentence_starts(text) {
-                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -203,7 +206,7 @@ impl LintRule for CommentLayout {
                         severity,
                         "inline comments should stay below one sentence",
                         ctx.module.file_id,
-                        trivia.span,
+                        comment.span,
                     )
                     .with_label("split into separate comments"),
                 );
@@ -211,7 +214,7 @@ impl LintRule for CommentLayout {
 
             // check for problematic hyphens
             if has_hyphen_separator(text) {
-                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -223,7 +226,7 @@ impl LintRule for CommentLayout {
                         severity,
                         "prefer colons or commas over hyphens in comments",
                         ctx.module.file_id,
-                        trivia.span,
+                        comment.span,
                     )
                     .with_label("replace hyphen with colon or comma"),
                 );

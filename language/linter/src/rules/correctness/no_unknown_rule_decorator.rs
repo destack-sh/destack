@@ -81,9 +81,7 @@ impl LintRule for NoUnknownRuleDecorator {
         // inspect candidate syntax nodes
         for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
             let annotation = ctx.tree.get(node_id);
-            let ast::Annotation::Decorator { node, .. } = annotation else {
-                continue;
-            };
+            let ast::Annotation::Decorator { node, .. } = annotation;
 
             // check decorator name (must be single segment: allow, warn, deny, forbid)
             let Some(path) = ctx.decorator_path(*node) else {

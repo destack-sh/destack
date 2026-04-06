@@ -8,7 +8,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_static_property_access,
-    expression_target_symbol, expression_unwrap_parenthesized, span_has_comment_trivia,
+    expression_target_symbol, expression_unwrap_parenthesized, span_has_comment,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -215,7 +215,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
             format!("{{ {} }}", literal_entries.join(", "))
         };
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment_trivia(self.ctx.ast, expression_span) {
+        if span_has_comment(self.ctx.ast, expression_span) {
             return None;
         }
 
