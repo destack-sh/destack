@@ -100,7 +100,7 @@ fn bench_lex(criterion: &mut Criterion) {
         total_lines = total_lines.saturating_add(line_count);
 
         // record source
-        let file_id = FileId::new(sources.len() as u32);
+        let file_id = FileId::new(sources.len() as u64);
         let file_name = path
             .file_name()
             .and_then(|name| name.to_str())
