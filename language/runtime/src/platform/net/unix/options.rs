@@ -2507,7 +2507,7 @@ pub(crate) unsafe fn destack_net_raw_socket(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

@@ -24,7 +24,8 @@ use crate::runtime::process::Service;
 use crate::runtime::process::service::executor::periodic::open_periodic_task;
 
 use super::core::{
-    AlsaEventDeliveryKind, AlsaEventSession, AlsaTopologyState, SnapshotKey, insert_event_resource,
+    AlsaEventDeliveryKind, AlsaEventRepository, AlsaTopologyState, SnapshotKey,
+    insert_event_resource,
 };
 use super::descriptor::filtered_descriptors;
 use super::resource::event_resource;
@@ -64,7 +65,7 @@ fn event_snapshot(
 /// Refresh one event subscription queue from the current snapshot.
 fn refresh_event_subscription(
     service: &Arc<AlsaService>,
-    session: &mut AlsaEventSession,
+    session: &mut AlsaEventRepository,
     source: MidiEventSource,
 ) -> RuntimeResult<()> {
     let next_snapshot = event_snapshot(service, session.flags, session.direction_mask);
@@ -82,14 +83,14 @@ fn refresh_event_subscription(
 /// Refresh one event subscription from synthetic polling.
 fn refresh_poll_event_subscription(
     service: &Arc<AlsaService>,
-    session: &mut AlsaEventSession,
+    session: &mut AlsaEventRepository,
 ) -> RuntimeResult<()> {
     refresh_event_subscription(service, session, MidiEventSource::SyntheticPoll)
 }
 
 /// Queue one backend-disconnected event into one subscription.
 fn queue_backend_disconnected_event(
-    session: &mut AlsaEventSession,
+    session: &mut AlsaEventRepository,
     source: MidiEventSource,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -106,7 +107,7 @@ fn queue_backend_disconnected_event(
 /// Register one synthetic poll delivery for one ALSA event subscription.
 fn register_poll_event_session(
     service: &Arc<AlsaService>,
-    session: &Arc<Mutex<AlsaEventSession>>,
+    session: &Arc<Mutex<AlsaEventRepository>>,
     poll_interval: Duration,
 ) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
     let service = service.clone();
@@ -151,7 +152,7 @@ fn register_poll_event_session(
 
 /// Pop one queued event after honoring deferred overflow errors.
 fn try_pop_session_event(
-    session: &AlsaEventSession,
+    session: &AlsaEventRepository,
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
     try_pop_queued_event(&session.queue, operation)
@@ -159,7 +160,7 @@ fn try_pop_session_event(
 
 /// Pop one queued event batch after honoring deferred overflow errors.
 fn try_pop_session_event_batch(
-    session: &AlsaEventSession,
+    session: &AlsaEventRepository,
     max_events: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
@@ -169,7 +170,7 @@ fn try_pop_session_event_batch(
 /// Collect all live native event subscriptions from one registry.
 fn collect_native_event_sessions(
     registry: &Arc<Mutex<AlsaNativeEventRegistry>>,
-) -> Vec<Arc<Mutex<AlsaEventSession>>> {
+) -> Vec<Arc<Mutex<AlsaEventRepository>>> {
     let mut registry = registry.lock();
 
     collect_live_event_sessions(&mut registry.sessions)
@@ -245,7 +246,7 @@ pub(crate) fn midi_event_open(
         }
     };
 
-    let session = Arc::new(Mutex::new(AlsaEventSession {
+    let session = Arc::new(Mutex::new(AlsaEventRepository {
         backend: crate::platform::device::MidiBackend::Alsa,
         direction_mask: options.direction_mask,
         flags: options.flags,
@@ -378,13 +379,13 @@ mod tests {
     };
     use crate::runtime::control::queue::BoundedQueue;
 
-    use super::super::core::{AlsaEventDeliveryKind, AlsaEventSession};
+    use super::super::core::{AlsaEventDeliveryKind, AlsaEventRepository};
 
     /// Queue one backend-disconnected event with the active backend metadata.
     #[test]
     fn test_queue_backend_disconnected_event_pushes_backend_event() {
         let queue = Arc::new(BoundedQueue::new(4));
-        let mut session = AlsaEventSession {
+        let mut session = AlsaEventRepository {
             backend: MidiBackend::Alsa,
             direction_mask: MidiPortDirectionFlags(MIDI_PORT_DIRECTION_FLAG_INPUT.0),
             flags: MidiEventSubscriptionFlags(MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED.0),

@@ -596,7 +596,7 @@ fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> Re
     #[cfg(unix)]
     {
         binding.agent().resources.insert(
-            binding.world(),
+            &binding.world(),
             ResourceEntry::new(ResourceKind::File).with_fd(0),
             Some(binding.engine()),
         )
@@ -605,7 +605,7 @@ fn insert_completion_target_with_host_handle(binding: &BindingCallContext) -> Re
     #[cfg(windows)]
     {
         binding.agent().resources.insert(
-            binding.world(),
+            &binding.world(),
             ResourceEntry::new(ResourceKind::File).with_handle(std::ptr::dangling_mut::<c_void>()),
             Some(binding.engine()),
         )

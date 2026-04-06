@@ -2049,18 +2049,18 @@ pub struct IMidiServiceTransportPluginConfig_Vtbl {
     GetConfigJson: usize,
 }
 windows_core::imp::define_interface!(
-    IMidiSession,
-    IMidiSession_Vtbl,
+    IMidiRepository,
+    IMidiRepository_Vtbl,
     0x8087b303_0519_31d1_c0de_dd0000080000
 );
-impl windows_core::RuntimeType for IMidiSession {
+impl windows_core::RuntimeType for IMidiRepository {
     const SIGNATURE: windows_core::imp::ConstBuffer =
         windows_core::imp::ConstBuffer::for_interface::<Self>();
 }
 #[repr(C)]
-pub struct IMidiSession_Vtbl {
+pub struct IMidiRepository_Vtbl {
     pub base__: windows_core::IInspectable_Vtbl,
-    pub SessionId: unsafe extern "system" fn(
+    pub RepositoryId: unsafe extern "system" fn(
         *mut core::ffi::c_void,
         *mut windows_core::GUID,
     ) -> windows_core::HRESULT,
@@ -2096,16 +2096,16 @@ pub struct IMidiSession_Vtbl {
     ) -> windows_core::HRESULT,
 }
 windows_core::imp::define_interface!(
-    IMidiSessionStatics,
-    IMidiSessionStatics_Vtbl,
+    IMidiRepositoryStatics,
+    IMidiRepositoryStatics_Vtbl,
     0x8087b303_0519_31d1_c0de_ee0000080000
 );
-impl windows_core::RuntimeType for IMidiSessionStatics {
+impl windows_core::RuntimeType for IMidiRepositoryStatics {
     const SIGNATURE: windows_core::imp::ConstBuffer =
         windows_core::imp::ConstBuffer::for_interface::<Self>();
 }
 #[repr(C)]
-pub struct IMidiSessionStatics_Vtbl {
+pub struct IMidiRepositoryStatics_Vtbl {
     pub base__: windows_core::IInspectable_Vtbl,
     pub Create: unsafe extern "system" fn(
         *mut core::ffi::c_void,
@@ -5088,14 +5088,14 @@ impl core::ops::Not for MidiSendMessageResults {
 }
 #[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MidiSession(windows_core::IUnknown);
+pub struct MidiRepository(windows_core::IUnknown);
 windows_core::imp::interface_hierarchy!(
-    MidiSession,
+    MidiRepository,
     windows_core::IUnknown,
     windows_core::IInspectable
 );
-windows_core::imp::required_hierarchy!(MidiSession, IClosable, IStringable);
-impl MidiSession {
+windows_core::imp::required_hierarchy!(MidiRepository, IClosable, IStringable);
+impl MidiRepository {
     pub fn Close(&self) -> windows_core::Result<()> {
         let this = &windows_core::Interface::cast::<IClosable>(self)?;
         unsafe {
@@ -5103,11 +5103,11 @@ impl MidiSession {
                 .ok()
         }
     }
-    pub fn SessionId(&self) -> windows_core::Result<windows_core::GUID> {
+    pub fn RepositoryId(&self) -> windows_core::Result<windows_core::GUID> {
         let this = self;
         unsafe {
             let mut result__ = core::mem::zeroed();
-            (windows_core::Interface::vtable(this).SessionId)(
+            (windows_core::Interface::vtable(this).RepositoryId)(
                 windows_core::Interface::as_raw(this),
                 &mut result__,
             )
@@ -5211,8 +5211,8 @@ impl MidiSession {
             .map(|| result__)
         }
     }
-    pub fn Create(sessionname: &windows_core::HSTRING) -> windows_core::Result<MidiSession> {
-        Self::IMidiSessionStatics(|this| unsafe {
+    pub fn Create(sessionname: &windows_core::HSTRING) -> windows_core::Result<MidiRepository> {
+        Self::IMidiRepositoryStatics(|this| unsafe {
             let mut result__ = core::mem::zeroed();
             (windows_core::Interface::vtable(this).Create)(
                 windows_core::Interface::as_raw(this),
@@ -5233,27 +5233,27 @@ impl MidiSession {
             .map(|| core::mem::transmute(result__))
         }
     }
-    fn IMidiSessionStatics<R, F: FnOnce(&IMidiSessionStatics) -> windows_core::Result<R>>(
+    fn IMidiRepositoryStatics<R, F: FnOnce(&IMidiRepositoryStatics) -> windows_core::Result<R>>(
         callback: F,
     ) -> windows_core::Result<R> {
-        static SHARED: windows_core::imp::FactoryCache<MidiSession, IMidiSessionStatics> =
+        static SHARED: windows_core::imp::FactoryCache<MidiRepository, IMidiRepositoryStatics> =
             windows_core::imp::FactoryCache::new();
         SHARED.call(callback)
     }
 }
-impl windows_core::RuntimeType for MidiSession {
+impl windows_core::RuntimeType for MidiRepository {
     const SIGNATURE: windows_core::imp::ConstBuffer =
-        windows_core::imp::ConstBuffer::for_class::<Self, IMidiSession>();
+        windows_core::imp::ConstBuffer::for_class::<Self, IMidiRepository>();
 }
-unsafe impl windows_core::Interface for MidiSession {
-    type Vtable = <IMidiSession as windows_core::Interface>::Vtable;
-    const IID: windows_core::GUID = <IMidiSession as windows_core::Interface>::IID;
+unsafe impl windows_core::Interface for MidiRepository {
+    type Vtable = <IMidiRepository as windows_core::Interface>::Vtable;
+    const IID: windows_core::GUID = <IMidiRepository as windows_core::Interface>::IID;
 }
-impl windows_core::RuntimeName for MidiSession {
-    const NAME: &'static str = "Microsoft.Windows.Devices.Midi2.MidiSession";
+impl windows_core::RuntimeName for MidiRepository {
+    const NAME: &'static str = "Microsoft.Windows.Devices.Midi2.MidiRepository";
 }
-unsafe impl Send for MidiSession {}
-unsafe impl Sync for MidiSession {}
+unsafe impl Send for MidiRepository {}
+unsafe impl Sync for MidiRepository {}
 #[repr(transparent)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MidiVirtualDevice(windows_core::IUnknown);

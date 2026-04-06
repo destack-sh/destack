@@ -6,7 +6,7 @@ use windows_sys::Win32::Devices::BiometricFramework::{
     WINBIO_E_CANCELED, WINBIO_E_DEVICE_BUSY, WINBIO_E_DISABLED, WINBIO_E_NO_MATCH,
     WINBIO_E_NOT_ACTIVE_CONSOLE, WINBIO_E_SENSOR_UNAVAILABLE, WINBIO_E_SESSION_BUSY,
     WINBIO_E_UNSUPPORTED_FACTOR, WINBIO_E_UNSUPPORTED_POOL_TYPE, WINBIO_IDENTITY,
-    WINBIO_POOL_SYSTEM, WinBioCloseSession, WinBioIdentify, WinBioOpenSession,
+    WINBIO_POOL_SYSTEM, WinBioCloseRepository, WinBioIdentify, WinBioOpenRepository,
 };
 use windows_sys::Win32::Foundation::{
     CloseHandle, ERROR_ACCESS_DENIED, ERROR_ACCOUNT_DISABLED, ERROR_ACCOUNT_LOCKED_OUT,
@@ -728,7 +728,7 @@ fn authenticate_with_windows_biometric() -> RuntimeResult<CredentialAuthenticati
     // open one biometric session across common biometric factors
     let mut session_handle = 0u32;
     let open_status = unsafe {
-        WinBioOpenSession(
+        WinBioOpenRepository(
             WINBIO_TYPE_COMMON_BIOMETRIC_MASK,
             WINBIO_POOL_SYSTEM,
             WINBIO_SESSION_FLAGS_DEFAULT,
@@ -743,7 +743,7 @@ fn authenticate_with_windows_biometric() -> RuntimeResult<CredentialAuthenticati
     }
 
     // close the WinBio session handle on every return path
-    let session_guard = WindowsBiometricSessionGuard { session_handle };
+    let session_guard = WindowsBiometricRepositoryGuard { session_handle };
 
     // execute one biometric identify challenge
     let mut unit_id = 0u32;
@@ -938,7 +938,7 @@ fn map_windows_biometric_error(error_code: HRESULT) -> Box<RuntimeError> {
 }
 
 /// Guard one WinBio session handle and close it on drop.
-struct WindowsBiometricSessionGuard {
+struct WindowsBiometricRepositoryGuard {
     /// Open WinBio session handle.
     session_handle: u32,
 }
@@ -1000,11 +1000,11 @@ impl Drop for WindowsUnpackedCredentials {
     }
 }
 
-impl Drop for WindowsBiometricSessionGuard {
+impl Drop for WindowsBiometricRepositoryGuard {
     fn drop(&mut self) {
         // close one open WinBio session
         unsafe {
-            let _close_status = WinBioCloseSession(self.session_handle);
+            let _close_status = WinBioCloseRepository(self.session_handle);
         }
     }
 }

@@ -202,7 +202,7 @@ pub(crate) fn insert_context_resource(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
 
     resource::TlsContextHandle(resource_id)
 }
@@ -244,7 +244,7 @@ pub(crate) fn remove_context_resource(
         binding
             .agent()
             .resources
-            .remove(binding.world(), handle.0, Some(binding.engine()))
+            .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -289,7 +289,7 @@ pub(crate) fn insert_session_resource(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
 
     resource::TlsSessionHandle(resource_id)
 }
@@ -331,7 +331,7 @@ pub(crate) fn remove_session_resource(
         binding
             .agent()
             .resources
-            .remove(binding.world(), handle.0, Some(binding.engine()))
+            .remove(&binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(RuntimeError::from(PlatformError::invalid_argument_value(
             "handle",
@@ -730,7 +730,7 @@ fn build_client_config(policy: &mut TlsContextResource) -> RuntimeResult<Arc<Cli
         TlsSessionResumptionMode::Disabled => Resumption::disabled(),
         TlsSessionResumptionMode::Stateful => {
             Resumption::store(Arc::clone(&policy.runtime_state.client_session_store))
-                .tls12_resumption(Tls12Resumption::SessionIdOnly)
+                .tls12_resumption(Tls12Resumption::SessionIdOrTickets)
         }
         TlsSessionResumptionMode::Stateless => {
             Resumption::store(Arc::clone(&policy.runtime_state.client_session_store))

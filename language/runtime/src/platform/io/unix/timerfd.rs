@@ -131,7 +131,7 @@ fn close_timerfd(
     let entry = binding
         .agent()
         .resources
-        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(invalid_timerfd_handle_error)?;
     if entry.kind != ResourceKind::TimerFd {
         return Err(invalid_timerfd_handle_error());
@@ -344,7 +344,7 @@ pub(crate) unsafe fn destack_io_timer_fd_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
         let handle = resource::TimerFdHandle(resource_id);
 
         // write one output handle

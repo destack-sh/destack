@@ -243,7 +243,7 @@ fn register_stdio_fd(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::FileHandle(resource_id);
@@ -476,7 +476,7 @@ pub(crate) unsafe fn destack_process_process_fd_close(
     ensure_process_fd_handle(binding, handle)?;
 
     let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -546,7 +546,7 @@ pub(crate) unsafe fn destack_process_process_fd_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
 
         unsafe {
             *out = resource::ProcessFdHandle(resource_id);
@@ -730,7 +730,7 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
     ensure_signal_fd_handle(binding, handle)?;
 
     let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -793,7 +793,7 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
 
         unsafe {
             *out = resource::SignalFdHandle(resource_id);

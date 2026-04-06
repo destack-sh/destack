@@ -26,7 +26,7 @@ use super::abi::{
     watcher_add_removed, watcher_add_stopped, watcher_add_updated,
 };
 use super::core::{
-    WindowsMidiEndpointInfo, WindowsMidiEventDeliveryKind, WindowsMidiEventSession,
+    WindowsMidiEndpointInfo, WindowsMidiEventDeliveryKind, WindowsMidiEventRepository,
     WindowsMidiTopologyState,
 };
 use super::descriptor::device_descriptor;
@@ -36,8 +36,8 @@ use super::sdk::{
     MidiEndpointConnectionBasicSettings, MidiEndpointDeviceInformation,
     MidiEndpointDeviceInformationAddedEventArgs, MidiEndpointDeviceInformationRemovedEventArgs,
     MidiEndpointDeviceInformationUpdatedEventArgs, MidiEndpointDeviceWatcher,
-    MidiEndpointUserSuppliedInfo, MidiMessageReceivedEventArgs, MidiMessageStruct,
-    MidiSendMessageResults, MidiSession, MidiVirtualDevice, MidiVirtualDeviceCreationConfig,
+    MidiEndpointUserSuppliedInfo, MidiMessageReceivedEventArgs, MidiMessageStruct, MidiRepository,
+    MidiSendMessageResults, MidiVirtualDevice, MidiVirtualDeviceCreationConfig,
     MidiVirtualDeviceManager,
 };
 
@@ -56,13 +56,13 @@ pub(super) struct WindowsMidiNativeEventRegistry {
     /// Next registration id.
     pub(super) next_registration_id: u64,
     /// Registered native event subscriptions.
-    pub(super) sessions: BTreeMap<u64, Weak<Mutex<WindowsMidiEventSession>>>,
+    pub(super) sessions: BTreeMap<u64, Weak<Mutex<WindowsMidiEventRepository>>>,
 }
 
 /// One host-owned Windows MIDI service state that lives on the executor thread.
 struct WindowsMidiServiceState {
     /// Shared MIDI session.
-    _session: MidiSession,
+    _session: MidiRepository,
     /// Shared topology cache.
     _topology: Arc<Mutex<WindowsMidiTopologyState>>,
     /// Registered native event subscriptions.
@@ -70,19 +70,19 @@ struct WindowsMidiServiceState {
     /// Next input host-session id.
     next_input_session_id: u64,
     /// Live input host sessions.
-    input_sessions: BTreeMap<u64, WindowsMidiInputHostSession>,
+    input_sessions: BTreeMap<u64, WindowsMidiInputHostRepository>,
     /// Next output host-session id.
     next_output_session_id: u64,
     /// Live output host sessions.
-    output_sessions: BTreeMap<u64, WindowsMidiOutputHostSession>,
+    output_sessions: BTreeMap<u64, WindowsMidiOutputHostRepository>,
     /// Live watcher and its event registrations.
     _watcher: WindowsMidiWatcherRegistration,
 }
 
 /// One host-owned input session.
-struct WindowsMidiInputHostSession {
+struct WindowsMidiInputHostRepository {
     /// Shared MIDI session used for disconnection.
-    session: MidiSession,
+    session: MidiRepository,
     /// Opened Windows MIDI connection.
     connection: MidiEndpointConnection,
     /// Message-received registration token.
@@ -92,9 +92,9 @@ struct WindowsMidiInputHostSession {
 }
 
 /// One host-owned output session.
-struct WindowsMidiOutputHostSession {
+struct WindowsMidiOutputHostRepository {
     /// Shared MIDI session used for disconnection.
-    session: MidiSession,
+    session: MidiRepository,
     /// Opened Windows MIDI connection.
     connection: MidiEndpointConnection,
     /// Owned virtual device when this session created one.
@@ -117,7 +117,7 @@ struct WindowsMidiWatcherRegistration {
     stopped_token: i64,
 }
 
-impl Drop for WindowsMidiInputHostSession {
+impl Drop for WindowsMidiInputHostRepository {
     /// Tear down one host-owned Windows MIDI input session.
     fn drop(&mut self) {
         let _ = self.connection.RemoveMessageReceived(self.token);
@@ -125,7 +125,7 @@ impl Drop for WindowsMidiInputHostSession {
     }
 }
 
-impl Drop for WindowsMidiOutputHostSession {
+impl Drop for WindowsMidiOutputHostRepository {
     /// Tear down one host-owned Windows MIDI output session.
     fn drop(&mut self) {
         disconnect_connection(&self.session, &self.connection);
@@ -211,7 +211,7 @@ impl WindowsMidiService {
             state.next_input_session_id = state.next_input_session_id.saturating_add(1);
             state.input_sessions.insert(
                 host_session_id,
-                WindowsMidiInputHostSession {
+                WindowsMidiInputHostRepository {
                     session: state._session.clone(),
                     connection,
                     token,
@@ -287,7 +287,7 @@ impl WindowsMidiService {
             state.next_input_session_id = state.next_input_session_id.saturating_add(1);
             state.input_sessions.insert(
                 host_session_id,
-                WindowsMidiInputHostSession {
+                WindowsMidiInputHostRepository {
                     session: state._session.clone(),
                     connection,
                     token,
@@ -359,7 +359,7 @@ impl WindowsMidiService {
             state.next_output_session_id = state.next_output_session_id.saturating_add(1);
             state.output_sessions.insert(
                 host_session_id,
-                WindowsMidiOutputHostSession {
+                WindowsMidiOutputHostRepository {
                     session: state._session.clone(),
                     connection,
                     _virtual_device: Some(virtual_device),
@@ -397,7 +397,7 @@ impl WindowsMidiService {
             state.next_output_session_id = state.next_output_session_id.saturating_add(1);
             state.output_sessions.insert(
                 host_session_id,
-                WindowsMidiOutputHostSession {
+                WindowsMidiOutputHostRepository {
                     session: state._session.clone(),
                     connection,
                     _virtual_device: None,
@@ -511,7 +511,7 @@ fn connection_settings(
 
 /// Open one endpoint connection on the service thread.
 fn open_endpoint_connection(
-    session: &MidiSession,
+    session: &MidiRepository,
     backend_id: &str,
     operation: &'static str,
 ) -> RuntimeResult<MidiEndpointConnection> {
@@ -520,7 +520,11 @@ fn open_endpoint_connection(
     let connection = session
         .CreateEndpointConnection2(&backend_id, &settings)
         .map_err(|error| {
-            windows_midi_error(operation, "MidiSession::CreateEndpointConnection2", &error)
+            windows_midi_error(
+                operation,
+                "MidiRepository::CreateEndpointConnection2",
+                &error,
+            )
         })?;
 
     let is_open = connection
@@ -539,7 +543,7 @@ fn open_endpoint_connection(
 }
 
 /// Disconnect one endpoint connection.
-fn disconnect_connection(session: &MidiSession, connection: &MidiEndpointConnection) {
+fn disconnect_connection(session: &MidiRepository, connection: &MidiEndpointConnection) {
     let Ok(connection_id) = connection.ConnectionId() else {
         return;
     };
@@ -955,8 +959,8 @@ fn build_windows_midi_service_state(
     operation: &'static str,
 ) -> RuntimeResult<WindowsMidiServiceState> {
     let session_name = HSTRING::from("Destack MIDI");
-    let session = MidiSession::Create(&session_name)
-        .map_err(|error| windows_midi_error(operation, "MidiSession::Create", &error))?;
+    let session = MidiRepository::Create(&session_name)
+        .map_err(|error| windows_midi_error(operation, "MidiRepository::Create", &error))?;
 
     // initial topology
     refresh_topology_cache(&topology, operation)?;
@@ -1005,8 +1009,8 @@ pub(crate) fn windows_midi_service(
 /// Check whether Windows MIDI Services can create one session on this host.
 pub(crate) fn check_windows_midi_support(operation: &'static str) -> RuntimeResult<()> {
     let session_name = HSTRING::from("Destack MIDI Support Probe");
-    let _session = MidiSession::Create(&session_name)
-        .map_err(|error| windows_midi_error(operation, "MidiSession::Create", &error))?;
+    let _session = MidiRepository::Create(&session_name)
+        .map_err(|error| windows_midi_error(operation, "MidiRepository::Create", &error))?;
 
     Ok(())
 }
@@ -1014,7 +1018,7 @@ pub(crate) fn check_windows_midi_support(operation: &'static str) -> RuntimeResu
 /// Register one native event subscription.
 pub(super) fn register_native_event_session(
     service: &Arc<WindowsMidiService>,
-    session: &Arc<Mutex<WindowsMidiEventSession>>,
+    session: &Arc<Mutex<WindowsMidiEventRepository>>,
 ) -> WindowsMidiEventDeliveryKind {
     let mut registry = service.native_event_registry.lock();
     let registration_id = registry.next_registration_id;

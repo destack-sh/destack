@@ -23,7 +23,7 @@ use crate::runtime::process::RuntimeScheduledCallbackHandle;
 
 use super::backend::resolve_backend;
 use super::core::{
-    AndroidEventDeliveryKind, AndroidEventSession, SnapshotKey, close_event_session,
+    AndroidEventDeliveryKind, AndroidEventRepository, SnapshotKey, close_event_session,
     insert_event_resource, open_event_session, read_native_events, snapshot_key,
 };
 use super::input::list_input_descriptors;
@@ -62,7 +62,7 @@ fn event_snapshot(
 /// Refresh one Android event subscription from the current snapshot.
 fn refresh_event_subscription(
     binding: &BindingCallContext,
-    session: &mut AndroidEventSession,
+    session: &mut AndroidEventRepository,
     source: MidiEventSource,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -80,7 +80,7 @@ fn refresh_event_subscription(
 
 /// Queue one backend-disconnected event into one subscription.
 fn queue_backend_disconnected_event(
-    session: &mut AndroidEventSession,
+    session: &mut AndroidEventRepository,
     source: MidiEventSource,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -97,7 +97,7 @@ fn queue_backend_disconnected_event(
 /// Register one synthetic poll callback on the owning runtime thread.
 fn register_poll_event_session(
     binding: &BindingCallContext,
-    session: &Arc<Mutex<AndroidEventSession>>,
+    session: &Arc<Mutex<AndroidEventRepository>>,
     poll_interval_ns: u64,
 ) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
     let session = session.clone();
@@ -128,7 +128,7 @@ fn register_poll_event_session(
 
 /// Pop one queued event after surfacing deferred overflow.
 fn try_pop_session_event(
-    session: &AndroidEventSession,
+    session: &AndroidEventRepository,
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
     try_pop_queued_event(&session.queue, operation)
@@ -136,7 +136,7 @@ fn try_pop_session_event(
 
 /// Pop one queued event batch after surfacing deferred overflow.
 fn try_pop_session_event_batch(
-    session: &AndroidEventSession,
+    session: &AndroidEventRepository,
     max_events: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
@@ -194,7 +194,7 @@ pub(crate) fn midi_event_open(
         }
     };
 
-    let session = Arc::new(Mutex::new(AndroidEventSession {
+    let session = Arc::new(Mutex::new(AndroidEventRepository {
         backend: MidiBackend::AndroidMidi,
         direction_mask: options.direction_mask,
         flags: options.flags,

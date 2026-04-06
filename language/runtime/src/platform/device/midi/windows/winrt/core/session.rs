@@ -36,7 +36,7 @@ pub(crate) struct WinRtTopologyState {
 }
 
 /// One opened WinRT input session.
-pub(crate) struct WinRtInputSession {
+pub(crate) struct WinRtInputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<WinRtService>,
     /// Current descriptor snapshot.
@@ -50,7 +50,7 @@ pub(crate) struct WinRtInputSession {
 }
 
 /// One opened WinRT output session.
-pub(crate) struct WinRtOutputSession {
+pub(crate) struct WinRtOutputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<WinRtService>,
     /// Current descriptor snapshot.
@@ -78,7 +78,7 @@ pub(crate) enum WinRtEventDeliveryKind {
 
 /// One opened MIDI event subscription.
 #[derive(Clone)]
-pub(crate) struct WinRtEventSession {
+pub(crate) struct WinRtEventRepository {
     /// Selected backend for the subscription.
     pub(crate) backend: MidiBackend,
     /// Included directions.
@@ -104,23 +104,23 @@ pub(crate) struct WinRtEventSession {
 /// Resource payload for one input session.
 pub(crate) struct WinRtInputResource {
     /// Shared session state.
-    pub(crate) session: Arc<WinRtInputSession>,
+    pub(crate) session: Arc<WinRtInputRepository>,
 }
 
 /// Resource payload for one output session.
 pub(crate) struct WinRtOutputResource {
     /// Shared session state.
-    pub(crate) session: Arc<WinRtOutputSession>,
+    pub(crate) session: Arc<WinRtOutputRepository>,
 }
 
 /// Resource payload for one event subscription.
 #[derive(Clone)]
 pub(crate) struct WinRtEventResource {
     /// Shared subscription state.
-    pub(crate) session: Arc<Mutex<WinRtEventSession>>,
+    pub(crate) session: Arc<Mutex<WinRtEventRepository>>,
 }
 
-impl Drop for WinRtInputSession {
+impl Drop for WinRtInputRepository {
     /// Release WinRT resources for one input session.
     fn drop(&mut self) {
         self._service
@@ -129,7 +129,7 @@ impl Drop for WinRtInputSession {
     }
 }
 
-impl Drop for WinRtOutputSession {
+impl Drop for WinRtOutputRepository {
     /// Release WinRT resources for one output session.
     fn drop(&mut self) {
         self._service
@@ -140,7 +140,7 @@ impl Drop for WinRtOutputSession {
 define_backend_midi_resource_inserters!(
     vis = pub(crate),
     backend = MidiBackend::WinRT,
-    input = (insert_input_resource, WinRtInputResource, WinRtInputSession),
-    output = (insert_output_resource, WinRtOutputResource, WinRtOutputSession),
-    event = (insert_event_resource, WinRtEventResource, WinRtEventSession)
+    input = (insert_input_resource, WinRtInputResource, WinRtInputRepository),
+    output = (insert_output_resource, WinRtOutputResource, WinRtOutputRepository),
+    event = (insert_event_resource, WinRtEventResource, WinRtEventRepository)
 );

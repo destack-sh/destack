@@ -27,7 +27,7 @@ pub(crate) struct AndroidBackendDescription {
 }
 
 /// One opened Android MIDI input session.
-pub(crate) struct AndroidInputSession {
+pub(crate) struct AndroidInputRepository {
     /// Current descriptor snapshot.
     pub(crate) descriptor: MidiPortDescriptorValue,
     /// Opaque host session id.
@@ -35,7 +35,7 @@ pub(crate) struct AndroidInputSession {
 }
 
 /// One opened Android MIDI output session.
-pub(crate) struct AndroidOutputSession {
+pub(crate) struct AndroidOutputRepository {
     /// Current descriptor snapshot.
     pub(crate) descriptor: MidiPortDescriptorValue,
     /// Selected transport data format.
@@ -63,7 +63,7 @@ pub(crate) enum AndroidEventDeliveryKind {
 
 /// One opened Android MIDI topology subscription.
 #[derive(Clone)]
-pub(crate) struct AndroidEventSession {
+pub(crate) struct AndroidEventRepository {
     /// Selected backend for this subscription.
     pub(crate) backend: MidiBackend,
     /// Included directions.
@@ -89,26 +89,26 @@ pub(crate) struct AndroidEventSession {
 /// Resource payload for one Android input session.
 pub(crate) struct AndroidInputResource {
     /// Shared session state.
-    pub(crate) session: Arc<AndroidInputSession>,
+    pub(crate) session: Arc<AndroidInputRepository>,
 }
 
 /// Resource payload for one Android output session.
 pub(crate) struct AndroidOutputResource {
     /// Shared session state.
-    pub(crate) session: Arc<AndroidOutputSession>,
+    pub(crate) session: Arc<AndroidOutputRepository>,
 }
 
 /// Resource payload for one Android event subscription.
 #[derive(Clone)]
 pub(crate) struct AndroidEventResource {
     /// Shared subscription state.
-    pub(crate) session: Arc<Mutex<AndroidEventSession>>,
+    pub(crate) session: Arc<Mutex<AndroidEventRepository>>,
 }
 
 define_backend_midi_resource_inserters!(
     vis = pub(crate),
     backend = MidiBackend::AndroidMidi,
-    input = (insert_input_resource, AndroidInputResource, AndroidInputSession),
-    output = (insert_output_resource, AndroidOutputResource, AndroidOutputSession),
-    event = (insert_event_resource, AndroidEventResource, AndroidEventSession)
+    input = (insert_input_resource, AndroidInputResource, AndroidInputRepository),
+    output = (insert_output_resource, AndroidOutputResource, AndroidOutputRepository),
+    event = (insert_event_resource, AndroidEventResource, AndroidEventRepository)
 );

@@ -111,7 +111,7 @@ pub(crate) unsafe fn monitor_event_open(
     runtime_state.initialize_monitor_topology_snapshot(snapshots);
 
     let resource_id = binding.agent().resources.insert(
-        binding.world(),
+        &binding.world(),
         ResourceEntry::new(ResourceKind::Display)
             .with_label(wayland_core::DISPLAY_EVENT_RESOURCE_LABEL)
             .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
@@ -145,7 +145,7 @@ pub(crate) unsafe fn monitor_event_close(
     let removed = binding
         .agent()
         .resources
-        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .remove(&binding.world(), handle.0, Some(binding.engine()))
         .is_some();
 
     if !removed {

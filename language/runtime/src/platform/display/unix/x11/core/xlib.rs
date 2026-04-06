@@ -515,7 +515,9 @@ pub(crate) fn update_input_context_geometry(
         )
     };
     if preedit_attributes.is_null() {
-        return Err("destack.input.text.syncWindowSession: XVaCreateNestedList failed".to_string());
+        return Err(
+            "destack.input.text.syncWindowRepository: XVaCreateNestedList failed".to_string(),
+        );
     }
 
     let error = unsafe {
@@ -538,7 +540,7 @@ pub(crate) fn update_input_context_geometry(
     let message = unsafe { CStr::from_ptr(error).to_string_lossy().into_owned() };
 
     Err(format!(
-        "destack.input.text.syncWindowSession: XSetICValues failed: {message}"
+        "destack.input.text.syncWindowRepository: XSetICValues failed: {message}"
     ))
 }
 

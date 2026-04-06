@@ -36,7 +36,7 @@ pub(crate) struct WindowsMidiTopologyState {
 }
 
 /// One opened Windows MIDI input session.
-pub(crate) struct WindowsMidiInputSession {
+pub(crate) struct WindowsMidiInputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<WindowsMidiService>,
     /// Current descriptor snapshot.
@@ -50,7 +50,7 @@ pub(crate) struct WindowsMidiInputSession {
 }
 
 /// One opened Windows MIDI output session.
-pub(crate) struct WindowsMidiOutputSession {
+pub(crate) struct WindowsMidiOutputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<WindowsMidiService>,
     /// Current descriptor snapshot.
@@ -82,7 +82,7 @@ pub(crate) enum WindowsMidiEventDeliveryKind {
 
 /// One opened MIDI event subscription.
 #[derive(Clone)]
-pub(crate) struct WindowsMidiEventSession {
+pub(crate) struct WindowsMidiEventRepository {
     /// Selected backend for the subscription.
     pub(crate) backend: MidiBackend,
     /// Included directions.
@@ -108,23 +108,23 @@ pub(crate) struct WindowsMidiEventSession {
 /// Resource payload for one input session.
 pub(crate) struct WindowsMidiInputResource {
     /// Shared session state.
-    pub(crate) session: Arc<WindowsMidiInputSession>,
+    pub(crate) session: Arc<WindowsMidiInputRepository>,
 }
 
 /// Resource payload for one output session.
 pub(crate) struct WindowsMidiOutputResource {
     /// Shared session state.
-    pub(crate) session: Arc<WindowsMidiOutputSession>,
+    pub(crate) session: Arc<WindowsMidiOutputRepository>,
 }
 
 /// Resource payload for one event subscription.
 #[derive(Clone)]
 pub(crate) struct WindowsMidiEventResource {
     /// Shared subscription state.
-    pub(crate) session: Arc<Mutex<WindowsMidiEventSession>>,
+    pub(crate) session: Arc<Mutex<WindowsMidiEventRepository>>,
 }
 
-impl Drop for WindowsMidiInputSession {
+impl Drop for WindowsMidiInputRepository {
     /// Release Windows MIDI resources for one input session.
     fn drop(&mut self) {
         self._service
@@ -133,7 +133,7 @@ impl Drop for WindowsMidiInputSession {
     }
 }
 
-impl Drop for WindowsMidiOutputSession {
+impl Drop for WindowsMidiOutputRepository {
     /// Release Windows MIDI resources for one output session.
     fn drop(&mut self) {
         self._service
@@ -147,16 +147,16 @@ define_backend_midi_resource_inserters!(
     input = (
         insert_input_resource,
         WindowsMidiInputResource,
-        WindowsMidiInputSession
+        WindowsMidiInputRepository
     ),
     output = (
         insert_output_resource,
         WindowsMidiOutputResource,
-        WindowsMidiOutputSession
+        WindowsMidiOutputRepository
     ),
     event = (
         insert_event_resource,
         WindowsMidiEventResource,
-        WindowsMidiEventSession
+        WindowsMidiEventRepository
     )
 );

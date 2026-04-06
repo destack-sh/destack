@@ -772,7 +772,7 @@ pub(super) fn refresh_gatt_cache(
     }
 
     if let Some(service) = cache.service_objects.values().next() {
-        if let Ok(session) = service.Session() {
+        if let Ok(session) = service.Repository() {
             cache.mtu = session.MaxPduSize().unwrap_or_default();
         }
     }

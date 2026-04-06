@@ -45,7 +45,7 @@ pub(crate) fn open_display_handle(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
 
     resource::DisplayHandle(resource_id)
 }

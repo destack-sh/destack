@@ -65,7 +65,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -155,7 +155,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -203,7 +203,7 @@ pub(crate) unsafe fn destack_net_uds_accept(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

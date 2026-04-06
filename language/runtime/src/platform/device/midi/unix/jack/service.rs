@@ -63,7 +63,7 @@ pub(super) struct JackNativeEventRegistry {
     /// Next registration id.
     pub(super) next_registration_id: u64,
     /// Registered native event subscriptions.
-    pub(super) sessions: BTreeMap<u64, std::sync::Weak<Mutex<super::core::JackEventSession>>>,
+    pub(super) sessions: BTreeMap<u64, std::sync::Weak<Mutex<super::core::JackEventRepository>>>,
 }
 
 /// One process-global JACK MIDI service.
@@ -149,7 +149,7 @@ pub(super) fn output_descriptors(service: &Arc<JackService>) -> Vec<JackEndpoint
 /// Register one native event subscription.
 pub(super) fn register_native_event_session(
     service: &Arc<JackService>,
-    session: &Arc<Mutex<super::core::JackEventSession>>,
+    session: &Arc<Mutex<super::core::JackEventRepository>>,
 ) -> super::core::JackEventDeliveryKind {
     let mut registry = service.native_event_registry.lock();
     let registration_id = registry.next_registration_id;

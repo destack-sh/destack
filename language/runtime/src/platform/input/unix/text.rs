@@ -66,7 +66,7 @@ const X11_WINDOW_TEXT_DEVICE_ID: &str = "x11.window.text";
 
 /// Waitable queued-event signal for one text session.
 #[derive(Debug, Default)]
-struct TextSessionEventSignal {
+struct TextRepositoryEventSignal {
     /// Monotonic wake generation for this session queue.
     generation: Mutex<u64>,
     /// Wake signal for queued session events.
@@ -75,7 +75,7 @@ struct TextSessionEventSignal {
 
 /// Native event source for one Unix text session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnixTextSessionSource {
+enum UnixTextRepositorySource {
     /// Terminal-backed cooked text input.
     UnixTerminal,
     /// Native AppKit window-backed text input.
@@ -91,7 +91,7 @@ enum UnixTextSessionSource {
 
 /// Stored text-session payload for one Unix host session.
 #[derive(Debug)]
-struct UnixTextSession {
+struct UnixTextRepository {
     /// The opened Unix text binding.
     binding: input_core::UnixInputBinding,
     /// The session configuration.
@@ -105,14 +105,14 @@ struct UnixTextSession {
     /// The selected target window when one explicit target is active.
     target_window: Option<resource::WindowHandle>,
     /// The native event source used by this session.
-    source: UnixTextSessionSource,
+    source: UnixTextRepositorySource,
     /// Pending queued session events from native host callbacks.
     events: VecDeque<InputTextSessionEventValue>,
     /// Waitable signal for queued session events.
-    event_signal: Arc<TextSessionEventSignal>,
+    event_signal: Arc<TextRepositoryEventSignal>,
 }
 
-impl Clone for UnixTextSession {
+impl Clone for UnixTextRepository {
     fn clone(&self) -> Self {
         Self {
             binding: input_core::UnixInputBinding {
@@ -279,7 +279,7 @@ fn resolve_text_target_window(
 
 /// Allocate one session event metadata payload.
 fn next_text_event_metadata(
-    session: &mut UnixTextSession,
+    session: &mut UnixTextRepository,
     timestamp_ns: u64,
 ) -> InputEventMetadataValue {
     let metadata = InputEventMetadataValue {
@@ -296,7 +296,7 @@ fn next_text_event_metadata(
 
 /// Build one committed text edit-intent event.
 fn committed_text_edit_intent(
-    session: &mut UnixTextSession,
+    session: &mut UnixTextRepository,
     timestamp_ns: u64,
     text: String,
     is_composing: bool,
@@ -321,7 +321,7 @@ fn committed_text_edit_intent(
 }
 
 /// Wake queued-event readers after one session event is appended.
-fn notify_text_session_event(signal: &TextSessionEventSignal) {
+fn notify_text_session_event(signal: &TextRepositoryEventSignal) {
     let mut generation = signal.generation.lock();
     *generation = generation.wrapping_add(1);
     signal.wake.notify_all();
@@ -345,7 +345,7 @@ fn pop_queued_text_session_event(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event = session.events.pop_front()?;
             Some(InputTextSessionEvent::from_value(binding, event))
         });
@@ -389,7 +389,7 @@ fn resolve_text_session(
     binding: &BindingCallContext,
     session: resource::InputTextSessionHandle,
     operation: &'static str,
-) -> RuntimeResult<UnixTextSession> {
+) -> RuntimeResult<UnixTextRepository> {
     let resolved = binding.agent().resources.with_entry(session.0, |entry| {
         if entry.kind != ResourceKind::InputTextSession {
             return None;
@@ -399,7 +399,7 @@ fn resolve_text_session(
             return None;
         }
 
-        entry.payload_cloned::<UnixTextSession>()
+        entry.payload_cloned::<UnixTextRepository>()
     });
 
     match resolved.flatten() {
@@ -427,7 +427,7 @@ fn text_set_geometry(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             session.binding.text_area = Some(area);
             session.geometry = Some(area);
             Some(())
@@ -460,7 +460,7 @@ fn text_set_state(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             session.state = state;
             Some(())
         });
@@ -501,7 +501,7 @@ pub(crate) fn notify_appkit_window_text_state(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             session.state = state.clone();
 
             let event = InputTextSessionEventValue::InputTextSessionStateEvent(
@@ -562,7 +562,7 @@ pub(crate) fn notify_appkit_window_edit_intent(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event =
                 InputTextSessionEventValue::InputEditIntentEvent(InputEditIntentEventValue {
                     kind: "editIntent".to_string(),
@@ -624,7 +624,7 @@ pub(crate) fn notify_appkit_window_clipboard_command(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event = InputTextSessionEventValue::InputClipboardCommandEvent(
                 InputClipboardCommandEventValue {
                     kind: "clipboardCommand".to_string(),
@@ -688,14 +688,14 @@ pub(crate) fn resolve_appkit_window_text_session(
                 return None;
             }
 
-            let session = entry.payload_ref::<UnixTextSession>()?;
+            let session = entry.payload_ref::<UnixTextRepository>()?;
             Some((session_handle, session.config, session.state.clone()))
         });
 
     match session.flatten() {
         Some(session) => Ok(Some(session)),
         None => Err(text_session_not_found(
-            "destack.input.text.resolveAppKitWindowSession",
+            "destack.input.text.resolveAppKitWindowRepository",
             session_handle,
         )),
     }
@@ -732,7 +732,7 @@ pub(crate) fn notify_wayland_window_composition_event(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event =
                 InputTextSessionEventValue::InputCompositionEvent(InputCompositionEventValue {
                     kind: "composition".to_string(),
@@ -812,7 +812,7 @@ pub(crate) fn notify_wayland_window_edit_intent(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event =
                 InputTextSessionEventValue::InputEditIntentEvent(InputEditIntentEventValue {
                     kind: "editIntent".to_string(),
@@ -879,7 +879,7 @@ pub(crate) fn resolve_wayland_window_text_session(
                 return None;
             }
 
-            let session = entry.payload_ref::<UnixTextSession>()?;
+            let session = entry.payload_ref::<UnixTextRepository>()?;
             Some((
                 session_handle,
                 session.config,
@@ -891,7 +891,7 @@ pub(crate) fn resolve_wayland_window_text_session(
     match session.flatten() {
         Some(session) => Ok(Some(session)),
         None => Err(text_session_not_found(
-            "destack.input.text.resolveWaylandWindowSession",
+            "destack.input.text.resolveWaylandWindowRepository",
             session_handle,
         )),
     }
@@ -928,7 +928,7 @@ pub(crate) fn notify_x11_window_composition_event(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event =
                 InputTextSessionEventValue::InputCompositionEvent(InputCompositionEventValue {
                     kind: "composition".to_string(),
@@ -1008,7 +1008,7 @@ pub(crate) fn notify_x11_window_edit_intent(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event =
                 InputTextSessionEventValue::InputEditIntentEvent(InputEditIntentEventValue {
                     kind: "editIntent".to_string(),
@@ -1070,7 +1070,7 @@ pub(crate) fn notify_x11_window_clipboard_command(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
             let event = InputTextSessionEventValue::InputClipboardCommandEvent(
                 InputClipboardCommandEventValue {
                     kind: "clipboardCommand".to_string(),
@@ -1135,7 +1135,7 @@ pub(crate) fn resolve_x11_window_text_session(
                 return None;
             }
 
-            let session = entry.payload_ref::<UnixTextSession>()?;
+            let session = entry.payload_ref::<UnixTextRepository>()?;
             Some((
                 session_handle,
                 session.config,
@@ -1147,7 +1147,7 @@ pub(crate) fn resolve_x11_window_text_session(
     match session.flatten() {
         Some(session) => Ok(Some(session)),
         None => Err(text_session_not_found(
-            "destack.input.text.resolveX11WindowSession",
+            "destack.input.text.resolveX11WindowRepository",
             session_handle,
         )),
     }
@@ -1172,7 +1172,7 @@ fn read_text_session_event(
                 return None;
             }
 
-            let session = entry.payload_mut::<UnixTextSession>()?;
+            let session = entry.payload_mut::<UnixTextRepository>()?;
 
             // require cooked mode so terminal bytes are decoded as text payloads
             if session.binding.read_mode != InputReadMode::Cooked {
@@ -1192,11 +1192,11 @@ fn read_text_session_event(
 
             // read native queued events directly for window-backed sessions
             #[cfg(target_os = "macos")]
-            let is_window_session = session.source == UnixTextSessionSource::AppKitWindow;
+            let is_window_session = session.source == UnixTextRepositorySource::AppKitWindow;
             #[cfg(target_os = "linux")]
             let is_window_session = matches!(
                 session.source,
-                UnixTextSessionSource::WaylandWindow | UnixTextSessionSource::X11Window
+                UnixTextRepositorySource::WaylandWindow | UnixTextRepositorySource::X11Window
             );
             #[cfg(not(any(target_os = "macos", target_os = "linux")))]
             let is_window_session = false;
@@ -1420,7 +1420,7 @@ pub(crate) unsafe fn destack_input_text_open(
         {
             (
                 WAYLAND_WINDOW_TEXT_DEVICE_ID.to_string(),
-                UnixTextSessionSource::WaylandWindow,
+                UnixTextRepositorySource::WaylandWindow,
             )
         } else if x11::ensure_window_handle_exists(
             binding,
@@ -1431,7 +1431,7 @@ pub(crate) unsafe fn destack_input_text_open(
         {
             (
                 X11_WINDOW_TEXT_DEVICE_ID.to_string(),
-                UnixTextSessionSource::X11Window,
+                UnixTextRepositorySource::X11Window,
             )
         } else {
             return Err(RuntimeError::from(PlatformError::not_supported(
@@ -1440,7 +1440,7 @@ pub(crate) unsafe fn destack_input_text_open(
             .boxed());
         };
 
-        let session = UnixTextSession {
+        let session = UnixTextRepository {
             binding: input_core::UnixInputBinding {
                 descriptor: None,
                 backend: input_core::UnixInputBackend::Platform,
@@ -1476,7 +1476,7 @@ pub(crate) unsafe fn destack_input_text_open(
             target_window: Some(target_window),
             source,
             events: VecDeque::new(),
-            event_signal: Arc::new(TextSessionEventSignal::default()),
+            event_signal: Arc::new(TextRepositoryEventSignal::default()),
         };
         let entry = ResourceEntry::new(ResourceKind::InputTextSession)
             .with_label(TEXT_SESSION_RESOURCE_LABEL)
@@ -1485,11 +1485,11 @@ pub(crate) unsafe fn destack_input_text_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
         let session_handle = resource::InputTextSessionHandle(resource_id);
 
         let activate = match source {
-            UnixTextSessionSource::WaylandWindow => wayland::activate_window_text_session(
+            UnixTextRepositorySource::WaylandWindow => wayland::activate_window_text_session(
                 binding,
                 target_window,
                 session_handle,
@@ -1497,7 +1497,7 @@ pub(crate) unsafe fn destack_input_text_open(
                 state,
                 None,
             ),
-            UnixTextSessionSource::X11Window => x11::activate_window_text_session(
+            UnixTextRepositorySource::X11Window => x11::activate_window_text_session(
                 binding,
                 target_window,
                 session_handle,
@@ -1505,13 +1505,13 @@ pub(crate) unsafe fn destack_input_text_open(
                 state,
                 None,
             ),
-            UnixTextSessionSource::UnixTerminal => unreachable!(),
+            UnixTextRepositorySource::UnixTerminal => unreachable!(),
             #[cfg(target_os = "macos")]
-            UnixTextSessionSource::AppKitWindow => unreachable!(),
+            UnixTextRepositorySource::AppKitWindow => unreachable!(),
         };
         if let Err(error) = activate {
             let _ = binding.agent().resources.remove_and_finalize(
-                binding.world(),
+                &binding.world(),
                 session_handle.0,
                 Some(binding.engine()),
             );
@@ -1528,7 +1528,7 @@ pub(crate) unsafe fn destack_input_text_open(
     #[cfg(target_os = "macos")]
     if let Some(target_window) = target_window {
         let runtime_state = appkit::runtime_state(binding);
-        let session = UnixTextSession {
+        let session = UnixTextRepository {
             binding: input_core::UnixInputBinding {
                 descriptor: None,
                 backend: input_core::UnixInputBackend::Platform,
@@ -1562,9 +1562,9 @@ pub(crate) unsafe fn destack_input_text_open(
             state: state.clone(),
             next_sequence: 1,
             target_window: Some(target_window),
-            source: UnixTextSessionSource::AppKitWindow,
+            source: UnixTextRepositorySource::AppKitWindow,
             events: VecDeque::new(),
-            event_signal: Arc::new(TextSessionEventSignal::default()),
+            event_signal: Arc::new(TextRepositoryEventSignal::default()),
         };
         let entry = ResourceEntry::new(ResourceKind::InputTextSession)
             .with_label(TEXT_SESSION_RESOURCE_LABEL)
@@ -1573,7 +1573,7 @@ pub(crate) unsafe fn destack_input_text_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
         let session_handle = resource::InputTextSessionHandle(resource_id);
 
         let activate = appkit::activate_window_text_session(
@@ -1586,7 +1586,7 @@ pub(crate) unsafe fn destack_input_text_open(
         );
         if let Err(error) = activate {
             let _ = binding.agent().resources.remove_and_finalize(
-                binding.world(),
+                &binding.world(),
                 session_handle.0,
                 Some(binding.engine()),
             );
@@ -1617,7 +1617,7 @@ pub(crate) unsafe fn destack_input_text_open(
         None => None,
     };
 
-    let session = UnixTextSession {
+    let session = UnixTextRepository {
         binding: input_core::UnixInputBinding {
             descriptor,
             backend: spec.backend,
@@ -1649,9 +1649,9 @@ pub(crate) unsafe fn destack_input_text_open(
         state,
         next_sequence: 1,
         target_window,
-        source: UnixTextSessionSource::UnixTerminal,
+        source: UnixTextRepositorySource::UnixTerminal,
         events: VecDeque::new(),
-        event_signal: Arc::new(TextSessionEventSignal::default()),
+        event_signal: Arc::new(TextRepositoryEventSignal::default()),
     };
 
     let entry = ResourceEntry::new(ResourceKind::InputTextSession)
@@ -1669,7 +1669,7 @@ pub(crate) unsafe fn destack_input_text_open(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
 
     // output
     unsafe {
@@ -1706,7 +1706,7 @@ pub(crate) unsafe fn destack_input_text_close(
 
     // detach one active appkit window session before the resource disappears
     #[cfg(target_os = "macos")]
-    if resolved.source == UnixTextSessionSource::AppKitWindow
+    if resolved.source == UnixTextRepositorySource::AppKitWindow
         && let Some(target_window) = resolved.target_window
     {
         let runtime_state = appkit::runtime_state(binding);
@@ -1715,14 +1715,14 @@ pub(crate) unsafe fn destack_input_text_close(
 
     // detach one active wayland window session before the resource disappears
     #[cfg(target_os = "linux")]
-    if resolved.source == UnixTextSessionSource::WaylandWindow
+    if resolved.source == UnixTextRepositorySource::WaylandWindow
         && let Some(target_window) = resolved.target_window
     {
         wayland::deactivate_window_text_session(binding, target_window, session)?;
     }
 
     #[cfg(target_os = "linux")]
-    if resolved.source == UnixTextSessionSource::X11Window
+    if resolved.source == UnixTextRepositorySource::X11Window
         && let Some(target_window) = resolved.target_window
     {
         x11::deactivate_window_text_session(binding, target_window, session)?;
@@ -1730,7 +1730,7 @@ pub(crate) unsafe fn destack_input_text_close(
 
     // remove and finalize
     let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         session.0,
         Some(binding.engine()),
     );
@@ -1819,7 +1819,7 @@ pub(crate) unsafe fn destack_input_text_set_geometry(
     #[cfg(target_os = "macos")]
     {
         let resolved = resolve_text_session(binding, session, "destack.input.text.setGeometry")?;
-        if resolved.source == UnixTextSessionSource::AppKitWindow
+        if resolved.source == UnixTextRepositorySource::AppKitWindow
             && let Some(target_window) = resolved.target_window
         {
             let runtime_state = appkit::runtime_state(binding);
@@ -1836,7 +1836,7 @@ pub(crate) unsafe fn destack_input_text_set_geometry(
     #[cfg(target_os = "linux")]
     {
         let resolved = resolve_text_session(binding, session, "destack.input.text.setGeometry")?;
-        if resolved.source == UnixTextSessionSource::WaylandWindow
+        if resolved.source == UnixTextRepositorySource::WaylandWindow
             && let Some(target_window) = resolved.target_window
         {
             wayland::synchronize_window_text_session(
@@ -1848,7 +1848,7 @@ pub(crate) unsafe fn destack_input_text_set_geometry(
             )?;
         }
 
-        if resolved.source == UnixTextSessionSource::X11Window
+        if resolved.source == UnixTextRepositorySource::X11Window
             && let Some(target_window) = resolved.target_window
         {
             x11::synchronize_window_text_session(
@@ -1878,7 +1878,7 @@ pub(crate) unsafe fn destack_input_text_set_state(
     #[cfg(target_os = "macos")]
     {
         let resolved = resolve_text_session(binding, session, "destack.input.text.setState")?;
-        if resolved.source == UnixTextSessionSource::AppKitWindow
+        if resolved.source == UnixTextRepositorySource::AppKitWindow
             && let Some(target_window) = resolved.target_window
         {
             let runtime_state = appkit::runtime_state(binding);
@@ -1895,7 +1895,7 @@ pub(crate) unsafe fn destack_input_text_set_state(
     #[cfg(target_os = "linux")]
     {
         let resolved = resolve_text_session(binding, session, "destack.input.text.setState")?;
-        if resolved.source == UnixTextSessionSource::WaylandWindow
+        if resolved.source == UnixTextRepositorySource::WaylandWindow
             && let Some(target_window) = resolved.target_window
         {
             wayland::synchronize_window_text_session(
@@ -1907,7 +1907,7 @@ pub(crate) unsafe fn destack_input_text_set_state(
             )?;
         }
 
-        if resolved.source == UnixTextSessionSource::X11Window
+        if resolved.source == UnixTextRepositorySource::X11Window
             && let Some(target_window) = resolved.target_window
         {
             x11::synchronize_window_text_session(
@@ -1976,7 +1976,7 @@ pub(crate) unsafe fn destack_input_text_open(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     let session = resource::InputTextSessionHandle(resource_id);
     let session_id = resource_id.0;
 
@@ -2012,7 +2012,7 @@ pub(crate) unsafe fn destack_input_text_open(
             binding
                 .agent()
                 .resources
-                .remove(binding.world(), resource_id, Some(binding.engine()));
+                .remove(&binding.world(), resource_id, Some(binding.engine()));
         return Err(error);
     }
 
@@ -2052,7 +2052,7 @@ pub(crate) unsafe fn destack_input_text_close(
     let _ = binding
         .agent()
         .resources
-        .remove(binding.world(), session.0, Some(binding.engine()));
+        .remove(&binding.world(), session.0, Some(binding.engine()));
 
     Ok(())
 }

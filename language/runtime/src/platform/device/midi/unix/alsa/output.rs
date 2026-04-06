@@ -15,7 +15,7 @@ use crate::runtime::BindingCallContext;
 
 use super::abi::SND_SEQ_OPEN_DUPLEX;
 use super::core::{
-    AlsaOutputSession, AlsaOutputSessionKind, connect_to, create_midi_parser, create_queue,
+    AlsaOutputRepository, AlsaOutputRepositoryKind, connect_to, create_midi_parser, create_queue,
     create_simple_port, default_port_type, hidden_source_port_capability, insert_output_resource,
     native_optional_string, native_string, open_sequencer_handle, schedule_output_event,
     virtual_source_port_capability,
@@ -76,13 +76,13 @@ pub(crate) fn midi_output_port_open(
 
     let handle = open_sequencer_handle(
         &service.library,
-        "Destack MIDI Internal Output Session",
+        "Destack MIDI Internal Output Repository",
         SND_SEQ_OPEN_DUPLEX,
         "destack.device.midi.output.port.open",
     )?;
     let local_port_id = create_simple_port(
         &handle,
-        "Destack MIDI Internal Output Session",
+        "Destack MIDI Internal Output Repository",
         hidden_source_port_capability(),
         default_port_type(),
         "destack.device.midi.output.port.open",
@@ -97,12 +97,12 @@ pub(crate) fn midi_output_port_open(
     connect_to(&handle, local_port_id, remote_client_id, remote_port_id)?;
     let parser = create_midi_parser(&service.library, "destack.device.midi.output.port.open")?;
 
-    let session = Arc::new(AlsaOutputSession {
+    let session = Arc::new(AlsaOutputRepository {
         _service: service,
         descriptor: endpoint.descriptor,
         data_format,
         protocol,
-        kind: AlsaOutputSessionKind::Destination {
+        kind: AlsaOutputRepositoryKind::Destination {
             handle,
             queue,
             local_port_id,
@@ -180,14 +180,14 @@ pub(crate) fn midi_output_write(
 
     // encode and send
     match &session.kind {
-        AlsaOutputSessionKind::Destination {
+        AlsaOutputRepositoryKind::Destination {
             handle,
             queue,
             local_port_id,
             parser,
             ..
         }
-        | AlsaOutputSessionKind::VirtualSource {
+        | AlsaOutputRepositoryKind::VirtualSource {
             handle,
             queue,
             local_port_id,
@@ -334,12 +334,12 @@ pub(crate) fn midi_output_virtual_create(
         options.data_format,
         options.protocol,
     );
-    let session = Arc::new(AlsaOutputSession {
+    let session = Arc::new(AlsaOutputRepository {
         _service: service,
         descriptor,
         data_format: options.data_format,
         protocol: Some(options.protocol),
-        kind: AlsaOutputSessionKind::VirtualSource {
+        kind: AlsaOutputRepositoryKind::VirtualSource {
             handle,
             queue,
             local_port_id,

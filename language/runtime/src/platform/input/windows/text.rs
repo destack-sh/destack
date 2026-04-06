@@ -27,7 +27,7 @@ const WIN32_WINDOW_TEXT_DEVICE_ID: &str = "win32.window.text";
 
 /// Waitable queued-event signal for one text session.
 #[derive(Debug, Default)]
-struct TextSessionEventSignal {
+struct TextRepositoryEventSignal {
     /// Monotonic wake generation for this session queue.
     generation: Mutex<u64>,
     /// Wake signal for queued session events.
@@ -36,7 +36,7 @@ struct TextSessionEventSignal {
 
 /// Native event source for one Windows text session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum WindowsTextSessionSource {
+enum WindowsTextRepositorySource {
     /// Console-backed cooked text input.
     Console,
     /// Native Win32 window-backed text input.
@@ -45,7 +45,7 @@ enum WindowsTextSessionSource {
 
 /// Stored text-session payload for one Windows host session.
 #[derive(Debug, Clone)]
-struct WindowsTextSession {
+struct WindowsTextRepository {
     /// The duplicated console input handle.
     console_handle: HANDLE,
     /// The opened Windows text binding.
@@ -63,11 +63,11 @@ struct WindowsTextSession {
     /// The native hwnd used for one explicit target when available.
     target_hwnd: Option<HWND>,
     /// The native event source used by this session.
-    source: WindowsTextSessionSource,
+    source: WindowsTextRepositorySource,
     /// Pending queued session events from native host callbacks.
     events: VecDeque<InputTextSessionEventValue>,
     /// Waitable signal for queued session events.
-    event_signal: Arc<TextSessionEventSignal>,
+    event_signal: Arc<TextRepositoryEventSignal>,
     /// The renderer state snapshot captured before one active IME composition.
     composition_base_state: Option<InputTextSessionStateValue>,
     /// Pending high surrogate from one split UTF-16 char-message pair.
@@ -180,7 +180,7 @@ fn replace_utf16_range(
 
 /// Allocate one session event metadata payload.
 fn next_text_event_metadata(
-    session: &mut WindowsTextSession,
+    session: &mut WindowsTextRepository,
     timestamp_ns: u64,
 ) -> InputEventMetadataValue {
     let metadata = InputEventMetadataValue {
@@ -197,7 +197,7 @@ fn next_text_event_metadata(
 
 /// Build one committed text edit-intent event.
 fn committed_text_edit_intent(
-    session: &mut WindowsTextSession,
+    session: &mut WindowsTextRepository,
     timestamp_ns: u64,
     text: String,
     is_composing: bool,
@@ -222,7 +222,7 @@ fn committed_text_edit_intent(
 }
 
 /// Allocate one window-text session event metadata payload.
-fn next_window_text_event_metadata(session: &mut WindowsTextSession) -> InputEventMetadataValue {
+fn next_window_text_event_metadata(session: &mut WindowsTextRepository) -> InputEventMetadataValue {
     let metadata = InputEventMetadataValue {
         timestamp_ns: core_platform::monotonic_now_ns(),
         sequence: session.next_sequence,
@@ -236,7 +236,7 @@ fn next_window_text_event_metadata(session: &mut WindowsTextSession) -> InputEve
 }
 
 /// Queue one host-authoritative state event.
-fn queue_window_text_state_event(session: &mut WindowsTextSession) {
+fn queue_window_text_state_event(session: &mut WindowsTextRepository) {
     let metadata = next_window_text_event_metadata(session);
     let state = session.state.clone();
 
@@ -254,7 +254,7 @@ fn queue_window_text_state_event(session: &mut WindowsTextSession) {
 
 /// Queue one window-backed edit-intent event.
 fn queue_window_text_edit_intent_event(
-    session: &mut WindowsTextSession,
+    session: &mut WindowsTextRepository,
     input_type: InputEditIntentTypeValue,
     data: Option<String>,
     is_composing: bool,
@@ -280,7 +280,7 @@ fn queue_window_text_edit_intent_event(
 
 /// Queue one window-backed clipboard-command event.
 fn queue_window_text_clipboard_command_event(
-    session: &mut WindowsTextSession,
+    session: &mut WindowsTextRepository,
     command: InputClipboardCommandTypeValue,
     is_composing: bool,
 ) {
@@ -302,7 +302,7 @@ fn queue_window_text_clipboard_command_event(
 
 /// Return whether one windows session allows one clipboard command.
 fn allows_window_clipboard_command(
-    session: &WindowsTextSession,
+    session: &WindowsTextRepository,
     command: InputClipboardCommandTypeValue,
 ) -> bool {
     if session.config.is_secure
@@ -318,7 +318,7 @@ fn allows_window_clipboard_command(
 }
 
 /// Return whether one windows session allows one committed text payload.
-fn allows_window_committed_text(session: &WindowsTextSession, text: &str) -> bool {
+fn allows_window_committed_text(session: &WindowsTextRepository, text: &str) -> bool {
     if !session.config.is_multiline && matches!(text, "\n" | "\r") {
         return false;
     }
@@ -327,7 +327,10 @@ fn allows_window_committed_text(session: &WindowsTextSession, text: &str) -> boo
 }
 
 /// Apply one committed text replacement to one session state.
-fn apply_committed_window_text(session: &mut WindowsTextSession, text: &str) -> RuntimeResult<()> {
+fn apply_committed_window_text(
+    session: &mut WindowsTextRepository,
+    text: &str,
+) -> RuntimeResult<()> {
     let base_state = session
         .composition_base_state
         .take()
@@ -350,7 +353,7 @@ fn apply_committed_window_text(session: &mut WindowsTextSession, text: &str) -> 
 
 /// Apply one active IME composing string to one session state.
 fn apply_window_composing_text(
-    session: &mut WindowsTextSession,
+    session: &mut WindowsTextRepository,
     text: &str,
     cursor_offset: Option<u32>,
 ) -> RuntimeResult<()> {
@@ -382,7 +385,7 @@ fn apply_window_composing_text(
 }
 
 /// Cancel one active IME composition and restore the base state.
-fn cancel_window_composition(session: &mut WindowsTextSession) -> RuntimeResult<()> {
+fn cancel_window_composition(session: &mut WindowsTextRepository) -> RuntimeResult<()> {
     let Some(base_state) = session.composition_base_state.take() else {
         return Ok(());
     };
@@ -396,7 +399,7 @@ fn cancel_window_composition(session: &mut WindowsTextSession) -> RuntimeResult<
 
 /// Decode one incoming text message into one committed string.
 fn decode_window_text_message(
-    session: &mut WindowsTextSession,
+    session: &mut WindowsTextRepository,
     message: u32,
     wparam: WPARAM,
 ) -> Option<String> {
@@ -437,7 +440,7 @@ fn decode_window_text_message(
 
 /// Return whether one native char message should be ignored after one IME result commit.
 fn suppress_window_text_message_commit(
-    session: &mut WindowsTextSession,
+    session: &mut WindowsTextRepository,
     message: u32,
     wparam: WPARAM,
 ) -> bool {
@@ -466,7 +469,7 @@ fn suppress_window_text_message_commit(
 }
 
 /// Wake queued-event readers after one session event is appended.
-fn notify_text_session_event(signal: &TextSessionEventSignal) {
+fn notify_text_session_event(signal: &TextRepositoryEventSignal) {
     let mut generation = signal.generation.lock();
     *generation = generation.wrapping_add(1);
     signal.wake.notify_all();
@@ -490,7 +493,7 @@ fn pop_queued_text_session_event(
                 return None;
             }
 
-            let session = entry.payload_mut::<WindowsTextSession>()?;
+            let session = entry.payload_mut::<WindowsTextRepository>()?;
             let event = session.events.pop_front()?;
             Some(InputTextSessionEvent::from_value(binding, event))
         });
@@ -550,7 +553,7 @@ fn resolve_text_session(
     binding: &BindingCallContext,
     session: resource::InputTextSessionHandle,
     operation: &'static str,
-) -> RuntimeResult<WindowsTextSession> {
+) -> RuntimeResult<WindowsTextRepository> {
     let session = binding.agent().resources.with_entry(session.0, |entry| {
         if entry.kind != ResourceKind::InputTextSession {
             return None;
@@ -560,7 +563,7 @@ fn resolve_text_session(
             return None;
         }
 
-        entry.payload_cloned::<WindowsTextSession>()
+        entry.payload_cloned::<WindowsTextRepository>()
     });
 
     match session.flatten() {
@@ -602,11 +605,11 @@ pub(crate) fn resolve_win32_window_text_session(
                 return None;
             }
 
-            entry.payload_cloned::<WindowsTextSession>()
+            entry.payload_cloned::<WindowsTextRepository>()
         })
         .flatten()
         .ok_or_else(|| {
-            text_session_not_found("destack.input.text.resolveWindowSession", session_handle)
+            text_session_not_found("destack.input.text.resolveWindowRepository", session_handle)
         })?;
 
     Ok(Some((
@@ -621,7 +624,7 @@ pub(crate) fn resolve_win32_window_text_session(
 fn update_win32_window_text_state(
     runtime_state: &win32_display::Win32RuntimeState,
     window: resource::WindowHandle,
-    update: impl FnOnce(&mut WindowsTextSession) -> RuntimeResult<()>,
+    update: impl FnOnce(&mut WindowsTextRepository) -> RuntimeResult<()>,
     operation: &'static str,
 ) -> RuntimeResult<()> {
     let Some(session_handle) = runtime_state
@@ -645,7 +648,7 @@ fn update_win32_window_text_state(
                 return None;
             }
 
-            let session = entry.payload_mut::<WindowsTextSession>()?;
+            let session = entry.payload_mut::<WindowsTextRepository>()?;
             Some(update(session))
         });
 
@@ -740,7 +743,7 @@ pub(crate) fn notify_win32_window_clipboard_command(
 #[cfg(test)]
 mod tests {
     use super::{
-        TextSessionEventSignal, WindowsTextSession, WindowsTextSessionSource,
+        TextRepositoryEventSignal, WindowsTextRepository, WindowsTextRepositorySource,
         allows_window_clipboard_command, allows_window_committed_text,
     };
     use crate::platform::input::windows::core::WindowsInputBinding;
@@ -791,8 +794,8 @@ mod tests {
     }
 
     /// Build one minimal windows text session for policy tests.
-    fn test_windows_text_session(config: InputTextSessionConfig) -> WindowsTextSession {
-        WindowsTextSession {
+    fn test_windows_text_session(config: InputTextSessionConfig) -> WindowsTextRepository {
+        WindowsTextRepository {
             console_handle: 0,
             binding: WindowsInputBinding {
                 backend: super::input_core::WindowsInputBackend::Window,
@@ -828,9 +831,9 @@ mod tests {
             next_sequence: 1,
             target_window: None,
             target_hwnd: None,
-            source: WindowsTextSessionSource::Window,
+            source: WindowsTextRepositorySource::Window,
             events: VecDeque::new(),
-            event_signal: Arc::new(TextSessionEventSignal::default()),
+            event_signal: Arc::new(TextRepositoryEventSignal::default()),
             composition_base_state: None,
             pending_high_surrogate: None,
             pending_commit_units_to_ignore: 0,
@@ -904,7 +907,7 @@ fn text_set_geometry(
                 return None;
             }
 
-            let session = entry.payload_mut::<WindowsTextSession>()?;
+            let session = entry.payload_mut::<WindowsTextRepository>()?;
             session.binding.text_area = Some(area);
             session.geometry = Some(area);
             Some(())
@@ -937,7 +940,7 @@ fn text_set_state(
                 return None;
             }
 
-            let session = entry.payload_mut::<WindowsTextSession>()?;
+            let session = entry.payload_mut::<WindowsTextRepository>()?;
             session.state = state;
             Some(())
         });
@@ -967,7 +970,7 @@ fn text_read_event(
                 return None;
             }
 
-            let session = entry.payload_mut::<WindowsTextSession>()?;
+            let session = entry.payload_mut::<WindowsTextRepository>()?;
 
             // keep composition reads tied to explicit text-session activation
             if !session.binding.text_active {
@@ -978,7 +981,7 @@ fn text_read_event(
             }
 
             // read native queued events directly for window-backed sessions
-            if session.source == WindowsTextSessionSource::Window {
+            if session.source == WindowsTextRepositorySource::Window {
                 let event = if nonblocking {
                     pop_queued_text_session_event(binding, session, operation)
                 } else {
@@ -1074,7 +1077,7 @@ pub(crate) unsafe fn destack_input_text_open(
 
         // window lane
         if target_window.is_some() && target_hwnd.is_some() {
-            let session = WindowsTextSession {
+            let session = WindowsTextRepository {
                 console_handle: 0,
                 binding: input_core::WindowsInputBinding {
                     backend: input_core::WindowsInputBackend::Window,
@@ -1103,9 +1106,9 @@ pub(crate) unsafe fn destack_input_text_open(
                 next_sequence: 1,
                 target_window,
                 target_hwnd,
-                source: WindowsTextSessionSource::Window,
+                source: WindowsTextRepositorySource::Window,
                 events: VecDeque::new(),
-                event_signal: Arc::new(TextSessionEventSignal::default()),
+                event_signal: Arc::new(TextRepositoryEventSignal::default()),
                 composition_base_state: None,
                 pending_high_surrogate: None,
                 pending_commit_units_to_ignore: 0,
@@ -1119,7 +1122,7 @@ pub(crate) unsafe fn destack_input_text_open(
                 binding
                     .agent()
                     .resources
-                    .insert(binding.world(), entry, Some(binding.engine()));
+                    .insert(&binding.world(), entry, Some(binding.engine()));
 
             return Ok(resource::InputTextSessionHandle(resource_id));
         }
@@ -1139,7 +1142,7 @@ pub(crate) unsafe fn destack_input_text_open(
         };
         let duplicated = input_core::duplicate_console_handle(stdin)?;
 
-        let session = WindowsTextSession {
+        let session = WindowsTextRepository {
             console_handle: duplicated,
             binding: input_core::WindowsInputBinding {
                 backend: input_core::WindowsInputBackend::Console,
@@ -1168,9 +1171,9 @@ pub(crate) unsafe fn destack_input_text_open(
             next_sequence: 1,
             target_window,
             target_hwnd,
-            source: WindowsTextSessionSource::Console,
+            source: WindowsTextRepositorySource::Console,
             events: VecDeque::new(),
-            event_signal: Arc::new(TextSessionEventSignal::default()),
+            event_signal: Arc::new(TextRepositoryEventSignal::default()),
             composition_base_state: None,
             pending_high_surrogate: None,
             pending_commit_units_to_ignore: 0,
@@ -1189,7 +1192,7 @@ pub(crate) unsafe fn destack_input_text_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
 
         Ok(resource::InputTextSessionHandle(resource_id))
     })();
@@ -1231,14 +1234,14 @@ pub(crate) unsafe fn destack_input_text_close(
     let resolved_session = resolve_text_session(binding, session, "destack.input.text.close")?;
 
     // clear routing before finalization when this session owns one native window lane
-    if resolved_session.source == WindowsTextSessionSource::Window
+    if resolved_session.source == WindowsTextRepositorySource::Window
         && let Some(target_window) = resolved_session.target_window
     {
         win32_display::deactivate_window_text_session(binding, target_window, session)?;
     }
 
     let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         session.0,
         Some(binding.engine()),
     );
@@ -1310,7 +1313,7 @@ pub(crate) unsafe fn destack_input_text_set_geometry(
 ) -> RuntimeResult<()> {
     let resolved_session =
         resolve_text_session(binding, session, "destack.input.text.setGeometry")?;
-    if resolved_session.source == WindowsTextSessionSource::Window
+    if resolved_session.source == WindowsTextRepositorySource::Window
         && let (Some(target_window), Some(target_hwnd)) =
             (resolved_session.target_window, resolved_session.target_hwnd)
     {
@@ -1337,7 +1340,7 @@ pub(crate) unsafe fn destack_input_text_set_state(
     let state = unsafe { state.into_value()? };
 
     let resolved_session = resolve_text_session(binding, session, "destack.input.text.setState")?;
-    if resolved_session.source == WindowsTextSessionSource::Window
+    if resolved_session.source == WindowsTextRepositorySource::Window
         && let (Some(target_window), Some(target_hwnd)) =
             (resolved_session.target_window, resolved_session.target_hwnd)
     {

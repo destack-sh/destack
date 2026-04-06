@@ -4,7 +4,6 @@ use destack_vm as vm;
 
 use super::InputHarnessContext;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::input::{
     InputDeviceCapabilities, InputDeviceCapabilitiesVm, InputDeviceCapabilityKind,
     InputDeviceDescriptor, InputDeviceDescriptorVm, InputDeviceKind, InputEvent, InputEventAction,
@@ -18,7 +17,10 @@ use crate::platform::input::{
     InputTextSessionConfigVm, InputTextSessionState, InputTextSessionStateVm, InputTouchState,
     InputTouchStateVm, InputWindowTarget, InputWindowTargetVm,
 };
-use crate::platform::{NativeAbiCodec, NativeArray, PlatformError, VmAbiCodec, VmArray, VmSlice};
+use crate::platform::{
+    NativeAbiCodec, NativeArray, NativeSlice, NativeStringRef, PlatformError, VmAbiCodec, VmArray,
+    VmSlice,
+};
 use crate::tests::platform::vm_test_string;
 
 #[path = "harness.generated.rs"]
@@ -26,42 +28,6 @@ mod generated;
 
 #[allow(unused_imports)]
 pub(crate) use generated::*;
-
-/// Decoded input event lane used by tests.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InputEventRecordKind {
-    /// Key event lane.
-    Key,
-    /// Pointer-motion event lane.
-    PointerMotion,
-    /// Pointer-button event lane.
-    PointerButton,
-    /// Scroll event lane.
-    Scroll,
-    /// Touch event lane.
-    Touch,
-    /// Gamepad event lane.
-    Gamepad,
-    /// Text event lane.
-    Text,
-    /// Device event lane.
-    Device,
-    /// Sensor event lane.
-    Sensor,
-    /// Composition event lane.
-    Composition,
-}
-
-/// Decoded monitor event lane used by tests.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InputMonitorEventRecordKind {
-    /// Device connected.
-    Connect,
-    /// Device disconnected.
-    Disconnect,
-    /// Device metadata changed.
-    Change,
-}
 
 /// Decoded input device metadata used by tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,6 +61,31 @@ pub(crate) struct InputDeviceRecord {
 }
 
 /// Decoded input event metadata used by tests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InputEventRecordKind {
+    /// Key press or release.
+    Key,
+    /// Pointer motion.
+    PointerMotion,
+    /// Pointer button press or release.
+    PointerButton,
+    /// Scroll-wheel or gesture scroll.
+    Scroll,
+    /// Touch contact event.
+    Touch,
+    /// Gamepad event.
+    Gamepad,
+    /// Text input event.
+    Text,
+    /// Device connect or state event.
+    Device,
+    /// Sensor sample event.
+    Sensor,
+    /// IME composition event.
+    Composition,
+}
+
+/// Decoded input event metadata used by tests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct InputEventRecord {
     /// Stable runtime device identifier.
@@ -111,6 +102,17 @@ pub(crate) struct InputEventRecord {
     pub value: i64,
     /// Monotonic event sequence number.
     pub sequence: u64,
+}
+
+/// Decoded monitor event metadata used by tests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InputMonitorEventRecordKind {
+    /// Device monitor change event.
+    Change,
+    /// Device monitor connect event.
+    Connect,
+    /// Device monitor disconnect event.
+    Disconnect,
 }
 
 /// Decoded monitor event metadata used by tests.
@@ -652,15 +654,16 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let values = value.read_values(&context.read())?;
+                let read_context = context.read();
+                let values = value.read_values(&read_context)?;
                 let mut records = Vec::with_capacity(values.len());
                 for value in values {
-                    let id = context
+                    let id = read_context
                         .string_ref(value.id)
                         .map_err(|error| RuntimeError::from(error).boxed())?
                         .as_str()
                         .to_string();
-                    let name = context
+                    let name = read_context
                         .string_ref(value.name)
                         .map_err(|error| RuntimeError::from(error).boxed())?
                         .as_str()
@@ -834,14 +837,14 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-
-                let kinds = value.kinds.read_values(&context.read())?;
-                let axes = value.axes.read_values(&context.read())?;
+                let read_context = context.read();
+                let kinds = value.kinds.read_values(&read_context)?;
+                let axes = value.axes.read_values(&read_context)?;
                 let mut axis_codes = Vec::with_capacity(axes.len());
                 for axis in axes {
                     axis_codes.push(axis.code);
                 }
-                let buttons = value.buttons.read_values(&context.read())?;
+                let buttons = value.buttons.read_values(&read_context)?;
                 let mut button_codes = Vec::with_capacity(buttons.len());
                 for button in buttons {
                     button_codes.push(button.code);
@@ -922,12 +925,13 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let device_id = context
+                let read_context = context.read();
+                let device_id = read_context
                     .string_ref(value.device_id)
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
-                let contacts = value.contacts.read_values(&context.read())?;
+                let contacts = value.contacts.read_values(&read_context)?;
                 Ok(InputTouchStateRecord {
                     timestamp_ns: value.timestamp_ns,
                     sequence: value.sequence,
@@ -961,8 +965,9 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let axes = value.axes.read_values(&context.read())?;
-                let buttons = value.buttons.read_values(&context.read())?;
+                let read_context = context.read();
+                let axes = value.axes.read_values(&read_context)?;
+                let buttons = value.buttons.read_values(&read_context)?;
                 Ok(InputGamepadStateRecord {
                     connected: value.connected,
                     axis_count: axes.len(),
@@ -1000,13 +1005,14 @@ impl<'call> InputHarnessContext<'call> {
                     ))
                     .boxed()
                 })?;
-                let device_id = context
+                let read_context = context.read();
+                let device_id = read_context
                     .string_ref(value.device_id)
                     .map_err(|error| RuntimeError::from(error).boxed())?
                     .as_str()
                     .to_string();
-                let pressed_codes = value.pressed_codes.read_values(&context.read())?;
-                let pressed_scan_codes = value.pressed_scan_codes.read_values(&context.read())?;
+                let pressed_codes = value.pressed_codes.read_values(&read_context)?;
+                let pressed_scan_codes = value.pressed_scan_codes.read_values(&read_context)?;
 
                 Ok(InputKeyboardStateRecord {
                     device_id,

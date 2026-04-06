@@ -705,7 +705,7 @@ pub(crate) unsafe fn destack_net_packet_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
         PACKET_SOCKET_STATES.lock().insert(
             resource_id,
             UnixPacketState {
@@ -798,7 +798,7 @@ pub(crate) unsafe fn destack_net_packet_open(
             binding
                 .agent()
                 .resources
-                .insert(binding.world(), entry, Some(binding.engine()));
+                .insert(&binding.world(), entry, Some(binding.engine()));
         PACKET_SOCKET_STATES.lock().insert(
             resource_id,
             UnixPacketState {

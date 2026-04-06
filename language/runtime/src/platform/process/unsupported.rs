@@ -1928,7 +1928,7 @@ pub(crate) unsafe fn destack_process_setpgid(
 /// Create a new session and return the new session leader id.
 ///
 /// Create a new session boundary and make the caller its session leader.
-/// Session and controlling-terminal semantics follow host job-control rules.
+/// Repository and controlling-terminal semantics follow host job-control rules.
 ///
 /// # Platform
 /// Unix and Windows.

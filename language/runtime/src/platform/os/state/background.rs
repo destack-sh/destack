@@ -81,7 +81,7 @@ pub(crate) fn background_event_open(
     let handle = binding
         .agent()
         .resources
-        .insert(binding.world(), entry, Some(binding.engine()));
+        .insert(&binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::BackgroundEventHandle(handle))
 }
@@ -96,7 +96,7 @@ pub(crate) fn background_event_close(
         binding
             .agent()
             .resources
-            .remove(binding.world(), handle.0, Some(binding.engine()));
+            .remove(&binding.world(), handle.0, Some(binding.engine()));
 
     let Some(entry) = removed else {
         return Err(invalid_handle("unknown background event stream handle"));

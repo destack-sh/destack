@@ -2,8 +2,8 @@ use crate::platform::device::MidiBackend;
 use crate::platform::device::midi::core::define_backend_midi_resource_accessors;
 
 use super::core::{
-    CoreMidiEventResource, CoreMidiEventSession, CoreMidiInputResource, CoreMidiInputSession,
-    CoreMidiOutputResource, CoreMidiOutputSession,
+    CoreMidiEventRepository, CoreMidiEventResource, CoreMidiInputRepository, CoreMidiInputResource,
+    CoreMidiOutputRepository, CoreMidiOutputResource,
 };
 
 define_backend_midi_resource_accessors!(
@@ -12,19 +12,19 @@ define_backend_midi_resource_accessors!(
     input = (
         input_resource,
         CoreMidiInputResource,
-        CoreMidiInputSession,
+        CoreMidiInputRepository,
         "midi input port"
     ),
     output = (
         output_resource,
         CoreMidiOutputResource,
-        CoreMidiOutputSession,
+        CoreMidiOutputRepository,
         "midi output port"
     ),
     event = (
         event_resource,
         CoreMidiEventResource,
-        CoreMidiEventSession,
+        CoreMidiEventRepository,
         "midi event"
     )
 );

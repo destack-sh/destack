@@ -22,7 +22,7 @@ use super::abi::{
 };
 use super::backend::resolve_backend;
 use super::core::{
-    CoreMidiOutputSession, CoreMidiOutputSessionKind, core_midi_mono_ns_to_host_time,
+    CoreMidiOutputRepository, CoreMidiOutputRepositoryKind, core_midi_mono_ns_to_host_time,
     core_midi_status_error, insert_output_resource, native_optional_string, native_string,
     selected_protocol_id,
 };
@@ -176,12 +176,12 @@ pub(crate) fn midi_output_port_open(
         ));
     }
 
-    let session = Arc::new(CoreMidiOutputSession {
+    let session = Arc::new(CoreMidiOutputRepository {
         _service: service,
         descriptor,
         data_format,
         protocol,
-        kind: CoreMidiOutputSessionKind::Destination {
+        kind: CoreMidiOutputRepositoryKind::Destination {
             port,
             destination: endpoint,
         },
@@ -263,7 +263,7 @@ pub(crate) fn midi_output_write(
         }
 
         match &session.kind {
-            CoreMidiOutputSessionKind::Destination { port, destination } => {
+            CoreMidiOutputRepositoryKind::Destination { port, destination } => {
                 if record.data_format == MidiDataFormat::Ump {
                     let buffer = modern_event_buffer(record)?;
                     let status = unsafe {
@@ -298,7 +298,7 @@ pub(crate) fn midi_output_write(
                     }
                 }
             }
-            CoreMidiOutputSessionKind::VirtualSource { endpoint } => {
+            CoreMidiOutputRepositoryKind::VirtualSource { endpoint } => {
                 if record.data_format == MidiDataFormat::Ump {
                     let buffer = modern_event_buffer(record)?;
                     let status = unsafe {
@@ -417,12 +417,12 @@ pub(crate) fn midi_output_virtual_create(
     register_endpoint_override(&service, endpoint, options.data_format, options.protocol);
 
     let descriptor = endpoint_descriptor(&service, MidiPortDirection::Output, endpoint);
-    let session = Arc::new(CoreMidiOutputSession {
+    let session = Arc::new(CoreMidiOutputRepository {
         _service: service,
         descriptor,
         data_format: options.data_format,
         protocol: Some(options.protocol),
-        kind: CoreMidiOutputSessionKind::VirtualSource { endpoint },
+        kind: CoreMidiOutputRepositoryKind::VirtualSource { endpoint },
     });
     let handle = insert_output_resource(binding, session.clone());
 

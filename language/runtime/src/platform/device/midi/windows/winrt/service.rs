@@ -25,7 +25,7 @@ use crate::runtime::process::service::{Service, spawn_service_thread};
 use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 use super::core::{
-    WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
+    WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventRepository, WinRtTopologyState,
     winrt_relative_timestamp_to_mono_ns,
 };
 use super::descriptor::device_descriptor;
@@ -46,7 +46,7 @@ pub(super) struct WinRtNativeEventRegistry {
     /// Next registration id.
     pub(super) next_registration_id: u64,
     /// Registered native event subscriptions.
-    pub(super) sessions: BTreeMap<u64, Weak<Mutex<WinRtEventSession>>>,
+    pub(super) sessions: BTreeMap<u64, Weak<Mutex<WinRtEventRepository>>>,
 }
 
 /// One host-owned WinRT service state that lives on the executor thread.
@@ -58,11 +58,11 @@ struct WinRtServiceState {
     /// Next input host-session id.
     next_input_session_id: u64,
     /// Live input host sessions.
-    input_sessions: BTreeMap<u64, WinRtInputHostSession>,
+    input_sessions: BTreeMap<u64, WinRtInputHostRepository>,
     /// Next output host-session id.
     next_output_session_id: u64,
     /// Live output host sessions.
-    output_sessions: BTreeMap<u64, WinRtOutputHostSession>,
+    output_sessions: BTreeMap<u64, WinRtOutputHostRepository>,
     /// Live input watcher and its event registrations.
     _input_watcher: WinRtWatcherRegistration,
     /// Live output watcher and its event registrations.
@@ -70,7 +70,7 @@ struct WinRtServiceState {
 }
 
 /// One host-owned input session.
-struct WinRtInputHostSession {
+struct WinRtInputHostRepository {
     /// Opened WinRT input port.
     port: MidiInPort,
     /// Message-received registration token.
@@ -78,7 +78,7 @@ struct WinRtInputHostSession {
 }
 
 /// One host-owned output session.
-struct WinRtOutputHostSession {
+struct WinRtOutputHostRepository {
     /// Opened WinRT output port.
     port: IMidiOutPort,
 }
@@ -99,7 +99,7 @@ struct WinRtWatcherRegistration {
     stopped_token: i64,
 }
 
-impl Drop for WinRtInputHostSession {
+impl Drop for WinRtInputHostRepository {
     /// Tear down one host-owned WinRT input session.
     fn drop(&mut self) {
         let _ = self.port.RemoveMessageReceived(self.token);
@@ -107,7 +107,7 @@ impl Drop for WinRtInputHostSession {
     }
 }
 
-impl Drop for WinRtOutputHostSession {
+impl Drop for WinRtOutputHostRepository {
     /// Tear down one host-owned WinRT output session.
     fn drop(&mut self) {
         let _ = self.port.Close();
@@ -189,7 +189,7 @@ impl WinRtService {
             state.next_input_session_id = state.next_input_session_id.saturating_add(1);
             state
                 .input_sessions
-                .insert(host_session_id, WinRtInputHostSession { port, token });
+                .insert(host_session_id, WinRtInputHostRepository { port, token });
 
             Ok(host_session_id)
         })
@@ -221,7 +221,7 @@ impl WinRtService {
             state.next_output_session_id = state.next_output_session_id.saturating_add(1);
             state
                 .output_sessions
-                .insert(host_session_id, WinRtOutputHostSession { port });
+                .insert(host_session_id, WinRtOutputHostRepository { port });
 
             Ok(host_session_id)
         })
@@ -581,7 +581,7 @@ pub(crate) fn check_winrt_support(operation: &'static str) -> RuntimeResult<()> 
 /// Register one native event subscription.
 pub(super) fn register_native_event_session(
     service: &Arc<WinRtService>,
-    session: &Arc<Mutex<WinRtEventSession>>,
+    session: &Arc<Mutex<WinRtEventRepository>>,
 ) -> WinRtEventDeliveryKind {
     let mut registry = service.native_event_registry.lock();
     let registration_id = registry.next_registration_id;

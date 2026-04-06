@@ -21,7 +21,7 @@ use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::process::Service;
 use crate::runtime::process::service::executor::periodic::open_periodic_task;
 
-use super::core::{SnapshotKey, WinMmEventSession, insert_event_resource};
+use super::core::{SnapshotKey, WinMmEventRepository, insert_event_resource};
 use super::descriptor::filtered_descriptors;
 use super::resource::event_resource;
 
@@ -56,7 +56,7 @@ fn event_snapshot(
 /// Refresh one WinMM event subscription from the current topology snapshot.
 fn refresh_event_subscription(
     service: &Arc<super::service::WinMmService>,
-    session: &mut WinMmEventSession,
+    session: &mut WinMmEventRepository,
     source: MidiEventSource,
 ) -> RuntimeResult<()> {
     let next_snapshot = event_snapshot(service, session.flags, session.direction_mask);
@@ -73,7 +73,7 @@ fn refresh_event_subscription(
 
 /// Queue one backend-disconnected event into one subscription.
 fn queue_backend_disconnected_event(
-    session: &mut WinMmEventSession,
+    session: &mut WinMmEventRepository,
     source: MidiEventSource,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -89,7 +89,7 @@ fn queue_backend_disconnected_event(
 
 /// Pop one queued event after honoring deferred overflow errors.
 fn try_pop_session_event(
-    session: &WinMmEventSession,
+    session: &WinMmEventRepository,
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
     try_pop_queued_event(&session.queue, operation)
@@ -97,7 +97,7 @@ fn try_pop_session_event(
 
 /// Pop one queued event batch after honoring deferred overflow errors.
 fn try_pop_session_event_batch(
-    session: &WinMmEventSession,
+    session: &WinMmEventRepository,
     max_events: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
@@ -107,7 +107,7 @@ fn try_pop_session_event_batch(
 /// Register one synthetic poll delivery for one WinMM event subscription.
 fn register_poll_event_session(
     service: &Arc<super::service::WinMmService>,
-    session: &Arc<Mutex<WinMmEventSession>>,
+    session: &Arc<Mutex<WinMmEventRepository>>,
     poll_interval: std::time::Duration,
 ) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
     let service = service.clone();
@@ -184,7 +184,7 @@ pub(crate) fn midi_event_open(
         .winmm_service("destack.device.midi.event.open")?;
     service.refresh_topology("destack.device.midi.event.open")?;
 
-    let session = Arc::new(Mutex::new(WinMmEventSession {
+    let session = Arc::new(Mutex::new(WinMmEventRepository {
         backend: MidiBackend::WinMM,
         direction_mask: options.direction_mask,
         flags: options.flags,

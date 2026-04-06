@@ -484,7 +484,7 @@ pub(crate) unsafe fn destack_net_recv_msg(
         let id = binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
         handles.push(TransferredHandle(id));
     }
 

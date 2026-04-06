@@ -57,7 +57,7 @@ pub(crate) enum JackEventDeliveryKind {
 
 /// One opened JACK event subscription.
 #[derive(Clone)]
-pub(crate) struct JackEventSession {
+pub(crate) struct JackEventRepository {
     /// Selected backend for the subscription.
     pub(crate) backend: MidiBackend,
     /// Included directions.
@@ -120,7 +120,7 @@ impl JackInputTerminalError {
 }
 
 /// One opened JACK input-session kind.
-pub(crate) enum JackInputSessionKind {
+pub(crate) enum JackInputRepositoryKind {
     /// One client input connected to one concrete source.
     Source {
         /// The owned JACK client.
@@ -145,8 +145,8 @@ pub(crate) enum JackInputSessionKind {
     },
 }
 
-unsafe impl Send for JackInputSessionKind {}
-unsafe impl Sync for JackInputSessionKind {}
+unsafe impl Send for JackInputRepositoryKind {}
+unsafe impl Sync for JackInputRepositoryKind {}
 
 /// One opened JACK output callback context.
 pub(crate) struct JackOutputCallbackContext {
@@ -180,7 +180,7 @@ impl JackOutputTerminalError {
 }
 
 /// One opened JACK output-session kind.
-pub(crate) enum JackOutputSessionKind {
+pub(crate) enum JackOutputRepositoryKind {
     /// One client output connected to one concrete destination.
     Destination {
         /// The owned JACK client.
@@ -205,11 +205,11 @@ pub(crate) enum JackOutputSessionKind {
     },
 }
 
-unsafe impl Send for JackOutputSessionKind {}
-unsafe impl Sync for JackOutputSessionKind {}
+unsafe impl Send for JackOutputRepositoryKind {}
+unsafe impl Sync for JackOutputRepositoryKind {}
 
 /// One opened JACK input session.
-pub(crate) struct JackInputSession {
+pub(crate) struct JackInputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<super::super::service::JackService>,
     /// Current descriptor snapshot.
@@ -218,11 +218,11 @@ pub(crate) struct JackInputSession {
     pub(crate) queue: Arc<BoundedQueue<MidiInputRecordValue>>,
     /// Deferred terminal reader failure.
     pub(crate) terminal_error: Arc<Mutex<Option<JackInputTerminalError>>>,
-    /// Session resources that must be released.
-    pub(crate) kind: Mutex<JackInputSessionKind>,
+    /// Repository resources that must be released.
+    pub(crate) kind: Mutex<JackInputRepositoryKind>,
 }
 
-impl JackInputSession {
+impl JackInputRepository {
     /// Return whether the opened endpoint is virtual.
     pub(crate) fn is_virtual_endpoint(&self) -> bool {
         self.descriptor.is_virtual
@@ -230,7 +230,7 @@ impl JackInputSession {
 }
 
 /// One opened JACK output session.
-pub(crate) struct JackOutputSession {
+pub(crate) struct JackOutputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<super::super::service::JackService>,
     /// Current descriptor snapshot.
@@ -243,31 +243,31 @@ pub(crate) struct JackOutputSession {
     pub(crate) pending_records: Arc<Mutex<VecDeque<MidiOutputRecordValue>>>,
     /// Deferred terminal writer failure.
     pub(crate) terminal_error: Arc<Mutex<Option<JackOutputTerminalError>>>,
-    /// Session resources that must be released.
-    pub(crate) kind: Mutex<JackOutputSessionKind>,
+    /// Repository resources that must be released.
+    pub(crate) kind: Mutex<JackOutputRepositoryKind>,
 }
 
-impl JackOutputSession {
+impl JackOutputRepository {
     /// Return whether the opened endpoint is virtual.
     pub(crate) fn is_virtual_endpoint(&self) -> bool {
         self.descriptor.is_virtual
     }
 }
 
-impl Drop for JackInputSession {
+impl Drop for JackInputRepository {
     /// Release JACK resources for one input session.
     fn drop(&mut self) {
         let kind = self.kind.get_mut();
 
         // session-specific teardown
         match kind {
-            JackInputSessionKind::Source {
+            JackInputRepositoryKind::Source {
                 client,
                 _port,
                 callback_context_token,
                 ..
             }
-            | JackInputSessionKind::VirtualDestination {
+            | JackInputRepositoryKind::VirtualDestination {
                 client,
                 _port,
                 callback_context_token,
@@ -282,20 +282,20 @@ impl Drop for JackInputSession {
     }
 }
 
-impl Drop for JackOutputSession {
+impl Drop for JackOutputRepository {
     /// Release JACK resources for one output session.
     fn drop(&mut self) {
         let kind = self.kind.get_mut();
 
         // session-specific teardown
         match kind {
-            JackOutputSessionKind::Destination {
+            JackOutputRepositoryKind::Destination {
                 client,
                 _port,
                 callback_context_token,
                 ..
             }
-            | JackOutputSessionKind::VirtualSource {
+            | JackOutputRepositoryKind::VirtualSource {
                 client,
                 _port,
                 callback_context_token,
@@ -311,26 +311,26 @@ impl Drop for JackOutputSession {
 /// Resource payload for one JACK input session.
 pub(crate) struct JackInputResource {
     /// Shared session state.
-    pub(crate) session: Arc<JackInputSession>,
+    pub(crate) session: Arc<JackInputRepository>,
 }
 
 /// Resource payload for one JACK output session.
 pub(crate) struct JackOutputResource {
     /// Shared session state.
-    pub(crate) session: Arc<JackOutputSession>,
+    pub(crate) session: Arc<JackOutputRepository>,
 }
 
 /// Resource payload for one JACK event subscription.
 #[derive(Clone)]
 pub(crate) struct JackEventResource {
     /// Shared subscription state.
-    pub(crate) session: Arc<Mutex<JackEventSession>>,
+    pub(crate) session: Arc<Mutex<JackEventRepository>>,
 }
 
 define_backend_midi_resource_inserters!(
     vis = pub(crate),
     backend = MidiBackend::JackMidi,
-    input = (insert_input_resource, JackInputResource, JackInputSession),
-    output = (insert_output_resource, JackOutputResource, JackOutputSession),
-    event = (insert_event_resource, JackEventResource, JackEventSession)
+    input = (insert_input_resource, JackInputResource, JackInputRepository),
+    output = (insert_output_resource, JackOutputResource, JackOutputRepository),
+    event = (insert_event_resource, JackEventResource, JackEventRepository)
 );

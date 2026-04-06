@@ -1,7 +1,7 @@
+use super::{host as host_input, native as input_native};
 use destack_vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::{
     VmAbiCodec, bytes_to_vm, call_out, map_native_array_to_vm, map_native_slice_to_vm,
     store_bytes_from_vm as bytes_from_vm, store_string_from_vm as string_from_vm,
@@ -19,12 +19,9 @@ use crate::platform::input::{
     InputSensorSampleVm, InputTextGeometry, InputTextGeometryVm, InputTextSessionConfig,
     InputTextSessionConfigVm, InputTextSessionEventVm, InputTextSessionState,
     InputTextSessionStateVm, InputTouchState, InputTouchStateVm, InputWindowTargetVm,
-    native as host_input,
 };
-use crate::platform::{NativeAbiCodec, VmArray, VmSlice, resource};
+use crate::platform::{NativeAbiCodec, NativeSlice, NativeStringRef, VmArray, VmSlice, resource};
 use crate::runtime::BindingCallContext;
-
-use super::core::clipboard;
 
 /// Convert one native device-info payload into its VM shape.
 fn device_info_to_vm(
@@ -105,14 +102,15 @@ fn native_string_to_vm(
 /// Decode one VM binding payload into one native binding payload.
 fn native_value_from_vm<Native, Vm>(
     binding: &BindingCallContext,
-    context: &mut destack_vm::ExternalCallContext<'_>,
+    context: &destack_vm::ExternalCallContext<'_>,
     value: Vm,
 ) -> RuntimeResult<Native>
 where
     Native: NativeAbiCodec<Value = Vm::Value>,
     Vm: VmAbiCodec,
 {
-    let value = value.into_value(&context.read())?;
+    let context = context.read();
+    let value = value.into_value(&context)?;
 
     Ok(Native::from_value(binding, value))
 }
@@ -127,8 +125,9 @@ where
     Vm: VmAbiCodec<Value = Native::Value>,
 {
     let value = unsafe { value.into_value()? };
+    let mut context = context.write();
 
-    Vm::from_value(&mut context.write(), value)
+    Vm::from_value(&mut context, value)
 }
 
 /// Convert one native capabilities payload into its VM shape.
@@ -1357,7 +1356,7 @@ pub(crate) fn destack_input_clipboard_clear(
     _binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<()> {
-    clipboard::clear()
+    input_native::clear()
 }
 
 /// Query whether text clipboard payload exists.
@@ -1365,7 +1364,7 @@ pub(crate) fn destack_input_clipboard_has_text(
     _binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<bool> {
-    clipboard::has_text()
+    input_native::has_text()
 }
 
 /// List clipboard items.
@@ -1374,7 +1373,7 @@ pub(crate) fn destack_input_clipboard_list_items(
     context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<VmSlice<ClipboardItemDescriptorVm>> {
     let value =
-        call_out(|out| unsafe { clipboard::destack_input_clipboard_list_items(binding, out) })?;
+        call_out(|out| unsafe { input_native::destack_input_clipboard_list_items(binding, out) })?;
 
     vm_value_from_native(context, value)
 }
@@ -1387,7 +1386,7 @@ pub(crate) fn destack_input_clipboard_read_item_bytes(
     representationindex: u32,
 ) -> RuntimeResult<VmSlice<u8>> {
     let value = call_out(|out| unsafe {
-        clipboard::destack_input_clipboard_read_item_bytes(
+        input_native::destack_input_clipboard_read_item_bytes(
             binding,
             out,
             itemindex,
@@ -1395,7 +1394,9 @@ pub(crate) fn destack_input_clipboard_read_item_bytes(
         )
     })?;
 
-    VmSlice::from_bytes(&mut context.write(), unsafe { value.as_slice()? })
+    let mut context = context.write();
+
+    VmSlice::from_bytes(&mut context, unsafe { value.as_slice()? })
 }
 
 /// Read one clipboard item as one path.
@@ -1406,7 +1407,7 @@ pub(crate) fn destack_input_clipboard_read_item_path(
     representationindex: u32,
 ) -> RuntimeResult<OsPathVm> {
     let value = call_out(|out| unsafe {
-        clipboard::destack_input_clipboard_read_item_path(
+        input_native::destack_input_clipboard_read_item_path(
             binding,
             out,
             itemindex,
@@ -1425,7 +1426,7 @@ pub(crate) fn destack_input_clipboard_read_item_text(
     representationindex: u32,
 ) -> RuntimeResult<destack_vm::StringHandle> {
     let value = call_out(|out| unsafe {
-        clipboard::destack_input_clipboard_read_item_text(
+        input_native::destack_input_clipboard_read_item_text(
             binding,
             out,
             itemindex,
@@ -1441,7 +1442,7 @@ pub(crate) fn destack_input_clipboard_read_text(
     _binding: &BindingCallContext,
     context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<destack_vm::StringHandle> {
-    let value = clipboard::read_text()?;
+    let value = input_native::read_text()?;
 
     Ok(destack_vm::StringHandle::new(
         context.intern_string(&value)?,
@@ -1453,7 +1454,7 @@ pub(crate) fn destack_input_clipboard_sequence(
     _binding: &BindingCallContext,
     _context: &mut destack_vm::ExternalCallContext<'_>,
 ) -> RuntimeResult<u64> {
-    clipboard::sequence()
+    input_native::sequence()
 }
 
 /// Write text clipboard payload.
@@ -1466,7 +1467,7 @@ pub(crate) fn destack_input_clipboard_write_text(
         .string_ref(text)
         .map_err(|error| RuntimeError::from(error).boxed())?;
 
-    clipboard::write_text(text.as_str())
+    input_native::write_text(text.as_str())
 }
 
 /// Write clipboard items.
@@ -1477,5 +1478,5 @@ pub(crate) fn destack_input_clipboard_write_items(
 ) -> RuntimeResult<()> {
     let items: NativeSlice<ClipboardItem> = native_value_from_vm(binding, context, items)?;
 
-    unsafe { clipboard::destack_input_clipboard_write_items(binding, items) }
+    unsafe { input_native::destack_input_clipboard_write_items(binding, items) }
 }

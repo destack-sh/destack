@@ -279,11 +279,11 @@ pub(super) fn register_pty_pair(
     let controller_entry = ResourceEntry::new(ResourceKind::Pty)
         .with_label(PTY_RESOURCE_LABEL)
         .with_finalizer(WindowsPseudoConsoleFinalizer { pseudo_console });
-    let controller_id =
-        binding
-            .agent()
-            .resources
-            .insert(binding.world(), controller_entry, Some(binding.engine()));
+    let controller_id = binding.agent().resources.insert(
+        &binding.world(),
+        controller_entry,
+        Some(binding.engine()),
+    );
 
     let worker_entry = ResourceEntry::new(ResourceKind::Tty)
         .with_label(TTY_RESOURCE_LABEL)
@@ -296,7 +296,7 @@ pub(super) fn register_pty_pair(
         binding
             .agent()
             .resources
-            .insert(binding.world(), worker_entry, Some(binding.engine()));
+            .insert(&binding.world(), worker_entry, Some(binding.engine()));
 
     PtyPair {
         controller: resource::PtyHandle(controller_id),

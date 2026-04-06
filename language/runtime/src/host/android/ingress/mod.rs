@@ -1,7 +1,6 @@
 #[path = "background.generated.rs"]
 mod background;
 mod core;
-#[path = "document.generated.rs"]
 mod document;
 #[path = "intent.generated.rs"]
 mod intent;

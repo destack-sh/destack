@@ -22,7 +22,7 @@ use crate::runtime::world::{
     WorldResource, WorldResourceId,
 };
 use destack_vm as vm;
-use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeSelector};
+use destack_workspace::config::{ExecutionMode, RuntimeAccess, RuntimeSelector};
 use serde::{Deserialize, Serialize};
 
 /// Build one replay entropy subject for tests.

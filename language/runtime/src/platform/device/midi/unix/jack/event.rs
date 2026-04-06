@@ -24,7 +24,7 @@ use crate::runtime::process::Service;
 use crate::runtime::process::service::executor::periodic::open_periodic_task;
 
 use super::core::{
-    JackEventDeliveryKind, JackEventSession, JackSnapshotKey, insert_event_resource,
+    JackEventDeliveryKind, JackEventRepository, JackSnapshotKey, insert_event_resource,
 };
 use super::descriptor::filtered_descriptors;
 use super::resource::event_resource;
@@ -64,7 +64,7 @@ fn event_snapshot(
 /// Refresh one event subscription queue from the current snapshot.
 fn refresh_event_subscription(
     service: &Arc<JackService>,
-    session: &mut JackEventSession,
+    session: &mut JackEventRepository,
     source: MidiEventSource,
 ) -> RuntimeResult<()> {
     let next_snapshot = event_snapshot(service, session.flags, session.direction_mask);
@@ -81,7 +81,7 @@ fn refresh_event_subscription(
 
 /// Queue one backend-disconnected event into one subscription.
 fn queue_backend_disconnected_event(
-    session: &mut JackEventSession,
+    session: &mut JackEventRepository,
     source: MidiEventSource,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -98,7 +98,7 @@ fn queue_backend_disconnected_event(
 /// Register one synthetic poll delivery for one JACK event subscription.
 fn register_poll_event_session(
     service: &Arc<JackService>,
-    session: &Arc<Mutex<JackEventSession>>,
+    session: &Arc<Mutex<JackEventRepository>>,
     poll_interval: std::time::Duration,
 ) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
     let service = service.clone();
@@ -143,7 +143,7 @@ fn register_poll_event_session(
 
 /// Pop one queued event after honoring deferred overflow errors.
 fn try_pop_session_event(
-    session: &JackEventSession,
+    session: &JackEventRepository,
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
     try_pop_queued_event(&session.queue, operation)
@@ -151,7 +151,7 @@ fn try_pop_session_event(
 
 /// Pop one queued event batch after honoring deferred overflow errors.
 fn try_pop_session_event_batch(
-    session: &JackEventSession,
+    session: &JackEventRepository,
     max_events: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
@@ -161,7 +161,7 @@ fn try_pop_session_event_batch(
 /// Collect all live native event subscriptions from one registry.
 fn collect_native_event_sessions(
     registry: &Arc<Mutex<JackNativeEventRegistry>>,
-) -> Vec<Arc<Mutex<JackEventSession>>> {
+) -> Vec<Arc<Mutex<JackEventRepository>>> {
     let mut registry = registry.lock();
 
     collect_live_event_sessions(&mut registry.sessions)
@@ -213,7 +213,7 @@ pub(crate) fn midi_event_open(
     // delivery kind
     let delivery_kind = match options.delivery_mode {
         MidiEventDeliveryMode::NativeOnly | MidiEventDeliveryMode::Auto => {
-            let registry_session = Arc::new(Mutex::new(JackEventSession {
+            let registry_session = Arc::new(Mutex::new(JackEventRepository {
                 backend: MidiBackend::JackMidi,
                 direction_mask: options.direction_mask,
                 flags: options.flags,
@@ -236,7 +236,7 @@ pub(crate) fn midi_event_open(
         MidiEventDeliveryMode::PollOnly => JackEventDeliveryKind::Poll,
     };
 
-    let session = Arc::new(Mutex::new(JackEventSession {
+    let session = Arc::new(Mutex::new(JackEventRepository {
         backend: MidiBackend::JackMidi,
         direction_mask: options.direction_mask,
         flags: options.flags,
@@ -361,13 +361,13 @@ mod tests {
     };
     use crate::runtime::control::queue::BoundedQueue;
 
-    use super::super::core::{JackEventDeliveryKind, JackEventSession};
+    use super::super::core::{JackEventDeliveryKind, JackEventRepository};
 
     /// Queue one backend-disconnected event with the active backend metadata.
     #[test]
     fn test_queue_backend_disconnected_event_pushes_backend_event() {
         let queue = Arc::new(BoundedQueue::new(4));
-        let mut session = JackEventSession {
+        let mut session = JackEventRepository {
             backend: MidiBackend::JackMidi,
             direction_mask: MidiPortDirectionFlags(MIDI_PORT_DIRECTION_FLAG_OUTPUT.0),
             flags: MidiEventSubscriptionFlags(MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED.0),
