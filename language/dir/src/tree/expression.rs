@@ -15,7 +15,7 @@ use crate::{
 use destack_source::NodeSpanType;
 
 /// The kind of one dependency attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum DependencyAttributeClauseKind {
     /// The standard `with` attribute clause keyword.
     With,
@@ -24,7 +24,7 @@ pub enum DependencyAttributeClauseKind {
 }
 
 /// One dependency attribute clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct DependencyAttributeClause {
     /// The clause introducer.
     pub kind: DependencyAttributeClauseKind,
