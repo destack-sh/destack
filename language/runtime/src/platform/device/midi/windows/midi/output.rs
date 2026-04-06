@@ -14,7 +14,7 @@ use crate::platform::device::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
-use super::core::{WindowsMidiOutputSession, insert_output_resource};
+use super::core::{WindowsMidiOutputRepository, insert_output_resource};
 use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::output_resource;
 
@@ -76,7 +76,7 @@ pub(crate) fn midi_output_port_open(
     let host_session_id =
         service.open_output_session(endpoint.backend_id, "destack.device.midi.output.port.open")?;
 
-    let session = Arc::new(WindowsMidiOutputSession {
+    let session = Arc::new(WindowsMidiOutputRepository {
         _service: service,
         descriptor,
         data_format,
@@ -185,7 +185,7 @@ pub(crate) fn midi_output_virtual_create(
         "destack.device.midi.output.virtual.create",
     )?;
 
-    let session = Arc::new(WindowsMidiOutputSession {
+    let session = Arc::new(WindowsMidiOutputRepository {
         _service: service,
         descriptor,
         data_format: options.data_format,

@@ -195,7 +195,7 @@ unsafe impl Sync for AsioBufferLane {}
 
 /// One opened ASIO session payload.
 #[derive(Debug)]
-pub(super) struct AsioSession {
+pub(super) struct AsioRepository {
     /// Owned IASIO interface pointer.
     pub(super) driver: Arc<AsioDriverInterface>,
     /// Driver display name used in diagnostics.
@@ -206,7 +206,7 @@ pub(super) struct AsioSession {
     pub(super) initialized: AtomicBool,
 }
 
-impl Drop for AsioSession {
+impl Drop for AsioRepository {
     fn drop(&mut self) {
         // stop one running driver before releasing callback buffers
         unsafe {
@@ -229,8 +229,8 @@ impl Drop for AsioSession {
     }
 }
 
-unsafe impl Send for AsioSession {}
-unsafe impl Sync for AsioSession {}
+unsafe impl Send for AsioRepository {}
+unsafe impl Sync for AsioRepository {}
 
 /// One runtime payload for one opened ASIO stream.
 #[derive(Debug)]
@@ -250,7 +250,7 @@ pub(super) struct AsioStreamRuntime {
     /// Capture lanes used in callback transfer.
     pub(super) input_lanes: Vec<AsioBufferLane>,
     /// Owned ASIO driver session.
-    pub(super) session: Arc<AsioSession>,
+    pub(super) session: Arc<AsioRepository>,
     /// Weak link to the stream host state.
     pub(super) stream_state: OnceLock<Weak<audio_core::AudioStreamHostState>>,
 }
@@ -534,7 +534,9 @@ fn parse_guid(text: &str) -> Option<GUID> {
 }
 
 /// Open and initialize one ASIO session for one registry row.
-pub(super) fn open_session(row: &AsioDriverRow) -> RuntimeResult<(ComApartment, Arc<AsioSession>)> {
+pub(super) fn open_session(
+    row: &AsioDriverRow,
+) -> RuntimeResult<(ComApartment, Arc<AsioRepository>)> {
     let com = initialize_com_apartment()?;
 
     // activate one IASIO interface for this driver CLSID
@@ -592,7 +594,7 @@ pub(super) fn open_session(row: &AsioDriverRow) -> RuntimeResult<(ComApartment, 
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| row.display_name.clone());
 
-    let session = Arc::new(AsioSession {
+    let session = Arc::new(AsioRepository {
         driver,
         driver_name,
         buffers_created: AtomicBool::new(false),
@@ -732,7 +734,7 @@ pub(super) fn probe_device_profile(row: &AsioDriverRow) -> AsioDeviceProfile {
 
 /// Query one channel descriptor from one ASIO session.
 pub(super) fn query_channel_descriptor(
-    session: &Arc<AsioSession>,
+    session: &Arc<AsioRepository>,
     is_input: bool,
     channel_index: i32,
 ) -> RuntimeResult<AsioChannelDescriptor> {

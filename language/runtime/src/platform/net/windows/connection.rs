@@ -109,7 +109,7 @@ fn register_socket_pair(
         binding
             .agent()
             .resources
-            .insert(binding.world(), first_entry, Some(binding.engine()));
+            .insert(&binding.world(), first_entry, Some(binding.engine()));
 
     // register the second socket
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
@@ -119,7 +119,7 @@ fn register_socket_pair(
         binding
             .agent()
             .resources
-            .insert(binding.world(), second_entry, Some(binding.engine()));
+            .insert(&binding.world(), second_entry, Some(binding.engine()));
 
     // return both handles
     unsafe {
@@ -412,7 +412,7 @@ pub(crate) unsafe fn destack_net_accept(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -444,7 +444,7 @@ pub(crate) unsafe fn destack_net_close(
     let entry = binding
         .agent()
         .resources
-        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "handle",
@@ -484,7 +484,7 @@ pub(crate) unsafe fn destack_net_close_listener(
     let entry = binding
         .agent()
         .resources
-        .remove(binding.world(), handle.0, Some(binding.engine()))
+        .remove(&binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "handle",
@@ -646,7 +646,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -701,7 +701,7 @@ pub(crate) unsafe fn destack_net_socket(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

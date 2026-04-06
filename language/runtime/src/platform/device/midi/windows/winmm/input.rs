@@ -28,8 +28,8 @@ use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
 
 use super::core::{
-    DEFAULT_SYSEX_BUFFER_COUNT, WinMmInputCallbackContext, WinMmInputSession,
-    WinMmInputSessionKind, WinMmInputTerminalError, allocate_input_buffer, decode_long_message,
+    DEFAULT_SYSEX_BUFFER_COUNT, WinMmInputCallbackContext, WinMmInputRepository,
+    WinMmInputRepositoryKind, WinMmInputTerminalError, allocate_input_buffer, decode_long_message,
     decode_short_message, header_bytes_recorded, header_data_ptr, input_runtime_id,
     insert_input_resource, release_input_callback_context, retain_input_callback_context,
     set_terminal_input_error, winmm_error,
@@ -295,12 +295,12 @@ pub(crate) fn midi_input_port_open(
         ));
     }
 
-    let session = Arc::new(WinMmInputSession {
+    let session = Arc::new(WinMmInputRepository {
         _service: service,
         descriptor,
         queue,
         terminal_error,
-        kind: Mutex::new(WinMmInputSessionKind {
+        kind: Mutex::new(WinMmInputRepositoryKind {
             handle,
             buffers,
             _context_owner: context,

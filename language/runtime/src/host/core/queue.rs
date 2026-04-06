@@ -45,7 +45,7 @@ struct HostQueuePayload {
 
 impl HostQueue {
     /// Create one empty host event queue.
-    pub(crate) fn new(_host_runtime_id: HostSessionId) -> Self {
+    pub(crate) fn new(_host_session_id: HostSessionId) -> Self {
         Self {
             state: Arc::new(HostQueueState::default()),
         }

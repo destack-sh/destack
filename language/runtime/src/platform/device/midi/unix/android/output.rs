@@ -16,7 +16,7 @@ use crate::runtime::BindingCallContext;
 
 use super::backend::resolve_backend;
 use super::core::{
-    AndroidOutputSession, close_output_session, create_virtual_output_session,
+    AndroidOutputRepository, close_output_session, create_virtual_output_session,
     insert_output_resource, open_output_session, read_output_port_descriptors,
     write_output_records,
 };
@@ -109,7 +109,7 @@ pub(crate) fn midi_output_port_open(
         "destack.device.midi.output.port.open",
     )?;
 
-    let session = Arc::new(AndroidOutputSession {
+    let session = Arc::new(AndroidOutputRepository {
         descriptor,
         data_format,
         protocol,
@@ -252,7 +252,7 @@ pub(crate) fn midi_output_virtual_create(
         "destack.device.midi.output.virtual.create",
     )?;
 
-    let session = Arc::new(AndroidOutputSession {
+    let session = Arc::new(AndroidOutputRepository {
         descriptor,
         data_format,
         protocol,

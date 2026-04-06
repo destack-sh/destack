@@ -20,7 +20,7 @@ use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy}
 
 use super::abi::{POLLIN, SND_SEQ_OPEN_DUPLEX, poll, pollfd, snd_seq_event_t};
 use super::core::{
-    AlsaInputSession, AlsaInputSessionKind, AlsaInputTerminalError, alsa_record_framing,
+    AlsaInputRepository, AlsaInputRepositoryKind, AlsaInputTerminalError, alsa_record_framing,
     create_midi_parser, create_queue, create_simple_port, default_port_type,
     enable_port_realtime_timestamps, hidden_destination_port_capability,
     input_event_received_at_ns, insert_input_resource, native_optional_string, native_string,
@@ -81,13 +81,13 @@ pub(crate) fn midi_input_port_open(
     )));
     let handle = open_sequencer_handle(
         &service.library,
-        "Destack MIDI Internal Input Session",
+        "Destack MIDI Internal Input Repository",
         SND_SEQ_OPEN_DUPLEX,
         "destack.device.midi.input.port.open",
     )?;
     let local_port_id = create_simple_port(
         &handle,
-        "Destack MIDI Internal Input Session",
+        "Destack MIDI Internal Input Repository",
         hidden_destination_port_capability(),
         default_port_type(),
         "destack.device.midi.input.port.open",
@@ -119,12 +119,12 @@ pub(crate) fn midi_input_port_open(
         stop_flag.clone(),
     )?;
 
-    let session = Arc::new(AlsaInputSession {
+    let session = Arc::new(AlsaInputRepository {
         _service: service,
         descriptor: endpoint.descriptor,
         queue,
         terminal_error,
-        kind: parking_lot::Mutex::new(AlsaInputSessionKind::Source {
+        kind: parking_lot::Mutex::new(AlsaInputRepositoryKind::Source {
             handle,
             queue: queue_id,
             local_port_id,
@@ -322,12 +322,12 @@ pub(crate) fn midi_input_virtual_create(
         options.data_format,
         options.protocol,
     );
-    let session = Arc::new(AlsaInputSession {
+    let session = Arc::new(AlsaInputRepository {
         _service: service,
         descriptor,
         queue,
         terminal_error,
-        kind: parking_lot::Mutex::new(AlsaInputSessionKind::VirtualDestination {
+        kind: parking_lot::Mutex::new(AlsaInputRepositoryKind::VirtualDestination {
             handle,
             queue: queue_id,
             local_port_id,

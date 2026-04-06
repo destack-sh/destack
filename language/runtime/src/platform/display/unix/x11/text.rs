@@ -417,7 +417,7 @@ pub(crate) fn synchronize_window_text_session(
 
     let runtime_state = runtime_state(context);
     let connection_state =
-        super::core::connection_state(&runtime_state, "destack.input.text.syncWindowSession")?;
+        super::core::connection_state(&runtime_state, "destack.input.text.syncWindowRepository")?;
     let input_context = runtime_state
         .text_input_contexts
         .lock()
@@ -437,7 +437,7 @@ pub(crate) fn synchronize_window_text_session(
     {
         runtime_state.diagnostics.warn(
             "display",
-            "destack.input.text.syncWindowSession",
+            "destack.input.text.syncWindowRepository",
             error,
             None,
         );

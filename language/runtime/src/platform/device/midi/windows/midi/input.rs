@@ -18,7 +18,7 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
 
-use super::core::{WindowsMidiInputSession, insert_input_resource};
+use super::core::{WindowsMidiInputRepository, insert_input_resource};
 use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::input_resource;
 
@@ -92,7 +92,7 @@ pub(crate) fn midi_input_port_open(
         "destack.device.midi.input.port.open",
     )?;
 
-    let session = Arc::new(WindowsMidiInputSession {
+    let session = Arc::new(WindowsMidiInputRepository {
         _service: service,
         descriptor,
         host_session_id,
@@ -255,7 +255,7 @@ pub(crate) fn midi_input_virtual_create(
         "destack.device.midi.input.virtual.create",
     )?;
 
-    let session = Arc::new(WindowsMidiInputSession {
+    let session = Arc::new(WindowsMidiInputRepository {
         _service: service,
         descriptor,
         host_session_id,

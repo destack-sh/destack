@@ -102,7 +102,7 @@ pub(crate) struct WinMmInputCallbackContext {
 }
 
 /// One opened WinMM input session.
-pub(crate) struct WinMmInputSession {
+pub(crate) struct WinMmInputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<WinMmService>,
     /// Current descriptor snapshot.
@@ -112,11 +112,11 @@ pub(crate) struct WinMmInputSession {
     /// Deferred terminal backend failure.
     pub(crate) terminal_error: Arc<Mutex<Option<WinMmInputTerminalError>>>,
     /// WinMM input session resources.
-    pub(crate) kind: Mutex<WinMmInputSessionKind>,
+    pub(crate) kind: Mutex<WinMmInputRepositoryKind>,
 }
 
 /// One opened WinMM input-session kind.
-pub(crate) struct WinMmInputSessionKind {
+pub(crate) struct WinMmInputRepositoryKind {
     /// Raw WinMM input handle.
     pub(crate) handle: HMIDIIN,
     /// Prepared SysEx buffers.
@@ -130,7 +130,7 @@ pub(crate) struct WinMmInputSessionKind {
 }
 
 /// One opened WinMM output session.
-pub(crate) struct WinMmOutputSession {
+pub(crate) struct WinMmOutputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<WinMmService>,
     /// Current descriptor snapshot.
@@ -147,7 +147,7 @@ pub(crate) struct WinMmOutputSession {
 
 /// One opened WinMM event subscription.
 #[derive(Clone)]
-pub(crate) struct WinMmEventSession {
+pub(crate) struct WinMmEventRepository {
     /// Selected backend for the subscription.
     pub(crate) backend: MidiBackend,
     /// Included directions.
@@ -172,23 +172,23 @@ pub(crate) type SnapshotKey = String;
 /// Resource payload for one input session.
 pub(crate) struct WinMmInputResource {
     /// Shared session state.
-    pub(crate) session: Arc<WinMmInputSession>,
+    pub(crate) session: Arc<WinMmInputRepository>,
 }
 
 /// Resource payload for one output session.
 pub(crate) struct WinMmOutputResource {
     /// Shared session state.
-    pub(crate) session: Arc<WinMmOutputSession>,
+    pub(crate) session: Arc<WinMmOutputRepository>,
 }
 
 /// Resource payload for one event subscription.
 #[derive(Clone)]
 pub(crate) struct WinMmEventResource {
     /// Shared session state.
-    pub(crate) session: Arc<Mutex<WinMmEventSession>>,
+    pub(crate) session: Arc<Mutex<WinMmEventRepository>>,
 }
 
-impl Drop for WinMmInputSession {
+impl Drop for WinMmInputRepository {
     /// Release WinMM input resources on drop.
     fn drop(&mut self) {
         let mut kind = self.kind.lock();
@@ -225,7 +225,7 @@ impl Drop for WinMmInputSession {
     }
 }
 
-impl Drop for WinMmOutputSession {
+impl Drop for WinMmOutputRepository {
     /// Release WinMM output resources on drop.
     fn drop(&mut self) {
         // stop backend delivery before releasing native resources
@@ -246,7 +246,7 @@ impl Drop for WinMmOutputSession {
 define_backend_midi_resource_inserters!(
     vis = pub(crate),
     backend = MidiBackend::WinMM,
-    input = (insert_input_resource, WinMmInputResource, WinMmInputSession),
-    output = (insert_output_resource, WinMmOutputResource, WinMmOutputSession),
-    event = (insert_event_resource, WinMmEventResource, WinMmEventSession)
+    input = (insert_input_resource, WinMmInputResource, WinMmInputRepository),
+    output = (insert_output_resource, WinMmOutputResource, WinMmOutputRepository),
+    event = (insert_event_resource, WinMmEventResource, WinMmEventRepository)
 );

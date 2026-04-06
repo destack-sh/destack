@@ -29,8 +29,8 @@ use super::callback::{
     modern_receive_block,
 };
 use super::core::{
-    CoreMidiInputSession, CoreMidiInputSessionKind, core_midi_status_error, insert_input_resource,
-    native_optional_string, native_string, selected_protocol_id,
+    CoreMidiInputRepository, CoreMidiInputRepositoryKind, core_midi_status_error,
+    insert_input_resource, native_optional_string, native_string, selected_protocol_id,
 };
 use super::descriptor::{
     endpoint_descriptor, filtered_descriptors, register_endpoint_override, resolve_endpoint,
@@ -138,7 +138,7 @@ pub(crate) fn midi_input_port_open(
             ));
         }
 
-        CoreMidiInputSessionKind::ModernSource {
+        CoreMidiInputRepositoryKind::ModernSource {
             port,
             source: endpoint,
             _receive_block: receive_block,
@@ -189,14 +189,14 @@ pub(crate) fn midi_input_port_open(
             ));
         }
 
-        CoreMidiInputSessionKind::LegacySource {
+        CoreMidiInputRepositoryKind::LegacySource {
             port,
             source: endpoint,
             _callback_context: callback_context,
         }
     };
 
-    let session = Arc::new(CoreMidiInputSession {
+    let session = Arc::new(CoreMidiInputRepository {
         _service: service,
         descriptor,
         queue,
@@ -370,7 +370,7 @@ pub(crate) fn midi_input_virtual_create(
 
         (
             endpoint,
-            CoreMidiInputSessionKind::ModernVirtualDestination {
+            CoreMidiInputRepositoryKind::ModernVirtualDestination {
                 endpoint,
                 _receive_block: receive_block,
             },
@@ -404,7 +404,7 @@ pub(crate) fn midi_input_virtual_create(
 
         (
             endpoint,
-            CoreMidiInputSessionKind::LegacyVirtualDestination {
+            CoreMidiInputRepositoryKind::LegacyVirtualDestination {
                 endpoint,
                 _callback_context: callback_context,
             },
@@ -440,7 +440,7 @@ pub(crate) fn midi_input_virtual_create(
     register_endpoint_override(&service, endpoint, options.data_format, options.protocol);
 
     let descriptor = endpoint_descriptor(&service, MidiPortDirection::Input, endpoint);
-    let session = Arc::new(CoreMidiInputSession {
+    let session = Arc::new(CoreMidiInputRepository {
         _service: service,
         descriptor,
         queue,

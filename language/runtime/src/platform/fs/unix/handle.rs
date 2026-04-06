@@ -44,7 +44,7 @@ pub(crate) unsafe fn destack_fs_close(
 
     // remove the resource and close the descriptor
     if !binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -95,7 +95,7 @@ pub(crate) unsafe fn destack_fs_closedir(
 
     // remove the resource entry
     if !binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -443,7 +443,7 @@ pub(crate) unsafe fn destack_fs_dup(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -491,7 +491,7 @@ pub(crate) unsafe fn destack_fs_dup2(
         binding
             .agent()
             .resources
-            .remove(binding.world(), target.0, Some(binding.engine()))
+            .remove(&binding.world(), target.0, Some(binding.engine()))
     {
         entry.finalize(target.0);
     }
@@ -502,7 +502,7 @@ pub(crate) unsafe fn destack_fs_dup2(
             directory_stream: None,
         });
     binding.agent().resources.insert_with_id(
-        binding.world(),
+        &binding.world(),
         target.0,
         entry,
         Some(binding.engine()),
@@ -566,7 +566,7 @@ pub(crate) unsafe fn destack_fs_dup3(
         binding
             .agent()
             .resources
-            .remove(binding.world(), target.0, Some(binding.engine()))
+            .remove(&binding.world(), target.0, Some(binding.engine()))
     {
         entry.finalize(target.0);
     }
@@ -577,7 +577,7 @@ pub(crate) unsafe fn destack_fs_dup3(
             directory_stream: None,
         });
     binding.agent().resources.insert_with_id(
-        binding.world(),
+        &binding.world(),
         target.0,
         entry,
         Some(binding.engine()),
@@ -665,7 +665,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
         binding
             .agent()
             .resources
-            .insert(binding.world(), resource, Some(binding.engine()));
+            .insert(&binding.world(), resource, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }

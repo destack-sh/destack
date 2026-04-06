@@ -1257,7 +1257,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
 
     // remove and finalize monitor resource
     let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -1310,7 +1310,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
         .with_payload(WindowsInputMonitorBinding { next_sequence: 1 })
         .with_finalizer(WindowsMonitorFinalizer);
     let handle = resource::InputMonitorHandle(binding.agent().resources.insert(
-        binding.world(),
+        &binding.world(),
         entry,
         Some(binding.engine()),
     ));

@@ -2,8 +2,8 @@ use crate::platform::device::MidiBackend;
 use crate::platform::device::midi::core::define_backend_midi_resource_accessors;
 
 use super::core::{
-    WindowsMidiEventResource, WindowsMidiEventSession, WindowsMidiInputResource,
-    WindowsMidiInputSession, WindowsMidiOutputResource, WindowsMidiOutputSession,
+    WindowsMidiEventRepository, WindowsMidiEventResource, WindowsMidiInputRepository,
+    WindowsMidiInputResource, WindowsMidiOutputRepository, WindowsMidiOutputResource,
 };
 
 define_backend_midi_resource_accessors!(
@@ -12,19 +12,19 @@ define_backend_midi_resource_accessors!(
     input = (
         input_resource,
         WindowsMidiInputResource,
-        WindowsMidiInputSession,
+        WindowsMidiInputRepository,
         "midi input port"
     ),
     output = (
         output_resource,
         WindowsMidiOutputResource,
-        WindowsMidiOutputSession,
+        WindowsMidiOutputRepository,
         "midi output port"
     ),
     event = (
         event_resource,
         WindowsMidiEventResource,
-        WindowsMidiEventSession,
+        WindowsMidiEventRepository,
         "midi event"
     )
 );

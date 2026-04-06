@@ -54,7 +54,7 @@ pub(crate) fn destack_resource_close(
         binding
             .agent()
             .resources
-            .remove_and_finalize(binding.world(), id, Some(binding.engine()));
+            .remove_and_finalize(&binding.world(), id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.close", id));
     }
@@ -131,7 +131,7 @@ pub(crate) fn destack_resource_remove(
         binding
             .agent()
             .resources
-            .remove_and_finalize(binding.world(), id, Some(binding.engine()));
+            .remove_and_finalize(&binding.world(), id, Some(binding.engine()));
     if !removed {
         return Err(resource_not_found("destack.resource.id.remove", id));
     }

@@ -106,7 +106,7 @@ pub(crate) unsafe fn destack_process_try_wait(
 
     if is_terminal_wait_status(&status) {
         let _ = binding.agent().resources.remove_and_finalize(
-            binding.world(),
+            &binding.world(),
             handle.0,
             Some(binding.engine()),
         );
@@ -150,7 +150,7 @@ pub(crate) unsafe fn destack_process_wait(
 
     if is_terminal_wait_status(&status) {
         let _ = binding.agent().resources.remove_and_finalize(
-            binding.world(),
+            &binding.world(),
             handle.0,
             Some(binding.engine()),
         );

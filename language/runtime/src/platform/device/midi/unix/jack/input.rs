@@ -17,7 +17,7 @@ use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
 
 use super::core::{
-    JackInputCallbackContext, JackInputSession, JackInputSessionKind, JackInputTerminalError,
+    JackInputCallbackContext, JackInputRepository, JackInputRepositoryKind, JackInputTerminalError,
     activate_client, connect_ports, insert_input_resource, internal_input_client_name,
     jack_event_time_to_mono_ns, native_optional_string, native_string, open_jack_client, port_name,
     register_input_port, release_input_callback_context, retain_input_callback_context,
@@ -227,12 +227,12 @@ pub(crate) fn midi_input_port_open(
         return Err(error);
     }
 
-    let session = Arc::new(JackInputSession {
+    let session = Arc::new(JackInputRepository {
         _service: service,
         descriptor: endpoint.descriptor,
         queue,
         terminal_error,
-        kind: parking_lot::Mutex::new(JackInputSessionKind::Source {
+        kind: parking_lot::Mutex::new(JackInputRepositoryKind::Source {
             client,
             _port: port,
             _context_owner: context,
@@ -436,12 +436,12 @@ pub(crate) fn midi_input_virtual_create(
     let backend_port_name = port_name(&client, port, "destack.device.midi.input.virtual.create")?;
     let descriptor =
         virtual_input_descriptor(&backend_port_name, options.data_format, options.protocol);
-    let session = Arc::new(JackInputSession {
+    let session = Arc::new(JackInputRepository {
         _service: service,
         descriptor,
         queue,
         terminal_error,
-        kind: parking_lot::Mutex::new(JackInputSessionKind::VirtualDestination {
+        kind: parking_lot::Mutex::new(JackInputRepositoryKind::VirtualDestination {
             client,
             _port: port,
             _context_owner: context,

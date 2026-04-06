@@ -22,7 +22,7 @@ pub(crate) struct WaylandDataOfferState {
 
 /// Mutable payload for one active drop session.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct WaylandDropSessionState {
+pub(crate) struct WaylandDropRepositoryState {
     /// Offer object id for this active session.
     pub(crate) offer: Option<wayland_client::backend::ObjectId>,
     /// Target surface object id for this active session.
@@ -108,5 +108,5 @@ pub(crate) struct WaylandInputState {
     pub(crate) data_offer_state_by_id:
         HashMap<wayland_client::backend::ObjectId, WaylandDataOfferState>,
     /// Active drop-session state.
-    pub(crate) drop_session_state: WaylandDropSessionState,
+    pub(crate) drop_session_state: WaylandDropRepositoryState,
 }

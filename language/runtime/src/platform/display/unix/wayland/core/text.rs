@@ -349,15 +349,15 @@ pub(crate) fn synchronize_window_text_session(
     state: InputTextSessionStateValue,
     geometry: Option<InputTextGeometry>,
 ) -> RuntimeResult<()> {
-    let surface_id = window_surface_id(context, window, "destack.input.text.syncWindowSession")?;
+    let surface_id = window_surface_id(context, window, "destack.input.text.syncWindowRepository")?;
 
     with_connection_dispatch(
         context,
-        "destack.input.text.syncWindowSession",
+        "destack.input.text.syncWindowRepository",
         |_connection, _event_queue, dispatch_state| {
             let Some(text_input) = dispatch_state.input.text_input.as_ref().cloned() else {
                 return Err(core_platform::not_supported(
-                    "destack.input.text.syncWindowSession",
+                    "destack.input.text.syncWindowRepository",
                 ));
             };
 

@@ -355,7 +355,7 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }
@@ -443,7 +443,7 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
         binding
             .agent()
             .resources
-            .insert(binding.world(), entry, Some(binding.engine()));
+            .insert(&binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = DirectoryHandle(resource_id);
     }

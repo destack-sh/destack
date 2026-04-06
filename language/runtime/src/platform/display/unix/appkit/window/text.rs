@@ -451,14 +451,14 @@ pub(crate) fn synchronize_window_text_session(
     appkit_core::with_window_host(
         runtime_state,
         window,
-        "destack.input.text.syncWindowSession",
+        "destack.input.text.syncWindowRepository",
         |host| {
             ensure_window_text_host(host, runtime_state, window, configuration)?;
 
             let text_input = host.text_input.borrow();
             let Some(text_host) = text_input.as_ref() else {
                 return Err(core_platform::io_not_found(
-                    "destack.input.text.syncWindowSession",
+                    "destack.input.text.syncWindowRepository",
                     format!("window handle {} lost its text host", window.0.0),
                 ));
             };
@@ -618,7 +618,7 @@ fn configure_secure_text_field(
 ) -> RuntimeResult<()> {
     if configuration.is_multiline {
         return Err(core_platform::not_supported(
-            "destack.input.text.syncWindowSession",
+            "destack.input.text.syncWindowRepository",
         ));
     }
 

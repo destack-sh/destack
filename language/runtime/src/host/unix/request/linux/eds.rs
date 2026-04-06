@@ -79,7 +79,7 @@ pub(crate) struct EdsSourceDescriptor {
 /// One opened Evolution Data Server backend object.
 #[derive(Debug)]
 pub(crate) struct EdsBackend {
-    /// Session-bus connection for proxy calls.
+    /// Repository-bus connection for proxy calls.
     pub connection: Connection,
     /// Resolved backend service name.
     pub bus_name: String,

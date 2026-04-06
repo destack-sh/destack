@@ -23,7 +23,7 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    WinMmOutputSession, insert_output_resource, wait_for_output_completion_event, winmm_error,
+    WinMmOutputRepository, insert_output_resource, wait_for_output_completion_event, winmm_error,
 };
 use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::output_resource;
@@ -72,7 +72,7 @@ fn write_short_message(
 
 /// Write one long WinMM byte payload.
 fn write_long_message(
-    session: &WinMmOutputSession,
+    session: &WinMmOutputRepository,
     record: &MidiOutputRecordValue,
     operation: &'static str,
 ) -> RuntimeResult<()> {
@@ -231,7 +231,7 @@ pub(crate) fn midi_output_port_open(
         ));
     }
 
-    let session = Arc::new(WinMmOutputSession {
+    let session = Arc::new(WinMmOutputRepository {
         _service: service,
         descriptor,
         data_format,

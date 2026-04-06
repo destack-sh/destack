@@ -33,7 +33,7 @@ const ALLOWED_DROP_EFFECTS: u32 = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT
 
 /// Mutable state for one active drop session.
 #[derive(Debug, Default)]
-struct DropSessionState {
+struct DropRepositoryState {
     /// Whether one drag session is active over this window.
     is_active: bool,
     /// Whether this session currently has one accepted payload type.
@@ -56,7 +56,7 @@ struct WindowDropTargetCallback {
     /// Shared window-event runtime state.
     runtime_state: Arc<Win32RuntimeState>,
     /// Mutable drop-session state.
-    session_state: Mutex<DropSessionState>,
+    session_state: Mutex<DropRepositoryState>,
 }
 
 /// Vtable shape for `IDropTarget`.
@@ -163,7 +163,7 @@ fn create_drop_target_callback(
         reference_count: AtomicU32::new(1),
         window,
         runtime_state,
-        session_state: Mutex::new(DropSessionState::default()),
+        session_state: Mutex::new(DropRepositoryState::default()),
     });
 
     Box::into_raw(callback) as *mut c_void
@@ -359,7 +359,7 @@ fn drop_text(data_object: IDataObject) -> Option<String> {
 }
 
 /// Publish one drop-started event when this session has not started yet.
-fn publish_drop_started(callback: &WindowDropTargetCallback, state: &mut DropSessionState) {
+fn publish_drop_started(callback: &WindowDropTargetCallback, state: &mut DropRepositoryState) {
     if state.is_active {
         return;
     }
@@ -463,7 +463,7 @@ unsafe extern "system" fn drop_target_drag_leave(this: *mut c_void) -> HRESULT {
     // capture previous hover payload and clear session
     let previous_path = session_state.last_hover_path_utf16.clone();
     let position = session_state.last_hover_position;
-    *session_state = DropSessionState::default();
+    *session_state = DropRepositoryState::default();
     drop(session_state);
 
     // publish hover leave when one hover payload exists
@@ -503,7 +503,7 @@ unsafe extern "system" fn drop_target_drop_data(
     publish_drop_started(callback, &mut session_state);
     let previous_path = session_state.last_hover_path_utf16.clone();
     let previous_position = session_state.last_hover_position.or(position);
-    *session_state = DropSessionState::default();
+    *session_state = DropRepositoryState::default();
     drop(session_state);
 
     if previous_path.is_some() || previous_position.is_some() {

@@ -17,7 +17,8 @@ pub(crate) use codec::{
     protocol_code,
 };
 pub(crate) use session::{
-    AndroidBackendDescription, AndroidEventDeliveryKind, AndroidEventResource, AndroidEventSession,
-    AndroidInputResource, AndroidInputSession, AndroidOutputResource, AndroidOutputSession,
-    SnapshotKey, insert_event_resource, insert_input_resource, insert_output_resource,
+    AndroidBackendDescription, AndroidEventDeliveryKind, AndroidEventRepository,
+    AndroidEventResource, AndroidInputRepository, AndroidInputResource, AndroidOutputRepository,
+    AndroidOutputResource, SnapshotKey, insert_event_resource, insert_input_resource,
+    insert_output_resource,
 };

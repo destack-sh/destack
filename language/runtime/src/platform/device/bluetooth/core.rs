@@ -102,7 +102,7 @@ pub(super) fn close_bluetooth_resource(
     }
 
     if !binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle,
         Some(binding.engine()),
     ) {

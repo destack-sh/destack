@@ -24,7 +24,7 @@ pub(crate) fn open_display_handle(
         context
             .agent()
             .resources
-            .insert(context.world(), entry, Some(context.engine()));
+            .insert(&context.world(), entry, Some(context.engine()));
 
     resource::DisplayHandle(resource_id)
 }

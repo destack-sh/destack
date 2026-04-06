@@ -12,7 +12,7 @@ use crate::platform::resource::WindowHandle;
 use crate::runtime::BindingCallContext;
 
 use crate::platform::display::unix::wayland::core::{
-    self as wayland_core, WaylandConnectionDispatchState, WaylandDropSessionState,
+    self as wayland_core, WaylandConnectionDispatchState, WaylandDropRepositoryState,
 };
 use crate::platform::display::unix::wayland::event;
 use crate::platform::display::unix::wayland::model::WaylandWindowHostState;
@@ -192,7 +192,7 @@ pub(crate) fn clear_drop_session(dispatch_state: &mut WaylandConnectionDispatchS
             .remove(&offer_id);
     }
 
-    dispatch_state.input.drop_session_state = WaylandDropSessionState::default();
+    dispatch_state.input.drop_session_state = WaylandDropRepositoryState::default();
 }
 
 /// Handle one `wl_data_offer` event for one active runtime connection.

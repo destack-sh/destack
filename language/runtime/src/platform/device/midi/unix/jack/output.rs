@@ -16,10 +16,11 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
 use super::core::{
-    JackOutputCallbackContext, JackOutputSession, JackOutputSessionKind, JackOutputTerminalError,
-    activate_client, connect_ports, insert_output_resource, internal_output_client_name,
-    native_optional_string, native_string, open_jack_client, port_name, register_output_port,
-    release_output_callback_context, retain_output_callback_context,
+    JackOutputCallbackContext, JackOutputRepository, JackOutputRepositoryKind,
+    JackOutputTerminalError, activate_client, connect_ports, insert_output_resource,
+    internal_output_client_name, native_optional_string, native_string, open_jack_client,
+    port_name, register_output_port, release_output_callback_context,
+    retain_output_callback_context,
 };
 use super::descriptor::{filtered_descriptors, resolve_endpoint, virtual_output_descriptor};
 use super::resource::output_resource;
@@ -208,14 +209,14 @@ pub(crate) fn midi_output_port_open(
         return Err(error);
     }
 
-    let session = Arc::new(JackOutputSession {
+    let session = Arc::new(JackOutputRepository {
         _service: service,
         descriptor: endpoint.descriptor,
         data_format,
         protocol,
         pending_records,
         terminal_error,
-        kind: parking_lot::Mutex::new(JackOutputSessionKind::Destination {
+        kind: parking_lot::Mutex::new(JackOutputRepositoryKind::Destination {
             client,
             _port: port,
             _context_owner: context,
@@ -380,14 +381,14 @@ pub(crate) fn midi_output_virtual_create(
     let backend_port_name = port_name(&client, port, "destack.device.midi.output.virtual.create")?;
     let descriptor =
         virtual_output_descriptor(&backend_port_name, options.data_format, options.protocol);
-    let session = Arc::new(JackOutputSession {
+    let session = Arc::new(JackOutputRepository {
         _service: service,
         descriptor,
         data_format: options.data_format,
         protocol: Some(options.protocol),
         pending_records,
         terminal_error,
-        kind: parking_lot::Mutex::new(JackOutputSessionKind::VirtualSource {
+        kind: parking_lot::Mutex::new(JackOutputRepositoryKind::VirtualSource {
             client,
             _port: port,
             _context_owner: context,

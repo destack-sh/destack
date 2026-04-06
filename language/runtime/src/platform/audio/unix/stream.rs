@@ -123,7 +123,7 @@ pub(crate) unsafe fn destack_audio_stream_close(
     stream.unbind_runtime();
 
     if !binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -338,7 +338,7 @@ pub(crate) unsafe fn destack_audio_stream_open(
     )?;
 
     let resource_id = binding.agent().resources.insert(
-        binding.world(),
+        &binding.world(),
         ResourceEntry::new(ResourceKind::AudioStream)
             .with_label(audio_core::AUDIO_STREAM_RESOURCE_LABEL)
             .with_payload(stream.clone())

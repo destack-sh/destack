@@ -13,7 +13,7 @@ use crate::platform::device::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
-use super::core::{WinRtOutputSession, insert_output_resource};
+use super::core::{WinRtOutputRepository, insert_output_resource};
 use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::output_resource;
 
@@ -65,7 +65,7 @@ pub(crate) fn midi_output_port_open(
     let host_session_id =
         service.open_output_session(endpoint.backend_id, "destack.device.midi.output.port.open")?;
 
-    let session = Arc::new(WinRtOutputSession {
+    let session = Arc::new(WinRtOutputRepository {
         _service: service,
         descriptor,
         host_session_id,

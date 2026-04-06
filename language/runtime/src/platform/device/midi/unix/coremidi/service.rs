@@ -13,7 +13,7 @@ use super::abi::{
     MIDIClientCreateWithBlock, MIDIClientDispose, MIDIClientRef, MIDIGetNumberOfDestinations,
     MIDIGetNumberOfSources, MIDINotification, create_cf_string, release_cf,
 };
-use super::core::{CoreMidiEndpointOverride, CoreMidiEventDeliveryKind, CoreMidiEventSession};
+use super::core::{CoreMidiEndpointOverride, CoreMidiEventDeliveryKind, CoreMidiEventRepository};
 use super::event::dispatch_native_notification;
 
 /// One process-global virtual endpoint override table.
@@ -46,7 +46,7 @@ pub(super) struct CoreMidiNativeEventRegistry {
     /// Next registration id.
     pub(super) next_registration_id: u64,
     /// Registered native event subscriptions.
-    pub(super) sessions: BTreeMap<u64, Weak<Mutex<CoreMidiEventSession>>>,
+    pub(super) sessions: BTreeMap<u64, Weak<Mutex<CoreMidiEventRepository>>>,
 }
 
 unsafe impl Send for CoreMidiNotifyBlock {}
@@ -201,7 +201,7 @@ fn core_midi_notify_block(
 /// Register one native event subscription.
 pub(super) fn register_native_event_session(
     service: &Arc<CoreMidiService>,
-    session: &Arc<Mutex<CoreMidiEventSession>>,
+    session: &Arc<Mutex<CoreMidiEventRepository>>,
 ) -> CoreMidiEventDeliveryKind {
     let mut registry = service.native_event_registry.lock();
     let registration_id = registry.next_registration_id;

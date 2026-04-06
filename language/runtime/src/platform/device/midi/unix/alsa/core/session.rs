@@ -85,7 +85,7 @@ pub(crate) struct AlsaTopologyState {
 }
 
 /// One opened ALSA input-session kind.
-pub(crate) enum AlsaInputSessionKind {
+pub(crate) enum AlsaInputRepositoryKind {
     /// One host source connected into one hidden destination port.
     Source {
         /// The owned ALSA client handle.
@@ -119,7 +119,7 @@ pub(crate) enum AlsaInputSessionKind {
 }
 
 /// One opened ALSA output-session kind.
-pub(crate) enum AlsaOutputSessionKind {
+pub(crate) enum AlsaOutputRepositoryKind {
     /// One hidden source connected to one remote destination.
     Destination {
         /// The owned ALSA client handle.
@@ -149,7 +149,7 @@ pub(crate) enum AlsaOutputSessionKind {
 }
 
 /// One opened ALSA input session.
-pub(crate) struct AlsaInputSession {
+pub(crate) struct AlsaInputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<AlsaService>,
     /// Current descriptor snapshot.
@@ -158,8 +158,8 @@ pub(crate) struct AlsaInputSession {
     pub(crate) queue: Arc<BoundedQueue<MidiInputRecordValue>>,
     /// Deferred terminal reader failure.
     pub(crate) terminal_error: Arc<Mutex<Option<AlsaInputTerminalError>>>,
-    /// Session resources that must be released.
-    pub(crate) kind: Mutex<AlsaInputSessionKind>,
+    /// Repository resources that must be released.
+    pub(crate) kind: Mutex<AlsaInputRepositoryKind>,
 }
 
 /// One terminal input-reader failure.
@@ -202,7 +202,7 @@ impl AlsaInputTerminalError {
 }
 
 /// One opened ALSA output session.
-pub(crate) struct AlsaOutputSession {
+pub(crate) struct AlsaOutputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<AlsaService>,
     /// Current descriptor snapshot.
@@ -211,8 +211,8 @@ pub(crate) struct AlsaOutputSession {
     pub(crate) data_format: MidiDataFormat,
     /// Selected protocol.
     pub(crate) protocol: Option<MidiProtocol>,
-    /// Session resources that must be released.
-    pub(crate) kind: AlsaOutputSessionKind,
+    /// Repository resources that must be released.
+    pub(crate) kind: AlsaOutputRepositoryKind,
 }
 
 /// One stable key for one direction-scoped snapshot row.
@@ -234,7 +234,7 @@ pub(crate) enum AlsaEventDeliveryKind {
 
 /// One opened MIDI event subscription.
 #[derive(Clone)]
-pub(crate) struct AlsaEventSession {
+pub(crate) struct AlsaEventRepository {
     /// Selected backend for the subscription.
     pub(crate) backend: MidiBackend,
     /// Included directions.
@@ -260,20 +260,20 @@ pub(crate) struct AlsaEventSession {
 /// Resource payload for one input session.
 pub(crate) struct AlsaInputResource {
     /// Shared session state.
-    pub(crate) session: Arc<AlsaInputSession>,
+    pub(crate) session: Arc<AlsaInputRepository>,
 }
 
 /// Resource payload for one output session.
 pub(crate) struct AlsaOutputResource {
     /// Shared session state.
-    pub(crate) session: Arc<AlsaOutputSession>,
+    pub(crate) session: Arc<AlsaOutputRepository>,
 }
 
 /// Resource payload for one event subscription.
 #[derive(Clone)]
 pub(crate) struct AlsaEventResource {
     /// Shared subscription state.
-    pub(crate) session: Arc<Mutex<AlsaEventSession>>,
+    pub(crate) session: Arc<Mutex<AlsaEventRepository>>,
 }
 
 unsafe impl Send for AlsaHandle {}
@@ -306,19 +306,19 @@ impl Drop for AlsaMidiParser {
     }
 }
 
-impl Drop for AlsaInputSession {
+impl Drop for AlsaInputRepository {
     /// Release ALSA resources for one input session.
     fn drop(&mut self) {
         let mut kind = self.kind.lock();
 
         // stop the reader thread before tearing down the ALSA handle
         match &mut *kind {
-            AlsaInputSessionKind::Source {
+            AlsaInputRepositoryKind::Source {
                 stop_flag,
                 reader_thread,
                 ..
             }
-            | AlsaInputSessionKind::VirtualDestination {
+            | AlsaInputRepositoryKind::VirtualDestination {
                 stop_flag,
                 reader_thread,
                 ..
@@ -333,7 +333,7 @@ impl Drop for AlsaInputSession {
 
         // session-specific teardown
         match &*kind {
-            AlsaInputSessionKind::Source {
+            AlsaInputRepositoryKind::Source {
                 handle,
                 queue,
                 local_port_id,
@@ -350,7 +350,7 @@ impl Drop for AlsaInputSession {
                 let _ = free_queue(handle, queue.id);
                 let _ = delete_simple_port(handle, *local_port_id);
             }
-            AlsaInputSessionKind::VirtualDestination {
+            AlsaInputRepositoryKind::VirtualDestination {
                 handle,
                 queue,
                 local_port_id,
@@ -365,11 +365,11 @@ impl Drop for AlsaInputSession {
     }
 }
 
-impl Drop for AlsaOutputSession {
+impl Drop for AlsaOutputRepository {
     /// Release ALSA resources for one output session.
     fn drop(&mut self) {
         match &self.kind {
-            AlsaOutputSessionKind::Destination {
+            AlsaOutputRepositoryKind::Destination {
                 handle,
                 queue,
                 local_port_id,
@@ -381,7 +381,7 @@ impl Drop for AlsaOutputSession {
                 let _ = free_queue(handle, queue.id);
                 let _ = delete_simple_port(handle, *local_port_id);
             }
-            AlsaOutputSessionKind::VirtualSource {
+            AlsaOutputRepositoryKind::VirtualSource {
                 handle,
                 queue,
                 local_port_id,
@@ -397,7 +397,7 @@ impl Drop for AlsaOutputSession {
 define_backend_midi_resource_inserters!(
     vis = pub(crate),
     backend = MidiBackend::Alsa,
-    input = (insert_input_resource, AlsaInputResource, AlsaInputSession),
-    output = (insert_output_resource, AlsaOutputResource, AlsaOutputSession),
-    event = (insert_event_resource, AlsaEventResource, AlsaEventSession)
+    input = (insert_input_resource, AlsaInputResource, AlsaInputRepository),
+    output = (insert_output_resource, AlsaOutputResource, AlsaOutputRepository),
+    event = (insert_event_resource, AlsaEventResource, AlsaEventRepository)
 );

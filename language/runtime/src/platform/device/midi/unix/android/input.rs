@@ -16,8 +16,8 @@ use crate::runtime::BindingCallContext;
 
 use super::backend::resolve_backend;
 use super::core::{
-    AndroidInputSession, close_input_session, create_virtual_input_session, insert_input_resource,
-    open_input_session, read_input_port_descriptors, read_input_records,
+    AndroidInputRepository, close_input_session, create_virtual_input_session,
+    insert_input_resource, open_input_session, read_input_port_descriptors, read_input_records,
 };
 use super::resource::input_resource;
 
@@ -116,7 +116,7 @@ pub(crate) fn midi_input_port_open(
         "destack.device.midi.input.port.open",
     )?;
 
-    let session = Arc::new(AndroidInputSession {
+    let session = Arc::new(AndroidInputRepository {
         descriptor,
         host_session_id,
     });
@@ -308,7 +308,7 @@ pub(crate) fn midi_input_virtual_create(
         "destack.device.midi.input.virtual.create",
     )?;
 
-    let session = Arc::new(AndroidInputSession {
+    let session = Arc::new(AndroidInputRepository {
         descriptor,
         host_session_id,
     });

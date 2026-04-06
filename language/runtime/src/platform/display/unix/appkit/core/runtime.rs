@@ -60,7 +60,7 @@ unsafe impl Sync for AppKitResourceTableRef {}
 
 /// Callback-safe reference to the owning runtime world.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct AppKitWorldRef(*const WorldRef);
+pub(crate) struct AppKitWorldRef(WorldRef);
 
 unsafe impl Send for AppKitWorldRef {}
 unsafe impl Sync for AppKitWorldRef {}
@@ -165,7 +165,7 @@ impl AppKitRuntimeState {
         Self {
             main_thread_state,
             resources: AppKitResourceTableRef(&binding.agent().resources),
-            world: AppKitWorldRef(binding.world()),
+            world: AppKitWorldRef(*binding.world()),
             display_handle_cache: Mutex::new(HashMap::new()),
             monitor_events: Mutex::new(RuntimeEventLog::default()),
             monitor_event_signal: Condvar::new(),
@@ -263,9 +263,8 @@ impl AppKitRuntimeState {
     }
 
     /// Borrow the runtime world captured by this runtime.
-    pub(crate) fn world(&self) -> &WorldRef {
-        // safety: the world outlives the runtime state for the lifetime of the agent
-        unsafe { &*self.world.0 }
+    pub(crate) fn world_ref(&self) -> WorldRef {
+        self.world.0
     }
 
     /// Register one host-owned ingress observer for this runtime.

@@ -265,7 +265,7 @@ pub(super) fn poll_open(
     let handle = binding
         .agent()
         .resources
-        .insert(binding.world(), entry, Some(binding.engine()));
+        .insert(&binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::PollHandle(handle))
 }
@@ -289,7 +289,7 @@ pub(super) fn poll_close(
 
     // remove one poll instance from the resource table
     let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -863,7 +863,7 @@ pub(super) fn completion_open(
     let handle = binding
         .agent()
         .resources
-        .insert(binding.world(), entry, Some(binding.engine()));
+        .insert(&binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::CompletionHandle(handle))
 }
@@ -878,7 +878,7 @@ pub(super) fn completion_close(
 
     // remove one completion queue from the resource table
     let removed = binding.agent().resources.remove_and_finalize(
-        binding.world(),
+        &binding.world(),
         handle.0,
         Some(binding.engine()),
     );

@@ -31,7 +31,7 @@ use super::abi::{
 };
 use super::backend::resolve_backend;
 use super::core::{
-    CoreMidiEventDeliveryKind, CoreMidiEventSession, SnapshotKey, insert_event_resource,
+    CoreMidiEventDeliveryKind, CoreMidiEventRepository, SnapshotKey, insert_event_resource,
 };
 use super::descriptor::filtered_descriptors;
 use super::resource::event_resource;
@@ -71,7 +71,7 @@ fn event_snapshot(
 /// Refresh one event subscription queue from the current snapshot.
 fn refresh_event_subscription(
     service: &Arc<CoreMidiService>,
-    session: &mut CoreMidiEventSession,
+    session: &mut CoreMidiEventRepository,
     source: MidiEventSource,
 ) -> RuntimeResult<()> {
     let next_snapshot = event_snapshot(service, session.flags, session.direction_mask);
@@ -89,14 +89,14 @@ fn refresh_event_subscription(
 /// Refresh one event subscription from synthetic polling.
 fn refresh_poll_event_subscription(
     service: &Arc<CoreMidiService>,
-    session: &mut CoreMidiEventSession,
+    session: &mut CoreMidiEventRepository,
 ) -> RuntimeResult<()> {
     refresh_event_subscription(service, session, MidiEventSource::SyntheticPoll)
 }
 
 /// Queue one backend-disconnected event into one subscription.
 fn queue_backend_disconnected_event(
-    session: &mut CoreMidiEventSession,
+    session: &mut CoreMidiEventRepository,
     source: MidiEventSource,
     flags: u32,
 ) -> RuntimeResult<()> {
@@ -113,7 +113,7 @@ fn queue_backend_disconnected_event(
 /// Register one synthetic poll delivery for one CoreMIDI event subscription.
 fn register_poll_event_session(
     service: &Arc<CoreMidiService>,
-    session: &Arc<Mutex<CoreMidiEventSession>>,
+    session: &Arc<Mutex<CoreMidiEventRepository>>,
     poll_interval: Duration,
 ) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
     let service = service.clone();
@@ -158,7 +158,7 @@ fn register_poll_event_session(
 
 /// Pop one queued event after honoring deferred overflow errors.
 fn try_pop_session_event(
-    session: &CoreMidiEventSession,
+    session: &CoreMidiEventRepository,
     operation: &'static str,
 ) -> RuntimeResult<Option<MidiEventValue>> {
     try_pop_queued_event(&session.queue, operation)
@@ -166,7 +166,7 @@ fn try_pop_session_event(
 
 /// Pop one queued event batch after honoring deferred overflow errors.
 fn try_pop_session_event_batch(
-    session: &CoreMidiEventSession,
+    session: &CoreMidiEventRepository,
     max_events: usize,
     operation: &'static str,
 ) -> RuntimeResult<Vec<MidiEventValue>> {
@@ -176,7 +176,7 @@ fn try_pop_session_event_batch(
 /// Collect all live native event subscriptions from one registry.
 fn collect_native_event_sessions(
     registry: &Arc<Mutex<CoreMidiNativeEventRegistry>>,
-) -> Vec<Arc<Mutex<CoreMidiEventSession>>> {
+) -> Vec<Arc<Mutex<CoreMidiEventRepository>>> {
     let mut registry = registry.lock();
 
     collect_live_event_sessions(&mut registry.sessions)
@@ -282,7 +282,7 @@ pub(crate) fn midi_event_open(
         }
     };
 
-    let session = Arc::new(Mutex::new(CoreMidiEventSession {
+    let session = Arc::new(Mutex::new(CoreMidiEventRepository {
         backend,
         direction_mask: options.direction_mask,
         flags: options.flags,
@@ -458,13 +458,13 @@ mod tests {
     };
     use crate::runtime::control::queue::BoundedQueue;
 
-    use super::super::core::{CoreMidiEventDeliveryKind, CoreMidiEventSession};
+    use super::super::core::{CoreMidiEventDeliveryKind, CoreMidiEventRepository};
 
     /// Queue one backend-disconnected event with the active backend metadata.
     #[test]
     fn test_queue_backend_disconnected_event_pushes_backend_event() {
         let queue = Arc::new(BoundedQueue::new(4));
-        let mut session = CoreMidiEventSession {
+        let mut session = CoreMidiEventRepository {
             backend: MidiBackend::CoreMIDI,
             direction_mask: MidiPortDirectionFlags(MIDI_PORT_DIRECTION_FLAG_INPUT.0),
             flags: MidiEventSubscriptionFlags(MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED.0),

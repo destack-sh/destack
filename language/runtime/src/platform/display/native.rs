@@ -1,6 +1,4 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::abi::{NativeSlice, NativeStringRef};
 use crate::platform::core::BackendSupport;
 use crate::platform::display::{
     DisplayBackend, DisplayBackendCapabilityFlags, DisplayBackendDescriptor,
@@ -8,6 +6,7 @@ use crate::platform::display::{
 };
 use crate::platform::fs::OsPath;
 use crate::platform::resource::DisplayDragSessionHandle;
+use crate::platform::{NativeSlice, NativeStringRef, PlatformError};
 use crate::runtime::BindingCallContext;
 
 use super::core;

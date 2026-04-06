@@ -34,7 +34,7 @@ pub(crate) struct CoreMidiEndpointOverride {
 }
 
 /// One opened input-session variant.
-pub(crate) enum CoreMidiInputSessionKind {
+pub(crate) enum CoreMidiInputRepositoryKind {
     /// One legacy source connection.
     LegacySource {
         /// Connected input port.
@@ -70,7 +70,7 @@ pub(crate) enum CoreMidiInputSessionKind {
 }
 
 /// One opened output-session variant.
-pub(crate) enum CoreMidiOutputSessionKind {
+pub(crate) enum CoreMidiOutputRepositoryKind {
     /// One host destination with one output port.
     Destination {
         /// Output port used for MIDISend or MIDISendEventList.
@@ -86,19 +86,19 @@ pub(crate) enum CoreMidiOutputSessionKind {
 }
 
 /// One opened CoreMIDI input session.
-pub(crate) struct CoreMidiInputSession {
+pub(crate) struct CoreMidiInputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<CoreMidiService>,
     /// Current descriptor snapshot.
     pub(crate) descriptor: MidiPortDescriptorValue,
     /// Shared input queue.
     pub(crate) queue: Arc<BoundedQueue<MidiInputRecordValue>>,
-    /// Session resources that must be released.
-    pub(crate) kind: CoreMidiInputSessionKind,
+    /// Repository resources that must be released.
+    pub(crate) kind: CoreMidiInputRepositoryKind,
 }
 
 /// One opened CoreMIDI output session.
-pub(crate) struct CoreMidiOutputSession {
+pub(crate) struct CoreMidiOutputRepository {
     /// Shared service owner.
     pub(crate) _service: Arc<CoreMidiService>,
     /// Current descriptor snapshot.
@@ -107,8 +107,8 @@ pub(crate) struct CoreMidiOutputSession {
     pub(crate) data_format: MidiDataFormat,
     /// Selected protocol.
     pub(crate) protocol: Option<MidiProtocol>,
-    /// Session resources that must be released.
-    pub(crate) kind: CoreMidiOutputSessionKind,
+    /// Repository resources that must be released.
+    pub(crate) kind: CoreMidiOutputRepositoryKind,
 }
 
 /// One stable key for one direction-scoped snapshot row.
@@ -130,7 +130,7 @@ pub(crate) enum CoreMidiEventDeliveryKind {
 
 /// One opened MIDI event subscription.
 #[derive(Clone)]
-pub(crate) struct CoreMidiEventSession {
+pub(crate) struct CoreMidiEventRepository {
     /// Selected backend for the subscription.
     pub(crate) backend: MidiBackend,
     /// Included directions.
@@ -156,27 +156,27 @@ pub(crate) struct CoreMidiEventSession {
 /// Resource payload for one input session.
 pub(crate) struct CoreMidiInputResource {
     /// Shared session state.
-    pub(crate) session: Arc<CoreMidiInputSession>,
+    pub(crate) session: Arc<CoreMidiInputRepository>,
 }
 
 /// Resource payload for one output session.
 pub(crate) struct CoreMidiOutputResource {
     /// Shared session state.
-    pub(crate) session: Arc<CoreMidiOutputSession>,
+    pub(crate) session: Arc<CoreMidiOutputRepository>,
 }
 
 /// Resource payload for one event subscription.
 #[derive(Clone)]
 pub(crate) struct CoreMidiEventResource {
     /// Shared subscription state.
-    pub(crate) session: Arc<Mutex<CoreMidiEventSession>>,
+    pub(crate) session: Arc<Mutex<CoreMidiEventRepository>>,
 }
 
-impl Drop for CoreMidiInputSession {
+impl Drop for CoreMidiInputRepository {
     /// Release CoreMIDI resources for one input session.
     fn drop(&mut self) {
         match &self.kind {
-            CoreMidiInputSessionKind::LegacySource {
+            CoreMidiInputRepositoryKind::LegacySource {
                 port,
                 source,
                 _callback_context: _,
@@ -184,7 +184,7 @@ impl Drop for CoreMidiInputSession {
                 let _ = MIDIPortDisconnectSource(*port, *source);
                 let _ = MIDIPortDispose(*port);
             },
-            CoreMidiInputSessionKind::ModernSource {
+            CoreMidiInputRepositoryKind::ModernSource {
                 port,
                 source,
                 _receive_block: _,
@@ -192,14 +192,14 @@ impl Drop for CoreMidiInputSession {
                 let _ = MIDIPortDisconnectSource(*port, *source);
                 let _ = MIDIPortDispose(*port);
             },
-            CoreMidiInputSessionKind::LegacyVirtualDestination {
+            CoreMidiInputRepositoryKind::LegacyVirtualDestination {
                 endpoint,
                 _callback_context: _,
             } => unsafe {
                 unregister_endpoint_override(&self._service, *endpoint);
                 let _ = MIDIEndpointDispose(*endpoint);
             },
-            CoreMidiInputSessionKind::ModernVirtualDestination {
+            CoreMidiInputRepositoryKind::ModernVirtualDestination {
                 endpoint,
                 _receive_block: _,
             } => unsafe {
@@ -212,14 +212,14 @@ impl Drop for CoreMidiInputSession {
     }
 }
 
-impl Drop for CoreMidiOutputSession {
+impl Drop for CoreMidiOutputRepository {
     /// Release CoreMIDI resources for one output session.
     fn drop(&mut self) {
         match &self.kind {
-            CoreMidiOutputSessionKind::Destination { port, .. } => unsafe {
+            CoreMidiOutputRepositoryKind::Destination { port, .. } => unsafe {
                 let _ = MIDIPortDispose(*port);
             },
-            CoreMidiOutputSessionKind::VirtualSource { endpoint } => unsafe {
+            CoreMidiOutputRepositoryKind::VirtualSource { endpoint } => unsafe {
                 unregister_endpoint_override(&self._service, *endpoint);
                 let _ = MIDIEndpointDispose(*endpoint);
             },
@@ -227,28 +227,31 @@ impl Drop for CoreMidiOutputSession {
     }
 }
 
-impl CoreMidiInputSession {
+impl CoreMidiInputRepository {
     /// Return whether this session owns one virtual endpoint.
     pub(crate) fn is_virtual_endpoint(&self) -> bool {
         matches!(
             self.kind,
-            CoreMidiInputSessionKind::LegacyVirtualDestination { .. }
-                | CoreMidiInputSessionKind::ModernVirtualDestination { .. }
+            CoreMidiInputRepositoryKind::LegacyVirtualDestination { .. }
+                | CoreMidiInputRepositoryKind::ModernVirtualDestination { .. }
         )
     }
 }
 
-impl CoreMidiOutputSession {
+impl CoreMidiOutputRepository {
     /// Return whether this session owns one virtual endpoint.
     pub(crate) fn is_virtual_endpoint(&self) -> bool {
-        matches!(self.kind, CoreMidiOutputSessionKind::VirtualSource { .. })
+        matches!(
+            self.kind,
+            CoreMidiOutputRepositoryKind::VirtualSource { .. }
+        )
     }
 }
 
 define_backend_midi_resource_inserters!(
     vis = pub(crate),
     backend = MidiBackend::CoreMIDI,
-    input = (insert_input_resource, CoreMidiInputResource, CoreMidiInputSession),
-    output = (insert_output_resource, CoreMidiOutputResource, CoreMidiOutputSession),
-    event = (insert_event_resource, CoreMidiEventResource, CoreMidiEventSession)
+    input = (insert_input_resource, CoreMidiInputResource, CoreMidiInputRepository),
+    output = (insert_output_resource, CoreMidiOutputResource, CoreMidiOutputRepository),
+    event = (insert_event_resource, CoreMidiEventResource, CoreMidiEventRepository)
 );

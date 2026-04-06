@@ -17,7 +17,7 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
 
-use super::core::{WinRtInputSession, insert_input_resource};
+use super::core::{WinRtInputRepository, insert_input_resource};
 use super::descriptor::{filtered_descriptors, resolve_endpoint};
 use super::resource::input_resource;
 
@@ -80,7 +80,7 @@ pub(crate) fn midi_input_port_open(
         "destack.device.midi.input.port.open",
     )?;
 
-    let session = Arc::new(WinRtInputSession {
+    let session = Arc::new(WinRtInputRepository {
         _service: service,
         descriptor,
         host_session_id,

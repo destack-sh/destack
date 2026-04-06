@@ -16,7 +16,7 @@ use super::abi::{
     snd_seq_port_info_t,
 };
 use super::core::{
-    AlsaEndpointInfo, AlsaEventSession, AlsaHandle, AlsaLibrary, AlsaTopologyState,
+    AlsaEndpointInfo, AlsaEventRepository, AlsaHandle, AlsaLibrary, AlsaTopologyState,
     alsa_operation_error, create_simple_port, default_port_type,
     hidden_destination_port_capability, is_input_source, is_internal_client_name,
     is_output_destination, open_sequencer_handle,
@@ -30,7 +30,7 @@ pub(super) struct AlsaNativeEventRegistry {
     /// Next registration id.
     pub(super) next_registration_id: u64,
     /// Registered native event subscriptions.
-    pub(super) sessions: BTreeMap<u64, std::sync::Weak<Mutex<AlsaEventSession>>>,
+    pub(super) sessions: BTreeMap<u64, std::sync::Weak<Mutex<AlsaEventRepository>>>,
 }
 
 /// One process-global ALSA sequencer service.
@@ -120,7 +120,7 @@ pub(super) fn output_descriptors(service: &Arc<AlsaService>) -> Vec<AlsaEndpoint
 /// Register one native event subscription.
 pub(super) fn register_native_event_session(
     service: &Arc<AlsaService>,
-    session: &Arc<Mutex<AlsaEventSession>>,
+    session: &Arc<Mutex<AlsaEventRepository>>,
 ) -> super::core::AlsaEventDeliveryKind {
     let mut registry = service.native_event_registry.lock();
     let registration_id = registry.next_registration_id;
