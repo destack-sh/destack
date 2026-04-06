@@ -11,14 +11,9 @@ pub enum AnnotationPosition {
     Postfix,
 }
 
-/// Annotation to a JS node (like a comment or doc comment).
+/// Annotation to a JS node.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
-    /// Documentation annotation (like `/**`).
-    Doc {
-        position: AnnotationPosition,
-        string: StringId,
-    },
     /// Comment annotation (like `//` or `/*`).
     Comment {
         position: AnnotationPosition,
