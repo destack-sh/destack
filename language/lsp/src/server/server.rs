@@ -2982,9 +2982,9 @@ impl LanguageServer for DestackLanguageServer {
                         let Some(formatted) =
                             format_file(repository.as_ref(), revision, file_id, &file, formatter)
                         else {
-                            return Err(LanguageServiceError::SemanticQueryNotReady {
+                            return Err(LanguageServiceError::QueryNotReady {
                                 detail: format!(
-                                    "formatting semantic state is not ready for {}",
+                                    "formatting query artifacts are not ready for {}",
                                     path.display()
                                 ),
                             });
