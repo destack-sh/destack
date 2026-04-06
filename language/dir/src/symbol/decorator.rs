@@ -1,85 +1,86 @@
 use crate::StringId;
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 /// Extern binding metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct ExternBinding {
     /// The external name override (defaults to the symbol name).
     pub name: Option<StringId>,
 }
 
 /// Binding metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct Binding {
     /// The binding name override (defaults to the symbol name).
     pub name: Option<StringId>,
 }
 
 /// Intrinsic binding metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct IntrinsicBinding {
     /// The intrinsic name override (defaults to the symbol name).
     pub name: Option<StringId>,
 }
 
 /// Language item binding metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct LanguageItemBinding {
     /// The language item name override (defaults to the symbol name).
     pub name: Option<StringId>,
 }
 
 /// Deprecated marker metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct DeprecatedNotice {
     /// The deprecated message override.
     pub message: Option<StringId>,
 }
 
 /// Experimental marker metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct ExperimentalNotice {
     /// The experimental message override.
     pub message: Option<StringId>,
 }
 
 /// Unroll hint metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct UnrollHint {
     /// The suggested unroll factor.
     pub factor: Option<u32>,
 }
 
 /// Taint marker metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct TaintMarker {
     /// The optional taint label.
     pub label: Option<StringId>,
 }
 
 /// Sink marker metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct SinkMarker {
     /// The optional sink label.
     pub label: Option<StringId>,
 }
 
 /// Sanitizer marker metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct SanitizerMarker {
     /// The optional sanitizer label.
     pub label: Option<StringId>,
 }
 
 /// Tag marker metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct TagMarker {
     /// The optional tag label.
     pub label: Option<StringId>,
 }
 
 /// Lifetime annotation metadata for a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum LifetimeAnnotation {
     /// Borrow from specific parameter names.
     Parameters(Vec<StringId>),
@@ -88,7 +89,7 @@ pub enum LifetimeAnnotation {
 }
 
 /// Well-known decorator metadata attached to a symbol.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, AdaptImage)]
 pub struct SymbolDecorators {
     /// The binding override.
     pub binding: Option<Binding>,

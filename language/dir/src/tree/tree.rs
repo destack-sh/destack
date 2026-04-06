@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 
@@ -12,7 +13,7 @@ use crate::{
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AdaptImage)]
 pub struct NodeTree {
     /// The module id of the node tree.
     pub module_id: ModuleId,
@@ -109,7 +110,6 @@ impl NodeTree {
             inactive_node_ids: HashSet::new(),
         }
     }
-
     /// Mark a node id as inactive.
     pub fn mark_inactive(&mut self, node_id: LocalNodeIdAny) {
         self.inactive_node_ids.insert(node_id.id);

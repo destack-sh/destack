@@ -1,10 +1,10 @@
-use destack_source::ModuleId;
+use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{DependencyItem, GlobalSymbolId, LocalNodeId, LocalSymbolId, StaticKey, SymbolSpace};
 
 /// The kind of an export entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum ExportKind {
     /// A local symbol export.
     Local,
@@ -13,7 +13,7 @@ pub enum ExportKind {
 }
 
 /// The resolution state of an export target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum ExportTarget {
     /// A resolved export target.
     Resolved(GlobalSymbolId),
@@ -32,7 +32,7 @@ impl ExportTarget {
 }
 
 /// An Export is a resolved module export entry.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct Export {
     /// The export key.
     pub key: StaticKey,
@@ -89,7 +89,7 @@ impl Export {
 }
 
 /// The symbol space lookup order for a dependency kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub enum SymbolSpaceOrder {
     /// Do not consider any spaces.
     None,

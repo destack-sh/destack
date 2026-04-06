@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,7 @@ use crate::{GlobalSymbolId, Lineage, LocalLineageId};
 use super::TypeTable;
 
 /// Heritage ownership for nominal relationships.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct HeritageTable {
     /// The next lineage id to allocate.
     pub(crate) next_lineage_id: u32,

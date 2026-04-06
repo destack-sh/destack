@@ -1,8 +1,9 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 /// A UnaryOperator is a unary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum UnaryOperator {
     /// `++`
     PostIncrement,
@@ -34,7 +35,7 @@ pub enum UnaryOperator {
 
 /// A BinaryOperator is an infix binary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum BinaryOperator {
     // multiplication
     /// `*`
@@ -121,7 +122,7 @@ pub enum BinaryOperator {
 
 /// An AssignOperator is an assignment type.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum AssignOperator {
     // assignment multiplication
     /// `*=`

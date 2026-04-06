@@ -1,7 +1,8 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 /// A TypeUnaryOperator is a type unary operator.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum TypeUnaryOperator {
     /// Not `!T`.
     Not,
@@ -24,7 +25,7 @@ pub enum TypeUnaryOperator {
 }
 
 /// A TypeBinaryOperator is a type binary operator.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum TypeBinaryOperator {
     /// `as`
     Cast,

@@ -1,7 +1,8 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 /// Compiler known builtin symbols.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum WellKnownSymbol {
     /// Builtin Array constructor symbol.
@@ -114,7 +115,7 @@ impl WellKnownSymbol {
 }
 
 /// Compiler known decorator markers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub enum WellKnownDecorator {
     /// The `@binding` decorator marker.
     Binding,
@@ -270,7 +271,9 @@ impl WellKnownDecorator {
 }
 
 /// Compiler known Symbol.* keys.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
+)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum WellKnownSymbolKey {
     /// Symbol key for Symbol.iterator.

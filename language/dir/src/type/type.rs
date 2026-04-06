@@ -1,4 +1,4 @@
-use destack_source::ModuleId;
+use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 use super::{PrimitiveType, TypeBinaryOperator, TypeUnaryOperator};
 
 /// A TypeLiteral is a scalar type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum TypeLiteral {
     /// Never type `never`.
     Never,
@@ -37,7 +37,7 @@ pub enum TypeLiteral {
 }
 
 /// A TypeIntrinsic is a compiler-provided intrinsic type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum IntrinsicType {
     /// Uppercase string intrinsic.
     Uppercase,
@@ -54,7 +54,7 @@ pub enum IntrinsicType {
 }
 
 /// A type modifier for mapped types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum TypeModifier {
     /// Add a modifier (like `readonly` or `?`).
     Add,
@@ -65,7 +65,7 @@ pub enum TypeModifier {
 }
 
 /// Mapped type modifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct TypeMappedModifiers {
     /// The readonly modifier.
     pub readonly: TypeModifier,
@@ -74,7 +74,7 @@ pub struct TypeMappedModifiers {
 }
 
 /// A mapped type parameter.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct TypeMappedParameter {
     /// The parameter name (like `K`).
     pub name: StringId,
@@ -87,7 +87,7 @@ pub struct TypeMappedParameter {
 }
 
 /// A type predicate subject.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum TypePredicateSubject {
     /// Unresolved identifier subject (like `x` in `x is T`).
     Unresolved(StringId),
@@ -98,7 +98,7 @@ pub enum TypePredicateSubject {
 }
 
 /// An index signature in an object type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct TypeIndexSignature {
     /// The parameter name (like `K`).
     pub name: StringId,
@@ -111,7 +111,7 @@ pub struct TypeIndexSignature {
 }
 
 /// A Type in the type system.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Type {
     /// Scalar type literal.
     TypeLiteral { value: TypeLiteral },
@@ -294,7 +294,7 @@ impl Type {
 
 /// Type fields in an object-like type.
 /// Methods are represented as fields whose `ty` is a `Type::Function`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct TypeField {
     /// The key of the field.
     pub key: StaticKey,
@@ -307,7 +307,7 @@ pub struct TypeField {
 }
 
 /// A tuple element in a type tuple.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct TypeElement {
     /// The optional label for the element.
     pub label: Option<StringId>,
@@ -335,7 +335,7 @@ impl TypeElement {
 }
 
 /// A TypeKind determines nominal vs. structural typing.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum TypeKind {
     /// Structural typing (like `type T = { a: int32, b: boolean }`).
     Structural,
@@ -345,7 +345,9 @@ pub enum TypeKind {
 
 /// Unique identifier for Types.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub struct LocalTypeId(pub u32);
 
 impl LocalTypeId {
@@ -365,7 +367,9 @@ impl LocalTypeId {
 
 /// Unique identifier for inference variables.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub struct InferVarId(pub u32);
 
 impl InferVarId {
@@ -376,7 +380,9 @@ impl InferVarId {
 }
 
 /// Global type id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
+)]
 pub struct GlobalTypeId {
     /// The module id of the global type.
     pub module_id: ModuleId,

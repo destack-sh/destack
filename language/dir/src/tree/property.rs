@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
 /// Static property in some static context.
 /// Static evaluation supports all constructs, this is for the resulting static value.
 /// This is a plain value type, not a tree node, so that we can pass it around directly.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum StaticProperty {
     /// Unevaluated property (needs compile-time evaluation).
     Unevaluated { node: LocalNodeId<Property> },
@@ -45,7 +46,7 @@ impl StaticProperty {
 }
 
 /// The type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum BindingKind {
     /// Definite binding (like `x: int32`).
     Must,
@@ -54,7 +55,7 @@ pub enum BindingKind {
 }
 
 /// The abstraction modifier of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum AbstractionModifier {
     /// Abstract binding.
     Abstract,
@@ -65,7 +66,7 @@ pub enum AbstractionModifier {
 }
 
 /// Variance annotation for type parameters.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum VarianceModifier {
     /// Contravariant type parameter.
     In,
@@ -76,7 +77,7 @@ pub enum VarianceModifier {
 }
 
 /// The anchor of a binding (static or instance).
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum BindingAnchor {
     /// Static container (static in relation to the container).
     Static,
@@ -85,28 +86,28 @@ pub enum BindingAnchor {
 }
 
 /// The operator to apply to the binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum BindingOperator {
     /// Apply `as const` to the value of the binding.
     AsConst,
 }
 
 /// The accessor kind of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum AccessorKind {
     /// Auto-accessor (generates getter/setter).
     Accessor,
 }
 
 /// The evaluation timing of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Timing {
     /// Must be evaluated at compile time.
     Comptime,
 }
 
 /// The modifiers of a field-like item.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
@@ -131,7 +132,7 @@ pub struct BindingModifier {
 }
 
 /// The mode of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub enum FunctionMode {
     /// Getter function.
     Getter,
@@ -148,7 +149,7 @@ pub enum FunctionMode {
 /// A Property is a property of a variant type (may be a field or method).
 /// `symbol` is the declaration symbol for this property.
 /// For object literals, field resolution (to expected type's field) is in ResolutionTable.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Property {
     /// Named field (like `x: int32`).
     Field {
@@ -181,7 +182,7 @@ impl Node for Property {
 }
 
 /// A Member is a member of a object-like declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Member {
     /// Associated type alias (like `type Item = T`).
     Type {

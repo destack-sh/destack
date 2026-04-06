@@ -2,12 +2,12 @@ use crate::{
     Declaration, DependencyItem, DependencyKind, Export, Expression, LocalNodeId, LocalScopeId,
     LocalSymbolId, StaticKey, StringId, SymbolSpace,
 };
-use destack_source::ModuleId;
+use destack_source::{AdaptImage, ModuleId};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 /// A module binding entry from `declare module "name" { ... }`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ModuleBinding {
     /// The module specifier string.
     pub specifier: StringId,
@@ -24,7 +24,7 @@ pub struct ModuleBinding {
 }
 
 /// The target of a resolved module import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub enum ModuleTarget {
     /// A file or builtin module.
     Module(ModuleId),
@@ -46,7 +46,7 @@ impl ModuleTarget {
 }
 
 /// Resolved module targets for value and type spaces.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default, AdaptImage)]
 pub struct ModuleResolution {
     /// Target for value space resolution.
     pub value: Option<ModuleTarget>,
@@ -73,7 +73,7 @@ impl ModuleResolution {
 }
 
 /// Export data for a module binding.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ModuleBindingExports {
     /// The exported symbols for this binding.
     pub exports: IndexMap<(SymbolSpace, StaticKey), Export>,

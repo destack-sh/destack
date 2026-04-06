@@ -1,9 +1,10 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, StringId};
 
 /// The capture kind for a closure binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum CaptureKind {
     /// Capture the binding value in the environment.
     ByValue,
@@ -14,7 +15,7 @@ pub enum CaptureKind {
 }
 
 /// The default capture policy for a closure.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum CapturePolicy {
     /// Use const by value and let by reference.
     Default,
@@ -39,7 +40,7 @@ impl CapturePolicy {
 }
 
 /// A capture rule keyed by name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct CaptureRule {
     /// The binding name to override.
     pub name: StringId,
@@ -48,7 +49,7 @@ pub struct CaptureRule {
 }
 
 /// The capture directive for a closure.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct CaptureDirective {
     /// The default capture policy.
     pub policy: CapturePolicy,
@@ -76,7 +77,7 @@ impl CaptureDirective {
 }
 
 /// A single captured binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct CapturedBinding {
     /// The captured symbol.
     pub symbol: GlobalSymbolId,
@@ -85,7 +86,7 @@ pub struct CapturedBinding {
 }
 
 /// Capture set for a function declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub struct CaptureSet {
     /// The resolved captures in discovery order.
     pub captures: Vec<CapturedBinding>,
