@@ -17,12 +17,6 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
             "annotation in non-annotation context: {node_id:?}"
         );
         match self {
-            Annotation::Doc {
-                position: _,
-                string,
-            } => {
-                write!(f, [token("/**"), space(), string, token("*/")])?;
-            }
             Annotation::Comment {
                 position: _,
                 string,

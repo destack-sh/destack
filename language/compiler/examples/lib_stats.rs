@@ -525,9 +525,8 @@ fn collect_counts(parser: &DestackParser) -> Counts {
     // count annotation related nodes
     counts.annotations += parser.tree.get_nodes::<Annotation>().len();
     counts.annotations += parser.tree.get_nodes::<Doc>().len();
-    counts.annotations += parser.tree.get_nodes::<Comment>().len();
+    counts.annotations += parser.tree.comments().len();
     counts.annotations += parser.tree.get_nodes::<Decorator>().len();
-    counts.annotations += parser.tree.get_nodes::<Blank>().len();
 
     // count expression shapes
     for expression_id in parser.tree.get_nodes::<Expression>() {

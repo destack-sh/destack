@@ -276,9 +276,7 @@ impl Compiler {
         let annotations = ctx.tree.get_annotations(node_id.id);
         for annotation_id in annotations {
             let annotation = ctx.tree.get(annotation_id);
-            let Annotation::Decorator { expression, .. } = annotation else {
-                continue;
-            };
+            let Annotation::Decorator { expression, .. } = annotation;
 
             // resolve decorator marker symbol
             let call = self.decorator_call(ctx.tree, *expression);

@@ -12,9 +12,7 @@ impl Compiler {
         annotation_id: LocalNodeId<Annotation>,
         annotation: &Annotation,
     ) {
-        let Annotation::Decorator { expression, .. } = annotation else {
-            return;
-        };
+        let Annotation::Decorator { expression, .. } = annotation;
 
         // destack decorators allow static arguments
         if ctx.module.language_type.is_destack() {
