@@ -14,10 +14,12 @@ use destack_source::{Edit, FileId, LanguageType, PathExt, Span};
 use super::get_canonical_symbol;
 use crate::ast::get_module_by_file_id;
 use crate::core::path::{normalize_separators, relative_path};
-use crate::core::{AstQuery, DirQuery, SessionQueryIndexExt, query_context};
+use crate::core::{
+    AstQuery, DirQuery, RepositoryQueryIndexExt, query_context, query_context_for_module_id,
+};
 use crate::format::ImportGroup;
 use destack_dir as dir;
-use destack_workspace::Session;
+use destack_workspace::{Repository, Revision};
 
 /// Information about an existing import in the file.
 #[derive(Debug, Clone)]
@@ -120,13 +122,12 @@ fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
 
 /// Resolve the local alias text for explicit import aliases.
 pub(crate) fn resolve_local_import_alias_name(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // resolve query context for the symbol module
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
 
     // resolve the symbol declaration and support declaration/import forms
     let declaration = {
@@ -143,7 +144,7 @@ pub(crate) fn resolve_local_import_alias_name(
         };
 
         let name_id = descriptor.name?.string();
-        return Some(session.strings.get(name_id).to_string());
+        return Some(repository.strings.get(name_id).to_string());
     }
 
     if declaration.local_id.ty != NodeType::DependencyItem {
@@ -156,24 +157,26 @@ pub(crate) fn resolve_local_import_alias_name(
     let local_name_id =
         dependency_item_local_import_alias_name(dir_tree.get::<DirDependencyItem>(item_id))?;
 
-    Some(session.strings.get(local_name_id).to_string())
+    Some(repository.strings.get(local_name_id).to_string())
 }
 
 /// Collect default import aliases whose imported default export resolves to one symbol.
 pub(crate) fn collect_default_import_alias_symbols_for_export(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     canonical_id: dir::GlobalSymbolId,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
-    for module_id in session.reference_index_modules_for_target(canonical_id) {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
+    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+        let Some(module) = repository.module(revision, module_id).ok().flatten() else {
+            continue;
+        };
         if !module.is_user() {
             continue;
         }
 
-        let Some(ctx) = query_context(session, module) else {
+        let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
         let dir = ctx.dir();
@@ -187,12 +190,12 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
             }
 
             let local_alias_name =
-                local_default_import_alias_name_in_context(session, dir, local_symbol_id);
+                local_default_import_alias_name_in_context(repository, dir, local_symbol_id);
             if local_alias_name.is_none() {
                 continue;
             }
 
-            if get_canonical_symbol(session, symbol_id) != canonical_id {
+            if get_canonical_symbol(repository, revision, symbol_id) != canonical_id {
                 continue;
             }
 
@@ -205,7 +208,7 @@ pub(crate) fn collect_default_import_alias_symbols_for_export(
 
 /// Check whether a symbol is a local import alias for a canonical target.
 pub(crate) fn is_dependency_alias_for_target(
-    session: &Session,
+    repository: &Repository,
     dir: DirQuery<'_>,
     symbol_id: dir::GlobalSymbolId,
     canonical_target: dir::GlobalSymbolId,
@@ -261,13 +264,13 @@ pub(crate) fn is_dependency_alias_for_target(
     }
 
     // compare canonical targets
-    let target_canonical = get_canonical_symbol(session, *target_symbol);
+    let target_canonical = get_canonical_symbol(repository, dir.revision(), *target_symbol);
     target_canonical == canonical_target
 }
 
 /// Resolve the local binding name for one default import symbol inside a query context.
 fn local_default_import_alias_name_in_context(
-    session: &Session,
+    repository: &Repository,
     dir: DirQuery<'_>,
     local_symbol_id: LocalSymbolId,
 ) -> Option<String> {
@@ -285,7 +288,7 @@ fn local_default_import_alias_name_in_context(
     let local_name_id =
         dependency_item_default_import_alias_name(dir.tree().get::<DirDependencyItem>(item_id))?;
 
-    Some(session.strings.get(local_name_id).to_string())
+    Some(repository.strings.get(local_name_id).to_string())
 }
 
 /// Resolve the local binding name for one dependency import alias.
@@ -460,13 +463,16 @@ pub(crate) fn module_specifier_in_expression(
 }
 
 /// Collect existing imports from a file's AST.
-pub(crate) fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<ExistingImport> {
+pub(crate) fn collect_existing_imports(
+    repository: &Repository,
+    revision: Revision,
+    file_id: FileId,
+) -> Vec<ExistingImport> {
     // get module for this file
-    let Some(module) = get_module_by_file_id(session, file_id) else {
+    let Some(module) = get_module_by_file_id(repository, revision, file_id) else {
         return Vec::new();
     };
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context(repository, revision, module.id) else {
         return Vec::new();
     };
 
@@ -545,14 +551,15 @@ pub(crate) fn collect_existing_imports(session: &Session, file_id: FileId) -> Ve
 /// If there's an existing import from the same path, merges into it.
 /// Otherwise, inserts a new import at the appropriate position based on import groups.
 pub(crate) fn build_import_edits_with_mode(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     symbol_name: &str,
     import_path: &str,
     mode: ImportEditMode,
 ) -> Vec<Edit> {
     // collect existing imports for the file
-    let existing_imports = collect_existing_imports(session, file_id);
+    let existing_imports = collect_existing_imports(repository, revision, file_id);
 
     // check if there's already an import from this path
     if let Some(existing) = existing_imports.iter().find(|i| i.path == import_path) {
@@ -601,24 +608,28 @@ pub(crate) fn build_import_edits_with_mode(
 ///
 /// Tries to compute a relative path from the current file to the target module.
 pub(crate) fn build_import_display_path(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     module_path: &str,
 ) -> String {
-    build_import_display_path_with_options(session, file_id, module_path, true)
+    build_import_display_path_with_options(repository, revision, file_id, module_path, true)
 }
 
 /// Build a display path for an import with optional extension stripping.
 ///
 /// Tries to compute a relative path from the current file to the target module.
 pub(crate) fn build_import_display_path_with_options(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     module_path: &str,
     strip_extension: bool,
 ) -> String {
     // resolve the source file path
-    let source_file = session.files.get(file_id);
+    let Some(source_file) = repository.file(revision, file_id).ok().flatten() else {
+        return module_path.to_string();
+    };
     let Some(source_path) = source_file.path.as_ref() else {
         return module_path.to_string();
     };
@@ -630,9 +641,13 @@ pub(crate) fn build_import_display_path_with_options(
 
     // prefer package-name specifiers for external package targets
     let target_path = std::path::Path::new(module_path);
-    if let Some(display_path) =
-        build_external_package_display_path(session, source_path, target_path, strip_extension)
-    {
+    if let Some(display_path) = build_external_package_display_path(
+        repository,
+        revision,
+        source_path,
+        target_path,
+        strip_extension,
+    ) {
         return display_path;
     }
 
@@ -657,14 +672,29 @@ pub(crate) fn build_import_display_path_with_options(
 
 /// Build one package-name display path for an external package target.
 fn build_external_package_display_path(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     source_path: &Path,
     target_path: &Path,
     strip_extension: bool,
 ) -> Option<String> {
     // resolve the owning package for the target path
-    let target_package = session.packages.get_by_containing_path(target_path)?;
-    let target_package = target_package.read();
+    let target_package = repository
+        .workspace_module_ids(revision)
+        .ok()?
+        .into_iter()
+        .filter_map(|module_id| {
+            let module = repository.module(revision, module_id).ok()??;
+            let package = repository.package(revision, module.package_id).ok()??;
+            let package_path = package.path.as_ref()?;
+            if !target_path.starts_with(package_path) {
+                return None;
+            }
+
+            Some((package_path.as_os_str().len(), package))
+        })
+        .max_by_key(|(package_length, _)| *package_length)
+        .map(|(_, package)| package)?;
     let target_package_path = target_package.path.as_ref()?;
     let target_package_name = target_package.name.as_ref()?;
 

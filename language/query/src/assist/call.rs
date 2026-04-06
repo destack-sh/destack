@@ -1,5 +1,5 @@
 use destack_source::{EnclosingSpan, Span};
-use destack_workspace::Session;
+use destack_workspace::Repository;
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{
@@ -44,7 +44,7 @@ pub(super) fn detect_new_expression_context(
 
 /// Detect whether the cursor is in a call argument context.
 pub(super) fn detect_call_argument_context(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     offset: u32,
@@ -62,7 +62,7 @@ pub(super) fn detect_call_argument_context(
     // scan spans for a call or new expression argument list
     for enc in &enclosing {
         if let Some(context) =
-            call_argument_context_for_span(session, ast, dir, dir_tree, enc, offset)
+            call_argument_context_for_span(repository, ast, dir, dir_tree, enc, offset)
         {
             return Some(context);
         }
@@ -75,7 +75,7 @@ pub(super) fn detect_call_argument_context(
             ast::TokenType::OpenParenthesis | ast::TokenType::Comma
         )
         && let Some(context) = call_argument_context_after_separator(
-            session,
+            repository,
             ast,
             dir,
             dir_tree,
@@ -138,7 +138,7 @@ fn unwrap_statement_ast_expression(
 
 /// Build a call argument context from a single enclosing span.
 fn call_argument_context_for_span(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     dir_tree: &dir::NodeTree,
@@ -163,7 +163,7 @@ fn call_argument_context_for_span(
 
     let scope = expression_scope_at_offset(ast, dir, expr_id, offset);
     let active_parameter = active_argument_index(ast, dir_tree, call.dynamic_arguments, offset);
-    let expected_parameter = expected_parameter_hint(session, dir, call.left, active_parameter);
+    let expected_parameter = expected_parameter_hint(repository, dir, call.left, active_parameter);
 
     Some(CompletionContext::CallArgument {
         scope_id: Some(scope.scope_id),
@@ -174,7 +174,7 @@ fn call_argument_context_for_span(
 
 /// Build a call argument context from a separator position inside a call.
 fn call_argument_context_after_separator(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     dir_tree: &dir::NodeTree,
@@ -197,7 +197,8 @@ fn call_argument_context_after_separator(
 
         let scope = expression_scope_at_offset(ast, dir, expr_id, offset);
         let active_parameter = call.dynamic_arguments.len();
-        let expected_parameter = expected_parameter_hint(session, dir, call.left, active_parameter);
+        let expected_parameter =
+            expected_parameter_hint(repository, dir, call.left, active_parameter);
 
         return Some(CompletionContext::CallArgument {
             scope_id: Some(scope.scope_id),
@@ -305,15 +306,15 @@ fn active_argument_index(
 
 /// Resolve one expected-parameter hint for one call target.
 fn expected_parameter_hint(
-    session: &Session,
+    repository: &Repository,
     dir: DirQuery<'_>,
     left_expression_id: dir::LocalNodeId<dir::Expression>,
     parameter_index: usize,
 ) -> Option<ExpectedParameterHint> {
-    let target = resolve_call_target(session, dir, left_expression_id);
+    let target = resolve_call_target(repository, dir, left_expression_id);
     let symbol_id = target.symbol?;
 
-    expected_parameter_hint_for_symbol(session, symbol_id, parameter_index)
+    expected_parameter_hint_for_symbol(repository, dir.revision(), symbol_id, parameter_index)
 }
 
 /// Resolve the source span for one dir node.

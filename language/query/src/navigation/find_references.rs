@@ -1,15 +1,15 @@
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::sort_and_dedup_spans;
-use crate::core::{SessionQueryIndexExt, query_context};
+use crate::core::{RepositoryQueryIndexExt, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
     resolve_local_import_alias_name, resolve_symbol_name,
 };
 use destack_dir::GlobalSymbolId;
-use destack_workspace::Session;
 
 /// Result of a find references query.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -62,22 +62,24 @@ pub struct FindReferencesResponse {
 ///
 /// Optionally includes the declaration in the results.
 pub fn find_references(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
     include_declaration: bool,
 ) -> Option<ReferencesResult> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
 
     // preserve local import aliases as local reference targets
     let (target_symbol, declaration_span, target_name) = if let Some(local_alias_name) =
-        resolve_local_import_alias_name(session, symbol_at.symbol_id)
+        resolve_local_import_alias_name(repository, revision, symbol_at.symbol_id)
     {
         let declaration_span = include_declaration
             .then(|| {
-                get_symbol_local_definition_span(session, symbol_at.symbol_id)
-                    .or_else(|| get_symbol_definition_span(session, symbol_at.symbol_id))
+                get_symbol_local_definition_span(repository, revision, symbol_at.symbol_id).or_else(
+                    || get_symbol_definition_span(repository, revision, symbol_at.symbol_id),
+                )
             })
             .flatten();
 
@@ -87,12 +89,13 @@ pub fn find_references(
             Some(local_alias_name),
         )
     } else {
-        let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-        let canonical_name = resolve_symbol_name(session, canonical_id);
+        let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
+        let canonical_name = resolve_symbol_name(repository, revision, canonical_id);
         let declaration_span = include_declaration
             .then(|| {
-                get_symbol_definition_span(session, canonical_id)
-                    .or_else(|| get_symbol_local_definition_span(session, canonical_id))
+                get_symbol_definition_span(repository, revision, canonical_id).or_else(|| {
+                    get_symbol_local_definition_span(repository, revision, canonical_id)
+                })
             })
             .flatten();
 
@@ -101,7 +104,8 @@ pub fn find_references(
 
     // search all modules for references to that symbol
     let references = find_references_to_symbol(
-        session,
+        repository,
+        revision,
         target_symbol,
         declaration_span,
         target_name.as_deref(),
@@ -115,7 +119,8 @@ pub fn find_references(
 
 /// Find all references to a symbol across all modules.
 fn find_references_to_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     canonical_id: GlobalSymbolId,
     declaration_span: Option<Span>,
     target_name: Option<&str>,
@@ -132,20 +137,19 @@ fn find_references_to_symbol(
         skip_dependency_aliases: false,
         use_dependency_name_spans: true,
         target_name,
+        require_target_name_match: false,
         limit_to_file: None,
     };
 
     // collect references across candidate modules only
-    for module_id in session.reference_index_modules_for_target(canonical_id) {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
-        let Some(ctx) = query_context(session, module) else {
+    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+        let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
 
         // collect and append references for this module
         let spans = collect_symbol_references_in_context(
-            session,
+            repository,
             ctx.ast(),
             ctx.dir(),
             canonical_id,
@@ -157,7 +161,7 @@ fn find_references_to_symbol(
     // normalize ordering and remove duplicates
     sort_and_dedup_spans(&mut references);
     prune_overlapping_spans(&mut references);
-    sort_reference_spans(session, &mut references);
+    sort_reference_spans(repository, revision, &mut references);
 
     // place the declaration first when requested
     if let Some(decl_span) = declaration_span {
@@ -202,18 +206,24 @@ fn prune_overlapping_spans(spans: &mut Vec<Span>) {
 }
 
 /// Sort reference spans by stable file location.
-fn sort_reference_spans(session: &Session, spans: &mut [Span]) {
+fn sort_reference_spans(repository: &Repository, revision: Revision, spans: &mut [Span]) {
     spans.sort_by(|left, right| {
-        let left_key = reference_span_sort_key(session, *left);
-        let right_key = reference_span_sort_key(session, *right);
+        let left_key = reference_span_sort_key(repository, revision, *left);
+        let right_key = reference_span_sort_key(repository, revision, *right);
 
         left_key.cmp(&right_key)
     });
 }
 
 /// Build a stable sort key for a reference span.
-fn reference_span_sort_key(session: &Session, span: Span) -> (String, u32, u32, u32) {
-    let file = session.files.get(span.file);
+fn reference_span_sort_key(
+    repository: &Repository,
+    revision: Revision,
+    span: Span,
+) -> (String, u32, u32, u64) {
+    let Some(file) = repository.file(revision, span.file).ok().flatten() else {
+        return (String::new(), span.start, span.end, span.file.0);
+    };
 
     // prefer the displayed file name used by query snapshots
     let file_key = if !file.name.is_empty() {

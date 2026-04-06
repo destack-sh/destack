@@ -2,16 +2,15 @@ use std::collections::HashMap;
 
 use destack_dir::{GlobalSymbolId, SymbolType};
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::sort_and_dedup_spans;
-use crate::core::{SessionQueryIndexExt, query_context};
+use crate::core::{RepositoryQueryIndexExt, query_context};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
     get_symbol_definition_span, resolve_symbol_name,
 };
-use destack_workspace::Session;
-
 /// An item in the call hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallHierarchyItem {
@@ -105,16 +104,15 @@ pub struct CallHierarchyOutgoingResponse {
 ///
 /// Returns the item if the position is on a callable (function, method).
 pub fn prepare_call_hierarchy(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
 ) -> Option<CallHierarchyItem> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
-    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-    let module = session.modules.get(canonical_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
+    let ctx = query_context(repository, revision, canonical_id.module_id)?;
     let name = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
@@ -125,14 +123,15 @@ pub fn prepare_call_hierarchy(
         }
 
         // get the name
-        resolve_symbol_name(session, canonical_id)?
+        resolve_symbol_name(repository, revision, canonical_id)?
     };
 
     // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(session, canonical_id)?;
+    let selection_range = get_symbol_definition_span(repository, revision, canonical_id)?;
 
     // resolve the full declaration range, fall back to the selection range
-    let range = get_symbol_declaration_span(session, canonical_id).unwrap_or(selection_range);
+    let range =
+        get_symbol_declaration_span(repository, revision, canonical_id).unwrap_or(selection_range);
 
     Some(CallHierarchyItem {
         name,
@@ -149,12 +148,13 @@ pub fn prepare_call_hierarchy(
 ///
 /// "Who calls this function?"
 pub fn incoming_calls(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyIncomingCall> {
-    let canonical_id = get_canonical_symbol(session, item.symbol_id);
+    let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
     let mut incoming_by_caller: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in session.call_index_entries_for_callee(canonical_id) {
+    for entry in repository.call_index_entries_for_callee(canonical_id) {
         let Some(caller_symbol) = entry.caller_symbol else {
             continue;
         };
@@ -167,7 +167,9 @@ pub fn incoming_calls(
 
     let mut incoming = Vec::new();
     for (caller_symbol, call_spans) in incoming_by_caller {
-        if let Some(caller_item) = call_hierarchy_item_from_symbol(session, caller_symbol) {
+        if let Some(caller_item) =
+            call_hierarchy_item_from_symbol(repository, revision, caller_symbol)
+        {
             incoming.push(CallHierarchyIncomingCall {
                 from: caller_item,
                 from_ranges: call_spans,
@@ -189,13 +191,14 @@ pub fn incoming_calls(
 ///
 /// "What does this function call?"
 pub fn outgoing_calls(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     item: &CallHierarchyItem,
 ) -> Vec<CallHierarchyOutgoingCall> {
-    let canonical_id = get_canonical_symbol(session, item.symbol_id);
+    let canonical_id = get_canonical_symbol(repository, revision, item.symbol_id);
     let mut calls_with_spans: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
-    for entry in session.call_index_entries_for_caller(canonical_id) {
-        let callee_symbol = get_canonical_symbol(session, entry.callee_symbol);
+    for entry in repository.call_index_entries_for_caller(canonical_id) {
+        let callee_symbol = get_canonical_symbol(repository, revision, entry.callee_symbol);
 
         calls_with_spans
             .entry(callee_symbol)
@@ -207,8 +210,8 @@ pub fn outgoing_calls(
     let mut outgoing = Vec::new();
     for (target_symbol_id, call_spans) in calls_with_spans {
         // only include function calls
-        let target_module = session.modules.get(target_symbol_id.module_id);
-        let Some(target_ctx) = query_context(session, &target_module) else {
+        let Some(target_ctx) = query_context(repository, revision, target_symbol_id.module_id)
+        else {
             continue;
         };
         let is_function = {
@@ -220,7 +223,9 @@ pub fn outgoing_calls(
             continue;
         }
 
-        if let Some(target_item) = call_hierarchy_item_from_symbol(session, target_symbol_id) {
+        if let Some(target_item) =
+            call_hierarchy_item_from_symbol(repository, revision, target_symbol_id)
+        {
             outgoing.push(CallHierarchyOutgoingCall {
                 to: target_item,
                 from_ranges: call_spans,
@@ -239,7 +244,7 @@ pub fn outgoing_calls(
 }
 
 /// Build a stable ordering key for a call hierarchy item.
-fn call_item_key(item: &CallHierarchyItem) -> (u32, u32, u32, u32, u32, u8, &str) {
+fn call_item_key(item: &CallHierarchyItem) -> (u64, u32, u32, u32, u32, u8, &str) {
     (
         item.file.0,
         item.range.start,
@@ -262,27 +267,27 @@ fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
 
 /// Convert a symbol ID to a CallHierarchyItem.
 fn call_hierarchy_item_from_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<CallHierarchyItem> {
-    let canonical_id = get_canonical_symbol(session, symbol_id);
-    let module = session.modules.get(canonical_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
+    let ctx = query_context(repository, revision, canonical_id.module_id)?;
     let name = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         if symbol.ty != SymbolType::Function {
             return None;
         }
-        resolve_symbol_name(session, canonical_id)?
+        resolve_symbol_name(repository, revision, canonical_id)?
     };
 
     // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(session, canonical_id)?;
+    let selection_range = get_symbol_definition_span(repository, revision, canonical_id)?;
 
     // resolve the full declaration range, fall back to the selection range
-    let range = get_symbol_declaration_span(session, canonical_id).unwrap_or(selection_range);
+    let range =
+        get_symbol_declaration_span(repository, revision, canonical_id).unwrap_or(selection_range);
 
     Some(CallHierarchyItem {
         name,

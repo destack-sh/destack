@@ -1,9 +1,10 @@
 use destack_source::{FileId, Span};
+use destack_workspace::Repository;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{SessionQueryIndexExt, symbol_relevance, workspace_symbol_sort_key};
+use crate::core::{RepositoryQueryIndexExt, symbol_relevance, workspace_symbol_sort_key};
 use crate::dir::SymbolKind;
-use destack_workspace::{Session, SymbolIndexEntry, SymbolIndexKind};
+use destack_workspace::{SymbolIndexEntry, SymbolIndexKind};
 
 /// A symbol in the workspace (flat list for workspace symbol search).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -40,7 +41,7 @@ pub struct WorkspaceSymbolsResponse {
 ///
 /// Returns symbols whose names match the lexical query.
 pub fn workspace_symbols(
-    session: &Session,
+    repository: &Repository,
     query: &str,
     max_results: usize,
 ) -> Vec<WorkspaceSymbol> {
@@ -51,10 +52,7 @@ pub fn workspace_symbols(
     let query = query.trim();
 
     // collect candidate entries from the workspace symbol index
-    let entries = session.search_workspace_symbol_entries(query);
-
-    // score the cached entries in memory
-    for entry in entries {
+    for entry in repository.search_workspace_symbol_entries(query) {
         let Some(relevance) = symbol_relevance(&entry, query) else {
             continue;
         };

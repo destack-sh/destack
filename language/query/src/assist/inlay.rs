@@ -1,12 +1,12 @@
 use destack_dir as dir;
 use destack_dir::{Argument, Declarator, Expression, GlobalSymbolId, Pattern, TemplateLiteral};
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::core::with_query_context_for_file;
 use crate::dir::{dynamic_parameter_names, resolve_call_target};
 use crate::format::format_type_for_inlay_hint;
-use destack_workspace::Session;
 
 /// Kind of inlay hint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -77,9 +77,14 @@ pub struct InlayHintsResponse {
 }
 
 /// Get inlay hints for a range in a file.
-pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHint> {
+pub fn inlay_hints(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    range: Span,
+) -> Vec<InlayHint> {
     // resolve hints within the query context
-    with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(repository, revision, file, |ctx| {
         // resolve shared dir data for hint generation
         let dir_tree = ctx.dir().tree();
         let types = ctx.dir().types();
@@ -114,11 +119,11 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
             }
 
             // resolve the target symbol for this call
-            let call_target = resolve_call_target(session, ctx.dir(), *left);
+            let call_target = resolve_call_target(repository, ctx.dir(), *left);
             let target_symbol = call_target.symbol;
 
             // get actual parameter names for this function
-            let param_names = get_parameter_names(session, target_symbol);
+            let param_names = get_parameter_names(repository, revision, target_symbol);
 
             // skip parameter hints when we do not have names
             if param_names.is_empty() {
@@ -137,7 +142,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
                 // skip hints for arguments that already carry labels or match the name
                 if should_skip_parameter_hint(
-                    session,
+                    repository,
                     dir_tree,
                     argument,
                     param_name,
@@ -195,10 +200,10 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
                     // format a widened display type for literal values
                     let type_str = format_type_for_inlay_hint(
                         ty,
-                        ctx.artifacts(),
                         types,
-                        &session.modules,
-                        &session.strings,
+                        repository,
+                        revision,
+                        &repository.strings,
                     );
 
                     // add type hint after the binding name
@@ -246,19 +251,23 @@ fn hint_kind_rank(kind: InlayHintKind) -> u8 {
 ///
 /// If the target symbol points to a function declaration, extracts actual parameter names.
 /// Returns an empty vec if not available (caller will skip parameter hints).
-fn get_parameter_names(session: &Session, target_symbol: Option<GlobalSymbolId>) -> Vec<String> {
+fn get_parameter_names(
+    repository: &Repository,
+    revision: Revision,
+    target_symbol: Option<GlobalSymbolId>,
+) -> Vec<String> {
     // require a resolved target symbol for parameter extraction
     let Some(symbol_id) = target_symbol else {
         return Vec::new();
     };
 
     // resolve dynamic parameter names from the DIR
-    dynamic_parameter_names(session, symbol_id).unwrap_or_default()
+    dynamic_parameter_names(repository, revision, symbol_id).unwrap_or_default()
 }
 
 /// Decide whether a parameter hint should be skipped for an argument.
 fn should_skip_parameter_hint(
-    session: &Session,
+    repository: &Repository,
     dir_tree: &dir::NodeTree,
     argument: &Argument,
     param_name: &str,
@@ -285,7 +294,7 @@ fn should_skip_parameter_hint(
     }
 
     // skip when the argument already repeats the parameter name
-    if let Some(reference) = argument_reference(session, dir_tree, argument) {
+    if let Some(reference) = argument_reference(repository, dir_tree, argument) {
         match reference {
             ArgumentReference::Name(argument_name) => {
                 if argument_name == param_name && !parameter_name_hints_when_argument_matches_name()
@@ -302,7 +311,7 @@ fn should_skip_parameter_hint(
 
 /// Extract a simple reference name from an argument value when available.
 fn argument_reference(
-    session: &Session,
+    repository: &Repository,
     dir_tree: &dir::NodeTree,
     argument: &Argument,
 ) -> Option<ArgumentReference> {
@@ -315,7 +324,7 @@ fn argument_reference(
         | Expression::ModuleReference { path, .. }
         | Expression::GlobalReference { path, .. } => path
             .last_segment()
-            .map(|id| ArgumentReference::Name(session.strings.get(id).to_string())),
+            .map(|id| ArgumentReference::Name(repository.strings.get(id).to_string())),
         Expression::This => Some(ArgumentReference::This),
         _ => None,
     }

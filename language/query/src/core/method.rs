@@ -7,13 +7,24 @@ use super::protocol::{QueryExecutionMode, QueryRequest};
 
 /// Category for query methods.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum QueryCategory {
+pub enum QueryCategory {
     /// Read only queries.
     Query,
     /// Assistance queries (hover, completion, etc).
     Assist,
     /// Refactor queries that return edits.
     Refactor,
+}
+
+impl QueryCategory {
+    /// Return the category label.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Query => "query",
+            Self::Assist => "assist",
+            Self::Refactor => "refactor",
+        }
+    }
 }
 
 /// Unique identifiers for query methods.
@@ -106,21 +117,21 @@ impl QueryMethodId {
 
 /// Metadata for a query method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct QueryMethod {
+pub struct QueryMethod {
     /// Unique method identifier.
-    pub(crate) id: QueryMethodId,
+    pub id: QueryMethodId,
     /// Canonical method name.
-    pub(crate) name: &'static str,
+    pub name: &'static str,
     /// Alias names accepted by the CLI.
-    pub(crate) aliases: &'static [&'static str],
+    pub aliases: &'static [&'static str],
     /// Category for the method.
-    pub(crate) category: QueryCategory,
+    pub category: QueryCategory,
     /// Short summary of the method.
-    pub(crate) summary: &'static str,
+    pub summary: &'static str,
     /// Params type name for help output.
-    pub(crate) params_type: &'static str,
+    pub params_type: &'static str,
     /// Result type name for help output.
-    pub(crate) result_type: &'static str,
+    pub result_type: &'static str,
 }
 
 /// Query request parse error.
@@ -482,7 +493,7 @@ static QUERY_METHODS: &[QueryMethod] = &[
 ];
 
 /// Resolve a query method by name or alias.
-pub(crate) fn query_method(name: &str) -> Option<&'static QueryMethod> {
+pub fn query_method(name: &str) -> Option<&'static QueryMethod> {
     let normalized = normalize_method_name(name);
     QUERY_METHODS.iter().find(|method| {
         normalize_method_name(method.name) == normalized
@@ -491,6 +502,11 @@ pub(crate) fn query_method(name: &str) -> Option<&'static QueryMethod> {
                 .iter()
                 .any(|alias| normalize_method_name(alias) == normalized)
     })
+}
+
+/// Return the supported query methods.
+pub fn query_methods() -> &'static [QueryMethod] {
+    QUERY_METHODS
 }
 
 /// Parse a query request for a method name and params.

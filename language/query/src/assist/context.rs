@@ -1,5 +1,5 @@
 use destack_source::{EnclosingSpan, FileId, ModuleId};
-use destack_workspace::Session;
+use destack_workspace::{Repository, Revision};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{
@@ -126,12 +126,19 @@ pub(crate) struct CompletionInput {
     pub(crate) token: Option<CursorToken>,
 }
 
-/// Create an unknown completion context result.
-fn unknown_completion_input() -> CompletionInput {
-    CompletionInput {
-        context: CompletionContext::Unknown,
-        token: None,
-    }
+/// Build a fallback completion input from raw source text only.
+fn fallback_completion_input(source: &str, offset: u32) -> CompletionInput {
+    let token = detect_partial_identifier_from_source(source, offset);
+    let context = if token.is_some() {
+        CompletionContext::ValuePosition {
+            scope_id: None,
+            scope_mark: None,
+        }
+    } else {
+        CompletionContext::Unknown
+    };
+
+    CompletionInput { context, token }
 }
 
 /// Build a value position context from an optional scope.
@@ -182,26 +189,27 @@ fn is_suppressed_completion_position(
 
 /// Detect the completion context at a given offset.
 pub(crate) fn completion_input_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
 ) -> CompletionInput {
+    let Some(source_file) = repository.file(revision, file_id).ok().flatten() else {
+        return fallback_completion_input("", offset);
+    };
+    let source = source_file.text();
+
     // resolve the module for this file
-    let Some(module) = get_module_by_file_id(session, file_id) else {
-        return unknown_completion_input();
+    let Some(module) = get_module_by_file_id(repository, revision, file_id) else {
+        return fallback_completion_input(source, offset);
     };
 
     // resolve the query context from the module
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
-        return unknown_completion_input();
+    let Some(ctx) = query_context(repository, revision, module.id) else {
+        return fallback_completion_input(source, offset);
     };
     let ast = ctx.ast();
     let dir = ctx.dir();
-
-    // read the source text for this file
-    let source_file = session.files.get(file_id);
-    let source = source_file.text();
 
     // resolve token prefix at the cursor
     let token = detect_partial_identifier(ast, source, offset);
@@ -212,7 +220,7 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check object literal context before type position to avoid comma misclassification
-    if let Some(object_context) = object_literal_cursor_context(ast, dir, offset, session) {
+    if let Some(object_context) = object_literal_cursor_context(ast, dir, offset, repository) {
         let context = match object_context {
             ObjectLiteralCursorContext::Key(object_context) => CompletionContext::ObjectLiteral {
                 object_node: object_context.object_node,
@@ -239,7 +247,7 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check for call argument context
-    if let Some(call_context) = detect_call_argument_context(session, ast, dir, offset) {
+    if let Some(call_context) = detect_call_argument_context(repository, ast, dir, offset) {
         return CompletionInput {
             context: call_context,
             token,
@@ -247,7 +255,7 @@ pub(crate) fn completion_input_at_offset(
     }
 
     // check for import context
-    if let Some(import_context) = detect_import_context(session, ast, dir, source, offset) {
+    if let Some(import_context) = detect_import_context(repository, ast, dir, source, offset) {
         return CompletionInput {
             context: import_context,
             token,
@@ -325,6 +333,44 @@ fn detect_partial_identifier(ast: AstQuery<'_>, source: &str, offset: u32) -> Op
         text: text[..prefix_end].to_string(),
         start: span.start,
     })
+}
+
+/// Detect one partial identifier directly from raw source text.
+fn detect_partial_identifier_from_source(source: &str, offset: u32) -> Option<CursorToken> {
+    let offset = usize::try_from(offset).ok()?.min(source.len());
+    if !source.is_char_boundary(offset) {
+        return None;
+    }
+
+    let start = source[..offset]
+        .char_indices()
+        .rev()
+        .find_map(|(index, character)| {
+            (!is_identifier_character(character)).then_some(index + character.len_utf8())
+        })
+        .unwrap_or(0);
+    let text = &source[start..offset];
+    if text.is_empty() {
+        return None;
+    }
+
+    let first = text.chars().next()?;
+    if !(first == '_' || first.is_alphabetic()) {
+        return None;
+    }
+    if !text.chars().all(is_identifier_character) {
+        return None;
+    }
+
+    Some(CursorToken {
+        text: text.to_string(),
+        start: u32::try_from(start).ok()?,
+    })
+}
+
+/// Return true when one character can appear in an identifier.
+fn is_identifier_character(character: char) -> bool {
+    character == '_' || character.is_alphanumeric()
 }
 
 // ================================================================================

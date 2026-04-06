@@ -1,13 +1,13 @@
 use destack_dir::Expression;
 use destack_resolver::{SpecifierLinkTarget, resolve_document_link_target};
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{main_or_enclosing_span_for_dir_node, string_literal_span_in_enclosing};
 use crate::core::{with_ast_query_for_file, with_query_context_for_file};
 use crate::dir::module_specifier_in_expression;
-use destack_workspace::Session;
 
 /// A clickable link in a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -102,10 +102,14 @@ pub struct ResolveDocumentLinkResponse {
 ///
 /// Document links are clickable regions that navigate to files or URLs.
 /// Common uses: import paths, URLs in comments, file references.
-pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
+pub fn document_links(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Vec<DocumentLink> {
     // prefer dir based resolution when possible
-    if let Some(mut links) = document_links_with_dir(session, file) {
-        let fallback = document_links_with_ast(session, file);
+    if let Some(mut links) = document_links_with_dir(repository, revision, file) {
+        let fallback = document_links_with_ast(repository, revision, file);
         for link in fallback {
             if links.iter().any(|existing| existing.range == link.range) {
                 continue;
@@ -119,12 +123,16 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
     }
 
     // fall back to ast only links
-    document_links_with_ast(session, file)
+    document_links_with_ast(repository, revision, file)
 }
 
 /// Build document links using DIR data when available.
-fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<DocumentLink>> {
-    with_query_context_for_file(session, file, |ctx| {
+fn document_links_with_dir(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Option<Vec<DocumentLink>> {
+    with_query_context_for_file(repository, revision, file, |ctx| {
         // find all import and re-export statements
         let dir_tree = ctx.dir().tree();
         let mut links = Vec::new();
@@ -146,7 +154,13 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
                     };
 
                     // get the target module's file path
-                    let target_module = session.modules.get(*target_module_id);
+                    let Some(target_module) = repository
+                        .module(revision, *target_module_id)
+                        .ok()
+                        .flatten()
+                    else {
+                        continue;
+                    };
                     let Some(ref path) = target_module.path else {
                         continue;
                     };
@@ -154,8 +168,10 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
                     // get the span of this import expression
                     let enclosing =
                         main_or_enclosing_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
-                    let file = session.files.get(ctx.file_id());
-                    let import_path = session.strings.get(*target).to_string();
+                    let Some(file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
+                        continue;
+                    };
+                    let import_path = repository.strings.get(*target).to_string();
                     let span = string_literal_span_in_enclosing(
                         &file,
                         ctx.ast().tokens(),
@@ -179,10 +195,16 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
 }
 
 /// Build document links using AST data when DIR is unavailable.
-fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink> {
-    with_ast_query_for_file(session, file, |ast| {
+fn document_links_with_ast(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Vec<DocumentLink> {
+    with_ast_query_for_file(repository, revision, file, |ast| {
         // resolve the source file path
-        let source_file = session.files.get(file);
+        let Some(source_file) = repository.file(revision, file).ok().flatten() else {
+            return Vec::new();
+        };
         let Some(path) = source_file.path.as_ref() else {
             return Vec::new();
         };
@@ -216,7 +238,11 @@ fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink>
             .unwrap_or(enclosing);
 
             // resolve the target for the specifier
-            let target = resolve_document_link_target(&*session.fs, base_dir, &specifier_text);
+            let target = resolve_document_link_target(
+                &**repository.file_system(),
+                base_dir,
+                &specifier_text,
+            );
             let Some(target) = target else {
                 continue;
             };
@@ -243,7 +269,7 @@ fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink>
 /// Resolve a document link (compute its target if deferred).
 ///
 /// Some links defer resolution until clicked.
-pub fn resolve_document_link(_session: &Session, link: &DocumentLink) -> DocumentLink {
+pub fn resolve_document_link(link: &DocumentLink) -> DocumentLink {
     // currently all links are resolved immediately
     link.clone()
 }

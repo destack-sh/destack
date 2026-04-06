@@ -5,10 +5,9 @@ use std::path::Path;
 
 use destack_dir::SymbolSpace;
 use destack_source::{FileId, ModuleId, PackageId, PathExt};
-use destack_workspace::{Session, SymbolIndexEntry, SymbolIndexKind};
+use destack_workspace::{Repository, Revision, SymbolIndexEntry, SymbolIndexKind};
 
 use crate::core::path::{path_component_count, path_distance};
-
 const SCORE_EXACT_WHOLE: u32 = 9_000;
 const SCORE_CASE_INSENSITIVE_WHOLE: u32 = 8_000;
 const SCORE_EXACT_PREFIX: u32 = 7_000;
@@ -234,7 +233,8 @@ pub(crate) fn symbol_relevance(entry: &SymbolIndexEntry, query: &str) -> Option<
 
 /// Compute import relevance for one candidate.
 pub(crate) fn import_relevance(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     current_package_id: Option<PackageId>,
     query: &str,
@@ -245,8 +245,14 @@ pub(crate) fn import_relevance(
     module_path: &str,
 ) -> Option<ImportRelevance> {
     let lexical = match_quality(export_name, query)?;
-    let path_relevance =
-        import_path_relevance(session, file_id, current_package_id, module_id, module_path);
+    let path_relevance = import_path_relevance(
+        repository,
+        revision,
+        file_id,
+        current_package_id,
+        module_id,
+        module_path,
+    );
     let space_rank = import_space_rank(space, expected_space);
 
     Some(ImportRelevance {
@@ -309,7 +315,7 @@ pub(crate) fn workspace_symbol_sort_key(
     Option<String>,
     usize,
     String,
-    u32,
+    u64,
     u32,
     u32,
 ) {
@@ -379,18 +385,33 @@ struct ImportPathRelevance {
 
 /// Compute one structural path relevance for an import candidate.
 fn import_path_relevance(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     current_package_id: Option<PackageId>,
     target_module_id: ModuleId,
     module_path: &str,
 ) -> ImportPathRelevance {
     let target_package_id = {
-        let module = session.modules.get(target_module_id);
+        let Some(module) = repository.module(revision, target_module_id).ok().flatten() else {
+            return ImportPathRelevance {
+                directory_rank: 2,
+                package_rank: import_package_rank(current_package_id, None),
+                distance_rank: u32::MAX,
+                depth_rank: u32::MAX,
+            };
+        };
         module.package_id
     };
 
-    let source_file = session.files.get(file_id);
+    let Some(source_file) = repository.file(revision, file_id).ok().flatten() else {
+        return ImportPathRelevance {
+            directory_rank: 2,
+            package_rank: import_package_rank(current_package_id, Some(target_package_id)),
+            distance_rank: u32::MAX,
+            depth_rank: u32::MAX,
+        };
+    };
     let Some(source_path) = source_file.path.as_ref() else {
         return ImportPathRelevance {
             directory_rank: 2,

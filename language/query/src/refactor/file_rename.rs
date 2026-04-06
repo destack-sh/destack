@@ -4,11 +4,12 @@ use std::sync::Arc;
 
 use destack_resolver::{SpecifierPolicy, match_specifier_rename, rewrite_specifier_for_rename};
 use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, ModuleId, PathExt, Span};
+use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
 use crate::ast::string_literal_span_in_enclosing;
-use crate::core::{SessionQueryIndexExt, with_ast_query_for_module};
-use destack_workspace::{Session, SpecifierIndexEntry};
+use crate::core::{RepositoryQueryIndexExt, with_ast_query_for_module};
+use destack_workspace::{Repository, SpecifierIndexEntry};
 
 /// A file rename entry for refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,7 +71,11 @@ impl FileRenameResult {
 }
 
 /// Resolve file rename edits across the workspace.
-pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<FileRenameResult> {
+pub fn rename_files(
+    repository: &Repository,
+    revision: Revision,
+    renames: &[FileRenameEntry],
+) -> Option<FileRenameResult> {
     // normalize rename targets
     let mut rename_map = HashMap::new();
     for rename in renames {
@@ -87,9 +92,9 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
     }
 
     // shared specifier policy
-    let workspace_root = session.workspace.read().root.normalize();
+    let workspace_root = repository.workspace_root().to_path_buf().normalize();
     let specifier_policy = SpecifierPolicy {
-        fs: &*session.fs,
+        fs: &**repository.file_system(),
         workspace_root: &workspace_root,
     };
 
@@ -98,7 +103,7 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
 
     // collect candidate specifier entries from the workspace index
     let specifier_entries =
-        session.specifier_index_entries_for_rename_paths(rename_map.keys().cloned());
+        repository.specifier_index_entries_for_rename_paths(rename_map.keys().cloned());
     let mut entries_by_module: HashMap<ModuleId, Vec<SpecifierIndexEntry>> = HashMap::new();
     for entry in specifier_entries {
         entries_by_module
@@ -109,33 +114,39 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
 
     // apply edits per owning module
     for (module_id, entries) in entries_by_module {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
-
-        // resolve file content for literal edits
-        let Some(file) = file_for_rename(session, module.file_id) else {
+        let Some(module) = repository.module(revision, module_id).ok().flatten() else {
             continue;
         };
 
-        let Some(()) = with_ast_query_for_module(session, module, |ast| {
+        // resolve file content for literal edits
+        let Some(file) = file_for_rename(repository, revision, module.file_id) else {
+            continue;
+        };
+
+        let Some(()) = with_ast_query_for_module(repository, revision, module.id, |ast| {
             for entry in &entries {
                 // resolve the updated specifier text
                 let rename_match = if let Some(target_module_id) = entry.target_module_id {
                     // prefer the semantic target path when it is available
-                    let target_module = session.modules.get(target_module_id);
-                    let target_module = target_module.as_ref();
+                    let Some(target_module) =
+                        repository.module(revision, target_module_id).ok().flatten()
+                    else {
+                        continue;
+                    };
 
                     // resolve package metadata for package specifiers
-                    let package = session.packages.get(target_module.package_id);
-                    let package = package.read();
+                    let package = repository
+                        .package(revision, target_module.package_id)
+                        .ok()
+                        .flatten();
                     match_specifier_rename(
                         &specifier_policy,
                         &rename_map,
                         file.path.as_deref(),
                         &entry.specifier,
                         target_module.path.as_deref(),
-                        package.name.as_deref(),
-                        package.path.as_deref(),
+                        package.as_ref().and_then(|package| package.name.as_deref()),
+                        package.as_ref().and_then(|package| package.path.as_deref()),
                     )
                 } else {
                     match_specifier_rename(
@@ -209,16 +220,20 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
 }
 
 /// Resolve file content for file rename edits.
-fn file_for_rename(session: &Session, file_id: FileId) -> Option<Arc<File>> {
+fn file_for_rename(
+    repository: &Repository,
+    revision: Revision,
+    file_id: FileId,
+) -> Option<Arc<File>> {
     // return the file when content is loaded
-    let file = session.files.get(file_id);
+    let file = repository.file(revision, file_id).ok().flatten()?;
     if file.is_loaded() && file.line_start_offsets.is_some() {
         return Some(file);
     }
 
-    // load file content from the filesystem when session text is unavailable
+    // load file content from the filesystem when repository text is unavailable
     let path = file.path.as_ref()?;
-    let content = session.fs.read_to_string(path).ok()?;
+    let content = repository.file_system().read_to_string(path).ok()?;
     let loaded = File::from_text(
         file.id,
         file.name.clone(),
@@ -251,15 +266,15 @@ mod tests {
         SpecifierPolicy, SpecifierRenameMatch, match_specifier_rename, rewrite_specifier_for_rename,
     };
     use destack_source::PathExt;
-    use destack_workspace::Session;
+    use destack_workspace::Repository;
 
     /// Match absolute target paths against workspace relative rename entries.
     #[test]
     fn test_match_path_rename_entry_for_absolute_target() {
-        let session = Session::new(PathBuf::from("/test"));
-        let workspace_root = session.workspace.read().root.normalize();
+        let repository = Repository::open_root(PathBuf::from("/test"));
+        let workspace_root = repository.workspace_root().to_path_buf().normalize();
         let policy = SpecifierPolicy {
-            fs: &*session.fs,
+            fs: &**repository.file_system(),
             workspace_root: &workspace_root,
         };
         let rename_map = HashMap::from([(

@@ -2,19 +2,19 @@ use std::collections::{HashMap, HashSet};
 
 use destack_dir::{self as dir, NodeVisitor};
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{
     get_module_by_file_id, is_simple_identifier, line_start_for_offset, main_span_for_dir_node,
     span_for_dir_node,
 };
-use crate::core::{QueryContext, SessionQueryIndexExt, query_context};
+use crate::core::{QueryContext, RepositoryQueryIndexExt, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_member_access_name_span, get_symbol_definition_span, member_key_name,
     resolve_symbol_name,
 };
-use destack_workspace::Session;
 
 /// Request payload for inline refactor queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -59,18 +59,22 @@ impl InlineResult {
 }
 
 /// Inline the symbol at the given position.
-pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<InlineResult> {
+pub fn inline_symbol(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    offset: u32,
+) -> Option<InlineResult> {
     // resolve the module and query context
-    let module = get_module_by_file_id(session, file)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file)?;
+    let ctx = query_context(repository, revision, module.id)?;
 
     // find the symbol at the cursor
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
-    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
 
     // only inline symbols defined in this file
-    let definition_span = get_symbol_definition_span(session, canonical_id)?;
+    let definition_span = get_symbol_definition_span(repository, revision, canonical_id)?;
     if definition_span.file != file {
         return None;
     }
@@ -100,7 +104,7 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
     let statement_span = span_for_dir_node(ctx.ast(), dir_tree, statement_id.into());
 
     // resolve the initializer text
-    let source_file = session.files.get(file);
+    let source_file = repository.file(revision, file).ok().flatten()?;
     let value_span = span_for_dir_node(ctx.ast(), dir_tree, value_id.into());
     let value_expression = dir_tree.get::<dir::Expression>(value_id);
     let value_text = source_file.span_str(value_span);
@@ -115,17 +119,21 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
         return None;
     }
 
-    let access_path =
-        pattern_access_path(session, dir_tree, declarator.pattern, canonical_id.local_id)?;
+    let access_path = pattern_access_path(
+        repository,
+        dir_tree,
+        declarator.pattern,
+        canonical_id.local_id,
+    )?;
     let inline_text = apply_access_path(&inline_base, &access_path);
     if inline_text.is_empty() {
         return None;
     }
 
     let mut edits_by_file: HashMap<FileId, Vec<Edit>> = HashMap::new();
-    let reference_name = resolve_symbol_name(session, canonical_id);
+    let reference_name = resolve_symbol_name(repository, revision, canonical_id);
     let reference_entries =
-        collect_inline_reference_entries(session, &ctx, canonical_id, file, reference_name);
+        collect_inline_reference_entries(repository, &ctx, canonical_id, file, reference_name);
     if reference_entries.is_empty() {
         return None;
     }
@@ -139,16 +147,15 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
         skip_dependency_aliases: false,
         use_dependency_name_spans: false,
         target_name: None,
+        require_target_name_match: false,
         limit_to_file: None,
     };
-    for module_id in session.reference_index_modules_for_target(canonical_id) {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
-        let Some(ctx) = query_context(session, module) else {
+    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+        let Some(ctx) = query_context(repository, ctx.revision(), module_id) else {
             continue;
         };
         let spans = collect_symbol_references_in_context(
-            session,
+            repository,
             ctx.ast(),
             ctx.dir(),
             canonical_id,
@@ -172,10 +179,10 @@ pub fn inline_symbol(session: &Session, file: FileId, offset: u32) -> Option<Inl
 
     // avoid shadowing captured symbols in new contexts
     let captured_symbols =
-        collect_captured_symbols(session, &ctx, dir_tree, value_id, canonical_id)?;
+        collect_captured_symbols(repository, &ctx, dir_tree, value_id, canonical_id)?;
     if !captured_symbols.is_empty()
         && !inline_shadow_safe(
-            session,
+            repository,
             &ctx,
             dir_tree,
             &reference_entries,
@@ -260,7 +267,7 @@ enum AccessSegment {
 
 /// Collect reference entries for the inline target symbol.
 fn collect_inline_reference_entries(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     canonical_id: dir::GlobalSymbolId,
     file: FileId,
@@ -278,7 +285,7 @@ fn collect_inline_reference_entries(
         let Some(target_symbol) = expression.target_symbol() else {
             continue;
         };
-        let target_canonical = get_canonical_symbol(session, target_symbol);
+        let target_canonical = get_canonical_symbol(repository, ctx.revision(), target_symbol);
         if target_canonical != canonical_id {
             continue;
         }
@@ -315,7 +322,7 @@ fn collect_inline_reference_entries(
             continue;
         };
 
-        let Some(key_name) = member_key_name(session, key) else {
+        let Some(key_name) = member_key_name(repository, key) else {
             continue;
         };
         if key_name != reference_name {
@@ -335,7 +342,7 @@ fn collect_inline_reference_entries(
             continue;
         };
         let resolved_global = dir::GlobalSymbolId::new(ctx.module_id(), resolved_local);
-        let resolved_canonical = get_canonical_symbol(session, resolved_global);
+        let resolved_canonical = get_canonical_symbol(repository, ctx.revision(), resolved_global);
         if resolved_canonical != canonical_id {
             continue;
         }
@@ -442,7 +449,7 @@ fn collect_pattern_bindings_field(
 
 /// Resolve the access path for a destructured binding.
 fn pattern_access_path(
-    session: &Session,
+    repository: &Repository,
     dir_tree: &dir::NodeTree,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
@@ -456,28 +463,28 @@ fn pattern_access_path(
                 return Some(Vec::new());
             }
             if let Some(inner) = pattern {
-                return pattern_access_path(session, dir_tree, *inner, target_symbol);
+                return pattern_access_path(repository, dir_tree, *inner, target_symbol);
             }
             None
         }
         dir::Pattern::Must(inner)
         | dir::Pattern::ReferenceOf { right: inner, .. }
         | dir::Pattern::ValueOf { right: inner, .. } => {
-            pattern_access_path(session, dir_tree, *inner, target_symbol)
+            pattern_access_path(repository, dir_tree, *inner, target_symbol)
         }
         dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { fields, .. } => {
-            pattern_access_path_object_fields(session, dir_tree, fields, target_symbol)
+            pattern_access_path_object_fields(repository, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
         | dir::Pattern::Array { fields } => {
-            pattern_access_path_indexed(session, dir_tree, fields, target_symbol)
+            pattern_access_path_indexed(repository, dir_tree, fields, target_symbol)
         }
         dir::Pattern::Union { patterns } => {
             let mut resolved: Option<Vec<AccessSegment>> = None;
             for pattern_id in patterns {
                 if let Some(path) =
-                    pattern_access_path(session, dir_tree, *pattern_id, target_symbol)
+                    pattern_access_path(repository, dir_tree, *pattern_id, target_symbol)
                 {
                     if resolved.is_some() {
                         return None;
@@ -493,7 +500,7 @@ fn pattern_access_path(
 
 /// Resolve access paths for object fields.
 fn pattern_access_path_object_fields(
-    session: &Session,
+    repository: &Repository,
     dir_tree: &dir::NodeTree,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
@@ -503,10 +510,10 @@ fn pattern_access_path_object_fields(
         let field = dir_tree.get::<dir::PatternField>(*field_id);
         match field {
             dir::PatternField::Named { name, pattern, .. } => {
-                let name = session.strings.get(*name).to_string();
+                let name = repository.strings.get(*name).to_string();
                 if let Some(pattern) = pattern
                     && let Some(path) =
-                        pattern_access_path(session, dir_tree, *pattern, target_symbol)
+                        pattern_access_path(repository, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Property(name));
@@ -515,12 +522,13 @@ fn pattern_access_path_object_fields(
             }
             dir::PatternField::Alias { name, symbol, .. } => {
                 if *symbol == target_symbol {
-                    let name = session.strings.get(*name).to_string();
+                    let name = repository.strings.get(*name).to_string();
                     return Some(vec![AccessSegment::Property(name)]);
                 }
             }
             dir::PatternField::Positional { pattern, .. } => {
-                if let Some(path) = pattern_access_path(session, dir_tree, *pattern, target_symbol)
+                if let Some(path) =
+                    pattern_access_path(repository, dir_tree, *pattern, target_symbol)
                 {
                     return Some(path);
                 }
@@ -536,7 +544,7 @@ fn pattern_access_path_object_fields(
 
 /// Resolve access paths for tuple and array fields.
 fn pattern_access_path_indexed(
-    session: &Session,
+    repository: &Repository,
     dir_tree: &dir::NodeTree,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
@@ -553,7 +561,8 @@ fn pattern_access_path_indexed(
                 return None;
             }
             dir::PatternField::Positional { pattern, .. } => {
-                if let Some(path) = pattern_access_path(session, dir_tree, *pattern, target_symbol)
+                if let Some(path) =
+                    pattern_access_path(repository, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -564,7 +573,7 @@ fn pattern_access_path_indexed(
             dir::PatternField::Named { pattern, .. } => {
                 if let Some(pattern) = pattern
                     && let Some(path) =
-                        pattern_access_path(session, dir_tree, *pattern, target_symbol)
+                        pattern_access_path(repository, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -581,7 +590,7 @@ fn pattern_access_path_indexed(
             dir::PatternField::Computed { pattern, .. } => {
                 if let Some(pattern) = pattern
                     && let Some(path) =
-                        pattern_access_path(session, dir_tree, *pattern, target_symbol)
+                        pattern_access_path(repository, dir_tree, *pattern, target_symbol)
                 {
                     let mut path = path;
                     path.insert(0, AccessSegment::Index(index));
@@ -715,7 +724,7 @@ fn reference_span_for_expression(
 
 /// Collect captured symbols referenced inside the inline value.
 fn collect_captured_symbols(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     value_id: dir::LocalNodeId<dir::Expression>,
@@ -728,7 +737,8 @@ fn collect_captured_symbols(
 
     let expression = dir_tree.get::<dir::Expression>(value_id);
     let mut visitor = CapturedSymbolVisitor::new(
-        session,
+        repository,
+        ctx.revision(),
         symbols,
         ctx.module_id(),
         inline_symbol,
@@ -754,7 +764,7 @@ fn collect_captured_symbols(
 
 /// Check whether inlining would introduce shadowing.
 fn inline_shadow_safe(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     reference_entries: &[ReferenceEntry],
@@ -772,7 +782,8 @@ fn inline_shadow_safe(
                 return false;
             };
             let resolved_global = dir::GlobalSymbolId::new(ctx.module_id(), resolved_local);
-            let resolved_canonical = get_canonical_symbol(session, resolved_global);
+            let resolved_canonical =
+                get_canonical_symbol(repository, ctx.revision(), resolved_global);
             if resolved_canonical != captured.canonical_id {
                 return false;
             }
@@ -1042,8 +1053,10 @@ fn symbol_is_assigned(dir_tree: &dir::NodeTree, symbol_id: dir::GlobalSymbolId) 
 
 /// Visitor that collects symbols captured by an inline value.
 struct CapturedSymbolVisitor<'a> {
-    /// The session for symbol lookups.
-    session: &'a Session,
+    /// The repository for symbol lookups.
+    repository: &'a Repository,
+    /// The revision for semantic lookups.
+    revision: Revision,
     /// The symbol table for the current module.
     symbols: &'a dir::SymbolTable,
     /// The module id for symbol resolution.
@@ -1061,7 +1074,8 @@ struct CapturedSymbolVisitor<'a> {
 impl<'a> CapturedSymbolVisitor<'a> {
     /// Create a visitor for captured symbols.
     fn new(
-        session: &'a Session,
+        repository: &'a Repository,
+        revision: Revision,
         symbols: &'a dir::SymbolTable,
         module_id: ModuleId,
         inline_symbol: dir::GlobalSymbolId,
@@ -1069,7 +1083,8 @@ impl<'a> CapturedSymbolVisitor<'a> {
         has_unknown: &'a mut bool,
     ) -> Self {
         Self {
-            session,
+            repository,
+            revision,
             symbols,
             module_id,
             inline_symbol,
@@ -1098,7 +1113,7 @@ impl dir::NodeVisitor for CapturedSymbolVisitor<'_> {
         }
 
         if let Some(target_symbol) = expression.target_symbol() {
-            let canonical = get_canonical_symbol(self.session, target_symbol);
+            let canonical = get_canonical_symbol(self.repository, self.revision, target_symbol);
             if canonical != self.inline_symbol {
                 if target_symbol.module_id != self.module_id {
                     *self.has_unknown = true;

@@ -2,11 +2,9 @@ use std::collections::HashMap;
 
 use destack_ast::{AnnotationPosition, Doc};
 use destack_dir as dir;
+use destack_workspace::{Repository, Revision};
 
-use crate::core::query_context;
-use destack_workspace::Session;
-
-use crate::core::AstQuery;
+use crate::core::{AstQuery, query_context_for_module_id};
 
 /// Collect documentation strings attached to a node.
 pub(crate) fn doc_strings_for_node(ast: AstQuery<'_>, node_id: u32) -> Vec<String> {
@@ -93,13 +91,12 @@ pub(crate) fn doc_strings_for_node_or_enclosing(
 
 /// Join documentation strings for a symbol declaration or enclosing declaration nodes.
 pub(crate) fn doc_text_for_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // resolve the module query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
 
     // resolve the symbol declaration
     let declaration = {
@@ -111,7 +108,7 @@ pub(crate) fn doc_text_for_symbol(
     // resolve the source node for the declaration
     let dir_tree = ctx.dir().tree();
     let ast_node_id = dir_tree.get_source(declaration.local_id.id);
-    let source_file = session.files.get(module.file_id);
+    let source_file = repository.file(revision, ctx.file_id()).ok().flatten()?;
     let source = source_file.text();
 
     // collect docs from the declaration or its enclosing wrapper nodes

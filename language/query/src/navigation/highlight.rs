@@ -1,4 +1,5 @@
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::sort_and_dedup_spans;
@@ -7,7 +8,6 @@ use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
     get_canonical_symbol, get_symbol_definition_span,
 };
-use destack_workspace::Session;
 
 /// Kind of document highlight.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -75,21 +75,27 @@ pub struct DocumentHighlightResponse {
 /// Highlight all occurrences of the symbol at the given position in the document.
 ///
 /// Only highlights within the same file (for cross file, use find_references).
-pub fn document_highlights(session: &Session, file: FileId, offset: u32) -> Vec<DocumentHighlight> {
+pub fn document_highlights(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    offset: u32,
+) -> Vec<DocumentHighlight> {
     // find the symbol at offset
-    let Some(symbol_at) = find_symbol_at_offset(session, file, offset) else {
+    let Some(symbol_at) = find_symbol_at_offset(repository, revision, file, offset) else {
         return Vec::new();
     };
 
     // get canonical symbol and resolve imports
-    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
 
-    with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(repository, revision, file, |ctx| {
         // initialize highlight collection
         let mut highlights = Vec::new();
 
         // check if the definition is in this file, add as write highlight
-        if let Some(definition_span) = get_symbol_definition_span(session, canonical_id)
+        if let Some(definition_span) =
+            get_symbol_definition_span(repository, revision, canonical_id)
             && definition_span.file == ctx.file_id()
         {
             highlights.push(DocumentHighlight::write(definition_span));
@@ -99,16 +105,17 @@ pub fn document_highlights(session: &Session, file: FileId, offset: u32) -> Vec<
         let reference_options = ReferenceCollectionOptions {
             include_expressions: true,
             include_members: true,
-            include_dependencies: false,
+            include_dependencies: true,
             include_namespace_receivers: false,
             skip_dependency_aliases: false,
-            use_dependency_name_spans: false,
+            use_dependency_name_spans: true,
             target_name: None,
+            require_target_name_match: false,
             limit_to_file: Some(ctx.file_id()),
         };
 
         let mut reference_spans = collect_symbol_references_in_context(
-            session,
+            repository,
             ctx.ast(),
             ctx.dir(),
             canonical_id,

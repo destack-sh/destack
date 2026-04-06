@@ -8,8 +8,9 @@ pub mod refactor;
 
 pub use assist::*;
 pub use core::{
-    QueryExecutionMode, QueryMethodId, QueryRequest, QueryRequestEnvelope, QueryRequestParseError,
-    QueryResponse, QueryResponseEnvelope, SessionQueryIndexExt, parse_query_request,
+    QueryCategory, QueryExecutionMode, QueryMethod, QueryMethodId, QueryRequest,
+    QueryRequestEnvelope, QueryRequestParseError, QueryResponse, QueryResponseEnvelope,
+    RepositoryQueryIndexExt, parse_query_request, query_method, query_methods,
 };
 pub use dir::{SymbolKind, resolve_global_symbol_id};
 pub use format::*;

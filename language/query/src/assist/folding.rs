@@ -1,10 +1,10 @@
 use destack_ast::{self as ast, TokenType};
 use destack_dir::Declaration;
 use destack_source::{FileId, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::core::{with_ast_query_for_file, with_query_context_for_file};
-use destack_workspace::Session;
 
 /// Kind of folding range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -80,21 +80,31 @@ pub struct FoldingRangesResponse {
 /// - Function bodies
 /// - Class/struct/interface/enum bodies
 /// - Namespace blocks
-pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
+pub fn folding_ranges(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Vec<FoldingRange> {
     // prefer using dir aware ranges when available
-    if let Some(ranges) = folding_ranges_with_dir(session, file) {
+    if let Some(ranges) = folding_ranges_with_dir(repository, revision, file) {
         return ranges;
     }
 
     // fall back to ast only folding ranges
-    folding_ranges_with_ast(session, file)
+    folding_ranges_with_ast(repository, revision, file)
 }
 
 /// Build folding ranges using the DIR context when available.
-fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<FoldingRange>> {
-    with_query_context_for_file(session, file, |ctx| {
+fn folding_ranges_with_dir(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Option<Vec<FoldingRange>> {
+    with_query_context_for_file(repository, revision, file, |ctx| {
         // resolve the source file and dir tree
-        let source_file = session.files.get(ctx.file_id());
+        let Some(source_file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
+            return Vec::new();
+        };
         let dir_tree = ctx.dir().tree();
 
         // collect folding ranges from declarations
@@ -151,10 +161,16 @@ fn folding_ranges_with_dir(session: &Session, file: FileId) -> Option<Vec<Foldin
 }
 
 /// Build folding ranges from the AST when DIR is unavailable.
-fn folding_ranges_with_ast(session: &Session, file: FileId) -> Vec<FoldingRange> {
-    with_ast_query_for_file(session, file, |ast| {
+fn folding_ranges_with_ast(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Vec<FoldingRange> {
+    with_ast_query_for_file(repository, revision, file, |ast| {
         // resolve the source file
-        let source_file = session.files.get(file);
+        let Some(source_file) = repository.file(revision, file).ok().flatten() else {
+            return Vec::new();
+        };
 
         // collect folding ranges from declarations
         let mut ranges = Vec::new();

@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_source::{FileId, NodeSpanType, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
 use crate::core::query_context;
-use destack_workspace::Session;
 
 /// Semantic token type for LSP semantic highlighting.
 ///
@@ -126,12 +126,15 @@ pub struct SemanticTokensResponse {
 ///
 /// Returns tokens suitable for LSP textDocument/semanticTokens/full.
 /// Tokens are in source order (not delta-encoded; the LSP layer handles that).
-pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
-    let Some(module) = get_module_by_file_id(session, file) else {
+pub fn semantic_tokens(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Vec<SemanticToken> {
+    let Some(module) = get_module_by_file_id(repository, revision, file) else {
         return Vec::new();
     };
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context(repository, revision, module.id) else {
         return Vec::new();
     };
 
@@ -324,8 +327,8 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             dir::Expression::GlobalReference { target_symbol, .. }
             | dir::Expression::LocalReference { target_symbol, .. }
             | dir::Expression::ModuleReference { target_symbol, .. } => {
-                let target_module = session.modules.get(target_symbol.module_id);
-                let Some(target_ctx) = query_context(session, &target_module) else {
+                let Some(target_ctx) = query_context(repository, revision, target_symbol.module_id)
+                else {
                     continue;
                 };
                 let target_symbols = target_ctx.dir().symbols();
@@ -558,8 +561,9 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         let token_type = match item {
             dir::DependencyItem::Local { target_symbol, .. }
             | dir::DependencyItem::Remote { target_symbol, .. } => {
-                let target_module = session.modules.get(target_symbol.module_id);
-                if let Some(target_ctx) = query_context(session, &target_module) {
+                if let Some(target_ctx) =
+                    query_context(repository, revision, target_symbol.module_id)
+                {
                     let target_symbols = target_ctx.dir().symbols();
                     let symbol = target_symbols.get_symbol(target_symbol.local_id);
                     symbol_type_to_token_type(symbol.ty)
@@ -592,8 +596,13 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
 /// Get semantic tokens for a range in a file.
 ///
 /// Returns tokens suitable for LSP textDocument/semanticTokens/range.
-pub fn semantic_tokens_range(session: &Session, file: FileId, range: Span) -> Vec<SemanticToken> {
-    semantic_tokens(session, file)
+pub fn semantic_tokens_range(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    range: Span,
+) -> Vec<SemanticToken> {
+    semantic_tokens(repository, revision, file)
         .into_iter()
         .filter(|token| token.span.start >= range.start && token.span.end <= range.end)
         .collect()

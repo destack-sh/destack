@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, Member, NodeType};
 use destack_source::{FileId, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::span_for_dir_node;
@@ -9,7 +10,6 @@ use crate::dir::{
     ParameterData, doc_text_for_node_without_tags, parameter_data_for_symbol, resolve_call_target,
 };
 use crate::format::format_call_signature;
-use destack_workspace::Session;
 
 /// A parameter in a signature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -112,14 +112,19 @@ pub struct SignatureHelpResponse {
 }
 
 /// Get signature help at the given position (inside a function call).
-pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<SignatureHelp> {
+pub fn signature_help(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    offset: u32,
+) -> Option<SignatureHelp> {
     // resolve signature help within the query context
-    with_query_context_for_file(session, file, |ctx| {
+    with_query_context_for_file(repository, revision, file, |ctx| {
         // resolve the dir tree for traversal
         let dir_tree = ctx.dir().tree();
 
         // resolve the source text for cursor checks
-        let source_file = session.files.get(ctx.file_id());
+        let source_file = repository.file(revision, ctx.file_id()).ok().flatten()?;
         let source = source_file.text();
 
         // find enclosing AST nodes at the offset
@@ -158,14 +163,15 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
             } = expression
             {
                 // resolve the call target symbol and name
-                let call_target = resolve_call_target(session, ctx.dir(), *left);
+                let call_target = resolve_call_target(repository, ctx.dir(), *left);
                 let function_name = call_target.name.unwrap_or_else(|| "<function>".to_string());
                 let Some(symbol_id) = call_target.symbol else {
                     continue;
                 };
 
                 // build signature info from the resolved symbol
-                let Some(signature) = build_signature_info(session, &function_name, symbol_id)
+                let Some(signature) =
+                    build_signature_info(repository, revision, &function_name, symbol_id)
                 else {
                     continue;
                 };
@@ -201,24 +207,24 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
 
 /// Get parameter information for a function or method symbol.
 fn build_signature_info(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     function_name: &str,
     target_symbol: GlobalSymbolId,
 ) -> Option<SignatureInfo> {
     // format the symbol's signature when available
-    signature_info_for_symbol(session, target_symbol, function_name)
+    signature_info_for_symbol(repository, revision, target_symbol, function_name)
 }
 
 /// Format signature info from a resolved symbol.
 fn signature_info_for_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
     function_name: &str,
 ) -> Option<SignatureInfo> {
     // read the symbol's module and query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     // resolve the symbol declaration
     let declaration_ref = {
@@ -228,7 +234,7 @@ fn signature_info_for_symbol(
     };
 
     // resolve the source text for doc parsing
-    let source_file = session.files.get(ctx.file_id());
+    let source_file = repository.file(revision, ctx.file_id()).ok().flatten()?;
     let source = source_file.text();
 
     // resolve the function signature from the declaration or member
@@ -274,18 +280,18 @@ fn signature_info_for_symbol(
     let formatted = format_call_signature(
         function_name,
         signature,
-        ctx.artifacts(),
         ctx.module_id(),
         dir_tree,
         types,
-        &session.modules,
-        &session.strings,
+        repository,
+        revision,
+        &repository.strings,
         false,
     );
 
     // resolve parameter documentation when available
-    let params = if let Some(data) = parameter_data_for_symbol(session, symbol_id) {
-        parameter_infos_from_data(&formatted.parameters, &data)
+    let params = if let Some(data) = parameter_data_for_symbol(repository, revision, symbol_id) {
+        parameter_infos_from_data(formatted.parameters.as_slice(), &data)
     } else {
         formatted
             .parameters

@@ -1,4 +1,5 @@
 use destack_source::{FileId, NodeSpanType, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_module_by_file_id, get_node_tree_main_span};
@@ -9,8 +10,6 @@ use crate::dir::{
     type_definition_span_for_symbol,
 };
 use destack_dir::{self as dir, DependencyItem, Expression, GlobalNodeIdAny, NodeType, Resolution};
-use destack_workspace::Session;
-
 /// Result of a goto definition query.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DefinitionResult {
@@ -92,38 +91,46 @@ pub struct GotoTypeDefinitionResponse {
 ///
 /// Returns the location(s) where the symbol is defined.
 /// For imports, follows to the original definition.
-pub fn goto_definition(session: &Session, file: FileId, offset: u32) -> Option<DefinitionResult> {
+pub fn goto_definition(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    offset: u32,
+) -> Option<DefinitionResult> {
     // resolve import-specifier definitions before generic symbol lookup
-    if let Some(span) = resolve_import_definition_at_offset(session, file, offset) {
+    if let Some(span) = resolve_import_definition_at_offset(repository, revision, file, offset) {
         return Some(DefinitionResult::single(span));
     }
 
     // find the symbol at the offset
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
 
     // prefer overload declaration spans when call resolution selected a concrete signature
-    if let Some(span) = overload_definition_span_for_call_site(session, file, &symbol_at) {
+    if let Some(span) =
+        overload_definition_span_for_call_site(repository, revision, file, &symbol_at)
+    {
         return Some(DefinitionResult::single(span));
     }
 
     // get the definition span
-    let symbol_id = semantic_target_symbol_at_offset(session, file, offset, &symbol_at)
-        .unwrap_or(symbol_at.symbol_id);
-    let span = get_symbol_definition_span(session, symbol_id)?;
+    let symbol_id =
+        semantic_target_symbol_at_offset(repository, revision, file, offset, &symbol_at)
+            .unwrap_or(symbol_at.symbol_id);
+    let span = get_symbol_definition_span(repository, revision, symbol_id)?;
 
     Some(DefinitionResult::single(span))
 }
 
 /// Resolve a definition span when the cursor is on an import dependency item.
 fn resolve_import_definition_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
 ) -> Option<Span> {
     // resolve the module and query context for this file
-    let module = get_module_by_file_id(session, file)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file)?;
+    let ctx = query_context(repository, revision, module.id)?;
     let ast = ctx.ast();
     let dir_tree = ctx.dir().tree();
 
@@ -159,7 +166,7 @@ fn resolve_import_definition_at_offset(
 
         let target_symbol = item.target_symbol()?;
 
-        return get_symbol_definition_span(session, target_symbol);
+        return get_symbol_definition_span(repository, revision, target_symbol);
     }
 
     None
@@ -169,14 +176,19 @@ fn resolve_import_definition_at_offset(
 ///
 /// For imports, returns the import statement location.
 /// For locals, same as goto_definition.
-pub fn goto_declaration(session: &Session, file: FileId, offset: u32) -> Option<DefinitionResult> {
+pub fn goto_declaration(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    offset: u32,
+) -> Option<DefinitionResult> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
-    let symbol_id =
-        binding_symbol_at_offset(session, file, offset, &symbol_at).unwrap_or(symbol_at.symbol_id);
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let symbol_id = binding_symbol_at_offset(repository, revision, file, offset, &symbol_at)
+        .unwrap_or(symbol_at.symbol_id);
 
     // get the declaration span
-    let span = get_symbol_local_definition_span(session, symbol_id)?;
+    let span = get_symbol_local_definition_span(repository, revision, symbol_id)?;
 
     Some(DefinitionResult::single(span))
 }
@@ -186,27 +198,26 @@ pub fn goto_declaration(session: &Session, file: FileId, offset: u32) -> Option<
 /// For a variable, returns the location of its type's definition.
 /// For a type, returns the type itself.
 pub fn goto_type_definition(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
 ) -> Option<DefinitionResult> {
     // find the symbol at the offset
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
-    let symbol_id =
-        binding_symbol_at_offset(session, file, offset, &symbol_at).unwrap_or(symbol_at.symbol_id);
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let symbol_id = binding_symbol_at_offset(repository, revision, file, offset, &symbol_at)
+        .unwrap_or(symbol_at.symbol_id);
 
     // use the canonical symbol when it resolves to a type
-    let canonical_id = get_canonical_symbol(session, symbol_id);
-    if let Some(span) = type_definition_span_for_symbol(session, canonical_id) {
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
+    if let Some(span) = type_definition_span_for_symbol(repository, revision, canonical_id) {
         return Some(DefinitionResult::single(span));
     }
 
     // get the module to access type table
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
-    if let Some(span) = type_definition_span_for_symbol(session, symbol_id) {
+    if let Some(span) = type_definition_span_for_symbol(repository, revision, symbol_id) {
         return Some(DefinitionResult::single(span));
     }
 
@@ -226,7 +237,7 @@ pub fn goto_type_definition(
         }
     };
     if let Some(type_symbol) = resolved_type_symbol {
-        let span = get_symbol_definition_span(session, type_symbol)?;
+        let span = get_symbol_definition_span(repository, revision, type_symbol)?;
         return Some(DefinitionResult::single(span));
     }
     None
@@ -271,7 +282,8 @@ fn resolve_nominal_type_symbol(
 
 /// Resolve an overload definition span for the selected call site candidate.
 fn overload_definition_span_for_call_site(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     symbol_at: &SymbolAtOffset,
 ) -> Option<Span> {
@@ -283,9 +295,8 @@ fn overload_definition_span_for_call_site(
     let expression_id: dir::LocalNodeId<Expression> = symbol_at.node_id.try_into().ok()?;
 
     // resolve the query context for this file
-    let module = get_module_by_file_id(session, file)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file)?;
+    let ctx = query_context(repository, revision, module.id)?;
     let dir_tree = ctx.dir().tree();
 
     // require a call/new parent where this expression is the callee
@@ -314,7 +325,7 @@ fn overload_definition_span_for_call_site(
         let resolution = types.get_resolution(resolution_id);
         match resolution {
             Resolution::Static { candidate, .. } => Some((
-                get_canonical_symbol(session, candidate.target_symbol),
+                get_canonical_symbol(repository, revision, candidate.target_symbol),
                 candidate
                     .resolved_signature
                     .as_ref()?
@@ -330,19 +341,23 @@ fn overload_definition_span_for_call_site(
         return None;
     }
 
-    overload_declaration_span_for_signature(session, target_symbol, &dynamic_parameters)
+    overload_declaration_span_for_signature(
+        repository,
+        revision,
+        target_symbol,
+        &dynamic_parameters,
+    )
 }
 
 /// Resolve an overload declaration span by matching dynamic parameter type ids.
 fn overload_declaration_span_for_signature(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: dir::GlobalSymbolId,
     dynamic_parameter_types: &[dir::LocalTypeId],
 ) -> Option<Span> {
     // resolve the symbol context and declarations
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
     let (primary_declaration, secondary_declarations) = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);

@@ -1,5 +1,5 @@
 use destack_core::StringPool;
-use destack_workspace::Session;
+use destack_workspace::Repository;
 use {destack_ast as ast, destack_dir as dir};
 
 use super::{ScopeAtOffset, expression_scope_at_offset};
@@ -33,7 +33,7 @@ pub(crate) fn object_literal_cursor_context(
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     offset: u32,
-    session: &Session,
+    repository: &Repository,
 ) -> Option<ObjectLiteralCursorContext> {
     // resolve enclosing spans from innermost to outermost
     let enclosing = sorted_enclosing_spans(ast, offset, offset);
@@ -87,7 +87,8 @@ pub(crate) fn object_literal_cursor_context(
             _ => continue,
         };
 
-        let existing_fields = extract_object_property_names(dir_tree, properties, &session.strings);
+        let existing_fields =
+            extract_object_property_names(dir_tree, properties, &repository.strings);
         let contextual_type = contextual_object_type(dir, types, dir_node_id);
 
         return Some(ObjectLiteralCursorContext::Key(ObjectLiteralContextInfo {

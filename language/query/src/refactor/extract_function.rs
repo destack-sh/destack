@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use destack_dir::{self as dir, NodeVisitor};
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::extract::{
@@ -11,10 +12,9 @@ use super::extract::{
 use crate::ast::{
     get_module_by_file_id, is_simple_identifier, span_contains_span, span_for_dir_node,
 };
-use crate::core::{QueryContext, query_context};
+use crate::core::{QueryContext, query_context, query_context_for_module_id};
 use crate::dir::{get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name};
 use crate::format::{format_local_type, format_type_for_inlay_hint};
-use destack_workspace::Session;
 
 /// Request payload for extract function queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -64,7 +64,8 @@ impl ExtractFunctionResult {
 
 /// Extract a selection into a new function.
 pub fn extract_function(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     selection: Span,
     new_name: &str,
@@ -75,18 +76,17 @@ pub fn extract_function(
     }
 
     // resolve the module and query context
-    let module = get_module_by_file_id(session, file)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file)?;
+    let ctx = query_context(repository, revision, module.id)?;
 
     // resolve source text for edits
-    let source_file = session.files.get(file);
+    let source_file = repository.file(revision, file).ok().flatten()?;
     let source = source_file.text();
 
     // extract single expressions when possible
     if let Some((expr_id, expr_span)) = resolve_extract_expression(&ctx, selection) {
         return extract_expression(
-            session,
+            repository,
             &ctx,
             &source_file,
             source,
@@ -102,7 +102,7 @@ pub fn extract_function(
         return None;
     }
 
-    extract_statement_block(session, &ctx, &source_file, source, &selection, new_name)
+    extract_statement_block(repository, &ctx, &source_file, source, &selection, new_name)
 }
 
 /// Selection metadata for extracting statements.
@@ -131,7 +131,7 @@ struct OutputSymbol {
 
 /// Extract a single expression into a new function.
 fn extract_expression(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     source_file: &destack_source::File,
     source: &str,
@@ -156,7 +156,7 @@ fn extract_expression(
     }
 
     // collect free variables for parameter list
-    let free_variables = collect_free_variables(session, ctx, expr_span);
+    let free_variables = collect_free_variables(repository, ctx, expr_span);
     let parameter_text = format_parameters(&free_variables);
     let call_arguments = format_call_arguments(&free_variables);
     let requires_async = expression_contains_await(ctx, expr_id);
@@ -165,13 +165,7 @@ fn extract_expression(
     let return_type = ctx.dir().expression_type_id(expr_id.into()).map(|type_id| {
         let types = ctx.dir().types();
         let ty = types.get_type(type_id);
-        format_type_for_inlay_hint(
-            ty,
-            ctx.artifacts(),
-            types,
-            &session.modules,
-            &session.strings,
-        )
+        format_type_for_inlay_hint(ty, types, repository, ctx.revision(), &repository.strings)
     });
     let return_type = filter_inferred_type(return_type);
     let return_type = async_return_type(return_type, requires_async)
@@ -219,7 +213,7 @@ fn extract_expression(
 
 /// Extract a statement block into a new function.
 fn extract_statement_block(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     source_file: &destack_source::File,
     source: &str,
@@ -233,13 +227,13 @@ fn extract_statement_block(
     }
 
     // collect free variables for parameter list
-    let free_variables = collect_free_variables(session, ctx, selection.extraction_span);
+    let free_variables = collect_free_variables(repository, ctx, selection.extraction_span);
     let parameter_text = format_parameters(&free_variables);
     let call_arguments = format_call_arguments(&free_variables);
     let requires_async = selection_contains_await(ctx, selection);
 
     // collect symbols that must be returned from the extracted function
-    let outputs = collect_output_symbols(session, ctx, selection);
+    let outputs = collect_output_symbols(repository, ctx, selection);
 
     // resolve return type from output symbols when possible
     let return_type = async_return_type(
@@ -443,7 +437,7 @@ fn expression_contains_await(
 
 /// Collect output symbols produced in a selection.
 fn collect_output_symbols(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     selection: &StatementSelection,
 ) -> Vec<OutputSymbol> {
@@ -462,8 +456,10 @@ fn collect_output_symbols(
 
     let mut outputs = Vec::new();
     for (symbol_id, reference_id) in referenced_after {
-        let canonical = get_canonical_symbol(session, symbol_id);
-        let Some(definition_span) = get_symbol_definition_span(session, canonical) else {
+        let canonical = get_canonical_symbol(repository, ctx.revision(), symbol_id);
+        let Some(definition_span) =
+            get_symbol_definition_span(repository, ctx.revision(), canonical)
+        else {
             continue;
         };
         if definition_span.file != ctx.file_id() {
@@ -473,14 +469,14 @@ fn collect_output_symbols(
             continue;
         }
 
-        let Some(name) = resolve_symbol_name(session, canonical) else {
+        let Some(name) = resolve_symbol_name(repository, ctx.revision(), canonical) else {
             continue;
         };
         if !is_simple_identifier(&name) {
             continue;
         }
 
-        let mutability = symbol_mutability(session, canonical);
+        let mutability = symbol_mutability(repository, ctx.revision(), canonical);
         let ty_text = ctx
             .dir()
             .expression_type_id(reference_id.into())
@@ -489,14 +485,14 @@ fn collect_output_symbols(
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    ctx.artifacts(),
                     types,
-                    &session.modules,
-                    &session.strings,
+                    repository,
+                    ctx.revision(),
+                    &repository.strings,
                 )
             })
             .filter(|ty| !ty.is_empty())
-            .or_else(|| symbol_type_text(session, ctx, canonical));
+            .or_else(|| symbol_type_text(repository, ctx, canonical));
         outputs.push(OutputSymbol {
             name,
             ty_text,
@@ -636,7 +632,7 @@ struct FreeVariable {
 
 /// Collect free variables within a selection.
 fn collect_free_variables(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     selection: Span,
 ) -> Vec<FreeVariable> {
@@ -661,12 +657,14 @@ fn collect_free_variables(
             continue;
         };
 
-        let canonical = get_canonical_symbol(session, target_symbol);
+        let canonical = get_canonical_symbol(repository, ctx.revision(), target_symbol);
         if !seen.insert(canonical) {
             continue;
         }
 
-        let Some(definition_span) = get_symbol_definition_span(session, canonical) else {
+        let Some(definition_span) =
+            get_symbol_definition_span(repository, ctx.revision(), canonical)
+        else {
             continue;
         };
 
@@ -677,7 +675,7 @@ fn collect_free_variables(
             continue;
         }
 
-        let Some(name) = resolve_symbol_name(session, canonical) else {
+        let Some(name) = resolve_symbol_name(repository, ctx.revision(), canonical) else {
             continue;
         };
         if !is_simple_identifier(&name) {
@@ -692,14 +690,14 @@ fn collect_free_variables(
                 let ty = types.get_type(type_id);
                 format_type_for_inlay_hint(
                     ty,
-                    ctx.artifacts(),
                     types,
-                    &session.modules,
-                    &session.strings,
+                    repository,
+                    ctx.revision(),
+                    &repository.strings,
                 )
             })
             .filter(|ty| !ty.is_empty())
-            .or_else(|| symbol_type_text(session, ctx, canonical));
+            .or_else(|| symbol_type_text(repository, ctx, canonical));
         vars.push((span.start, FreeVariable { name, ty_text }));
     }
 
@@ -708,11 +706,13 @@ fn collect_free_variables(
 }
 
 /// Resolve the mutability for a symbol.
-fn symbol_mutability(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<dir::Mutability> {
+fn symbol_mutability(
+    repository: &Repository,
+    revision: Revision,
+    symbol_id: dir::GlobalSymbolId,
+) -> Option<dir::Mutability> {
     // resolve the mutability for the symbol
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol.binding_mutability
@@ -720,7 +720,7 @@ fn symbol_mutability(session: &Session, symbol_id: dir::GlobalSymbolId) -> Optio
 
 /// Resolve type text for a symbol when possible.
 fn symbol_type_text(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
@@ -735,10 +735,10 @@ fn symbol_type_text(
         let type_id = ctx.dir().node_type_id(declaration.local_id)?;
         let type_text = format_local_type(
             type_id,
-            ctx.artifacts(),
             ctx.dir().types(),
-            &session.modules,
-            &session.strings,
+            repository,
+            ctx.revision(),
+            &repository.strings,
         );
         if type_text.is_empty() {
             return None;
@@ -748,9 +748,7 @@ fn symbol_type_text(
     }
 
     // resolve the declaration node for the symbol in its module
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, ctx.revision(), symbol_id.module_id)?;
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -760,10 +758,10 @@ fn symbol_type_text(
     let type_id = ctx.dir().node_type_id(declaration.local_id)?;
     let type_text = format_local_type(
         type_id,
-        ctx.artifacts(),
         ctx.dir().types(),
-        &session.modules,
-        &session.strings,
+        repository,
+        ctx.revision(),
+        &repository.strings,
     );
     if type_text.is_empty() {
         None
