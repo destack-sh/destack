@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -45,8 +45,6 @@ pub(super) struct WorkspaceSession {
     compiler: Arc<Compiler>,
     /// Tracked open-document state keyed by normalized path.
     tracked_documents_by_path: RwLock<Arc<HashMap<PathBuf, TrackedDocumentState>>>,
-    /// Current diagnostics grouped by file for this root.
-    diagnostics_by_file: RwLock<Arc<BTreeMap<FileId, Vec<Diagnostic>>>>,
     /// Serialize semantic access per root.
     pub(super) compile_lock: RwLock<()>,
 }
@@ -67,7 +65,6 @@ impl WorkspaceSession {
             overlay_fs,
             compiler,
             tracked_documents_by_path: RwLock::new(Arc::new(HashMap::new())),
-            diagnostics_by_file: RwLock::new(Arc::new(BTreeMap::new())),
             compile_lock: RwLock::new(()),
         }
     }
@@ -149,6 +146,15 @@ impl WorkspaceSession {
     /// Resolve one repository file id for a path using both raw and canonical keys.
     pub(super) fn resolve_file_id_for_path(&self, path: &Path) -> Option<FileId> {
         let revision = self.revision();
+
+        // prefer the module-backed file identity for semantic queries
+        if let Ok(Some(module_id)) = self.repository.module_id_for_path(revision, path)
+            && let Ok(Some(module)) = self.repository.module(revision, module_id)
+        {
+            return Some(module.file_id);
+        }
+
+        // fall back to the direct file identity for non-module files
         let file_id = self.repository.file_id_for_workspace_path(path);
         if self
             .repository
@@ -160,8 +166,17 @@ impl WorkspaceSession {
             return Some(file_id);
         }
 
+        // retry both lookups through the canonical tracked-document path
         let canonical_path = tracked_document_key(path);
         if canonical_path != path {
+            if let Ok(Some(module_id)) = self
+                .repository
+                .module_id_for_path(revision, &canonical_path)
+                && let Ok(Some(module)) = self.repository.module(revision, module_id)
+            {
+                return Some(module.file_id);
+            }
+
             let file_id = self.repository.file_id_for_workspace_path(&canonical_path);
             if self
                 .repository
@@ -208,36 +223,6 @@ impl WorkspaceSession {
             .ok_or(LanguageServiceError::FileIdNotTracked { file_id })?;
 
         Ok(file)
-    }
-
-    /// Return current diagnostics for one file.
-    pub(super) fn diagnostics_for_file(&self, file_id: FileId) -> Vec<Diagnostic> {
-        self.diagnostics_by_file
-            .read()
-            .get(&file_id)
-            .cloned()
-            .unwrap_or_default()
-    }
-
-    /// Return current diagnostics grouped by file.
-    pub(super) fn diagnostics_by_file(&self) -> Vec<(FileId, Vec<Diagnostic>)> {
-        self.diagnostics_by_file
-            .read()
-            .iter()
-            .map(|(file_id, diagnostics)| (*file_id, diagnostics.clone()))
-            .collect()
-    }
-
-    /// Replace diagnostics for updated files at one revision.
-    pub(super) fn apply_diagnostics(&self, updates: Vec<(FileId, Vec<Diagnostic>)>) {
-        let current = self.diagnostics_by_file.read().clone();
-        let mut diagnostics_by_file = (*current).clone();
-
-        for (file_id, diagnostics) in updates {
-            diagnostics_by_file.insert(file_id, diagnostics);
-        }
-
-        *self.diagnostics_by_file.write() = Arc::new(diagnostics_by_file);
     }
 
     /// Build one publish identity for a file snapshot.

@@ -101,15 +101,21 @@ impl LanguageService {
         let _mutation_guard = session.enter_mutation();
 
         // ignore closes for documents that are no longer tracked
-        let Some((uri, version)) = session.tracked_document_identity_for_path(path) else {
+        let Some((uri, version, text)) = session.tracked_document_for_path(path) else {
             return Ok(LanguageServiceResult::default());
         };
 
-        // restore filesystem truth before dropping the tracked document state
+        // drop the overlay before reading and reanalyzing filesystem truth
+        let _closed_document = session.untrack_document(path);
+        session.remove_overlay_for_path(path);
+
         let update = match self.watch_update_for_path(path) {
             Ok(update) => update,
             Err(error) if error.kind() == ErrorKind::NotFound => FileUpdate::Removed,
             Err(error) => {
+                session.set_tracked_document(path, uri.clone(), version);
+                session.set_overlay_for_path(path, text);
+
                 return Err(LanguageServiceError::Internal {
                     detail: format!(
                         "failed to restore closed document {}: {error}",
@@ -118,8 +124,18 @@ impl LanguageService {
                 });
             }
         };
-        let update_result = self.apply_virtual_file_update_locked(&session, path, update)?;
-        self.finish_document_close(&session, path, uri, version, update_result)
+
+        let update_result = match self.apply_virtual_file_update_locked(&session, path, update) {
+            Ok(update_result) => update_result,
+            Err(error) => {
+                session.set_tracked_document(path, uri.clone(), version);
+                session.set_overlay_for_path(path, text);
+
+                return Err(error);
+            }
+        };
+
+        self.finish_document_close(&session, uri, version, update_result)
     }
 
     /// Classify coarse impact kinds for one updated path.
@@ -471,6 +487,10 @@ impl LanguageService {
             None
         };
 
+        // admit newly visible workspace modules before impact and analysis work
+        let should_discover_module = !matches!(&update, FileUpdate::Removed)
+            && self.should_discover_workspace_module_path(path);
+
         // defer module identity to the post update revision
         let module_id = None;
 
@@ -483,13 +503,31 @@ impl LanguageService {
 
         // publish the updated file into the workspace revision
         let revision = session.stage_file_update(path, update)?;
+
+        // discover the updated file as a workspace module when needed
+        let mut messages = Vec::new();
+        if should_discover_module
+            && repository
+                .module_id_for_path(revision, path)
+                .map_err(LanguageServiceError::from)?
+                .is_none()
+            && let Err(error) = compiler.resolve_path_to_module(revision, &path.to_path_buf())
+        {
+            messages.push(warning_message(
+                "workspace_discovery_module_failed",
+                &format!(
+                    "workspace: failed to discover module {}: {error}",
+                    path.display(),
+                ),
+            ));
+        }
+
         let impact = self.build_update_impact(&repository, revision, path, file_id)?;
 
         // drop stale query index slices before any follow up analysis
         repository.remove_query_modules(impact.modules.iter().copied());
 
         // refresh config state when config files changed
-        let mut messages = Vec::new();
         if self.should_refresh_configs(&repository, revision, &impact, path) {
             messages.extend(self.refresh_repository_configs(&repository, revision));
         }
@@ -502,7 +540,8 @@ impl LanguageService {
             file_id,
             impact,
         )?];
-        self.analyze_updates(&session, &repository, &compiler, revision, &mut updates)?;
+        let revision =
+            self.finalize_updates(&session, &repository, &compiler, revision, &mut updates)?;
 
         // collect the affected modules for deferred query-index warmup
         let module_ids = updates
@@ -628,7 +667,7 @@ impl LanguageService {
 
         // run incremental analysis when requested
         if analyze {
-            self.analyze_updates(
+            revision = self.finalize_updates(
                 session,
                 repository,
                 session.compiler().as_ref(),
@@ -709,7 +748,6 @@ impl LanguageService {
     fn finish_document_close(
         &self,
         session: &Arc<WorkspaceSession>,
-        path: &Path,
         uri: Uri,
         _version: i32,
         update_result: VirtualUpdateResult,
@@ -726,10 +764,6 @@ impl LanguageService {
         // finish query-index warmup before exposing the closed state
         self.finish_virtual_update_indexes(&repository, revision, indexes);
         session.publish_revision(revision)?;
-
-        // drop tracked editor state only after semantic close succeeds
-        let _closed_document = session.untrack_document(path);
-        session.remove_overlay_for_path(path);
 
         Ok(LanguageServiceResult {
             updates: updates

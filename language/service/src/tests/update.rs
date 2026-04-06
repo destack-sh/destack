@@ -29,6 +29,42 @@ fn test_workspace_service_virtual_update_emits_diagnostics() {
     );
 }
 
+/// Restore filesystem backed diagnostics after closing a tracked document.
+#[test]
+fn test_workspace_service_close_document_restores_filesystem_diagnostics() {
+    let test = TestLanguageService::new("workspace_service_close_document");
+    let valid_source = "export const x: number = 1;\n";
+    let invalid_source = "export const x = ;\n";
+    let path = test.write_text("main.ds", valid_source);
+    let uri = test.uri_for_path(&path);
+
+    let opened = test
+        .service
+        .set_document(&path, uri.clone(), 1, invalid_source.to_string())
+        .expect("expected tracked document open");
+
+    assert!(
+        opened
+            .updates
+            .iter()
+            .any(|update| !update.diagnostics.is_empty()),
+        "expected diagnostics for tracked invalid content"
+    );
+
+    let closed = test
+        .service
+        .close_document(&path)
+        .expect("expected tracked document close");
+
+    assert!(
+        closed
+            .updates
+            .iter()
+            .any(|update| update.publish_uri == uri && update.diagnostics.is_empty()),
+        "expected a filesystem backed publish for the closed document"
+    );
+}
+
 /// Fan out config impact updates to affected workspace modules.
 #[test]
 fn test_workspace_service_config_update_fanout_emits_module_updates() {

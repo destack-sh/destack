@@ -143,13 +143,3 @@ pub struct LanguageServiceResult {
     /// Message records produced by the operation.
     pub messages: Vec<WorkspaceMessage>,
 }
-
-/// Outcome of an explicit analyze request.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AnalyzeOutcome {
-    /// Whether semantic query state is ready for the analyzed module.
-    /// Semantic query state means the module has both AST and profile DIR available.
-    pub semantic_query_ready: bool,
-    /// Optional detail when semantic query state is not ready.
-    pub detail: Option<String>,
-}
