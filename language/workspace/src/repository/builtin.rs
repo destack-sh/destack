@@ -83,6 +83,8 @@ pub struct Builtins {
     pub prelude_module_id: ModuleId,
     /// The builtin source for each module.
     module_source_by_id: DashMap<ModuleId, ModuleSource>,
+    /// The builtin logical path for each module.
+    module_path_by_id: DashMap<ModuleId, String>,
 
     /// Library modules cache.
     library_module_by_name: DashMap<(BuiltinLibraryKey, String), Vec<ModuleId>>,
@@ -103,6 +105,7 @@ impl Builtins {
             intrinsic_module_by_item: IndexMap::new(),
             prelude_module_id: ModuleId::EPHEMERAL,
             module_source_by_id: DashMap::new(),
+            module_path_by_id: DashMap::new(),
             library_module_by_name: DashMap::new(),
             library_selection_by_key: DashMap::new(),
             library_load_lock: Mutex::new(()),
@@ -121,6 +124,8 @@ impl Builtins {
                 module_id,
                 ModuleSource::Builtin(BuiltinLibraryKind::Intrinsic),
             );
+            self.module_path_by_id
+                .insert(module_id, module_path.clone());
             intrinsic_modules.insert(module_path, module_id);
         }
 
@@ -131,6 +136,7 @@ impl Builtins {
                     ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
                 self.module_source_by_id
                     .insert(module_id, ModuleSource::Builtin(library.kind));
+                self.module_path_by_id.insert(module_id, module_path);
             }
         }
 
@@ -168,6 +174,13 @@ impl Builtins {
         self.module_source_by_id
             .get(&module_id)
             .map(|source| *source.value())
+    }
+
+    /// Return the builtin logical path for one module.
+    pub fn module_path(&self, module_id: ModuleId) -> Option<String> {
+        self.module_path_by_id
+            .get(&module_id)
+            .map(|path| path.value().clone())
     }
 
     /// Return the builtin module origin for one logical path.
@@ -265,6 +278,29 @@ impl Builtins {
         self.library_name_by_module
             .get(&module_id)
             .map(|name| *name)
+    }
+
+    /// Return the path inside one builtin library for one module.
+    pub fn library_relative_path_for_module(&self, module_id: ModuleId) -> Option<String> {
+        let library_name = self.library_name_for_module(module_id)?;
+        let module_source = self.module_source(module_id)?;
+        let module_path = self.module_path(module_id)?;
+
+        let prefix = match module_source {
+            ModuleSource::Builtin(BuiltinLibraryKind::Language) => {
+                format!("language/{library_name}/")
+            }
+            ModuleSource::Builtin(BuiltinLibraryKind::Library) => {
+                format!("library/{library_name}/")
+            }
+            ModuleSource::Builtin(BuiltinLibraryKind::Intrinsic) | ModuleSource::User => {
+                return None;
+            }
+        };
+
+        module_path
+            .strip_prefix(&prefix)
+            .map(|relative_path| relative_path.to_string())
     }
 
     /// Get builtin modules that define intrinsic bindings.
