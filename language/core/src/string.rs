@@ -24,19 +24,20 @@ impl std::fmt::Display for StringId {
 }
 
 impl StringId {
+    /// Create one string id from a zero-based pool index.
     #[inline]
-    pub fn as_usize(self) -> usize {
-        (self.0.get() - 1) as usize
-    }
-
-    #[inline]
-    fn from_zero_based_index(index: usize) -> Self {
-        // index is zero-based; stored id is NonZero (index + 1)
+    pub fn from_zero_based_index(index: usize) -> Self {
+        // index is zero-based: stored id is non-zero, index + 1
         let value = u32::try_from(index.saturating_add(1))
             .expect("StringPool exhausted u32 address space for identifiers");
         let nonzero =
             NonZeroU32::new(value).expect("internal error: NonZeroU32 received zero value");
         Self(nonzero)
+    }
+
+    #[inline]
+    pub fn as_usize(self) -> usize {
+        (self.0.get() - 1) as usize
     }
 }
 

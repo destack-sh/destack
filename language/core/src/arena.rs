@@ -89,6 +89,14 @@ impl<T> Arena<T> {
         }
     }
 
+    /// Get a mutable iterator over the elements.
+    #[inline]
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        IterMut {
+            inner: self.items.iter_mut(),
+        }
+    }
+
     /// Returns the total number of elements in the arena.
     #[inline]
     pub fn len(&self) -> usize {
@@ -116,6 +124,21 @@ pub struct Iter<'a, T> {
 
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+/// Mutable iterator over elements in the Arena.
+#[derive(Debug)]
+pub struct IterMut<'a, T> {
+    inner: std::slice::IterMut<'a, T>,
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = &'a mut T;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
