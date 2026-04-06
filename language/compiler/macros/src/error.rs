@@ -95,7 +95,7 @@ fn validate_error_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
 /// Generate the formatting expression for a field using DiagnosticFormat trait.
 fn format_field_expr(field_name: &Ident) -> TokenStream2 {
-    quote! { #field_name.diagnostic_fmt(program, artifacts) }
+    quote! { #field_name.diagnostic_fmt(revision, program, artifacts) }
 }
 
 /// Parse a format string and generate the formatting code.
@@ -504,7 +504,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
     let try_from_impl = if let Some(yv) = yield_variant {
         let yield_name = &yv.name;
         quote! {
-            impl TryFrom<#enum_name> for ArtifactRequirementSet {
+            impl TryFrom<#enum_name> for RequirementSet {
                 type Error = #enum_name;
 
                 fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
@@ -517,7 +517,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         }
     } else {
         quote! {
-            impl TryFrom<#enum_name> for ArtifactRequirementSet {
+            impl TryFrom<#enum_name> for RequirementSet {
                 type Error = #enum_name;
 
                 fn try_from(error: #enum_name) -> Result<Self, Self::Error> {
@@ -533,11 +533,11 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         let yield_name = &yv.name;
         let yield_failed_name = &yfv.name;
         quote! {
-            impl From<ArtifactRequirementError> for #enum_name {
-                fn from(error: ArtifactRequirementError) -> Self {
+            impl From<RequirementError> for #enum_name {
+                fn from(error: RequirementError) -> Self {
                     match error {
-                        ArtifactRequirementError::NotReady { requirement } => Self::#yield_name { requirement },
-                        ArtifactRequirementError::Failed { requirement } => Self::#yield_failed_name { requirement },
+                        RequirementError::NotReady { requirement } => Self::#yield_name { requirement },
+                        RequirementError::Failed { requirement } => Self::#yield_failed_name { requirement },
                     }
                 }
             }
@@ -633,7 +633,8 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             #[allow(unused_variables)]
             pub fn message(
                 &self,
-                program: &Program,
+                revision: destack_workspace::Revision,
+                program: &Repository,
                 artifacts: &destack_artifact::ArtifactStore,
             ) -> String {
                 match self {

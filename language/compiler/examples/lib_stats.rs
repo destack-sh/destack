@@ -278,7 +278,7 @@ fn collect_stats_for_lib(lib_name: &str, include_modules: bool) -> LibStats {
             }
 
             // parse the source
-            let file_id = FileId(next_file_id);
+            let file_id = FileId::new(next_file_id as u64);
             next_file_id += 1;
             let file = file_from_source(file_id, *source);
             let language = LanguageType::from(file.ty);

@@ -1,13 +1,13 @@
-use destack_artifact::ArtifactStore;
+use destack_artifact::{ArtifactKey, ArtifactStore};
 use destack_source::{FileId, ModuleId, ModuleStamp, PackageId, PackageStamp, Span};
-use destack_workspace::Program;
+use destack_workspace::{Repository, Revision};
 use {destack_dir as dir, destack_mir as mir};
 
+use crate::emit::{EmitError, EmitWarning};
 use crate::{
-    AnalyzeError, AnalyzeWarning, ElaborateError, ElaborateWarning, EmitError, EmitWarning,
-    ExecuteError, ExecuteWarning, GenerateError, GenerateWarning, ImportError, ImportWarning,
-    LinkError, LinkWarning, LowerError, LowerWarning, OptimizeError, OptimizeWarning, ResolveError,
-    ResolveWarning,
+    AnalyzeError, AnalyzeWarning, ElaborateError, ElaborateWarning, ExecuteError, ExecuteWarning,
+    GenerateError, GenerateWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError,
+    LowerWarning, OptimizeError, OptimizeWarning, ResolveError, ResolveWarning,
 };
 
 /// Static metadata about a diagnostic variant.
@@ -49,19 +49,27 @@ impl DiagnosticAnchor {
     /// Returns `None` for `Global` anchors or if the file cannot be determined.
     pub fn to_file_span(
         &self,
-        program: &Program,
+        revision: Revision,
+        repository: &Repository,
         artifacts: &ArtifactStore,
     ) -> Option<(FileId, Span)> {
         match self {
             Self::DirNode(anchored) => {
-                let module = program.modules.get(anchored.module_id());
-                let module = module.as_ref();
-                let ast = artifacts.ast(anchored.module_id())?;
+                let module = repository
+                    .module(revision, anchored.module_id())
+                    .ok()
+                    .flatten()?;
+                let ast_version =
+                    repository.artifact_version(revision, &ArtifactKey::ast(anchored.module_id()));
+                let ast = artifacts.ast(&ast_version)?;
                 let local_id = anchored.local_id().id;
 
                 // look in profile-specific DIR if we have a profile
                 if let Some(profile_id) = anchored.profile_id
-                    && let Some(dir) = artifacts.dir_analyzed(anchored.module_id(), profile_id)
+                    && let Some(dir) = artifacts.dir_analyzed(&repository.artifact_version(
+                        revision,
+                        &ArtifactKey::dir_analyzed(anchored.module_id(), profile_id),
+                    ))
                 {
                     let tree = &dir.tree;
                     if tree.has_node_id(local_id) {
@@ -72,7 +80,9 @@ impl DiagnosticAnchor {
                 }
 
                 // fall back to base DIR
-                let dir = artifacts.dir_base(anchored.module_id())?;
+                let dir_version = repository
+                    .artifact_version(revision, &ArtifactKey::dir_base(anchored.module_id()));
+                let dir = artifacts.dir_base(&dir_version)?;
                 let tree = &dir.tree;
                 if !tree.has_node_id(local_id) {
                     return None;
@@ -83,24 +93,40 @@ impl DiagnosticAnchor {
                 Some((module.file_id, span))
             }
             Self::MirNode(anchored) => {
-                let module = program.modules.get(anchored.module_id());
-                let module = module.as_ref();
-                let ast = artifacts.ast(anchored.module_id())?;
-                let profile_id = program.default_profile_id_for_module(anchored.module_id());
-                let dir_node_id = if let Some(mir) =
-                    artifacts.mir_optimized(anchored.module_id(), profile_id, &anchored.target_id)
-                {
+                let module = repository
+                    .module(revision, anchored.module_id())
+                    .ok()
+                    .flatten()?;
+                let ast_version =
+                    repository.artifact_version(revision, &ArtifactKey::ast(anchored.module_id()));
+                let ast = artifacts.ast(&ast_version)?;
+                let profile_id = repository
+                    .default_profile_id_for_module(revision, anchored.module_id())
+                    .ok()?;
+                let optimized_version = repository.artifact_version(
+                    revision,
+                    &ArtifactKey::mir_optimized(
+                        anchored.module_id(),
+                        profile_id,
+                        anchored.target_id,
+                    ),
+                );
+                let base_version = repository.artifact_version(
+                    revision,
+                    &ArtifactKey::mir_base(anchored.module_id(), profile_id, anchored.target_id),
+                );
+                let dir_node_id = if let Some(mir) = artifacts.mir_optimized(&optimized_version) {
                     mir.tree.get_source(anchored.local_id().id)?
-                } else if let Some(mir) =
-                    artifacts.mir_base(anchored.module_id(), profile_id, &anchored.target_id)
-                {
+                } else if let Some(mir) = artifacts.mir_base(&base_version) {
                     mir.tree.get_source(anchored.local_id().id)?
                 } else {
                     return None;
                 };
 
                 // look up span from base DIR
-                let dir = artifacts.dir_base(anchored.module_id())?;
+                let dir_version = repository
+                    .artifact_version(revision, &ArtifactKey::dir_base(anchored.module_id()));
+                let dir = artifacts.dir_base(&dir_version)?;
                 let tree = &dir.tree;
                 if !tree.has_node_id(dir_node_id) {
                     return None;
@@ -111,8 +137,7 @@ impl DiagnosticAnchor {
                 Some((module.file_id, span))
             }
             Self::Module(module_id) => {
-                let module = program.modules.get(*module_id);
-                let module = module.as_ref();
+                let module = repository.module(revision, *module_id).ok().flatten()?;
                 // point to file start
                 Some((module.file_id, Span::empty(module.file_id)))
             }
@@ -126,17 +151,14 @@ impl DiagnosticAnchor {
             }
             Self::Package(package_id) => {
                 // point to destack.json or package.json if available
-                let package = program.packages.get(*package_id);
-                let package = package.read();
+                let package = repository.package(revision, *package_id).ok().flatten()?;
                 package
-                    .config
-                    .as_ref()
-                    .map(|c| (c.file_id, Span::empty(c.file_id)))
+                    .destack_file_id
+                    .map(|file_id| (file_id, Span::empty(file_id)))
                     .or_else(|| {
                         package
-                            .manifest
-                            .as_ref()
-                            .map(|c| (c.file_id, Span::empty(c.file_id)))
+                            .package_file_id
+                            .map(|file_id| (file_id, Span::empty(file_id)))
                     })
             }
             Self::Global => None,
@@ -153,7 +175,7 @@ impl DiagnosticAnchor {
         }
     }
 
-    /// Get the file id for this anchor, if available without program access.
+    /// Get the file id for this anchor, if available without repository access.
     pub fn file_id(&self) -> Option<FileId> {
         match self {
             Self::File(file_id) => Some(*file_id),

@@ -1,78 +1,53 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use destack_artifact::{ArtifactKey, ArtifactStamp, ArtifactVersion};
+use destack_workspace::Revision;
 
-use destack_artifact::{ArtifactDependency, ArtifactKey};
-
-use crate::Compiler;
+use crate::{Compiler, CompilerContext};
 
 impl Compiler {
-    /// Return the dependency stamp for an artifact key.
-    pub(crate) fn artifact_dependency_for_key(
+    /// Return the exact artifact version for one artifact key in one explicit revision.
+    #[cfg(test)]
+    pub(crate) fn artifact_version_for_revision(
         &self,
+        revision: Revision,
         artifact_key: &ArtifactKey,
-    ) -> ArtifactDependency {
-        match artifact_key {
-            ArtifactKey::ModuleGraph { profile } => ArtifactDependency::new(
-                self.hash_build_dependency(&(artifact_key, self.profile_version(*profile))),
-            ),
-            ArtifactKey::LanguageEnvironment { profile }
-            | ArtifactKey::IntrinsicEnvironment { profile }
-            | ArtifactKey::LibraryEnvironment { profile } => ArtifactDependency::new(
-                self.hash_build_dependency(&(artifact_key, self.profile_version(*profile))),
-            ),
-            ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
-                ArtifactDependency::new(
-                    self.hash_build_dependency(&(
-                        artifact_key,
-                        self.module_source_version(*module),
-                    )),
-                )
-            }
-            ArtifactKey::DirPrepared { module, profile }
-            | ArtifactKey::DirResolved { module, profile }
-            | ArtifactKey::DirDeclared { module, profile }
-            | ArtifactKey::DirInterface { module, profile }
-            | ArtifactKey::DirAnalyzed { module, profile }
-            | ArtifactKey::DirElaborated { module, profile }
-            | ArtifactKey::DirPatched { module, profile } => {
-                ArtifactDependency::new(self.hash_build_dependency(&(
-                    artifact_key,
-                    self.module_source_version(*module),
-                    self.profile_version(*profile),
-                )))
-            }
-            ArtifactKey::MirBase {
-                module,
-                profile,
-                target,
-            }
-            | ArtifactKey::MirOptimized {
-                module,
-                profile,
-                target,
-            } => ArtifactDependency::new(self.hash_build_dependency(&(
-                artifact_key,
-                self.module_source_version(*module),
-                self.profile_version(*profile),
-                target,
-            ))),
-            ArtifactKey::ModuleArtifact { module, target } => {
-                ArtifactDependency::new(self.hash_build_dependency(&(
-                    artifact_key,
-                    self.module_source_version(*module),
-                    target,
-                )))
-            }
-            ArtifactKey::PackageOutput { package, target } => ArtifactDependency::new(
-                self.hash_build_dependency(&(artifact_key, self.package_version(*package), target)),
-            ),
-        }
+    ) -> ArtifactVersion {
+        let stamp = self.artifact_stamp_for_revision(revision, artifact_key);
+
+        ArtifactVersion::new(*artifact_key, stamp)
     }
 
-    /// Hash one dependency tuple into one artifact dependency stamp.
-    fn hash_build_dependency(&self, value: &impl Hash) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        value.hash(&mut hasher);
-        hasher.finish()
+    /// Return the current artifact stamp for one artifact key in one explicit revision.
+    pub(crate) fn artifact_stamp_for_revision(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> ArtifactStamp {
+        self.repository.artifact_stamp(revision, artifact_key)
+    }
+
+    /// Return the current artifact stamp for one artifact key in the active execution scope.
+    pub(crate) fn artifact_stamp_for_key(&self, artifact_key: &ArtifactKey) -> ArtifactStamp {
+        self.current_context().artifact_stamp(artifact_key)
+    }
+
+    /// Return the exact artifact version for one artifact key in the active execution scope.
+    pub(crate) fn artifact_version_for_key(&self, artifact_key: &ArtifactKey) -> ArtifactVersion {
+        let stamp = self.artifact_stamp_for_key(artifact_key);
+
+        ArtifactVersion::new(*artifact_key, stamp)
+    }
+}
+
+impl CompilerContext<'_> {
+    /// Return the current artifact stamp for one artifact key in this pinned revision.
+    pub(crate) fn artifact_stamp(&self, artifact_key: &ArtifactKey) -> ArtifactStamp {
+        self.compiler()
+            .repository
+            .artifact_stamp(self.revision(), artifact_key)
+    }
+
+    /// Return the exact artifact version for one artifact key in this pinned revision.
+    pub(crate) fn artifact_version(&self, artifact_key: &ArtifactKey) -> ArtifactVersion {
+        ArtifactVersion::new(*artifact_key, self.artifact_stamp(artifact_key))
     }
 }

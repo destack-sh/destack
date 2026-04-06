@@ -472,16 +472,16 @@ impl CompilerStats {
         self.snapshot_with_modules(0)
     }
 
-    /// Get a snapshot with an explicit module count (from program.modules.len()).
+    /// Get a snapshot with an explicit module count.
     pub fn snapshot_with_modules(&self, module_count: usize) -> StatsSnapshot {
-        self.snapshot_with_program(module_count, None)
+        self.snapshot_with_repository(module_count, None)
     }
 
-    /// Get a snapshot with module count and optional program for package name resolution.
-    pub fn snapshot_with_program(
+    /// Get a snapshot with module count and optional repository metadata.
+    pub fn snapshot_with_repository(
         &self,
         module_count: usize,
-        program: Option<&destack_workspace::Program>,
+        repository: Option<&destack_workspace::Repository>,
     ) -> StatsSnapshot {
         // collect per-package stats
         let packages: Vec<PackageStatsSnapshot> = self
@@ -489,11 +489,8 @@ impl CompilerStats {
             .iter()
             .map(|entry| {
                 let package_id = *entry.key();
-                let name = program.and_then(|p| {
-                    let pkg = p.packages.get(package_id);
-                    let pkg = pkg.read();
-                    pkg.name.clone()
-                });
+                let _ = repository;
+                let name = None;
                 let duration_ns = entry.value().duration_ns.load(Ordering::Relaxed);
                 PackageStatsSnapshot {
                     package_id,

@@ -3,6 +3,7 @@ use destack_artifact::{
     ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey, ProfileKey,
 };
 use destack_source::ProfileId;
+use destack_workspace::Revision;
 
 impl Compiler {
     /// Return the live profile id for one stable image profile key.
@@ -13,6 +14,7 @@ impl Compiler {
     /// Build the expected persisted image header for one stable image key.
     pub(crate) fn expected_image_header_for_artifact_key(
         &self,
+        revision: Revision,
         artifact_key: &ArtifactImageKey,
     ) -> Result<Option<ArtifactImageHeader>, ArtifactImageError> {
         let header = match artifact_key {
@@ -21,33 +23,34 @@ impl Compiler {
                     return Ok(None);
                 };
 
-                Some(self.module_graph_image_header(profile_id))
+                Some(self.module_graph_image_header(revision, profile_id))
             }
             ArtifactImageKey::LanguageEnvironment { profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.language_environment_image_header(profile_id)
+                self.language_environment_image_header(revision, profile_id)
             }
             ArtifactImageKey::IntrinsicEnvironment { profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.intrinsic_environment_image_header(profile_id)
+                self.intrinsic_environment_image_header(revision, profile_id)
             }
             ArtifactImageKey::LibraryEnvironment { profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
                     return Ok(None);
                 };
 
-                self.library_environment_image_header(profile_id)
+                self.library_environment_image_header(revision, profile_id)
             }
-            ArtifactImageKey::Ast { module } => self.current_ast_image_header(*module),
+            ArtifactImageKey::Ast { module } => self.current_ast_image_header(revision, *module),
             ArtifactImageKey::DirBase { module } => self.dir_base_image_header(
+                revision,
                 *module,
-                self.artifact_dependency_for_key(&ArtifactKey::dir_base(*module)),
+                self.artifact_stamp_for_revision(revision, &ArtifactKey::dir_base(*module)),
             ),
             ArtifactImageKey::DirPrepared { module, profile } => {
                 let Some(profile_id) = self.profile_id_for_artifact_image_key(profile) else {
@@ -55,10 +58,12 @@ impl Compiler {
                 };
 
                 self.dir_prepared_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::dir_prepared(
-                        *module, profile_id,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::dir_prepared(*module, profile_id),
+                    ),
                     profile_id,
                 )
             }
@@ -68,10 +73,12 @@ impl Compiler {
                 };
 
                 self.dir_resolved_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::dir_resolved(
-                        *module, profile_id,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::dir_resolved(*module, profile_id),
+                    ),
                     profile_id,
                 )
             }
@@ -81,10 +88,12 @@ impl Compiler {
                 };
 
                 self.dir_declared_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::dir_declared(
-                        *module, profile_id,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::dir_declared(*module, profile_id),
+                    ),
                     profile_id,
                 )
             }
@@ -94,10 +103,12 @@ impl Compiler {
                 };
 
                 self.dir_interface_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::dir_interface(
-                        *module, profile_id,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::dir_interface(*module, profile_id),
+                    ),
                     profile_id,
                 )
             }
@@ -107,10 +118,12 @@ impl Compiler {
                 };
 
                 self.dir_analyzed_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::dir_analyzed(
-                        *module, profile_id,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::dir_analyzed(*module, profile_id),
+                    ),
                     profile_id,
                 )
             }
@@ -120,10 +133,12 @@ impl Compiler {
                 };
 
                 self.dir_elaborated_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::dir_elaborated(
-                        *module, profile_id,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::dir_elaborated(*module, profile_id),
+                    ),
                     profile_id,
                 )
             }
@@ -133,10 +148,12 @@ impl Compiler {
                 };
 
                 self.dir_patched_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::dir_patched(
-                        *module, profile_id,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::dir_patched(*module, profile_id),
+                    ),
                     profile_id,
                 )
             }
@@ -150,10 +167,12 @@ impl Compiler {
                 };
 
                 self.mir_base_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::mir_base(
-                        *module, profile_id, *target,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::mir_base(*module, profile_id, *target),
+                    ),
                     profile_id,
                     target,
                 )
@@ -168,17 +187,19 @@ impl Compiler {
                 };
 
                 self.mir_optimized_image_header(
+                    revision,
                     *module,
-                    self.artifact_dependency_for_key(&ArtifactKey::mir_optimized(
-                        *module, profile_id, *target,
-                    )),
+                    self.artifact_stamp_for_revision(
+                        revision,
+                        &ArtifactKey::mir_optimized(*module, profile_id, *target),
+                    ),
                     profile_id,
                     target,
                 )
             }
             ArtifactImageKey::ModuleOutput { .. } => None,
             ArtifactImageKey::PackageOutput { package, target } => {
-                self.package_output_image_header(*package, target)
+                self.package_output_image_header(revision, *package, target)
             }
         };
 
@@ -188,12 +209,24 @@ impl Compiler {
     /// Load the expected persisted content id for one stable image key.
     pub(crate) fn load_expected_artifact_content_id(
         &self,
+        revision: Revision,
         artifact_key: &ArtifactImageKey,
     ) -> Result<Option<destack_artifact::ArtifactContentId>, ArtifactImageError> {
-        let Some(expected) = self.expected_image_header_for_artifact_key(artifact_key)? else {
+        self.load_expected_artifact_content_id_with_active(revision, artifact_key, &mut Vec::new())
+    }
+
+    /// Load the expected persisted content id for one stable image key.
+    pub(crate) fn load_expected_artifact_content_id_with_active(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactImageKey,
+        active_keys: &mut Vec<ArtifactImageKey>,
+    ) -> Result<Option<destack_artifact::ArtifactContentId>, ArtifactImageError> {
+        let Some(expected) = self.expected_image_header_for_artifact_key(revision, artifact_key)?
+        else {
             return Ok(None);
         };
 
-        self.load_current_content_id(&expected)
+        self.load_current_content_id_with_active(revision, &expected, active_keys)
     }
 }

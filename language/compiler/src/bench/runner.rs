@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::ops::Deref;
 use std::time::{Duration, Instant};
 
 use destack_builtin::{BuiltinLibrary, BuiltinLibraryKind, LANGUAGE_LIBS, LIBRARY_LIBS};
@@ -7,7 +8,7 @@ use destack_source::{DiagnosticSeverity, ModuleId};
 use crate::{StatsSnapshot, TaskPhase, default_workers};
 
 use super::output::{format_duration, output_results};
-use super::program::BenchProgram;
+use super::program::BenchWorkspace;
 
 /// Timing data for a builtin lib run.
 #[derive(Debug, Clone)]
@@ -200,7 +201,7 @@ pub fn run_bench(options: &BenchOptions) {
 pub(crate) fn run_resolve_builtin_lib_symbols(mode: BenchMode) {
     // resolve declared lib symbols for all builtin libs
     for lib in LIBRARY_LIBS.iter() {
-        let test = test_program_for_mode(mode).with_profile_libs(&[lib.name]);
+        let test = test_workspace_for_mode(mode).with_profile_libs(&[lib.name]);
         test.resolve_language_environment();
         test.resolve_libs();
         test.compile();
@@ -208,7 +209,7 @@ pub(crate) fn run_resolve_builtin_lib_symbols(mode: BenchMode) {
 
         let profile = test.default_profile_id_for_root();
         for &symbol in lib.declared_symbols {
-            let name_id = test.program.strings.intern(symbol);
+            let name_id = test.workspace.strings.intern(symbol);
             let declared_symbol = test.compiler.get_declared_library_symbol(profile, name_id);
             assert!(
                 declared_symbol.is_some(),
@@ -230,7 +231,7 @@ pub(crate) fn run_resolve_all_builtin_libs(mode: BenchMode) {
         .collect();
 
     // resolve all libs in one program
-    let test = test_program_for_mode(mode).with_profile_libs(&lib_names);
+    let test = test_workspace_for_mode(mode).with_profile_libs(&lib_names);
     test.resolve_language_environment();
     test.resolve_libs();
     test.compile();
@@ -255,10 +256,10 @@ fn run_analyze_builtin_libs_combined(options: &BenchOptions) {
 }
 
 /// Build a test program with the requested execution mode.
-fn test_program_for_mode(mode: BenchMode) -> BenchProgram {
+fn test_workspace_for_mode(mode: BenchMode) -> BenchWorkspace {
     match mode {
-        BenchMode::Sequential => BenchProgram::new(1, true, true),
-        BenchMode::Parallel => BenchProgram::new(default_workers(), true, true),
+        BenchMode::Sequential => BenchWorkspace::new(1, true, true),
+        BenchMode::Parallel => BenchWorkspace::new(default_workers(), true, true),
     }
 }
 
@@ -280,7 +281,7 @@ fn run_builtin_libs_per_lib(options: &BenchOptions) {
         let lib_start = Instant::now();
         let libs = libs_for_builtin(lib);
 
-        let mut test = test_program_for_mode(options.mode).with_profile_libs(&libs);
+        let mut test = test_workspace_for_mode(options.mode).with_profile_libs(&libs);
         if options.validate_builtin_libs {
             test = test.with_options_mut(|options| options.validate_builtin_libs = true);
         }
@@ -317,10 +318,10 @@ fn run_builtin_libs_per_lib(options: &BenchOptions) {
                 format_duration(lib_start.elapsed())
             );
 
-            let snapshot = test
-                .compiler
-                .stats
-                .snapshot_with_program(test.program.modules.len(), Some(&test.program));
+            let snapshot = test.compiler.stats.snapshot_with_repository(
+                test.workspace.tracked_module_count(),
+                Some(test.workspace.deref()),
+            );
             report_timing_tag_summary(&snapshot, options.report_top_n);
         }
     }
@@ -418,7 +419,7 @@ fn libs_for_builtin(lib: &BuiltinLibrary) -> Vec<&'static str> {
 
 /// Import lib modules and return module ids plus elapsed time.
 fn import_library_modules(
-    test: &BenchProgram,
+    test: &BenchWorkspace,
     libs: &[&str],
     timeout: Duration,
 ) -> (Vec<ModuleId>, Duration) {
@@ -437,7 +438,7 @@ fn import_library_modules(
 }
 
 /// Resolve builtins and libs for a test program.
-fn resolve_builtins_and_libs(test: &BenchProgram, timeout: Duration) -> Duration {
+fn resolve_builtins_and_libs(test: &BenchWorkspace, timeout: Duration) -> Duration {
     // resolve builtins and libs with timing
     let resolve_start = Instant::now();
     test.resolve_language_environment();
@@ -448,7 +449,7 @@ fn resolve_builtins_and_libs(test: &BenchProgram, timeout: Duration) -> Duration
 
 /// Analyze imported lib modules for a test program.
 fn analyze_library_modules(
-    test: &BenchProgram,
+    test: &BenchWorkspace,
     modules: &[ModuleId],
     timeout: Duration,
 ) -> Duration {
@@ -480,7 +481,7 @@ struct LineStats {
 }
 
 /// Collect line count statistics for a module list.
-fn collect_line_stats(test: &BenchProgram, modules: &[ModuleId]) -> LineStats {
+fn collect_line_stats(test: &BenchWorkspace, modules: &[ModuleId]) -> LineStats {
     let mut seen_modules = HashSet::new();
     let mut line_counts = Vec::new();
 
@@ -489,9 +490,9 @@ fn collect_line_stats(test: &BenchProgram, modules: &[ModuleId]) -> LineStats {
             continue;
         }
 
-        let module_ref = test.program.modules.get(*module_id);
+        let module_ref = test.workspace.module_snapshot(*module_id);
         let module = module_ref.as_ref();
-        let Some(file) = test.program.files.get_maybe(module.file_id) else {
+        let Some(file) = test.workspace.source_file_maybe(module.file_id) else {
             line_counts.push(0);
             continue;
         };
@@ -518,7 +519,7 @@ fn collect_line_stats(test: &BenchProgram, modules: &[ModuleId]) -> LineStats {
 }
 
 /// Compile queued tasks and assert no diagnostics.
-fn compile_and_check(test: &BenchProgram, timeout: Duration) {
+fn compile_and_check(test: &BenchWorkspace, timeout: Duration) {
     // compile with timeout
     test.compile_with_timeout(timeout);
 
@@ -549,7 +550,7 @@ fn run_builtin_libs_combined(options: &BenchOptions) {
 
     // run the combined timing pass
     let lib_refs: Vec<&str> = libs.iter().map(|name| name.as_str()).collect();
-    let test = test_program_for_mode(options.mode).with_profile_libs(&lib_refs);
+    let test = test_workspace_for_mode(options.mode).with_profile_libs(&lib_refs);
     let timeout = options.effective_timeout();
 
     let (import_modules, import_duration) = import_library_modules(&test, &lib_refs, timeout);
@@ -610,7 +611,7 @@ fn run_list_builtin_library_modules(options: &BenchOptions) {
     }
 
     let lib_refs: Vec<&str> = libs.iter().map(|name| name.as_str()).collect();
-    let test = test_program_for_mode(options.mode).with_profile_libs(&lib_refs);
+    let test = test_workspace_for_mode(options.mode).with_profile_libs(&lib_refs);
     let timeout = options.effective_timeout();
 
     let (import_modules, _import_duration) = import_library_modules(&test, &lib_refs, timeout);
@@ -624,7 +625,7 @@ fn run_list_builtin_library_modules(options: &BenchOptions) {
             continue;
         }
 
-        let module_ref = test.program.modules.get(module_id);
+        let module_ref = test.workspace.module_snapshot(module_id);
         let module = module_ref.as_ref();
         let display = module
             .path
@@ -632,9 +633,8 @@ fn run_list_builtin_library_modules(options: &BenchOptions) {
             .map(|path| path.display().to_string())
             .unwrap_or_else(|| module.uri.to_string());
         let line_count = test
-            .program
-            .files
-            .get_maybe(module.file_id)
+            .workspace
+            .source_file_maybe(module.file_id)
             .map(|file| file.line_count() as usize)
             .unwrap_or(0);
         let label = builtin_lib_label_for_module(&display);

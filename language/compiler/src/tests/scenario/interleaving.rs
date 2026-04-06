@@ -57,7 +57,7 @@ impl CommitGate {
                 .target
                 .lock()
                 .unwrap_or_else(|error| panic!("failed to lock commit gate target: {error}"))
-                .clone();
+                .to_owned();
             if target.as_ref() != Some(&artifact_key) {
                 return;
             }
@@ -130,10 +130,10 @@ fn test_source_edit_drops_stale_ast_publish_before_commit() {
     let main = run.module("main.ts");
     let module_id = main.module_id();
     let artifact_key = main.ast_key();
-    gate.set_target(artifact_key.clone());
+    gate.set_target(artifact_key);
 
     // enqueue the target artifact and start the compile loop
-    run.compiler().enqueue(artifact_key.clone());
+    run.enqueue(artifact_key);
     thread::scope(|scope| {
         let compile_run = run.clone();
         let compile_task = scope.spawn(move || {
@@ -150,8 +150,16 @@ fn test_source_edit_drops_stale_ast_publish_before_commit() {
     });
 
     // the stale publish should not survive the interleaving
-    assert!(!run.compiler().artifact_key_is_available(&artifact_key));
-    assert!(run.compiler().artifacts.ast(module_id).is_none());
+    assert!(
+        !run.compiler()
+            .artifact_key_is_available(run.current_revision(), &artifact_key)
+    );
+    assert!(
+        run.program()
+            .repository()
+            .ast(run.current_revision(), module_id)
+            .is_none()
+    );
 
     // the next rebuild should converge to the fresh result
     main.require_ast();
@@ -195,10 +203,10 @@ export const value: number = dep;
     let main_module_id = main.module_id();
     let profile_id = main.profile_id();
     let artifact_key = main.dir_resolved_key();
-    gate.set_target(artifact_key.clone());
+    gate.set_target(artifact_key);
 
     // enqueue the dependent artifact and start the compile loop
-    run.compiler().enqueue(artifact_key.clone());
+    run.enqueue(artifact_key);
     thread::scope(|scope| {
         let compile_run = run.clone();
         let compile_task = scope.spawn(move || {
@@ -215,11 +223,14 @@ export const value: number = dep;
     });
 
     // the stale dependent publish should not survive the interleaving
-    assert!(!run.compiler().artifact_key_is_available(&artifact_key));
     assert!(
-        run.compiler()
-            .artifacts
-            .dir_resolved(main_module_id, profile_id)
+        !run.compiler()
+            .artifact_key_is_available(run.current_revision(), &artifact_key)
+    );
+    assert!(
+        run.program()
+            .repository()
+            .dir_resolved(run.current_revision(), main_module_id, profile_id)
             .is_none()
     );
 
@@ -233,5 +244,10 @@ export const value: number = dep;
     let expected = fresh_main.dir_resolved().as_ref().clone();
 
     // compare the rebuilt surface against a fresh session
-    assert_dir_resolved_eq(&fresh.program().strings, &expected, &rebuilt);
+    assert_dir_resolved_eq(
+        &fresh.program().strings,
+        &run.program().strings,
+        &expected,
+        &rebuilt,
+    );
 }

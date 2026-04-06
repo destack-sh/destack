@@ -1,9 +1,7 @@
 use destack_artifact::{ArtifactKey, ArtifactStore};
-use destack_workspace::Program;
+use destack_workspace::{Repository, Revision};
 
-use crate::{
-    ArtifactRequirement, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticFormat, TaskError,
-};
+use crate::{DiagnosticAnchor, DiagnosticFormat, RequirementSet, TaskError};
 
 /// Phase label for diagnostics, tracing, and stats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -117,7 +115,12 @@ pub trait ArtifactTaskKeyExt {
     fn name(&self) -> &'static str;
 
     /// Return trace arguments for this artifact key.
-    fn trace_args(&self, program: &Program, artifacts: &ArtifactStore) -> String;
+    fn trace_args(
+        &self,
+        revision: Revision,
+        repository: &Repository,
+        artifacts: &ArtifactStore,
+    ) -> String;
 }
 
 impl ArtifactTaskKeyExt for ArtifactKey {
@@ -138,7 +141,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             ArtifactKey::DirPatched { .. } => TaskPhase::Execute,
             ArtifactKey::MirBase { .. } => TaskPhase::Lower,
             ArtifactKey::MirOptimized { .. } => TaskPhase::Optimize,
-            ArtifactKey::ModuleArtifact { .. } => TaskPhase::Generate,
+            ArtifactKey::ModuleOutput { .. } => TaskPhase::Generate,
             ArtifactKey::PackageOutput { .. } => TaskPhase::Link,
         }
     }
@@ -158,7 +161,7 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             | ArtifactKey::DirPatched { module, .. }
             | ArtifactKey::MirBase { module, .. }
             | ArtifactKey::MirOptimized { module, .. }
-            | ArtifactKey::ModuleArtifact { module, .. } => DiagnosticAnchor::from(*module),
+            | ArtifactKey::ModuleOutput { module, .. } => DiagnosticAnchor::from(*module),
             ArtifactKey::LanguageEnvironment { .. }
             | ArtifactKey::IntrinsicEnvironment { .. }
             | ArtifactKey::LibraryEnvironment { .. } => DiagnosticAnchor::Global,
@@ -184,26 +187,31 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             ArtifactKey::DirPatched { .. } => "dir_patched",
             ArtifactKey::MirBase { .. } => "mir_base",
             ArtifactKey::MirOptimized { .. } => "mir_optimized",
-            ArtifactKey::ModuleArtifact { .. } => "module_artifact",
+            ArtifactKey::ModuleOutput { .. } => "module_output",
             ArtifactKey::PackageOutput { .. } => "package_output",
         }
     }
 
     /// Return trace arguments for this artifact key.
-    fn trace_args(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+    fn trace_args(
+        &self,
+        revision: Revision,
+        repository: &Repository,
+        artifacts: &ArtifactStore,
+    ) -> String {
         match self {
             ArtifactKey::ModuleGraph { profile } => {
-                let profile = profile.diagnostic_fmt(program, artifacts);
+                let profile = profile.diagnostic_fmt(revision, repository, artifacts);
                 format!("profile={profile}")
             }
             ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
-                let module = module.diagnostic_fmt(program, artifacts);
+                let module = module.diagnostic_fmt(revision, repository, artifacts);
                 format!("module={module}")
             }
             ArtifactKey::LanguageEnvironment { profile }
             | ArtifactKey::IntrinsicEnvironment { profile }
             | ArtifactKey::LibraryEnvironment { profile } => {
-                let profile = profile.diagnostic_fmt(program, artifacts);
+                let profile = profile.diagnostic_fmt(revision, repository, artifacts);
                 format!("profile={profile}")
             }
             ArtifactKey::DirPrepared { module, profile }
@@ -213,8 +221,8 @@ impl ArtifactTaskKeyExt for ArtifactKey {
             | ArtifactKey::DirAnalyzed { module, profile }
             | ArtifactKey::DirElaborated { module, profile }
             | ArtifactKey::DirPatched { module, profile } => {
-                let module = module.diagnostic_fmt(program, artifacts);
-                let profile = profile.diagnostic_fmt(program, artifacts);
+                let module = module.diagnostic_fmt(revision, repository, artifacts);
+                let profile = profile.diagnostic_fmt(revision, repository, artifacts);
                 format!("module={module} profile={profile}")
             }
             ArtifactKey::MirBase {
@@ -227,19 +235,19 @@ impl ArtifactTaskKeyExt for ArtifactKey {
                 profile,
                 target,
             } => {
-                let module = module.diagnostic_fmt(program, artifacts);
-                let profile = profile.diagnostic_fmt(program, artifacts);
-                let target = target.diagnostic_fmt(program, artifacts);
+                let module = module.diagnostic_fmt(revision, repository, artifacts);
+                let profile = profile.diagnostic_fmt(revision, repository, artifacts);
+                let target = target.diagnostic_fmt(revision, repository, artifacts);
                 format!("module={module} profile={profile} target={target}")
             }
-            ArtifactKey::ModuleArtifact { module, target } => {
-                let target = target.diagnostic_fmt(program, artifacts);
-                let module = module.diagnostic_fmt(program, artifacts);
+            ArtifactKey::ModuleOutput { module, target } => {
+                let target = target.diagnostic_fmt(revision, repository, artifacts);
+                let module = module.diagnostic_fmt(revision, repository, artifacts);
                 format!("module={module} target={target}")
             }
             ArtifactKey::PackageOutput { package, target } => {
-                let package = package.diagnostic_fmt(program, artifacts);
-                let target = target.diagnostic_fmt(program, artifacts);
+                let package = package.diagnostic_fmt(revision, repository, artifacts);
+                let target = target.diagnostic_fmt(revision, repository, artifacts);
                 format!("package={package} target={target}")
             }
         }
@@ -283,7 +291,7 @@ pub enum TaskStatus {
     /// The task is running.
     Running,
     /// The task is waiting for more artifact requirements.
-    Yielded { requirement: ArtifactRequirementSet },
+    Yielded { requirement: RequirementSet },
     /// The task was skipped because the running attempt became obsolete.
     Skipped,
     /// The task completed successfully.
@@ -323,6 +331,8 @@ impl From<TaskOutcome> for TaskStatus {
 pub struct TaskHandle {
     /// The task id.
     pub id: TaskId,
+    /// The revision this task evaluates against.
+    pub revision: Revision,
     /// The current task status.
     pub status: TaskStatus,
     /// The previous outcome for repeat-yield detection.
@@ -331,20 +341,18 @@ pub struct TaskHandle {
     pub artifact_key: ArtifactKey,
     /// The number of times this task has yielded.
     pub yield_count: u32,
-    /// The exact requirements satisfied by the last completed build.
-    pub final_requirements: Vec<ArtifactRequirement>,
 }
 
 impl TaskHandle {
     /// Create a new task handle.
-    pub fn new(id: TaskId, artifact_key: ArtifactKey) -> Self {
+    pub fn new(id: TaskId, revision: Revision, artifact_key: ArtifactKey) -> Self {
         Self {
             id,
+            revision,
             status: TaskStatus::Queued,
             last_outcome: None,
             artifact_key,
             yield_count: 0,
-            final_requirements: Vec::new(),
         }
     }
 
@@ -358,7 +366,7 @@ impl TaskHandle {
 #[derive(Debug, Clone)]
 pub enum TaskOutcome {
     /// The task yielded more requirements.
-    Yield { requirement: ArtifactRequirementSet },
+    Yield { requirement: RequirementSet },
     /// The task became obsolete while running.
     Skipped,
     /// The task failed.
@@ -370,7 +378,7 @@ pub enum TaskOutcome {
 impl<E> From<Result<(), E>> for TaskOutcome
 where
     E: Into<TaskError> + TaskSkip,
-    E: TryInto<ArtifactRequirementSet, Error = E>,
+    E: TryInto<RequirementSet, Error = E>,
 {
     fn from(result: Result<(), E>) -> Self {
         match result {

@@ -94,109 +94,108 @@ impl Compiler {
 
     /// Resolve analyze error severity from policy settings.
     fn analyze_policy_severity(&self, error: &AnalyzeError) -> Option<DiagnosticSeverity> {
+        let context = self.current_context_maybe()?;
         let module_id = error.anchor().module_id()?;
-        let module = self.program.modules.get(module_id);
+        let module = context.module(module_id);
         let module = module.as_ref();
         let policy = match error {
-            AnalyzeError::AnyTypeDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_any),
-            AnalyzeError::ImplicitAny { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_implicit_any),
-            AnalyzeError::UnknownTypeDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_unknown),
-            AnalyzeError::ImprecisePrimitiveDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_imprecise_primitives),
-            AnalyzeError::UnsafeTypeAssertionDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_unsafe_type_assertions),
-            AnalyzeError::MustAssertionDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_must_assertions),
-            AnalyzeError::DefiniteAssignmentAssertionDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_definite_assignment_assertions),
-            AnalyzeError::CustomTypeGuardDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_custom_type_guards),
-            AnalyzeError::UntrustedDeclarationDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_untrusted_declarations),
-            AnalyzeError::UnsoundVarianceDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_unsound_variance),
-            AnalyzeError::UnsoundNarrowingDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_unsound_narrowing),
-            AnalyzeError::UnreachableCode { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.allow_unreachable_code),
-            AnalyzeError::UnusedLabel { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.allow_unused_labels),
-            AnalyzeError::ImplicitThis { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_implicit_this),
-            AnalyzeError::DynamicImportDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_dynamic_import),
-            AnalyzeError::DynamicEvaluationDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_dynamic_evaluation),
-            AnalyzeError::ProxyDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_proxy),
-            AnalyzeError::DynamicShapesDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_dynamic_shapes),
-            AnalyzeError::ComputedPropertyAccessDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_computed_property_access),
-            AnalyzeError::ReferentialEqualityDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_referential_equality),
-            AnalyzeError::GlobalThisDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_global_this),
-            AnalyzeError::ImplicitDynamicDispatchDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_implicit_dynamic_dispatch),
-            AnalyzeError::MissingOverride { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_implicit_override),
-            AnalyzeError::MissingReturn { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_implicit_returns),
-            AnalyzeError::SwitchFallthrough { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_fallthrough_cases_in_switch),
-            AnalyzeError::PropertyAccessFromIndexSignature { .. } => {
-                self.program.with_config_options(module, |ds| {
-                    ds.compiler.no_property_access_from_index_signature
-                })
-            }
-            AnalyzeError::UnusedLocal { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_unused_locals),
-            AnalyzeError::UnusedParameter { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_unused_parameters),
+            AnalyzeError::AnyTypeDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_any),
+            AnalyzeError::ImplicitAny { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_implicit_any),
+            AnalyzeError::UnknownTypeDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_unknown),
+            AnalyzeError::ImprecisePrimitiveDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_imprecise_primitives),
+            AnalyzeError::UnsafeTypeAssertionDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_unsafe_type_assertions),
+            AnalyzeError::MustAssertionDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_must_assertions),
+            AnalyzeError::DefiniteAssignmentAssertionDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_definite_assignment_assertions),
+            AnalyzeError::CustomTypeGuardDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_custom_type_guards),
+            AnalyzeError::UntrustedDeclarationDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_untrusted_declarations),
+            AnalyzeError::UnsoundVarianceDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_unsound_variance),
+            AnalyzeError::UnsoundNarrowingDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_unsound_narrowing),
+            AnalyzeError::UnreachableCode { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.allow_unreachable_code),
+            AnalyzeError::UnusedLabel { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.allow_unused_labels),
+            AnalyzeError::ImplicitThis { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_implicit_this),
+            AnalyzeError::DynamicImportDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_dynamic_import),
+            AnalyzeError::DynamicEvaluationDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_dynamic_evaluation),
+            AnalyzeError::ProxyDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_proxy),
+            AnalyzeError::DynamicShapesDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_dynamic_shapes),
+            AnalyzeError::ComputedPropertyAccessDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_computed_property_access),
+            AnalyzeError::ReferentialEqualityDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_referential_equality),
+            AnalyzeError::GlobalThisDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_global_this),
+            AnalyzeError::ImplicitDynamicDispatchDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_implicit_dynamic_dispatch),
+            AnalyzeError::MissingOverride { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_implicit_override),
+            AnalyzeError::MissingReturn { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_implicit_returns),
+            AnalyzeError::SwitchFallthrough { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_fallthrough_cases_in_switch),
+            AnalyzeError::PropertyAccessFromIndexSignature { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_property_access_from_index_signature),
+            AnalyzeError::UnusedLocal { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_unused_locals),
+            AnalyzeError::UnusedParameter { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_unused_parameters),
             AnalyzeError::ImplicitManagedTypeDisabled { .. }
-            | AnalyzeError::ImplicitManagedValueDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_implicit_managed),
-            AnalyzeError::ManagedMemoryDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_managed),
-            AnalyzeError::RuntimeDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_runtime),
-            AnalyzeError::ExceptionsDisabled { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_exceptions),
+            | AnalyzeError::ImplicitManagedValueDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_implicit_managed),
+            AnalyzeError::ManagedMemoryDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_managed),
+            AnalyzeError::RuntimeDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_runtime),
+            AnalyzeError::ExceptionsDisabled { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_exceptions),
             _ => return None,
         };
 
@@ -209,14 +208,16 @@ impl Compiler {
 
     /// Resolve import error severity from policy settings.
     fn import_policy_severity(&self, error: &ImportError) -> Option<DiagnosticSeverity> {
+        let context = self.current_context_maybe()?;
         let module_id = error.anchor().module_id()?;
-        let module = self.program.modules.get(module_id);
+        let module = context.module(module_id);
         let module = module.as_ref();
         let policy = match error {
             ImportError::ConflictingBinding { is_local, .. } => {
                 if *is_local {
-                    self.program
-                        .with_config_options(module, |ds| ds.compiler.no_redeclared_locals)
+                    context
+                        .compiler_options_for_module(module)
+                        .map(|options| options.no_redeclared_locals)
                 } else {
                     None
                 }
@@ -233,13 +234,14 @@ impl Compiler {
 
     /// Resolve resolve-phase error severity from policy settings.
     fn resolve_policy_severity(&self, error: &ResolveError) -> Option<DiagnosticSeverity> {
+        let context = self.current_context_maybe()?;
         let module_id = error.anchor().module_id()?;
-        let module = self.program.modules.get(module_id);
+        let module = context.module(module_id);
         let module = module.as_ref();
         let policy = match error {
-            ResolveError::UnsupportedInternalModule { .. } => self
-                .program
-                .with_config_options(module, |ds| ds.compiler.no_internal_import),
+            ResolveError::UnsupportedInternalModule { .. } => context
+                .compiler_options_for_module(module)
+                .map(|options| options.no_internal_import),
             _ => None,
         };
 
@@ -260,10 +262,13 @@ impl Compiler {
         match anchor {
             DiagnosticAnchor::DirNode(anchored) => {
                 // resolve profile for well known decorators
-                let profile_id = anchored.profile_id.unwrap_or_else(|| {
-                    self.program
-                        .default_profile_id_for_module(anchored.module_id())
+                let profile_id = anchored.profile_id.or_else(|| {
+                    self.current_context_maybe()
+                        .map(|context| context.default_profile_id_for_module(anchored.module_id()))
                 });
+                let Some(profile_id) = profile_id else {
+                    return Vec::new();
+                };
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
                 // load the base dir tree
@@ -289,21 +294,21 @@ impl Compiler {
             }
             DiagnosticAnchor::MirNode(anchored) => {
                 // resolve profile for well known decorators
-                let profile_id = self
-                    .program
-                    .default_profile_id_for_module(anchored.module_id());
+                let Some(profile_id) = self
+                    .current_context_maybe()
+                    .map(|context| context.default_profile_id_for_module(anchored.module_id()))
+                else {
+                    return Vec::new();
+                };
                 let decorator_map = self.collect_well_known_decorators(profile_id);
 
                 // load the module and mir tree
-                let source_id = if let Some(mir) = self.artifacts.mir_optimized(
-                    anchored.module_id(),
-                    profile_id,
-                    &anchored.target_id,
-                ) {
+                let source_id = if let Some(mir) =
+                    self.mir_optimized(anchored.module_id(), profile_id, &anchored.target_id)
+                {
                     mir.tree.get_source(anchored.local_id().id)
                 } else if let Some(mir) =
-                    self.artifacts
-                        .mir_base(anchored.module_id(), profile_id, &anchored.target_id)
+                    self.mir_base(anchored.module_id(), profile_id, &anchored.target_id)
                 {
                     mir.tree.get_source(anchored.local_id().id)
                 } else {
@@ -436,7 +441,7 @@ impl Compiler {
         }?;
 
         // check the diagnostic code match
-        let specifier = self.program.strings.get(specifier_id);
+        let specifier = self.repository.strings.get(specifier_id);
         if !self.diagnostic_code_matches(specifier.as_ref(), diagnostic_code) {
             return None;
         }

@@ -22,14 +22,19 @@ fn test_parallel_enqueues_share_one_ast_task() {
     let run = workspace.open();
     let module_id = run.module_id("main.ts");
     run.parallel(stress.parallelism, |_, run| {
-        run.compiler().enqueue(ArtifactKey::ast(module_id));
+        run.enqueue(ArtifactKey::ast(module_id));
     });
 
     // build the queued work once
     run.compiler().compile();
 
     // verify the artifact was published
-    assert!(run.compiler().artifacts.ast(module_id).is_some());
+    assert!(
+        run.program()
+            .repository()
+            .ast(run.current_revision(), module_id)
+            .is_some()
+    );
 
     // verify the queue only created one ast task
     let task_count = run
@@ -62,9 +67,9 @@ fn test_parallel_enqueues_share_one_ast_prerequisite() {
     let module_id = run.module_id("main.ts");
     run.parallel(stress.parallelism, |worker, run| {
         if worker % 2 == 0 {
-            run.compiler().enqueue(ArtifactKey::ast(module_id));
+            run.enqueue(ArtifactKey::ast(module_id));
         } else {
-            run.compiler().enqueue(ArtifactKey::dir_base(module_id));
+            run.enqueue(ArtifactKey::dir_base(module_id));
         }
     });
 
@@ -72,8 +77,18 @@ fn test_parallel_enqueues_share_one_ast_prerequisite() {
     run.compiler().compile();
 
     // verify both artifacts were published
-    assert!(run.compiler().artifacts.ast(module_id).is_some());
-    assert!(run.compiler().artifacts.dir_base(module_id).is_some());
+    assert!(
+        run.program()
+            .repository()
+            .ast(run.current_revision(), module_id)
+            .is_some()
+    );
+    assert!(
+        run.program()
+            .repository()
+            .dir_base(run.current_revision(), module_id)
+            .is_some()
+    );
 
     // verify the shared ast prerequisite only exists once
     let ast_task_count = run
@@ -113,11 +128,12 @@ fn test_parallel_fresh_ast_runs_stay_equivalent() {
     let baselines = workspace.parallel_fresh(stress.parallelism, |_, run| {
         let module_id = run.module_id("main.ts");
         run.compiler()
-            .run_to_completion(|compiler| compiler.process_ast(module_id))
+            .run_to_completion(run.current_revision(), |compiler, context| {
+                compiler.process_ast(module_id, context)
+            })
             .unwrap_or_else(|error| panic!("failed to build baseline ast: {error:?}"));
-        run.compiler()
-            .artifacts
-            .ast(module_id)
+        run.repository()
+            .ast(run.current_revision(), module_id)
             .unwrap_or_else(|| panic!("expected baseline ast"))
             .as_ref()
             .clone()
@@ -133,11 +149,12 @@ fn test_parallel_fresh_ast_runs_stay_equivalent() {
         let asts = run.parallel(stress.parallelism, |_, run| {
             let module_id = run.module_id("main.ts");
             run.compiler()
-                .run_to_completion(|compiler| compiler.process_ast(module_id))
+                .run_to_completion(run.current_revision(), |compiler, context| {
+                    compiler.process_ast(module_id, context)
+                })
                 .unwrap_or_else(|error| panic!("failed to build repeated ast: {error:?}"));
-            run.compiler()
-                .artifacts
-                .ast(module_id)
+            run.repository()
+                .ast(run.current_revision(), module_id)
                 .unwrap_or_else(|| panic!("expected repeated ast"))
                 .as_ref()
                 .clone()

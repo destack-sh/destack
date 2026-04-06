@@ -1,16 +1,16 @@
 #![allow(dead_code)]
 
-use std::env::current_dir;
 use std::fmt::Write;
-use std::path::PathBuf;
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
 use destack_artifact::{
-    ArtifactKey, CacheStore, DirAnalyzed, DirBase, DirDeclared, DirElaborated, DirInterface,
-    DirPatched, DirPrepared, DirResolved, DiskCacheStore, EmitFormat, ExportedSymbolTable,
-    MemoryCacheStore, ModuleArtifact, PackageOutput,
+    ArtifactKey, ArtifactStamp, CacheStore, DirAnalyzed, DirBase, DirDeclared, DirElaborated,
+    DirInterface, DirPatched, DirPrepared, DirResolved, DiskCacheStore, EmitFormat,
+    ExportedSymbolTable, MemoryCacheStore, ModuleOutput, PackageOutput,
 };
 use destack_ast::NodeParentIndex;
 use destack_core::ImmutableStringPool;
@@ -25,20 +25,21 @@ use destack_linter::Linter;
 use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType,
-    MemoryFileSystem, ModuleId, ModuleStamp, ModuleVersion, MultiSpan, PackageId, PackageStamp,
-    PackageVersion, PhysicalFileSystem, PrintOptions, ProfileStamp, ProfileVersion, Uri,
-    print_diagnostics, print_diff,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileContent, FileId, FileSystem,
+    FileType, MemoryFileSystem, ModuleId, MultiSpan, PackageId, PhysicalFileSystem, TargetId, Uri,
+    print_diff,
 };
 use destack_vm::{Heap, Isolate, IsolateOptions, MemoryContext, SharedSpace, Value};
 use destack_workspace::{
-    CacheMode, Destack, DestackJson, DestackOptions, Module, ProfileId, Program, Session, Target,
-    TargetId,
+    BoundsCheckPolicy, BundleFormat, BundleMode, CacheMode, Change, CheckFailurePolicy,
+    DivisionCheckPolicy, Edit, Module, Package, Profile, ProfileId, Ref, Repository, Revision,
+    ShiftCheckPolicy, SourceMapMode, Target, TargetDiscovery,
 };
-use serde_json::json;
+use serde_json::{Value as JsonValue, json};
 
 use crate::{
-    AnalyzeOptions, ArtifactTaskKeyExt, Compiler, CompilerOptions, TaskPhase, default_workers,
+    AnalyzeOptions, ArtifactTaskKeyExt, Compiler, CompilerContext, CompilerOptions, TaskPhase,
+    default_workers,
 };
 
 use super::tracing::init_tracing;
@@ -168,17 +169,251 @@ impl TestDir {
     }
 }
 
-/// A test wrapper for a Program.
+/// A test wrapper for a repository workspace view.
+#[derive(Debug)]
+pub struct TestWorkspaceView {
+    /// The wrapped repository.
+    repository: Arc<Repository>,
+    /// The workspace root used for revision reads.
+    root_directory: PathBuf,
+}
+
+impl TestWorkspaceView {
+    /// Create a test repository view over one workspace root.
+    pub(crate) fn new(repository: Arc<Repository>, root_directory: PathBuf) -> Self {
+        Self {
+            repository,
+            root_directory,
+        }
+    }
+
+    /// Return the current workspace revision.
+    pub fn current_revision(&self) -> destack_workspace::Revision {
+        let reference = Ref::for_workspace_root(&self.root_directory);
+        self.repository
+            .current(&reference)
+            .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"))
+    }
+
+    /// Return the underlying repository.
+    pub fn repository(&self) -> &Repository {
+        self.repository.as_ref()
+    }
+
+    /// Return one revision-scoped module snapshot.
+    pub fn module_descriptor(&self, module_id: ModuleId) -> Arc<Module> {
+        self.repository
+            .module(self.current_revision(), module_id)
+            .unwrap_or_else(|error| panic!("failed to read module {module_id:?}: {error}"))
+            .unwrap_or_else(|| panic!("missing module {module_id:?}"))
+    }
+
+    /// Return one revision-scoped package snapshot.
+    pub fn package_descriptor(&self, package_id: PackageId) -> Arc<Package> {
+        self.repository
+            .package(self.current_revision(), package_id)
+            .unwrap_or_else(|error| panic!("failed to read package {package_id:?}: {error}"))
+            .unwrap_or_else(|| panic!("missing package {package_id:?}"))
+    }
+
+    /// Return one revision-scoped file snapshot.
+    pub fn source_file(&self, file_id: FileId) -> Arc<File> {
+        self.repository
+            .file(self.current_revision(), file_id)
+            .unwrap_or_else(|error| panic!("failed to read file {file_id:?}: {error}"))
+            .unwrap_or_else(|| panic!("missing file {file_id:?}"))
+    }
+
+    /// Return every visible module snapshot in the current revision.
+    pub fn visible_modules(&self) -> Vec<Arc<Module>> {
+        self.repository
+            .workspace_module_ids(self.current_revision())
+            .unwrap_or_else(|error| panic!("failed to collect workspace modules: {error}"))
+            .into_iter()
+            .map(|module_id| self.module_descriptor(module_id))
+            .collect()
+    }
+
+    /// Return the current workspace module count.
+    pub fn tracked_module_count(&self) -> usize {
+        self.repository
+            .workspace_module_ids(self.current_revision())
+            .unwrap_or_else(|error| panic!("failed to collect workspace modules: {error}"))
+            .len()
+    }
+
+    /// Return the workspace root path for this test view.
+    pub fn root_directory(&self) -> &PathBuf {
+        &self.root_directory
+    }
+
+    /// Replace one tracked source file snapshot.
+    pub fn replace_source_file(&self, file: File) {
+        let reference = Ref::for_workspace_root(&self.root_directory);
+        let path = file
+            .path
+            .as_ref()
+            .unwrap_or_else(|| panic!("cannot replace source file without workspace path"));
+        let logical_path = self.repository.normalize_workspace_path(path);
+
+        // publish the revision change before updating the indexed file entry
+        let change = match &file.content {
+            FileContent::Missing => Edit::remove_file(&logical_path),
+            FileContent::Unloaded => {
+                panic!(
+                    "cannot replace source file with unloaded content: {}",
+                    file.name
+                )
+            }
+            content => Edit::SetFile {
+                logical_path,
+                content: content.clone(),
+            },
+        };
+        self.repository
+            .apply(&reference, Change::from(change))
+            .unwrap_or_else(|error| panic!("failed to publish source file replacement: {error}"));
+    }
+
+    /// Refresh one tracked source file from the backing file system.
+    pub fn refresh_source_file_from_file_system(&self, file_id: FileId) -> Arc<File> {
+        let file = self.source_file(file_id);
+        let path = file
+            .path
+            .clone()
+            .unwrap_or_else(|| panic!("cannot refresh source file without workspace path"));
+
+        // prefer text loads and fall back to raw bytes for binary files
+        let loaded_file = match self.repository.file_system().read_to_string(&path) {
+            Ok(content) => File::from_text(
+                file.id,
+                file.name.clone(),
+                file.uri.clone(),
+                Some(path.clone()),
+                file.ty,
+                content,
+            ),
+            Err(text_error) => match self.repository.file_system().read(&path) {
+                Ok(content) => File::from_binary(
+                    file.id,
+                    file.name.clone(),
+                    file.uri.clone(),
+                    Some(path.clone()),
+                    file.ty,
+                    content,
+                ),
+                Err(binary_error) => {
+                    panic!(
+                        "failed to refresh source file from fs at {}: text error: {text_error}; binary error: {binary_error}",
+                        path.display()
+                    )
+                }
+            },
+        };
+
+        self.replace_source_file(loaded_file);
+
+        self.source_file(file_id)
+    }
+
+    /// Return the default profile id for one module in the current revision.
+    pub fn default_profile_id_for_module(&self, module_id: ModuleId) -> ProfileId {
+        self.repository
+            .default_profile_id_for_module(self.current_revision(), module_id)
+            .unwrap_or_else(|error| {
+                panic!("failed to compute default profile for module {module_id:?}: {error}")
+            })
+    }
+
+    /// Return the target profile id for one module in the current revision.
+    pub fn profile_id_for_target(
+        &self,
+        module_id: ModuleId,
+        target_id: &TargetId,
+    ) -> Option<ProfileId> {
+        self.repository
+            .profile_id_for_target(self.current_revision(), module_id, target_id)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to compute target profile for module {module_id:?} and target {target_id:?}: {error}"
+                )
+            })
+    }
+
+    /// Return the target profile id or the default profile in the current revision.
+    pub fn profile_id_for_target_or_default(
+        &self,
+        module_id: ModuleId,
+        target_id: &TargetId,
+    ) -> ProfileId {
+        self.repository
+            .profile_id_for_target_or_default(
+                self.current_revision(),
+                module_id,
+                target_id,
+            )
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to compute target-or-default profile for module {module_id:?} and target {target_id:?}: {error}"
+                )
+            })
+    }
+
+    /// Return the module id for one uri in the current revision.
+    pub fn module_id_for_uri(&self, uri: &Uri) -> Option<ModuleId> {
+        self.repository
+            .module_id_for_uri(self.current_revision(), uri)
+            .unwrap_or_else(|error| panic!("failed to resolve module uri {uri:?}: {error}"))
+    }
+
+    /// Return the source file id for one workspace path in the current revision.
+    pub fn source_file_id_for_path(&self, path: &Path) -> Option<FileId> {
+        let file_id = self.repository.file_id_for_workspace_path(path);
+        self.repository
+            .file(self.current_revision(), file_id)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to resolve source file '{}': {error}",
+                    path.display()
+                )
+            })
+            .map(|_| file_id)
+    }
+
+    /// Return the module id for one workspace path in the current revision.
+    pub fn module_id_for_path(&self, path: &Path) -> Option<ModuleId> {
+        self.repository
+            .module_id_for_path(self.current_revision(), path)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to resolve module path '{}': {error}",
+                    path.display()
+                )
+            })
+    }
+}
+
+impl Deref for TestWorkspaceView {
+    type Target = Repository;
+
+    fn deref(&self) -> &Self::Target {
+        self.repository.as_ref()
+    }
+}
+
+/// A repository-backed compiler test harness.
 #[derive(Debug)]
 pub struct TestProgram {
     /// The file system.
     pub fs: TestFileSystem,
-    /// The session (holds shared state like builtins).
-    pub session: Arc<Session>,
-    /// The program.
-    pub program: Arc<Program>,
+    /// The repository.
+    pub repository: Arc<Repository>,
+    /// The repository workspace view.
+    pub program: Arc<TestWorkspaceView>,
     /// The compiler.
     pub compiler: Arc<Compiler>,
+    /// The latest diagnostics from one test compiler operation.
+    latest_diagnostics: Mutex<DiagnosticCollection>,
     /// The dumper options.
     pub dumper_options: DumperOptions,
     /// Optional override for the default profile in tests.
@@ -295,9 +530,8 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> DirDeclared {
-        self.compiler
-            .artifacts
-            .dir_declared(module_id, profile)
+        self.repository
+            .dir_declared(self.artifact_revision(), module_id, profile)
             .map(|dir| dir.as_ref().clone())
             .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"))
     }
@@ -308,18 +542,27 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> Option<DirPatched> {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
+        {
             return Some(dir.as_ref().clone());
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
             return Some(DirPatched::from_elaborated_with(
                 dir.as_ref(),
                 dir.tree.as_ref().clone(),
             ));
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
             let elaborated = DirElaborated::from_analyzed_with(
                 dir.as_ref(),
                 dir.tree.as_ref().clone(),
@@ -332,11 +575,13 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             let declared = self
-                .compiler
-                .artifacts
-                .dir_declared(module_id, profile)
+                .repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
                 .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
             let analyzed = DirAnalyzed::from_interface_and_declared_with(
                 dir.as_ref(),
@@ -356,11 +601,13 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             let resolved = self
-                .compiler
-                .artifacts
-                .dir_resolved(module_id, profile)
+                .repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
                 .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
             let interface =
                 DirInterface::from_resolved_and_declared(resolved.as_ref(), dir.as_ref());
@@ -382,7 +629,10 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             let declared = DirDeclared::from_resolved_with(
                 dir.as_ref(),
                 dir.symbols.as_ref().clone(),
@@ -408,7 +658,10 @@ impl TestProgram {
             ));
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             let resolved = DirResolved::from_prepared_with(
                 dir.as_ref(),
                 dir.tree.as_ref().clone(),
@@ -445,50 +698,52 @@ impl TestProgram {
             ));
         }
 
-        self.compiler.artifacts.dir_base(module_id).map(|dir| {
-            let prepared = DirPrepared::from_base_with(
-                dir.as_ref(),
-                profile,
-                dir.tree.as_ref().clone(),
-                dir.symbols.as_ref().clone(),
-                dir.roots.as_ref().clone(),
-                None,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            );
-            let resolved = DirResolved::from_prepared_with(
-                &prepared,
-                prepared.tree.as_ref().clone(),
-                prepared.symbols.as_ref().clone(),
-                prepared.types.as_ref().clone(),
-                prepared.export_assignment,
-                Vec::new(),
-                prepared.module_binding_exports.as_ref().clone(),
-                prepared.imported_modules.as_ref().clone(),
-                prepared.exported_symbols.as_ref().clone(),
-            );
-            let declared = DirDeclared::from_resolved_with(
-                &resolved,
-                resolved.symbols.as_ref().clone(),
-                resolved.types.as_ref().clone(),
-                CaptureTable::new(),
-            );
-            let interface = DirInterface::from_resolved_and_declared(&resolved, &declared);
-            let analyzed = DirAnalyzed::from_interface_and_declared_with(
-                &interface,
-                &declared,
-                interface.types.as_ref().clone(),
-                declared.captures.as_ref().clone(),
-            );
-            let elaborated = DirElaborated::from_analyzed_with(
-                &analyzed,
-                analyzed.tree.as_ref().clone(),
-                analyzed.symbols.as_ref().clone(),
-                analyzed.types.as_ref().clone(),
-            );
-            DirPatched::from_elaborated_with(&elaborated, elaborated.tree.as_ref().clone())
-        })
+        self.repository
+            .dir_base(self.artifact_revision(), module_id)
+            .map(|dir| {
+                let prepared = DirPrepared::from_base_with(
+                    dir.as_ref(),
+                    profile,
+                    dir.tree.as_ref().clone(),
+                    dir.symbols.as_ref().clone(),
+                    dir.roots.as_ref().clone(),
+                    None,
+                    Default::default(),
+                    Default::default(),
+                    Default::default(),
+                );
+                let resolved = DirResolved::from_prepared_with(
+                    &prepared,
+                    prepared.tree.as_ref().clone(),
+                    prepared.symbols.as_ref().clone(),
+                    prepared.types.as_ref().clone(),
+                    prepared.export_assignment,
+                    Vec::new(),
+                    prepared.module_binding_exports.as_ref().clone(),
+                    prepared.imported_modules.as_ref().clone(),
+                    prepared.exported_symbols.as_ref().clone(),
+                );
+                let declared = DirDeclared::from_resolved_with(
+                    &resolved,
+                    resolved.symbols.as_ref().clone(),
+                    resolved.types.as_ref().clone(),
+                    CaptureTable::new(),
+                );
+                let interface = DirInterface::from_resolved_and_declared(&resolved, &declared);
+                let analyzed = DirAnalyzed::from_interface_and_declared_with(
+                    &interface,
+                    &declared,
+                    interface.types.as_ref().clone(),
+                    declared.captures.as_ref().clone(),
+                );
+                let elaborated = DirElaborated::from_analyzed_with(
+                    &analyzed,
+                    analyzed.tree.as_ref().clone(),
+                    analyzed.symbols.as_ref().clone(),
+                    analyzed.types.as_ref().clone(),
+                );
+                DirPatched::from_elaborated_with(&elaborated, elaborated.tree.as_ref().clone())
+            })
     }
 
     /// Clone the latest published DIR forward into one patched artifact.
@@ -520,121 +775,181 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> (Arc<Module>, TestDir, LocalNodeIdAny, AnalyzeOptions) {
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
         let dir = self.artifact_dir(module_id, profile);
         let source_id = dir.roots[0].into_any();
-        let options = self.compiler.analyze_context_options_for_module(module.id);
+        let options = self.analyze_context_options_for_module(module.id);
 
         (module, dir, source_id, options)
     }
 
     /// Clone the latest published DIR tree for one module and profile.
     pub(crate) fn artifact_tree(&self, module_id: ModuleId, profile: ProfileId) -> NodeTree {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
+        {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             return dir.tree.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             return dir.tree.as_ref().clone();
         }
 
-        self.compiler
-            .artifacts
-            .dir_base(module_id)
+        self.repository
+            .dir_base(self.artifact_revision(), module_id)
             .map(|dir| dir.tree.as_ref().clone())
             .unwrap_or_else(|| panic!("missing artifact tree for module {module_id:?}"))
     }
 
     /// Clone the latest published DIR symbols for one module and profile.
     pub(crate) fn artifact_symbols(&self, module_id: ModuleId, profile: ProfileId) -> SymbolTable {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
+        {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             return dir.symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             return dir.symbols.as_ref().clone();
         }
 
-        self.compiler
-            .artifacts
-            .dir_base(module_id)
+        self.repository
+            .dir_base(self.artifact_revision(), module_id)
             .map(|dir| dir.symbols.as_ref().clone())
             .unwrap_or_else(|| panic!("missing artifact symbols for module {module_id:?}"))
     }
 
     /// Clone the latest published DIR types for one module and profile.
     pub(crate) fn artifact_types(&self, module_id: ModuleId, profile: ProfileId) -> TypeTable {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
+        {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             return dir.types.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             return dir.types.as_ref().clone();
         }
 
-        self.compiler
-            .artifacts
-            .dir_base(module_id)
+        self.repository
+            .dir_base(self.artifact_revision(), module_id)
             .map(|dir| dir.types.as_ref().clone())
             .unwrap_or_else(|| panic!("missing artifact types for module {module_id:?}"))
     }
@@ -645,37 +960,57 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> Vec<LocalNodeId<Expression>> {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
+        {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             return dir.roots.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             return dir.roots.as_ref().clone();
         }
 
-        self.compiler
-            .artifacts
-            .dir_base(module_id)
+        self.repository
+            .dir_base(self.artifact_revision(), module_id)
             .map(|dir| dir.roots.as_ref().clone())
             .unwrap_or_else(|| panic!("missing artifact roots for module {module_id:?}"))
     }
@@ -686,29 +1021,42 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> CaptureTable {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
-            return dir.captures.as_ref().clone();
-        }
-
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
-            return dir.captures.as_ref().clone();
-        }
-
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
-            return dir.captures.as_ref().clone();
-        }
-
-        if self
-            .compiler
-            .artifacts
-            .dir_interface(module_id, profile)
-            .is_some()
-            && let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile)
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
         {
             return dir.captures.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
+            return dir.captures.as_ref().clone();
+        }
+
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
+            return dir.captures.as_ref().clone();
+        }
+
+        if self
+            .repository
+            .dir_interface(self.artifact_revision(), module_id, profile)
+            .is_some()
+            && let Some(dir) =
+                self.repository
+                    .dir_declared(self.artifact_revision(), module_id, profile)
+        {
+            return dir.captures.as_ref().clone();
+        }
+
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             return dir.captures.as_ref().clone();
         }
 
@@ -721,37 +1069,57 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> LocalScopeId {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
+        {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             return dir.namespace_scope;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             return dir.namespace_scope;
         }
 
-        self.compiler
-            .artifacts
-            .dir_base(module_id)
+        self.repository
+            .dir_base(self.artifact_revision(), module_id)
             .map(|dir| dir.namespace_scope)
             .unwrap_or_else(|| panic!("missing artifact namespace scope for module {module_id:?}"))
     }
@@ -762,37 +1130,57 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> LocalNodeIdAny {
-        if let Some(dir) = self.compiler.artifacts.dir_patched(module_id, profile) {
+        if let Some(dir) = self
+            .repository
+            .dir_patched(self.artifact_revision(), module_id, profile)
+        {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_elaborated(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_elaborated(self.artifact_revision(), module_id, profile)
+        {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_analyzed(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_analyzed(self.artifact_revision(), module_id, profile)
+        {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_declared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_declared(self.artifact_revision(), module_id, profile)
+        {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             return dir.anchor_node;
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             return dir.anchor_node;
         }
 
-        self.compiler
-            .artifacts
-            .dir_base(module_id)
+        self.repository
+            .dir_base(self.artifact_revision(), module_id)
             .map(|dir| dir.anchor_node)
             .unwrap_or_else(|| panic!("missing artifact anchor node for module {module_id:?}"))
     }
@@ -803,15 +1191,24 @@ impl TestProgram {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ExportedSymbolTable {
-        if let Some(dir) = self.compiler.artifacts.dir_interface(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_interface(self.artifact_revision(), module_id, profile)
+        {
             return dir.exported_symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_resolved(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_resolved(self.artifact_revision(), module_id, profile)
+        {
             return dir.exported_symbols.as_ref().clone();
         }
 
-        if let Some(dir) = self.compiler.artifacts.dir_prepared(module_id, profile) {
+        if let Some(dir) =
+            self.repository
+                .dir_prepared(self.artifact_revision(), module_id, profile)
+        {
             return dir.exported_symbols.as_ref().clone();
         }
 
@@ -822,9 +1219,8 @@ impl TestProgram {
     pub(crate) fn dir_resolved(&self, module_id: ModuleId) -> DirResolved {
         let profile = self.default_profile_id(module_id);
         let dir = self
-            .compiler
-            .artifacts
-            .dir_resolved(module_id, profile)
+            .repository
+            .dir_resolved(self.artifact_revision(), module_id, profile)
             .unwrap_or_else(|| panic!("missing resolved dir for module {module_id:?}"));
 
         dir.as_ref().clone()
@@ -833,9 +1229,8 @@ impl TestProgram {
     /// Return the base DIR artifact for one module.
     pub(crate) fn dir_base(&self, module_id: ModuleId) -> DirBase {
         let dir = self
-            .compiler
-            .artifacts
-            .dir_base(module_id)
+            .repository
+            .dir_base(self.artifact_revision(), module_id)
             .unwrap_or_else(|| panic!("missing base dir for module {module_id:?}"));
 
         dir.as_ref().clone()
@@ -845,9 +1240,8 @@ impl TestProgram {
     pub(crate) fn dir_declared(&self, module_id: ModuleId) -> DirDeclared {
         let profile = self.default_profile_id(module_id);
         let dir = self
-            .compiler
-            .artifacts
-            .dir_declared(module_id, profile)
+            .repository
+            .dir_declared(self.artifact_revision(), module_id, profile)
             .unwrap_or_else(|| panic!("missing declared dir for module {module_id:?}"));
 
         dir.as_ref().clone()
@@ -860,33 +1254,33 @@ impl TestProgram {
         profile: ProfileId,
         target_id: &TargetId,
     ) -> (mir::NodeTree, ImmutableStringPool) {
-        if let Some(mir) = self
-            .compiler
-            .artifacts
-            .mir_optimized(module_id, profile, target_id)
+        if let Some(mir) =
+            self.repository
+                .mir_optimized(self.artifact_revision(), module_id, profile, *target_id)
         {
             return (mir.tree.clone(), mir.strings.clone().into_immutable());
         }
 
         let mir = self
-            .compiler
-            .artifacts
-            .mir_base(module_id, profile, target_id)
+            .repository
+            .mir_base(self.artifact_revision(), module_id, profile, *target_id)
             .unwrap_or_else(|| panic!("missing artifact mir for module {module_id:?}"));
 
         (mir.tree.clone(), mir.strings.clone().into_immutable())
     }
 
-    /// Create a new TestProgram with the given options.
+    /// Create a new test harness with the given options.
     fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool, load_libraries: bool) -> Self {
         init_tracing();
         let root_directory = match &fs {
-            TestFileSystem::Memory { .. } => current_dir().unwrap(),
+            TestFileSystem::Memory { .. } => PathBuf::new(),
             TestFileSystem::Physical { root_directory, .. } => root_directory.clone(),
         };
 
         // seed a default package name for in memory tests
         if let TestFileSystem::Memory { fs } = &fs {
+            fs.create_dir(Path::new(""))
+                .unwrap_or_else(|_| panic!("failed to initialize memory file system root"));
             fs.add_file("package.json", br#"{ "name": "test" }"#)
                 .unwrap_or_else(|_| {
                     panic!("failed to add package.json to memory file system");
@@ -894,12 +1288,12 @@ impl TestProgram {
         }
 
         let cache_store = fs.cache_store();
-        let session = Arc::new(
-            Session::new(root_directory.clone())
-                .with_fs(fs.fs())
+        let repository = Arc::new(
+            Repository::open_root_from_fs(root_directory.clone(), fs.fs())
+                .expect("failed to import repository from compiler test file system")
                 .with_cache_store(cache_store),
         );
-        let program = session.add_root(root_directory);
+        let program = Arc::new(TestWorkspaceView::new(repository.clone(), root_directory));
 
         let compiler_options = CompilerOptions {
             workers,
@@ -908,17 +1302,23 @@ impl TestProgram {
             elaborate_parenthesize_casts: true,
             ..CompilerOptions::default()
         };
-        let compiler = Arc::new(Compiler::new(
-            session.clone(),
-            program.clone(),
-            compiler_options,
-        ));
+        let compiler = Arc::new(Compiler::new(repository.clone(), compiler_options));
+        let workspace_reference = Ref::for_workspace_root(program.root_directory());
+
+        // track the seeded package manifest in the initial revision
+        repository
+            .apply(
+                &workspace_reference,
+                Change::from([Edit::set_text("package.json", r#"{ "name": "test" }"#)]),
+            )
+            .unwrap_or_else(|error| panic!("failed to publish initial package manifest: {error}"));
 
         Self {
             fs,
-            session,
+            repository,
             program,
             compiler,
+            latest_diagnostics: Mutex::new(DiagnosticCollection::new()),
             dumper_options: DumperOptions::default(),
             default_profile_override: None,
         }
@@ -999,29 +1399,29 @@ impl TestProgram {
     /// Load a library module set (builder pattern).
     pub fn with_lib(self, name: &str) -> Self {
         let profile_id = self.default_profile_id_for_root();
-        let profile_key = self.program.profile(profile_id).key.clone();
-        self.session
-            .load_library(name, &profile_key)
+        let profile_key = self.profile(profile_id).key.clone();
+        self.repository
+            .load_builtin_library(name, &profile_key)
             .unwrap_or_else(|| panic!("missing builtin library '{name}'"));
         self
     }
 
     /// Override the default profile with an explicit library set.
     pub fn with_profile_libs(mut self, libs: &[&str]) -> Self {
-        let default_profile = self.program.profile(self.default_profile_id_for_root());
+        let default_profile = self.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
         key.lib = libs.iter().map(|lib| (*lib).to_string()).collect();
-        let profile_id = self.program.profiles.get_or_create(key);
+        let profile_id = self.compiler.remember_profile_key(key);
         self.default_profile_override = Some(profile_id);
         self
     }
 
     /// Override the default profile with an explicit emit format.
     pub fn with_profile_emit(mut self, emit: EmitFormat) -> Self {
-        let default_profile = self.program.profile(self.default_profile_id_for_root());
+        let default_profile = self.profile(self.default_profile_id_for_root());
         let mut key = default_profile.key.clone();
         key.emit = emit;
-        let profile_id = self.program.profiles.get_or_create(key);
+        let profile_id = self.compiler.remember_profile_key(key);
         self.default_profile_override = Some(profile_id);
         self
     }
@@ -1039,16 +1439,7 @@ impl TestProgram {
 
     /// Add a file to the memory filesystem (without creating a Module).
     pub fn add_file(&self, path: &str, content: &str) {
-        match &self.fs {
-            TestFileSystem::Memory { fs } => {
-                fs.add_file(path, content.as_bytes()).unwrap_or_else(|_| {
-                    panic!("failed to add test file '{path}' to memory file system")
-                });
-            }
-            TestFileSystem::Physical { .. } => {
-                panic!("cannot add test file '{path}' to physical file system");
-            }
-        }
+        self.write_workspace_text_file(Path::new(path), content);
     }
 
     /// Add a package.json and optionally destack.json to the memory filesystem.
@@ -1058,10 +1449,14 @@ impl TestProgram {
     /// test.add_package("my-pkg", Some(r#""noRedeclaredLocals": true"#));
     /// ```
     pub fn add_package(&self, name: &str, destack_config_compiler_options: Option<&str>) {
-        self.add_file("package.json", &format!(r#"{{ "name": "{name}" }}"#));
+        self.write_workspace_text_file(
+            Path::new("package.json"),
+            &format!(r#"{{ "name": "{name}" }}"#),
+        );
+
         if let Some(opts) = destack_config_compiler_options {
-            self.add_file(
-                "destack.json",
+            self.write_workspace_text_file(
+                Path::new("destack.json"),
                 &format!(r#"{{ "compilerOptions": {{ {opts} }} }}"#),
             );
         }
@@ -1069,24 +1464,19 @@ impl TestProgram {
 
     /// Add a destack.json to the memory filesystem.
     pub fn add_destack_config(&self, content: &str) {
-        self.add_file("destack.json", content);
+        self.write_workspace_text_file(Path::new("destack.json"), content);
     }
 
     /// Set the cache mode for this test program.
-    pub fn with_cache_mode(self, mode: CacheMode, dir: Option<&str>) -> Self {
+    pub fn with_cache_mode(self, mode: CacheMode) -> Self {
         // map cache mode to json value
         let mode_value = match mode {
             CacheMode::Off => "off",
-            CacheMode::Memory => "memory",
             CacheMode::Disk => "disk",
         };
 
         // build config json value
-        let config_value = if let Some(dir) = dir {
-            json!({ "cache": { "mode": mode_value, "dir": dir } })
-        } else {
-            json!({ "cache": { "mode": mode_value } })
-        };
+        let config_value = json!({ "cache": { "mode": mode_value } });
         let config = config_value.to_string();
 
         // write config to memory fs
@@ -1097,58 +1487,72 @@ impl TestProgram {
 
     /// Add a file and register a blank module for it (no import/parsing yet).
     pub fn add_module(&self, path: &str, content: &str) -> ModuleId {
-        self.add_file(path, content);
-        self.compiler
-            .resolve_path_to_module(&PathBuf::from(path))
-            .unwrap_or_else(|e| panic!("failed to register module: {e:?}"))
+        self.write_workspace_text_file(Path::new(path), content);
+        self.program
+            .module_id_for_path(Path::new(path))
+            .unwrap_or_else(|| panic!("failed to register module at '{path}'"))
     }
 
     /// Get the default profile id for a module.
     pub fn default_profile_id(&self, module_id: ModuleId) -> ProfileId {
-        self.default_profile_override
-            .unwrap_or_else(|| self.program.default_profile_id_for_module(module_id))
+        let revision = self.program.current_revision();
+
+        self.default_profile_override.unwrap_or_else(|| {
+            self.compiler
+                .context(revision)
+                .unwrap_or_else(|error| panic!("{error}"))
+                .default_profile_id_for_module(module_id)
+        })
     }
 
     /// Get the default profile id for the root module.
     pub fn default_profile_id_for_root(&self) -> ProfileId {
+        let revision = self.program.current_revision();
+        let root_module_id = self.program.root_module_id();
+
         self.default_profile_override.unwrap_or_else(|| {
-            self.program
-                .default_profile_id_for_module(self.program.root_module_id)
+            self.compiler
+                .context(revision)
+                .unwrap_or_else(|error| panic!("{error}"))
+                .default_profile_id_for_module(root_module_id)
         })
     }
 
-    /// Get the current module version.
-    pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
-        self.program.modules.version(module_id)
+    /// Return one compiler context for the current workspace revision.
+    pub fn context(&self) -> CompilerContext<'_> {
+        let revision = self.program.current_revision();
+
+        self.compiler
+            .context(revision)
+            .unwrap_or_else(|error| panic!("{error}"))
     }
 
-    /// Get the current module stamp.
-    pub fn module_stamp(&self, module_id: ModuleId) -> ModuleStamp {
-        ModuleStamp::new(module_id, self.module_version(module_id))
+    /// Return the current workspace revision.
+    pub fn current_revision(&self) -> Revision {
+        self.program.current_revision()
     }
 
-    /// Get the current profile version.
-    pub fn profile_version(&self, profile_id: ProfileId) -> ProfileVersion {
-        self.program
-            .profiles
-            .get(profile_id)
-            .unwrap_or_else(|| panic!("missing profile data for {profile_id:?}"))
-            .version
+    /// Return the active artifact revision for test reads.
+    pub fn artifact_revision(&self) -> Revision {
+        self.compiler
+            .current_execution_revision()
+            .unwrap_or_else(|| self.program.current_revision())
     }
 
-    /// Get the current profile stamp.
-    pub fn profile_stamp(&self, profile_id: ProfileId) -> ProfileStamp {
-        ProfileStamp::new(profile_id, self.profile_version(profile_id))
+    /// Resolve analyze options for one module in the current workspace revision.
+    pub fn analyze_context_options_for_module(&self, module_id: ModuleId) -> AnalyzeOptions {
+        self.context().analyze_context_options_for_module(module_id)
     }
 
-    /// Get the current package version.
-    pub fn package_version(&self, package_id: PackageId) -> PackageVersion {
-        self.program.packages.version(package_id)
+    /// Return one cached profile value.
+    pub fn profile(&self, profile_id: ProfileId) -> Profile {
+        self.compiler.profile(profile_id)
     }
 
-    /// Get the current package stamp.
-    pub fn package_stamp(&self, package_id: PackageId) -> PackageStamp {
-        PackageStamp::new(package_id, self.package_version(package_id))
+    /// Return one artifact dependency for the current revision.
+    pub fn artifact_stamp_for_key(&self, artifact_key: &ArtifactKey) -> ArtifactStamp {
+        self.compiler
+            .artifact_stamp_for_revision(self.program.current_revision(), artifact_key)
     }
 
     /// Enqueue Import task for a module.
@@ -1170,16 +1574,22 @@ impl TestProgram {
     /// Resolve the language environment for the default root profile.
     pub fn resolve_language_environment(&self) {
         let profile = self.default_profile_id_for_root();
+        let revision = self.program.current_revision();
         self.compiler
-            .run_to_completion(|compiler| compiler.require_language_environment(profile))
+            .run_to_completion(revision, |compiler, _context| {
+                compiler.require_language_environment(_context.revision(), profile)
+            })
             .unwrap_or_else(|error| panic!("failed to resolve language environment: {error:?}"));
     }
 
     /// Resolve builtin libraries for the default root profile.
     pub fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
+        let revision = self.program.current_revision();
         self.compiler
-            .run_to_completion(|compiler| compiler.require_library_environment(profile))
+            .run_to_completion(revision, |compiler, _context| {
+                compiler.require_library_environment(_context.revision(), profile)
+            })
             .unwrap_or_else(|error| panic!("failed to resolve libs: {error:?}"));
     }
 
@@ -1192,8 +1602,11 @@ impl TestProgram {
     /// Drive declaration analysis for one module to completion.
     pub fn declare_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
+        let revision = self.program.current_revision();
         self.compiler
-            .run_to_completion(|compiler| compiler.require_dir_declared(module, profile))
+            .run_to_completion(revision, |compiler, _context| {
+                compiler.require_dir_declared(_context.revision(), module, profile)
+            })
             .unwrap_or_else(|error| panic!("failed to declare module {module:?}: {error:?}"));
     }
 
@@ -1211,10 +1624,11 @@ impl TestProgram {
         let profile = self.default_profile_id(module);
         self.enqueue(ArtifactKey::dir_analyzed(module, profile));
         self.compile();
+        let revision = self.program.current_revision();
 
-        let linter = Linter::new(self.program.clone(), self.compiler.artifacts.clone());
+        let linter = Linter::new(self.repository.clone());
         linter
-            .lint_module(module, profile)
+            .lint_module(revision, module, self.profile(profile))
             .unwrap_or_else(|error| panic!("failed to lint module {module:?}: {error}"));
     }
 
@@ -1234,19 +1648,13 @@ impl TestProgram {
     ///
     /// Uses `Target::implicit_for_name()` for known target names like "native", "js", "wasm".
     pub fn add_target(&self, module: ModuleId, name: &str) {
-        let module_ref = self.program.modules.get(module);
-        let package_id = module_ref.package_id;
-        let target_id = TargetId::new(package_id, name);
-        let target_config = Target::implicit_for_name(name)
+        let target_value = Self::implicit_target_config_value(name)
             .unwrap_or_else(|| panic!("unknown implicit target '{name}'"));
 
-        let package = self.program.packages.get(package_id);
-        let mut package = package.write();
-        package.targets.insert(target_id, target_config);
-
-        // bump package version for target updates
-        drop(package);
-        let _ = self.program.packages.bump_version(package_id);
+        self.edit_destack_config(module, |config| {
+            let targets = Self::destack_targets_value(config);
+            targets.insert(name.to_string(), target_value);
+        });
     }
 
     /// Configure a build target for the package containing the given module.
@@ -1258,85 +1666,42 @@ impl TestProgram {
         name: &str,
         configure: impl FnOnce(&mut Target),
     ) {
-        let module_ref = self.program.modules.get(module);
+        let module_ref = self.program.module_descriptor(module);
         let package_id = module_ref.package_id;
-        let target_id = TargetId::new(package_id, name);
-        let target_config = Target::implicit_for_name(name)
+        let target_id = self.target_id(package_id, name);
+        let target = self
+            .program
+            .package_descriptor(package_id)
+            .target(&target_id)
+            .cloned()
+            .or_else(|| Target::implicit_for_name(name))
             .unwrap_or_else(|| panic!("unknown implicit target '{name}'"));
+        let mut target = target;
+        configure(&mut target);
+        let target_value = Self::target_config_value(&target);
 
-        let package = self.program.packages.get(package_id);
-        let mut package = package.write();
-        let target = package.targets.entry(target_id).or_insert(target_config);
-        configure(target);
-
-        // bump package version for target updates
-        drop(package);
-        let _ = self.program.packages.bump_version(package_id);
+        self.edit_destack_config(module, |config| {
+            let targets = Self::destack_targets_value(config);
+            targets.insert(name.to_string(), target_value);
+        });
     }
 
     /// Apply a destack.json blob to the package containing the given module.
     pub fn apply_destack_config(&self, module: ModuleId, content: &str) {
-        let module_ref = self.program.modules.get(module);
-        let package_id = module_ref.package_id;
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
-        let directory = package
-            .path
-            .clone()
-            .or_else(|| {
-                module_ref
-                    .path
-                    .as_ref()
-                    .and_then(|path| path.parent().map(|parent| parent.to_path_buf()))
-            })
-            .unwrap_or_else(|| self.program.cwd.clone());
-        drop(package);
-
-        let path = directory.join("destack.json");
-        self.add_file(path.to_string_lossy().as_ref(), content);
-
-        let config_json: DestackJson = serde_json::from_str(content)
+        let patch: JsonValue = serde_json::from_str(content)
             .unwrap_or_else(|error| panic!("invalid destack.json: {error}"));
-        let config = self
-            .session
-            .load_destack_for_path(&path)
-            .unwrap_or_else(|| {
-                let options = DestackOptions::from(&config_json);
-                let file_id = self.program.files.next_id();
-                Destack {
-                    file_id,
-                    path: path.clone(),
-                    directory: directory.clone(),
-                    options,
-                    content: config_json,
-                }
-            });
 
-        let package = self.program.packages.get(package_id);
-        let mut package = package.write();
-        package.config = Some(config);
-
-        // bump package version for config updates
-        drop(package);
-        let _ = self.program.packages.bump_version(package_id);
+        self.edit_destack_config(module, |config| {
+            Self::merge_json_value(config, patch);
+        });
     }
 
     /// Enqueue Lower task for a module.
     pub fn lower_module(&self, module: ModuleId, target: &str) {
-        let module_ref = self.program.modules.get(module);
+        let module_ref = self.program.module_descriptor(module);
         let package_id = module_ref.package_id;
-        let target_id = TargetId::new(package_id, target);
-        let target_config = Target::implicit_for_name(target)
-            .unwrap_or_else(|| panic!("unknown implicit target '{target}'"));
-
-        let package = self.program.packages.get(package_id);
-        {
-            let mut package = package.write();
-            package
-                .targets
-                .entry(target_id.clone())
-                .or_insert(target_config);
-        }
+        let target_id = self.target_id(package_id, target);
+        self.add_target(module, target);
 
         let profile = self
             .program
@@ -1345,11 +1710,31 @@ impl TestProgram {
         self.enqueue(ArtifactKey::mir_base(module, profile, target_id));
     }
 
+    /// Copy one target configuration onto another target name.
+    pub fn copy_target(&self, module: ModuleId, from: &str, to: &str) {
+        let target_value = self
+            .destack_target_value(module, from)
+            .unwrap_or_else(|| panic!("missing target '{from}'"));
+
+        self.edit_destack_config(module, |config| {
+            let targets = Self::destack_targets_value(config);
+            targets.insert(to.to_string(), target_value);
+        });
+    }
+
+    /// Remove one target configuration from the package containing the module.
+    pub fn remove_target(&self, module: ModuleId, name: &str) {
+        self.edit_destack_config(module, |config| {
+            let targets = Self::destack_targets_value(config);
+            targets.shift_remove(name);
+        });
+    }
+
     /// Enqueue Optimize task for a module.
     pub fn optimize_module(&self, module: ModuleId, target: &str) {
-        let module_ref = self.program.modules.get(module);
+        let module_ref = self.program.module_descriptor(module);
         let package_id = module_ref.package_id;
-        let target_id = TargetId::new(package_id, target);
+        let target_id = self.target_id(package_id, target);
         let profile = self
             .program
             .profile_id_for_target(module, &target_id)
@@ -1359,12 +1744,492 @@ impl TestProgram {
 
     /// Enqueue one artifact key.
     pub fn enqueue(&self, artifact_key: ArtifactKey) {
-        self.compiler.enqueue(artifact_key);
+        self.compiler
+            .enqueue(self.program.current_revision(), artifact_key);
+    }
+
+    /// Return the workspace reference for repository revision updates.
+    fn workspace_reference(&self) -> Ref {
+        Ref::for_workspace_root(self.program.root_directory())
+    }
+
+    /// Return one repository interned target id.
+    pub(crate) fn target_id(&self, package_id: PackageId, name: &str) -> TargetId {
+        self.repository.intern_target_id(package_id, name)
+    }
+
+    /// Return one absolute workspace path for one test file.
+    fn workspace_absolute_path(&self, path: &Path) -> PathBuf {
+        if path.is_absolute() {
+            return path.to_path_buf();
+        }
+
+        self.program.root_directory().join(path)
+    }
+
+    /// Return one workspace relative path for one test file.
+    fn workspace_relative_path(&self, path: &Path) -> PathBuf {
+        if let Ok(path) = path.strip_prefix(self.program.root_directory()) {
+            return path.to_path_buf();
+        }
+
+        path.to_path_buf()
+    }
+
+    /// Write one tracked workspace file and publish a new revision.
+    fn write_workspace_text_file(&self, path: &Path, content: &str) {
+        let relative_path = self.workspace_relative_path(path);
+
+        // file system
+        match &self.fs {
+            TestFileSystem::Memory { fs } => {
+                fs.add_file(relative_path.to_string_lossy().as_ref(), content.as_bytes())
+                    .unwrap_or_else(|_| {
+                        panic!(
+                            "failed to write test file '{}'",
+                            relative_path.to_string_lossy()
+                        )
+                    });
+            }
+            TestFileSystem::Physical { .. } => {
+                let absolute_path = self.workspace_absolute_path(path);
+                if let Some(parent) = absolute_path.parent() {
+                    std::fs::create_dir_all(parent).unwrap_or_else(|error| {
+                        panic!(
+                            "failed to create parent directory '{}' for test file: {error}",
+                            parent.display()
+                        )
+                    });
+                }
+
+                std::fs::write(&absolute_path, content).unwrap_or_else(|error| {
+                    panic!(
+                        "failed to write test file '{}' to disk: {error}",
+                        absolute_path.display()
+                    )
+                });
+            }
+        }
+
+        // revision
+        self.repository
+            .apply(
+                &self.workspace_reference(),
+                Change::from([Edit::set_text(relative_path.to_string_lossy(), content)]),
+            )
+            .unwrap_or_else(|error| panic!("failed to publish tracked test file: {error}"));
+    }
+
+    /// Return the package directory for one module.
+    fn package_directory_for_module(&self, module: ModuleId) -> PathBuf {
+        let module = self.program.module_descriptor(module);
+        let package = self.program.package_descriptor(module.package_id);
+
+        if let Some(path) = package.path.as_ref() {
+            return self.workspace_absolute_path(path);
+        }
+
+        if let Some(path) = module.path.as_ref()
+            && let Some(parent) = path.parent()
+        {
+            return self.workspace_absolute_path(parent);
+        }
+
+        self.program.root_directory().clone()
+    }
+
+    /// Return the absolute destack config path for one module.
+    fn destack_config_path_for_module(&self, module: ModuleId) -> PathBuf {
+        self.package_directory_for_module(module)
+            .join("destack.json")
+    }
+
+    /// Return the current destack config JSON for one module.
+    fn destack_config_value(&self, module: ModuleId) -> JsonValue {
+        let path = self.destack_config_path_for_module(module);
+        let Some(file_id) = self.program.source_file_id_for_path(&path) else {
+            return json!({});
+        };
+        let file = self.program.source_file(file_id);
+
+        match &file.content {
+            FileContent::Json { value, .. } => value.clone(),
+            FileContent::Text { content } => serde_json::from_str(content)
+                .unwrap_or_else(|error| panic!("invalid tracked destack.json: {error}")),
+            _ => json!({}),
+        }
+    }
+
+    /// Return the current target JSON for one module when present.
+    fn destack_target_value(&self, module: ModuleId, name: &str) -> Option<JsonValue> {
+        let config = self.destack_config_value(module);
+        let targets = config.get("targets")?;
+        let targets = targets.as_object()?;
+
+        targets.get(name).cloned()
+    }
+
+    /// Edit one package destack config and publish the resulting revision.
+    fn edit_destack_config(&self, module: ModuleId, edit: impl FnOnce(&mut JsonValue)) {
+        let mut config = self.destack_config_value(module);
+        if !config.is_object() {
+            config = json!({});
+        }
+
+        edit(&mut config);
+
+        let content = serde_json::to_string_pretty(&config)
+            .unwrap_or_else(|error| panic!("failed to serialize destack.json: {error}"));
+        let path = self.destack_config_path_for_module(module);
+        self.write_workspace_text_file(&path, &content);
+    }
+
+    /// Return the `targets` object for one mutable destack config value.
+    fn destack_targets_value(config: &mut JsonValue) -> &mut serde_json::Map<String, JsonValue> {
+        let JsonValue::Object(config) = config else {
+            panic!("destack config must be one object");
+        };
+        let targets = config.entry("targets").or_insert_with(|| json!({}));
+        let JsonValue::Object(targets) = targets else {
+            panic!("destack config targets must be one object");
+        };
+
+        targets
+    }
+
+    /// Merge one JSON patch into one existing config value.
+    fn merge_json_value(base: &mut JsonValue, patch: JsonValue) {
+        match (base, patch) {
+            (JsonValue::Object(base), JsonValue::Object(patch)) => {
+                for (key, value) in patch {
+                    if let Some(base_value) = base.get_mut(&key) {
+                        Self::merge_json_value(base_value, value);
+                    } else {
+                        base.insert(key, value);
+                    }
+                }
+            }
+            (base, patch) => *base = patch,
+        }
+    }
+
+    /// Return the minimal implicit target config for one builtin target name.
+    fn implicit_target_config_value(name: &str) -> Option<JsonValue> {
+        match name {
+            "default" | "js" => Some(json!({
+                "emit": "js",
+                "runtime": "node",
+                "declaration": true,
+            })),
+            "ts" => Some(json!({
+                "emit": "ts",
+                "runtime": "node",
+            })),
+            "html" => Some(json!({
+                "emit": "html",
+                "runtime": "browser",
+            })),
+            "node" => Some(json!({
+                "emit": "js",
+                "runtime": "node",
+                "platform": "universal",
+                "declaration": true,
+            })),
+            "wasm" => Some(json!({
+                "emit": "wasm",
+                "runtime": "wasm-js",
+                "optimize": true,
+            })),
+            "wasm-wasi" | "wasi" => Some(json!({
+                "emit": "wasm",
+                "runtime": "wasm-wasi",
+                "platform": "wasi",
+                "optimize": true,
+            })),
+            "native" => Some(json!({
+                "emit": "native",
+                "runtime": "native-hosted",
+                "platform": "universal",
+                "optimize": true,
+            })),
+            _ => None,
+        }
+    }
+
+    /// Convert one target snapshot into one file backed config value.
+    fn target_config_value(target: &Target) -> JsonValue {
+        let base = Target::implicit_for_name(&target.name).unwrap_or_default();
+        let mut value =
+            Self::implicit_target_config_value(&target.name).unwrap_or_else(|| json!({}));
+        let JsonValue::Object(object) = &mut value else {
+            panic!("target config must be one object");
+        };
+
+        if target.entry != base.entry {
+            let entry = target
+                .entry
+                .iter()
+                .map(|path| path.to_string_lossy().into_owned())
+                .collect::<Vec<_>>();
+            object.insert("entry".to_string(), json!(entry));
+        }
+
+        if target.out_dir != base.out_dir {
+            object.insert(
+                "outDir".to_string(),
+                json!(target.out_dir.to_string_lossy().into_owned()),
+            );
+        }
+
+        if target.out_file != base.out_file {
+            object.insert(
+                "outFile".to_string(),
+                json!(
+                    target
+                        .out_file
+                        .as_ref()
+                        .map(|path| path.to_string_lossy().into_owned())
+                ),
+            );
+        }
+
+        if target.bounds_checks != base.bounds_checks {
+            object.insert(
+                "boundsChecks".to_string(),
+                json!(Self::bounds_check_policy_name(target.bounds_checks)),
+            );
+        }
+
+        if target.overflow_checks != base.overflow_checks {
+            object.insert(
+                "overflowChecks".to_string(),
+                json!(Self::overflow_check_policy_name(target.overflow_checks)),
+            );
+        }
+
+        if target.division_checks != base.division_checks {
+            object.insert(
+                "divisionChecks".to_string(),
+                json!(Self::division_check_policy_name(target.division_checks)),
+            );
+        }
+
+        if target.shift_checks != base.shift_checks {
+            object.insert(
+                "shiftChecks".to_string(),
+                json!(Self::shift_check_policy_name(target.shift_checks)),
+            );
+        }
+
+        if target.check_failure != base.check_failure {
+            object.insert(
+                "checkFailure".to_string(),
+                json!(Self::check_failure_policy_name(target.check_failure)),
+            );
+        }
+
+        if target.bundle.mode != base.bundle.mode
+            || !target.bundle.manual_chunks.is_empty()
+            || !target.bundle.dependencies.never_bundle.is_empty()
+            || !target.bundle.dependencies.only_bundle.is_empty()
+            || target.bundle.output.format != base.bundle.output.format
+            || target.bundle.output.public_path != base.bundle.output.public_path
+            || target.bundle.output.manifest != base.bundle.output.manifest
+            || target.bundle.output.sourcemap != base.bundle.output.sourcemap
+            || target.bundle.output.banner != base.bundle.output.banner
+            || target.bundle.output.footer != base.bundle.output.footer
+            || target.bundle.minify.enabled != base.bundle.minify.enabled
+        {
+            let bundle = object
+                .entry("bundle".to_string())
+                .or_insert_with(|| json!({}));
+            let JsonValue::Object(bundle) = bundle else {
+                panic!("target bundle config must be one object");
+            };
+
+            if target.bundle.mode != base.bundle.mode {
+                bundle.insert(
+                    "mode".to_string(),
+                    json!(Self::bundle_mode_name(target.bundle.mode)),
+                );
+            }
+
+            if !target.bundle.manual_chunks.is_empty() {
+                bundle.insert(
+                    "manualChunks".to_string(),
+                    json!(target.bundle.manual_chunks),
+                );
+            }
+
+            if !target.bundle.dependencies.never_bundle.is_empty()
+                || !target.bundle.dependencies.only_bundle.is_empty()
+            {
+                let dependencies = bundle
+                    .entry("dependencies".to_string())
+                    .or_insert_with(|| json!({}));
+                let JsonValue::Object(dependencies) = dependencies else {
+                    panic!("target dependency config must be one object");
+                };
+
+                if !target.bundle.dependencies.never_bundle.is_empty() {
+                    dependencies.insert(
+                        "neverBundle".to_string(),
+                        json!(target.bundle.dependencies.never_bundle),
+                    );
+                }
+
+                if !target.bundle.dependencies.only_bundle.is_empty() {
+                    dependencies.insert(
+                        "onlyBundle".to_string(),
+                        json!(target.bundle.dependencies.only_bundle),
+                    );
+                }
+            }
+
+            if target.bundle.output.format != base.bundle.output.format
+                || target.bundle.output.public_path != base.bundle.output.public_path
+                || target.bundle.output.manifest != base.bundle.output.manifest
+                || target.bundle.output.sourcemap != base.bundle.output.sourcemap
+                || target.bundle.output.banner != base.bundle.output.banner
+                || target.bundle.output.footer != base.bundle.output.footer
+            {
+                let output = bundle
+                    .entry("output".to_string())
+                    .or_insert_with(|| json!({}));
+                let JsonValue::Object(output) = output else {
+                    panic!("target output config must be one object");
+                };
+
+                if target.bundle.output.format != base.bundle.output.format
+                    && let Some(format) = target.bundle.output.format
+                {
+                    output.insert(
+                        "format".to_string(),
+                        json!(Self::bundle_format_name(format)),
+                    );
+                }
+
+                if target.bundle.output.public_path != base.bundle.output.public_path
+                    && let Some(public_path) = target.bundle.output.public_path.as_ref()
+                {
+                    output.insert("publicPath".to_string(), json!(public_path));
+                }
+
+                if target.bundle.output.manifest != base.bundle.output.manifest {
+                    output.insert("manifest".to_string(), json!(target.bundle.output.manifest));
+                }
+
+                if target.bundle.output.sourcemap != base.bundle.output.sourcemap
+                    && let Some(source_map) = target.bundle.output.sourcemap
+                {
+                    output.insert(
+                        "sourcemap".to_string(),
+                        json!(Self::source_map_mode_name(source_map)),
+                    );
+                }
+
+                if target.bundle.output.banner != base.bundle.output.banner
+                    && let Some(banner) = target.bundle.output.banner.as_ref()
+                {
+                    output.insert("banner".to_string(), json!(banner));
+                }
+
+                if target.bundle.output.footer != base.bundle.output.footer
+                    && let Some(footer) = target.bundle.output.footer.as_ref()
+                {
+                    output.insert("footer".to_string(), json!(footer));
+                }
+            }
+
+            if target.bundle.minify.enabled != base.bundle.minify.enabled {
+                bundle.insert("minify".to_string(), json!(target.bundle.minify.enabled));
+            }
+        }
+
+        if target.discovery == TargetDiscovery::Entry && target.entry.is_empty() {
+            object.insert("entry".to_string(), json!([]));
+        }
+
+        value
+    }
+
+    /// Return the JSON spelling for one bundle mode.
+    fn bundle_mode_name(mode: BundleMode) -> &'static str {
+        match mode {
+            BundleMode::SingleFile => "singleFile",
+            BundleMode::PreserveModules => "preserveModules",
+            BundleMode::Chunked => "chunked",
+        }
+    }
+
+    /// Return the JSON spelling for one bundle format.
+    fn bundle_format_name(format: BundleFormat) -> &'static str {
+        match format {
+            BundleFormat::Esm => "esm",
+            BundleFormat::Cjs => "cjs",
+            BundleFormat::Iife => "iife",
+            BundleFormat::Umd => "umd",
+        }
+    }
+
+    /// Return the JSON spelling for one source map mode.
+    fn source_map_mode_name(mode: SourceMapMode) -> &'static str {
+        match mode {
+            SourceMapMode::External => "external",
+            SourceMapMode::Inline => "inline",
+            SourceMapMode::Hidden => "hidden",
+        }
+    }
+
+    /// Return the JSON spelling for one overflow check policy.
+    fn overflow_check_policy_name(policy: destack_workspace::OverflowCheckPolicy) -> &'static str {
+        match policy {
+            destack_workspace::OverflowCheckPolicy::Always => "always",
+            destack_workspace::OverflowCheckPolicy::Debug => "debug",
+            destack_workspace::OverflowCheckPolicy::Never => "never",
+        }
+    }
+
+    /// Return the JSON spelling for one bounds check policy.
+    fn bounds_check_policy_name(policy: BoundsCheckPolicy) -> &'static str {
+        match policy {
+            BoundsCheckPolicy::Always => "always",
+            BoundsCheckPolicy::Debug => "debug",
+            BoundsCheckPolicy::Never => "never",
+        }
+    }
+
+    /// Return the JSON spelling for one division check policy.
+    fn division_check_policy_name(policy: DivisionCheckPolicy) -> &'static str {
+        match policy {
+            DivisionCheckPolicy::Always => "always",
+            DivisionCheckPolicy::Debug => "debug",
+            DivisionCheckPolicy::Never => "never",
+        }
+    }
+
+    /// Return the JSON spelling for one shift check policy.
+    fn shift_check_policy_name(policy: ShiftCheckPolicy) -> &'static str {
+        match policy {
+            ShiftCheckPolicy::Always => "always",
+            ShiftCheckPolicy::Debug => "debug",
+            ShiftCheckPolicy::Never => "never",
+        }
+    }
+
+    /// Return the JSON spelling for one check failure policy.
+    fn check_failure_policy_name(policy: CheckFailurePolicy) -> &'static str {
+        match policy {
+            CheckFailurePolicy::Trap => "trap",
+            CheckFailurePolicy::Panic => "panic",
+            CheckFailurePolicy::Abort => "abort",
+        }
     }
 
     /// Enqueue one artifact key (does not run it).
     pub fn enqueue_artifact<T: Into<ArtifactKey>>(&self, artifact_key: T) {
-        self.compiler.enqueue(artifact_key);
+        self.compiler
+            .enqueue(self.program.current_revision(), artifact_key.into());
     }
 
     /// Enqueue one artifact key and run to completion.
@@ -1399,26 +2264,27 @@ impl TestProgram {
         match rx.recv_timeout(timeout) {
             Ok(()) => {}
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                let snapshot = self
-                    .compiler
-                    .stats
-                    .snapshot_with_program(self.program.modules.len(), Some(&self.program));
+                let snapshot = self.compiler.stats.snapshot_with_repository(
+                    self.program.tracked_module_count(),
+                    Some(self.program.as_ref()),
+                );
                 let summary = format_stats_snapshot(&snapshot);
                 let tasks = self
                     .compiler
                     .task_handles()
                     .into_iter()
                     .map(|handle| {
-                        let description = handle
-                            .artifact_key
-                            .trace_args(&self.program, &self.compiler.artifacts);
+                        let description = handle.artifact_key.trace_args(
+                            handle.revision,
+                            &self.program,
+                            &self.compiler.artifacts,
+                        );
                         format!(
-                            "  {:?} {:?} {} yields={} final_requirements={:?} last_outcome={:?}",
+                            "  {:?} {:?} {} yields={} last_outcome={:?}",
                             handle.id,
                             handle.status,
                             description,
                             handle.yield_count,
-                            handle.final_requirements,
                             handle.last_outcome,
                         )
                     })
@@ -1431,7 +2297,55 @@ impl TestProgram {
             }
         }
 
+        // publish diagnostics from this compiler run into the test harness
+        self.replace_latest_diagnostics(self.current_workspace_diagnostics());
+
         drop(compile_guard);
+    }
+
+    /// Replace the latest compiler diagnostics for this test harness.
+    fn replace_latest_diagnostics(&self, diagnostics: DiagnosticCollection) {
+        let mut latest_diagnostics = self
+            .latest_diagnostics
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+
+        *latest_diagnostics = diagnostics;
+    }
+
+    /// Return the latest compiler diagnostics for this test harness.
+    pub fn diagnostics(&self) -> DiagnosticCollection {
+        self.latest_diagnostics
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+    }
+
+    /// Collect the current workspace diagnostics from module artifact families.
+    fn current_workspace_diagnostics(&self) -> DiagnosticCollection {
+        let revision = self.program.current_revision();
+        let module_ids = self
+            .program
+            .workspace_module_ids(revision)
+            .unwrap_or_else(|error| panic!("failed to read workspace modules: {error}"));
+        let mut diagnostics = DiagnosticCollection::new();
+
+        // current workspace families
+        for module_id in module_ids {
+            let profile_id = self
+                .program
+                .default_profile_id_for_module(revision, module_id)
+                .unwrap_or_else(|error| {
+                    panic!("failed to resolve default profile for module {module_id:?}: {error}")
+                });
+            diagnostics.merge_from(
+                &self
+                    .program
+                    .module_artifact_diagnostics(revision, module_id, profile_id),
+            );
+        }
+
+        diagnostics
     }
 
     /// Check no errors.
@@ -1467,8 +2381,8 @@ impl TestProgram {
 
     /// Get the file for a module.
     pub fn file(&self, module: ModuleId) -> Arc<File> {
-        let module = self.program.modules.get(module);
-        self.program.files.get(module.file_id)
+        let module = self.program.module_descriptor(module);
+        self.program.source_file(module.file_id)
     }
 
     /// Get the root expression ids for a module.
@@ -1484,7 +2398,7 @@ impl TestProgram {
         f: impl FnOnce(&Module, ProfileId, &TestDir, &NodeTree, &SymbolTable, &TypeTable) -> T,
     ) -> T {
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
         let module = module.as_ref();
         let dir = self.artifact_dir(module_id, profile);
 
@@ -1498,7 +2412,7 @@ impl TestProgram {
         f: impl FnOnce(&Module, ProfileId, &TestDir, &NodeTree, &SymbolTable, &mut TypeTable) -> T,
     ) -> T {
         let profile = self.default_profile_id(module_id);
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
         let module = module.as_ref();
         let dir = self.artifact_dir(module_id, profile);
         let mut types = dir.types.clone();
@@ -1508,31 +2422,34 @@ impl TestProgram {
 
     /// Get a module by URI.
     pub fn module(&self, module_uri: &str) -> Arc<Module> {
-        self.program
-            .modules
-            .get_by_uri(&Uri::from_string(module_uri))
-            .unwrap_or_else(|| panic!("module not found for '{module_uri}'"))
+        let uri = Uri::from_string(module_uri);
+        let module_id = self
+            .program
+            .module_id_for_uri(&uri)
+            .unwrap_or_else(|| panic!("module not found for '{module_uri}'"));
+
+        self.program.module_descriptor(module_id)
     }
 
     /// Get a module by file.
     pub fn module_for_file(&self, file: &File) -> Arc<Module> {
-        self.program
-            .modules
-            .get_by_uri(&file.uri)
-            .unwrap_or_else(|| panic!("module not found for file: '{}'", file.uri))
+        let module_id = self
+            .program
+            .module_id_for_uri(&file.uri)
+            .unwrap_or_else(|| panic!("module not found for file: '{}'", file.uri));
+
+        self.program.module_descriptor(module_id)
     }
 
     /// Check no diagnostics of at least the given severity.
     pub fn check_no_diagnostic(&self, min_severity: DiagnosticSeverity) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let highest = diagnostics.highest_severity();
         if let Some(highest) = highest
             && highest >= min_severity
         {
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &diagnostics, options);
+            self.program
+                .print_diagnostics(self.program.current_revision(), &diagnostics);
             let severity_name = min_severity.family_name().to_ascii_lowercase();
             panic!(
                 "program has {} unexpected {severity_name}s",
@@ -1543,7 +2460,7 @@ impl TestProgram {
 
     /// Check that no diagnostics with the given prefix are present.
     pub fn check_no_diagnostics_with_prefix(&self, prefix: &str) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let diagnostic_vec = diagnostics.iter();
         let has_prefix = diagnostic_vec.iter().any(|d| d.code.starts_with(prefix));
         if has_prefix {
@@ -1555,10 +2472,8 @@ impl TestProgram {
                     .cloned()
                     .collect(),
             );
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &matching, options);
+            self.program
+                .print_diagnostics(self.program.current_revision(), &matching);
             panic!("unexpected diagnostics with prefix '{prefix}'");
         }
     }
@@ -1575,7 +2490,7 @@ impl TestProgram {
             .collect();
 
         // check for any matching diagnostics
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let diagnostic_vec = diagnostics.iter();
         let has_matching = diagnostic_vec
             .iter()
@@ -1590,10 +2505,8 @@ impl TestProgram {
                     .cloned()
                     .collect(),
             );
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &matching_diagnostics, options);
+            self.program
+                .print_diagnostics(self.program.current_revision(), &matching_diagnostics);
             let phase_names: Vec<&str> = phases.iter().map(|p| p.name()).collect();
             panic!("unexpected diagnostics for phases: {phase_names:?}");
         }
@@ -1616,21 +2529,19 @@ impl TestProgram {
     /// Check that exactly the given diagnostics are present (by code).
     /// Panics if the actual diagnostics don't match.
     pub fn check_has_diagnostics(&self, expected_codes: &[&str]) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let diagnostic_vec = diagnostics.iter();
         let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
         if actual_codes != expected_codes {
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &diagnostics, options);
+            self.program
+                .print_diagnostics(self.program.current_revision(), &diagnostics);
             panic!("diagnostic mismatch\nexpected: {expected_codes:?}\nactual: {actual_codes:?}");
         }
     }
 
     /// Check that exactly the given diagnostics are present.
     pub fn check_exact_diagnostics(&self, expected: &[ExpectedDiagnostic]) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let actual = diagnostics
             .iter()
             .into_iter()
@@ -1651,14 +2562,12 @@ impl TestProgram {
 
     /// Check that a diagnostic with the given code is present.
     pub fn check_has_diagnostic(&self, code: &str) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let diagnostic_vec = diagnostics.iter();
         let has_code = diagnostic_vec.iter().any(|d| d.code == code);
         if !has_code {
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &diagnostics, options);
+            self.program
+                .print_diagnostics(self.program.current_revision(), &diagnostics);
             let actual_codes: Vec<&str> = diagnostic_vec.iter().map(|d| d.code.as_str()).collect();
             panic!("expected diagnostic with code '{code}' but found: {actual_codes:?}");
         }
@@ -1666,28 +2575,24 @@ impl TestProgram {
 
     /// Check that a diagnostic code appears the expected number of times.
     pub fn check_diagnostic_count(&self, code: &str, expected: usize) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let diagnostic_vec = diagnostics.iter();
         let count = diagnostic_vec.iter().filter(|d| d.code == code).count();
         if count != expected {
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &diagnostics, options);
+            self.program
+                .print_diagnostics(self.program.current_revision(), &diagnostics);
             panic!("expected {expected} diagnostics for '{code}', found {count}");
         }
     }
 
     /// Check that no diagnostic with the given code is present.
     pub fn check_no_diagnostic_code(&self, code: &str) {
-        let diagnostics = self.program.diagnostics.collect();
+        let diagnostics = self.diagnostics();
         let diagnostic_vec = diagnostics.iter();
         let has_code = diagnostic_vec.iter().any(|d| d.code == code);
         if has_code {
-            let options = PrintOptions::new()
-                .with_line_width(self.program.formatter.line_width as u32)
-                .with_module_count(self.program.modules.len());
-            print_diagnostics(&self.program.files, &diagnostics, options);
+            self.program
+                .print_diagnostics(self.program.current_revision(), &diagnostics);
             panic!("unexpected diagnostic with code '{code}'");
         }
     }
@@ -1703,7 +2608,7 @@ impl TestProgram {
 
     /// Unbind a module's DIR back to AST and format it to a string.
     pub fn unbind_to_string(&self, module_id: ModuleId) -> String {
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
         let module = module.as_ref();
         let profile = self.default_profile_id(module.id);
         let tree = self.artifact_tree(module.id, profile);
@@ -1718,6 +2623,7 @@ impl TestProgram {
             .map(LocalNodeId::into_any)
             .unwrap_or(anchor_node);
         let unbound = self.compiler.unbind_module_from_parts(
+            self.program.current_revision(),
             module,
             &tree,
             &symbols,
@@ -1761,9 +2667,9 @@ impl TestProgram {
 
     /// Format a module's MIR to a string.
     pub fn mir_to_string(&self, module_id: ModuleId, target: &str) -> String {
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
         let module = module.as_ref();
-        let target_id = TargetId::new(module.package_id, target);
+        let target_id = self.target_id(module.package_id, target);
         let profile = self.default_profile_id(module_id);
         let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
         format_mir(&tree, &strings, self.mir_format_options())
@@ -1779,32 +2685,30 @@ impl TestProgram {
 
     /// Return the linked package output for one package target.
     pub fn package_output(&self, package_id: PackageId, target: &str) -> PackageOutput {
-        let target_id = TargetId::new(package_id, target);
+        let target_id = self.target_id(package_id, target);
 
         self.compiler
-            .artifacts
             .package_output(package_id, &target_id)
             .unwrap_or_else(|| panic!("missing package output for target '{target}'"))
             .as_ref()
             .clone()
     }
 
-    /// Return the generated module artifact for one target.
-    pub fn module_artifact(&self, module_id: ModuleId, target: &str) -> ModuleArtifact {
-        let module = self.program.modules.get(module_id);
-        let target_id = TargetId::new(module.package_id, target);
+    /// Return the generated module output for one target.
+    pub fn module_output(&self, module_id: ModuleId, target: &str) -> ModuleOutput {
+        let module = self.program.module_descriptor(module_id);
+        let target_id = self.target_id(module.package_id, target);
 
         self.compiler
-            .artifacts
-            .module_artifact(module_id, &target_id)
-            .unwrap_or_else(|| panic!("missing module artifact for target '{target}'"))
+            .module_output(module_id, &target_id)
+            .unwrap_or_else(|| panic!("missing module output for target '{target}'"))
             .as_ref()
             .clone()
     }
 
     /// Return the linked package output for the package containing one module.
     pub fn package_output_for_module(&self, module_id: ModuleId, target: &str) -> PackageOutput {
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
 
         self.package_output(module.package_id, target)
     }
@@ -1841,11 +2745,11 @@ impl TestProgram {
         f: impl FnOnce(&mir::NodeTree, &ImmutableStringPool) -> T,
     ) -> T {
         // load the module for the target
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
         let module = module.as_ref();
 
         // build the target id
-        let target_id = TargetId::new(module.package_id, target);
+        let target_id = self.target_id(module.package_id, target);
 
         // load the mir module state
         let profile = self.default_profile_id(module_id);
@@ -1857,9 +2761,9 @@ impl TestProgram {
 
     /// Create a fresh MIR interpreter for the module and target.
     pub fn mir_isolate(&self, module_id: ModuleId, target: &str) -> TestIsolate {
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
         let module = module.as_ref();
-        let target_id = TargetId::new(module.package_id, target);
+        let target_id = self.target_id(module.package_id, target);
         let profile = self.default_profile_id(module_id);
         let (tree, strings) = self.artifact_mir_parts(module_id, profile, &target_id);
         let mut isolate = Isolate::build_with_options(tree, strings, IsolateOptions::test())

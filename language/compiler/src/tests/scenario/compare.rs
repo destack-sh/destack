@@ -3,7 +3,9 @@ use std::sync::Arc;
 use destack_artifact::{Ast, DirPrepared, DirResolved};
 use destack_core::StringPool;
 use destack_dir::{Dumper, DumperOptions, NodeVisitor};
-use destack_source::{FileId, ModuleId, ModuleVersion};
+use destack_source::{FileId, ModuleId};
+
+use crate::tests::TestWorkspaceView;
 
 /// Build one stable profile key for scenario cache tests.
 pub(crate) fn test_profile_key() -> destack_artifact::ProfileKey {
@@ -28,21 +30,21 @@ pub(crate) fn test_profile_key() -> destack_artifact::ProfileKey {
     )
 }
 
-/// Append text to one loaded file and bump its version.
+/// Append text to one loaded file.
 pub(crate) fn append_file_text(
-    program: &destack_workspace::Program,
+    program: &TestWorkspaceView,
     file_id: destack_source::FileId,
     suffix: &str,
 ) {
     use destack_source::{File, FileContent};
 
     // load the current text contents
-    let file = program.files.get(file_id);
+    let file = program.source_file(file_id);
     let FileContent::Text { content } = &file.content else {
         panic!("expected text file");
     };
 
-    // rebuild the file with the appended text and bumped version
+    // rebuild the file with the appended text
     let content = format!("{content}{suffix}");
     let file = File::from_text(
         file.id,
@@ -51,17 +53,15 @@ pub(crate) fn append_file_text(
         file.path.clone(),
         file.ty,
         content,
-    )
-    .with_version(file.version.next());
+    );
 
-    program.files.replace(file);
+    program.replace_source_file(file);
 }
 
 /// Normalize one AST for stable cross-session comparison.
 pub(crate) fn normalize_ast(mut ast: Ast) -> Ast {
     // normalize top level identity
     ast.id = ModuleId::EPHEMERAL;
-    ast.version = ModuleVersion::INITIAL;
     ast.tree.source_map.rebind_file(FileId::new(0));
 
     // normalize primary token spans
@@ -150,15 +150,16 @@ pub(crate) fn assert_ast_eq(expected: Ast, actual: Ast) {
 
 /// Assert two prepared DIR values are equivalent.
 pub(crate) fn assert_dir_prepared_eq(
-    strings: &Arc<StringPool>,
+    expected_strings: &Arc<StringPool>,
+    actual_strings: &Arc<StringPool>,
     expected: &DirPrepared,
     actual: &DirPrepared,
 ) {
     // dump both prepared surfaces deterministically
-    let expected_nodes = dump_dir_prepared_nodes(strings, expected);
-    let expected_symbols = dump_dir_prepared_symbols(strings, expected);
-    let actual_nodes = dump_dir_prepared_nodes(strings, actual);
-    let actual_symbols = dump_dir_prepared_symbols(strings, actual);
+    let expected_nodes = dump_dir_prepared_nodes(expected_strings, expected);
+    let expected_symbols = dump_dir_prepared_symbols(expected_strings, expected);
+    let actual_nodes = dump_dir_prepared_nodes(actual_strings, actual);
+    let actual_symbols = dump_dir_prepared_symbols(actual_strings, actual);
 
     // compare nodes and symbols independently
     assert_eq!(actual_nodes, expected_nodes);
@@ -167,15 +168,16 @@ pub(crate) fn assert_dir_prepared_eq(
 
 /// Assert two resolved DIR values are equivalent.
 pub(crate) fn assert_dir_resolved_eq(
-    strings: &Arc<StringPool>,
+    expected_strings: &Arc<StringPool>,
+    actual_strings: &Arc<StringPool>,
     expected: &DirResolved,
     actual: &DirResolved,
 ) {
     // dump both resolved surfaces deterministically
-    let expected_nodes = dump_dir_resolved_nodes(strings, expected);
-    let expected_symbols = dump_dir_resolved_symbols(strings, expected);
-    let actual_nodes = dump_dir_resolved_nodes(strings, actual);
-    let actual_symbols = dump_dir_resolved_symbols(strings, actual);
+    let expected_nodes = dump_dir_resolved_nodes(expected_strings, expected);
+    let expected_symbols = dump_dir_resolved_symbols(expected_strings, expected);
+    let actual_nodes = dump_dir_resolved_nodes(actual_strings, actual);
+    let actual_symbols = dump_dir_resolved_symbols(actual_strings, actual);
 
     // compare nodes and symbols independently
     assert_eq!(actual_nodes, expected_nodes);

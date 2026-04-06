@@ -9,7 +9,7 @@ use crate::TestProgram;
 impl TestProgram {
     /// Dump all representations (source, nodes, symbols) for all modules.
     pub fn dump(&self) {
-        for module in self.program.modules.iter() {
+        for module in self.program.visible_modules() {
             self.dump_module_file(&module);
             self.dump_module_nodes(&module);
             self.dump_module_symbols(&module);
@@ -18,21 +18,21 @@ impl TestProgram {
 
     /// Dump file representations for all modules.
     pub fn dump_files(&self) {
-        for module in self.program.modules.iter() {
+        for module in self.program.visible_modules() {
             self.dump_module_file(&module);
         }
     }
 
     /// Dump node representations for all modules.
     pub fn dump_nodes(&self) {
-        for module in self.program.modules.iter() {
+        for module in self.program.visible_modules() {
             self.dump_module_nodes(&module);
         }
     }
 
     /// Dump symbol representations for all modules.
     pub fn dump_symbols(&self) {
-        for module in self.program.modules.iter() {
+        for module in self.program.visible_modules() {
             self.dump_module_symbols(&module);
         }
     }
@@ -40,7 +40,7 @@ impl TestProgram {
     /// Dump the file representation of a single module.
     pub fn dump_module_file(&self, module: &Arc<Module>) {
         let module = module.as_ref();
-        let file = self.program.files.get(module.file_id);
+        let file = self.program.source_file(module.file_id);
         println!("{}", "=".repeat(80));
         println!("{} [FILE]", module.uri);
         println!("{}", "=".repeat(80));

@@ -1,5 +1,5 @@
 use destack_artifact::ArtifactStore;
-use destack_workspace::Program;
+use destack_workspace::{Repository, Revision};
 
 use crate::{
     AnalyzeWarning, DiagnosticAnchor, ElaborateWarning, ExecuteWarning, GenerateWarning,
@@ -90,17 +90,22 @@ impl TaskWarning {
     }
 
     /// Get the message of the warning.
-    pub fn message(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+    pub fn message(
+        &self,
+        revision: Revision,
+        repository: &Repository,
+        artifacts: &ArtifactStore,
+    ) -> String {
         match self {
-            Self::Import(warning) => warning.message(program, artifacts),
-            Self::Resolve(warning) => warning.message(program, artifacts),
-            Self::Analyze(warning) => warning.message(program, artifacts),
-            Self::Elaborate(warning) => warning.message(program, artifacts),
-            Self::Execute(warning) => warning.message(program, artifacts),
-            Self::Lower(warning) => warning.message(program, artifacts),
-            Self::Optimize(warning) => warning.message(program, artifacts),
-            Self::Generate(warning) => warning.message(program, artifacts),
-            Self::Link(warning) => warning.message(program, artifacts),
+            Self::Import(warning) => warning.message(revision, repository, artifacts),
+            Self::Resolve(warning) => warning.message(revision, repository, artifacts),
+            Self::Analyze(warning) => warning.message(revision, repository, artifacts),
+            Self::Elaborate(warning) => warning.message(revision, repository, artifacts),
+            Self::Execute(warning) => warning.message(revision, repository, artifacts),
+            Self::Lower(warning) => warning.message(revision, repository, artifacts),
+            Self::Optimize(warning) => warning.message(revision, repository, artifacts),
+            Self::Generate(warning) => warning.message(revision, repository, artifacts),
+            Self::Link(warning) => warning.message(revision, repository, artifacts),
         }
     }
 }

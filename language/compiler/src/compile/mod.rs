@@ -1,8 +1,10 @@
 mod anchor;
+mod artifact;
 mod availability;
 mod build;
 mod commit;
 mod compiler;
+mod context;
 mod dependency;
 mod diagnostic;
 mod directive;
@@ -17,12 +19,12 @@ mod queue;
 mod stats;
 mod task;
 pub mod timing;
-mod version;
 mod warning;
 
 pub use anchor::*;
 pub use build::*;
 pub use compiler::*;
+pub use context::*;
 pub use diagnostic::*;
 pub use error::*;
 pub use event::*;
