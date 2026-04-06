@@ -93,7 +93,9 @@ impl Document {
                     FormatNode::BestFitting { variants, mode: _ } => {
                         enclosing.push(Enclosing::BestFitting);
 
-                        propagate_expands(variants, enclosing, checked_interned);
+                        for variant in variants.as_slice() {
+                            propagate_expands(variant, enclosing, checked_interned);
+                        }
                         enclosing.pop();
                         continue;
                     }

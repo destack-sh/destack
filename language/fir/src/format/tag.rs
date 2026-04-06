@@ -78,9 +78,6 @@ pub enum FormatTag {
     EndFitsExpanded,
 
     /// Marks the start and end of a best-fitting variant.
-    StartBestFittingEntry,
-    EndBestFittingEntry,
-
     /// Parenthesizes the content but only if adding the parentheses and indenting the content
     /// makes the content fit in the configured line width.
     ///
@@ -108,7 +105,6 @@ impl FormatTag {
                 | FormatTag::StartLinePostfix { .. }
                 | FormatTag::StartVerbatim(_)
                 | FormatTag::StartFitsExpanded(_)
-                | FormatTag::StartBestFittingEntry
                 | FormatTag::StartBestFitParenthesize { .. }
         )
     }
@@ -138,7 +134,6 @@ impl FormatTag {
             StartLinePostfix { reserved_width: _ } | EndLinePostfix => FormatTagKind::LinePostfix,
             StartVerbatim(_) | EndVerbatim => FormatTagKind::Verbatim,
             StartFitsExpanded { .. } | EndFitsExpanded => FormatTagKind::FitsExpanded,
-            StartBestFittingEntry | EndBestFittingEntry => FormatTagKind::BestFittingEntry,
             StartBestFitParenthesize { .. } | EndBestFitParenthesize => {
                 FormatTagKind::BestFitParenthesize
             }
@@ -164,7 +159,6 @@ pub enum FormatTagKind {
     Verbatim,
     Labelled,
     FitsExpanded,
-    BestFittingEntry,
     BestFitParenthesize,
 }
 

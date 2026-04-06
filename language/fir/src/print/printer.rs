@@ -357,7 +357,7 @@ impl<'a> Printer<'a> {
                 stack.push(FormatTagKind::FitsExpanded, args);
             }
 
-            FormatNode::Tag(tag @ (StartEntry | StartBestFittingEntry)) => {
+            FormatNode::Tag(tag @ StartEntry) => {
                 stack.push(tag.kind(), args);
             }
 
@@ -373,7 +373,6 @@ impl<'a> Printer<'a> {
                 | EndFitsExpanded
                 | EndVerbatim
                 | EndLinePostfix
-                | EndBestFittingEntry
                 | EndFill),
             ) => {
                 stack.pop(tag.kind())?;
@@ -599,7 +598,7 @@ impl<'a> Printer<'a> {
 
         if args.mode().is_flat() && self.state.measured_group_fits {
             queue.extend_back(variants.most_flat());
-            self.print_entry(queue, stack, args, FormatTagKind::BestFittingEntry)
+            self.print_entry(queue, stack, args, FormatTagKind::Entry)
         } else {
             self.state.measured_group_fits = true;
             let mut variants_iter = variants.into_iter();
@@ -612,9 +611,9 @@ impl<'a> Printer<'a> {
                 // try to fit only the first variant on a single line
                 if !matches!(
                     current.first(),
-                    Some(&FormatNode::Tag(FormatTag::StartBestFittingEntry))
+                    Some(&FormatNode::Tag(FormatTag::StartEntry))
                 ) {
-                    return invalid_start_tag(FormatTagKind::BestFittingEntry, current.first());
+                    return invalid_start_tag(FormatTagKind::Entry, current.first());
                 }
 
                 // skip the first node because we want to override the args for the entry and the
@@ -626,9 +625,9 @@ impl<'a> Printer<'a> {
                     .with_measure_mode(MeasureMode::from(mode));
 
                 queue.extend_back(content);
-                stack.push(FormatTagKind::BestFittingEntry, entry_args);
+                stack.push(FormatTagKind::Entry, entry_args);
                 let variant_fits = self.fits(queue, stack)?;
-                stack.pop(FormatTagKind::BestFittingEntry)?;
+                stack.pop(FormatTagKind::Entry)?;
 
                 // remove the content slice because printing needs the variant WITH the start entry
                 let popped_slice = queue.pop_slice();
@@ -640,7 +639,7 @@ impl<'a> Printer<'a> {
                         queue,
                         stack,
                         args.with_print_mode(PrintMode::Flat),
-                        FormatTagKind::BestFittingEntry,
+                        FormatTagKind::Entry,
                     );
                 }
 
@@ -655,7 +654,7 @@ impl<'a> Printer<'a> {
                 queue,
                 stack,
                 args.with_print_mode(PrintMode::Expanded),
-                FormatTagKind::BestFittingEntry,
+                FormatTagKind::Entry,
             )
         }
     }
@@ -845,12 +844,10 @@ impl<'a> Printer<'a> {
 
         while let Some(node) = queue.pop() {
             match node {
-                FormatNode::Tag(FormatTag::StartEntry | FormatTag::StartBestFittingEntry) => {
+                FormatNode::Tag(FormatTag::StartEntry) => {
                     depth += 1;
                 }
-                FormatNode::Tag(
-                    end_tag @ (FormatTag::EndEntry | FormatTag::EndBestFittingEntry),
-                ) => {
+                FormatNode::Tag(end_tag @ FormatTag::EndEntry) => {
                     depth -= 1;
                     // reached the end entry, pop the entry from the stack and return.
                     if depth == 0 {
@@ -1248,23 +1245,20 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
             }
 
             FormatNode::BestFitting { variants, mode } => {
-                let (slice, args) = match args.mode() {
+                let slice = match args.mode() {
                     PrintMode::Flat => (
                         variants.most_flat(),
                         args.with_measure_mode(MeasureMode::from(*mode)),
                     ),
                     PrintMode::Expanded => (variants.most_expanded(), args),
-                };
+                }
+                .0;
 
-                if !matches!(
-                    slice.first(),
-                    Some(FormatNode::Tag(FormatTag::StartBestFittingEntry))
-                ) {
-                    return invalid_start_tag(FormatTagKind::BestFittingEntry, slice.first());
+                if !matches!(slice.first(), Some(FormatNode::Tag(FormatTag::StartEntry))) {
+                    return invalid_start_tag(FormatTagKind::Entry, slice.first());
                 }
 
-                self.stack.push(FormatTagKind::BestFittingEntry, args);
-                self.queue.extend_back(&slice[1..]);
+                self.queue.extend_back(slice);
             }
 
             FormatNode::Interned(content) => self.queue.extend_back(content),
@@ -1432,9 +1426,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                 }
             }
 
-            FormatNode::Tag(
-                tag @ (StartFill | StartVerbatim(_) | StartEntry | StartBestFittingEntry),
-            ) => {
+            FormatNode::Tag(tag @ (StartFill | StartVerbatim(_) | StartEntry)) => {
                 self.stack.push(tag.kind(), args);
             }
 
@@ -1449,7 +1441,6 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                 | EndAlign
                 | EndDedent
                 | EndIndent
-                | EndBestFittingEntry
                 | EndFitsExpanded),
             ) => {
                 self.stack.pop(tag.kind())?;

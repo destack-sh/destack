@@ -4,8 +4,8 @@ use std::marker::PhantomData;
 
 use crate::format::{
     Argument, Arguments, BestFittingMode, BestFittingVariants, Buffer, Condition, DedentMode,
-    FormatContext, FormatOptions, FormatTag, GroupId, GroupMode, PrintMode, TextWidth, VecBuffer,
-    tag,
+    FormatContext, FormatOptions, FormatTag, GroupId, GroupMode, Interned, PrintMode, TextWidth,
+    VecBuffer, tag,
 };
 use crate::prelude::*;
 use crate::write;
@@ -448,7 +448,15 @@ enum IndentMode {
 
 impl<Context> Format<Context> for BlockIndent<'_, Context> {
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
-        let snapshot = f.snapshot();
+        let content = {
+            let mut content_buffer = VecBuffer::new(f.state_mut());
+            content_buffer.write_format(Arguments::from(&self.content))?;
+            content_buffer.into_vec()
+        };
+
+        let Some(content) = f.intern_vec(content) else {
+            return Ok(());
+        };
 
         f.write_node(FormatNode::Tag(StartIndent));
 
@@ -460,16 +468,7 @@ impl<Context> Format<Context> for BlockIndent<'_, Context> {
             }
         }
 
-        let is_empty = {
-            let mut recording = f.start_recording();
-            recording.write_format(Arguments::from(&self.content))?;
-            recording.stop().is_empty()
-        };
-
-        if is_empty {
-            f.restore_snapshot(snapshot);
-            return Ok(());
-        }
+        f.write_node(content);
 
         f.write_node(FormatNode::Tag(EndIndent));
 
@@ -1123,17 +1122,21 @@ impl<Context> Format<Context> for BestFitting<'_, Context> {
     fn format(&self, f: &mut Formatter<'_, Context>) -> FormatResult<()> {
         let variants = self.variants.items();
 
-        let mut buffer = VecBuffer::with_capacity(variants.len() * 8, f.state_mut());
+        let mut variant_nodes = Vec::with_capacity(variants.len());
 
         for variant in variants {
-            buffer.write_node(FormatNode::Tag(StartBestFittingEntry));
+            let mut buffer = VecBuffer::with_capacity(8, f.state_mut());
+
+            buffer.write_node(FormatNode::Tag(StartEntry));
             buffer.write_format(Arguments::from(variant))?;
-            buffer.write_node(FormatNode::Tag(EndBestFittingEntry));
+            buffer.write_node(FormatNode::Tag(EndEntry));
+
+            variant_nodes.push(Interned::new(buffer.into_vec()));
         }
 
         // OK because the constructor guarantees that there are always at
         // least two variants.
-        let variants = BestFittingVariants::from_vec_unchecked(buffer.into_vec());
+        let variants = BestFittingVariants::from_vec_unchecked(variant_nodes);
         let node = FormatNode::BestFitting {
             variants,
             mode: self.mode,
