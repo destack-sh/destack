@@ -10,7 +10,9 @@ use crate::executable::{CallTarget, Executable};
 use crate::interpreter::{
     Continuation, ExecutionOutcome, ExecutionOutput, Interpreter, YieldState,
 };
-use crate::isolate::{ExternalCallContext, ExternalFn, GlobalStorage, SchemaRegistry, StringInterner};
+use crate::isolate::{
+    ExternalCallContext, ExternalFn, GlobalStorage, SchemaRegistry, StringInterner,
+};
 use crate::options::IsolateOptions;
 use destack_heap::Value;
 

@@ -1,7 +1,7 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use destack_heap::{Heap, SharedSpace, Value};
 use destack_test_mirbench as program;
-use destack_vm::{Heap, SharedSpace, Value};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use program::Program;
