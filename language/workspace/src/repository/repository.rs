@@ -7,21 +7,19 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_source::{
-    DiagnosticCollection, DiagnosticCollector, File, FileId, FileStore, FileSystem, FileType,
-    ModuleId, PackageId, PhysicalFileSystem, PrintOptions, ProfileId, TargetId, Uri,
+    DiagnosticCollection, File, FileId, FileStore, FileSystem, FileType, ModuleId, PackageId,
+    PhysicalFileSystem, PrintOptions, ProfileId, TargetId, Uri,
 };
 use parking_lot::RwLock;
 
 use crate::repository::{
-    Builtins, FileContentId, FileContentStore, FileOrigin, QueryIndex, Ref, RepositoryError,
-    RepositoryOptions, Revision, RevisionState, SourceMap, discover_workspace_root,
+    Builtins, FileContentId, FileContentStore, QueryIndex, Ref, RepositoryError, RepositoryOptions,
+    Revision, RevisionState, SourceMap, discover_workspace_root,
 };
 use crate::{
     DestackDeclaration, FormatterOptions, LinterOptions, TsConfigOptions, Workspace, WorkspaceKind,
     resolve_cache_root,
 };
-use destack_source::DiagnosticStore;
-
 /// Tsconfig context for one module profile decision.
 #[derive(Debug, Clone)]
 pub(crate) struct ModuleTsConfigContext {
@@ -31,7 +29,7 @@ pub(crate) struct ModuleTsConfigContext {
     pub(crate) directory: PathBuf,
 }
 
-/// One repository with lineage, sources, artifacts, diagnostics, and shared inputs.
+/// One repository with lineage, sources, artifacts, and shared inputs.
 #[derive(Debug)]
 pub struct Repository {
     /// Default formatter options.
@@ -52,16 +50,16 @@ pub struct Repository {
     /// The file system backing repository discovery and loads.
     pub(crate) fs: Arc<dyn FileSystem>,
     /// The logical path for each file id.
-    pub(crate) logical_path_by_file_id: DashMap<FileId, Arc<str>>,
-    /// The origin metadata for each file id.
-    pub(crate) file_origin_by_file_id: DashMap<FileId, FileOrigin>,
+    pub(crate) logical_path_by_file_id: DashMap<FileId, Arc<str>>, // FUGU #Suspicious: why Arc<str>?
     /// The package id for each target id.
-    pub(crate) package_id_by_target_id: DashMap<TargetId, PackageId>,
+    pub(crate) package_id_by_target_id: DashMap<TargetId, PackageId>, // FUGU #Suspicious: revision-mutable?
     /// The target name for each target id.
     pub(crate) target_name_by_target_id: DashMap<TargetId, Arc<str>>,
 
     /// The published source revision graph.
     pub(crate) revisions: DashMap<Revision, Arc<RevisionState>>,
+    /// The cached workspace view for each retained revision.
+    pub(crate) workspaces: DashMap<Revision, Arc<Workspace>>,
     /// The named movable refs.
     pub(crate) refs: DashMap<Ref, Revision>,
     /// Shared immutable source contents.
@@ -72,10 +70,6 @@ pub struct Repository {
     pub(crate) artifacts: Arc<ArtifactStore>,
     /// Shared builtin selection metadata.
     pub builtins: Arc<Builtins>,
-    /// Shared transient diagnostics.
-    pub diagnostics: DiagnosticCollector,
-    /// Shared persisted diagnostics.
-    pub(crate) diagnostic_store: DiagnosticStore,
     /// Shared query index storage.
     pub(crate) query_index: RwLock<QueryIndex>,
 }
@@ -145,6 +139,7 @@ impl Repository {
         let mut builtins = Builtins::empty();
 
         let revisions = DashMap::new();
+        let workspaces = DashMap::new();
         let refs = DashMap::new();
         let pinned_revisions = DashMap::new();
         let cwd = root.clone();
@@ -161,17 +156,15 @@ impl Repository {
             options,
             fs,
             logical_path_by_file_id: DashMap::new(),
-            file_origin_by_file_id: DashMap::new(),
             package_id_by_target_id: DashMap::new(),
             target_name_by_target_id: DashMap::new(),
             strings,
             revisions,
+            workspaces,
             refs,
             file_contents,
             pinned_revisions,
             artifacts: Arc::new(ArtifactStore::default()),
-            diagnostics: DiagnosticCollector::new(),
-            diagnostic_store: DiagnosticStore::new(),
             builtins: Arc::new(builtins),
             query_index: RwLock::new(QueryIndex::default()),
             cache_store: cache,
@@ -252,11 +245,6 @@ impl Repository {
         self.builtins.load_library(name, profile_key)
     }
 
-    /// Return the repository diagnostic store.
-    pub fn diagnostic_store(&self) -> &DiagnosticStore {
-        &self.diagnostic_store
-    }
-
     /// Return the repository cache store.
     pub fn cache_store(&self) -> &Arc<dyn CacheStore> {
         &self.cache_store
@@ -314,24 +302,39 @@ impl Repository {
         &self.root
     }
 
-    /// Return one repository-derived workspace view for one revision.
-    pub fn workspace(&self, revision: Revision) -> Result<Workspace, RepositoryError> {
+    /// Return one cached discovered workspace view for one revision.
+    pub fn workspace(&self, revision: Revision) -> Result<Arc<Workspace>, RepositoryError> {
+        if let Some(workspace) = self.workspaces.get(&revision) {
+            return Ok(Arc::clone(workspace.value()));
+        }
+
+        // TODO #Cleanup: unify Workspace with the public Package and Module revision snapshots
+        // so this cache stops carrying the thinner discovered-only layer
         let workspace_declaration = self.workspace_destack_declaration(revision)?;
-        let package_ids = self.workspace_package_ids(revision)?;
-        let kind = if package_ids.len() > 1 {
+        let revision_state = self.revision(revision)?;
+        let packages = self.derive_packages(revision_state.source.as_ref());
+        let modules = self.derive_modules(revision_state.source.as_ref(), &packages);
+        let kind = if packages.len() > 1 {
             WorkspaceKind::Monorepo
         } else {
             WorkspaceKind::SinglePackage
         };
 
-        Ok(Workspace {
+        let workspace = Arc::new(Workspace {
             destack_file_id: workspace_declaration
                 .as_ref()
                 .map(|declaration| declaration.file_id),
             root: self.root.clone(),
             kind,
-            package_ids,
-        })
+            packages,
+            modules,
+        });
+        let entry = self
+            .workspaces
+            .entry(revision)
+            .or_insert_with(|| Arc::clone(&workspace));
+
+        Ok(Arc::clone(entry.value()))
     }
 
     /// Return the repository default options.

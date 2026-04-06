@@ -2,14 +2,14 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::Loader;
+use destack_artifact::{ArtifactKey, Loader};
 use destack_source::{
     File, FileContent, FileId, FileType, LanguageType, ModuleId, PackageId, PathExt, ProfileId, Uri,
 };
 use im::OrdMap;
 
 use crate::repository::{
-    BUILTIN_PACKAGE_ID, FileContentId, FileOrigin, Repository, RepositoryError, Revision, SourceMap,
+    BUILTIN_PACKAGE_ID, FileContentId, Repository, RepositoryError, Revision, SourceMap,
 };
 use crate::{
     Module, ModuleDetection, ModuleFormat, ModuleSource, Package, SourceType, TsConfigDeclaration,
@@ -30,12 +30,12 @@ impl Repository {
         let mut modules = OrdMap::new();
 
         for file_id in source.keys() {
-            let Some(origin) = self.file_origin_by_file_id(*file_id) else {
+            let Some(logical_path) = self.logical_path_by_file_id(*file_id) else {
                 continue;
             };
 
             // synthetic root module
-            if matches!(origin, FileOrigin::Root) {
+            if logical_path.as_ref() == "<root>" {
                 let module = Module::blank(
                     self.root_module_id(),
                     *file_id,
@@ -52,15 +52,14 @@ impl Repository {
             }
 
             // builtin module
-            if let Some(module) = self.builtin_module(*file_id, &origin) {
+            if let Some(module) = self.builtin_module(*file_id, logical_path.as_ref()) {
                 modules.insert(module.id, module);
                 continue;
             }
 
-            let FileOrigin::Workspace { path } = origin else {
+            let Some(path) = self.workspace_path_for_logical_path(logical_path.as_ref()) else {
                 continue;
             };
-            let path = path.to_path_buf();
             let file_type = FileType::from_path_or_unknown(&path);
             if !self.is_module_file(&path, file_type) {
                 continue;
@@ -208,11 +207,10 @@ impl Repository {
         revision: Revision,
         module_id: ModuleId,
     ) -> Result<Option<Arc<Module>>, RepositoryError> {
-        let revision_id = revision;
-        let revision = self.revision(revision_id)?;
-        let packages = self.derive_packages(revision.source.as_ref());
-        let modules = self.derive_modules(revision.source.as_ref(), &packages);
-        let mut module = if let Some(module) = modules.get(&module_id) {
+        let workspace = self.workspace(revision)?;
+
+        // TODO #Cleanup: fold this materialization into the cached Workspace model
+        let mut module = if let Some(module) = workspace.module(module_id) {
             Module::blank(
                 module.id,
                 module.file_id,
@@ -227,20 +225,16 @@ impl Repository {
             return Ok(None);
         };
 
-        if self.file(revision_id, module.file_id)?.is_none() {
-            return Ok(None);
-        }
-
-        let tsconfig_file_id = self.module_tsconfig_file_id_at(revision_id, &module)?;
+        let tsconfig_file_id = self.module_tsconfig_file_id_at(revision, &module)?;
         let source_type = self.detect_module_source_type_at(
-            revision_id,
+            revision,
             module.path.as_deref(),
             module.package_id,
             tsconfig_file_id,
             false,
         )?;
         let module_format = self.detect_module_format_at(
-            revision_id,
+            revision,
             module.path.as_deref(),
             module.language_type,
             source_type,
@@ -309,7 +303,7 @@ impl Repository {
     }
 
     /// Return the effective tsconfig file id for one path.
-    fn applicable_tsconfig_file_id_at_path(
+    pub(crate) fn applicable_tsconfig_file_id_at_path(
         &self,
         revision: Revision,
         path: &Path,
@@ -455,10 +449,8 @@ impl Repository {
         &self,
         revision: Revision,
     ) -> Result<Vec<ModuleId>, RepositoryError> {
-        let revision = self.revision(revision)?;
-        let packages = self.derive_packages(revision.source.as_ref());
-        let modules = self.derive_modules(revision.source.as_ref(), &packages);
-        let mut module_ids = modules.keys().copied().collect::<Vec<_>>();
+        let workspace = self.workspace(revision)?;
+        let mut module_ids = workspace.modules().keys().copied().collect::<Vec<_>>();
         module_ids.sort_unstable();
         module_ids.dedup();
         Ok(module_ids)
@@ -486,14 +478,11 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<ModuleId>, RepositoryError> {
-        let module_ids = self.workspace_module_ids(revision)?;
+        let workspace = self.workspace(revision)?;
 
-        for module_id in module_ids {
-            let Some(module) = self.module(revision, module_id)? else {
-                continue;
-            };
+        for (module_id, module) in workspace.modules().iter() {
             if module.file_id == file_id {
-                return Ok(Some(module_id));
+                return Ok(Some(*module_id));
             }
         }
 
@@ -593,7 +582,7 @@ impl Repository {
     /// Drop cached module graphs for one profile.
     pub fn drop_module_graph(&self, profile_id: ProfileId) {
         self.artifacts
-            .evict_key(&destack_artifact::ArtifactKey::module_graph(profile_id));
+            .evict_key(&ArtifactKey::module_graph(profile_id));
     }
 
     /// Return whether one workspace file should materialize as a module.
@@ -629,20 +618,14 @@ impl Repository {
             .map(|(_, package)| package)
     }
 
-    /// Return one builtin module entry for one file origin when applicable.
-    fn builtin_module(&self, file_id: FileId, origin: &FileOrigin) -> Option<Module> {
-        let FileOrigin::Builtin {
-            module_path,
-            source,
-        } = origin
-        else {
-            return None;
-        };
+    /// Return one builtin module entry for one logical path when applicable.
+    fn builtin_module(&self, file_id: FileId, logical_path: &str) -> Option<Module> {
+        let (module_path, source) = self.builtins.module_origin_by_logical_path(logical_path)?;
 
-        let file_type = FileType::from_path_or_unknown(Path::new(module_path));
+        let file_type = FileType::from_path_or_unknown(Path::new(&module_path));
         let language_type = LanguageType::from(file_type);
         let loader = Loader::from_file_type(file_type);
-        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(module_path));
+        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
 
         Some(Module::blank(
             module_id,
@@ -656,7 +639,7 @@ impl Repository {
             BUILTIN_PACKAGE_ID,
             language_type,
             loader,
-            *source,
+            source,
         ))
     }
 }

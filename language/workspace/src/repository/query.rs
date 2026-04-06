@@ -71,7 +71,7 @@ struct StoredImportIndexEntry {
 }
 
 #[derive(Debug, Clone)]
-struct ImportIndexProgramSlice {
+struct ImportIndexRootSlice {
     entry_ids: Vec<usize>,
     entry_id_set: FxHashSet<usize>,
 }
@@ -80,7 +80,7 @@ struct ImportIndexProgramSlice {
 #[derive(Debug, Default)]
 pub struct ImportIndex {
     next_entry_id: usize,
-    entries_by_program: FxHashMap<PathBuf, ImportIndexProgramSlice>,
+    entries_by_root: FxHashMap<PathBuf, ImportIndexRootSlice>,
     entries_by_id: FxHashMap<usize, StoredImportIndexEntry>,
     entry_ids_by_prefix: FxHashMap<String, Vec<usize>>,
     entry_ids_by_boundary_prefix: FxHashMap<String, Vec<usize>>,
@@ -88,9 +88,9 @@ pub struct ImportIndex {
 }
 
 impl ImportIndex {
-    /// Replace one program import slice.
-    pub fn replace_program(&mut self, root: PathBuf, entries: Vec<ImportIndexEntry>) {
-        self.remove_program(root.as_path());
+    /// Replace one workspace-root import slice.
+    pub fn replace_root(&mut self, root: PathBuf, entries: Vec<ImportIndexEntry>) {
+        self.remove_root(root.as_path());
 
         let mut entry_ids = Vec::new();
         let mut entry_id_set = FxHashSet::default();
@@ -134,18 +134,18 @@ impl ImportIndex {
             entry_id_set.insert(entry_id);
         }
 
-        self.entries_by_program.insert(
+        self.entries_by_root.insert(
             root,
-            ImportIndexProgramSlice {
+            ImportIndexRootSlice {
                 entry_ids,
                 entry_id_set,
             },
         );
     }
 
-    /// Remove one program import slice.
-    pub fn remove_program(&mut self, root: &Path) {
-        let Some(slice) = self.entries_by_program.remove(root) else {
+    /// Remove one workspace-root import slice.
+    pub fn remove_root(&mut self, root: &Path) {
+        let Some(slice) = self.entries_by_root.remove(root) else {
             return;
         };
 
@@ -190,7 +190,7 @@ impl ImportIndex {
     }
 
     /// Search import entries for one root slice.
-    pub fn search_program(
+    pub fn search_root(
         &self,
         root: &Path,
         query: &str,
@@ -198,12 +198,12 @@ impl ImportIndex {
     ) -> Vec<ImportIndexEntry> {
         let query = query.to_lowercase();
         let mut results = Vec::new();
-        let Some(program_slice) = self.entries_by_program.get(root) else {
+        let Some(root_slice) = self.entries_by_root.get(root) else {
             return results;
         };
 
         if query.is_empty() {
-            for &entry_id in &program_slice.entry_ids {
+            for &entry_id in &root_slice.entry_ids {
                 let Some(stored) = self.entries_by_id.get(&entry_id) else {
                     continue;
                 };
@@ -235,7 +235,7 @@ impl ImportIndex {
                 if Some(stored.entry.module_id) == exclude_module {
                     continue;
                 }
-                if !program_slice.entry_id_set.contains(&entry_id) {
+                if !root_slice.entry_id_set.contains(&entry_id) {
                     continue;
                 }
 

@@ -153,6 +153,8 @@ impl Repository {
         self.compact_retained_file_history(&reachable_revisions);
         self.revisions
             .retain(|revision, _| reachable_revisions.contains(revision));
+        self.workspaces
+            .retain(|revision, _| reachable_revisions.contains(revision));
         self.file_contents
             .retain_reachable(&reachable_file_contents);
     }
@@ -327,6 +329,15 @@ impl Repository {
         Ok(revision)
     }
 
+    /// Point one ref at one already published revision.
+    pub fn point(&self, reference: &Ref, revision: Revision) -> Result<Revision, RepositoryError> {
+        let _revision = self.revision(revision)?;
+        self.refs.insert(reference.clone(), revision);
+        self.prune_unreachable_file_state();
+
+        Ok(revision)
+    }
+
     /// Publish one new revision that reuses the current source snapshot.
     pub fn publish(&self, reference: &Ref) -> Result<Revision, RepositoryError> {
         self.apply(reference, Change::empty())
@@ -379,13 +390,14 @@ impl Repository {
                 continue;
             }
 
-            let entries = self.fs.read_dir(&directory).map_err(|error| {
+            let mut entries = self.fs.read_dir(&directory).map_err(|error| {
                 RepositoryError::ImportFileSystem {
                     operation: "read_dir",
                     path: directory.clone(),
                     message: error.to_string(),
                 }
             })?;
+            entries.sort_unstable();
 
             for entry in entries {
                 let metadata = self.fs.metadata(&entry).map_err(|error| {

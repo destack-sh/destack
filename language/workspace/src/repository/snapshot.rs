@@ -85,7 +85,7 @@ impl RepositorySnapshot {
     }
 
     /// Return one workspace snapshot.
-    pub fn workspace(&self) -> Result<Workspace, RepositoryError> {
+    pub fn workspace(&self) -> Result<Arc<Workspace>, RepositoryError> {
         self.repository.workspace(self.revision)
     }
 

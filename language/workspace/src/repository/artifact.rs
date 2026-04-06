@@ -1,18 +1,88 @@
 use std::collections::HashSet;
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase, DirDeclared,
     DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved, IntrinsicEnvironment,
-    LanguageEnvironment, LibraryEnvironment, MirBase, MirOptimized, ModuleGraph, ModuleOutput,
-    PackageOutput, ProfileKey,
+    LanguageEnvironment, LibraryEnvironment, Loader, MirBase, MirOptimized, ModuleGraph,
+    ModuleOutput, PackageOutput, ProfileKey,
 };
-use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
+use destack_source::{
+    DiagnosticCollection, FileId, LanguageType, ModuleId, PackageId, ProfileId, TargetId,
+};
+use rustc_hash::FxHasher;
 
-use crate::Target;
-use crate::repository::{Repository, RepositoryError, Revision};
+use crate::repository::{FileContentId, Repository, RepositoryError, Revision};
+use crate::{ModuleSource, PackageKind, Target};
+
+/// One structural stamp for one revision-scoped source module.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ModuleSourceStamp {
+    /// The stable module id.
+    module_id: ModuleId,
+    /// The backing source file id.
+    file_id: FileId,
+    /// The current source content id.
+    content_id: Option<FileContentId>,
+    /// The owning package id.
+    package_id: PackageId,
+    /// The module language.
+    language_type: LanguageType,
+    /// The loader strategy.
+    loader: Loader,
+    /// The module source kind.
+    source: ModuleSource,
+}
+
+/// One structural stamp for one revision-scoped module output family.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ModuleOutputStamp {
+    /// The source module stamp.
+    source: ModuleSourceStamp,
+    /// The effective tsconfig file id.
+    tsconfig_file_id: Option<FileId>,
+    /// The current package declaration content id.
+    package_file_content_id: Option<FileContentId>,
+    /// The current workspace declaration content id.
+    destack_file_content_id: Option<FileContentId>,
+    /// The current tsconfig content id.
+    tsconfig_content_id: Option<FileContentId>,
+}
+
+/// One structural stamp for one revision-scoped package output family.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct PackageOutputStamp {
+    /// The stable package id.
+    package_id: PackageId,
+    /// The discovered package kind.
+    kind: PackageKind,
+    /// The current package declaration content id.
+    package_content_id: Option<FileContentId>,
+    /// The current workspace declaration content id.
+    destack_content_id: Option<FileContentId>,
+    /// The current package tsconfig content id.
+    tsconfig_content_id: Option<FileContentId>,
+    /// The discovered package path.
+    path: Option<PathBuf>,
+}
+
+/// One structural stamp for one revision-scoped module target selection.
+#[derive(Debug, Clone, Hash)]
+struct ModuleTargetStamp {
+    /// The resolved target.
+    target: Target,
+    /// The resolved profile key.
+    profile: Option<ProfileKey>,
+}
+
+/// One structural stamp for one revision-scoped package target selection.
+#[derive(Debug, Clone, Hash)]
+struct PackageTargetStamp {
+    /// The resolved target.
+    target: Target,
+}
 
 impl Repository {
     /// Return one available profile id for one revision-scoped module artifact query.
@@ -80,38 +150,82 @@ impl Repository {
         ArtifactVersion::new(*artifact_key, stamp)
     }
 
+    /// Return diagnostics for one exact revision scoped artifact key.
+    pub fn artifact_diagnostics(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> DiagnosticCollection {
+        let version = self.artifact_version(revision, artifact_key);
+
+        self.artifact_store()
+            .diagnostics(&version)
+            .map(|diagnostics| diagnostics.as_ref().clone())
+            .unwrap_or_default()
+    }
+
+    /// Return diagnostics across the current artifact family slice for one module profile.
+    pub fn module_artifact_diagnostics(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> DiagnosticCollection {
+        let mut diagnostics = DiagnosticCollection::new();
+        let artifact_keys = [
+            ArtifactKey::ast(module_id),
+            ArtifactKey::dir_base(module_id),
+            ArtifactKey::dir_prepared(module_id, profile_id),
+            ArtifactKey::dir_resolved(module_id, profile_id),
+            ArtifactKey::dir_declared(module_id, profile_id),
+            ArtifactKey::dir_interface(module_id, profile_id),
+            ArtifactKey::dir_analyzed(module_id, profile_id),
+            ArtifactKey::dir_elaborated(module_id, profile_id),
+            ArtifactKey::dir_patched(module_id, profile_id),
+        ];
+
+        for artifact_key in artifact_keys {
+            diagnostics.merge_from(&self.artifact_diagnostics(revision, &artifact_key));
+        }
+
+        diagnostics
+    }
+
+    /// Return diagnostics across the current target artifact family slice for one module target.
+    pub fn module_target_artifact_diagnostics(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        target_id: TargetId,
+    ) -> DiagnosticCollection {
+        let mut diagnostics = self.module_artifact_diagnostics(revision, module_id, profile_id);
+        let artifact_keys = [
+            ArtifactKey::mir_base(module_id, profile_id, target_id),
+            ArtifactKey::mir_optimized(module_id, profile_id, target_id),
+            ArtifactKey::module_output(module_id, target_id),
+        ];
+
+        for artifact_key in artifact_keys {
+            diagnostics.merge_from(&self.artifact_diagnostics(revision, &artifact_key));
+        }
+
+        diagnostics
+    }
+
     /// Return the artifact stamp for one revision-scoped artifact key.
     pub fn artifact_stamp(&self, revision: Revision, artifact_key: &ArtifactKey) -> ArtifactStamp {
         match artifact_key {
             ArtifactKey::ModuleGraph { profile } => {
-                let mut module_ids = self.workspace_module_ids(revision).unwrap_or_default();
-                module_ids.sort_unstable();
-                let module_stamps = module_ids
-                    .into_iter()
-                    .map(|module_id| {
-                        (
-                            module_id,
-                            self.artifact_stamp(
-                                revision,
-                                &ArtifactKey::dir_resolved(module_id, *profile),
-                            ),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                ArtifactStamp::new(self.hash_artifact_stamp(&(
-                    artifact_key,
-                    profile,
-                    module_stamps,
-                )))
+                self.module_graph_artifact_stamp(revision, artifact_key, *profile)
             }
             ArtifactKey::LanguageEnvironment { profile }
             | ArtifactKey::IntrinsicEnvironment { profile }
             | ArtifactKey::LibraryEnvironment { profile } => {
-                ArtifactStamp::new(self.hash_artifact_stamp(&(artifact_key, profile)))
+                self.profile_artifact_stamp(artifact_key, *profile)
             }
             ArtifactKey::Ast { module } | ArtifactKey::DirBase { module } => {
-                let module = self.module_output_stamp_input(revision, *module);
-                ArtifactStamp::new(self.hash_artifact_stamp(&(artifact_key, module)))
+                self.module_source_artifact_stamp(revision, artifact_key, *module)
             }
             ArtifactKey::DirPrepared { module, profile }
             | ArtifactKey::DirResolved { module, profile }
@@ -120,8 +234,7 @@ impl Repository {
             | ArtifactKey::DirAnalyzed { module, profile }
             | ArtifactKey::DirElaborated { module, profile }
             | ArtifactKey::DirPatched { module, profile } => {
-                let module = self.module_output_stamp_input(revision, *module);
-                ArtifactStamp::new(self.hash_artifact_stamp(&(artifact_key, module, profile)))
+                self.module_profile_artifact_stamp(revision, artifact_key, *module, *profile)
             }
             ArtifactKey::MirBase {
                 module,
@@ -132,43 +245,130 @@ impl Repository {
                 module,
                 profile,
                 target,
-            } => {
-                let module_id = *module;
-                let module = self.module_output_stamp_input(revision, module_id);
-                let target = self.module_target_stamp_input(revision, module_id, *target);
-
-                ArtifactStamp::new(self.hash_artifact_stamp(&(
-                    artifact_key,
-                    module,
-                    profile,
-                    target,
-                )))
-            }
+            } => self.module_target_profile_artifact_stamp(
+                revision,
+                artifact_key,
+                *module,
+                *profile,
+                *target,
+            ),
             ArtifactKey::ModuleOutput { module, target } => {
-                let module_id = *module;
-                let module = self.module_output_stamp_input(revision, module_id);
-                let profile = self
-                    .profile_for_target(revision, module_id, target)
-                    .ok()
-                    .flatten()
-                    .map(|profile| profile.key);
-                let target = self.module_target_stamp_input(revision, module_id, *target);
-
-                ArtifactStamp::new(self.hash_artifact_stamp(&(
-                    artifact_key,
-                    module,
-                    profile,
-                    target,
-                )))
+                self.module_output_artifact_stamp(revision, artifact_key, *module, *target)
             }
             ArtifactKey::PackageOutput { package, target } => {
-                let package_id = *package;
-                let package = self.package_artifact_stamp_input(revision, package_id);
-                let target = self.package_target_stamp_input(revision, package_id, *target);
-
-                ArtifactStamp::new(self.hash_artifact_stamp(&(artifact_key, package, target)))
+                self.package_output_artifact_stamp(revision, artifact_key, *package, *target)
             }
         }
+    }
+
+    // FUGU #Architecture: revisit workspace artifact stamp business
+
+    /// Return the stamp for one module graph artifact.
+    fn module_graph_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+        profile_id: ProfileId,
+    ) -> ArtifactStamp {
+        let mut module_ids = self.workspace_module_ids(revision).unwrap_or_default();
+        module_ids.sort_unstable();
+
+        let module_stamps = module_ids
+            .into_iter()
+            .map(|module_id| {
+                (
+                    module_id,
+                    self.artifact_stamp(
+                        revision,
+                        &ArtifactKey::dir_resolved(module_id, profile_id),
+                    ),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        self.stamp_for(&(artifact_key, profile_id, module_stamps))
+    }
+
+    /// Return the stamp for one profile-scoped artifact family.
+    fn profile_artifact_stamp(
+        &self,
+        artifact_key: &ArtifactKey,
+        profile_id: ProfileId,
+    ) -> ArtifactStamp {
+        self.stamp_for(&(artifact_key, profile_id))
+    }
+
+    /// Return the stamp for one source-scoped module artifact family.
+    fn module_source_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+        module_id: ModuleId,
+    ) -> ArtifactStamp {
+        let module = self.module_source_stamp(revision, module_id);
+
+        self.stamp_for(&(artifact_key, module))
+    }
+
+    /// Return the stamp for one module/profile artifact family.
+    fn module_profile_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> ArtifactStamp {
+        let module = self.module_output_stamp(revision, module_id);
+
+        self.stamp_for(&(artifact_key, module, profile_id))
+    }
+
+    /// Return the stamp for one module/profile/target artifact family.
+    fn module_target_profile_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        target_id: TargetId,
+    ) -> ArtifactStamp {
+        let module = self.module_output_stamp(revision, module_id);
+        let target = self.module_target_stamp(revision, module_id, target_id);
+
+        self.stamp_for(&(artifact_key, module, profile_id, target))
+    }
+
+    /// Return the stamp for one emitted module artifact.
+    fn module_output_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+        module_id: ModuleId,
+        target_id: TargetId,
+    ) -> ArtifactStamp {
+        let module = self.module_output_stamp(revision, module_id);
+        let profile = self
+            .profile_for_target(revision, module_id, &target_id)
+            .ok()
+            .flatten()
+            .map(|profile| profile.key);
+        let target = self.module_target_stamp(revision, module_id, target_id);
+
+        self.stamp_for(&(artifact_key, module, profile, target))
+    }
+
+    /// Return the stamp for one emitted package artifact.
+    fn package_output_artifact_stamp(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+        package_id: PackageId,
+        target_id: TargetId,
+    ) -> ArtifactStamp {
+        let package = self.package_output_stamp(revision, package_id);
+        let target = self.package_target_stamp(revision, package_id, target_id);
+
+        self.stamp_for(&(artifact_key, package, target))
     }
 
     /// Check whether one module profile has the required live artifacts.
@@ -191,67 +391,124 @@ impl Repository {
         self.dir_analyzed(revision, module_id, profile_id).is_some()
     }
 
-    /// Return one structural module stamp input for one revision module.
-    fn module_output_stamp_input(
+    /// Return one structural module stamp for one revision module.
+    fn module_source_stamp(
         &self,
         revision: Revision,
         module_id: ModuleId,
-    ) -> Option<impl Hash> {
-        let module = self.module(revision, module_id).ok().flatten()?;
-        let content_id = self
-            .file_content_id(revision, module.file_id)
-            .ok()
-            .flatten();
+    ) -> Option<ModuleSourceStamp> {
+        let revision_state = self.revision(revision).ok()?;
+        let workspace = self.workspace(revision).ok()?;
+        let module = workspace.module(module_id)?;
+        let content_id = revision_state.file_content_id(module.file_id);
 
-        Some((
-            module.id,
-            module.file_id,
+        Some(ModuleSourceStamp {
+            module_id: module.id,
+            file_id: module.file_id,
             content_id,
-            module.package_id,
-            module.tsconfig_file_id,
-            module.language_type,
-            module.source_type,
-            module.module_format,
-            module.loader,
-            module.source,
-        ))
+            package_id: module.package_id,
+            language_type: module.language_type,
+            loader: module.loader,
+            source: module.source,
+        })
     }
 
-    /// Return one structural package stamp input for one revision package.
-    fn package_artifact_stamp_input(
+    /// Return one structural module output stamp for one revision module.
+    fn module_output_stamp(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+    ) -> Option<ModuleOutputStamp> {
+        let revision_state = self.revision(revision).ok()?;
+        let workspace = self.workspace(revision).ok()?;
+        let module = workspace.module(module_id)?;
+        let package = workspace.package(module.package_id);
+        let package_path = package.and_then(|package| package.path.as_ref());
+        let package_file_id =
+            package_path.map(|path| self.file_id_for_workspace_path(&path.join("package.json")));
+        let package_file_id =
+            package_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
+        let destack_file_id =
+            package_path.map(|path| self.file_id_for_workspace_path(&path.join("destack.json")));
+        let destack_file_id =
+            destack_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
+        let tsconfig_file_id = module
+            .path
+            .as_ref()
+            .and_then(|path| {
+                self.applicable_tsconfig_file_id_at_path(revision, path)
+                    .ok()
+            })
+            .flatten();
+        let package_file_content_id =
+            package_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+        let destack_file_content_id =
+            destack_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+        let tsconfig_content_id =
+            tsconfig_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+
+        let source = self.module_source_stamp(revision, module_id)?;
+
+        Some(ModuleOutputStamp {
+            source,
+            tsconfig_file_id,
+            package_file_content_id,
+            destack_file_content_id,
+            tsconfig_content_id,
+        })
+    }
+
+    /// Return one structural package output stamp for one revision package.
+    fn package_output_stamp(
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Option<impl Hash> {
-        let package = self.package(revision, package_id).ok().flatten()?;
-        let package_content_id = package
-            .package_file_id
-            .and_then(|file_id| self.file_content_id(revision, file_id).ok().flatten());
-        let destack_content_id = package
-            .destack_file_id
-            .and_then(|file_id| self.file_content_id(revision, file_id).ok().flatten());
-        let tsconfig_content_id = package
-            .tsconfig_file_id
-            .and_then(|file_id| self.file_content_id(revision, file_id).ok().flatten());
+    ) -> Option<PackageOutputStamp> {
+        let revision_state = self.revision(revision).ok()?;
+        let workspace = self.workspace(revision).ok()?;
+        let package = workspace.package(package_id)?;
+        let package_file_id = package
+            .path
+            .as_ref()
+            .map(|path| self.file_id_for_workspace_path(&path.join("package.json")));
+        let package_file_id =
+            package_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
+        let destack_file_id = package
+            .path
+            .as_ref()
+            .map(|path| self.file_id_for_workspace_path(&path.join("destack.json")));
+        let destack_file_id =
+            destack_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
+        let tsconfig_file_id = package
+            .path
+            .as_ref()
+            .map(|path| self.file_id_for_workspace_path(&path.join("tsconfig.json")));
+        let tsconfig_file_id =
+            tsconfig_file_id.filter(|file_id| revision_state.file_content_id(*file_id).is_some());
+        let package_content_id =
+            package_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+        let destack_content_id =
+            destack_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
+        let tsconfig_content_id =
+            tsconfig_file_id.and_then(|file_id| revision_state.file_content_id(file_id));
 
-        Some((
-            package.id,
-            package.kind,
+        Some(PackageOutputStamp {
+            package_id: package.id,
+            kind: package.kind,
             package_content_id,
             destack_content_id,
             tsconfig_content_id,
-            package.name.clone(),
-            package.version.clone(),
-        ))
+            path: package.path.clone(),
+        })
     }
 
-    /// Return one resolved target stamp input for one revision module target.
-    fn module_target_stamp_input(
+    /// Return one resolved module target stamp for one revision target.
+    fn module_target_stamp(
         &self,
         revision: Revision,
         module_id: ModuleId,
         target_id: TargetId,
-    ) -> Option<(Target, Option<ProfileKey>)> {
+    ) -> Option<ModuleTargetStamp> {
         let module = self.module(revision, module_id).ok().flatten()?;
         let package = self.package(revision, module.package_id).ok().flatten()?;
         let target = package.targets.get(&target_id).cloned().or_else(|| {
@@ -264,29 +521,36 @@ impl Repository {
             .flatten()
             .map(|profile| profile.key);
 
-        Some((target, profile))
+        Some(ModuleTargetStamp { target, profile })
     }
 
-    /// Return one resolved target stamp input for one revision package target.
-    fn package_target_stamp_input(
+    /// Return one resolved package target stamp for one revision target.
+    fn package_target_stamp(
         &self,
         revision: Revision,
         package_id: PackageId,
         target_id: TargetId,
-    ) -> Option<Target> {
+    ) -> Option<PackageTargetStamp> {
         let package = self.package(revision, package_id).ok().flatten()?;
 
-        package.targets.get(&target_id).cloned().or_else(|| {
+        let target = package.targets.get(&target_id).cloned().or_else(|| {
             self.target_name_by_target_id(target_id)
                 .and_then(|name| Target::implicit_for_name(name.as_ref()))
-        })
+        })?;
+
+        Some(PackageTargetStamp { target })
     }
 
     /// Hash one structural tuple into one artifact stamp value.
     fn hash_artifact_stamp(&self, value: &impl Hash) -> u64 {
-        let mut hasher = DefaultHasher::new();
+        let mut hasher = FxHasher::default();
         value.hash(&mut hasher);
         hasher.finish()
+    }
+
+    /// Build one artifact stamp from one structural value.
+    fn stamp_for(&self, value: &impl Hash) -> ArtifactStamp {
+        ArtifactStamp::new(self.hash_artifact_stamp(value))
     }
 
     /// Return the module graph for one revision-scoped profile.
