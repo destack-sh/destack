@@ -1,10 +1,11 @@
 use destack_artifact::{ArtifactKey, ArtifactStore};
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{Repository, Revision};
 
+use crate::emit::EmitError;
 use crate::{
-    AnalyzeError, ArtifactRequirementSet, ArtifactTaskKeyExt, DiagnosticAnchor, ElaborateError,
-    EmitError, ExecuteError, GenerateError, ImportError, LinkError, LowerError, OptimizeError,
-    ResolveError, TaskId, TaskPhase,
+    AnalyzeError, ArtifactTaskKeyExt, DiagnosticAnchor, ElaborateError, ExecuteError,
+    GenerateError, ImportError, LinkError, LowerError, OptimizeError, RequirementSet, ResolveError,
+    TaskId, TaskPhase,
 };
 /// Error during compilation.
 #[derive(Debug, Clone, PartialEq)]
@@ -41,19 +42,17 @@ pub enum InternalError {
     /// Task yielded to the same requirement twice in a row.
     SuspiciousYield {
         task_id: TaskId,
-        requirement: ArtifactRequirementSet,
+        requirement: RequirementSet,
     },
     /// Task exceeded maximum yield count.
     ExcessiveYield {
         task_id: TaskId,
         artifact_key: ArtifactKey,
-        requirement: ArtifactRequirementSet,
+        requirement: RequirementSet,
         yield_count: u32,
     },
     /// Circular artifact dependency detected in the scheduler.
     CircularDependency { task_id: TaskId, cycle: Vec<TaskId> },
-    /// Missing profile data for a profile id.
-    MissingProfile { profile_id: ProfileId },
 }
 
 impl InternalError {
@@ -64,7 +63,6 @@ impl InternalError {
             Self::SuspiciousYield { .. } => 1,
             Self::ExcessiveYield { .. } => 2,
             Self::CircularDependency { .. } => 3,
-            Self::MissingProfile { .. } => 4,
         }
     }
 
@@ -75,7 +73,7 @@ impl InternalError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self, _program: &Program, _artifacts: &ArtifactStore) -> String {
+    pub fn message(&self, _repository: &Repository, _artifacts: &ArtifactStore) -> String {
         match self {
             Self::SuspiciousYield { task_id, .. } => {
                 format!("internal error: task {task_id} yielded to the same requirement twice")
@@ -89,7 +87,14 @@ impl InternalError {
             } => {
                 let requirement_description = if let Some(first_requirement) = requirement.first() {
                     if requirement.len() == 1 {
-                        format!("{:?}", first_requirement.key)
+                        match first_requirement {
+                            crate::Requirement::Artifact(requirement) => {
+                                format!("{:?}", requirement.key)
+                            }
+                            crate::Requirement::File(requirement) => {
+                                format!("{:?}", requirement.edit)
+                            }
+                        }
                     } else {
                         format!("all({} requirements)", requirement.len())
                     }
@@ -112,9 +117,6 @@ impl InternalError {
                 format!(
                     "internal error: circular artifact requirement involving {task_id}: {cycle_str}"
                 )
-            }
-            Self::MissingProfile { profile_id } => {
-                format!("internal error: missing profile data for {profile_id:?}")
             }
         }
     }
@@ -195,19 +197,24 @@ impl TaskError {
     }
 
     /// Get the message of the error.
-    pub fn message(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+    pub fn message(
+        &self,
+        revision: Revision,
+        repository: &Repository,
+        artifacts: &ArtifactStore,
+    ) -> String {
         match self {
-            Self::Import(error) => error.message(program, artifacts),
-            Self::Resolve(error) => error.message(program, artifacts),
-            Self::Analyze(error) => error.message(program, artifacts),
-            Self::Elaborate(error) => error.message(program, artifacts),
-            Self::Execute(error) => error.message(program, artifacts),
-            Self::Lower(error) => error.message(program, artifacts),
-            Self::Optimize(error) => error.message(program, artifacts),
-            Self::Generate(error) => error.message(program, artifacts),
-            Self::Link(error) => error.message(program, artifacts),
-            Self::Emit(error) => error.message(program, artifacts),
-            Self::Internal(error) => error.message(program, artifacts),
+            Self::Import(error) => error.message(revision, repository, artifacts),
+            Self::Resolve(error) => error.message(revision, repository, artifacts),
+            Self::Analyze(error) => error.message(revision, repository, artifacts),
+            Self::Elaborate(error) => error.message(revision, repository, artifacts),
+            Self::Execute(error) => error.message(revision, repository, artifacts),
+            Self::Lower(error) => error.message(revision, repository, artifacts),
+            Self::Optimize(error) => error.message(revision, repository, artifacts),
+            Self::Generate(error) => error.message(revision, repository, artifacts),
+            Self::Link(error) => error.message(revision, repository, artifacts),
+            Self::Emit(error) => error.message(revision, repository, artifacts),
+            Self::Internal(error) => error.message(repository, artifacts),
         }
     }
 
@@ -235,7 +242,7 @@ impl TaskError {
     }
 
     /// Get the yielded artifact requirement, if any.
-    pub fn yielded_to(&self) -> Option<&ArtifactRequirementSet> {
+    pub fn yielded_to(&self) -> Option<&RequirementSet> {
         match self {
             Self::Import(ImportError::Yield { requirement }) => Some(requirement),
             Self::Resolve(ResolveError::Yield { requirement }) => Some(requirement),
@@ -248,6 +255,57 @@ impl TaskError {
             Self::Link(LinkError::Yield { requirement }) => Some(requirement),
             Self::Emit(EmitError::Yield { requirement }) => Some(requirement),
             _ => None,
+        }
+    }
+
+    /// Return the blocking artifact requirement for this error, if any.
+    pub fn blocking_requirement(&self) -> Option<&RequirementSet> {
+        match self {
+            Self::Import(ImportError::Yield { requirement })
+            | Self::Import(ImportError::UnsatisfiedRequirement { requirement }) => {
+                Some(requirement)
+            }
+            Self::Import(_) => None,
+            Self::Resolve(ResolveError::Yield { requirement })
+            | Self::Resolve(ResolveError::UnsatisfiedRequirement { requirement }) => {
+                Some(requirement)
+            }
+            Self::Resolve(_) => None,
+            Self::Analyze(AnalyzeError::Yield { requirement })
+            | Self::Analyze(AnalyzeError::UnsatisfiedRequirement { requirement }) => {
+                Some(requirement)
+            }
+            Self::Analyze(_) => None,
+            Self::Elaborate(ElaborateError::Yield { requirement })
+            | Self::Elaborate(ElaborateError::UnsatisfiedRequirement { requirement }) => {
+                Some(requirement)
+            }
+            Self::Elaborate(_) => None,
+            Self::Execute(ExecuteError::Yield { requirement })
+            | Self::Execute(ExecuteError::UnsatisfiedRequirement { requirement }) => {
+                Some(requirement)
+            }
+            Self::Execute(_) => None,
+            Self::Lower(LowerError::Yield { requirement })
+            | Self::Lower(LowerError::UnsatisfiedRequirement { requirement }) => Some(requirement),
+            Self::Lower(_) => None,
+            Self::Optimize(OptimizeError::Yield { requirement })
+            | Self::Optimize(OptimizeError::UnsatisfiedRequirement { requirement }) => {
+                Some(requirement)
+            }
+            Self::Optimize(_) => None,
+            Self::Generate(GenerateError::Yield { requirement })
+            | Self::Generate(GenerateError::UnsatisfiedRequirement { requirement }) => {
+                Some(requirement)
+            }
+            Self::Generate(_) => None,
+            Self::Link(LinkError::Yield { requirement })
+            | Self::Link(LinkError::UnsatisfiedRequirement { requirement }) => Some(requirement),
+            Self::Link(_) => None,
+            Self::Emit(EmitError::Yield { requirement })
+            | Self::Emit(EmitError::UnsatisfiedRequirement { requirement }) => Some(requirement),
+            Self::Emit(_) => None,
+            Self::Internal(_) => None,
         }
     }
 }

@@ -4,8 +4,7 @@ use crate::{
 };
 use destack_artifact::ArtifactStore;
 use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan, ModuleId, Span};
-
-use destack_workspace::Program;
+use destack_workspace::{Repository, Revision};
 
 /// Diagnostic encountered during compilation.
 #[derive(Debug, Clone)]
@@ -38,10 +37,15 @@ impl CompileDiagnostic {
     }
 
     /// Get the message of the diagnostic.
-    pub fn message(&self, program: &Program, artifacts: &ArtifactStore) -> String {
+    pub fn message(
+        &self,
+        revision: Revision,
+        repository: &Repository,
+        artifacts: &ArtifactStore,
+    ) -> String {
         match self {
-            Self::Error(error) => error.message(program, artifacts),
-            Self::Warning(warning) => warning.message(program, artifacts),
+            Self::Error(error) => error.message(revision, repository, artifacts),
+            Self::Warning(warning) => warning.message(revision, repository, artifacts),
         }
     }
 
@@ -62,17 +66,24 @@ impl CompileDiagnostic {
     }
 
     /// Turn the diagnostic into a full Destack diagnostic.
-    pub fn to_diagnostic(&self, program: &Program, artifacts: &ArtifactStore) -> Diagnostic {
+    pub fn to_diagnostic(
+        &self,
+        revision: Revision,
+        repository: &Repository,
+        artifacts: &ArtifactStore,
+    ) -> Diagnostic {
         let anchor = self.anchor();
         let severity = self.severity();
-        let message = self.message(program, artifacts);
+        let message = self.message(revision, repository, artifacts);
         let code = self.full_code();
 
-        // get file and span from anchor, falling back to program's fallback file
-        let (file_id, span) = anchor.to_file_span(program, artifacts).unwrap_or_else(|| {
-            let fallback = program.fallback_file_id;
-            (fallback, Span::empty(fallback))
-        });
+        // get file and span from anchor, falling back to the repository root file
+        let (file_id, span) = anchor
+            .to_file_span(revision, repository, artifacts)
+            .unwrap_or_else(|| {
+                let fallback = repository.root_file_id();
+                (fallback, Span::empty(fallback))
+            });
 
         let primary_span = LabeledSpan {
             span,
@@ -113,19 +124,19 @@ struct ModuleDiagnosticPolicy {
 
 impl Compiler {
     /// Check whether an error should be emitted.
-    pub(super) fn should_emit_error(&self, error: &TaskError) -> bool {
+    pub(super) fn should_emit_error(&self, revision: Revision, error: &TaskError) -> bool {
         match error {
-            TaskError::Resolve(error) => self.should_emit_resolve_error(error),
-            TaskError::Analyze(error) => self.should_emit_analyze_error(error),
+            TaskError::Resolve(error) => self.should_emit_resolve_error(revision, error),
+            TaskError::Analyze(error) => self.should_emit_analyze_error(revision, error),
             _ => true,
         }
     }
 
     /// Check whether a warning should be emitted.
-    pub(super) fn should_emit_warning(&self, warning: &TaskWarning) -> bool {
+    pub(super) fn should_emit_warning(&self, revision: Revision, warning: &TaskWarning) -> bool {
         match warning {
-            TaskWarning::Resolve(warning) => self.should_emit_resolve_warning(warning),
-            TaskWarning::Analyze(warning) => self.should_emit_analyze_warning(warning),
+            TaskWarning::Resolve(warning) => self.should_emit_resolve_warning(revision, warning),
+            TaskWarning::Analyze(warning) => self.should_emit_analyze_warning(revision, warning),
             _ => true,
         }
     }
@@ -143,35 +154,46 @@ impl Compiler {
         };
 
         // resolve skip-lib-check from the active profile key
-        let profile = self.program.profile(profile_id);
+        let profile = self.profile(profile_id);
         profile.key.skip_lib_check
     }
 
     /// Resolve skip-lib-check state for one anchored module.
-    fn skip_lib_check_for_anchor(&self, anchor: &DiagnosticAnchor, module_id: ModuleId) -> bool {
+    fn skip_lib_check_for_anchor(
+        &self,
+        revision: Revision,
+        anchor: &DiagnosticAnchor,
+        module_id: ModuleId,
+    ) -> bool {
         // allow profile-level suppression first
         if self.profile_skip_lib_check_for_anchor(anchor) {
             return true;
         }
 
         // fall back to module-local compatibility options
-        let module_options = self.module_check_options_for_module(module_id);
+        let context = self.context(revision).ok();
+        let Some(context) = context else {
+            return false;
+        };
+        let module_options = context.module_check_options_for_module(module_id);
         module_options.skip_lib_check
     }
 
     /// Build module-level diagnostic emission policy for one anchor.
     fn module_diagnostic_policy_for_anchor(
         &self,
+        revision: Revision,
         anchor: &DiagnosticAnchor,
     ) -> Option<ModuleDiagnosticPolicy> {
         // allow non-module anchors to bypass module-gated suppression
         let module_id = anchor.module_id()?;
 
         // load module and compatibility options
-        let module = self.program.modules.get(module_id);
+        let context = self.context(revision).ok()?;
+        let module = context.module(module_id);
         let module = module.as_ref();
-        let options = self.module_check_options_for_module(module_id);
-        let skip_lib_check = self.skip_lib_check_for_anchor(anchor, module_id);
+        let options = context.module_check_options_for_module(module_id);
+        let skip_lib_check = self.skip_lib_check_for_anchor(revision, anchor, module_id);
 
         Some(ModuleDiagnosticPolicy {
             is_declaration: module.language_type.is_declaration(),
@@ -184,9 +206,13 @@ impl Compiler {
     }
 
     /// Check whether a resolve diagnostic should be emitted.
-    fn should_emit_resolve_for_anchor(&self, anchor: &DiagnosticAnchor) -> bool {
+    fn should_emit_resolve_for_anchor(
+        &self,
+        revision: Revision,
+        anchor: &DiagnosticAnchor,
+    ) -> bool {
         // allow diagnostics without a module anchor
-        let Some(policy) = self.module_diagnostic_policy_for_anchor(anchor) else {
+        let Some(policy) = self.module_diagnostic_policy_for_anchor(revision, anchor) else {
             return true;
         };
 
@@ -199,9 +225,13 @@ impl Compiler {
     }
 
     /// Check whether an analyze diagnostic should be emitted.
-    fn should_emit_analyze_for_anchor(&self, anchor: &DiagnosticAnchor) -> bool {
+    fn should_emit_analyze_for_anchor(
+        &self,
+        revision: Revision,
+        anchor: &DiagnosticAnchor,
+    ) -> bool {
         // allow diagnostics without a module anchor
-        let Some(policy) = self.module_diagnostic_policy_for_anchor(anchor) else {
+        let Some(policy) = self.module_diagnostic_policy_for_anchor(revision, anchor) else {
             return true;
         };
 
@@ -222,21 +252,21 @@ impl Compiler {
     }
 
     /// Check whether a resolve error should be emitted.
-    fn should_emit_resolve_error(&self, error: &ResolveError) -> bool {
+    fn should_emit_resolve_error(&self, revision: Revision, error: &ResolveError) -> bool {
         let anchor = error.anchor();
 
-        self.should_emit_resolve_for_anchor(&anchor)
+        self.should_emit_resolve_for_anchor(revision, &anchor)
     }
 
     /// Check whether a resolve warning should be emitted.
-    fn should_emit_resolve_warning(&self, warning: &ResolveWarning) -> bool {
+    fn should_emit_resolve_warning(&self, revision: Revision, warning: &ResolveWarning) -> bool {
         let anchor = warning.anchor();
 
-        self.should_emit_resolve_for_anchor(&anchor)
+        self.should_emit_resolve_for_anchor(revision, &anchor)
     }
 
     /// Check whether an analyze error should be emitted.
-    fn should_emit_analyze_error(&self, error: &AnalyzeError) -> bool {
+    fn should_emit_analyze_error(&self, revision: Revision, error: &AnalyzeError) -> bool {
         // always emit language gating errors
         if matches!(
             error,
@@ -247,13 +277,13 @@ impl Compiler {
 
         let anchor = error.anchor();
 
-        self.should_emit_analyze_for_anchor(&anchor)
+        self.should_emit_analyze_for_anchor(revision, &anchor)
     }
 
     /// Check whether an analyze warning should be emitted.
-    fn should_emit_analyze_warning(&self, warning: &AnalyzeWarning) -> bool {
+    fn should_emit_analyze_warning(&self, revision: Revision, warning: &AnalyzeWarning) -> bool {
         let anchor = warning.anchor();
 
-        self.should_emit_analyze_for_anchor(&anchor)
+        self.should_emit_analyze_for_anchor(revision, &anchor)
     }
 }

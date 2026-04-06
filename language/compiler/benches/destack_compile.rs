@@ -1,10 +1,9 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use destack_artifact::ArtifactKey;
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
-use destack_source::{FileType, ModuleId, ModuleStamp, ProfileStamp, Uri, glob};
-use destack_workspace::{ProfileId, Session};
+use destack_source::{FileType, ModuleId, glob};
+use destack_workspace::{Change, Edit, Ref, Repository};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
@@ -14,10 +13,8 @@ use std::sync::Arc;
 
 /// Source file info for compiler benchmarks.
 struct SourceFile {
-    /// The file uri.
-    uri: Uri,
-    /// The file type.
-    file_type: FileType,
+    /// The file path.
+    path: PathBuf,
     /// The file contents.
     content: String,
 }
@@ -105,8 +102,7 @@ fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
 
         // record source
         sources.push(SourceFile {
-            uri: Uri::from_path(&path),
-            file_type,
+            path: path.clone(),
             content,
         });
     }
@@ -114,28 +110,38 @@ fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
     (sources, total_lines)
 }
 
-/// Create a compiler and register modules.
+/// Create a compiler and materialize modules.
 fn build_compiler(workspace_root: &Path, sources: &[SourceFile]) -> (Compiler, Vec<ModuleId>) {
-    // session and program
+    // repository
     let workspace_root = workspace_root.to_path_buf();
-    let session = Arc::new(Session::new(workspace_root.clone()));
-    let program = session.add_root(workspace_root);
+    let repository = Arc::new(Repository::open_root(workspace_root.clone()));
 
-    // register modules
+    // materialize modules into the workspace revision
     let mut modules = Vec::with_capacity(sources.len());
+    let reference = Ref::for_workspace_root(&workspace_root);
     for source in sources.iter() {
-        let module_id = program.register_inline_module(
-            source.uri.clone(),
-            source.content.clone(),
-            source.file_type,
-        );
+        let logical_path = repository.normalize_workspace_path(&source.path);
+        repository
+            .apply(
+                &reference,
+                Change::single(Edit::set_text(&logical_path, source.content.clone())),
+            )
+            .unwrap_or_else(|error| panic!("failed to materialize benchmark source: {error}"));
+        let module_id = repository
+            .module_id_for_path(
+                repository
+                    .current(&reference)
+                    .unwrap_or_else(|error| panic!("missing workspace revision: {error}")),
+                &source.path,
+            )
+            .unwrap_or_else(|error| panic!("failed to resolve benchmark module: {error}"))
+            .unwrap_or_else(|| panic!("missing benchmark module for {}", source.path.display()));
         modules.push(module_id);
     }
 
     // compiler
     let compiler = Compiler::new(
-        session,
-        program,
+        repository,
         CompilerOptions {
             workers: 1,
             ..Default::default()
@@ -145,30 +151,57 @@ fn build_compiler(workspace_root: &Path, sources: &[SourceFile]) -> (Compiler, V
     (compiler, modules)
 }
 
+/// Return the current workspace revision for one compiler repository.
+fn current_workspace_revision(compiler: &Compiler) -> destack_workspace::Revision {
+    let reference = Ref::for_workspace_root(compiler.repository.workspace_root());
+
+    compiler
+        .repository
+        .current(&reference)
+        .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"))
+}
+
 /// Run a compiler pass for the selected mode.
 fn run_compile(compiler: &Compiler, modules: &[ModuleId], mode: CompileMode) {
+    let revision = current_workspace_revision(compiler);
+
     // enqueue work
     for module_id in modules.iter().copied() {
         // profile for module
-        let profile_id: ProfileId = compiler.program.default_profile_id_for_module(module_id);
-        // enqueue task
+        let profile_id = compiler
+            .context(revision)
+            .unwrap_or_else(|message| panic!("{message}"))
+            .default_profile_id_for_module(module_id);
+
+        // build analyzed dir requirements to completion
         match mode {
-            CompileMode::Check | CompileMode::Lint => {
-                compiler.enqueue(ArtifactKey::dir_analyzed(module_id, profile_id))
-            }
+            CompileMode::Check | CompileMode::Lint => compiler
+                .run_to_completion(revision, |compiler, _context| {
+                    compiler.require_dir_analyzed(module_id, profile_id)
+                })
+                .unwrap_or_else(|error| {
+                    panic!("failed to analyze benchmark module {module_id:?}: {error:?}")
+                }),
         }
     }
 
-    // compile
-    compiler.compile();
-
     // lint after compiler products are ready
     if matches!(mode, CompileMode::Lint) {
-        let linter = Linter::new(compiler.program.clone());
+        let linter = Linter::new(compiler.repository.clone());
         for module_id in modules.iter().copied() {
-            let profile_id = compiler.program.default_profile_id_for_module(module_id);
+            let profile_id = compiler
+                .context(revision)
+                .unwrap_or_else(|message| panic!("{message}"))
+                .default_profile_id_for_module(module_id);
+            let profile = compiler
+                .repository
+                .default_profile_for_module(revision, module_id)
+                .unwrap_or_else(|error| {
+                    panic!("failed to resolve default profile for {module_id:?}: {error}")
+                });
+            assert_eq!(profile.id(), profile_id);
             linter
-                .lint_module(module_id, profile_id)
+                .lint_module(revision, module_id, profile)
                 .unwrap_or_else(|error| {
                     panic!("failed to lint benchmark module {module_id:?}: {error}")
                 });

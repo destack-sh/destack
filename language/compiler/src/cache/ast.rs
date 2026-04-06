@@ -1,12 +1,13 @@
 use crate::compile::Compiler;
 
 use destack_artifact::{
-    ArtifactDependency, ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey,
-    ArtifactKey, Ast, hash_bytes,
+    ArtifactImage, ArtifactImageError, ArtifactImageHeader, ArtifactImageKey, ArtifactKey,
+    ArtifactStamp, Ast, hash_bytes,
 };
 use destack_source::{File, FileContent, LanguageType, ModuleId};
+use destack_workspace::Revision;
 
-use super::{CacheHasher, repository_file, repository_module};
+use super::CacheHasher;
 
 /// Persistent image context for one module scoped AST artifact.
 #[derive(Debug, Clone)]
@@ -44,16 +45,17 @@ impl Compiler {
     /// Build the current expected AST image header for one module.
     pub(crate) fn current_ast_image_header(
         &self,
+        revision: Revision,
         module_id: ModuleId,
     ) -> Option<ArtifactImageHeader> {
-        let module = repository_module(self, module_id).ok()?;
+        let module = self.cache_module_snapshot(revision, module_id).ok()?;
         let language_type = match module.loader {
             destack_artifact::Loader::Destack
             | destack_artifact::Loader::TypeScript
             | destack_artifact::Loader::JavaScript => Some(module.language_type),
             _ => None,
         };
-        let file = repository_file(self, module.file_id).ok()?;
+        let file = self.cache_file_snapshot(revision, module.file_id).ok()?;
         let file = if file.is_loaded() {
             file.as_ref().clone()
         } else {
@@ -76,8 +78,9 @@ impl Compiler {
     /// Load one persisted AST image entry when disk mode is enabled.
     fn load_ast_image_entry(
         &self,
+        revision: Revision,
         module_id: ModuleId,
-        _artifact_dependency: ArtifactDependency,
+        _artifact_stamp: ArtifactStamp,
         file: &File,
         language_type: Option<LanguageType>,
     ) -> Result<Option<ArtifactImage<Ast>>, ArtifactImageError> {
@@ -86,7 +89,7 @@ impl Compiler {
         };
 
         let expected = context.header(module_id);
-        let Some(image) = self.load_image::<Ast>(expected)? else {
+        let Some(image) = self.load_image::<Ast>(revision, expected)? else {
             return Ok(None);
         };
 
@@ -122,13 +125,14 @@ impl Compiler {
     /// Load one persisted AST image when disk mode is enabled.
     pub(crate) fn load_ast_image(
         &self,
+        revision: Revision,
         module_id: ModuleId,
-        artifact_dependency: ArtifactDependency,
+        artifact_stamp: ArtifactStamp,
         file: &File,
         language_type: Option<LanguageType>,
     ) -> Result<Option<Ast>, ArtifactImageError> {
         let Some(image) =
-            self.load_ast_image_entry(module_id, artifact_dependency, file, language_type)?
+            self.load_ast_image_entry(revision, module_id, artifact_stamp, file, language_type)?
         else {
             return Ok(None);
         };
@@ -139,6 +143,7 @@ impl Compiler {
     /// Persist one AST image when disk mode is enabled.
     pub(crate) fn store_ast_image(
         &self,
+        revision: Revision,
         file: &File,
         language_type: Option<LanguageType>,
         ast: &Ast,
@@ -151,6 +156,6 @@ impl Compiler {
         let header = context.header(ast.id);
         let payload = ast.clone();
 
-        self.store_image(&artifact_key, header, payload)
+        self.store_image(revision, &artifact_key, header, payload)
     }
 }

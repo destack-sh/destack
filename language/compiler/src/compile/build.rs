@@ -1,4 +1,5 @@
-use destack_artifact::{ArtifactDependency, ArtifactKey};
+use destack_artifact::{ArtifactKey, ArtifactStamp};
+use destack_workspace::Edit;
 
 use crate::{DiagnosticAnchor, TaskError};
 
@@ -9,19 +10,19 @@ pub struct ArtifactRequirement {
     pub anchor: DiagnosticAnchor,
     /// The required artifact key.
     pub key: ArtifactKey,
-    /// The expected dependency for that key.
-    pub dependency: ArtifactDependency,
+    /// The expected stamp for that key.
+    pub stamp: ArtifactStamp,
     /// Optional fallback error if the requirement cannot be satisfied.
     pub error: Option<Box<TaskError>>,
 }
 
 impl ArtifactRequirement {
     /// Create a new artifact requirement.
-    pub fn new(anchor: DiagnosticAnchor, key: ArtifactKey, dependency: ArtifactDependency) -> Self {
+    pub fn new(anchor: DiagnosticAnchor, key: ArtifactKey, stamp: ArtifactStamp) -> Self {
         Self {
             anchor,
             key,
-            dependency,
+            stamp,
             error: None,
         }
     }
@@ -35,23 +36,92 @@ impl ArtifactRequirement {
     }
 }
 
-/// Requirement algebra for the unified artifact graph.
+/// Requirement for one file world update.
 #[derive(Debug, Clone, PartialEq)]
-pub enum ArtifactRequirementSet {
-    /// Require one artifact key.
-    One(ArtifactRequirement),
-    /// Require all listed artifact keys.
-    All(Vec<ArtifactRequirement>),
+pub struct FileRequirement {
+    /// The diagnostic anchor for this requirement.
+    pub anchor: DiagnosticAnchor,
+    /// The file edit needed to expand the source world.
+    pub edit: Edit,
+    /// Optional fallback error if the requirement cannot be satisfied.
+    pub error: Option<Box<TaskError>>,
 }
 
-impl ArtifactRequirementSet {
-    /// Create a requirement set for one artifact key.
-    pub fn one(requirement: ArtifactRequirement) -> Self {
-        Self::One(requirement)
+impl FileRequirement {
+    /// Create a new file requirement.
+    pub fn new(anchor: DiagnosticAnchor, edit: Edit) -> Self {
+        Self {
+            anchor,
+            edit,
+            error: None,
+        }
+    }
+
+    /// Attach a fallback error to this requirement.
+    pub fn with_error(self, error: TaskError) -> Self {
+        Self {
+            error: Some(Box::new(error)),
+            ..self
+        }
+    }
+}
+
+/// One concrete compiler requirement.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Requirement {
+    /// One required artifact.
+    Artifact(ArtifactRequirement),
+    /// One required file update.
+    File(FileRequirement),
+}
+
+impl Requirement {
+    /// Return the diagnostic anchor for this requirement.
+    pub fn anchor(&self) -> DiagnosticAnchor {
+        match self {
+            Self::Artifact(requirement) => requirement.anchor.clone(),
+            Self::File(requirement) => requirement.anchor.clone(),
+        }
+    }
+
+    /// Return the fallback error for this requirement when present.
+    pub fn fallback_error(&self) -> Option<&TaskError> {
+        match self {
+            Self::Artifact(requirement) => requirement.error.as_deref(),
+            Self::File(requirement) => requirement.error.as_deref(),
+        }
+    }
+}
+
+impl From<ArtifactRequirement> for Requirement {
+    fn from(requirement: ArtifactRequirement) -> Self {
+        Self::Artifact(requirement)
+    }
+}
+
+impl From<FileRequirement> for Requirement {
+    fn from(requirement: FileRequirement) -> Self {
+        Self::File(requirement)
+    }
+}
+
+/// Requirement algebra for the unified compiler graph.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RequirementSet {
+    /// Require one concrete requirement.
+    One(Requirement),
+    /// Require all listed concrete requirements.
+    All(Vec<Requirement>),
+}
+
+impl RequirementSet {
+    /// Create a requirement set for one concrete requirement.
+    pub fn one(requirement: impl Into<Requirement>) -> Self {
+        Self::One(requirement.into())
     }
 
     /// Return the first concrete requirement for diagnostics and tracing.
-    pub fn first(&self) -> Option<&ArtifactRequirement> {
+    pub fn first(&self) -> Option<&Requirement> {
         match self {
             Self::One(requirement) => Some(requirement),
             Self::All(requirements) => requirements.first(),
@@ -61,7 +131,7 @@ impl ArtifactRequirementSet {
     /// Return the diagnostic anchor for this requirement set.
     pub fn anchor(&self) -> DiagnosticAnchor {
         self.first()
-            .map(|requirement| requirement.anchor.clone())
+            .map(Requirement::anchor)
             .unwrap_or(DiagnosticAnchor::Global)
     }
 
@@ -79,7 +149,7 @@ impl ArtifactRequirementSet {
     }
 
     /// Visit each concrete requirement in this set.
-    pub fn for_each(&self, mut handle: impl FnMut(&ArtifactRequirement)) {
+    pub fn for_each(&self, mut handle: impl FnMut(&Requirement)) {
         match self {
             Self::One(requirement) => handle(requirement),
             Self::All(requirements) => {
@@ -90,8 +160,17 @@ impl ArtifactRequirementSet {
         }
     }
 
+    /// Visit each concrete artifact requirement in this set.
+    pub fn for_each_artifact(&self, mut handle: impl FnMut(&ArtifactRequirement)) {
+        self.for_each(|requirement| {
+            if let Requirement::Artifact(requirement) = requirement {
+                handle(requirement);
+            }
+        });
+    }
+
     /// Return true when any concrete requirement matches the predicate.
-    pub fn any(&self, mut predicate: impl FnMut(&ArtifactRequirement) -> bool) -> bool {
+    pub fn any(&self, mut predicate: impl FnMut(&Requirement) -> bool) -> bool {
         match self {
             Self::One(requirement) => predicate(requirement),
             Self::All(requirements) => requirements.iter().any(predicate),
@@ -99,7 +178,7 @@ impl ArtifactRequirementSet {
     }
 
     /// Return true when all concrete requirements match the predicate.
-    pub fn all(&self, mut predicate: impl FnMut(&ArtifactRequirement) -> bool) -> bool {
+    pub fn all(&self, mut predicate: impl FnMut(&Requirement) -> bool) -> bool {
         match self {
             Self::One(requirement) => predicate(requirement),
             Self::All(requirements) => requirements.iter().all(predicate),
@@ -107,18 +186,33 @@ impl ArtifactRequirementSet {
     }
 
     /// Return the first mapped value from the concrete requirements.
-    pub fn find_map<T>(
-        &self,
-        mut handle: impl FnMut(&ArtifactRequirement) -> Option<T>,
-    ) -> Option<T> {
+    pub fn find_map<T>(&self, mut handle: impl FnMut(&Requirement) -> Option<T>) -> Option<T> {
         match self {
             Self::One(requirement) => handle(requirement),
             Self::All(requirements) => requirements.iter().find_map(handle),
         }
     }
 
+    /// Return true when this set contains any file requirements.
+    pub fn has_file_requirements(&self) -> bool {
+        self.any(|requirement| matches!(requirement, Requirement::File(..)))
+    }
+
+    /// Return all file requirements in this set.
+    pub fn file_requirements(&self) -> Vec<FileRequirement> {
+        let mut requirements = Vec::new();
+
+        self.for_each(|requirement| {
+            if let Requirement::File(requirement) = requirement {
+                requirements.push(requirement.clone());
+            }
+        });
+
+        requirements
+    }
+
     /// Convert this requirement set into a flat vector.
-    pub fn into_requirements(self) -> Vec<ArtifactRequirement> {
+    pub fn into_requirements(self) -> Vec<Requirement> {
         match self {
             Self::One(requirement) => vec![requirement],
             Self::All(requirements) => requirements,
@@ -126,49 +220,49 @@ impl ArtifactRequirementSet {
     }
 }
 
-/// Error when an artifact requirement is not satisfied.
+/// Error when one requirement is not satisfied.
 #[derive(Debug, Clone, PartialEq)]
-pub enum ArtifactRequirementError {
-    /// Artifact is not yet available, need to yield.
-    NotReady { requirement: ArtifactRequirementSet },
-    /// Upstream artifact build has failed.
-    Failed { requirement: ArtifactRequirementSet },
+pub enum RequirementError {
+    /// Requirement is not yet available, need to yield.
+    NotReady { requirement: RequirementSet },
+    /// Upstream requirement build has failed.
+    Failed { requirement: RequirementSet },
 }
 
-impl ArtifactRequirementError {
+impl RequirementError {
     /// Return the carried requirement.
-    pub fn requirement(&self) -> &ArtifactRequirementSet {
+    pub fn requirement(&self) -> &RequirementSet {
         match self {
             Self::NotReady { requirement } | Self::Failed { requirement } => requirement,
         }
     }
 
     /// Convert into the carried requirement.
-    pub fn into_requirement(self) -> ArtifactRequirementSet {
+    pub fn into_requirement(self) -> RequirementSet {
         match self {
             Self::NotReady { requirement } | Self::Failed { requirement } => requirement,
         }
     }
 }
 
-impl TryFrom<ArtifactRequirementError> for ArtifactRequirementSet {
-    type Error = ArtifactRequirementError;
+impl TryFrom<RequirementError> for RequirementSet {
+    type Error = RequirementError;
 
-    fn try_from(error: ArtifactRequirementError) -> Result<Self, Self::Error> {
+    fn try_from(error: RequirementError) -> Result<Self, Self::Error> {
         match error {
-            ArtifactRequirementError::NotReady { requirement } => Ok(requirement),
-            ArtifactRequirementError::Failed { .. } => Err(error),
+            RequirementError::NotReady { requirement } => Ok(requirement),
+            RequirementError::Failed { .. } => Err(error),
         }
     }
 }
 
-/// Collector for coalescing artifact requirements from multiple operations.
+/// Collector for coalescing requirements from multiple operations.
 #[derive(Debug, Default)]
-pub struct ArtifactRequirementCollector {
-    requirements: Vec<ArtifactRequirement>,
+pub struct RequirementCollector {
+    requirements: Vec<Requirement>,
 }
 
-impl ArtifactRequirementCollector {
+impl RequirementCollector {
     /// Create a new empty collector.
     pub fn new() -> Self {
         Self {
@@ -176,10 +270,10 @@ impl ArtifactRequirementCollector {
         }
     }
 
-    /// Collect a result as an artifact requirement.
+    /// Collect a result as a requirement.
     pub fn try_collect<T, E>(&mut self, result: Result<T, E>) -> Option<E>
     where
-        E: TryInto<ArtifactRequirementSet, Error = E>,
+        E: TryInto<RequirementSet, Error = E>,
     {
         match result {
             Ok(_) => None,
@@ -199,15 +293,15 @@ impl ArtifactRequirementCollector {
     }
 
     /// Finish collection and require all collected requirements.
-    pub fn try_into_requirement(self) -> Option<ArtifactRequirementSet> {
+    pub fn try_into_requirement(self) -> Option<RequirementSet> {
         match self.requirements.len() {
             0 => None,
             1 => self
                 .requirements
                 .into_iter()
                 .next()
-                .map(ArtifactRequirementSet::One),
-            _ => Some(ArtifactRequirementSet::All(self.requirements)),
+                .map(RequirementSet::One),
+            _ => Some(RequirementSet::All(self.requirements)),
         }
     }
 }

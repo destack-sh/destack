@@ -7,18 +7,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crossbeam_deque::{Injector, Steal};
 use dashmap::DashMap;
 use destack_artifact::ArtifactKey;
+use destack_workspace::Revision;
 use parking_lot::{Condvar, Mutex};
 
-use crate::{
-    ArtifactRequirement, ArtifactRequirementSet, TaskHandle, TaskId, TaskOutcome, TaskStatus,
-};
+use crate::{RequirementSet, TaskHandle, TaskId, TaskOutcome, TaskStatus};
 
 #[derive(Debug, Default)]
 struct TaskIndex {
     /// All tasks ever seen (index = TaskId).
     handles: Vec<TaskHandle>,
-    /// Fast lookup from artifact key to task id for deduplication.
-    ids: HashMap<ArtifactKey, TaskId>,
+    /// Fast lookup from revision and artifact key to task id for deduplication.
+    ids: HashMap<(Revision, ArtifactKey), TaskId>,
 }
 
 /// Queue of compiler tasks with artifact requirement tracking.
@@ -30,9 +29,11 @@ pub struct TaskQueue {
     #[cfg(not(feature = "parallel"))]
     ready: Mutex<VecDeque<TaskId>>,
     /// Waiters keyed by the artifact key they are waiting on.
-    waiters: DashMap<ArtifactKey, Vec<TaskId>>,
+    waiters: DashMap<(Revision, ArtifactKey), Vec<TaskId>>,
     /// Number of tasks currently being processed.
     active_count: AtomicUsize,
+    /// Whether the current pass stopped on file requirements.
+    blocked_on_files: AtomicUsize,
     /// Condvar to signal when work is available or done.
     work_available: (Mutex<()>, Condvar),
 }
@@ -43,6 +44,7 @@ impl std::fmt::Debug for TaskQueue {
             .field("tasks", &self.tasks)
             .field("waiters", &self.waiters)
             .field("active_count", &self.active_count)
+            .field("blocked_on_files", &self.blocked_on_files)
             .finish()
     }
 }
@@ -66,22 +68,23 @@ impl TaskQueue {
             ready: Mutex::new(VecDeque::new()),
             waiters: DashMap::new(),
             active_count: AtomicUsize::new(0),
+            blocked_on_files: AtomicUsize::new(0),
             work_available: (Mutex::new(()), Condvar::new()),
         }
     }
 
     /// Enqueue a task, returns the TaskId.
     /// If the task already exists, returns the existing TaskId (noop).
-    pub(super) fn enqueue(&self, artifact_key: ArtifactKey) -> (TaskId, bool) {
+    pub(super) fn enqueue(&self, revision: Revision, artifact_key: ArtifactKey) -> (TaskId, bool) {
         let mut tasks = self.tasks.lock();
-        if let Some(&task_id) = tasks.ids.get(&artifact_key) {
+        if let Some(&task_id) = tasks.ids.get(&(revision, artifact_key)) {
             return (task_id, false);
         }
 
         let task_id = TaskId::new(tasks.handles.len() as u32);
-        let handle = TaskHandle::new(task_id, artifact_key.clone());
+        let handle = TaskHandle::new(task_id, revision, artifact_key);
         tasks.handles.push(handle);
-        tasks.ids.insert(artifact_key, task_id);
+        tasks.ids.insert((revision, artifact_key), task_id);
         drop(tasks);
 
         // add to ready queue and notify workers
@@ -90,9 +93,13 @@ impl TaskQueue {
     }
 
     /// Requeue one existing final task for another build attempt.
-    pub(super) fn try_requeue_final(&self, artifact_key: &ArtifactKey) -> Option<TaskId> {
+    pub(super) fn try_requeue_final(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> Option<TaskId> {
         let mut tasks = self.tasks.lock();
-        let &task_id = tasks.ids.get(artifact_key)?;
+        let &task_id = tasks.ids.get(&(revision, *artifact_key))?;
         let handle = tasks.handles.get_mut(task_id.0 as usize)?;
 
         if !handle.status.is_final() {
@@ -102,7 +109,6 @@ impl TaskQueue {
         handle.status = TaskStatus::Queued;
         handle.last_outcome = None;
         handle.yield_count = 0;
-        handle.final_requirements.clear();
         drop(tasks);
 
         self.push_ready(task_id);
@@ -160,26 +166,6 @@ impl TaskQueue {
         }
     }
 
-    /// Replace the final requirements recorded for one task.
-    pub(super) fn set_final_requirements(
-        &self,
-        task_id: TaskId,
-        requirements: Vec<ArtifactRequirement>,
-    ) {
-        let mut tasks = self.tasks.lock();
-        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
-            handle.final_requirements = requirements;
-        }
-    }
-
-    /// Clear the final requirements recorded for one task.
-    pub(super) fn clear_final_requirements(&self, task_id: TaskId) {
-        let mut tasks = self.tasks.lock();
-        if let Some(handle) = tasks.handles.get_mut(task_id.0 as usize) {
-            handle.final_requirements.clear();
-        }
-    }
-
     /// Update the status of a task.
     pub(super) fn set_status(&self, task_id: TaskId, status: TaskStatus) {
         let mut tasks = self.tasks.lock();
@@ -211,6 +197,30 @@ impl TaskQueue {
         }
     }
 
+    /// Mark every non-final task for one revision as superseded.
+    pub(super) fn supersede_revision(&self, revision: Revision) {
+        let mut tasks = self.tasks.lock();
+
+        tasks
+            .ids
+            .retain(|(task_revision, _), _| *task_revision != revision);
+
+        for handle in &mut tasks.handles {
+            if handle.revision != revision || handle.status.is_final() {
+                continue;
+            }
+
+            handle.status = TaskStatus::Skipped;
+            handle.last_outcome = None;
+            handle.yield_count = 0;
+        }
+
+        drop(tasks);
+
+        self.waiters
+            .retain(|(task_revision, _), _| *task_revision != revision);
+    }
+
     /// Get the status of a task.
     pub(super) fn get_status(&self, task_id: TaskId) -> Option<TaskStatus> {
         let tasks = self.tasks.lock();
@@ -221,17 +231,26 @@ impl TaskQueue {
     }
 
     /// Register one waiter for one required artifact key.
-    pub(super) fn add_waiter(&self, artifact_key: ArtifactKey, waiter_id: TaskId) {
+    pub(super) fn add_waiter(
+        &self,
+        revision: Revision,
+        artifact_key: ArtifactKey,
+        waiter_id: TaskId,
+    ) {
         self.waiters
-            .entry(artifact_key)
+            .entry((revision, artifact_key))
             .or_default()
             .push(waiter_id);
     }
 
     /// Get and remove all waiters for an artifact key.
-    pub(super) fn take_waiters(&self, artifact_key: &ArtifactKey) -> Vec<TaskId> {
+    pub(super) fn take_waiters(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> Vec<TaskId> {
         self.waiters
-            .remove(artifact_key)
+            .remove(&(revision, *artifact_key))
             .map(|(_, waiters)| waiters)
             .unwrap_or_default()
     }
@@ -247,18 +266,26 @@ impl TaskQueue {
     }
 
     /// Find a task by its artifact key.
-    pub(super) fn find_task_handle(&self, artifact_key: &ArtifactKey) -> Option<TaskHandle> {
+    pub(super) fn find_task_handle(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> Option<TaskHandle> {
         let tasks = self.tasks.lock();
         tasks
             .ids
-            .get(artifact_key)
+            .get(&(revision, *artifact_key))
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize).cloned())
     }
 
     /// Find the task id for one artifact key.
-    pub(super) fn find_task_id(&self, artifact_key: &ArtifactKey) -> Option<TaskId> {
+    pub(super) fn find_task_id(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> Option<TaskId> {
         let tasks = self.tasks.lock();
-        tasks.ids.get(artifact_key).copied()
+        tasks.ids.get(&(revision, *artifact_key)).copied()
     }
 
     /// Return the current task count.
@@ -267,21 +294,29 @@ impl TaskQueue {
     }
 
     /// Find a task by its artifact key and return its status.
-    pub(super) fn find_task_status(&self, artifact_key: &ArtifactKey) -> Option<TaskStatus> {
+    pub(super) fn find_task_status(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> Option<TaskStatus> {
         let tasks = self.tasks.lock();
         tasks
             .ids
-            .get(artifact_key)
+            .get(&(revision, *artifact_key))
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
             .map(|handle| handle.status.clone())
     }
 
     /// Find a task by its artifact key and return its outcome.
-    pub(super) fn find_task_outcome(&self, artifact_key: &ArtifactKey) -> Option<TaskOutcome> {
+    pub(super) fn find_task_outcome(
+        &self,
+        revision: Revision,
+        artifact_key: &ArtifactKey,
+    ) -> Option<TaskOutcome> {
         let tasks = self.tasks.lock();
         tasks
             .ids
-            .get(artifact_key)
+            .get(&(revision, *artifact_key))
             .and_then(|task_id| tasks.handles.get(task_id.0 as usize))
             .and_then(|handle| handle.last_outcome.clone())
     }
@@ -289,6 +324,21 @@ impl TaskQueue {
     /// Increment active task count (called when a worker starts processing).
     pub(super) fn begin_work(&self) {
         self.active_count.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Reset the file-blocked state for one new compiler pass.
+    pub(super) fn clear_blocked_on_files(&self) {
+        self.blocked_on_files.store(0, Ordering::SeqCst);
+    }
+
+    /// Mark the current compiler pass as blocked on file requirements.
+    pub(super) fn mark_blocked_on_files(&self) {
+        self.blocked_on_files.store(1, Ordering::SeqCst);
+    }
+
+    /// Return whether the current compiler pass is blocked on file requirements.
+    pub(super) fn is_blocked_on_files(&self) -> bool {
+        self.blocked_on_files.load(Ordering::SeqCst) != 0
     }
 
     /// Decrement active task count (called when a worker finishes processing).
@@ -310,7 +360,7 @@ impl TaskQueue {
     }
 
     /// Snapshot all yielded tasks with their current dependencies.
-    pub(super) fn yielded_tasks_with_requirements(&self) -> Vec<(TaskId, ArtifactRequirementSet)> {
+    pub(super) fn yielded_tasks_with_requirements(&self) -> Vec<(TaskId, RequirementSet)> {
         let tasks = self.tasks.lock();
         tasks
             .handles

@@ -82,7 +82,7 @@ fn validate_warning_code(code: &LitStr, expected_letter: char) -> Result<u16> {
 
 /// Generate the formatting expression for a field using DiagnosticFormat trait.
 fn format_field_expr(field_name: &Ident) -> TokenStream2 {
-    quote! { #field_name.diagnostic_fmt(program, artifacts) }
+    quote! { #field_name.diagnostic_fmt(revision, program, artifacts) }
 }
 
 /// Parse a format string and generate the formatting code.
@@ -466,7 +466,8 @@ fn define_warning_inner(input: DeriveInput) -> Result<TokenStream2> {
             #[allow(unused_variables)]
             pub fn message(
                 &self,
-                program: &Program,
+                revision: destack_workspace::Revision,
+                program: &Repository,
                 artifacts: &destack_artifact::ArtifactStore,
             ) -> String {
                 match self {

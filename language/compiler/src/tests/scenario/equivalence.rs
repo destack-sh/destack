@@ -62,7 +62,12 @@ fn test_incremental_dir_prepared_matches_fresh_after_source_edit() {
     let fresh_dir = fresh_main.dir_prepared().as_ref().clone();
 
     // compare the final semantic surface
-    assert_dir_prepared_eq(&fresh.program().strings, &fresh_dir, &incremental_dir);
+    assert_dir_prepared_eq(
+        &fresh.program().strings,
+        &incremental.program().strings,
+        &fresh_dir,
+        &incremental_dir,
+    );
 }
 
 /// Match fresh resolved DIR results after one same-process source edit.
@@ -93,7 +98,12 @@ fn test_incremental_dir_resolved_matches_fresh_after_source_edit() {
     let fresh_dir = fresh_main.dir_resolved().as_ref().clone();
 
     // compare the final semantic surface
-    assert_dir_resolved_eq(&fresh.program().strings, &fresh_dir, &incremental_dir);
+    assert_dir_resolved_eq(
+        &fresh.program().strings,
+        &incremental.program().strings,
+        &fresh_dir,
+        &incremental_dir,
+    );
 }
 
 /// Match fresh resolved DIR results after one dependency edit.
@@ -131,5 +141,10 @@ export const value: number = dep;
     let fresh_dir = fresh_main.dir_resolved().as_ref().clone();
 
     // compare the final semantic surface
-    assert_dir_resolved_eq(&fresh.program().strings, &fresh_dir, &incremental_dir);
+    assert_dir_resolved_eq(
+        &fresh.program().strings,
+        &incremental.program().strings,
+        &fresh_dir,
+        &incremental_dir,
+    );
 }
