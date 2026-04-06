@@ -1,4 +1,4 @@
-import * as platform from "../../platform/index.ds";
+import * as platform from "library/platform/index.ds";
 import { TimerHandle } from "../resource/index.ds";
 import type { PlatformError } from "../error/index.ds";
 

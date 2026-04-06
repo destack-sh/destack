@@ -1,6 +1,6 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import * as platform from "../../platform/index.ds";
+import * as platform from "library/platform/index.ds";
 
 /// Randomness API for the Destack runtime.
 export namespace random {
