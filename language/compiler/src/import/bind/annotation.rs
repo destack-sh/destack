@@ -2,13 +2,40 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
-    Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    ModuleBinding, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
+    Annotation, AnnotationPosition, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, ModuleBinding, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
+use destack_source::File;
 use destack_workspace::Module;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Derive normalized documentation text from raw AST comments and attach it to DIR nodes.
+    pub(super) fn attach_documentation(&self, module: &Module, ast: &Ast, tree: &mut NodeTree) {
+        let file = self.program.files.get(module.file_id);
+        let node_ids: Vec<_> = tree.iter_node_ids().collect();
+
+        // scan every source-backed dir node once
+        for node_id in node_ids {
+            if node_id.ty == NodeType::Annotation || tree.has_documentation(node_id.id) {
+                continue;
+            }
+
+            let source_id = tree.get_source(node_id.id);
+            let source_span = ast.tree.get_span_by_id(source_id);
+            let Some(documentation) =
+                source_node_documentation(ast, file.as_ref(), source_span.start)
+            else {
+                continue;
+            };
+
+            let documentation = Documentation {
+                text: self.program.strings.intern(&documentation),
+            };
+            tree.set_documentation(node_id.id, documentation);
+        }
+    }
+
     /// Bind and attach all annotations for a module.
     pub(super) fn attach_annotations(
         &self,
@@ -55,6 +82,7 @@ impl Compiler {
                 tree.append_annotation(dir_node_id, LocalNodeId::new(dir_annotation_id.id));
             }
         }
+        self.attach_documentation(module, ast, tree);
     }
 
     /// Bind an annotation position into a DIR annotation position.
@@ -116,4 +144,38 @@ impl Compiler {
         };
         Some(tree.insert(annotation_id, annotation))
     }
+}
+
+/// Collect normalized documentation attached to one source start offset.
+fn source_node_documentation(ast: &Ast, file: &File, source_start: u32) -> Option<String> {
+    let mut lines = Vec::new();
+
+    // collect all leading doc comments attached to this source start
+    for comment in ast.tree.comments().iter().copied() {
+        if !comment.is_leading() || comment.attached_to != source_start {
+            continue;
+        }
+
+        let raw_text = file.span_str(comment.span);
+        let raw_text = raw_text.trim_start();
+        if !raw_text.starts_with("///") && !raw_text.starts_with("/**") {
+            continue;
+        }
+
+        let text = ast::normalize_comment_payload(raw_text);
+        for line in text.lines() {
+            lines.push(line.trim_end().to_string());
+        }
+    }
+
+    // trim empty outer lines while preserving inner paragraph breaks
+    let Some(start) = lines.iter().position(|line| !line.trim().is_empty()) else {
+        return None;
+    };
+    let end = lines
+        .iter()
+        .rposition(|line| !line.trim().is_empty())
+        .unwrap_or(start);
+
+    Some(lines[start..=end].join("\n"))
 }

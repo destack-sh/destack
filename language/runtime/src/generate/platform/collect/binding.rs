@@ -153,7 +153,7 @@ pub(crate) fn collect_platform_bindings(
 
             // resolve declaration documentation comments
             let documentation =
-                binding_documentation(&tree, expression_id, declaration_id, strings);
+                binding_documentation(strings, &tree, expression_id, declaration_id);
 
             let symbol = symbols.get_symbol(declaration.symbol());
             if symbol.decorators.binding.is_none() {
@@ -349,51 +349,28 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
     }
 }
 
-/// Collect binding documentation comments from DIR annotations.
+/// Collect binding documentation from semantic DIR metadata.
 fn binding_documentation(
+    strings: &StringPool,
     tree: &dir::NodeTree,
     expression_id: dir::LocalNodeId<Expression>,
     declaration_id: dir::LocalNodeId<Declaration>,
-    strings: &StringPool,
 ) -> Option<String> {
     // prefer docs attached to the declaration node
-    let declaration_docs = annotation_docs(tree, declaration_id.id, strings);
+    let declaration_docs = node_documentation(strings, tree, declaration_id.id);
     if declaration_docs.is_some() {
         return declaration_docs;
     }
 
     // fall back to docs attached to the declaration expression wrapper
-    annotation_docs(tree, expression_id.id, strings)
+    node_documentation(strings, tree, expression_id.id)
 }
 
-/// Collect documentation comments from one annotated node.
-fn annotation_docs(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> Option<String> {
-    let mut docs = Vec::new();
-    let annotations = tree.get_annotations(node_id);
+/// Collect semantic documentation from one DIR node.
+fn node_documentation(strings: &StringPool, tree: &dir::NodeTree, node_id: u32) -> Option<String> {
+    let documentation = tree.get_documentation(node_id)?;
 
-    for annotation_id in annotations {
-        let annotation = tree.get::<Annotation>(annotation_id);
-        let Annotation::Doc { string, .. } = annotation else {
-            continue;
-        };
-
-        // keep paragraph breaks from source docs
-        let text = strings.get(*string);
-        for line in text.lines() {
-            docs.push(line.trim_end().to_string());
-        }
-    }
-
-    // trim leading and trailing blank lines after collection
-    let Some(start) = docs.iter().position(|line| !line.trim().is_empty()) else {
-        return None;
-    };
-    let end = docs
-        .iter()
-        .rposition(|line| !line.trim().is_empty())
-        .unwrap_or(start);
-
-    Some(docs[start..=end].join("\n"))
+    Some(strings.get(documentation.text).to_string())
 }
 
 /// Extract the binding decorator value from a declaration expression.

@@ -1,7 +1,7 @@
 use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType};
+use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
@@ -52,4 +52,11 @@ impl Annotation {
             Annotation::Decorator { position, .. } => *position,
         }
     }
+}
+
+/// Normalized semantic documentation attached to one DIR node.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Documentation {
+    /// The normalized documentation text.
+    pub text: StringId,
 }
