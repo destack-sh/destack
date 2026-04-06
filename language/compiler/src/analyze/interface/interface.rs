@@ -94,7 +94,7 @@ impl Compiler {
             .require_artifact_dir_declared(context.revision(), module_id, profile)
             .map_err(AnalyzeError::from)?;
         let base = self
-            .require_artifact_dir_base(module_id)
+            .require_artifact_dir_base(context.revision(), module_id)
             .map_err(AnalyzeError::from)?;
         let tree = dir.tree.clone();
         let symbols = dir.symbols.clone();

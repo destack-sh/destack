@@ -6,7 +6,7 @@ use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileType, LanguageType, ModuleId, PackageId, Uri};
-use destack_workspace::{Edit, NodeLinker, ProfileId, TsCompilerOptions};
+use destack_workspace::{BUILTIN_PACKAGE_ID, Edit, NodeLinker, ProfileId, TsCompilerOptions};
 
 use crate::import::{
     ImportResolveContext, apply_node_linker_resolve_policy, apply_typescript_import_resolve_policy,
@@ -22,8 +22,13 @@ const BUILTIN_EXTENSIONS: &[&str] = &[
 ];
 
 /// Protocol namespace roots mapped to builtin module roots.
-const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] =
-    &[("destack", "destack"), ("platform", "platform")];
+const BUILTIN_NAMESPACE_ROOTS: &[(&str, &str)] = &[
+    ("destack", "library/destack"),
+    ("platform", "library/platform"),
+];
+
+/// Builtin package roots that are valid as builtin-absolute import paths.
+const BUILTIN_ABSOLUTE_ROOTS: &[&str] = &["intrinsic/", "language/", "library/"];
 
 /// Source module resolve policy derived from package and tsconfig ownership.
 #[derive(Debug, Clone)]
@@ -331,6 +336,11 @@ impl Compiler {
             return None;
         }
 
+        // resolve builtin-absolute package paths directly
+        if let Some(module_id) = self.resolve_builtin_absolute_specifier(specifier) {
+            return Some(module_id);
+        }
+
         // resolve builtin libs by name for builtin modules
         if !Self::specifier_is_relative(specifier) {
             // map specifier to builtin lib name
@@ -380,9 +390,9 @@ impl Compiler {
         }
 
         // resolve relative path against source URI
-        //  - source: builtin://intrinsic/prelude.ds
-        //  - specifier: ./reflection/type.ds
-        //  - target: builtin://intrinsic/reflect/type.ds
+        //  - source: builtin://primitive/index.ds
+        //  - specifier: ./vector.ds
+        //  - target: builtin://primitive/vector.ds
         let source_dir = source_str.rsplit_once('/').map(|(dir, _)| dir)?;
         let target_uri_str = Self::resolve_relative_uri(source_dir, specifier);
         let target_uri = Uri::from_string(&target_uri_str);
@@ -411,10 +421,58 @@ impl Compiler {
         None
     }
 
+    /// Resolve one builtin-absolute import path.
+    fn resolve_builtin_absolute_specifier(&self, specifier: &str) -> Option<ModuleId> {
+        let is_builtin_absolute = BUILTIN_ABSOLUTE_ROOTS
+            .iter()
+            .any(|root| specifier.starts_with(root));
+        if !is_builtin_absolute {
+            return None;
+        }
+
+        self.resolve_builtin_module_path(specifier)
+    }
+
+    /// Resolve one builtin module path inside the builtin package.
+    fn resolve_builtin_module_path(&self, module_path: &str) -> Option<ModuleId> {
+        let builtins = self.repository.builtins();
+        let module_path = module_path
+            .strip_prefix("intrinsic/")
+            .unwrap_or(module_path);
+
+        // try exact path
+        let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(module_path));
+        if builtins.module_source(module_id).is_some() {
+            return Some(module_id);
+        }
+
+        // try extensions
+        for extension in BUILTIN_EXTENSIONS {
+            let candidate_path = format!("{module_path}{extension}");
+            let module_id =
+                ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&candidate_path));
+            if builtins.module_source(module_id).is_some() {
+                return Some(module_id);
+            }
+        }
+
+        // try index (with extensions)
+        for extension in BUILTIN_EXTENSIONS {
+            let candidate_path = format!("{module_path}/index{extension}");
+            let module_id =
+                ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&candidate_path));
+            if builtins.module_source(module_id).is_some() {
+                return Some(module_id);
+            }
+        }
+
+        None
+    }
+
     /// Resolve a protocol specifier (destack:, platform:) to a builtin module.
     fn resolve_protocol_specifier(
         &self,
-        revision: destack_workspace::Revision,
+        _revision: destack_workspace::Revision,
         specifier: &str,
         profile_key: &ProfileKey,
     ) -> Option<ModuleId> {
@@ -438,30 +496,8 @@ impl Compiler {
 
         // resolve namespace modules under their builtin root
         let base_path = format!("{root}/{path}");
-        let base_uri = Uri::from_string(format!("builtin://{base_path}"));
 
-        // try exact path
-        if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &base_uri) {
-            return Some(module_id);
-        }
-
-        // try extensions
-        for extension in BUILTIN_EXTENSIONS {
-            let candidate_uri = Uri::from_string(format!("builtin://{base_path}{extension}"));
-            if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &candidate_uri) {
-                return Some(module_id);
-            }
-        }
-
-        // try index (with extensions)
-        for extension in BUILTIN_EXTENSIONS {
-            let candidate_uri = Uri::from_string(format!("builtin://{base_path}/index{extension}"));
-            if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &candidate_uri) {
-                return Some(module_id);
-            }
-        }
-
-        None
+        self.resolve_builtin_module_path(&base_path)
     }
 
     /// Resolve a path to a module id inside the active execution scope.

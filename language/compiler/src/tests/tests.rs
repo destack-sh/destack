@@ -2332,12 +2332,7 @@ impl TestProgram {
 
         // current workspace families
         for module_id in module_ids {
-            let profile_id = self
-                .program
-                .default_profile_id_for_module(revision, module_id)
-                .unwrap_or_else(|error| {
-                    panic!("failed to resolve default profile for module {module_id:?}: {error}")
-                });
+            let profile_id = self.program.default_profile_id_for_module(module_id);
             diagnostics.merge_from(
                 &self
                     .program

@@ -98,10 +98,6 @@ impl Compiler {
 
     /// Return the selected library modules for one profile.
     pub(crate) fn selected_library_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
-        if let Some(environment) = self.library_environment(profile) {
-            return environment.supporting_modules();
-        }
-
         self.selected_library_modules_from_input(profile)
             .unwrap_or_default()
     }
@@ -124,15 +120,14 @@ impl Compiler {
 
     /// Return the modules that support one global environment.
     pub(crate) fn library_environment_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
-        self.library_environment(profile)
-            .map(|environment| environment.supporting_modules())
-            .unwrap_or_default()
+        self.selected_library_modules(profile)
     }
 
     /// Return true when one module is ambient for one profile.
     pub(crate) fn is_ambient_library_module(&self, profile: ProfileId, module: ModuleId) -> bool {
-        self.library_environment(profile)
-            .is_some_and(|environment| environment.ambient_modules.contains(&module))
+        self.ambient_library_modules_from_input(profile)
+            .map(|modules| modules.contains(&module))
+            .unwrap_or(false)
     }
 
     /// Return true when one module is selected in the library environment for one profile.
@@ -146,12 +141,8 @@ impl Compiler {
         revision: destack_workspace::Revision,
         profile: ProfileId,
     ) -> ResolveResult<LanguageEnvironment> {
-        if self.language_environment(profile).is_some() {
-            return Ok(self
-                .language_environment(profile)
-                .unwrap_or_else(|| unreachable!())
-                .as_ref()
-                .clone());
+        if let Some(environment) = self.repository.language_environment(revision, profile) {
+            return Ok(environment.as_ref().clone());
         }
 
         let artifact_key = ArtifactKey::language_environment(profile);

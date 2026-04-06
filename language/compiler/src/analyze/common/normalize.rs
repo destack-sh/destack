@@ -67,7 +67,8 @@ impl Compiler {
             artifact_key,
         )
         .and_then(|()| {
-            let base_dir = self.require_artifact_dir_base(symbol.module_id)?;
+            let base_dir =
+                self.require_artifact_dir_base(view.compiler_context.revision(), symbol.module_id)?;
             let owner_module_handle = if symbol.module_id == view.module.id {
                 None
             } else {

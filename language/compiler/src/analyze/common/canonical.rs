@@ -7,7 +7,7 @@ use destack_dir::{
     WellKnownSymbol,
 };
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 
 use crate::analyze::common::{ModuleSymbolView, TypeContext};
 use crate::{Compiler, RequirementError};
@@ -59,9 +59,10 @@ impl Compiler {
             .unwrap_or(symbol)
     }
 
-    /// Resolve the canonical symbol from committed declared artifact state.
-    pub fn canonical_declared_artifact_symbol(
+    /// Resolve the canonical symbol from committed declared artifact state in one explicit revision.
+    pub fn canonical_declared_artifact_symbol_for_revision(
         &self,
+        revision: Revision,
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
@@ -74,7 +75,10 @@ impl Compiler {
                 return current_symbol;
             }
 
-            let Some(dir) = self.dir_declared(current_symbol.module_id, profile) else {
+            let Some(dir) =
+                self.repository
+                    .dir_declared(revision, current_symbol.module_id, profile)
+            else {
                 return current_symbol;
             };
 
@@ -114,6 +118,17 @@ impl Compiler {
 
             return normalized_symbol;
         }
+    }
+
+    /// Resolve the canonical symbol from committed declared artifact state.
+    pub fn canonical_declared_artifact_symbol(
+        &self,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        let revision = self.current_context().revision();
+
+        self.canonical_declared_artifact_symbol_for_revision(revision, profile, symbol)
     }
 
     /// Resolve the canonical symbol for a reference with one exact DIR artifact family.

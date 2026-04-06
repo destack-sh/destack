@@ -20,12 +20,8 @@ impl Compiler {
         revision: Revision,
         profile_id: ProfileId,
     ) -> ResolveResult<LibraryEnvironment> {
-        if self.library_environment(profile_id).is_some() {
-            return Ok(self
-                .library_environment(profile_id)
-                .unwrap_or_else(|| unreachable!())
-                .as_ref()
-                .clone());
+        if let Some(environment) = self.repository.library_environment(revision, profile_id) {
+            return Ok(environment.as_ref().clone());
         }
 
         let artifact_key = ArtifactKey::library_environment(profile_id);
@@ -109,10 +105,6 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
     ) -> ResolveResult<Vec<destack_source::ModuleId>> {
-        if let Some(environment) = self.library_environment(profile_id) {
-            return Ok(environment.supporting_modules());
-        }
-
         if !self.options.load_libraries {
             return Ok(Vec::new());
         }
@@ -130,10 +122,6 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
     ) -> ResolveResult<Vec<destack_source::ModuleId>> {
-        if let Some(environment) = self.library_environment(profile_id) {
-            return Ok(environment.ambient_modules.clone());
-        }
-
         if !self.options.load_libraries {
             return Ok(Vec::new());
         }

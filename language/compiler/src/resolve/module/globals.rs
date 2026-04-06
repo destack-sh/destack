@@ -470,10 +470,10 @@ impl Compiler {
                 .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            cache.module_dependencies.insert(
-                module_id,
-                self.artifact_stamp_for_key(&ArtifactKey::dir_prepared(module_id, profile_id)),
-            );
+            let artifact_key = ArtifactKey::dir_prepared(module_id, profile_id);
+            let dependency = self.artifact_stamp_for_revision(revision, &artifact_key);
+
+            cache.module_dependencies.insert(module_id, dependency);
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
@@ -526,10 +526,10 @@ impl Compiler {
                 .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            cache.module_dependencies.insert(
-                module_id,
-                self.artifact_stamp_for_key(&ArtifactKey::dir_prepared(module_id, profile_id)),
-            );
+            let artifact_key = ArtifactKey::dir_prepared(module_id, profile_id);
+            let dependency = self.artifact_stamp_for_revision(revision, &artifact_key);
+
+            cache.module_dependencies.insert(module_id, dependency);
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
