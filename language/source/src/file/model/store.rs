@@ -5,8 +5,9 @@ use dashmap::DashMap;
 
 use crate::{File, FileId, Uri};
 
-/// Registry of files. THREAD-SAFE.
-/// NOTE @Robustness: use single/extra lock around both id<->file and uri<->id mappings?
+/// Store of tracked files.
+///
+/// NOTE #Robustness: Updates across the lookup maps are not atomic yet.
 #[derive(Debug)]
 pub struct FileStore {
     /// The files by id.
@@ -60,9 +61,19 @@ impl FileStore {
     /// Panics if no file with the given id exists.
     pub fn replace(&self, file: File) {
         let id = file.id;
-        assert!(
-            self.files_by_id.contains_key(&id),
-            "file does not exist for id: {id:?}"
+        let existing = self
+            .files_by_id
+            .get(&id)
+            .unwrap_or_else(|| panic!("file does not exist for id: {id:?}"));
+        let existing = existing.value();
+
+        assert_eq!(
+            existing.uri, file.uri,
+            "file uri changed during replace for {id:?}"
+        );
+        assert_eq!(
+            existing.path, file.path,
+            "file path changed during replace for {id:?}"
         );
 
         // uri/path mappings stay the same, just update the file content
