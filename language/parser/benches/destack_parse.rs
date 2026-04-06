@@ -306,7 +306,7 @@ fn bench_parse(criterion: &mut Criterion) {
         total_lines = total_lines.saturating_add(line_count);
 
         // register file
-        let file_id = FileId::new(source_files.len() as u32);
+        let file_id = FileId::new(source_files.len() as u64);
         let (file_name, uri) = Uri::from_path_with_name(path);
         let file = File::from_text(file_id, file_name, uri, None, file_type, content);
         source_files.push(Arc::new(file));

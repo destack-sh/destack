@@ -2446,7 +2446,7 @@ fn test_parse_class_expression_with_newline_extends() {
 #[test]
 fn test_parse_new_unparenthesized_class_expression_with_extends() {
     let mut test = TestParser::new_with_options(
-        "new class extends TestSession {}()",
+        "new class extends TestRepository {}()",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
@@ -2459,7 +2459,7 @@ fn test_parse_new_unparenthesized_class_expression_with_extends() {
                 assert!(descriptor.name.is_none());
                 let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
                 assert_eq!(extends_types.len(), 1);
-                assert_expression_path!(parser, parser.tree.get(extends_types[0]), "TestSession");
+                assert_expression_path!(parser, parser.tree.get(extends_types[0]), "TestRepository");
             });
         });
     });
