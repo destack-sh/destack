@@ -48,31 +48,22 @@ impl Repository {
         Ok(Some(read(&tsconfig)))
     }
 
-    /// Access tsconfig options for a module via closure.
-    pub fn read_tsconfig_options_for_module<T>(
+    /// Return tsconfig options for one module.
+    pub fn tsconfig_options_for_module(
         &self,
         revision: Revision,
         module: &Module,
-        read: impl FnOnce(&TsConfigOptions) -> T,
-    ) -> Result<Option<T>, RepositoryError> {
-        self.read_tsconfig_declaration_for_module(revision, module, |tsconfig| {
-            let options = tsconfig.options();
-            read(&options)
-        })
+    ) -> Result<Option<TsConfigOptions>, RepositoryError> {
+        self.read_tsconfig_declaration_for_module(revision, module, |tsconfig| tsconfig.options())
     }
 
-    /// Access package options for a module via closure.
-    pub fn read_package_options_for_module<T>(
+    /// Return package options for one module.
+    pub fn package_options_for_module(
         &self,
         revision: Revision,
         module: &Module,
-        read: impl FnOnce(&PackageOptions) -> T,
-    ) -> Result<Option<T>, RepositoryError> {
-        let Some(package_options) = self.package_options(revision, module.package_id)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(read(&package_options)))
+    ) -> Result<Option<PackageOptions>, RepositoryError> {
+        self.package_options(revision, module.package_id)
     }
 
     /// Return the package id for one target id when known.

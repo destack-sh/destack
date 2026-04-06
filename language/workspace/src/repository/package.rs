@@ -4,9 +4,7 @@ use std::sync::Arc;
 use destack_source::PackageId;
 use im::OrdMap;
 
-use crate::repository::{
-    BUILTIN_PACKAGE_ID, FileOrigin, Repository, RepositoryError, Revision, SourceMap,
-};
+use crate::repository::{BUILTIN_PACKAGE_ID, Repository, RepositoryError, Revision, SourceMap};
 use crate::{
     DestackDeclaration, Package, PackageDeclaration, PackageKind, PackageOptions, WorkspaceOptions,
 };
@@ -18,7 +16,10 @@ impl Repository {
 
         // package roots
         for file_id in source.keys() {
-            let Some(FileOrigin::Workspace { path }) = self.file_origin_by_file_id(*file_id) else {
+            let Some(logical_path) = self.logical_path_by_file_id(*file_id) else {
+                continue;
+            };
+            let Some(path) = self.workspace_path_for_logical_path(logical_path.as_ref()) else {
                 continue;
             };
             let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
@@ -35,16 +36,18 @@ impl Repository {
 
         // package views
         for file_id in source.keys() {
-            let Some(origin) = self.file_origin_by_file_id(*file_id) else {
+            let Some(logical_path) = self.logical_path_by_file_id(*file_id) else {
                 continue;
             };
-            let Some(mut package) = self.package_for_file_origin(&physical_roots, &origin) else {
+            let Some(mut package) =
+                self.package_for_logical_path(&physical_roots, logical_path.as_ref())
+            else {
                 continue;
             };
             let package_id = package.id;
 
             if let Some(package_path) = package.path.as_ref()
-                && let FileOrigin::Workspace { path } = &origin
+                && let Some(path) = self.workspace_path_for_logical_path(logical_path.as_ref())
                 && path.parent() == Some(package_path.as_path())
                 && let Some(file_name) = path.file_name().and_then(|name| name.to_str())
                 && file_name == "tsconfig.json"
@@ -148,9 +151,8 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
     ) -> Result<Option<Arc<Package>>, RepositoryError> {
-        let revision_data = self.revision(revision)?;
-        let packages = self.derive_packages(revision_data.source.as_ref());
-        let mut package = if let Some(package) = packages.get(&package_id) {
+        let workspace = self.workspace(revision)?;
+        let mut package = if let Some(package) = workspace.package(package_id) {
             package.clone()
         } else {
             return Ok(None);
@@ -206,9 +208,8 @@ impl Repository {
         &self,
         revision: Revision,
     ) -> Result<Vec<PackageId>, RepositoryError> {
-        let revision = self.revision(revision)?;
-        let packages = self.derive_packages(revision.source.as_ref());
-        let mut package_ids = packages.keys().copied().collect::<Vec<_>>();
+        let workspace = self.workspace(revision)?;
+        let mut package_ids = workspace.package_ids().collect::<Vec<_>>();
         package_ids.sort_unstable();
         package_ids.dedup();
 
@@ -265,9 +266,8 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
     ) -> Result<Option<PackageOptions>, RepositoryError> {
-        let revision_data = self.revision(revision)?;
-        let packages = self.derive_packages(revision_data.source.as_ref());
-        let Some(package) = packages.get(&package_id) else {
+        let workspace = self.workspace(revision)?;
+        let Some(package) = workspace.package(package_id) else {
             return Ok(None);
         };
 
@@ -282,18 +282,34 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
     ) -> Result<Option<String>, RepositoryError> {
-        let Some(package) = self.package(revision, package_id)? else {
+        // from workspace
+        let workspace = self.workspace(revision)?;
+        let Some(package) = workspace.package(package_id) else {
+            return Ok(None);
+        };
+        let Some(package_path) = package.path.as_ref() else {
             return Ok(None);
         };
 
-        let package_options = self.package_options(revision, package_id)?;
-        if let Some(module_type) = package_options.and_then(|options| options.module_type) {
+        // destack.json
+        let destack_file_id = self.file_id_for_workspace_path(&package_path.join("destack.json"));
+        if let Some(declaration_file) = self.file(revision, destack_file_id)?
+            && let Ok(declaration) = DestackDeclaration::parse(&declaration_file)
+            && let Some(module_type) = declaration.package_options().module_type
+        {
             return Ok(Some(module_type));
         }
 
-        let package_declaration = self.package_declaration(revision, &package)?;
-        Ok(package_declaration
-            .and_then(|declaration| declaration.module_type().map(str::to_string)))
+        // package.json
+        let package_file_id = self.file_id_for_workspace_path(&package_path.join("package.json"));
+        if let Some(declaration_file) = self.file(revision, package_file_id)?
+            && let Ok(declaration) =
+                PackageDeclaration::parse(&declaration_file, package_path.clone())
+        {
+            return Ok(declaration.module_type().map(str::to_string));
+        }
+
+        Ok(None)
     }
 
     /// Return one file by workspace path.
@@ -337,14 +353,14 @@ impl Repository {
         }
     }
 
-    /// Return one package entry for one file origin when applicable.
-    fn package_for_file_origin(
+    /// Return one package entry for one logical path when applicable.
+    fn package_for_logical_path(
         &self,
         physical_roots: &std::collections::HashSet<PathBuf>,
-        origin: &FileOrigin,
+        logical_path: &str,
     ) -> Option<Package> {
-        match origin {
-            FileOrigin::Root => Some(Package {
+        if logical_path == "<root>" {
+            return Some(Package {
                 id: PackageId::EPHEMERAL,
                 kind: PackageKind::Ephemeral,
                 uri: destack_source::Uri::from_string("<root>"),
@@ -355,8 +371,11 @@ impl Repository {
                 destack_file_id: None,
                 tsconfig_file_id: None,
                 targets: Default::default(),
-            }),
-            FileOrigin::Builtin { .. } => Some(Package {
+            });
+        }
+
+        if logical_path.starts_with("builtin://") {
+            return Some(Package {
                 id: BUILTIN_PACKAGE_ID,
                 kind: PackageKind::Builtin,
                 uri: destack_source::Uri::from_string("builtin://"),
@@ -367,22 +386,23 @@ impl Repository {
                 destack_file_id: None,
                 tsconfig_file_id: None,
                 targets: Default::default(),
-            }),
-            FileOrigin::Workspace { path } => {
-                let (kind, package_root) = self.package_root_for_path(physical_roots, path);
-                Some(Package {
-                    id: self.package_id_for_root(kind, &package_root),
-                    kind,
-                    uri: destack_source::Uri::from_path(&package_root),
-                    path: Some(package_root),
-                    name: None,
-                    version: None,
-                    package_file_id: None,
-                    destack_file_id: None,
-                    tsconfig_file_id: None,
-                    targets: Default::default(),
-                })
-            }
+            });
         }
+
+        let path = self.workspace_path_for_logical_path(logical_path)?;
+        let (kind, package_root) = self.package_root_for_path(physical_roots, &path);
+
+        Some(Package {
+            id: self.package_id_for_root(kind, &package_root),
+            kind,
+            uri: destack_source::Uri::from_path(&package_root),
+            path: Some(package_root),
+            name: None,
+            version: None,
+            package_file_id: None,
+            destack_file_id: None,
+            tsconfig_file_id: None,
+            targets: Default::default(),
+        })
     }
 }
