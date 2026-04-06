@@ -7,8 +7,8 @@ use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
 use destack_mir as mir;
 
 use super::{
-    ExternalCallContext, ExternalFn, ExternalHandler, GlobalStorage, SchemaRegistry, StringInterner,
-    StringRef,
+    ExternalCallContext, ExternalFn, ExternalHandler, GlobalStorage, SchemaRegistry,
+    StringInterner, StringRef,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::executable::{Executable, FunctionTable};
@@ -462,7 +462,6 @@ impl Isolate {
     pub(crate) fn tree(&self) -> &mir::NodeTree {
         &self.executable.tree
     }
-
 }
 
 impl Capture for Isolate {
