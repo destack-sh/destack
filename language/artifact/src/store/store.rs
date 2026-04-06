@@ -6,6 +6,7 @@ use destack_ast as ast;
 use destack_core::StringPool;
 use destack_source::{DiagnosticCollection, FileId, ModuleId, ProfileId};
 
+use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase,
     DirDeclared, DirElaborated, DirInterface, DirPatched, DirPrepared, DirResolved,
@@ -31,28 +32,6 @@ impl Default for ArtifactEntry {
             dependencies: Vec::new(),
             diagnostics: Arc::new(DiagnosticCollection::new()),
         }
-    }
-}
-
-/// One retained exact artifact version.
-#[derive(Debug)]
-pub struct ArtifactPin {
-    /// The shared artifact store that owns this version.
-    store: Arc<ArtifactStore>,
-    /// The retained artifact version.
-    version: ArtifactVersion,
-}
-
-impl ArtifactPin {
-    /// Return the retained artifact version.
-    pub fn version(&self) -> ArtifactVersion {
-        self.version
-    }
-}
-
-impl Drop for ArtifactPin {
-    fn drop(&mut self) {
-        self.store.release(&self.version);
     }
 }
 
@@ -274,10 +253,7 @@ impl ArtifactStore {
 
         self.retain(version);
 
-        Some(ArtifactPin {
-            store: Arc::clone(self),
-            version: *version,
-        })
+        Some(ArtifactPin::new(Arc::clone(self), *version))
     }
 
     /// Release one exact live artifact version.
