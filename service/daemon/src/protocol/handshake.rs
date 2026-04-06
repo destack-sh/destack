@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ProtocolRange, ProtocolVersion, SessionId};
+use super::{ProtocolRange, ProtocolVersion, RepositoryId};
 
 /// Negotiated protocol limits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,7 +103,7 @@ pub struct HandshakeResponse {
     /// Negotiated protocol limits.
     pub limits: ProtocolLimits,
     /// Allocated daemon session id.
-    pub session_id: SessionId,
+    pub session_id: RepositoryId,
 }
 
 #[cfg(test)]

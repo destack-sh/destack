@@ -1,45 +1,41 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use destack_service::FileSnapshot as WorkspaceFileSnapshot;
+use destack_service::{FileSnapshot as WorkspaceFileSnapshot, UpdateImpact, UpdateImpactKind};
 use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
 };
-use destack_workspace::{InvalidationKind, InvalidationPlan, Program};
+use destack_workspace::{Repository, Revision};
 
 use crate::{DaemonMessage, DaemonMessageKind, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
 use super::{
     DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
-    DiagnosticBatch, FileSnapshot, InvalidationKind as ProtocolInvalidationKind,
-    InvalidationSummary, RescanReason, WatchBatch as ProtocolWatchBatch,
-    WatchEvent as ProtocolWatchEvent, WatchEventKind as ProtocolWatchEventKind,
-    WatchStatus as ProtocolWatchStatus,
+    DiagnosticBatch, FileSnapshot, RescanReason, UpdateImpactKind as ProtocolUpdateImpactKind,
+    UpdateImpactSummary, WatchBatch as ProtocolWatchBatch, WatchEvent as ProtocolWatchEvent,
+    WatchEventKind as ProtocolWatchEventKind, WatchStatus as ProtocolWatchStatus,
 };
 
-impl From<InvalidationKind> for ProtocolInvalidationKind {
-    fn from(kind: InvalidationKind) -> Self {
+impl From<UpdateImpactKind> for ProtocolUpdateImpactKind {
+    fn from(kind: UpdateImpactKind) -> Self {
         match kind {
-            InvalidationKind::ModuleSource => ProtocolInvalidationKind::ModuleSource,
-            InvalidationKind::Destack => ProtocolInvalidationKind::Destack,
-            InvalidationKind::TsConfig => ProtocolInvalidationKind::TsConfig,
-            InvalidationKind::PackageManifest => ProtocolInvalidationKind::PackageManifest,
-            InvalidationKind::Unknown => ProtocolInvalidationKind::Unknown,
+            UpdateImpactKind::Destack => ProtocolUpdateImpactKind::Destack,
+            UpdateImpactKind::TsConfig => ProtocolUpdateImpactKind::TsConfig,
+            UpdateImpactKind::Unknown => ProtocolUpdateImpactKind::Unknown,
         }
     }
 }
 
-impl From<&InvalidationPlan> for InvalidationSummary {
-    fn from(plan: &InvalidationPlan) -> Self {
+impl From<&UpdateImpact> for UpdateImpactSummary {
+    fn from(plan: &UpdateImpact) -> Self {
         Self {
             file_id: plan.file_id,
-            file_version: plan.file_version,
             kinds: plan
                 .kinds
                 .iter()
                 .copied()
-                .map(ProtocolInvalidationKind::from)
+                .map(ProtocolUpdateImpactKind::from)
                 .collect(),
             modules: plan.modules.clone(),
             packages: plan.packages.clone(),
@@ -55,7 +51,7 @@ impl From<&DaemonUpdate> for DaemonUpdateRecord {
             module_id: update.module_id,
             file_id: update.file_id,
             file: protocol_snapshot_from_workspace(&update.file),
-            invalidation: InvalidationSummary::from(&update.invalidation),
+            impact: UpdateImpactSummary::from(&update.impact),
             diagnostics: update.diagnostics.clone(),
         }
     }
@@ -259,13 +255,17 @@ pub fn diagnostics_to_batches(diagnostics: &[Diagnostic]) -> Vec<DiagnosticBatch
 }
 
 /// Convert diagnostics into file snapshots for rendering.
-pub fn files_to_snapshots(program: &Program, diagnostics: &[Diagnostic]) -> Vec<FileSnapshot> {
+pub fn diagnostic_file_snapshots(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &[Diagnostic],
+) -> Vec<FileSnapshot> {
     // collect unique file ids in order
     let mut seen = HashSet::new();
     let mut snapshots = Vec::new();
     for diagnostic in diagnostics {
         if seen.insert(diagnostic.file_id)
-            && let Some(snapshot) = snapshot_for_file(program, diagnostic.file_id)
+            && let Some(snapshot) = snapshot_for_file(repository, revision, diagnostic.file_id)
         {
             snapshots.push(snapshot);
         }
@@ -277,23 +277,18 @@ pub fn files_to_snapshots(program: &Program, diagnostics: &[Diagnostic]) -> Vec<
 }
 
 /// Build a snapshot for a file id.
-fn snapshot_for_file(program: &Program, file_id: FileId) -> Option<FileSnapshot> {
-    // load the file metadata
-    let file = program.files.get_maybe(file_id)?;
+fn snapshot_for_file(
+    repository: &Repository,
+    revision: Revision,
+    file_id: FileId,
+) -> Option<FileSnapshot> {
+    // load the file snapshot
+    let file = repository.file(revision, file_id).ok()??;
 
     // resolve text content when available
     let content = match &file.content {
         FileContent::Text { .. } | FileContent::Json { .. } => Some(file.text().to_string()),
-        FileContent::Missing | FileContent::Unloaded | FileContent::Binary { .. } => {
-            if let Some(path) = &file.path
-                && !file.ty.is_binary()
-                && let Ok(content) = program.fs.read_to_string(path)
-            {
-                Some(content)
-            } else {
-                None
-            }
-        }
+        FileContent::Missing | FileContent::Unloaded | FileContent::Binary { .. } => None,
     };
 
     Some(FileSnapshot {

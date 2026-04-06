@@ -3,7 +3,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use destack_compiler::CompilerOptions;
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonLaunchConfig};
 use crate::ipc::{DaemonIpcError, connect_ipc};
@@ -106,7 +106,7 @@ pub fn connect_ipc_daemon(
 
 /// Connect to an in process daemon using a loopback transport.
 pub fn connect_in_process_daemon(
-    session: Arc<Session>,
+    repository: Arc<Repository>,
     options: DaemonConnectOptions,
 ) -> Result<DaemonConnection, DaemonConnectError> {
     // build service options
@@ -116,7 +116,7 @@ pub fn connect_in_process_daemon(
     };
 
     // start the in process daemon service
-    let service = DaemonService::with_options(session, service_options);
+    let service = DaemonService::with_options(repository, service_options);
 
     // create the loopback transport pair
     let (client_transport, server_transport) = loopback_transport_pair(16);

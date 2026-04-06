@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
 use destack_compiler::CompilerOptions;
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 use super::instance::{DaemonInstance, DaemonInstanceError, DaemonMetadata};
 use crate::ipc::{DaemonIpcError, DaemonIpcListener};
@@ -25,14 +25,19 @@ pub struct DaemonServerOptions {
 }
 
 impl DaemonServerOptions {
-    /// Build server options from a session.
-    pub fn from_session(session: &Session) -> Self {
+    /// Build server options from a repository.
+    pub fn from_repository(repository: &Repository) -> Self {
         // start from defaults
         let mut options = Self::default();
+        let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+        let revision = repository.current(&reference).ok();
 
         // apply workspace config overrides
-        if let Some(config) = session.workspace_config() {
-            options.shutdown = DaemonShutdownOptions::from_config(&config.options.daemon);
+        if let Some(revision) = revision
+            && let Ok(Some(workspace_options)) = repository.workspace_options(revision)
+        {
+            options.shutdown =
+                DaemonShutdownOptions::from_config(&workspace_options.package.daemon);
         }
 
         // return the merged options
@@ -54,24 +59,24 @@ pub struct DaemonServer {
 }
 
 impl DaemonServer {
-    /// Create a new daemon server for a session and instance.
-    pub fn new(session: Arc<Session>, instance: DaemonInstance) -> Self {
-        // build options from the session
-        let options = DaemonServerOptions::from_session(&session);
+    /// Create a new daemon server for a repository and instance.
+    pub fn new(repository: Arc<Repository>, instance: DaemonInstance) -> Self {
+        // build options from the repository
+        let options = DaemonServerOptions::from_repository(&repository);
 
         // build the server state
-        Self::with_options(session, instance, options)
+        Self::with_options(repository, instance, options)
     }
 
     /// Create a daemon server with explicit options.
     pub fn with_options(
-        session: Arc<Session>,
+        repository: Arc<Repository>,
         instance: DaemonInstance,
         options: DaemonServerOptions,
     ) -> Self {
         // build the daemon instance
         let daemon = Arc::new(Daemon::with_options(
-            session,
+            repository,
             options.compiler_options.clone(),
         ));
 

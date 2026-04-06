@@ -3,11 +3,10 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use destack_service::{
-    LanguageServiceError, LanguageServiceResult, RescanReason, WorkspaceMessage,
+    FileUpdate, LanguageServiceError, LanguageServiceResult, RescanReason, WorkspaceMessage,
     WorkspaceMessageKind, WorkspaceUpdateRecord,
 };
 use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
-use destack_workspace::FileUpdate;
 
 use crate::{
     Daemon, DaemonError, DaemonMessage, DaemonMessageKind, DaemonRescanResult, DaemonUpdate,
@@ -98,7 +97,7 @@ impl Daemon {
             .any(|event| matches!(event.kind, FileWatchEventKind::Overflow));
         match self
             .workspace_service
-            .apply_watch_events(batch.events.clone())
+            .apply_watch_events(batch.events.clone(), Default::default())
         {
             Ok(workspace_result) => {
                 let daemon_result = daemon_update_result_from_workspace(workspace_result);
@@ -174,8 +173,8 @@ impl Daemon {
     fn write_update_to_disk(&self, path: &Path, update: &FileUpdate) -> Result<(), DaemonError> {
         let parent = path.parent();
         if let Some(parent) = parent {
-            self.session
-                .fs
+            self.repository
+                .file_system()
                 .create_dir_all(parent)
                 .map_err(|error| DaemonError::FileWrite {
                     path: parent.to_path_buf(),
@@ -185,8 +184,8 @@ impl Daemon {
 
         match update {
             FileUpdate::Text { content } => {
-                self.session
-                    .fs
+                self.repository
+                    .file_system()
                     .write_string(path, content)
                     .map_err(|error| DaemonError::FileWrite {
                         path: path.to_path_buf(),
@@ -194,8 +193,8 @@ impl Daemon {
                     })?;
             }
             FileUpdate::Bytes { content } => {
-                self.session
-                    .fs
+                self.repository
+                    .file_system()
                     .write(path, content)
                     .map_err(|error| DaemonError::FileWrite {
                         path: path.to_path_buf(),
@@ -203,7 +202,7 @@ impl Daemon {
                     })?;
             }
             FileUpdate::Removed => {
-                if let Err(error) = self.session.fs.remove_file(path)
+                if let Err(error) = self.repository.file_system().remove_file(path)
                     && error.kind() != io::ErrorKind::NotFound
                 {
                     return Err(DaemonError::FileWrite {
@@ -212,7 +211,6 @@ impl Daemon {
                     });
                 }
             }
-            FileUpdate::Touch => {}
         }
 
         Ok(())
@@ -317,7 +315,7 @@ fn daemon_update_from_workspace(update: WorkspaceUpdateRecord) -> DaemonUpdate {
         module_id: update.module_id,
         file_id: update.file_id,
         file: update.file,
-        invalidation: update.invalidation,
+        impact: update.impact,
         diagnostics: update.diagnostics,
     }
 }

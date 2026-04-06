@@ -5,10 +5,10 @@ use destack_artifact::MemoryCacheStore;
 use destack_compiler::CompilerOptions;
 use destack_query as query;
 use destack_source::{FileContent, FileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 use crate::Daemon;
-use crate::tests::TestDaemon;
+use crate::tests::{TestDaemon, current_workspace_revision};
 
 const NAVIGATION_SOURCE: &str = r#"function greet(name: string): string {
     return "Hello, " + name;
@@ -30,31 +30,27 @@ value;
 "#;
 
 /// Assert semantic query readiness for a virtual source file.
-fn assert_virtual_navigation_ready(session: &Session, path: &Path, source: &str) {
+fn assert_virtual_navigation_ready(repository: &Repository, path: &Path, source: &str) {
     // resolve the file id from the tracked path
-    let file_id = session
-        .files
-        .get_id_by_path(path)
-        .expect("expected file id for virtual source");
+    let file_id = repository.file_id_for_workspace_path(path);
 
-    // require strict semantic query state for navigation
-    let module = session
-        .modules
-        .get_by_file_id(file_id)
-        .expect("expected module for virtual source");
-    let module = module.as_ref();
+    // resolve the workspace revision
+    let revision = current_workspace_revision(repository);
+
     assert!(
-        query::query_context(session, &module).is_some(),
-        "expected strict semantic query state for virtual source"
+        repository
+            .file(revision, file_id)
+            .unwrap_or_else(|error| panic!("failed to read virtual source file: {error}"))
+            .is_some(),
+        "expected file id for virtual source"
     );
-    drop(module);
 
     // verify goto definition on the call expression resolves
     let offset = source
         .find(r#"greet("World")"#)
         .expect("expected call marker") as u32
         + 1;
-    let result = query::goto_definition(session, file_id, offset);
+    let result = query::goto_definition(repository, repository, revision, file_id, offset);
     assert!(result.is_some(), "expected goto definition result");
 }
 
@@ -106,24 +102,23 @@ fn test_daemon_virtual_update_emits_diagnostics() {
 fn test_daemon_virtual_update_emits_diagnostics_physical_fs() {
     let fs = TemporaryPhysicalFileSystem::new_with_prefix("daemon_virtual_physical");
     let root = fs.root().to_path_buf();
-    let session =
-        Arc::new(Session::new(root.clone()).with_cache_store(Arc::new(MemoryCacheStore::new())));
-    session.add_root(root.clone());
+    let repository = Arc::new(
+        Repository::open_root(root.clone()).with_cache_store(Arc::new(MemoryCacheStore::new())),
+    );
 
     // run compiler work in a single worker to avoid test contention
-    let mut compiler_options = CompilerOptions::default();
-    compiler_options.workers = 1;
-    let daemon = Daemon::with_options(session.clone(), compiler_options);
+    let compiler_options = CompilerOptions {
+        workers: 1,
+        ..CompilerOptions::default()
+    };
+    let daemon = Daemon::with_options(repository.clone(), compiler_options);
 
     // initial diagnostics are empty
     let path = root.join("main.ds");
     let initial = daemon
         .update_virtual_file(&path, "export const value = 1;".to_string())
         .expect("virtual update failed");
-    let file_id = session
-        .files
-        .get_id_by_path(&path)
-        .expect("expected file id after virtual update");
+    let file_id = repository.file_id_for_workspace_path(&path);
     let initial_update = initial
         .updates
         .into_iter()
@@ -162,7 +157,7 @@ fn test_daemon_virtual_update_builds_navigation_semantic_query_state() {
         "expected no diagnostics for valid content"
     );
 
-    assert_virtual_navigation_ready(test.session.as_ref(), &path, source);
+    assert_virtual_navigation_ready(test.repository.as_ref(), &path, source);
 }
 
 /// Ensure virtual updates navigate for exported function calls.
@@ -174,7 +169,7 @@ fn test_daemon_virtual_update_navigates_exported_function_call() {
 
     let _ = test.update_virtual_file(&path, source);
 
-    assert_virtual_navigation_ready(test.session.as_ref(), &path, source);
+    assert_virtual_navigation_ready(test.repository.as_ref(), &path, source);
 }
 
 /// Ensure navigation still works after an initial workspace rescan.
@@ -189,7 +184,7 @@ fn test_daemon_virtual_update_navigates_after_rescan() {
         .rescan_roots_with_analysis(std::slice::from_ref(&test.root));
     let _ = test.update_virtual_file(&path, source);
 
-    assert_virtual_navigation_ready(test.session.as_ref(), &path, source);
+    assert_virtual_navigation_ready(test.repository.as_ref(), &path, source);
 }
 
 /// Ensures diagnostics clear after fixing invalid source.
@@ -233,12 +228,7 @@ fn test_daemon_rescan_refreshes_file() {
     assert!(result.updated());
     assert!(result.messages.is_empty());
 
-    let file_id = test
-        .session
-        .files
-        .get_id_by_path(&path)
-        .expect("file id should be tracked");
-    let file = test.session.files.get(file_id);
+    let file = test.file_for_path(&path);
     let FileContent::Text { content } = &file.content else {
         panic!("expected text content");
     };
@@ -268,11 +258,7 @@ fn test_daemon_rescan_with_analysis_emits_diagnostics() {
     assert!(result.updated());
 
     // confirm diagnostics for the rescan update
-    let file_id = test
-        .session
-        .files
-        .get_id_by_path(&path)
-        .expect("file id should be tracked");
+    let file_id = test.file_id_for_path(&path);
     let update = test.update_for_file_id(&result.updates, file_id);
     assert!(
         !update.diagnostics.is_empty(),
@@ -291,20 +277,16 @@ fn test_daemon_update_rebuilds_module_graph() {
     let _ = test.update_file(&path_a, "export const value = 1;");
     let _ = test.update_file(&path_b, IMPORT_A_VALUE_SOURCE);
 
-    let program = test.session.find_program_for_path(&path_a);
-    let profile_id = program.default_profile_id_for_module(
-        program
-            .modules
-            .get_id_by_path(&path_a)
-            .expect("expected a.ds module id"),
-    );
-    program.drop_module_graph(profile_id);
+    let revision = current_workspace_revision(test.repository.as_ref());
+    let module_a = test.module_id_for_path(&path_a);
+    let profile_id = test
+        .repository
+        .default_profile_id_for_module(revision, module_a)
+        .expect("expected default profile id for a.ds");
+    test.repository.drop_module_graph(profile_id);
 
     let updates = test.update_file(&path_a, "export const value = 2;");
-    let module_b = program
-        .modules
-        .get_id_by_path(&path_b)
-        .expect("expected b.ds module id");
+    let module_b = test.module_id_for_path(&path_b);
 
     // assertion block: dependent modules are included after rebuild
     assert!(
@@ -314,13 +296,13 @@ fn test_daemon_update_rebuilds_module_graph() {
         "expected b.ds update after graph rebuild"
     );
 
-    let profile_id = program.default_profile_id_for_module(module_b);
-    let artifacts = test
-        .session
-        .get_artifacts_for_program(program.as_ref())
-        .expect("expected artifact store for program");
+    let revision = current_workspace_revision(test.repository.as_ref());
+    let profile_id = test
+        .repository
+        .default_profile_id_for_module(revision, module_b)
+        .expect("expected default profile id for b.ds");
     assert!(
-        artifacts.module_graph(profile_id).is_some(),
+        test.repository.module_graph(revision, profile_id).is_some(),
         "expected module graph to be rebuilt"
     );
 }

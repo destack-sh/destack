@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Arc;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{Destack, PackageJson, Workspace};
+use destack_workspace::{PackageJson, Repository, Revision, Workspace, WorkspaceOptions};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -218,14 +217,20 @@ impl CommandContext<'_> {
         options: &CommandTaskOptions,
     ) -> super::CommandResult<Vec<TaskProject>> {
         let resolver = self.resolver();
-        let workspace = self.daemon.session.workspace_snapshot();
+        let revision = self.revision()?;
+        let workspace = self
+            .daemon
+            .repository
+            .workspace(revision)
+            .map_err(|error| format!("failed to derive workspace: {error}"))?;
         let mut projects = if !options.projects.is_empty() || !options.groups.is_empty() {
-            load_workspace_task_projects(&resolver, &workspace)?
+            load_workspace_task_projects(&resolver, self.repository.as_ref(), revision, &workspace)?
         } else {
             let project_path = resolve_task_project_path(
                 &resolver,
-                &workspace,
-                self.program.cwd.as_path(),
+                self.repository.as_ref(),
+                revision,
+                self.repository.cwd.as_path(),
                 self.common.config_path.as_deref(),
             )?;
             vec![load_task_project(
@@ -239,9 +244,12 @@ impl CommandContext<'_> {
             return Ok(projects);
         }
 
-        let root_config = workspace.config.as_ref().map(Arc::as_ref);
+        let root_options = self
+            .repository
+            .workspace_options(revision)
+            .map_err(|error| format!("failed to derive workspace options: {error}"))?;
         let selected_names = resolve_task_project_selection_names(
-            root_config,
+            root_options.as_ref(),
             &projects,
             &options.projects,
             &options.groups,
@@ -334,7 +342,7 @@ fn load_task_project(
     let project = relative_project_path(project_path, workspace_root);
     let destack_config_path = exact_destack_config_path(resolver, project_path);
     let package_json_path = exact_package_json_path(resolver, project_path);
-    let config = if let Some(destack_config_path) = destack_config_path.as_ref() {
+    let declaration = if let Some(destack_config_path) = destack_config_path.as_ref() {
         Some(
             resolver
                 .read_destack_config(destack_config_path, destack_resolver::CachePolicy::UseCache)
@@ -343,8 +351,10 @@ fn load_task_project(
     } else {
         None
     };
-    let package_name = if let Some(config) = config.as_ref() {
-        if let Some(name) = config.options.name.clone() {
+    let package_name = if let Some(declaration) = declaration.as_ref() {
+        let options = declaration.package_options();
+
+        if let Some(name) = options.name.clone() {
             Some(name)
         } else if let Some(package_json_path) = package_json_path.as_ref() {
             load_package_name(resolver, package_json_path)?
@@ -369,13 +379,18 @@ fn load_task_project(
 /// Load all task projects from one workspace.
 fn load_workspace_task_projects(
     resolver: &destack_resolver::Resolver,
+    repository: &Repository,
+    revision: Revision,
     workspace: &Workspace,
 ) -> super::CommandResult<Vec<TaskProject>> {
     let mut project_paths = Vec::new();
     let mut seen = HashSet::new();
 
     // collect unique project paths in workspace order
-    for package_path in &workspace.package_paths {
+    for package_path in repository
+        .workspace_package_paths(revision)
+        .map_err(|error| error.to_string())?
+    {
         if seen.insert(package_path.clone()) {
             project_paths.push(package_path.clone());
         }
@@ -521,7 +536,7 @@ fn relative_project_path(project_path: &Path, workspace_root: &Path) -> String {
 
 /// Resolve selected project names from explicit projects and groups.
 fn resolve_task_project_selection_names(
-    root_config: Option<&Destack>,
+    root_options: Option<&WorkspaceOptions>,
     projects: &[TaskProject],
     selected_projects: &[String],
     selected_groups: &[String],
@@ -534,7 +549,7 @@ fn resolve_task_project_selection_names(
         selected_names.insert(project);
     }
 
-    let Some(root_config) = root_config else {
+    let Some(root_options) = root_options else {
         if selected_groups.is_empty() {
             return Ok(selected_names);
         }
@@ -545,12 +560,11 @@ fn resolve_task_project_selection_names(
 
     // expand named workspace groups into project names
     for group_name in selected_groups {
-        let members = root_config
-            .options
-            .workspace
+        let members = root_options
+            .membership
             .groups
             .get(group_name)
-            .ok_or_else(|| unknown_group_error(group_name, root_config))?;
+            .ok_or_else(|| unknown_group_error(group_name, root_options))?;
 
         for member in members {
             let project = resolve_project_selector(member, projects).map_err(|_| {
@@ -648,10 +662,9 @@ fn ambiguous_project_error(selector: &str, projects: &[&TaskProject]) -> String 
 }
 
 /// Build one unknown workspace group error with suggestions.
-fn unknown_group_error(group_name: &str, root_config: &Destack) -> String {
-    let groups: Vec<&str> = root_config
-        .options
-        .workspace
+fn unknown_group_error(group_name: &str, root_options: &WorkspaceOptions) -> String {
+    let groups: Vec<&str> = root_options
+        .membership
         .groups
         .keys()
         .map(String::as_str)
@@ -749,7 +762,8 @@ fn task_command(task: &TaskSpec, args: &[String]) -> String {
 /// Resolve the active task project path from cwd or one explicit config path.
 fn resolve_task_project_path(
     resolver: &destack_resolver::Resolver,
-    workspace: &Workspace,
+    repository: &Repository,
+    revision: Revision,
     cwd: &Path,
     override_path: Option<&Path>,
 ) -> super::CommandResult<PathBuf> {
@@ -778,7 +792,11 @@ fn resolve_task_project_path(
         cwd.to_path_buf()
     };
 
-    if let Some(package_path) = workspace.find_package_for_path(&base_path) {
+    if let Some(package) = repository
+        .package_for_path(revision, &base_path)
+        .map_err(|error| error.to_string())?
+        && let Some(package_path) = package.path.as_ref()
+    {
         return Ok(package_path.clone());
     }
 

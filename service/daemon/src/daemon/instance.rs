@@ -7,7 +7,7 @@ use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 
 use destack_artifact::hash_bytes;
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 use crate::protocol::{MIN_PROTOCOL_VERSION, PROTOCOL_VERSION, ProtocolRange};
 
@@ -70,11 +70,11 @@ impl DaemonInstance {
         }
     }
 
-    /// Build a daemon instance from a session.
-    pub fn from_session(session: &Session) -> Self {
-        // resolve roots from the session
-        let workspace_root = session.workspace_root();
-        let cache_root = session.workspace_cache_dir();
+    /// Build a daemon instance from a repository.
+    pub fn from_repository(repository: &Repository) -> Self {
+        // resolve roots from the repository
+        let workspace_root = repository.workspace_root().to_path_buf();
+        let cache_root = repository.cache_directory();
 
         // build the daemon instance
         Self::new(workspace_root, cache_root)
@@ -350,7 +350,7 @@ mod tests {
     use std::sync::Arc;
 
     use destack_source::TemporaryPhysicalFileSystem;
-    use destack_workspace::Session;
+    use destack_workspace::Repository;
 
     use super::{DaemonInstance, DaemonInstanceError};
 
@@ -359,8 +359,8 @@ mod tests {
     fn test_daemon_instance_paths_are_stable() {
         // build two instances for the same root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_paths");
-        let session = Arc::new(Session::new(root.root().to_path_buf()));
-        let cache_root = session.workspace_cache_dir();
+        let repository = Arc::new(Repository::open_root(root.root().to_path_buf()));
+        let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root.clone());
 
         let instance_again = DaemonInstance::new(root.root().to_path_buf(), cache_root);
@@ -375,8 +375,8 @@ mod tests {
     fn test_daemon_instance_lock_rejects_second_acquire() {
         // create a daemon instance for a temporary root
         let root = TemporaryPhysicalFileSystem::new_with_prefix("daemon_instance_lock");
-        let session = Arc::new(Session::new(root.root().to_path_buf()));
-        let cache_root = session.workspace_cache_dir();
+        let repository = Arc::new(Repository::open_root(root.root().to_path_buf()));
+        let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
 
         // acquire the first lock

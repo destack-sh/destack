@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 use destack_compiler::StatsSnapshot;
 use destack_source::{Diagnostic, DiagnosticCollection};
+use destack_workspace::Revision;
 
 use crate::Daemon;
 use crate::command::context::CommandContext;
@@ -14,6 +15,8 @@ use crate::protocol::{
 /// Result of executing a daemon command.
 #[derive(Debug, Clone)]
 pub struct DaemonCommandResult {
+    /// The revision used for this command result.
+    pub revision: Revision,
     /// Whether the command succeeded.
     pub success: bool,
     /// Exit code for the command.
@@ -117,15 +120,16 @@ impl Daemon {
         common: &CommonCommandOptions,
         payload: &CommandPayload,
     ) -> super::CommandResult<DaemonCommandResult> {
-        // resolve workspace program and compiler handles before command execution
+        // resolve workspace repository and compiler handles before command execution
         self.workspace_service
-            .with_workspace_handles_for_path(root, |program, compiler| {
+            .with_workspace_for_root(root, |repository, compiler| {
                 // gather shared context
                 let start_time = Instant::now();
                 let mut output = CommandOutputBuffer::default();
                 let mut context = CommandContext::new(
                     self,
-                    program.clone(),
+                    root.to_path_buf(),
+                    repository.clone(),
                     compiler.clone(),
                     common,
                     &mut output,
@@ -159,8 +163,10 @@ impl Daemon {
                 let data = result.data.clone();
                 let exit_code = result.exit_code;
                 let success = exit_code == 0;
+                let revision = context.revision().map_err(DaemonCommandError::from)?;
 
                 Ok(DaemonCommandResult {
+                    revision,
                     success,
                     exit_code,
                     diagnostics: result.diagnostics.iter(),
@@ -173,7 +179,9 @@ impl Daemon {
                 })
             })
             .map_err(|error| {
-                DaemonCommandError::internal(format!("workspace program routing failed: {error}"))
+                DaemonCommandError::internal(format!(
+                    "workspace repository routing failed: {error}"
+                ))
             })?
     }
 }

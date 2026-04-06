@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactStore};
+use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
-use destack_source::ModuleId;
+use destack_source::{DiagnosticCollection, ModuleId, TargetId};
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
-use destack_workspace::{DebugMode, Program, RuntimeOptionsJson, Target, TargetId, TrustPolicy};
+use destack_workspace::{DebugMode, Repository, Revision, RuntimeOptionsJson, Target, TrustPolicy};
 use serde::{Deserialize, Serialize};
 
 use super::common::CommandInput;
-use super::context::CommandContext;
+use super::context::{CommandContext, ResolvedTarget};
 use super::dispatch::{CommandOutcome, CommandOutputBuffer};
 
 /// Run mode for the run command.
@@ -59,6 +59,7 @@ impl CommandContext<'_> {
         // resolve inputs for the command
         let inputs = self.resolve_command_inputs()?;
         let modules = self.resolve_modules(&inputs)?;
+        let revision = self.revision()?;
         let entry_module = modules
             .first()
             .copied()
@@ -66,43 +67,53 @@ impl CommandContext<'_> {
 
         // resolve the target configuration
         let target_overrides = self.common.target_overrides.as_ref();
-        let target_id = self.resolve_target_for_module(entry_module, target_overrides)?;
+        let target = self.resolve_target_for_module(entry_module, target_overrides)?;
 
         // enqueue lowering tasks
-        self.reset_diagnostics();
-        enqueue_lower_tasks(&self.program, &self.compiler, entry_module, &target_id);
+        enqueue_lower_tasks(
+            &self.repository,
+            &self.compiler,
+            revision,
+            entry_module,
+            &target.id,
+        )?;
 
         // optionally enqueue optimize tasks
-        if let Some(target) = self.target_for_id(&target_id)
-            && self.should_optimize(&target)
-        {
+        if self.should_optimize(&target.target) {
             let profile = self
-                .program
-                .profile_id_for_target_or_default(entry_module, &target_id);
-            self.compiler.enqueue(ArtifactKey::mir_optimized(
-                entry_module,
-                profile,
-                target_id.clone(),
-            ));
+                .repository
+                .profile_id_for_target_or_default(revision, entry_module, &target.id)
+                .map_err(|error| error.to_string())?;
+            self.compiler.enqueue(
+                revision,
+                ArtifactKey::mir_optimized(entry_module, profile, target.id),
+            );
         }
 
         // compile and collect diagnostics
         self.compiler.compile();
-        let raw_diagnostics = self.collect_raw_diagnostics();
+        let raw_diagnostics =
+            collect_run_target_diagnostics(&self.repository, revision, entry_module, &target)?;
         self.commit_diagnostics_for_modules(&modules, &raw_diagnostics)?;
         let diagnostics = raw_diagnostics.map(&self.diagnostic_options);
         let exit_code = diagnostics.get_status_code();
+        let module_count = self.module_count(revision)?;
+        let profile_count = self
+            .repository
+            .profile_id_for_target_or_default(revision, entry_module, &target.id)
+            .map_err(|error| error.to_string())
+            .map(|_| 1usize)?;
         if exit_code != 0 {
             return Ok(CommandOutcome::new(
                 diagnostics,
                 exit_code,
                 modules.len(),
-                self.program.profiles.len(),
+                profile_count,
                 1,
                 Some(
                     self.compiler
                         .stats
-                        .snapshot_with_program(self.program.modules.len(), Some(&self.program)),
+                        .snapshot_with_repository(module_count, Some(&self.repository)),
                 ),
             ));
         }
@@ -110,11 +121,11 @@ impl CommandContext<'_> {
         // execute the entry module
         let entry_name = options.entry.clone().unwrap_or_else(|| "main".to_string());
         let run_result = match run_entry_module(
-            &self.program,
-            self.compiler.artifacts.as_ref(),
+            &self.repository,
+            revision,
             &inputs,
             entry_module,
-            &target_id,
+            &target,
             &entry_name,
             &options.args,
             options.run_mode,
@@ -126,7 +137,7 @@ impl CommandContext<'_> {
                 let stats = self
                     .compiler
                     .stats
-                    .snapshot_with_program(self.program.modules.len(), Some(&self.program));
+                    .snapshot_with_repository(module_count, Some(&self.repository));
                 let payload = CommandRunPayload::RuntimeError {
                     message: error.to_string(),
                 };
@@ -136,7 +147,7 @@ impl CommandContext<'_> {
                     diagnostics,
                     1,
                     modules.len(),
-                    self.program.profiles.len(),
+                    profile_count,
                     1,
                     Some(stats),
                 )
@@ -147,7 +158,7 @@ impl CommandContext<'_> {
         let stats = self
             .compiler
             .stats
-            .snapshot_with_program(self.program.modules.len(), Some(&self.program));
+            .snapshot_with_repository(module_count, Some(&self.repository));
 
         let payload = CommandRunPayload::Value {
             value: run_result.payload,
@@ -159,12 +170,26 @@ impl CommandContext<'_> {
             diagnostics,
             run_result.exit_code,
             modules.len(),
-            self.program.profiles.len(),
+            profile_count,
             1,
             Some(stats),
         )
         .with_data(data))
     }
+}
+
+/// Collect diagnostics across the current target artifact family for the run entry module.
+fn collect_run_target_diagnostics(
+    repository: &Arc<Repository>,
+    revision: Revision,
+    module_id: ModuleId,
+    target: &ResolvedTarget,
+) -> super::CommandResult<DiagnosticCollection> {
+    let profile_id = repository
+        .profile_id_for_target_or_default(revision, module_id, &target.id)
+        .map_err(|error| error.to_string())?;
+
+    Ok(repository.module_target_artifact_diagnostics(revision, module_id, profile_id, target.id))
 }
 
 /// Result of executing the entry module.
@@ -175,40 +200,48 @@ struct RunResult {
 
 /// Enqueue lowering tasks for the entry module.
 fn enqueue_lower_tasks(
-    program: &Arc<Program>,
+    repository: &Arc<Repository>,
     compiler: &Arc<Compiler>,
+    revision: Revision,
     module_id: ModuleId,
     target_id: &TargetId,
-) {
-    let profile = program.profile_id_for_target_or_default(module_id, target_id);
-    compiler.enqueue(ArtifactKey::mir_base(module_id, profile, target_id.clone()));
+) -> Result<(), String> {
+    let profile = repository
+        .profile_id_for_target_or_default(revision, module_id, target_id)
+        .map_err(|error| error.to_string())?;
+    compiler.enqueue(
+        revision,
+        ArtifactKey::mir_base(module_id, profile, *target_id),
+    );
+
+    Ok(())
 }
 
 /// Execute the entry module in the VM.
 #[allow(clippy::too_many_arguments)]
 fn run_entry_module(
-    program: &Arc<Program>,
-    artifacts: &ArtifactStore,
+    repository: &Arc<Repository>,
+    revision: Revision,
     inputs: &[CommandInput],
     entry_module: ModuleId,
-    target_id: &TargetId,
+    target: &ResolvedTarget,
     entry_name: &str,
     args: &[String],
     run_mode: CommandRunMode,
     runtime_overrides: Option<&RuntimeOptionsJson>,
     output: &mut CommandOutputBuffer,
 ) -> super::CommandResult<RunResult> {
-    let mut target = target_for_id(program, target_id)
-        .ok_or_else(|| format!("target '{target_id:?}' not found"))?;
+    let target_id = target.id;
+    let mut target = target.target.clone();
     if let Some(runtime_overrides) = runtime_overrides {
         apply_runtime_overrides(&mut target, runtime_overrides);
     }
 
     let isolate = create_isolate(
-        program,
-        artifacts,
+        repository,
+        revision,
         entry_module,
-        target_id,
+        &target_id,
         isolate_options_for_target(&target),
     )?;
 
@@ -216,12 +249,13 @@ fn run_entry_module(
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let process_args = process_args_for_source(entry_source, args);
-    let world = World::from_options(&target.runtime_options).map_err(|error| format!("{error}"))?;
+    let mut world =
+        World::from_options(&target.runtime_options).map_err(|error| format!("{error}"))?;
     let runtime_id = world
         .spawn_runtime(process_args, &target.runtime_options, isolate)
         .map_err(|error| format!("{error}"))?;
 
-    let entry = Entry::vm(entry_name);
+    let entry = Entry::new(entry_name);
     let result = world
         .run_entrypoint(runtime_id, &entry, &[])
         .map_err(|error| format!("{error}"))?;
@@ -340,27 +374,22 @@ fn value_payload(value: &Value) -> serde_json::Value {
     serde_json::Value::String(format!("{value:?}"))
 }
 
-/// Resolve target by id.
-fn target_for_id(program: &Arc<Program>, target_id: &TargetId) -> Option<Target> {
-    let package = program.packages.get(target_id.package_id);
-    let package = package.read();
-    package.targets.get(target_id).cloned()
-}
-
 /// Create a VM isolate from the module MIR.
 fn create_isolate(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     module_id: ModuleId,
     target_id: &TargetId,
     options: IsolateOptions,
 ) -> super::CommandResult<Isolate> {
-    let profile_id = program.default_profile_id_for_module(module_id);
+    let profile_id = repository
+        .profile_id_for_target_or_default(revision, module_id, target_id)
+        .map_err(|error| error.to_string())?;
     let (tree, strings) = if let Some(mir) =
-        artifacts.mir_optimized(module_id, profile_id, target_id)
+        repository.mir_optimized(revision, module_id, profile_id, *target_id)
     {
         (mir.tree.clone(), mir.strings.clone().into_immutable())
-    } else if let Some(mir) = artifacts.mir_base(module_id, profile_id, target_id) {
+    } else if let Some(mir) = repository.mir_base(revision, module_id, profile_id, *target_id) {
         (mir.tree.clone(), mir.strings.clone().into_immutable())
     } else {
         return Err(format!("missing MIR for target {target_id:?} (run requires lowering)").into());

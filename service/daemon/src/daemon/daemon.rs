@@ -3,11 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions};
-use destack_service::{
-    AnalyzeOutcome, FileSnapshot as WorkspaceFileSnapshot, LanguageService, WorkspaceHandleId,
-};
+use destack_service::{FileSnapshot as WorkspaceFileSnapshot, LanguageService, UpdateImpact};
 use destack_source::{Diagnostic, FileId, ModuleId};
-use destack_workspace::{InvalidationPlan, Session};
+use destack_workspace::Repository;
 use parking_lot::Mutex;
 
 use super::DaemonMessage;
@@ -17,8 +15,8 @@ use crate::DaemonError;
 /// Basically, we wrap LanguageServices in a stateful central place.
 #[derive(Debug, Clone)]
 pub struct Daemon {
-    /// The active session for this daemon.
-    pub session: Arc<Session>,
+    /// The active repository for this daemon.
+    pub repository: Arc<Repository>,
     /// Default compiler options for daemon work.
     pub compiler_options: CompilerOptions,
     /// Shared workspace orchestration service.
@@ -28,53 +26,46 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    /// Create a daemon for the given session.
-    pub fn new(session: Arc<Session>) -> Self {
-        Self::with_options(session, CompilerOptions::default())
+    /// Create a daemon for the given repository.
+    pub fn new(repository: Arc<Repository>) -> Self {
+        Self::with_options(repository, CompilerOptions::default())
     }
 
     /// Create a daemon with explicit compiler options.
-    pub fn with_options(session: Arc<Session>, compiler_options: CompilerOptions) -> Self {
-        let mut roots: Vec<PathBuf> = session
-            .programs()
-            .into_iter()
-            .map(|program| program.cwd.clone())
-            .collect();
-        if roots.is_empty() {
-            roots.push(session.workspace_root());
-        }
-        let workspace_service =
-            LanguageService::with_options(session.clone(), roots, compiler_options.clone())
-                .expect("workspace service initialization should not fail");
+    pub fn with_options(repository: Arc<Repository>, compiler_options: CompilerOptions) -> Self {
+        let roots = vec![repository.workspace_root().to_path_buf()];
+        let workspace_service = LanguageService::with_options(
+            repository.clone(),
+            None,
+            roots,
+            compiler_options.clone(),
+        )
+        .expect("workspace service initialization should not fail");
 
         Self {
-            session,
+            repository,
             compiler_options,
             workspace_service: Arc::new(workspace_service),
             workspace_leases: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    /// Return the number of tracked workspace handles.
+    /// Return the number of tracked workspace roots.
     #[cfg(test)]
-    pub(crate) fn workspace_handle_count(&self) -> usize {
-        self.workspace_service.workspace_handle_count()
+    pub(crate) fn workspace_root_count(&self) -> usize {
+        self.workspace_service.workspace_root_count()
     }
 
-    /// Acquire a workspace root lease and return its stable handle.
-    pub(crate) fn acquire_workspace_root(
-        &self,
-        root: &Path,
-    ) -> Result<WorkspaceHandleId, DaemonError> {
+    /// Acquire a workspace root lease.
+    pub(crate) fn acquire_workspace_root(&self, root: &Path) -> Result<(), DaemonError> {
         self.workspace_service
             .open_workspace_root(root.to_path_buf())?;
-        let handle = self.workspace_service.workspace_handle_id_for_root(root)?;
 
         let mut leases = self.workspace_leases.lock();
         let lease_count = leases.entry(root.to_path_buf()).or_default();
         *lease_count += 1;
 
-        Ok(handle)
+        Ok(())
     }
 
     /// Release a workspace root lease and close when the last lease is dropped.
@@ -112,10 +103,10 @@ impl Daemon {
             .map_err(Into::into)
     }
 
-    /// Ensure a module for the given path is analyzed.
-    pub fn analyze_path(&self, path: &Path) -> Result<AnalyzeOutcome, DaemonError> {
+    /// Ensure the query artifact frontier for a path is available.
+    pub fn ensure_query_artifacts_for_path(&self, path: &Path) -> Result<(), DaemonError> {
         self.workspace_service
-            .analyze_path(path)
+            .ensure_query_artifacts_for_path(path)
             .map_err(Into::into)
     }
 }
@@ -129,8 +120,8 @@ pub struct DaemonUpdate {
     pub file_id: FileId,
     /// File snapshot for the updated file.
     pub file: WorkspaceFileSnapshot,
-    /// The invalidation summary for the update.
-    pub invalidation: InvalidationPlan,
+    /// The update impact summary.
+    pub impact: UpdateImpact,
     /// Diagnostics for the updated file.
     pub diagnostics: Vec<Diagnostic>,
 }

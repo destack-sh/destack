@@ -61,9 +61,16 @@ impl CommandContext<'_> {
         options: &CommandInfoOptions,
     ) -> super::CommandResult<CommandOutcome> {
         // build workspace snapshot
-        let workspace = self.daemon.session.workspace_snapshot();
-        let package_paths: Vec<String> = workspace
-            .package_paths
+        let revision = self.revision()?;
+        let workspace = self
+            .daemon
+            .repository
+            .workspace(revision)
+            .map_err(|error| format!("failed to derive workspace: {error}"))?;
+        let package_paths: Vec<String> = self
+            .repository
+            .workspace_package_paths(revision)
+            .map_err(|error| format!("failed to derive workspace package paths: {error}"))?
             .iter()
             .map(|path| path.display().to_string())
             .collect();
@@ -72,23 +79,24 @@ impl CommandContext<'_> {
         let config_path = if self.common.config_path.is_some() {
             Some(self.resolve_destack_config_path(self.common.config_path.as_deref())?)
         } else {
-            self.find_destack_config(&self.program.cwd)
+            self.find_destack_config(&self.repository.cwd)
         };
-        let config = config_path
+        let declaration = config_path
             .as_ref()
-            .and_then(|path| self.load_destack_config(path).ok());
+            .and_then(|path| self.load_destack_declaration(path).ok());
 
         // load workspace configs when requested
-        let workspace_configs = if options.all {
-            self.load_workspace_configs(&workspace).ok()
+        let workspace_declarations = if options.all {
+            self.load_workspace_declarations(revision).ok()
         } else {
             None
         };
 
         // derive target summaries
-        let targets = config.as_ref().map(|config| {
-            config
-                .options
+        let targets = declaration.as_ref().map(|declaration| {
+            let package_options = declaration.package_options();
+
+            package_options
                 .targets
                 .iter()
                 .map(|(name, target)| CommandInfoTarget {
@@ -107,15 +115,17 @@ impl CommandContext<'_> {
         });
 
         // derive workspace target summaries
-        let workspace_targets = workspace_configs.as_ref().map(|configs| {
-            configs
+        let workspace_targets = workspace_declarations.as_ref().map(|declarations| {
+            declarations
                 .iter()
-                .flat_map(|config| {
-                    config
-                        .options
+                .flat_map(|declaration| {
+                    let package_options = declaration.package_options();
+                    let package_dir = declaration.directory.display().to_string();
+
+                    package_options
                         .targets
-                        .iter()
-                        .map(|(name, target)| CommandInfoTarget {
+                        .into_iter()
+                        .map(move |(name, target)| CommandInfoTarget {
                             name: name.clone(),
                             emit: format!("{:?}", target.emit),
                             runtime: format!("{:?}", target.runtime),
@@ -125,7 +135,7 @@ impl CommandContext<'_> {
                                 .out_file
                                 .as_ref()
                                 .map(|path| path.display().to_string()),
-                            package_dir: Some(config.directory.display().to_string()),
+                            package_dir: Some(package_dir.clone()),
                         })
                 })
                 .collect::<Vec<_>>()

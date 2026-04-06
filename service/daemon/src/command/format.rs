@@ -4,17 +4,15 @@ use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
-use destack_formatter::{
-    DestackFormatArtifacts, DestackFormatContext, DestackFormatOptions, statement_list,
-};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
 use destack_parser::{Parser, colorize_source, source_colorizer};
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{
     DiagnosticCollection, DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, File, FileId,
-    FileSystem, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
+    FileStore, FileSystem, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{FormatterOptions, Program};
+use destack_workspace::{FormatterOptions, Repository};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -60,24 +58,27 @@ impl CommandContext<'_> {
         _root: &Path,
         options: &CommandFormatOptions,
     ) -> super::CommandResult<CommandOutcome> {
-        // reset diagnostics before formatting
-        self.reset_diagnostics();
-
         // resolve formatting inputs
         let format_options = options.clone();
         let check = options.check;
         let suppress_output = false;
         let diagnostic_options = self.diagnostic_options.clone();
+        let command_diagnostics = DiagnosticCollector::new();
 
         // build formatter state
         let mut summary = FmtSummary::new(check);
-        let default_formatting = self.program.formatter;
-        let workspace_config = self.daemon.session.workspace_config();
-        let resolver = Resolver::from_program(
-            self.program.as_ref(),
+        let default_formatting = self.repository.formatter;
+        let revision = self.revision()?;
+        let workspace_options = self
+            .daemon
+            .repository
+            .workspace_options(revision)
+            .map_err(|error| format!("failed to derive workspace options: {error}"))?;
+        let resolver = Resolver::from_repository(
+            self.repository.as_ref(),
             ResolveOptions::default_for_workspace(
-                self.program.cwd.clone(),
-                workspace_config.as_deref(),
+                self.repository.cwd.clone(),
+                workspace_options.as_ref(),
             ),
         );
 
@@ -93,13 +94,14 @@ impl CommandContext<'_> {
                 FileType::Destack,
                 eval.clone(),
             );
-            self.program.files.insert(file.clone());
             let file = Arc::new(file);
+            let files = FileStore::new();
+            files.insert((*file).clone());
 
             let (formatted, diagnostics) = format_file(file.clone(), default_formatting);
-            self.program.diagnostics.merge_from(&diagnostics);
+            command_diagnostics.merge_from(&diagnostics);
             if check_and_collect_errors(
-                &self.program,
+                &files,
                 &diagnostics,
                 &diagnostic_options,
                 suppress_output,
@@ -107,7 +109,7 @@ impl CommandContext<'_> {
             ) {
                 summary.errors += 1;
                 summary.error_files.push("<eval>".to_string());
-                let diagnostics = self.collect_diagnostics();
+                let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
                 let data = summary_payload(&summary)?;
                 return Ok(CommandOutcome::new(diagnostics, 1, 0, 0, 0, None).with_data(data));
             }
@@ -115,16 +117,16 @@ impl CommandContext<'_> {
             summary.formatted_output = Some(formatted.clone());
             self.output
                 .push_stdout(colorize_formatted_output(&formatted).into_bytes());
-            let diagnostics = self.collect_diagnostics();
+            let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
             let data = summary_payload(&summary)?;
             return Ok(CommandOutcome::new(diagnostics, 0, 0, 0, 0, None).with_data(data));
         }
 
         // collect file paths to format
-        let fs = self.program.fs.clone();
+        let fs = self.repository.file_system().clone();
         let mut paths = Vec::new();
         if format_options.files.is_empty() {
-            paths = collect_formattable_files(fs.as_ref(), &self.program.cwd);
+            paths = collect_formattable_files(fs.as_ref(), &self.repository.cwd);
         } else {
             for path in &format_options.files {
                 paths.push(path.clone());
@@ -144,11 +146,12 @@ impl CommandContext<'_> {
                 let result = format_single_file(
                     fs.as_ref(),
                     &resolver,
-                    &self.program,
+                    &self.repository,
                     &path,
-                    &self.program.cwd,
+                    &self.repository.cwd,
                     self.common.config_path.as_deref(),
                     default_formatting,
+                    &command_diagnostics,
                     &diagnostic_options,
                     suppress_output,
                     check,
@@ -179,11 +182,12 @@ impl CommandContext<'_> {
                     let result = format_single_file(
                         fs.as_ref(),
                         &resolver,
-                        &self.program,
+                        &self.repository,
                         &file_path,
-                        &self.program.cwd,
+                        &self.repository.cwd,
                         self.common.config_path.as_deref(),
                         default_formatting,
+                        &command_diagnostics,
                         &diagnostic_options,
                         suppress_output,
                         check,
@@ -216,7 +220,7 @@ impl CommandContext<'_> {
             exit_code = 1;
         }
 
-        let diagnostics = self.collect_diagnostics();
+        let diagnostics = command_diagnostics.collect().map(&diagnostic_options);
         let data = summary_payload(&summary)?;
         Ok(CommandOutcome::new(diagnostics, exit_code, 0, 0, 0, None).with_data(data))
     }
@@ -274,7 +278,7 @@ fn summary_payload(summary: &FmtSummary) -> super::CommandResult<serde_json::Val
 
 /// Print diagnostics and return whether there were errors.
 fn check_and_collect_errors(
-    program: &Arc<Program>,
+    files: &FileStore,
     diagnostics: &DiagnosticCollector,
     diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
@@ -284,14 +288,14 @@ fn check_and_collect_errors(
     let diagnostics = diagnostics.collect().map(diagnostic_options);
     let has_errors = diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error);
     if has_errors && !suppress_output {
-        print_diagnostics_to_output(program, &diagnostics, output);
+        print_diagnostics_to_output(files, &diagnostics, output);
     }
     has_errors
 }
 
 /// Print diagnostics into the command output buffer.
 fn print_diagnostics_to_output(
-    program: &Arc<Program>,
+    files: &FileStore,
     diagnostics: &DiagnosticCollection,
     output: &mut CommandOutputBuffer,
 ) {
@@ -305,12 +309,11 @@ fn print_diagnostics_to_output(
     // configure diagnostic printer
     let options = PrintOptions::new()
         .with_line_width(100)
-        .with_module_count(program.modules.len())
         .with_colorizer(source_colorizer())
         .with_line_writer(line_writer);
 
     // render diagnostics into the line buffer
-    print_diagnostics(&program.files, diagnostics, options);
+    print_diagnostics(files, diagnostics, options);
 
     // flush rendered diagnostics into output
     let mut lines = lines.lock();
@@ -336,15 +339,13 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, Diagnos
     };
     let context = DestackFormatContext::new(
         format_options,
-        DestackFormatArtifacts {
-            file: file.as_ref(),
-            tree: &parser.tree,
-            tokens: &tokens,
-            side_tokens: &side_tokens,
-            side_span: &side_span,
-            strings: &strings,
-            parents,
-        },
+        file.as_ref(),
+        &parser.tree,
+        &tokens,
+        &side_tokens,
+        &side_span,
+        &strings,
+        parents,
     );
 
     let mut result = if expressions.is_empty() {
@@ -430,11 +431,12 @@ fn get_formatting_options(
 fn format_single_file(
     fs: &dyn FileSystem,
     resolver: &Resolver,
-    program: &Arc<Program>,
+    repository: &Arc<Repository>,
     path: &Path,
     cwd: &Path,
     config_override: Option<&Path>,
     default_formatting: FormatterOptions,
+    command_diagnostics: &DiagnosticCollector,
     diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
     check: bool,
@@ -484,8 +486,8 @@ fn format_single_file(
             }
         },
         _ => {
-            let file_id = program.files.next_id();
             let (name, uri) = Uri::from_path_with_name(path);
+            let file_id = repository.file_id_for_workspace_path(path);
             let file = File::from_text(
                 file_id,
                 name,
@@ -494,14 +496,14 @@ fn format_single_file(
                 file_type,
                 content.clone(),
             );
-            program.files.insert(file);
-
-            let file = program.files.get_by_uri(&uri).expect("file not found");
+            let file = Arc::new(file);
+            let files = FileStore::new();
+            files.insert((*file).clone());
             let (result, diagnostics) = format_file(file.clone(), formatting_options);
-            program.diagnostics.merge_from(&diagnostics);
+            command_diagnostics.merge_from(&diagnostics);
 
             if check_and_collect_errors(
-                program,
+                &files,
                 &diagnostics,
                 diagnostic_options,
                 suppress_output,
@@ -627,7 +629,7 @@ fn load_destack_config_formatting(
     let config = resolver
         .read_destack_config(config_path, CachePolicy::UseCache)
         .ok()?;
-    Some(config.options.formatter)
+    Some(config.package_options().formatter)
 }
 
 /// Merge formatter options with CLI precedence.

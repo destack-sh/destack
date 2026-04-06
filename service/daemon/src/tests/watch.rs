@@ -159,16 +159,8 @@ fn test_watch_batch_handles_multiple_roots() {
     batch.assert_event_suffix("b.ds");
 
     let result = test.apply_watch_batch(batch.batch());
-    let file_a_id = test
-        .session
-        .files
-        .get_id_by_path(&file_a)
-        .expect("missing file id for root a");
-    let file_b_id = test
-        .session
-        .files
-        .get_id_by_path(&file_b)
-        .expect("missing file id for root b");
+    let file_a_id = test.file_id_for_path(&file_a);
+    let file_b_id = test.file_id_for_path(&file_b);
 
     // assertion block
     assert!(

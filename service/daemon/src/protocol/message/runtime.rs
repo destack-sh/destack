@@ -7,9 +7,9 @@ use super::{DaemonMessageRecord, DaemonUpdateRecord, FileUpdate, OutputStream, W
 /// Unique identifier for runtime sessions.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct RuntimeSessionId(pub u64);
+pub struct RuntimeRepositoryId(pub u64);
 
-impl RuntimeSessionId {
+impl RuntimeRepositoryId {
     /// Wrap a raw runtime session id.
     pub fn new(id: u64) -> Self {
         Self(id)
@@ -57,7 +57,7 @@ pub struct RuntimeOpenRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeReloadRequest {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
     /// Optional file updates to apply before reload.
     pub updates: Vec<FileUpdate>,
 }
@@ -66,7 +66,7 @@ pub struct RuntimeReloadRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeCallRequest {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
     /// Entry symbol or function name.
     pub entrypoint: String,
     /// Encoded arguments.
@@ -77,7 +77,7 @@ pub struct RuntimeCallRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeCloseRequest {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
 }
 
 /// Runtime response payloads.
@@ -97,7 +97,7 @@ pub enum RuntimeResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeOutputNotification {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
     /// Output stream kind.
     pub stream: OutputStream,
     /// Output bytes.
@@ -110,14 +110,14 @@ pub struct RuntimeOutputNotification {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeOpenedResponse {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
 }
 
 /// Response for reloading runtime modules.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeReloadedResponse {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
     /// Updates applied during reload.
     pub updates: Vec<DaemonUpdateRecord>,
     /// Messages emitted during reload.
@@ -128,7 +128,7 @@ pub struct RuntimeReloadedResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeCallResponse {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
     /// Encoded return value.
     pub result: Vec<u8>,
 }
@@ -137,5 +137,5 @@ pub struct RuntimeCallResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeClosedResponse {
     /// Runtime session id.
-    pub session: RuntimeSessionId,
+    pub session: RuntimeRepositoryId,
 }
