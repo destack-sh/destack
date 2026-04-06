@@ -9,7 +9,7 @@ use destack_artifact::MemoryCacheStore;
 use destack_daemon::WatchPolicy;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
-use destack_workspace::Session;
+use destack_workspace::{Ref, Repository, Revision};
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
@@ -24,8 +24,8 @@ pub(super) struct TestProgram {
     pub root: PathBuf,
     /// The in memory file system.
     pub fs: Arc<MemoryFileSystem>,
-    /// The session for resolver state.
-    pub session: Arc<Session>,
+    /// The repository for resolver state.
+    pub repository: Arc<Repository>,
     /// Resolver for workspace lookups.
     pub resolver: Resolver,
 }
@@ -36,22 +36,22 @@ impl TestProgram {
         // build the test root
         let root = temp_path(prefix);
 
-        // initialize the file system and session
+        // initialize the file system and repository
         let fs = Arc::new(MemoryFileSystem::new());
-        let session = Arc::new(
-            Session::new(root.clone())
-                .with_fs(fs.clone())
+        let repository = Arc::new(
+            Repository::open_root_from_fs(root.clone(), fs.clone())
+                .expect("failed to import repository from cli test file system")
                 .with_cache_store(Arc::new(MemoryCacheStore::new())),
         );
 
         // create a resolver for workspace lookups
-        let resolver = Resolver::from_session(&session, ResolveOptions::default());
+        let resolver = Resolver::from_repository(&repository, ResolveOptions::default());
 
         // return the test harness
         Self {
             root,
             fs,
-            session,
+            repository,
             resolver,
         }
     }
@@ -64,6 +64,14 @@ impl TestProgram {
     /// Resolve a file path relative to the test root.
     pub(super) fn path_for(&self, relative: &str) -> PathBuf {
         self.root.join(relative)
+    }
+
+    /// Return the current workspace revision.
+    pub(super) fn current_revision(&self) -> Revision {
+        let reference = Ref::for_workspace_root(&self.root);
+        self.repository
+            .current(&reference)
+            .expect("expected current workspace revision")
     }
 
     /// Build program arguments rooted at this test directory.
@@ -91,6 +99,20 @@ impl TestProgram {
         write_file(self.fs.as_ref(), &path, contents);
 
         path
+    }
+
+    /// Return the current revision scoped file for a path.
+    pub(super) fn file_for_path(&self, path: &Path) -> Arc<destack_source::File> {
+        let file_id = self.repository.file_id_for_workspace_path(path);
+        self.repository
+            .file(self.current_revision(), file_id)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to read file '{}' from revision: {error}",
+                    path.display()
+                )
+            })
+            .unwrap_or_else(|| panic!("missing file for {}", path.display()))
     }
 
     /// Write a json file relative to the test root.

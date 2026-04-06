@@ -10,10 +10,6 @@ use destack_daemon::protocol::{CommandCacheOptions, CommandCachePayload, Command
 /// Arguments for the cache command.
 #[derive(Args, Debug, Clone)]
 pub struct CacheArgs {
-    /// Show cache locations for all workspace packages.
-    #[arg(long = "all-packages", alias = "workspace-all")]
-    pub all_packages: bool,
-
     /// The program options.
     #[command(flatten)]
     pub program: ProgramArgs,
@@ -31,9 +27,7 @@ pub fn run(args: &CacheArgs) -> i32 {
 
     // build daemon command options
     let common = CommandOptionsBuilder::new(&args.program, None).build();
-    let payload = CommandPayload::Cache(CommandCacheOptions {
-        all_packages: args.all_packages,
-    });
+    let payload = CommandPayload::Cache(CommandCacheOptions);
 
     run_workspace_payload_command_or_report::<CommandCachePayload, _, _>(
         "cache",
@@ -54,13 +48,9 @@ pub fn run(args: &CacheArgs) -> i32 {
         },
         |_, payload| {
             let list_entries = payload.caches.into_iter().map(|entry| {
-                let location = entry.dir;
+                let location = entry.directory;
                 let source = entry.source;
-                let title = if let Some(package_dir) = entry.package_dir {
-                    format!("{location} ({source}, package: {package_dir})")
-                } else {
-                    format!("{location} ({source})")
-                };
+                let title = format!("{location} ({source})");
                 ListEntry::new(title)
             });
             let list_entries: Vec<ListEntry> = list_entries.collect();

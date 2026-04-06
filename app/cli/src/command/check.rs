@@ -332,7 +332,7 @@ where
                 .stats
                 .as_ref()
                 .map(|stats| command_stats_from_protocol(stats, args.program.timings));
-            let next_exit_code = emit_watch_compile_report(
+            emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {
                     files: &result.files,
@@ -347,9 +347,7 @@ where
                 updated,
                 requires_rescan,
                 batch_id,
-            );
-
-            next_exit_code
+            )
         },
         on_compile,
         is_one_shot,

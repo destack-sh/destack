@@ -11,6 +11,7 @@ use serde_json::Value;
 
 use crate::common::ProgramArgs;
 use crate::console;
+use crate::error::CliError;
 use crate::pipeline::daemon::ProtocolDaemonClient;
 use crate::pipeline::watch::{build_daemon_options, watch_roots};
 
@@ -364,8 +365,8 @@ fn run_query_request(
         && request.request.execution_mode() == QueryExecutionMode::Write
     {
         let revision = daemon
-            .run_workspace_revision(root)
-            .map_err(|error| error.to_string())?;
+            .run_current_revision(root)
+            .map_err(|error: CliError| error.to_string())?;
         request.expected_revision = Some(revision);
     }
 
@@ -408,8 +409,8 @@ fn run_query_batch_request(
     // provide one shared revision precondition for implicit write requests
     if !missing_write_indices.is_empty() {
         let revision = daemon
-            .run_workspace_revision(root)
-            .map_err(|error| error.to_string())?;
+            .run_current_revision(root)
+            .map_err(|error: CliError| error.to_string())?;
         for index in missing_write_indices {
             requests[index].expected_revision = Some(revision);
         }
@@ -909,7 +910,7 @@ mod tests {
                 }),
             },
             QueryRequestEnvelope {
-                expected_revision: Some(9),
+                expected_revision: Some(destack_workspace::Revision::new(9)),
                 request: QueryRequest::RenameFiles(refactor::RenameFilesRequest {
                     renames: Vec::new(),
                 }),

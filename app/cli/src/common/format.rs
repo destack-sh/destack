@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_parser::source_colorizer;
 use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticSeverity, FileRegistry, PrintOptions,
+    Diagnostic, DiagnosticCollection, DiagnosticSeverity, FileStore, PrintOptions,
     print_diagnostics as print_diagnostics_impl,
 };
 use serde::Serialize;
@@ -89,7 +89,7 @@ pub struct DiagnosticSummaryJson {
 
 /// Print diagnostics with the given output options.
 pub fn format_diagnostics(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollection,
     options: &FormatOptions,
     module_count: usize,
@@ -100,7 +100,7 @@ pub fn format_diagnostics(
 
 /// Format diagnostics with an optional line writer.
 pub fn format_diagnostics_with_writer(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollection,
     options: &FormatOptions,
     module_count: usize,
@@ -154,7 +154,7 @@ pub fn format_diagnostics_with_writer(
 
 /// Collect diagnostics into JSON output without printing.
 pub fn collect_diagnostics_json(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollection,
     options: &FormatOptions,
 ) -> (DiagnosticOutputJson, FormatResult) {
@@ -213,7 +213,7 @@ impl FormatResult {
 
 /// Print diagnostics in human-readable text format.
 fn print_text(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &[Diagnostic],
     module_count: usize,
     show_statistics: bool,
@@ -255,7 +255,7 @@ fn print_json(output: &DiagnosticOutputJson) {
 }
 
 /// Print diagnostics in GitHub Actions annotation format.
-fn print_github(files: &FileRegistry, diagnostics: &[Diagnostic]) {
+fn print_github(files: &FileStore, diagnostics: &[Diagnostic]) {
     // emit github annotations per diagnostic
     for d in diagnostics {
         let file = files.get(d.file_id);
@@ -360,7 +360,7 @@ fn count_severity(diagnostics: &[Diagnostic]) -> (usize, usize, usize) {
 
 /// Build the json payload for diagnostics output.
 fn build_diagnostic_output(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &[Diagnostic],
     error_count: usize,
     warning_count: usize,

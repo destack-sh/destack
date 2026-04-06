@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactStore;
 use destack_linter::{Fixability, LintDiagnostic, LintLevel, LintRunner};
-use destack_source::{DiagnosticOptions, DiffOptions, FileId, ModuleId, print_diff};
-use destack_workspace::Program;
+use destack_source::{
+    DiagnosticCollection, DiagnosticOptions, DiffOptions, File, FileId, FileStore, ModuleId,
+    print_diff,
+};
+use destack_workspace::{Ref, Repository, Revision};
 
 use crate::common::LineWriter;
 use crate::common::format::{FormatOptions, format_diagnostics_with_writer};
@@ -30,33 +32,43 @@ pub struct FixResult {
 
 /// Run linting and optionally apply fixes.
 pub fn run_with_fixes(
-    program: Arc<Program>,
-    artifacts: Arc<ArtifactStore>,
+    repository: Arc<Repository>,
     modules: &[ModuleId],
     diagnostic_options: &DiagnosticOptions,
     fix_options: &FixOptions,
     format_options: &FormatOptions,
     line_writer: Option<&LineWriter>,
 ) -> FixResult {
-    let linter_options = program.linter.clone();
+    let linter_options = repository.linter.clone();
     let runner = LintRunner::from_options(&linter_options).with_fixes(true);
+    let revision = current_repository_revision(repository.as_ref()).ok();
 
     // collect all lint diagnostics
     let mut all_diagnostics: Vec<LintDiagnostic> = Vec::new();
     for module_id in modules {
-        let module = program.modules.get(*module_id);
-        let profile = program.default_profile_id_for_module(*module_id);
+        let Some(revision) = revision else {
+            break;
+        };
+        let Ok(module) = repository.module(revision, *module_id) else {
+            continue;
+        };
+        let Some(module) = module else {
+            continue;
+        };
+        let Ok(profile) = repository.default_profile_for_module(revision, *module_id) else {
+            continue;
+        };
         let ast_diagnostics = runner.lint_module(
-            program.clone(),
-            artifacts.clone(),
+            repository.clone(),
+            revision,
             module.clone(),
-            profile,
+            profile.clone(),
             &linter_options,
             LintLevel::Ast,
         );
         let dir_diagnostics = runner.lint_module(
-            program.clone(),
-            artifacts.clone(),
+            repository.clone(),
+            revision,
             module.clone(),
             profile,
             &linter_options,
@@ -73,11 +85,11 @@ pub fn run_with_fixes(
 
     // show diff without applying
     if fix_options.diff {
-        show_diff(&program, &fixable, fix_options.include_unsafe);
+        show_diff(&repository, revision, &fixable, fix_options.include_unsafe);
     }
     // apply fixes
     else if fix_options.apply {
-        let fixed_count = apply_fixes(&program, &fixable, fix_options.include_unsafe);
+        let fixed_count = apply_fixes(&repository, revision, &fixable, fix_options.include_unsafe);
         if fixed_count > 0 {
             console::info(&format!("Fixed {fixed_count} problem(s)"));
         }
@@ -87,8 +99,9 @@ pub fn run_with_fixes(
     if !unfixable.is_empty() {
         let collection = to_diagnostic_collection(&unfixable);
         let mapped = collection.map(diagnostic_options);
+        let files = collect_diagnostic_files(repository.as_ref(), revision, &mapped);
         let _ = format_diagnostics_with_writer(
-            &program.files,
+            &files,
             &mapped,
             format_options,
             modules.len(),
@@ -105,8 +118,9 @@ pub fn run_with_fixes(
     if !fixable_without_fix.is_empty() {
         let collection = to_diagnostic_collection(&fixable_without_fix);
         let mapped = collection.map(diagnostic_options);
+        let files = collect_diagnostic_files(repository.as_ref(), revision, &mapped);
         let _ = format_diagnostics_with_writer(
-            &program.files,
+            &files,
             &mapped,
             format_options,
             modules.len(),
@@ -119,10 +133,8 @@ pub fn run_with_fixes(
 }
 
 /// Convert lint diagnostics to a standard diagnostic collection.
-fn to_diagnostic_collection(
-    diagnostics: &[LintDiagnostic],
-) -> destack_source::DiagnosticCollection {
-    let mut collection = destack_source::DiagnosticCollection::new();
+fn to_diagnostic_collection(diagnostics: &[LintDiagnostic]) -> DiagnosticCollection {
+    let mut collection = DiagnosticCollection::new();
     for d in diagnostics {
         collection.insert(d.clone().into_diagnostic());
     }
@@ -138,7 +150,12 @@ fn has_applicable_fix(diagnostic: &LintDiagnostic, include_unsafe: bool) -> bool
 }
 
 /// Apply fixes from diagnostics to source files.
-fn apply_fixes(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe: bool) -> usize {
+fn apply_fixes(
+    repository: &Repository,
+    revision: Option<Revision>,
+    diagnostics: &[LintDiagnostic],
+    include_unsafe: bool,
+) -> usize {
     let edits_by_file = collect_edits(diagnostics, include_unsafe);
     let mut fix_count = 0;
 
@@ -146,7 +163,9 @@ fn apply_fixes(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe
         // sort by position descending to apply from end to start
         edits.sort_by(|a, b| b.0.cmp(&a.0));
 
-        let file = program.files.get(file_id);
+        let Some(file) = repository_file(repository, revision, file_id) else {
+            continue;
+        };
         let mut source = file.text().to_string();
 
         for (start, end, new_text) in &edits {
@@ -156,7 +175,7 @@ fn apply_fixes(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe
 
         // write the fixed source back to disk
         if let Some(path) = file.path.as_ref()
-            && let Err(e) = program.fs.write(path, source.as_bytes())
+            && let Err(e) = repository.file_system().write(path, source.as_bytes())
         {
             console::error(&format!("failed to write {}: {e}", path.display()));
         }
@@ -166,14 +185,21 @@ fn apply_fixes(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe
 }
 
 /// Show diff of what fixes would be applied.
-fn show_diff(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe: bool) -> usize {
+fn show_diff(
+    repository: &Repository,
+    revision: Option<Revision>,
+    diagnostics: &[LintDiagnostic],
+    include_unsafe: bool,
+) -> usize {
     let edits_by_file = collect_edits(diagnostics, include_unsafe);
     let mut fix_count = 0;
 
     for (file_id, mut edits) in edits_by_file {
         edits.sort_by(|a, b| b.0.cmp(&a.0));
 
-        let file = program.files.get(file_id);
+        let Some(file) = repository_file(repository, revision, file_id) else {
+            continue;
+        };
         let original = file.text().to_string();
         let mut modified = original.clone();
 
@@ -198,6 +224,49 @@ fn show_diff(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe: 
     }
 
     fix_count
+}
+
+/// Return the current repository revision.
+fn current_repository_revision(repository: &Repository) -> Result<Revision, String> {
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+
+    repository
+        .current(&reference)
+        .map_err(|error| format!("failed to resolve current revision: {error}"))
+}
+
+/// Load one file snapshot when both revision and file are available.
+fn repository_file(
+    repository: &Repository,
+    revision: Option<Revision>,
+    file_id: FileId,
+) -> Option<Arc<File>> {
+    let revision = revision?;
+
+    repository.file(revision, file_id).ok().flatten()
+}
+
+/// Collect file snapshots referenced by diagnostics.
+fn collect_diagnostic_files(
+    repository: &Repository,
+    revision: Option<Revision>,
+    diagnostics: &DiagnosticCollection,
+) -> FileStore {
+    let files = FileStore::new();
+
+    // load each referenced file snapshot once
+    for diagnostic in diagnostics.iter() {
+        if files.get_maybe(diagnostic.file_id).is_some() {
+            continue;
+        }
+
+        let Some(file) = repository_file(repository, revision, diagnostic.file_id) else {
+            continue;
+        };
+        files.insert((*file).clone());
+    }
+
+    files
 }
 
 /// Collect edits from diagnostics, grouped by file.

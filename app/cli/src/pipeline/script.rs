@@ -7,7 +7,7 @@ use serde_json::Value;
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
 use crate::pipeline::workspace::{
-    find_destack_config, load_destack_config, resolve_destack_config_path, workspace_context,
+    find_destack_config, resolve_destack_config_path, workspace_context,
 };
 
 /// Source of a resolved script command.
@@ -51,7 +51,7 @@ pub fn resolve_script_command(
     script_name: &str,
 ) -> CliResult<Option<ScriptCommand>> {
     let context = workspace_context(program_args, None)?;
-    let cwd = context.session.cwd.clone();
+    let cwd = context.repository.cwd.clone();
     resolve_script_command_with_resolver(program_args, script_name, &context.resolver, &cwd)
 }
 
@@ -265,9 +265,9 @@ fn task_base_dir(
 ) -> PathBuf {
     // resolve base dir for tasks when no cwd override is provided
     if let Some(path) = find_destack_config(resolver, cwd)
-        && let Ok(config) = load_destack_config(resolver, &path)
+        && let Some(parent) = path.parent()
     {
-        return config.directory;
+        return parent.to_path_buf();
     }
 
     if let Some(config) = program_args.config.as_ref() {

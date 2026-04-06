@@ -1,5 +1,5 @@
-use destack_source::ModuleId;
-use destack_workspace::{Program, Target, TargetId};
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::{Ref, Repository, Target};
 
 use crate::common::TargetArgs;
 use crate::error::{CliError, CliResult};
@@ -23,19 +23,29 @@ pub fn target_name_from_args(args: &TargetArgs, default_name: &str) -> String {
 
 /// Ensure a target exists for a module and return its configuration.
 pub fn resolve_target_for_module(
-    program: &Program,
+    repository: &Repository,
     module_id: ModuleId,
     target_name: &str,
     target_args: &TargetArgs,
 ) -> CliResult<ResolvedTarget> {
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository.current(&reference).map_err(|error| {
+        CliError::message(format!("failed to resolve current revision: {error}"))
+    })?;
+
     // locate the entry module package
-    let module = program.modules.get(module_id);
+    let module = repository
+        .module(revision, module_id)
+        .map_err(|error| CliError::message(format!("failed to read module snapshot: {error}")))?
+        .ok_or_else(|| CliError::message(format!("missing module snapshot for {module_id:?}")))?;
     let package_id = module.package_id;
-    let target_id = TargetId::new(package_id, target_name);
+    let target_id = repository.intern_target_id(package_id, target_name);
 
     // look for an existing target entry
-    let package = program.packages.get(package_id);
-    let mut package = package.write();
+    let package = repository
+        .package(revision, package_id)
+        .map_err(|error| CliError::message(format!("failed to read package snapshot: {error}")))?
+        .ok_or_else(|| CliError::message(format!("missing package snapshot for {package_id:?}")))?;
     let existing_target = package.targets.get(&target_id).cloned();
 
     // reject overrides for named targets
@@ -45,18 +55,15 @@ pub fn resolve_target_for_module(
         ));
     }
 
-    // insert implicit target when missing
-    if existing_target.is_none() {
+    // synthesize one implicit target when missing
+    let target = if let Some(target) = existing_target {
+        target
+    } else {
         let mut target = Target::implicit_for_name(target_name)
             .ok_or_else(|| CliError::message(format!("unknown target '{target_name}'")))?;
         target_args.apply_to_target(&mut target);
-        package.targets.insert(target_id.clone(), target);
-    }
-
-    // fetch the resolved target after updates
-    let target = package.targets.get(&target_id).cloned().ok_or_else(|| {
-        CliError::message(format!("target '{target_id}' not found in package config"))
-    })?;
+        target
+    };
 
     // return the resolved target info
     Ok(ResolvedTarget {

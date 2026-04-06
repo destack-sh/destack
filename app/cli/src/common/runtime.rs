@@ -118,17 +118,21 @@ pub struct RuntimeArgs {
     #[arg(long = "runtime-heap-initial-bytes")]
     pub heap_initial_bytes: Option<u64>,
 
-    /// Managed heap run width in bytes.
-    #[arg(long = "runtime-heap-managed-run-bytes")]
-    pub managed_run_bytes: Option<usize>,
+    /// Managed young heap size in bytes.
+    #[arg(long = "runtime-heap-managed-young-bytes")]
+    pub managed_young_bytes: Option<usize>,
 
-    /// Raw heap run width in bytes.
-    #[arg(long = "runtime-heap-raw-run-bytes")]
-    pub raw_run_bytes: Option<usize>,
+    /// Managed small heap size in bytes.
+    #[arg(long = "runtime-heap-managed-small-bytes")]
+    pub managed_small_bytes: Option<usize>,
 
-    /// Shared chunk width in bytes.
-    #[arg(long = "runtime-heap-chunk-bytes")]
-    pub chunk_bytes: Option<usize>,
+    /// Raw small heap size in bytes.
+    #[arg(long = "runtime-heap-raw-small-bytes")]
+    pub raw_small_bytes: Option<usize>,
+
+    /// Heap page size in bytes.
+    #[arg(long = "runtime-heap-page-bytes")]
+    pub page_bytes: Option<usize>,
 
     /// Hard total retained heap byte limit.
     #[arg(long = "runtime-heap-max-bytes")]
@@ -177,9 +181,10 @@ impl RuntimeArgs {
             && self.heap_growth_percent.is_none()
             && self.heap_soft_limit_bytes.is_none()
             && self.heap_initial_bytes.is_none()
-            && self.managed_run_bytes.is_none()
-            && self.raw_run_bytes.is_none()
-            && self.chunk_bytes.is_none()
+            && self.managed_young_bytes.is_none()
+            && self.managed_small_bytes.is_none()
+            && self.raw_small_bytes.is_none()
+            && self.page_bytes.is_none()
             && self.heap_max_bytes.is_none()
             && self.heap_max_managed_bytes.is_none()
             && self.heap_max_raw_bytes.is_none()
@@ -272,9 +277,9 @@ impl RuntimeArgs {
         let heap = if self.heap_growth_percent.is_some()
             || self.heap_soft_limit_bytes.is_some()
             || self.heap_initial_bytes.is_some()
-            || self.managed_run_bytes.is_some()
-            || self.raw_run_bytes.is_some()
-            || self.chunk_bytes.is_some()
+            || self.managed_young_bytes.is_some()
+            || self.managed_small_bytes.is_some()
+            || self.raw_small_bytes.is_some()
             || self.heap_max_bytes.is_some()
             || self.heap_max_managed_bytes.is_some()
             || self.heap_max_raw_bytes.is_some()
@@ -284,9 +289,10 @@ impl RuntimeArgs {
                 growth_percent: self.heap_growth_percent,
                 soft_limit_bytes: self.heap_soft_limit_bytes,
                 initial_bytes: self.heap_initial_bytes,
-                managed_run_bytes: self.managed_run_bytes,
-                raw_run_bytes: self.raw_run_bytes,
-                chunk_bytes: self.chunk_bytes,
+                managed_young_bytes: self.managed_young_bytes,
+                managed_small_bytes: self.managed_small_bytes,
+                raw_small_bytes: self.raw_small_bytes,
+                page_bytes: self.page_bytes,
                 max_bytes: self.heap_max_bytes,
                 max_managed_bytes: self.heap_max_managed_bytes,
                 max_raw_bytes: self.heap_max_raw_bytes,

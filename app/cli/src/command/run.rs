@@ -11,7 +11,7 @@ use crate::error::CliResult;
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, DaemonCommandResult, ProtocolDaemonClient, command_inputs_from_sources,
     command_stats_from_protocol, emit_daemon_text_output, finish_run_command,
-    run_workspace_command_with_session_or_report, target_overrides_from_args,
+    run_workspace_command_with_repository_or_report, target_overrides_from_args,
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::script::{ScriptSource, resolve_script_command, shell_command};
@@ -20,13 +20,13 @@ use crate::pipeline::watch::{
     WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
     run_daemon_watch_command, watch_error,
 };
-use crate::pipeline::workspace::default_target_for_session;
+use crate::pipeline::workspace::default_target_for_repository;
 use clap::Args;
 use destack_daemon::protocol::{
     CommandPayload, CommandRunMode, CommandRunOptions, CommonCommandOptions,
 };
 use destack_source::{DiagnosticOptions, FileSystem};
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 /// Arguments for the run command.
 #[derive(Args, Debug, Clone)]
@@ -108,8 +108,8 @@ struct RunWatchState {
 
 /// Prepared daemon execution for run like commands.
 struct PreparedRunCommand {
-    /// Session used for daemon execution.
-    session: Arc<Session>,
+    /// Repository used for daemon execution.
+    repository: Arc<Repository>,
     /// Diagnostic options passed to the daemon.
     diagnostic_options: DiagnosticOptions,
     /// Common daemon command options.
@@ -120,8 +120,8 @@ struct PreparedRunCommand {
 
 /// Prepared watch execution state for run like commands.
 struct PreparedRunWatch {
-    /// Session used for watch mode.
-    session: Arc<Session>,
+    /// Repository used for watch mode.
+    repository: Arc<Repository>,
     /// Diagnostic options passed to the daemon.
     diagnostic_options: DiagnosticOptions,
     /// Mutable watch state.
@@ -133,7 +133,7 @@ enum RunExecutionPlan {
     /// Script execution completed without using the daemon.
     Script(i32),
     /// Daemon execution is ready to run.
-    Daemon(PreparedRunCommand),
+    Daemon(Box<PreparedRunCommand>),
 }
 
 /// Compile and run a source file or script.
@@ -286,14 +286,14 @@ where
         Err(code) => return code,
     };
     let PreparedRunWatch {
-        session,
+        repository,
         diagnostic_options,
         mut state,
     } = prepared;
 
     run_daemon_watch_command(
         command_name,
-        session,
+        repository,
         &request.program,
         &request.report,
         diagnostic_options,
@@ -503,28 +503,29 @@ fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Opti
 
 /// Prepare one shot execution for a run like command.
 fn prepare_run_execution(request: &RunRequest) -> Result<RunExecutionPlan, i32> {
-    let session = request.program.setup();
+    let repository = request.program.setup();
 
     // allow script execution before daemon setup
     if matches!(request.mode, RunMode::Program)
-        && let Some(exit_code) = try_run_script(request, session.fs.as_ref(), &session.cwd)
+        && let Some(exit_code) =
+            try_run_script(request, repository.file_system().as_ref(), &repository.cwd)
     {
         return Ok(RunExecutionPlan::Script(exit_code));
     }
 
     // resolve a single entry source for the run
     let sources = resolve_run_sources_or_report(request)?;
-    let target_name = resolve_run_target_name_or_report(request, &session)?;
+    let target_name = resolve_run_target_name_or_report(request, &repository)?;
     let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
     let (common, payload) = build_run_command(request, &sources, &target_name, &diagnostic_options)
         .map_err(|error| report_error(request.command_name, &request.report, &error.to_string()))?;
 
-    Ok(RunExecutionPlan::Daemon(PreparedRunCommand {
-        session,
+    Ok(RunExecutionPlan::Daemon(Box::new(PreparedRunCommand {
+        repository,
         diagnostic_options,
         common,
         payload,
-    }))
+    })))
 }
 
 /// Execute a prepared run command through the daemon.
@@ -532,10 +533,10 @@ fn execute_run_command(
     request: &RunRequest,
     prepared: &PreparedRunCommand,
 ) -> Result<DaemonCommandResult, i32> {
-    run_workspace_command_with_session_or_report(
+    run_workspace_command_with_repository_or_report(
         request.command_name,
         &request.report,
-        prepared.session.clone(),
+        prepared.repository.clone(),
         &request.program,
         prepared.diagnostic_options.clone(),
         prepared.common.clone(),
@@ -561,11 +562,11 @@ fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
         ));
     }
 
-    let session = request.program.setup();
+    let repository = request.program.setup();
 
     if is_script_name_input(request)
-        && let Some(candidate_path) = script_name_input_path(request, &session)
-        && session.fs.metadata(&candidate_path).is_err()
+        && let Some(candidate_path) = script_name_input_path(request, &repository)
+        && repository.file_system().metadata(&candidate_path).is_err()
     {
         return Err(report_error(
             request.command_name,
@@ -575,11 +576,11 @@ fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
     }
 
     let sources = resolve_run_sources_or_report(request)?;
-    let target_name = resolve_run_target_name_for_watch(request, &session)?;
+    let target_name = resolve_run_target_name_for_watch(request, &repository)?;
     let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
 
     Ok(PreparedRunWatch {
-        session,
+        repository,
         diagnostic_options,
         state: RunWatchState {
             sources,
@@ -592,10 +593,10 @@ fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
 fn refresh_run_watch_state(
     request: &RunRequest,
     state: &mut RunWatchState,
-    session: &Session,
+    repository: &Repository,
 ) -> CliResult<()> {
     state.sources = resolve_run_sources_for_watch(request)?;
-    let target_name = resolve_run_target_name(request, session).map_err(|message| {
+    let target_name = resolve_run_target_name(request, repository).map_err(|message| {
         let message = watch_error(&message);
         crate::error::CliError::message(message)
     })?;
@@ -651,9 +652,12 @@ fn resolve_run_sources_for_watch(request: &RunRequest) -> CliResult<Vec<InputSou
 }
 
 /// Resolve the target name for a run command.
-fn resolve_run_target_name(request: &RunRequest, session: &Session) -> Result<String, String> {
-    let default_target =
-        default_target_for_session(&request.program, session).map_err(|error| error.to_string())?;
+fn resolve_run_target_name(
+    request: &RunRequest,
+    repository: &Repository,
+) -> Result<String, String> {
+    let default_target = default_target_for_repository(&request.program, repository)
+        .map_err(|error| error.to_string())?;
     let fallback = default_target.as_deref().unwrap_or("native");
 
     Ok(target_name_from_args(&request.target, fallback))
@@ -662,18 +666,18 @@ fn resolve_run_target_name(request: &RunRequest, session: &Session) -> Result<St
 /// Resolve the target name for one shot execution.
 fn resolve_run_target_name_or_report(
     request: &RunRequest,
-    session: &Session,
+    repository: &Repository,
 ) -> Result<String, i32> {
-    resolve_run_target_name(request, session)
+    resolve_run_target_name(request, repository)
         .map_err(|message| report_error(request.command_name, &request.report, &message))
 }
 
 /// Resolve the target name for watch execution.
 fn resolve_run_target_name_for_watch(
     request: &RunRequest,
-    session: &Session,
+    repository: &Repository,
 ) -> Result<String, i32> {
-    resolve_run_target_name(request, session).map_err(|message| {
+    resolve_run_target_name(request, repository).map_err(|message| {
         let message = watch_error(&message);
         report_error(request.command_name, &request.report, &message)
     })
@@ -724,7 +728,10 @@ fn is_script_name_input(request: &RunRequest) -> bool {
 }
 
 /// Resolve the candidate path for a potential script name.
-fn script_name_input_path(request: &RunRequest, session: &Session) -> Option<std::path::PathBuf> {
+fn script_name_input_path(
+    request: &RunRequest,
+    repository: &Repository,
+) -> Option<std::path::PathBuf> {
     if !is_script_name_input(request) {
         return None;
     }
@@ -733,7 +740,7 @@ fn script_name_input_path(request: &RunRequest, session: &Session) -> Option<std
     let candidate_path = if candidate.is_absolute() {
         candidate.clone()
     } else {
-        session.cwd.join(candidate)
+        repository.cwd.join(candidate)
     };
 
     Some(candidate_path)

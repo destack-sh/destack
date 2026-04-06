@@ -305,7 +305,7 @@ fn now_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use destack_source::{
-        Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileRegistry, FileType,
+        Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileStore, FileType,
         LabeledSpan, Span, Uri,
     };
     use serde_json::Value;
@@ -343,9 +343,9 @@ mod tests {
 
     #[test]
     fn test_watch_report_serializes_compile_with_diagnostics() {
-        let files = FileRegistry::new();
-        let file_id = files.next_id();
+        let files = FileStore::new();
         let uri = Uri::from_string("memory://test.ds");
+        let file_id = destack_source::FileId::from_logical_str(uri.as_ref());
         let file = File::from_text(
             file_id,
             "test.ds".to_string(),

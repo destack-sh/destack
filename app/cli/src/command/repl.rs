@@ -8,10 +8,10 @@ use crate::common::{
 };
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, finish_daemon_message_command,
-    run_workspace_command_with_session_or_report, target_overrides_from_args,
+    run_workspace_command_with_repository_or_report, target_overrides_from_args,
 };
 use crate::pipeline::target::target_name_from_args;
-use crate::pipeline::workspace::default_target_for_session;
+use crate::pipeline::workspace::default_target_for_repository;
 
 /// Arguments for the repl command.
 #[derive(Args, Debug, Clone)]
@@ -45,8 +45,8 @@ pub fn run(args: &ReplArgs) -> i32 {
 
     // build daemon command options
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-    let session = args.program.setup();
-    let target_name = match default_target_for_session(&args.program, &session) {
+    let repository = args.program.setup();
+    let target_name = match default_target_for_repository(&args.program, &repository) {
         Ok(default_target) => {
             let fallback = default_target.as_deref().unwrap_or("native");
             target_name_from_args(&args.target, fallback)
@@ -61,10 +61,10 @@ pub fn run(args: &ReplArgs) -> i32 {
     let payload = CommandPayload::Repl(CommandReplOptions::default());
 
     // execute the daemon command
-    let result = match run_workspace_command_with_session_or_report(
+    let result = match run_workspace_command_with_repository_or_report(
         "repl",
         &args.report,
-        session,
+        repository,
         &args.program,
         diagnostic_options,
         common,

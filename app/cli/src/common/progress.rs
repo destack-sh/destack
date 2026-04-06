@@ -5,7 +5,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use destack_compiler::{CompilerEvent, CompilerEventHandler, CompilerStats, TaskId, TaskPhase};
-use destack_workspace::Program;
+use destack_workspace::{Ref, Repository};
 use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::console;
@@ -39,7 +39,7 @@ struct ActiveTask {
 #[derive(Clone, Debug)]
 struct StatsSource {
     stats: Arc<CompilerStats>,
-    program: Option<Arc<Program>>,
+    repository: Option<Arc<Repository>>,
 }
 
 /// Progress state shared between the handler and the display.
@@ -134,9 +134,9 @@ impl ProgressReporter {
     }
 
     /// Attach compiler stats for incremental progress reporting.
-    pub fn set_stats_source(&self, stats: Arc<CompilerStats>, program: Option<Arc<Program>>) {
+    pub fn set_stats_source(&self, stats: Arc<CompilerStats>, repository: Option<Arc<Repository>>) {
         if let Ok(mut source) = self.state.stats_source.lock() {
-            *source = Some(StatsSource { stats, program });
+            *source = Some(StatsSource { stats, repository });
         }
     }
 
@@ -437,13 +437,13 @@ struct ProgressStats {
 fn read_progress_stats(state: &ProgressState) -> Option<ProgressStats> {
     let source = state.stats_source.lock().ok()?.clone()?;
     let module_count = source
-        .program
+        .repository
         .as_ref()
-        .map(|program| program.modules.len())
+        .and_then(current_repository_module_count)
         .unwrap_or(0);
     let snapshot = source
         .stats
-        .snapshot_with_program(module_count, source.program.as_deref());
+        .snapshot_with_repository(module_count, source.repository.as_deref());
 
     let mut packages = Vec::new();
     let mut total_modules = 0;
@@ -476,6 +476,15 @@ fn read_progress_stats(state: &ProgressState) -> Option<ProgressStats> {
         modules: total_modules,
         lines: total_lines,
     })
+}
+
+/// Return the visible module count for one repository.
+fn current_repository_module_count(repository: &Arc<Repository>) -> Option<usize> {
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository.current(&reference).ok()?;
+    let modules = repository.workspace_module_ids(revision).ok()?;
+
+    Some(modules.len())
 }
 
 /// Format a number with thousands separators.
