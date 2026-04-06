@@ -1,12 +1,14 @@
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use im::OrdMap;
-use rustc_hash::FxHasher;
+use parking_lot::RwLock;
+use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
+use destack_artifact::{ArtifactKey, ArtifactStamp};
 use destack_source::FileId;
 
 use crate::repository::FileContentId;
@@ -82,18 +84,24 @@ impl std::fmt::Display for Revision {
 pub type SourceMap = OrdMap<FileId, FileContentId>;
 
 /// The immutable state behind one revision.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct RevisionState {
     /// The parent revisions for this snapshot.
     pub parents: SmallVec<[Revision; 2]>,
     /// The source map for this revision.
     pub source: Arc<SourceMap>,
+    /// The cached artifact stamp for each revision local artifact key.
+    pub artifact_stamps: OnceLock<Arc<RwLock<FxHashMap<ArtifactKey, ArtifactStamp>>>>,
 }
 
 impl RevisionState {
     /// Build one revision state record from explicit parts.
     pub fn new(parents: SmallVec<[Revision; 2]>, source: Arc<SourceMap>) -> Self {
-        Self { parents, source }
+        Self {
+            parents,
+            source,
+            artifact_stamps: OnceLock::new(),
+        }
     }
 
     /// Return the file content id for one file.
