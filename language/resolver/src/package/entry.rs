@@ -17,20 +17,20 @@ impl Resolver {
             return Ok(None);
         };
         let package = self.packages.get(package_id);
-        let package = package.read();
-        let Some(config) = package.manifest.as_ref() else {
+        let package = package.read().unwrap();
+        let Some(declaration) = package.package_declaration.as_ref() else {
             return Ok(None);
         };
 
         // try the legacy main field first
-        if let Some(main_field) = config.content.main.as_deref()
+        if let Some(main_field) = declaration.json.main.as_deref()
             && let Some(resolved) = self.resolve_package_main_field(path, main_field, ctx)?
         {
             return Ok(Some(resolved));
         }
 
         // then fall back to the root exports target
-        if let Some(exports) = config.content.exports.as_ref()
+        if let Some(exports) = declaration.json.exports.as_ref()
             && let Some(target) = self.package_exports_resolve(path, ".", exports, ctx)?
             && let Some(resolved) = self.finalize_package_target(".", target, ctx)?
         {

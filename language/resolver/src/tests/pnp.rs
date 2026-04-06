@@ -265,14 +265,14 @@ fn test_resolve_tsconfig_extends_with_pnp() {
         ..ResolveOptions::default()
     });
 
-    let tsconfig_id = resolver
+    let tsconfig = resolver
         .resolve_tsconfig(&fixture)
         .expect("expected tsconfig");
-    let tsconfig = resolver.get_tsconfig(tsconfig_id);
     let target = tsconfig
-        .content
+        .json
         .compiler_options
         .target
+        .as_ref()
         .map(|value| value.to_ascii_lowercase());
     assert_eq!(target, Some("esnext".to_string()));
 }

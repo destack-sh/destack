@@ -283,10 +283,10 @@ impl Resolver {
                         self.read_package_manifest(&package_path, ctx, CachePolicy::UseCache)?
                 {
                     let package = self.packages.get(package_id);
-                    let package = package.read();
+                    let package = package.read().unwrap();
 
-                    if let Some(config) = &package.manifest
-                        && let Some(types_field) = config.content.types.as_deref()
+                    if let Some(declaration) = &package.package_declaration
+                        && let Some(types_field) = declaration.json.types.as_deref()
                     {
                         let types_path = package_path.normalize_with(types_field);
                         if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {

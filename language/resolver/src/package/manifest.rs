@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use destack_source::{File, FileType, PackageId, PackageVersion, Uri};
-use destack_workspace::{Package, PackageKind, PackageManifest};
+use destack_source::{File, FileId, FileType, PackageId, Uri};
+use destack_workspace::{Package, PackageDeclaration, PackageKind};
 
 use crate::{CachePolicy, ResolveError, ResolveFrame, Resolver};
 
@@ -22,12 +22,12 @@ impl Resolver {
             && cache_policy.use_cache()
         {
             let package = self.packages.get(package_id);
-            let package = package.read();
-            if let Some(ref config) = package.manifest {
-                ctx.track_found_dependency(&config.path);
+            let package = package.read().unwrap();
+            if let Some(ref declaration) = package.package_declaration {
+                ctx.track_found_dependency(&declaration.path);
             }
-            if let Some(ref config) = package.config {
-                ctx.track_found_dependency(&config.path);
+            if let Some(ref declaration) = package.destack_declaration {
+                ctx.track_found_dependency(&declaration.path);
             }
             return Ok(Some(package_id));
         }
@@ -45,14 +45,14 @@ impl Resolver {
             Err(error) => return Err(error),
         };
 
-        // read package.json when present, otherwise synthesize a manifest from destack.json
-        let mut package_config = match self.read_path(&package_json_path) {
+        // read package.json when present
+        let package_declaration = match self.read_path(&package_json_path) {
             Ok(bytes) => {
-                // materialize the manifest as a tracked file entry
+                // materialize the declaration as a tracked file entry
                 let file_id = self
                     .files
                     .get_id_by_path(&package_json_path)
-                    .unwrap_or_else(|| self.files.next_id());
+                    .unwrap_or_else(|| FileId::from_logical_path(&package_json_path));
                 let (name, uri) = Uri::from_path_with_name(&package_json_path);
                 let file = File::from_bytes_as_json(
                     file_id,
@@ -72,7 +72,7 @@ impl Resolver {
                 }
                 let file = self.files.get(file_id);
 
-                // align manifest realpaths with path canonicalization
+                // align declaration realpaths with path canonicalization
                 let package_json_realpath = if self.options.canonicalize_symlinks {
                     self.canonicalize(path)?.join("package.json")
                 } else {
@@ -80,7 +80,7 @@ impl Resolver {
                 };
 
                 ctx.track_found_dependency(&package_json_path);
-                PackageManifest::parse(&file, package_json_realpath).map_err(|_| {
+                PackageDeclaration::parse(&file, package_json_realpath).map_err(|_| {
                     ResolveError::InvalidPackageJson {
                         path: package_json_path.clone(),
                     }
@@ -89,51 +89,17 @@ impl Resolver {
             Err(_) => {
                 ctx.track_missing_dependency(&package_json_path);
 
-                let Some(config) = destack_config.as_ref() else {
+                if destack_config.is_none() {
                     return Ok(None);
-                };
+                }
 
-                let realpath = if self.options.canonicalize_symlinks {
-                    self.canonicalize(&config.path)?
-                } else {
-                    config.path.clone()
-                };
-
-                PackageManifest::from_destack(config, realpath)
+                // no package declaration
+                // destack only packages still exist semantically, but package.json features stay absent
+                return self.insert_package_entry(path, None, destack_config);
             }
         };
 
-        // make destack authoritative for overlapping manifest fields
-        package_config.refresh_from_destack(destack_config.as_ref());
-
-        // insert or refresh the package registry entry
-        let package_id = PackageId::from_path(&package_config.directory);
-        if let Some(package_id) = self.packages.get_id_by_path(path) {
-            let package = self.packages.get(package_id);
-            let mut package = package.write();
-            package.uri = package_config.uri.clone();
-            package.path = Some(package_config.directory.clone());
-            package.name = package_config.content.name.clone();
-            package.version = package_config.content.version.clone();
-            package.manifest = Some(package_config);
-            package.config = destack_config;
-        } else {
-            let package = Package {
-                id: package_id,
-                package_version: PackageVersion::INITIAL,
-                kind: PackageKind::Physical,
-                uri: package_config.uri.clone(),
-                path: Some(package_config.directory.clone()),
-                name: package_config.content.name.clone(),
-                version: package_config.content.version.clone(),
-                manifest: Some(package_config),
-                config: destack_config,
-                tsconfig: None,
-                targets: Default::default(),
-            };
-            self.packages.insert(package);
-        }
-        Ok(Some(package_id))
+        self.insert_package_entry(path, Some(package_declaration), destack_config)
     }
 
     /// Find the nearest package.json by traversing parent directories.
@@ -150,7 +116,6 @@ impl Resolver {
         let lookup_path = path.to_path_buf();
         let mut visited_paths = vec![lookup_path.clone()];
         let mut current = path.to_path_buf();
-
         while !self.is_directory(&current, ctx) {
             if let Some(parent) = current.parent() {
                 current = parent.to_path_buf();
@@ -183,5 +148,80 @@ impl Resolver {
             self.cache_package_scope(&visited_path, None);
         }
         Ok(None)
+    }
+}
+
+impl Resolver {
+    /// Insert or refresh one cached package entry.
+    fn insert_package_entry(
+        &self,
+        path: &Path,
+        package_declaration: Option<PackageDeclaration>,
+        destack_declaration: Option<destack_workspace::DestackDeclaration>,
+    ) -> Result<Option<PackageId>, ResolveError> {
+        let package_directory = package_declaration
+            .as_ref()
+            .map(|declaration| declaration.directory.clone())
+            .or_else(|| {
+                destack_declaration
+                    .as_ref()
+                    .map(|declaration| declaration.directory.clone())
+            });
+        let Some(package_directory) = package_directory else {
+            return Ok(None);
+        };
+
+        let package_path = Some(package_directory.clone());
+        let package_id = PackageId::from_path(&package_directory);
+        let package_uri = package_declaration
+            .as_ref()
+            .map(|declaration| declaration.uri.clone())
+            .unwrap_or_else(|| Uri::from_path(&package_directory));
+        let package_options = destack_declaration
+            .as_ref()
+            .map(destack_workspace::DestackDeclaration::package_options);
+        let package_name = package_options
+            .as_ref()
+            .and_then(|options| options.name.clone())
+            .or_else(|| {
+                package_declaration
+                    .as_ref()
+                    .and_then(|declaration| declaration.name().map(ToOwned::to_owned))
+            });
+        let package_version = package_options
+            .as_ref()
+            .and_then(|options| options.version.clone())
+            .or_else(|| {
+                package_declaration
+                    .as_ref()
+                    .and_then(|declaration| declaration.version().map(ToOwned::to_owned))
+            });
+
+        let entry = crate::ResolverPackageEntry {
+            package: Package {
+                id: package_id,
+                kind: PackageKind::Physical,
+                uri: package_uri,
+                path: package_path,
+                name: package_name,
+                version: package_version,
+                package_file_id: package_declaration
+                    .as_ref()
+                    .map(|declaration| declaration.file_id),
+                destack_file_id: destack_declaration
+                    .as_ref()
+                    .map(|declaration| declaration.file_id),
+                tsconfig_file_id: None,
+                targets: Default::default(),
+            },
+            package_declaration,
+            destack_declaration,
+            package_options,
+        };
+
+        let _ = path;
+        self.packages.insert(entry);
+
+        Ok(Some(package_id))
     }
 }

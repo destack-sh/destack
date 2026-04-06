@@ -1,9 +1,8 @@
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use destack_source::{File, FileType, PathExt, Uri};
-use destack_workspace::{TsConfig, TsConfigId, TsConfigProjectReferences};
+use destack_source::{File, FileId, FileType, PathExt, Uri};
+use destack_workspace::{TsConfigDeclaration, TsConfigProjectReferences};
 
 use crate::{
     CachePolicy, Resolution, ResolveError, ResolveFrame, ResolveOptions, ResolveOrigin, Resolver,
@@ -49,32 +48,46 @@ impl TypeScriptOptionsResolveFrame {
 
 impl Resolver {
     /// Resolve a `tsconfig.json` file at the given path.
-    pub fn resolve_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<TsConfigId, ResolveError> {
-        self.read_tsconfig(
+    pub fn resolve_tsconfig<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<TsConfigDeclaration, ResolveError> {
+        let tsconfig_file_id = self.read_tsconfig(
             true,
             path.as_ref(),
             &TypeScriptOptionsReferences::Automatic,
             &mut TypeScriptOptionsResolveFrame::default(),
             CachePolicy::UseCache,
-        )
+        )?;
+
+        self.get_tsconfig(tsconfig_file_id)
     }
 
     /// Reload a `tsconfig.json` file at the given path.
-    pub fn reload_tsconfig<P: AsRef<Path>>(&self, path: P) -> Result<TsConfigId, ResolveError> {
-        self.read_tsconfig(
+    pub fn reload_tsconfig<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<TsConfigDeclaration, ResolveError> {
+        let tsconfig_file_id = self.read_tsconfig(
             true,
             path.as_ref(),
             &TypeScriptOptionsReferences::Automatic,
             &mut TypeScriptOptionsResolveFrame::default(),
             CachePolicy::Reload,
-        )
+        )?;
+
+        self.get_tsconfig(tsconfig_file_id)
     }
 
-    /// Return the tsconfig for one id.
-    pub fn get_tsconfig(&self, tsconfig_id: TsConfigId) -> TsConfig {
-        let tsconfig = self.tsconfigs.get(tsconfig_id);
-        let tsconfig_guard = tsconfig.read();
-        (*tsconfig_guard).clone()
+    /// Return the cached tsconfig for one file id.
+    pub(crate) fn get_tsconfig(
+        &self,
+        tsconfig_file_id: FileId,
+    ) -> Result<TsConfigDeclaration, ResolveError> {
+        self.cached_tsconfig(tsconfig_file_id)
+            .ok_or_else(|| ResolveError::TsConfigNotFound {
+                path: PathBuf::from(format!("<missing-tsconfig:{tsconfig_file_id:?}>")),
+            })
     }
 
     /// Read and parse a `tsconfig.json` file recursively.
@@ -85,192 +98,134 @@ impl Resolver {
         references: &TypeScriptOptionsReferences,
         ctx: &mut TypeScriptOptionsResolveFrame,
         cache_policy: CachePolicy,
-    ) -> Result<TsConfigId, ResolveError> {
+    ) -> Result<FileId, ResolveError> {
+        let tsconfig_path = self.materialize_tsconfig_path(path);
+
         // reuse an existing parsed config when allowed
-        let existing_id = self.tsconfigs.get_id_by_path(path);
+        let existing_file_id = self.cached_tsconfig_file_id_by_path(&tsconfig_path);
         if cache_policy.use_cache()
-            && let Some(tsconfig_id) = existing_id
+            && let Some(tsconfig_file_id) = existing_file_id
         {
-            return Ok(tsconfig_id);
+            return Ok(tsconfig_file_id);
         }
 
-        // parse and register the root config entry
-        let tsconfig_id = existing_id.unwrap_or_else(|| self.tsconfigs.next_id());
-        let tsconfig = self.read_tsconfig_into(tsconfig_id, is_root, path)?;
-        if let Some(tsconfig_id) = existing_id {
-            let entry = self.tsconfigs.get(tsconfig_id);
-            *entry.write() = tsconfig;
-        } else {
-            self.tsconfigs.insert(tsconfig);
-        }
-        let tsconfig = self.tsconfigs.get(tsconfig_id);
+        // parse the root config entry
+        let mut tsconfig = self.read_tsconfig_into(is_root, &tsconfig_path)?;
+        let tsconfig_file_id = tsconfig.file_id;
 
         // reject circular extends chains
-        {
-            let tsconfig = tsconfig.read();
-            if ctx.is_already_extended(&tsconfig.path) {
-                return Err(ResolveError::TsConfigCircular {
-                    paths: ctx.get_extended_configs_with(tsconfig.path.to_path_buf()),
-                });
-            }
+        if ctx.is_already_extended(&tsconfig.path) {
+            return Err(ResolveError::TsConfigCircular {
+                paths: ctx.get_extended_configs_with(tsconfig.path.to_path_buf()),
+            });
         }
 
-        // resolve every parent config path
-        let extended_tsconfig_paths = {
-            let tsconfig = tsconfig.read();
-            tsconfig
-                .content
-                .extends()
-                .map(|specifier| {
-                    self.get_extended_tsconfig_path(&tsconfig.directory, &tsconfig, specifier)
-                })
-                .collect::<Result<Vec<_>, _>>()?
-        };
-
         // merge parent configs in order
+        let extended_tsconfig_paths = tsconfig
+            .json
+            .extends()
+            .map(|specifier| {
+                self.get_extended_tsconfig_path(&tsconfig.directory, &tsconfig, specifier)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         if !extended_tsconfig_paths.is_empty() {
-            let tsconfig_path = {
-                let tsconfig = tsconfig.read();
-                tsconfig.path.to_owned()
-            };
-            ctx.with_extended_file(tsconfig_path, |ctx| {
+            let current_tsconfig_path = tsconfig.path.to_owned();
+            ctx.with_extended_file(current_tsconfig_path, |ctx| {
                 for extended_tsconfig_path in extended_tsconfig_paths {
-                    let extended_tsconfig_id = self.read_tsconfig(
+                    let extended_tsconfig_file_id = self.read_tsconfig(
                         false,
                         &extended_tsconfig_path,
                         &TypeScriptOptionsReferences::Disabled,
                         ctx,
                         cache_policy,
                     )?;
-                    let extended = self.tsconfigs.get(extended_tsconfig_id);
-                    let extended_guard = extended.read();
-                    let mut tsconfig = tsconfig.write();
-                    tsconfig.extend_from(&extended_guard);
+                    let extended_tsconfig = self.get_tsconfig(extended_tsconfig_file_id)?;
+                    tsconfig.extend_from(&extended_tsconfig);
                 }
+
                 Result::Ok::<(), ResolveError>(())
             })?;
         }
 
-        // replace references when the caller requested it
-        {
-            let mut tsconfig = tsconfig.write();
-            match references {
-                TypeScriptOptionsReferences::Disabled => {
-                    tsconfig.content.references.drain(..);
-                }
-                TypeScriptOptionsReferences::Automatic => {}
-                TypeScriptOptionsReferences::Paths(paths) => {
-                    tsconfig.content.references = paths
-                        .iter()
-                        .map(|path| TsConfigProjectReferences { path: path.clone() })
-                        .collect();
-                }
+        // replace references when requested
+        match references {
+            TypeScriptOptionsReferences::Disabled => {
+                tsconfig.json.references.drain(..);
+            }
+            TypeScriptOptionsReferences::Automatic => {}
+            TypeScriptOptionsReferences::Paths(paths) => {
+                tsconfig.json.references = paths
+                    .iter()
+                    .map(|path| TsConfigProjectReferences { path: path.clone() })
+                    .collect();
             }
         }
 
-        // load and validate referenced projects
-        let references_to_load: Vec<_> = {
-            let tsconfig = tsconfig.read();
-            tsconfig
-                .content
-                .references
-                .iter()
-                .map(|r| tsconfig.directory.normalize_with(&r.path))
-                .collect()
-        };
-        let current_path = {
-            let tsconfig = tsconfig.read();
-            tsconfig.path.to_path_buf()
-        };
+        // validate referenced projects
+        let references_to_load: Vec<_> = tsconfig
+            .json
+            .references
+            .iter()
+            .map(|reference| tsconfig.directory.normalize_with(&reference.path))
+            .collect();
+        let current_path = tsconfig.path.to_path_buf();
         for reference_tsconfig_path in references_to_load {
-            let reference_tsconfig_id = self.read_tsconfig(
+            let reference_tsconfig_file_id = self.read_tsconfig(
                 true,
                 &reference_tsconfig_path,
                 &TypeScriptOptionsReferences::Disabled,
                 ctx,
                 cache_policy,
             )?;
+            let referenced_tsconfig = self.get_tsconfig(reference_tsconfig_file_id)?;
 
             // reject self references
-            {
-                let referenced = self.tsconfigs.get(reference_tsconfig_id);
-                let referenced_tsconfig = referenced.read();
-                if referenced_tsconfig.path == current_path {
-                    return Err(ResolveError::TsConfigSelfReference {
-                        path: referenced_tsconfig.path.to_path_buf(),
-                    });
-                }
-            }
-
-            // extend each referenced config before building it
-            {
-                let referenced_tsconfig = self.tsconfigs.get(reference_tsconfig_id);
-                let directory = referenced_tsconfig.read().directory.to_path_buf();
-                self.extend_tsconfig(reference_tsconfig_id, &directory, ctx, cache_policy)?;
-            }
-
-            // build each referenced config after extension
-            {
-                let referenced_tsconfig = self.tsconfigs.get(reference_tsconfig_id);
-                let mut referenced_tsconfig = referenced_tsconfig.write();
-                referenced_tsconfig.build();
-                referenced_tsconfig.refresh_options();
+            if referenced_tsconfig.path == current_path {
+                return Err(ResolveError::TsConfigSelfReference {
+                    path: referenced_tsconfig.path.to_path_buf(),
+                });
             }
         }
 
-        // build the main config last
-        {
-            let mut tsconfig = tsconfig.write();
-            tsconfig.build();
-            tsconfig.refresh_options();
-        }
+        // build the final config after inheritance and reference shaping
+        tsconfig.build();
+        self.cache_tsconfig(tsconfig);
 
-        Ok(tsconfig_id)
+        Ok(tsconfig_file_id)
     }
 
-    /// Read and parse one tsconfig file into a `TsConfig`.
+    /// Read and parse one tsconfig file into one declaration.
     fn read_tsconfig_into(
         &self,
-        tsconfig_id: TsConfigId,
         is_root: bool,
         path: &Path,
-    ) -> Result<TsConfig, ResolveError> {
-        // normalize the input into a concrete config path
-        let meta = self.metadata(path).ok();
-        let tsconfig_path = if meta.is_some_and(|m| m.is_file) {
-            Cow::Borrowed(path)
-        } else if meta.is_some_and(|m| m.is_directory) {
-            Cow::Owned(path.join("tsconfig.json"))
-        } else {
-            let mut os_string = path.to_path_buf().into_os_string();
-            os_string.push(".json");
-            Cow::Owned(PathBuf::from(os_string))
-        };
-
+    ) -> Result<TsConfigDeclaration, ResolveError> {
         // read the config file from disk
-        let content = self.read_path_to_string(&tsconfig_path).map_err(|_| {
-            ResolveError::TsConfigNotFound {
-                path: path.to_path_buf(),
-            }
-        })?;
+        let content =
+            self.read_path_to_string(path)
+                .map_err(|_| ResolveError::TsConfigNotFound {
+                    path: path.to_path_buf(),
+                })?;
 
         // reuse file ids to keep incremental mappings stable
         let file_id = self
             .files
-            .get_id_by_path(&tsconfig_path)
-            .unwrap_or_else(|| self.files.next_id());
-        let (name, uri) = Uri::from_path_with_name(&*tsconfig_path);
+            .get_id_by_path(path)
+            .unwrap_or_else(|| FileId::from_logical_path(path));
+        let (name, uri) = Uri::from_path_with_name(path);
         let file = File::from_text_as_jsonc(
             file_id,
             name,
             uri,
-            Some(tsconfig_path.to_path_buf()),
+            Some(path.to_path_buf()),
             FileType::Json,
             content,
         )
         .map_err(|_| ResolveError::TsConfigInvalid {
-            path: tsconfig_path.to_path_buf(),
+            path: path.to_path_buf(),
         })?;
+
+        // track the parsed source file in the resolver file registry
         if self.files.get_maybe(file_id).is_some() {
             self.files.replace(file);
         } else {
@@ -278,51 +233,10 @@ impl Resolver {
         }
         let file = self.files.get(file_id);
 
-        // parse the tsconfig from the tracked file
-        let tsconfig = TsConfig::parse(tsconfig_id, is_root, &file).map_err(|_| {
-            ResolveError::TsConfigInvalid {
-                path: tsconfig_path.to_path_buf(),
-            }
-        })?;
-
-        Ok(tsconfig)
-    }
-
-    /// Extend one tsconfig entry with its inherited configurations.
-    fn extend_tsconfig(
-        &self,
-        tsconfig_id: TsConfigId,
-        directory: &Path,
-        ctx: &mut TypeScriptOptionsResolveFrame,
-        cache_policy: CachePolicy,
-    ) -> Result<(), ResolveError> {
-        // collect the parent config paths first
-        let extended_tsconfig_paths = {
-            let tsconfig_lock = self.tsconfigs.get(tsconfig_id);
-            let tsconfig = tsconfig_lock.read();
-            tsconfig
-                .content
-                .extends()
-                .map(|specifier| self.get_extended_tsconfig_path(directory, &tsconfig, specifier))
-                .collect::<Result<Vec<_>, _>>()?
-        };
-
-        // merge each parent config in order
-        for extended_tsconfig_path in extended_tsconfig_paths {
-            let extended_tsconfig_id = self.read_tsconfig(
-                false,
-                &extended_tsconfig_path,
-                &TypeScriptOptionsReferences::Disabled,
-                ctx,
-                cache_policy,
-            )?;
-            let extended = self.tsconfigs.get(extended_tsconfig_id);
-            let extended_guard = extended.read();
-            let tsconfig_lock = self.tsconfigs.get(tsconfig_id);
-            let mut tsconfig = tsconfig_lock.write();
-            tsconfig.extend_from(&extended_guard);
-        }
-        Ok(())
+        // parse the tracked file as tsconfig
+        TsConfigDeclaration::parse(is_root, &file).map_err(|_| ResolveError::TsConfigInvalid {
+            path: path.to_path_buf(),
+        })
     }
 
     /// Resolve one specifier through tsconfig `paths`.
@@ -339,7 +253,7 @@ impl Resolver {
         }
 
         // choose the root tsconfig from explicit options or discovery
-        let root_tsconfig_id = match &self.options.tsconfig {
+        let root_tsconfig_file_id = match &self.options.tsconfig {
             None => return Ok(None),
             Some(TypeScriptOptionsDiscovery::Manual(tsconfig_options)) => self.read_tsconfig(
                 true,
@@ -349,22 +263,29 @@ impl Resolver {
                 CachePolicy::UseCache,
             )?,
             Some(TypeScriptOptionsDiscovery::Automatic) => {
-                let Some(tsconfig_id) = self.find_applicable_tsconfig(origin, path, ctx)? else {
+                let Some(tsconfig_file_id) = self.find_applicable_tsconfig(origin, path, ctx)?
+                else {
                     return Ok(None);
                 };
-                tsconfig_id
+
+                tsconfig_file_id
             }
         };
 
         // resolve against the effective project and probe each path candidate
-        let tsconfig_id = self.select_effective_tsconfig(root_tsconfig_id, path);
-        let tsconfig = self.get_tsconfig(tsconfig_id);
-        let paths = tsconfig.resolve(path, specifier, &self.tsconfigs);
+        let tsconfig_file_id = self.select_effective_tsconfig(root_tsconfig_file_id, path);
+        let tsconfig = self.get_tsconfig(tsconfig_file_id)?;
+        let paths = tsconfig.resolve(path, specifier, |reference_path| {
+            let reference_tsconfig_file_id =
+                self.cached_tsconfig_file_id_by_path(reference_path)?;
+            self.cached_tsconfig(reference_tsconfig_file_id)
+        });
         for resolved in paths {
             if let Some(resolution) = self.probe_path(&resolved, ".", ctx)? {
                 return Ok(Some(resolution));
             }
         }
+
         Ok(None)
     }
 
@@ -374,7 +295,7 @@ impl Resolver {
         origin: ResolveOrigin,
         path: &Path,
         ctx: &mut ResolveFrame,
-    ) -> Result<Option<TsConfigId>, ResolveError> {
+    ) -> Result<Option<FileId>, ResolveError> {
         // skip ineligible paths before touching caches
         if Self::is_inside_modules(path) {
             return Ok(None);
@@ -384,19 +305,20 @@ impl Resolver {
         }
 
         // prefer cached result if available
-        if let Some(tsconfig_id) = self.cached_effective_tsconfig(origin, path) {
-            return Ok(tsconfig_id);
+        if let Some(tsconfig_file_id) = self.cached_effective_tsconfig(origin, path) {
+            return Ok(tsconfig_file_id);
         }
 
         // find the nearest config first, then select the effective project
-        let Some(nearest_tsconfig_id) = self.find_nearest_tsconfig(origin, path, ctx)? else {
+        let Some(nearest_tsconfig_file_id) = self.find_nearest_tsconfig(origin, path, ctx)? else {
             self.cache_effective_tsconfig(origin, path, None);
             return Ok(None);
         };
 
-        let tsconfig_id = self.select_effective_tsconfig(nearest_tsconfig_id, path);
-        self.cache_effective_tsconfig(origin, path, Some(tsconfig_id));
-        Ok(Some(tsconfig_id))
+        let tsconfig_file_id = self.select_effective_tsconfig(nearest_tsconfig_file_id, path);
+        self.cache_effective_tsconfig(origin, path, Some(tsconfig_file_id));
+
+        Ok(Some(tsconfig_file_id))
     }
 
     /// Find the nearest tsconfig by traversing parent directories.
@@ -405,10 +327,10 @@ impl Resolver {
         origin: ResolveOrigin,
         path: &Path,
         ctx: &mut ResolveFrame,
-    ) -> Result<Option<TsConfigId>, ResolveError> {
+    ) -> Result<Option<FileId>, ResolveError> {
         let search_start = self.tsconfig_search_start(origin, path);
-        if let Some(tsconfig_id) = self.cached_nearest_tsconfig(&search_start) {
-            return Ok(tsconfig_id);
+        if let Some(tsconfig_file_id) = self.cached_nearest_tsconfig(&search_start) {
+            return Ok(tsconfig_file_id);
         }
 
         // walk parents until one tsconfig is found
@@ -417,11 +339,18 @@ impl Resolver {
         while let Some(directory) = current {
             let tsconfig_path = directory.join("tsconfig.json");
             if self.is_file(&tsconfig_path, ctx) {
-                let tsconfig_id = self.resolve_tsconfig(&tsconfig_path)?;
+                let tsconfig_file_id = self.read_tsconfig(
+                    true,
+                    &tsconfig_path,
+                    &TypeScriptOptionsReferences::Automatic,
+                    &mut TypeScriptOptionsResolveFrame::default(),
+                    CachePolicy::UseCache,
+                )?;
                 for visited_path in visited_paths {
-                    self.cache_nearest_tsconfig(&visited_path, Some(tsconfig_id));
+                    self.cache_nearest_tsconfig(&visited_path, Some(tsconfig_file_id));
                 }
-                return Ok(Some(tsconfig_id));
+
+                return Ok(Some(tsconfig_file_id));
             }
 
             let Some(parent) = directory.parent() else {
@@ -442,41 +371,45 @@ impl Resolver {
     }
 
     /// Select the effective tsconfig for one path from a root config.
-    fn select_effective_tsconfig(&self, tsconfig_id: TsConfigId, path: &Path) -> TsConfigId {
+    fn select_effective_tsconfig(&self, tsconfig_file_id: FileId, path: &Path) -> FileId {
         let mut visited = HashSet::new();
-        self.select_effective_tsconfig_recursive(tsconfig_id, path, &mut visited)
-            .unwrap_or(tsconfig_id)
+        self.select_effective_tsconfig_recursive(tsconfig_file_id, path, &mut visited)
+            .unwrap_or(tsconfig_file_id)
     }
 
     /// Select the first referenced tsconfig that actually applies to the path.
     fn select_effective_tsconfig_recursive(
         &self,
-        tsconfig_id: TsConfigId,
+        tsconfig_file_id: FileId,
         path: &Path,
-        visited: &mut HashSet<TsConfigId>,
-    ) -> Option<TsConfigId> {
+        visited: &mut HashSet<FileId>,
+    ) -> Option<FileId> {
         // stop cycles in the project reference graph
-        if !visited.insert(tsconfig_id) {
+        if !visited.insert(tsconfig_file_id) {
             return None;
         }
 
         // accept the current config when it already applies
-        let tsconfig = self.get_tsconfig(tsconfig_id);
+        let Ok(tsconfig) = self.get_tsconfig(tsconfig_file_id) else {
+            return None;
+        };
         if tsconfig.applies_to_path(path) {
-            return Some(tsconfig_id);
+            return Some(tsconfig_file_id);
         }
 
         // otherwise search referenced projects depth first
-        for reference in &tsconfig.content.references {
+        for reference in &tsconfig.json.references {
             let reference_path = tsconfig.directory.normalize_with(&reference.path);
-            let Some(reference_tsconfig_id) = self.tsconfigs.get_id_by_path(&reference_path) else {
+            let Some(reference_tsconfig_file_id) =
+                self.cached_tsconfig_file_id_by_path(&reference_path)
+            else {
                 continue;
             };
 
-            if let Some(reference_tsconfig_id) =
-                self.select_effective_tsconfig_recursive(reference_tsconfig_id, path, visited)
+            if let Some(reference_tsconfig_file_id) =
+                self.select_effective_tsconfig_recursive(reference_tsconfig_file_id, path, visited)
             {
-                return Some(reference_tsconfig_id);
+                return Some(reference_tsconfig_file_id);
             }
         }
 
@@ -497,7 +430,7 @@ impl Resolver {
     fn get_extended_tsconfig_path(
         &self,
         directory: &Path,
-        tsconfig: &TsConfig,
+        tsconfig: &TsConfigDeclaration,
         specifier: &str,
     ) -> Result<PathBuf, ResolveError> {
         match specifier.as_bytes().first() {
@@ -506,10 +439,13 @@ impl Resolver {
                 specifier: specifier.to_string(),
                 message: None,
             }),
+
             // absolute path
             Some(b'/') => Ok(PathBuf::from(specifier)),
+
             // relative path
             Some(b'.') => Ok(tsconfig.directory.normalize_with(specifier)),
+
             // package specifier
             _ => {
                 // resolve package specifiers with a tsconfig specific resolver shape
@@ -523,13 +459,33 @@ impl Resolver {
                 })
                 .resolve_package_or_modules(directory, specifier, &mut ResolveFrame::default())
                 .map(|resolution| resolution.path)
-                .map_err(|err| match err {
+                .map_err(|error| match error {
                     ResolveError::NotFound { .. } => ResolveError::TsConfigNotFound {
                         path: PathBuf::from(specifier),
                     },
-                    _ => err,
+                    _ => error,
                 })
             }
         }
+    }
+
+    /// Normalize one tsconfig input into a concrete file path.
+    fn materialize_tsconfig_path(&self, path: &Path) -> PathBuf {
+        let meta = self.metadata(path).ok();
+
+        // keep explicit files as-is
+        if meta.is_some_and(|metadata| metadata.is_file) {
+            return path.to_path_buf();
+        }
+
+        // directory inputs resolve to tsconfig.json
+        if meta.is_some_and(|metadata| metadata.is_directory) {
+            return path.join("tsconfig.json");
+        }
+
+        // plain specifiers default to .json
+        let mut os_string = path.to_path_buf().into_os_string();
+        os_string.push(".json");
+        PathBuf::from(os_string)
     }
 }

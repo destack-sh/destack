@@ -40,21 +40,14 @@ fn test_extend_tsconfig() {
         ..ResolveOptions::default()
     });
 
-    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
-    let resolution = resolver.get_tsconfig(tsconfig_id);
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
 
     // Should inherit tsconfig from parent
-    assert_eq!(resolution.content.files, Some(vec!["files".to_string()]));
-    assert_eq!(
-        resolution.content.include,
-        Some(vec!["include".to_string()])
-    );
-    assert_eq!(
-        resolution.content.exclude,
-        Some(vec!["exclude".to_string()])
-    );
+    assert_eq!(resolution.json.files, Some(vec!["files".to_string()]));
+    assert_eq!(resolution.json.include, Some(vec!["include".to_string()]));
+    assert_eq!(resolution.json.exclude, Some(vec!["exclude".to_string()]));
 
-    let compiler_options = &resolution.content.compiler_options;
+    let compiler_options = &resolution.json.compiler_options;
     assert_eq!(compiler_options.base_url, Some(f.join("src")));
     assert_eq!(compiler_options.allow_js, Some(true));
     assert_eq!(compiler_options.emit_decorator_metadata, Some(true));
@@ -117,9 +110,8 @@ fn test_extend_tsconfig_override_behavior() {
         ..ResolveOptions::default()
     });
 
-    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
-    let resolution = resolver.get_tsconfig(tsconfig_id);
-    let compiler_options = &resolution.content.compiler_options;
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let compiler_options = &resolution.json.compiler_options;
 
     // Child should override parent values
     assert_eq!(compiler_options.jsx, Some("react".to_string()));
@@ -188,9 +180,8 @@ fn test_extend_tsconfig_multiple_inheritance() {
         ..ResolveOptions::default()
     });
 
-    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
-    let resolution = resolver.get_tsconfig(tsconfig_id);
-    let compiler_options = &resolution.content.compiler_options;
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let compiler_options = &resolution.json.compiler_options;
 
     // Should have settings from all configs in the chain
     assert_eq!(compiler_options.experimental_decorators, Some(true));
@@ -213,9 +204,8 @@ fn test_extend_tsconfig_preserves_child_settings() {
         ..ResolveOptions::default()
     });
 
-    let tsconfig_id = resolver.resolve_tsconfig(&f).expect("resolved");
-    let resolution = resolver.get_tsconfig(tsconfig_id);
-    let compiler_options = &resolution.content.compiler_options;
+    let resolution = resolver.resolve_tsconfig(&f).expect("resolved");
+    let compiler_options = &resolution.json.compiler_options;
 
     // Child should preserve its own settings and not inherit conflicting ones
     assert_eq!(compiler_options.jsx, Some("preserve".to_string())); // Child value
@@ -262,17 +252,14 @@ fn test_find_tsconfig_prefers_referenced_solution_for_file() {
     });
 
     // each source file should map to its referenced project tsconfig
-    let foo_tsconfig_id = resolver
+    let foo_tsconfig = resolver
         .find_tsconfig_for_file(&fixture.join("src/foo.ts"))
         .expect("expected file lookup to succeed")
         .expect("expected foo tsconfig");
-    let bar_tsconfig_id = resolver
+    let bar_tsconfig = resolver
         .find_tsconfig_for_file(&fixture.join("src/bar.ts"))
         .expect("expected file lookup to succeed")
         .expect("expected bar tsconfig");
-
-    let foo_tsconfig = resolver.get_tsconfig(foo_tsconfig_id);
-    let bar_tsconfig = resolver.get_tsconfig(bar_tsconfig_id);
 
     assert_eq!(foo_tsconfig.path, fixture.join("tsconfig.foo.json"));
     assert_eq!(bar_tsconfig.path, fixture.join("tsconfig.bar.json"));
@@ -291,12 +278,10 @@ fn test_find_tsconfig_for_file_rejects_directory_input() {
     let directory = fixture.join("src");
     let tsconfig_id = resolver.find_tsconfig_for_file(&directory);
 
-    assert_eq!(
+    assert!(matches!(
         tsconfig_id,
-        Err(ResolveError::ExpectedFilePath {
-            path: directory.clone()
-        })
-    );
+        Err(ResolveError::ExpectedFilePath { path }) if path == directory
+    ));
 }
 
 /// Directory-origin tsconfig lookup should reject files loudly.
@@ -312,10 +297,10 @@ fn test_find_tsconfig_for_directory_rejects_file_input() {
     let file = fixture.join("src/foo.ts");
     let tsconfig_id = resolver.find_tsconfig_for_directory(&file);
 
-    assert_eq!(
+    assert!(matches!(
         tsconfig_id,
-        Err(ResolveError::ExpectedDirectoryPath { path: file.clone() })
-    );
+        Err(ResolveError::ExpectedDirectoryPath { path }) if path == file
+    ));
 }
 
 /// File origin resolution should disambiguate referenced projects.
@@ -465,15 +450,16 @@ fn test_extend_tsconfig_refreshes_options() {
     });
 
     // derived options should reflect inherited content instead of raw parse state
-    let tsconfig_id = resolver.resolve_tsconfig(&fixture).expect("resolved");
-    let tsconfig = resolver.get_tsconfig(tsconfig_id);
+    let tsconfig = resolver.resolve_tsconfig(&fixture).expect("resolved");
+
+    let tsconfig_options = tsconfig.options();
 
     assert_eq!(
-        tsconfig.options.compiler.base_url,
+        tsconfig_options.compiler.base_url,
         Some(fixture.join("src"))
     );
-    assert!(tsconfig.options.compiler.allow_js);
-    assert!(tsconfig.options.compiler.emit_decorator_metadata);
-    assert!(tsconfig.options.compiler.use_define_for_class_fields);
-    assert!(tsconfig.options.compiler.rewrite_relative_import_extensions);
+    assert!(tsconfig_options.compiler.allow_js);
+    assert!(tsconfig_options.compiler.emit_decorator_metadata);
+    assert!(tsconfig_options.compiler.use_define_for_class_fields);
+    assert!(tsconfig_options.compiler.rewrite_relative_import_extensions);
 }
