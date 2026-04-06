@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_compiler::CompilerOptions;
-use destack_source::{Diagnostic, OverlayFileSystem, Uri};
+use destack_source::{OverlayFileSystem, Uri};
 use destack_workspace::Repository;
 
 use super::LanguageServiceError;
@@ -54,28 +54,5 @@ impl LanguageService {
         }
 
         documents
-    }
-
-    /// Return diagnostics for one file on one workspace root.
-    pub(super) fn current_diagnostics_for_file(
-        &self,
-        root: &Path,
-        file_id: destack_source::FileId,
-    ) -> Result<Vec<Diagnostic>, LanguageServiceError> {
-        let session = self.workspace_for_root(root)?;
-
-        Ok(session.diagnostics_for_file(file_id))
-    }
-
-    /// Publish file diagnostic updates for one workspace root.
-    pub fn update_diagnostics_for_root(
-        &self,
-        root: &Path,
-        updates: Vec<(destack_source::FileId, Vec<Diagnostic>)>,
-    ) -> Result<(), LanguageServiceError> {
-        let session = self.workspace_for_root(root)?;
-        session.apply_diagnostics(updates);
-
-        Ok(())
     }
 }

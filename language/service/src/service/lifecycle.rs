@@ -253,11 +253,6 @@ impl LanguageService {
         self.workspace_for_root(&root)
     }
 
-    /// Return the repository backing this service.
-    pub(crate) fn repository_ref(&self) -> &Repository {
-        self.repository.as_ref()
-    }
-
     /// Resolve the current semantic revision for the workspace that owns a path.
     pub fn revision_for_path(&self, path: &Path) -> Result<Revision, LanguageServiceError> {
         let root = self.workspace_root_for_path(path)?;

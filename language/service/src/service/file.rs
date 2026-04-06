@@ -231,7 +231,7 @@ impl LanguageService {
     }
 
     /// Return true when workspace discovery should admit one file as a module.
-    fn should_discover_workspace_module_path(&self, path: &Path) -> bool {
+    pub(super) fn should_discover_workspace_module_path(&self, path: &Path) -> bool {
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             return false;
         };

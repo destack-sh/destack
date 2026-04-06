@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use destack_compiler::RequirementError;
 use destack_query::{QueryExecutionMode, QueryMethodId};
 use destack_source::{FileId, ModuleId};
 use destack_workspace::{RepositoryError, Revision};
@@ -86,20 +85,10 @@ pub enum LanguageServiceError {
         /// The workspace root missing revision state.
         root: PathBuf,
     },
-    /// Semantic query state is not ready.
-    SemanticQueryNotReady {
+    /// Query artifacts are not ready.
+    QueryNotReady {
         /// The failure detail.
         detail: String,
-    },
-    /// Analyze operation failed.
-    AnalyzeFailed {
-        /// The failure detail.
-        detail: String,
-    },
-    /// Analyze operation failed due to an artifact requirement.
-    AnalyzeRequirement {
-        /// The compiler requirement failure.
-        error: RequirementError,
     },
     /// Internal workspace service failure.
     Internal {
@@ -187,14 +176,8 @@ impl std::fmt::Display for LanguageServiceError {
                     root.display()
                 )
             }
-            LanguageServiceError::SemanticQueryNotReady { detail } => {
-                write!(formatter, "semantic query state is not ready: {detail}")
-            }
-            LanguageServiceError::AnalyzeFailed { detail } => {
-                write!(formatter, "analyze failed: {detail}")
-            }
-            LanguageServiceError::AnalyzeRequirement { error } => {
-                write!(formatter, "analyze requirement failed: {error:?}")
+            LanguageServiceError::QueryNotReady { detail } => {
+                write!(formatter, "query artifacts are not ready: {detail}")
             }
             LanguageServiceError::Internal { detail } => {
                 write!(formatter, "workspace service internal error: {detail}")
@@ -210,11 +193,5 @@ impl From<RepositoryError> for LanguageServiceError {
         LanguageServiceError::Internal {
             detail: error.to_string(),
         }
-    }
-}
-
-impl From<RequirementError> for LanguageServiceError {
-    fn from(error: RequirementError) -> Self {
-        LanguageServiceError::AnalyzeRequirement { error }
     }
 }
