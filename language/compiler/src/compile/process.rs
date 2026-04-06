@@ -1,11 +1,10 @@
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
 use std::sync::{Arc, OnceLock};
 #[cfg(feature = "parallel")]
 use std::thread;
 use std::time::{Duration, Instant};
 
-use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactVersion};
+use destack_artifact::{ArtifactDependency, ArtifactKey, ArtifactPinSet, ArtifactVersion};
 use destack_workspace::{Ref, Repository, RepositoryError, RepositorySnapshot, Revision};
 
 #[cfg(test)]
@@ -25,14 +24,14 @@ use super::parallel::effective_worker_count;
 const MAX_TOTAL_YIELD_COUNT: u32 = 100;
 
 /// The compiler state for one active execution scope.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct TaskContext {
     /// The running artifact key, when this scope belongs to one queued task.
     artifact_key: Option<ArtifactKey>,
     /// The pinned repository snapshot active for this execution scope.
     snapshot: RepositorySnapshot,
     /// The exact live artifact versions retained for this execution scope.
-    retained_artifacts: HashSet<ArtifactVersion>,
+    retained_artifacts: ArtifactPinSet,
     /// The artifact requirements satisfied during this execution scope.
     requirements: Vec<ArtifactRequirement>,
 }
@@ -45,7 +44,7 @@ impl TaskContext {
             snapshot: repository
                 .snapshot(revision)
                 .unwrap_or_else(|error| panic!("failed to pin compiler revision: {error}")),
-            retained_artifacts: HashSet::new(),
+            retained_artifacts: ArtifactPinSet::new(repository.artifact_store().clone()),
             requirements: Vec::new(),
         }
     }
@@ -57,7 +56,7 @@ impl TaskContext {
             snapshot: repository
                 .snapshot(handle.revision)
                 .unwrap_or_else(|error| panic!("failed to pin compiler task revision: {error}")),
-            retained_artifacts: HashSet::new(),
+            retained_artifacts: ArtifactPinSet::new(repository.artifact_store().clone()),
             requirements: Vec::new(),
         }
     }
@@ -87,9 +86,18 @@ impl Compiler {
     }
 
     /// Return the active compiler context for this execution scope.
+    #[track_caller]
     pub(crate) fn current_context(&self) -> CompilerContext<'_> {
-        self.current_context_maybe()
-            .unwrap_or_else(|| panic!("missing compiler execution context"))
+        let caller = std::panic::Location::caller();
+
+        self.current_context_maybe().unwrap_or_else(|| {
+            panic!(
+                "missing compiler execution context at {}:{}:{}",
+                caller.file(),
+                caller.line(),
+                caller.column()
+            )
+        })
     }
 
     /// Return one compiler context pinned to one explicit revision.
@@ -153,8 +161,6 @@ impl Compiler {
 
         let result = action(&compiler_context);
 
-        self.release_current_artifacts();
-
         CURRENT_TASK_CONTEXT.with(|current| {
             let context = current
                 .borrow_mut()
@@ -162,13 +168,11 @@ impl Compiler {
                 .expect("compiler execution scope should be active on exit");
 
             assert!(
-                context.retained_artifacts.is_empty(),
-                "compiler retained artifact set must be empty after leaving a task scope",
-            );
-            assert!(
                 context.requirements.is_empty(),
                 "compiler requirement log must be empty after leaving a task scope",
             );
+
+            drop(context);
         });
 
         result
@@ -286,26 +290,7 @@ impl Compiler {
                 return;
             };
 
-            if !context.retained_artifacts.insert(*version) {
-                return;
-            }
-
-            self.artifacts.retain(version);
-        });
-    }
-
-    /// Release every exact live artifact version retained by the current execution scope.
-    fn release_current_artifacts(&self) {
-        CURRENT_TASK_CONTEXT.with(|current| {
-            let mut current = current.borrow_mut();
-            let Some(context) = current.as_mut() else {
-                return;
-            };
-
-            // current scope artifact roots
-            for version in context.retained_artifacts.drain() {
-                self.artifacts.release(&version);
-            }
+            context.retained_artifacts.pin(*version);
         });
     }
 

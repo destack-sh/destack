@@ -126,6 +126,13 @@ impl Compiler {
         active_versions: &mut Vec<ArtifactVersion>,
     ) -> bool {
         let version = ArtifactVersion::new(*artifact_key, stamp);
+        let cache_key = (revision, version);
+
+        if self.satisfied_artifacts.contains_key(&cache_key) && self.artifact_is_published(&version)
+        {
+            return true;
+        }
+
         if active_versions.contains(&version) {
             return self.artifact_is_published(&version);
         }
@@ -153,6 +160,10 @@ impl Compiler {
             )
         });
         active_versions.pop();
+
+        if is_satisfied {
+            self.satisfied_artifacts.insert(cache_key, ());
+        }
 
         is_satisfied
     }

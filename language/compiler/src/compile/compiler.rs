@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_artifact::{ArtifactKey, ArtifactStore, ProfileKey};
+use destack_artifact::{ArtifactKey, ArtifactStore, ArtifactVersion, ProfileKey};
 use destack_resolver::Resolver;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, ModuleId, ProfileId, TargetId, Uri,
@@ -60,6 +60,8 @@ pub struct Compiler {
     seen_warnings: Mutex<Vec<PendingDiagnostic<TaskWarning>>>,
     /// Pending direct diagnostics for exact artifact attempts.
     pending_direct_diagnostics: Mutex<Vec<PendingDiagnosticCollection>>,
+    /// Satisfied exact artifact versions for one logical compile run.
+    pub(super) satisfied_artifacts: DashMap<(Revision, ArtifactVersion), ()>,
     /// The shared comptime target configuration.
     pub comptime_target: Target,
 
@@ -102,6 +104,7 @@ impl Compiler {
             seen_errors: Mutex::new(Vec::new()),
             seen_warnings: Mutex::new(Vec::new()),
             pending_direct_diagnostics: Mutex::new(Vec::new()),
+            satisfied_artifacts: DashMap::new(),
             comptime_target,
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
@@ -358,6 +361,7 @@ impl Compiler {
         self.seen_errors.lock().clear();
         self.seen_warnings.lock().clear();
         self.pending_direct_diagnostics.lock().clear();
+        self.satisfied_artifacts.clear();
     }
 
     /// Apply all required file edits for one fixed revision.
