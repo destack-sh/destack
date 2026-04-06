@@ -2,7 +2,7 @@ use destack_ast::{self as ast, Declaration, FunctionKind, FunctionMode, Key, Nam
 use destack_workspace::{LintSeverity, ObjectShorthandMode};
 use regex::Regex;
 
-use crate::rules::common::{expression_path_segments, span_has_comment_trivia};
+use crate::rules::common::{expression_path_segments, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -178,7 +178,7 @@ fn report_longform_property_if_needed(
         )
         .with_label("use shorthand `{ x }` instead of `{ x: x }`");
 
-        if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, property_span) {
+        if ctx.compute_fixes && !span_has_comment(ctx.tree, property_span) {
             let edits = ctx
                 .edit_builder()
                 .replace(property_span, property_name.clone())
@@ -250,7 +250,7 @@ fn report_shorthand_property_if_needed(
         ..
     } = property
         && ctx.compute_fixes
-        && !span_has_comment_trivia(ctx.tree, property_span)
+        && !span_has_comment(ctx.tree, property_span)
     {
         let replacement = format!("{property_name}: {property_name}");
         let edits = ctx

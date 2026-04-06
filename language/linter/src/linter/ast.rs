@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::Ast;
 use destack_ast::{self as ast, Annotation, Argument, Expression, ScalarLiteral, StringPool};
-use destack_source::{EditBuilder, File, FileId, ModuleId};
+use destack_source::{EditBuilder, File, FileId, ModuleId, Span};
 use destack_workspace::{LintSeverity, LinterOptions, Module, Repository, Revision};
 
 use crate::rules::common::expression_path_segments;
@@ -292,9 +292,7 @@ impl<'a> LintAstContext<'a> {
         meta: &LintMeta,
     ) -> Option<LintSeverityOverride> {
         let annotation = self.tree.get(annotation_id);
-        let Annotation::Decorator { node, .. } = annotation else {
-            return None;
-        };
+        let Annotation::Decorator { node, .. } = annotation;
 
         // check decorator name (must be single segment: allow, warn, deny, forbid)
         let call = self.decorator_call(*node);
@@ -362,7 +360,7 @@ impl<'a> LintAstContext<'a> {
     }
 
     /// Get the source text for a span.
-    pub fn get_span_text(&self, span: destack_source::Span) -> &str {
+    pub fn get_span_text(&self, span: Span) -> &str {
         &self.file.text()[span.start as usize..span.end as usize]
     }
 

@@ -5,7 +5,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 use regex::Regex;
 
-use crate::rules::common::{expression_static_string_literal_syntax, span_has_comment_trivia};
+use crate::rules::common::{expression_static_string_literal_syntax, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -89,7 +89,7 @@ impl LintRule for DotNotation {
             )
             .with_label("prefer dot notation");
 
-            if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, bracket_span) {
+            if ctx.compute_fixes && !span_has_comment(ctx.tree, bracket_span) {
                 let left_expression = ctx.tree.get(*left);
                 let dot_prefix = if is_numeric_literal_expression(left_expression) {
                     " ."

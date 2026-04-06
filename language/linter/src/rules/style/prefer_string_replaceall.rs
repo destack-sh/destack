@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_source::Span;
 use destack_workspace::LintSeverity;
 use regex_syntax::hir::HirKind;
 
@@ -10,7 +11,7 @@ use crate::analysis::LintRegexParse;
 use crate::rules::common::{
     expression_is_global_qualified_member, expression_static_string_literal,
     expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
-    single_quoted_string_literal, span_has_comment_trivia, symbol_initializer_expression,
+    single_quoted_string_literal, span_has_comment, symbol_initializer_expression,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -227,7 +228,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
     ) -> Option<LintFix> {
         // avoid rewriting commented calls
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment_trivia(self.ctx.ast, expression_span) {
+        if span_has_comment(self.ctx.ast, expression_span) {
             return None;
         }
 
@@ -237,7 +238,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         if is_replace {
             let member_span = self.ctx.get_span(member_id);
             let replace_name = self.ctx.repository.strings.get(self.replace_name);
-            let method_span = destack_source::Span::new(
+            let method_span = Span::new(
                 member_span.file,
                 member_span.end.saturating_sub(replace_name.len() as u32),
                 member_span.end,

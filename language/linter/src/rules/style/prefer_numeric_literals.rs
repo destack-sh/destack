@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     const_i64, expression_is_global_qualified_member, expression_static_property_access,
     expression_static_string_literal, expression_target_symbol, expression_unwrap_transparent,
-    span_has_comment_trivia,
+    span_has_comment,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -203,7 +203,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
 
         // replace the full parseInt expression
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment_trivia(self.ctx.ast, expression_span) {
+        if span_has_comment(self.ctx.ast, expression_span) {
             return None;
         }
 

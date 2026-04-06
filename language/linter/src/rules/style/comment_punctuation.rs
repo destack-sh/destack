@@ -3,8 +3,8 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    has_doc_terminal_punctuation, is_directive_comment, is_non_prose_doc_line,
-    is_separator_comment, parse_keyword_comment_with_options,
+    has_doc_terminal_punctuation, is_directive_comment, is_doc_comment_source,
+    is_non_prose_doc_line, is_separator_comment, parse_keyword_comment_with_options,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -39,8 +39,12 @@ impl LintRule for CommentPunctuation {
         let meta = self.meta();
 
         // inline comments should not end with periods
-        for trivia in ctx.tree.comment_trivia().iter().copied() {
-            let text = ast::normalize_comment_payload(ctx.get_span_text(trivia.span));
+        for comment in ctx.tree.comments().iter().copied() {
+            if is_doc_comment_source(ctx.get_span_text(comment.span)) {
+                continue;
+            }
+
+            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
             let text = text.as_ref().trim();
 
             // skip comments that have explicit exceptions
@@ -59,7 +63,7 @@ impl LintRule for CommentPunctuation {
 
             // report trailing periods
             if text.ends_with('.') {
-                let severity = ctx.get_effective_severity(meta, trivia.comment);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -71,13 +75,13 @@ impl LintRule for CommentPunctuation {
                     severity,
                     "inline comment should not end with a period",
                     ctx.module.file_id,
-                    trivia.span,
+                    comment.span,
                 )
                 .with_label("remove trailing period");
 
                 // compute fixes only when requested by the runner
                 if ctx.compute_fixes
-                    && let Some(fix) = inline_comment_trailing_period_fix(ctx, trivia.span)
+                    && let Some(fix) = inline_comment_trailing_period_fix(ctx, comment.span)
                 {
                     diagnostic = diagnostic.with_fix(fix);
                 }
@@ -87,14 +91,12 @@ impl LintRule for CommentPunctuation {
         }
 
         // doc comments should end each prose line with punctuation
-        for node_id in ctx.tree.iter_nodes::<ast::Annotation>() {
-            let annotation = ctx.tree.get(node_id);
-            let ast::Annotation::Doc { node, .. } = annotation else {
+        for comment in ctx.tree.comments().iter().copied() {
+            if !is_doc_comment_source(ctx.get_span_text(comment.span)) {
                 continue;
-            };
+            }
 
-            let doc = ctx.tree.get(*node);
-            let text = ctx.strings.get(doc.string);
+            let text = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
             let mut has_missing_punctuation = false;
 
             // inspect each prose line
@@ -113,7 +115,7 @@ impl LintRule for CommentPunctuation {
 
             // report missing punctuation once per comment
             if has_missing_punctuation {
-                let severity = ctx.get_effective_severity(meta, node_id);
+                let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
                     continue;
                 }
@@ -126,7 +128,7 @@ impl LintRule for CommentPunctuation {
                         severity,
                         "doc comment lines should end with punctuation",
                         ctx.module.file_id,
-                        ctx.tree.get_span(node_id),
+                        comment.span,
                     )
                     .with_label("add punctuation to each sentence line"),
                 );

@@ -462,9 +462,7 @@ impl<'a> LintModuleDirContext<'a> {
         annotation_id: dir::LocalNodeId<dir::Annotation>,
     ) -> Option<DecoratorCall<'_>> {
         let annotation = self.tree.get(annotation_id);
-        let dir::Annotation::Decorator { expression, .. } = annotation else {
-            return None;
-        };
+        let dir::Annotation::Decorator { expression, .. } = annotation;
         let expression_id = self.unwrap_decorator_expression(*expression);
         match self.tree.get(expression_id) {
             dir::Expression::Call {

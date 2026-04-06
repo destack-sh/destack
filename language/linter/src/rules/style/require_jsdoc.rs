@@ -60,7 +60,7 @@ impl LintRule for RequireJsdoc {
             }
 
             // doc ownership can live on the wrapper expression or declaration owner
-            let has_doc = expression_or_declaration_has_doc(ctx.tree, expr_id, declaration_id);
+            let has_doc = expression_or_declaration_has_doc(ctx, expr_id, declaration_id);
             if !has_doc {
                 let severity = ctx.get_effective_severity(meta, expr_id);
                 if !severity.is_enabled() {

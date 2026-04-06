@@ -60,14 +60,13 @@ impl LintRule for RequireReturnsDoc {
                 continue;
             }
 
-            let docs = expression_or_declaration_docs(ctx.tree, expr_id, declaration_id);
+            let docs = expression_or_declaration_docs(ctx, expr_id, declaration_id);
             if docs.is_empty() {
                 continue;
             }
 
-            let has_returns = docs.into_iter().any(|(doc_id, _)| {
-                let doc = ctx.tree.get(doc_id);
-                let doc_content = ctx.strings.get(doc.string);
+            let has_returns = docs.into_iter().any(|comment| {
+                let doc_content = ast::normalize_comment_payload(ctx.get_span_text(comment.span));
                 let doc_lowercase = doc_content.to_ascii_lowercase();
                 doc_lowercase.contains("@returns")
                     || doc_lowercase.contains("@return")

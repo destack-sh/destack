@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     block_expression_ancestor, block_is_empty_without_comment, block_is_function_body,
-    block_is_static_block_body, span_has_comment_trivia,
+    block_is_static_block_body, span_has_comment,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintMeta, LintRule, declare_lint};
 
@@ -100,7 +100,7 @@ impl LintRule for NoEmpty {
             if *kind != ast::MatchKind::Switch || !cases.is_empty() {
                 continue;
             }
-            if span_has_comment_trivia(ctx.tree, ctx.tree.get_span(expression_id)) {
+            if span_has_comment(ctx.tree, ctx.tree.get_span(expression_id)) {
                 continue;
             }
 

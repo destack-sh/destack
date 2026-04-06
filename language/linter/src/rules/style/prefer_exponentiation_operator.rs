@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
     expression_is_symbol_or_global_qualified_member, expression_static_property_access,
-    span_has_comment_trivia,
+    span_has_comment,
 };
 use crate::{LintDiagnostic, LintFix, LintMeta, LintModuleDirContext, LintRule, declare_lint};
 
@@ -166,7 +166,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
 
         // replace the full call expression
         let expression_span = self.ctx.get_span(expression_id);
-        if span_has_comment_trivia(self.ctx.ast, expression_span) {
+        if span_has_comment(self.ctx.ast, expression_span) {
             return None;
         }
 

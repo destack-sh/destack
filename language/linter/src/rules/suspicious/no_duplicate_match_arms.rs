@@ -1,9 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    BlockDuplicateTracker, ExpressionDuplicateTracker, span_has_comment_trivia,
-};
+use crate::rules::common::{BlockDuplicateTracker, ExpressionDuplicateTracker, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -104,7 +102,7 @@ fn duplicate_match_arm_fix(
     case_id: ast::LocalNodeId<ast::MatchCase>,
 ) -> Option<LintFix> {
     let case_span = ctx.tree.get_span(case_id);
-    if span_has_comment_trivia(ctx.tree, case_span) {
+    if span_has_comment(ctx.tree, case_span) {
         return None;
     }
 

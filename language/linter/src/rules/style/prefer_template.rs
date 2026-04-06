@@ -1,7 +1,7 @@
 use destack_ast::{self as ast, BinaryOperator, Expression, ScalarLiteral};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::span_has_comment;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -75,7 +75,7 @@ impl LintRule for PreferTemplate {
             .with_label("use template literal: `` `...${x}...` ``");
 
             // keep fix generation conservative for comments and unsupported numeric escapes
-            if !span_has_comment_trivia(ctx.tree, expression_span)
+            if !span_has_comment(ctx.tree, expression_span)
                 && !concat_has_unsupported_numeric_escape(ctx, node_id)
             {
                 let template_body = concat_to_template_body(ctx, node_id);

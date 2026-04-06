@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{ExpressionDuplicateTracker, span_has_comment_trivia};
+use crate::rules::common::{ExpressionDuplicateTracker, span_has_comment};
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -40,9 +40,7 @@ impl LintRule for NoDuplicateDecorators {
 
             for annotation_id in annotations {
                 let annotation = ctx.tree.get(*annotation_id);
-                let ast::Annotation::Decorator { node, .. } = annotation else {
-                    continue;
-                };
+                let ast::Annotation::Decorator { node, .. } = annotation;
                 let decorator = ctx.tree.get(*node);
 
                 // check against all previously seen decorators
@@ -73,7 +71,7 @@ impl LintRule for NoDuplicateDecorators {
                         span,
                     )
                     .with_label("this decorator is already applied with identical arguments");
-                    if ctx.compute_fixes && !span_has_comment_trivia(ctx.tree, span) {
+                    if ctx.compute_fixes && !span_has_comment(ctx.tree, span) {
                         let fix_span = duplicate_decorator_fix_span(ctx, span);
                         let fix =
                             LintFix::suggestion("Remove duplicate decorator").delete(fix_span);

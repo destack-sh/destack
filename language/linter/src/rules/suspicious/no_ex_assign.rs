@@ -2,8 +2,8 @@ use destack_ast::{self as ast, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_is_direct_statement, expression_is_unqualified_path_name,
-    expression_subtree_mentions_identifier_name,
+    expression_is_direct_block_leading_expression, expression_is_direct_statement,
+    expression_is_unqualified_path_name, expression_subtree_mentions_identifier_name,
 };
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
@@ -137,7 +137,14 @@ fn no_ex_assign_fix(
     catch_name: ast::StringId,
 ) -> Option<LintFix> {
     // keep standalone reassignment statements only
-    if !expression_is_direct_statement(ctx.tree, ctx.parents, assignment_expression_id) {
+    let is_direct_statement =
+        expression_is_direct_statement(ctx.tree, ctx.parents, assignment_expression_id);
+    let is_direct_block_expression = expression_is_direct_block_leading_expression(
+        ctx.tree,
+        ctx.parents,
+        assignment_expression_id,
+    );
+    if !is_direct_statement && !is_direct_block_expression {
         return None;
     }
 

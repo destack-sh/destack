@@ -2,7 +2,7 @@ use destack_ast as ast;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::span_has_comment_trivia;
+use crate::rules::common::span_has_comment;
 use crate::{LintAstContext, LintDiagnostic, LintFix, LintRule, declare_lint};
 
 declare_lint! {
@@ -99,7 +99,7 @@ fn redundant_true_guard_fix(
     if remove_span.is_empty() {
         return None;
     }
-    if span_has_comment_trivia(ctx.tree, remove_span) {
+    if span_has_comment(ctx.tree, remove_span) {
         return None;
     }
 
