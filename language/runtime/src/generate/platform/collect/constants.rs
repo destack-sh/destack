@@ -7,39 +7,39 @@ use destack_dir::{
     UnaryOperator,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::ProfileId;
 
 use super::domain::module_platform_domain;
+use crate::context::GeneratorContext;
 use crate::platform::model::{
     BindingType, BindingTypeContext, ConstantCatalog, ConstantEntry, ConstantValue,
-    binding_type_symbols, patched_dir_artifact,
+    binding_type_symbols,
 };
 
 /// Collect exported platform constants from builtin modules.
 pub(crate) fn collect_platform_constants(
     compiler: &Compiler,
-    program: &Program,
+    context: &GeneratorContext,
     strings: &StringPool,
     profile_id: ProfileId,
     platform_modules: &[ModuleId],
 ) -> ConstantCatalog {
     // collect binding type symbols for constant type lowering
-    let binding_symbols = binding_type_symbols(compiler, compiler.artifacts.as_ref(), profile_id);
+    let binding_symbols = binding_type_symbols(context, profile_id);
 
     // collect constants grouped by owning domain
     let mut domains: ConstantCatalog = ConstantCatalog::default();
 
     // scan each platform module for exported immutable let declarations
     for module_id in platform_modules {
-        let module = program.modules.get(*module_id);
+        let module = context.get(*module_id);
         let module = module.as_ref();
 
-        let Some(domain) = module_platform_domain(module.uri.as_ref()) else {
+        let Some(domain) = module_platform_domain(context.repository(), module) else {
             continue;
         };
 
-        let dir =
-            patched_dir_artifact(compiler, compiler.artifacts.as_ref(), module.id, profile_id);
+        let dir = context.dir_patched(compiler, module.id, profile_id);
         let tree = &dir.tree;
         let types = &dir.types;
         let symbols = &dir.symbols;
@@ -76,11 +76,11 @@ pub(crate) fn collect_platform_constants(
                 };
                 let binding_context = BindingTypeContext::new(
                     compiler,
-                    compiler.artifacts.as_ref(),
+                    context,
                     tree,
                     types,
                     symbols,
-                    &program.modules,
+                    context,
                     strings,
                     profile_id,
                     &binding_symbols,

@@ -1,34 +1,40 @@
-use std::collections::BTreeSet;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use destack_artifact::{EmitFormat, EnvSnapshot, Platform, ProfileFlags, ProfileKey, Runtime};
-use destack_compiler::{Compiler, CompilerOptions};
-use destack_source::DiagnosticSeverity;
-use destack_workspace::{ProfileId, Program, Session};
+use destack_compiler::{Compiler, CompilerOptions, RequirementCollector, RequirementError};
+use destack_source::{DiagnosticCollection, DiagnosticSeverity};
+use destack_workspace::{ProfileId, Ref, Repository, Revision};
 
-use crate::host::generate_host_artifacts;
+use crate::context::GeneratorContext;
 use crate::option::parse_generator_options;
 use crate::platform::collect::{
     collect_platform_bindings, collect_platform_constants, collect_platform_types,
-    normalize_binding_catalog, validate_binding_catalog,
+    module_platform_domain, normalize_binding_catalog, validate_binding_catalog,
 };
-use crate::platform::emit::{PlatformFileWriter, generate_platform_capability_kind};
+use crate::platform::emit::{
+    RenderSpec, generate_platform_capability_kind, render_platform_bindings_index,
+    render_test_harness,
+};
 use crate::platform::model::{
-    BindingCatalog, BindingType, ConstantCatalog, ModuleAbiTypes, ModuleSpec, WorkspaceLayout,
+    BindingCatalog, BindingEntry, BindingType, ConstantCatalog, ConstantEntry, ModuleAbiTypes,
+    ModuleSpec, WorkspaceLayout,
 };
-
-/// The builtin URI prefix for platform generator modules.
-const PLATFORM_URI_PREFIX: &str = "builtin://platform/";
 
 /// Generator for runtime binding code from the compiler catalog.
 pub(crate) struct RuntimeGenerator {
-    /// Shared session state for compiler operations.
-    session: Arc<Session>,
-    /// Program handle for compiled modules.
-    program: Arc<Program>,
+    /// Shared repository state for compiler operations.
+    repository: Arc<Repository>,
+    /// The active workspace revision.
+    revision: Revision,
+    /// Revision-scoped semantic helper context.
+    context: Arc<GeneratorContext>,
     /// Compiler instance for analysis passes.
     compiler: Arc<Compiler>,
+    /// The current diagnostics from generator analysis.
+    current_diagnostics: Mutex<DiagnosticCollection>,
     /// The generator filesystem layout.
     layout: WorkspaceLayout,
 }
@@ -42,8 +48,8 @@ impl RuntimeGenerator {
     ) -> BindingCatalog {
         let catalog = collect_platform_bindings(
             &self.compiler,
-            &self.program,
-            self.session.strings.as_ref(),
+            &self.context,
+            self.repository.strings.as_ref(),
             profile_id,
             platform_modules,
         );
@@ -61,8 +67,8 @@ impl RuntimeGenerator {
     ) -> ConstantCatalog {
         collect_platform_constants(
             &self.compiler,
-            &self.program,
-            self.session.strings.as_ref(),
+            &self.context,
+            self.repository.strings.as_ref(),
             profile_id,
             platform_modules,
         )
@@ -88,29 +94,31 @@ impl RuntimeGenerator {
 
     /// Build the generator state from a workspace root.
     fn new(cwd: PathBuf) -> Self {
-        // build the session and program from the workspace root
-        let session = Arc::new(Session::new(cwd.clone()));
-        let program = session.add_root(cwd);
+        // repository and imported root revision
+        let repository = Arc::new(Repository::open_root(cwd.clone()));
+        let reference = Ref::for_workspace_root(repository.workspace_root());
+        let revision = repository
+            .current(&reference)
+            .unwrap_or_else(|error| panic!("failed to load runtime generator revision: {error}"));
+        let context = Arc::new(GeneratorContext::new(repository.clone(), revision));
 
         // use one worker to avoid compiler analyze lock inversion in generator mode
         let mut compiler_options = CompilerOptions::default();
         compiler_options.workers = 1;
 
         // create a compiler instance for binding analysis
-        let compiler = Arc::new(Compiler::new(
-            session.clone(),
-            program.clone(),
-            compiler_options,
-        ));
+        let compiler = Arc::new(Compiler::new(repository.clone(), compiler_options));
 
         // resolve generator output paths from the runtime crate root
         let layout = WorkspaceLayout::from_runtime_crate();
 
         // return the assembled generator context
         Self {
-            session,
-            program,
+            repository,
+            revision,
+            context,
             compiler,
+            current_diagnostics: Mutex::new(DiagnosticCollection::new()),
             layout,
         }
     }
@@ -118,28 +126,147 @@ impl RuntimeGenerator {
     /// Load platform modules from builtin libraries.
     fn load_platform_modules(&self, profile_key: &ProfileKey) -> Vec<destack_source::ModuleId> {
         // load the builtin platform library modules
-        self.session
-            .builtins
-            .load_library(
-                "platform",
-                self.session.files.clone(),
-                self.session.modules.clone(),
-                profile_key,
-            )
+        self.repository
+            .load_builtin_library("platform", profile_key)
             .expect("platform builtin lib is missing")
+    }
+
+    /// Analyze platform modules for one profile.
+    fn analyze_platform_modules(
+        &self,
+        profile_id: ProfileId,
+        platform_modules: &[destack_source::ModuleId],
+    ) -> Result<(), String> {
+        self.compiler
+            .run_to_completion(self.revision, |compiler, _context| {
+                self.require_platform_analysis(compiler, profile_id, platform_modules)
+            })
+            .map_err(|error| match error {
+                RequirementError::NotReady { requirement } => {
+                    format!("platform analysis did not converge: {requirement:?}")
+                }
+                RequirementError::Failed { requirement } => self.format_platform_analysis_failure(
+                    profile_id,
+                    platform_modules,
+                    &requirement,
+                ),
+            })?;
+
+        // publish diagnostics from the current module artifact families
+        let mut diagnostics = DiagnosticCollection::new();
+        for module_id in platform_modules {
+            diagnostics.merge_from(&self.repository.module_artifact_diagnostics(
+                self.revision,
+                *module_id,
+                profile_id,
+            ));
+        }
+
+        let mut current_diagnostics = self
+            .current_diagnostics
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        *current_diagnostics = diagnostics;
+
+        Ok(())
+    }
+
+    /// Format one platform analysis failure with the current builtin diagnostics.
+    fn format_platform_analysis_failure(
+        &self,
+        profile_id: ProfileId,
+        platform_modules: &[destack_source::ModuleId],
+        requirement: &destack_compiler::RequirementSet,
+    ) -> String {
+        let mut diagnostics = DiagnosticCollection::new();
+        let profile_key = self.profile_key();
+
+        if let Some(selection) = self.repository.builtins().library_selection(&profile_key) {
+            for module_id in selection.library_modules {
+                diagnostics.merge_from(&self.repository.module_artifact_diagnostics(
+                    self.revision,
+                    module_id,
+                    profile_id,
+                ));
+            }
+        }
+
+        for module_id in platform_modules {
+            diagnostics.merge_from(&self.repository.module_artifact_diagnostics(
+                self.revision,
+                *module_id,
+                profile_id,
+            ));
+        }
+
+        if diagnostics.is_empty() {
+            return format!("failed to analyze platform modules: {requirement:?}");
+        }
+
+        self.repository
+            .print_diagnostics(self.revision, &diagnostics);
+
+        format!(
+            "failed to analyze platform modules: {} diagnostics emitted",
+            diagnostics.len()
+        )
+    }
+
+    /// Require the full platform analysis surface for one profile.
+    fn require_platform_analysis(
+        &self,
+        compiler: &Compiler,
+        profile_id: ProfileId,
+        platform_modules: &[destack_source::ModuleId],
+    ) -> Result<(), RequirementError> {
+        // collect the full root requirement set before driving
+        let mut collector = RequirementCollector::new();
+
+        if let Some(error) =
+            collector.try_collect(compiler.require_language_environment(self.revision, profile_id))
+        {
+            return Err(error);
+        }
+
+        if let Some(error) =
+            collector.try_collect(compiler.require_library_environment(self.revision, profile_id))
+        {
+            return Err(error);
+        }
+
+        for module_id in platform_modules {
+            if let Some(error) = collector.try_collect(compiler.require_dir_patched(
+                self.revision,
+                *module_id,
+                profile_id,
+            )) {
+                return Err(error);
+            }
+        }
+
+        if let Some(requirement) = collector.try_into_requirement() {
+            return Err(RequirementError::NotReady { requirement });
+        }
+
+        Ok(())
     }
 
     /// Print diagnostics and stop on errors.
     /// TODO #Cleanup: use proper diagnostic reporting here?
     fn report_diagnostics(&self) -> Result<(), String> {
+        let diagnostics = self
+            .current_diagnostics
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone();
+
         // exit early when no errors are present
-        if !self
-            .program
-            .diagnostics
-            .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-        {
+        if !diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
             return Ok(());
         }
+
+        self.repository
+            .print_diagnostics(self.revision, &diagnostics);
 
         Err("binding generation failed due to diagnostics".to_string())
     }
@@ -155,15 +282,14 @@ impl RuntimeGenerator {
             return Ok(platform_modules.to_vec());
         };
 
-        // select modules by canonical builtin uri prefix
+        // select modules by platform domain
         let mut selected = Vec::new();
         for module_id in platform_modules {
-            let module = self.program.modules.get(*module_id);
+            let module = self.context.get(*module_id);
             let module = module.as_ref();
-            let module_uri = module.uri.as_ref();
 
             // keep matching modules
-            if Self::module_matches_requested_domains(module_uri, domains) {
+            if Self::module_matches_requested_domains(self.repository.as_ref(), &module, domains) {
                 selected.push(*module_id);
             }
         }
@@ -175,7 +301,7 @@ impl RuntimeGenerator {
                 .iter()
                 .take(12)
                 .map(|module_id| {
-                    let module = self.program.modules.get(*module_id);
+                    let module = self.context.get(*module_id);
                     let module = module.as_ref();
                     module.uri.as_ref().to_string()
                 })
@@ -251,39 +377,314 @@ impl RuntimeGenerator {
         platform_modules: &[destack_source::ModuleId],
         write_platform_index: bool,
         refresh_stubs: bool,
-    ) -> Result<(), String> {
+    ) {
         // collect module inputs
         let catalog = self.collect_catalog(profile_id, platform_modules);
         let constants = self.collect_constants(profile_id, platform_modules);
         let exported_types = collect_platform_types(
             &self.compiler,
-            &self.program,
-            self.session.strings.as_ref(),
+            &self.context,
+            self.repository.strings.as_ref(),
             profile_id,
             platform_modules,
         );
         let abi_types = self.collect_abi_types(&catalog, &constants, &exported_types);
         let modules = self.collect_modules(&catalog);
 
-        // stop before writing when lazy analysis produced diagnostics
-        self.report_diagnostics()?;
-
-        let file_writer = PlatformFileWriter::new(&self.layout);
-
         // write generated files
-        file_writer.write_modules(&catalog, &constants, &abi_types, &modules, refresh_stubs);
+        self.write_modules(&catalog, &constants, &abi_types, &modules, refresh_stubs);
 
         // top-level index
         if write_platform_index {
-            file_writer.write_platform_index(&catalog);
+            self.write_platform_index(&catalog);
+        }
+    }
+}
+
+impl RuntimeGenerator {
+    /// Normalize generated file contents to one trailing newline.
+    fn normalize_generated_output(&self, contents: &str) -> String {
+        let contents = contents.trim_end_matches('\n');
+        format!("{contents}\n")
+    }
+
+    /// Write one generated file to disk.
+    fn write_file(&self, path: &Path, contents: &str) {
+        // parent directory
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("failed to create output directory");
         }
 
-        // host bridge structural outputs
-        for file in generate_host_artifacts(&self.layout, &abi_types) {
-            file_writer.write_file(&file.path, &file.contents);
+        let contents = self.normalize_generated_output(contents);
+        fs::write(path, contents).expect("failed to write generated file");
+    }
+
+    /// Synchronize one generated stub file when refresh rules allow it.
+    fn sync_stub(&self, path: &Path, generated: &str, refresh_stubs: bool) {
+        // create missing files directly
+        if !path.exists() {
+            self.write_file(path, generated);
+            return;
         }
 
-        Ok(())
+        // preserve handwritten edits unless stub refresh is requested
+        if !refresh_stubs {
+            return;
+        }
+
+        let Ok(existing) = fs::read_to_string(path) else {
+            self.write_file(path, generated);
+            return;
+        };
+
+        // only refresh known generator stubs
+        if !existing.contains("// generated by generate-bindings: stub, do not edit") {
+            return;
+        }
+
+        let generated = self.normalize_generated_output(generated);
+        if existing != generated {
+            self.write_file(path, &generated);
+        }
+    }
+
+    /// Write one generated stub file only when the target path is missing.
+    fn write_missing_stub(&self, path: &Path, generated: &str) {
+        if !path.exists() {
+            self.write_file(path, generated);
+            return;
+        }
+
+        let Ok(existing) = fs::read_to_string(path) else {
+            self.write_file(path, generated);
+            return;
+        };
+
+        if !existing.contains("// generated by generate-bindings: stub, do not edit") {
+            return;
+        }
+
+        let generated = self.normalize_generated_output(generated);
+        if existing != generated {
+            self.write_file(path, &generated);
+        }
+    }
+
+    /// Write generated bindings and ABI files for all collected modules.
+    fn write_modules(
+        &self,
+        catalog: &BindingCatalog,
+        constants: &ConstantCatalog,
+        abi_types: &std::collections::BTreeMap<String, ModuleAbiTypes>,
+        modules: &std::collections::BTreeMap<String, ModuleSpec>,
+        refresh_stubs: bool,
+    ) {
+        let binding_modules = catalog.keys().cloned().collect::<BTreeSet<_>>();
+        let mut abi_modules = binding_modules.clone();
+        abi_modules.extend(abi_types.keys().filter_map(|module_name| {
+            if binding_modules.contains(module_name) {
+                return None;
+            }
+
+            let layout = self.layout.module_layout(module_name);
+            if layout.bindings_path.exists() {
+                return None;
+            }
+
+            Some(module_name.clone())
+        }));
+
+        let empty_types = ModuleAbiTypes::default();
+
+        for module_name in &abi_modules {
+            // bindings plus abi
+            if let Some(bindings) = catalog.get(module_name) {
+                let module = modules
+                    .get(module_name)
+                    .cloned()
+                    .unwrap_or_else(|| ModuleSpec::new(module_name, bindings, &self.layout));
+                let types = abi_types.get(module_name).unwrap_or(&empty_types);
+                let module_constants = constants.get(module_name);
+
+                self.write_module_stubs(&module, bindings, refresh_stubs);
+                self.write_module_bindings(&module, bindings);
+                self.write_module_abi(&module, types, module_constants);
+                continue;
+            }
+
+            // abi-only foreign modules
+            let types = abi_types.get(module_name).unwrap_or(&empty_types);
+            let layout = self.layout.module_layout(module_name);
+            let rendered = types.render(module_name, constants.get(module_name));
+            self.write_file(&layout.abi_types_path, &rendered);
+        }
+    }
+
+    /// Write the generated top-level platform index.
+    fn write_platform_index(&self, catalog: &BindingCatalog) {
+        let binding_modules = catalog.keys().cloned().collect::<BTreeSet<_>>();
+        let rendered = render_platform_bindings_index(&binding_modules);
+        let path = self.layout.platform_generated_path();
+
+        self.write_file(&path, &rendered);
+    }
+
+    /// Write the handwritten and generated stubs for one module.
+    fn write_module_stubs(
+        &self,
+        module: &ModuleSpec,
+        bindings: &BTreeMap<String, BindingEntry>,
+        refresh_stubs: bool,
+    ) {
+        use crate::platform::emit::{
+            render_host_router_stub, render_host_stub, render_module_mod_stub,
+            render_native_host_router_stub, render_native_stub, render_os_backend_mod_stub,
+            render_simulation_mod_stub, render_simulation_native_stub, render_simulation_vm_stub,
+            render_vm_stub,
+        };
+
+        // module surface
+        let module_stub =
+            render_module_mod_stub(module.has_host_dispatch, module.has_simulation_dispatch);
+        self.write_missing_stub(&module.layout.mod_path, &module_stub);
+
+        let host_module_path = module.layout.dir.join("host/mod.rs");
+        let native_stub = if module.has_host_dispatch && !host_module_path.exists() {
+            render_native_host_router_stub()
+        } else {
+            render_native_stub(&module.name, bindings)
+        };
+        self.sync_stub(&module.layout.native_path, &native_stub, refresh_stubs);
+
+        let vm_stub = render_vm_stub(&module.name, bindings);
+        self.sync_stub(&module.layout.vm_path, &vm_stub, refresh_stubs);
+
+        // host routing
+        if module.has_host_dispatch {
+            if !host_module_path.exists() {
+                let host_stub = render_host_router_stub();
+                self.write_missing_stub(&module.layout.host_path, &host_stub);
+            }
+
+            let unix_stub = render_os_backend_mod_stub();
+            self.write_missing_stub(&module.layout.unix_mod_path, &unix_stub);
+
+            let windows_stub = render_os_backend_mod_stub();
+            self.write_missing_stub(&module.layout.windows_mod_path, &windows_stub);
+
+            let unsupported_stub = render_host_stub(&module.name, bindings);
+            self.sync_stub(
+                &module.layout.unsupported_path,
+                &unsupported_stub,
+                refresh_stubs,
+            );
+        }
+
+        // simulation routing
+        if module.has_simulation_dispatch {
+            let simulation_mod_stub = render_simulation_mod_stub();
+            self.sync_stub(
+                &module.layout.simulation_mod_path,
+                &simulation_mod_stub,
+                refresh_stubs,
+            );
+
+            let simulation_native_stub = render_simulation_native_stub(&module.name, bindings);
+            self.sync_stub(
+                &module.layout.simulation_native_path,
+                &simulation_native_stub,
+                refresh_stubs,
+            );
+
+            let simulation_vm_stub = render_simulation_vm_stub(&module.name, bindings);
+            self.sync_stub(
+                &module.layout.simulation_vm_path,
+                &simulation_vm_stub,
+                refresh_stubs,
+            );
+        } else {
+            self.remove_simulation_stubs(module);
+        }
+
+        // stale layout
+        self.remove_legacy_impl(module);
+    }
+
+    /// Write generated binding output for one module.
+    fn write_module_bindings(
+        &self,
+        module: &ModuleSpec,
+        bindings: &BTreeMap<String, BindingEntry>,
+    ) {
+        let spec = RenderSpec::new(&module.name, bindings);
+        let generated = spec.render();
+
+        self.write_file(&module.layout.bindings_path, &generated);
+
+        // generated test harness
+        self.write_module_test_harness(module, &spec);
+    }
+
+    /// Write generated ABI output for one module.
+    fn write_module_abi(
+        &self,
+        module: &ModuleSpec,
+        types: &ModuleAbiTypes,
+        constants: Option<&BTreeMap<String, ConstantEntry>>,
+    ) {
+        let abi_types = types.render(&module.name, constants);
+
+        self.write_file(&module.layout.abi_types_path, &abi_types);
+    }
+
+    /// Write one generated test harness when the module uses one.
+    fn write_module_test_harness(&self, module: &ModuleSpec, spec: &RenderSpec<'_>) {
+        let harness_stub_path = module.layout.dir.join("tests/harness.rs");
+        let harness_generated_path = module.layout.dir.join("tests/harness.generated.rs");
+
+        // skip modules that do not use the generated harness pattern
+        if !harness_stub_path.exists() && !harness_generated_path.exists() {
+            return;
+        }
+
+        let harness = render_test_harness(spec);
+        self.write_file(&harness_generated_path, &harness);
+    }
+
+    /// Remove the simulation scaffold when the module does not use it.
+    fn remove_simulation_stubs(&self, module: &ModuleSpec) {
+        let Some(simulation_directory) = module.layout.simulation_mod_path.parent() else {
+            panic!(
+                "failed to resolve simulation directory for module {}",
+                module.layout.dir.display()
+            );
+        };
+        if !simulation_directory.exists() {
+            return;
+        }
+
+        fs::remove_dir_all(simulation_directory).unwrap_or_else(|error| {
+            panic!(
+                "failed to remove stale simulation directory {}: {error}",
+                simulation_directory.display()
+            )
+        });
+    }
+
+    /// Remove the legacy nested implementation scaffold.
+    fn remove_legacy_impl(&self, module: &ModuleSpec) {
+        let legacy_impl_dir = module.layout.dir.join("runtime");
+
+        if !legacy_impl_dir.exists() {
+            return;
+        }
+
+        fs::remove_dir_all(&legacy_impl_dir).unwrap_or_else(|error| {
+            panic!(
+                "failed to remove stale runtime implementation directory {}: {error}",
+                legacy_impl_dir.display()
+            )
+        });
     }
 }
 
@@ -293,22 +694,34 @@ impl RuntimeGenerator {
         // parse runtime binding generator options
         let options = parse_generator_options()?;
 
-        // build a compiler session for platform bindings
+        // build a compiler repository for platform bindings
         let cwd = std::env::current_dir()
             .map_err(|error| format!("failed to resolve current directory: {error}"))?;
         let generator = Self::new(cwd);
 
         // configure the native profile for platform modules
         let profile_key = generator.profile_key();
-        let profile_id = generator
-            .program
-            .profiles
-            .get_or_create(profile_key.clone());
+        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
 
         // load the platform modules for analysis
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules =
             generator.select_modules(&platform_modules, options.domains.as_ref())?;
+
+        // keep full analysis for whole-library generation
+        // targeted domain runs should only analyze the selected surface so unrelated module drift
+        // does not block regeneration of one module under audit
+        let analysis_modules = if options.domains.is_some() {
+            selected_modules.clone()
+        } else {
+            platform_modules.clone()
+        };
+
+        // run analysis passes before extraction
+        generator.analyze_platform_modules(profile_id, &analysis_modules)?;
+
+        // validate diagnostics before rendering output
+        generator.report_diagnostics()?;
 
         // collect bindings and render outputs
         generator.generate_bindings(
@@ -316,7 +729,7 @@ impl RuntimeGenerator {
             &selected_modules,
             options.domains.is_none(),
             options.refresh_stubs,
-        )?;
+        );
 
         // regenerate runtime capability kinds from intrinsic capability source of truth
         generate_platform_capability_kind();
@@ -324,12 +737,17 @@ impl RuntimeGenerator {
         Ok(())
     }
 
-    /// Return true when one module uri matches one requested domain selector set.
-    fn module_matches_requested_domains(module_uri: &str, domains: &BTreeSet<String>) -> bool {
-        domains.iter().any(|domain| {
-            let prefix = format!("{PLATFORM_URI_PREFIX}{domain}/");
-            module_uri.starts_with(&prefix)
-        })
+    /// Return true when one module matches one requested domain selector set.
+    fn module_matches_requested_domains(
+        repository: &Repository,
+        module: &destack_workspace::Module,
+        domains: &BTreeSet<String>,
+    ) -> bool {
+        let Some(domain) = module_platform_domain(repository, module) else {
+            return false;
+        };
+
+        domains.contains(&domain)
     }
 }
 
@@ -338,25 +756,40 @@ mod tests {
     use std::collections::BTreeSet;
     use std::path::PathBuf;
 
-    use super::{BindingType, RuntimeGenerator, collect_platform_types};
+    use crate::platform::collect::collect_platform_types;
+    use crate::platform::model::BindingType;
 
-    /// Match platform module uris by requested domains.
+    use super::RuntimeGenerator;
+
+    /// Match platform modules by requested domains.
     #[test]
     fn test_module_matches_requested_domains() {
+        let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let generator = RuntimeGenerator::new(workspace_root);
+        let profile_key = generator.profile_key();
+        let platform_modules = generator.load_platform_modules(&profile_key);
         let domains = BTreeSet::from(["crypto".to_string(), "fs".to_string()]);
+        let mut matches = Vec::new();
+        let mut misses = Vec::new();
 
-        assert!(RuntimeGenerator::module_matches_requested_domains(
-            "builtin://platform/crypto/key.ds",
-            &domains
-        ));
-        assert!(RuntimeGenerator::module_matches_requested_domains(
-            "builtin://platform/fs/path.ds",
-            &domains
-        ));
-        assert!(!RuntimeGenerator::module_matches_requested_domains(
-            "builtin://platform/net/socket.ds",
-            &domains
-        ));
+        for module_id in platform_modules {
+            let module = generator.context.get(module_id);
+            let module = module.as_ref();
+
+            if RuntimeGenerator::module_matches_requested_domains(
+                generator.repository.as_ref(),
+                module,
+                &domains,
+            ) {
+                matches.push(module.uri.as_ref().to_string());
+            } else {
+                misses.push(module.uri.as_ref().to_string());
+            }
+        }
+
+        assert!(matches.iter().any(|uri| uri.contains("/platform/crypto/")));
+        assert!(matches.iter().any(|uri| uri.contains("/platform/fs/")));
+        assert!(misses.iter().any(|uri| uri.contains("/platform/net/")));
     }
 
     /// Keep runtime binding catalog extraction live for one representative platform domain.
@@ -365,10 +798,7 @@ mod tests {
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generator = RuntimeGenerator::new(workspace_root);
         let profile_key = generator.profile_key();
-        let profile_id = generator
-            .program
-            .profiles
-            .get_or_create(profile_key.clone());
+        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules = generator
             .select_modules(
@@ -376,6 +806,10 @@ mod tests {
                 Some(&BTreeSet::from(["time".to_string()])),
             )
             .expect("time domain should resolve");
+
+        generator
+            .analyze_platform_modules(profile_id, &selected_modules)
+            .expect("platform analysis should complete");
 
         let catalog = generator.collect_catalog(profile_id, &selected_modules);
         assert!(
@@ -391,10 +825,7 @@ mod tests {
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generator = RuntimeGenerator::new(workspace_root);
         let profile_key = generator.profile_key();
-        let profile_id = generator
-            .program
-            .profiles
-            .get_or_create(profile_key.clone());
+        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules = generator
             .select_modules(
@@ -402,6 +833,10 @@ mod tests {
                 Some(&BTreeSet::from(["fs".to_string(), "os".to_string()])),
             )
             .expect("fs and os domains should resolve");
+
+        generator
+            .analyze_platform_modules(profile_id, &selected_modules)
+            .expect("platform analysis should complete");
 
         let catalog = generator.collect_catalog(profile_id, &selected_modules);
         let fs_binding = &catalog["fs"]["destack.fs.xattr.listxattr"];
@@ -423,10 +858,7 @@ mod tests {
         let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let generator = RuntimeGenerator::new(workspace_root);
         let profile_key = generator.profile_key();
-        let profile_id = generator
-            .program
-            .profiles
-            .get_or_create(profile_key.clone());
+        let profile_id = generator.compiler.remember_profile_key(profile_key.clone());
         let platform_modules = generator.load_platform_modules(&profile_key);
         let selected_modules = generator
             .select_modules(
@@ -435,10 +867,14 @@ mod tests {
             )
             .expect("crypto domain should resolve");
 
+        generator
+            .analyze_platform_modules(profile_id, &selected_modules)
+            .expect("platform analysis should complete");
+
         let exported_types = collect_platform_types(
             &generator.compiler,
-            &generator.program,
-            generator.session.strings.as_ref(),
+            &generator.context,
+            generator.repository.strings.as_ref(),
             profile_id,
             &selected_modules,
         );

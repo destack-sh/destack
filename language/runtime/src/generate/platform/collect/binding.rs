@@ -9,15 +9,16 @@ use destack_dir::{
     self as dir, Annotation, Argument, Declaration, Expression, GlobalSymbolId, ScalarLiteral,
 };
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::ProfileId;
 
 use super::domain::qualify_platform_implementation_name;
+use crate::context::GeneratorContext;
 use crate::platform::model::{
     BindingCatalog, BindingEntry, BindingParameter, BindingReturn, BindingTypeContext,
     CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
     CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind, CatalogReplayPayload,
     CatalogReplayPolicy, binding_type_symbols, collect_binding_params, collect_binding_return,
-    format_declared_signature, patched_dir_artifact, resolved_dir_artifact,
+    format_declared_signature,
 };
 
 /// Binding metadata extracted from a declaration node.
@@ -106,14 +107,17 @@ fn binding_replay_kind_for_name(name: &str) -> CatalogBindingReplayKind {
 /// Collect platform bindings from builtin modules.
 pub(crate) fn collect_platform_bindings(
     compiler: &Compiler,
-    program: &Program,
+    context: &GeneratorContext,
     strings: &StringPool,
     profile_id: ProfileId,
     platform_modules: &[ModuleId],
 ) -> BindingCatalog {
     // collect binding type symbols
-    let binding_symbols = binding_type_symbols(compiler, compiler.artifacts.as_ref(), profile_id);
-    let binding_decorator_symbol = compiler.language_symbol(profile_id, LanguageSymbol::Binding);
+    let binding_symbols = binding_type_symbols(context, profile_id);
+    let binding_decorator_symbol = context
+        .language_environment(profile_id)
+        .item(LanguageSymbol::Binding)
+        .unwrap_or_else(|| panic!("missing Binding symbol for profile {profile_id:?}"));
 
     // collect bindings by domain
     let mut domains: BindingCatalog = BindingCatalog::default();
@@ -121,12 +125,10 @@ pub(crate) fn collect_platform_bindings(
     // visit builtin modules and extract binding annotations
     for module_id in platform_modules {
         // load module metadata
-        let module = program.modules.get(*module_id);
+        let module = context.get(*module_id);
         let module = module.as_ref();
-        let resolved_dir =
-            resolved_dir_artifact(compiler, compiler.artifacts.as_ref(), module.id, profile_id);
-        let dir =
-            patched_dir_artifact(compiler, compiler.artifacts.as_ref(), module.id, profile_id);
+        let resolved_dir = context.dir_resolved(module.id, profile_id);
+        let dir = context.dir_patched(compiler, module.id, profile_id);
         let tree = &resolved_dir.tree;
         let types = &dir.types;
         let symbols = &dir.symbols;
@@ -161,6 +163,7 @@ pub(crate) fn collect_platform_bindings(
             // resolve the extern binding name and payload
             let binding = binding_decorator_value(
                 compiler,
+                context,
                 profile_id,
                 binding_decorator_symbol,
                 &tree,
@@ -170,6 +173,7 @@ pub(crate) fn collect_platform_bindings(
             .or_else(|| {
                 binding_decorator_value(
                     compiler,
+                    context,
                     profile_id,
                     binding_decorator_symbol,
                     &tree,
@@ -181,8 +185,8 @@ pub(crate) fn collect_platform_bindings(
             let implementation_name = symbol.name().map(|name| strings.get(name).to_string());
             let implementation_name = implementation_name.map(|implementation_name| {
                 qualify_platform_implementation_name(
-                    module.path.as_deref(),
-                    module.uri.as_ref(),
+                    context.repository(),
+                    module,
                     &implementation_name,
                 )
             });
@@ -192,11 +196,11 @@ pub(crate) fn collect_platform_bindings(
 
             // format the canonical signature for the declaration
             let signature_text = format_declared_signature(
-                compiler.artifacts.as_ref(),
+                context,
+                compiler,
                 declaration_id,
                 declaration,
-                &module,
-                &program.modules,
+                module,
                 strings,
                 profile_id,
             );
@@ -210,11 +214,11 @@ pub(crate) fn collect_platform_bindings(
             // binding analysis context
             let binding_context = BindingTypeContext::new(
                 compiler,
-                compiler.artifacts.as_ref(),
+                context,
                 tree,
                 types,
                 symbols,
-                &program.modules,
+                context,
                 strings,
                 profile_id,
                 &binding_symbols,
@@ -395,6 +399,7 @@ fn annotation_docs(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> 
 /// Extract the binding decorator value from a declaration expression.
 fn binding_decorator_value(
     compiler: &Compiler,
+    context: &GeneratorContext,
     profile_id: ProfileId,
     binding_decorator_symbol: GlobalSymbolId,
     tree: &dir::NodeTree,
@@ -423,6 +428,7 @@ fn binding_decorator_value(
 
         if !expression_is_binding_decorator(
             compiler,
+            context,
             profile_id,
             binding_decorator_symbol,
             tree,
@@ -440,6 +446,7 @@ fn binding_decorator_value(
 /// Return true when one decorator expression names `binding`.
 fn expression_is_binding_decorator(
     compiler: &Compiler,
+    context: &GeneratorContext,
     profile_id: ProfileId,
     binding_decorator_symbol: GlobalSymbolId,
     tree: &dir::NodeTree,
@@ -447,8 +454,11 @@ fn expression_is_binding_decorator(
 ) -> bool {
     let expression = tree.get::<Expression>(expr_id);
     expression.target_symbol().is_some_and(|target_symbol| {
-        compiler.canonical_declared_artifact_symbol(profile_id, target_symbol)
-            == binding_decorator_symbol
+        compiler.canonical_declared_artifact_symbol_for_revision(
+            context.revision(),
+            profile_id,
+            target_symbol,
+        ) == binding_decorator_symbol
     })
 }
 
