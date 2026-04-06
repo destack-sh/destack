@@ -1,12 +1,24 @@
 use std::path::Path;
 
-/// The builtin URI prefix for platform generator modules.
-const PLATFORM_URI_PREFIX: &str = "builtin://platform/";
+use destack_workspace::{Module, Repository};
 
-/// Resolve one platform domain name from one builtin platform module uri.
-pub(crate) fn module_platform_domain(module_uri: &str) -> Option<String> {
-    let trimmed = module_uri.strip_prefix(PLATFORM_URI_PREFIX)?;
-    let domain = trimmed.split('/').next().unwrap_or_default().trim();
+/// Return the relative path for one module inside the builtin platform library.
+fn platform_relative_path(repository: &Repository, module: &Module) -> Option<String> {
+    let builtins = repository.builtins();
+    let library_name = builtins.library_name_for_module(module.id)?;
+
+    if library_name != "platform" {
+        return None;
+    }
+
+    builtins.library_relative_path_for_module(module.id)
+}
+
+/// Resolve one platform domain name from one builtin platform module.
+pub(crate) fn module_platform_domain(repository: &Repository, module: &Module) -> Option<String> {
+    let relative_path = platform_relative_path(repository, module)?;
+    let domain = relative_path.split('/').next().unwrap_or_default().trim();
+
     if domain.is_empty() {
         return None;
     }
@@ -16,13 +28,18 @@ pub(crate) fn module_platform_domain(module_uri: &str) -> Option<String> {
 
 /// Prefix one implementation name with nested platform path segments when needed.
 pub(crate) fn qualify_platform_implementation_name(
-    module_path: Option<&Path>,
-    module_uri: &str,
+    repository: &Repository,
+    module: &Module,
     implementation_name: &str,
 ) -> String {
-    let prefix = module_path
+    let prefix = module
+        .path
+        .as_deref()
         .and_then(module_platform_implementation_prefix_from_path)
-        .or_else(|| module_platform_implementation_prefix(module_uri));
+        .or_else(|| {
+            platform_relative_path(repository, module)
+                .and_then(|relative_path| module_platform_implementation_prefix(&relative_path))
+        });
     let Some(prefix) = prefix else {
         return implementation_name.to_string();
     };
@@ -35,10 +52,9 @@ pub(crate) fn qualify_platform_implementation_name(
     format!("{prefix}.{implementation_name}")
 }
 
-/// Return the nested implementation prefix for one builtin platform module uri.
-fn module_platform_implementation_prefix(module_uri: &str) -> Option<String> {
-    let trimmed = module_uri.strip_prefix(PLATFORM_URI_PREFIX)?;
-    let mut parts = trimmed.split('/');
+/// Return the nested implementation prefix for one builtin platform module path.
+fn module_platform_implementation_prefix(relative_path: &str) -> Option<String> {
+    let mut parts = relative_path.split('/');
 
     // skip the top level platform domain
     let _domain = parts.next()?;

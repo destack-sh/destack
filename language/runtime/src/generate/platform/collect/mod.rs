@@ -8,3 +8,4 @@ pub(crate) use binding::*;
 pub(crate) use binding_type::*;
 pub(crate) use catalog::*;
 pub(crate) use constants::*;
+pub(crate) use domain::*;
