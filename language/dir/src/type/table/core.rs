@@ -1,6 +1,5 @@
+use destack_source::{AdaptImage, ModuleId};
 use indexmap::IndexMap;
-
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -16,7 +15,7 @@ use crate::{
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
 /// NOTE #Cleanup #Architecture: revisit TypeTable.*_in_progress markers
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct TypeTable {
     /// The module id of the type table.
     pub module_id: ModuleId,
@@ -47,7 +46,7 @@ pub struct TypeTable {
 }
 
 /// The provenance of one type slot in the table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum TypeOrigin {
     /// The type was produced in the local module.
     Local,
@@ -56,7 +55,9 @@ pub enum TypeOrigin {
 }
 
 /// The freshness state attached to one type slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, PartialOrd, Ord, AdaptImage,
+)]
 pub enum Freshness {
     /// No freshness information is attached.
     None,
@@ -67,7 +68,7 @@ pub enum Freshness {
 }
 
 /// The metadata stored for one type id.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, AdaptImage)]
 pub struct TypeMetadata {
     /// The source node id that produced this type slot.
     pub source_id: LocalNodeIdAny,
@@ -80,7 +81,7 @@ pub struct TypeMetadata {
 }
 
 /// Compact index key for instance interning candidates.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub(super) struct InstanceInternerKey {
     /// The symbol that owns the instance.
     symbol_id: GlobalSymbolId,
@@ -100,7 +101,9 @@ pub(super) fn instance_interner_key(
 }
 
 /// Canonical key for one static-parameter declaration slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub(crate) struct StaticParameterSymbolKey {
     /// The defining module id for this static-parameter slot.
     module_id: ModuleId,
@@ -135,7 +138,6 @@ impl TypeTable {
             extension: ExtensionTable::new(),
         }
     }
-
     /// Allocate one type slot with canonical metadata.
     fn allocate_type(
         &mut self,

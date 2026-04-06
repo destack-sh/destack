@@ -1,4 +1,4 @@
-use destack_source::ModuleId;
+use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +7,9 @@ use crate::{
 };
 
 /// The space of a symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub enum SymbolSpace {
     /// The type space.
     Type,
@@ -42,7 +44,9 @@ impl SymbolSpace {
 }
 
 /// The kind of a symbol (scope behavior).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub enum SymbolKind {
     /// Namespace.
     Namespace,
@@ -54,7 +58,18 @@ pub enum SymbolKind {
 
 /// How a symbol was introduced/bound.
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    AdaptImage,
 )]
 pub enum SymbolBinding {
     /// A runtime definition (let, const, var, class, function, etc.)
@@ -66,7 +81,18 @@ pub enum SymbolBinding {
 
 /// Where a symbol originated in the source.
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    AdaptImage,
 )]
 pub enum SymbolOrigin {
     /// Declaration in module scope.
@@ -86,7 +112,18 @@ impl SymbolOrigin {
 
 /// The binding category used for early duplicate-binding validation.
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    AdaptImage,
 )]
 pub enum BindingCategory {
     /// Category has not been assigned yet.
@@ -104,7 +141,18 @@ pub enum BindingCategory {
 
 /// The type of a symbol (declaration type).
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    AdaptImage,
 )]
 pub enum SymbolType {
     /// Not a type declaration (variables, labels, namespaces, extensions, imports).
@@ -137,7 +185,9 @@ impl SymbolType {
 }
 
 /// Unique identifier for Symbols.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub struct LocalSymbolId {
     /// The numeric id.
     pub id: u32,
@@ -177,7 +227,9 @@ impl LocalSymbolId {
 }
 
 /// Unique identifier for a merge group of symbols.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub struct LocalMergeGroupId(pub u32);
 
 impl LocalMergeGroupId {
@@ -188,7 +240,9 @@ impl LocalMergeGroupId {
 }
 
 /// Global symbol id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
+)]
 pub struct GlobalSymbolId {
     /// The module id of the global symbol.
     pub module_id: ModuleId,
@@ -225,7 +279,7 @@ impl From<GlobalSymbolId> for LocalSymbolId {
 }
 
 /// A Symbol is a bindable item or local in a scope (which may also declare a scope).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct Symbol {
     /// The kind of the symbol.
     pub kind: SymbolKind,

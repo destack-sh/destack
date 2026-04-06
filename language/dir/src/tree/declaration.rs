@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
 };
 
 /// The kind of declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum DeclarationKind {
     /// Declare.
     Declaration,
@@ -16,7 +17,7 @@ pub enum DeclarationKind {
 }
 
 /// The source keyword used for a namespace declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum NamespaceKind {
     /// `namespace Foo {}`.
     Namespace,
@@ -25,7 +26,7 @@ pub enum NamespaceKind {
 }
 
 /// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum DeclarationAbstraction {
     /// Abstract declaration.
     Abstract,
@@ -34,7 +35,7 @@ pub enum DeclarationAbstraction {
 }
 
 /// The meta data for a declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind,
@@ -51,7 +52,7 @@ pub struct DeclarationDescriptor {
 }
 
 /// The target of an import-alias declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum ImportAliasTarget {
     /// A require-based alias target.
     Require { target: StringId },
@@ -60,7 +61,7 @@ pub enum ImportAliasTarget {
 }
 
 /// Declaration introduces a type or function into its scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Declaration {
     /// Global augmentation declaration.
     Global {
@@ -261,7 +262,7 @@ impl Declaration {
 }
 
 /// The kind of an enum declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, AdaptImage)]
 pub enum EnumKind {
     /// A regular enum.
     #[default]
@@ -271,7 +272,7 @@ pub enum EnumKind {
 }
 
 /// An enum field is a named field of an enum declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct EnumField {
     /// The name of the enum field.
     pub name: StringId,

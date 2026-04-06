@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
@@ -8,7 +9,7 @@ use crate::{GlobalNodeIdAny, GlobalSymbolId, LocalTypeId, StaticArgument, Type, 
 use super::TypeTable;
 
 /// Select a normalization cache.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub enum NormalizationMode {
     /// Normalize for assignability and constraint solving.
     Assign,
@@ -17,7 +18,7 @@ pub enum NormalizationMode {
 }
 
 /// Versions captured during normalization.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct NormalizationDependencyVersions {
     /// The type versions captured during normalization.
     pub type_versions: Vec<(LocalTypeId, u64)>,
@@ -26,7 +27,7 @@ pub struct NormalizationDependencyVersions {
 }
 
 /// Cache entry for alias normalization with static arguments.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct AliasNormalizationEntry {
     /// The alias symbol being normalized.
     pub symbol: GlobalSymbolId,
@@ -43,7 +44,7 @@ pub struct AliasNormalizationEntry {
 }
 
 /// Bucket key for alias normalization entries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub struct AliasNormalizationKey {
     /// The alias symbol being normalized.
     pub symbol: GlobalSymbolId,
@@ -67,7 +68,7 @@ pub fn alias_normalization_key(
 }
 
 /// In-progress alias normalization key.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct AliasNormalizationInProgressKey {
     /// The alias normalization bucket key.
     pub key: AliasNormalizationKey,
@@ -76,7 +77,7 @@ pub struct AliasNormalizationInProgressKey {
 }
 
 /// Cache entry for normalized types keyed by relation.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct NormalizationCacheEntry {
     /// The normalized type id.
     pub normalized_type: LocalTypeId,
@@ -85,7 +86,7 @@ pub struct NormalizationCacheEntry {
 }
 
 /// Cache entry for shared type rewrites.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct RewriteCacheEntry {
     /// The rewritten type id.
     pub mapped_type: LocalTypeId,
@@ -94,7 +95,7 @@ pub struct RewriteCacheEntry {
 }
 
 /// Dependency tracking scope for normalization.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, AdaptImage)]
 pub struct NormalizationDependencyScope {
     /// The types touched during normalization.
     pub type_ids: HashSet<LocalTypeId>,
@@ -103,7 +104,7 @@ pub struct NormalizationDependencyScope {
 }
 
 /// Normalization-owned relation cache tables.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct TypeNormalizationCache {
     /// Cached expression type ids by cache key.
     #[serde(skip)]
@@ -138,14 +139,14 @@ pub struct TypeNormalizationCache {
 }
 
 /// Rewrite-owned relation cache tables.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct TypeRewriteCache {
     /// Cached rewrite results by cache key.
     pub(crate) rewrite_cache_by_key: IndexMap<u64, IndexMap<LocalTypeId, RewriteCacheEntry>>,
 }
 
 /// Interner-owned relation cache tables.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct TypeInternerCache {
     /// Cached literal type ids by literal hash bucket.
     #[serde(skip)]
@@ -159,7 +160,7 @@ pub struct TypeInternerCache {
 }
 
 /// Type-relation cache ownership.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct TypeRelationCache {
     /// Normalization-owned relation cache tables.
     pub(crate) normalization: TypeNormalizationCache,

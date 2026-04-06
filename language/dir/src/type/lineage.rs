@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::fmt::Display;
 
 use destack_source::ModuleId;
@@ -7,7 +8,9 @@ use crate::GlobalSymbolId;
 
 /// Unique identifier for Lineages.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub struct LocalLineageId(pub u32);
 
 impl LocalLineageId {
@@ -26,7 +29,9 @@ impl LocalLineageId {
 }
 
 /// Global lineage id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
+)]
 pub struct GlobalLineageId {
     /// The module id of the global lineage.
     pub module_id: ModuleId,
@@ -79,7 +84,7 @@ impl Display for LocalLineageId {
 /// - `extends: Some(AnimalSymbol)`
 /// - `implements: [PrintableSymbol]`
 /// - `embedded: []`
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, AdaptImage)]
 pub struct Lineage {
     /// The extended parent type (single inheritance for classes).
     pub extends: Option<GlobalSymbolId>,

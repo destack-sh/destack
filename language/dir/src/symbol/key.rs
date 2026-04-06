@@ -1,9 +1,12 @@
 use crate::{GlobalSymbolId, WellKnownSymbolKey};
 use destack_core::{StringId, StringPool};
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 /// Symbol as a key.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq, Serialize, Deserialize, AdaptImage,
+)]
 pub enum SymbolKey {
     /// Unique symbol key from a declaration.
     Unique(GlobalSymbolId),
@@ -14,7 +17,9 @@ pub enum SymbolKey {
 }
 
 /// Key for some static "identifier" (name, numeric, symbol).
-#[derive(Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Hash, PartialOrd, Eq, Serialize, Deserialize, AdaptImage,
+)]
 pub enum StaticKey {
     /// Regular name key (like `x` or `"weird identifier"`).
     Name(StringId),

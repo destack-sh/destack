@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,7 @@ use crate::{Extension, GlobalSymbolId, LocalExtensionId};
 use super::TypeTable;
 
 /// Extension ownership for extension declarations.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct ExtensionTable {
     /// The next extension id to allocate.
     pub(crate) next_extension_id: u32,

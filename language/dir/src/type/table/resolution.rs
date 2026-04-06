@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::collections::HashMap;
 
 use indexmap::IndexMap;
@@ -8,7 +9,7 @@ use crate::{GlobalNodeIdAny, LocalInstanceId, LocalResolutionId, Resolution, Res
 use super::TypeTable;
 
 /// Resolution ownership for members and overloads.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct ResolutionTable {
     /// The next resolution id to allocate.
     pub(crate) next_resolution_id: u32,

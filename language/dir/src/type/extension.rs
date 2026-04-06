@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::fmt::Display;
 
 use destack_source::ModuleId;
@@ -7,7 +8,9 @@ use crate::{GlobalSymbolId, LocalLineageId};
 
 /// Unique identifier for Extensions.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub struct LocalExtensionId(pub u32);
 
 impl LocalExtensionId {
@@ -26,7 +29,9 @@ impl LocalExtensionId {
 }
 
 /// Global extension id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
+)]
 pub struct GlobalExtensionId {
     /// The module id of the global extension.
     pub module_id: ModuleId,
@@ -62,7 +67,7 @@ impl Display for LocalExtensionId {
 }
 
 /// How an extension relates to its target type (determines visibility).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum ExtensionKind {
     /// Inherent extension defined in same module as target type.
     /// Automatically visible wherever the type is used.
@@ -101,7 +106,7 @@ pub enum ExtensionKind {
 ///     isWeekend(): boolean { ... }
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct Extension {
     /// The extension declaration's symbol.
     pub symbol: GlobalSymbolId,

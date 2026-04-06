@@ -1,9 +1,10 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{Asynchrony, Expression, FunctionMode, Generics, LocalNodeId, Parameter};
 
 /// The cardinality of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum FunctionCardinality {
     /// Scalar function.
     Scalar,
@@ -12,7 +13,7 @@ pub enum FunctionCardinality {
 }
 
 /// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum FunctionAbstraction {
     /// Abstract declaration.
     Abstract,
@@ -25,7 +26,7 @@ pub enum FunctionAbstraction {
 }
 
 /// The style of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum FunctionKind {
     /// Function with a body.
     Function,
@@ -34,7 +35,7 @@ pub enum FunctionKind {
 }
 
 /// The signature of a function.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct FunctionSignature {
     /// The abstraction level of the function.
     pub abstraction: FunctionAbstraction,

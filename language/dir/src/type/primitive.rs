@@ -1,9 +1,10 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::StringId;
 
 /// A PrimitiveType is a primitive type node.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum PrimitiveType {
     /// Boolean type.
     Boolean,
@@ -26,7 +27,7 @@ pub enum PrimitiveType {
 }
 
 /// The backing representation of an enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum EnumBackingType {
     /// Integer-backed enums.
     Int(IntType),
@@ -35,7 +36,7 @@ pub enum EnumBackingType {
 }
 
 /// A resolved enum field value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum EnumFieldValue {
     /// Integer enum value.
     Int(i64),
@@ -44,7 +45,7 @@ pub enum EnumFieldValue {
 }
 
 /// An IntType represents arbitrary width integer with signedness.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum IntType {
     /// 8-bit signed integer (range: -2^7 to 2^7-1)
     Int8,
@@ -199,7 +200,7 @@ impl IntType {
 }
 
 /// A FloatType represents IEEE-754 float.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum FloatType {
     /// 32-bit IEEE-754 float.
     Float32,

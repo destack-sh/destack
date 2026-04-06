@@ -1,10 +1,11 @@
+use destack_source::AdaptImage;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{CaptureDirective, CaptureSet, GlobalSymbolId};
 
 /// Capture side table keyed by function symbols.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, AdaptImage)]
 pub struct CaptureTable {
     /// Capture sets for each function symbol.
     pub captures_by_function: IndexMap<GlobalSymbolId, CaptureSet>,
@@ -17,7 +18,6 @@ impl CaptureTable {
     pub fn new() -> Self {
         Self::default()
     }
-
     /// Store capture set for a function symbol.
     pub fn set_capture_set(&mut self, symbol: GlobalSymbolId, capture_set: CaptureSet) {
         self.captures_by_function.insert(symbol, capture_set);

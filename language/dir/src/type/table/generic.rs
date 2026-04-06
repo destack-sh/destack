@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
@@ -9,7 +10,7 @@ use super::TypeTable;
 use super::core::{StaticParameterSymbolKey, static_parameter_symbol_key};
 
 /// Static parameter metadata ownership.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct GenericTable {
     /// Cached constraint types by static parameter symbol.
     pub(crate) static_parameter_constraint_by_symbol_id:

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_core::StringId;
 use destack_dir as dir;
-use destack_source::{ModuleId, ProfileId};
+use destack_source::{AdaptImage, ImageAdapter, ModuleId, ProfileId};
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -43,6 +43,36 @@ pub(crate) trait Field {
     fn rehydrate(&mut self, context: &mut impl HydrationContext);
 }
 
+/// One adapter that maps live string ids into image-local ids.
+struct DehydratingImageAdapter<'a, C> {
+    /// The active dehydration context.
+    context: &'a mut C,
+}
+
+impl<C> ImageAdapter for DehydratingImageAdapter<'_, C>
+where
+    C: DehydrationContext,
+{
+    fn adapt_string_id(&mut self, string_id: &mut StringId) {
+        *string_id = self.context.dehydrate_string_id(*string_id);
+    }
+}
+
+/// One adapter that maps image-local string ids back into live ids.
+struct RehydratingImageAdapter<'a, C> {
+    /// The active hydration context.
+    context: &'a mut C,
+}
+
+impl<C> ImageAdapter for RehydratingImageAdapter<'_, C>
+where
+    C: HydrationContext,
+{
+    fn adapt_string_id(&mut self, string_id: &mut StringId) {
+        *string_id = self.context.rehydrate_string_id(*string_id);
+    }
+}
+
 macro_rules! impl_passthrough_field {
     ($($ty:ty),* $(,)?) => {
         $(
@@ -62,15 +92,13 @@ macro_rules! impl_contextual_field {
         $(
             impl Field for $ty {
                 fn dehydrate(&mut self, context: &mut impl DehydrationContext) {
-                    self.rewrite_embedded_string_ids(&mut |string_id| {
-                        context.dehydrate_string_id(string_id)
-                    });
+                    let mut adapter = DehydratingImageAdapter { context };
+                    self.adapt_image(&mut adapter);
                 }
 
                 fn rehydrate(&mut self, context: &mut impl HydrationContext) {
-                    self.rewrite_embedded_string_ids(&mut |string_id| {
-                        context.rehydrate_string_id(string_id)
-                    });
+                    let mut adapter = RehydratingImageAdapter { context };
+                    self.adapt_image(&mut adapter);
                 }
             }
         )*
@@ -138,11 +166,12 @@ impl<K, V, S> Field for IndexMap<K, V, S>
 where
     K: Eq + Hash + Field,
     V: Field,
-    S: BuildHasher + Default,
+    S: BuildHasher + Clone,
 {
     fn dehydrate(&mut self, context: &mut impl DehydrationContext) {
-        let entries = std::mem::take(self);
-        let mut rebuilt = IndexMap::with_capacity_and_hasher(entries.len(), S::default());
+        let hasher = self.hasher().clone();
+        let entries = std::mem::replace(self, IndexMap::with_hasher(hasher.clone()));
+        let mut rebuilt = IndexMap::with_capacity_and_hasher(entries.len(), hasher);
 
         for (mut key, mut value) in entries {
             key.dehydrate(context);
@@ -154,8 +183,9 @@ where
     }
 
     fn rehydrate(&mut self, context: &mut impl HydrationContext) {
-        let entries = std::mem::take(self);
-        let mut rebuilt = IndexMap::with_capacity_and_hasher(entries.len(), S::default());
+        let hasher = self.hasher().clone();
+        let entries = std::mem::replace(self, IndexMap::with_hasher(hasher.clone()));
+        let mut rebuilt = IndexMap::with_capacity_and_hasher(entries.len(), hasher);
 
         for (mut key, mut value) in entries {
             key.rehydrate(context);
@@ -213,7 +243,7 @@ impl_passthrough_field!(
     dir::LocalNodeIdAny,
     dir::LocalScopeId,
     dir::LocalSymbolId,
-    dir::SymbolSpace,
+    dir::SymbolSpace
 );
 
 impl<T> Field for dir::LocalNodeId<T>

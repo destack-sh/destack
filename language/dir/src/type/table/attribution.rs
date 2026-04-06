@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
@@ -13,7 +14,7 @@ use crate::{
 use super::TypeTable;
 
 /// Runtime type check strategy for a guard expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum RuntimeCheckKind {
     /// The runtime check was reduced to a constant.
     Constant(bool),
@@ -24,7 +25,7 @@ pub enum RuntimeCheckKind {
 }
 
 /// Type attribution ownership for nodes and symbols.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct AttributionTable {
     /// The declared type by node id.
     pub(crate) declared_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,

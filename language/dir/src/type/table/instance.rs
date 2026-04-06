@@ -1,3 +1,4 @@
+use destack_source::AdaptImage;
 use std::collections::HashMap;
 
 use indexmap::IndexMap;
@@ -9,7 +10,7 @@ use super::core::{InstanceInternerKey, instance_interner_key};
 use super::{TypeTable, resolution};
 
 /// Instance interning and attachment ownership.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct InstanceTable {
     /// The next instance id to allocate.
     pub(crate) next_instance_id: u32,

@@ -1,11 +1,13 @@
-use destack_source::ModuleId;
+use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticArgument};
 
 /// Unique identifier for Resolutions.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, AdaptImage,
+)]
 pub struct LocalResolutionId(pub u32);
 
 impl LocalResolutionId {
@@ -24,7 +26,9 @@ impl LocalResolutionId {
 }
 
 /// Global resolution id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, AdaptImage,
+)]
 pub struct GlobalResolutionId {
     /// The module id of the global resolution.
     pub module_id: ModuleId,
@@ -64,7 +68,7 @@ impl std::fmt::Display for LocalResolutionId {
 /// Used when multiple overloads exist and the specific implementation
 /// must be selected based on argument types (potentially at runtime for unions).
 /// For simple lookups (member access, field access), no dispatch key is needed.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, AdaptImage)]
 pub enum DispatchKey {
     /// Single type dispatch (e.g., `a + b` dispatches on type of `b`).
     Single { ty: LocalTypeId },
@@ -110,7 +114,7 @@ impl DispatchKey {
 ///
 /// The receiver type identifies the family of implementations.
 /// Dispatch cases carry keys for runtime selection.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Resolution {
     /// Resolution failed: couldn't find a valid target.
     Unresolved {
@@ -158,7 +162,7 @@ impl Resolution {
 }
 
 /// The resolved call signature used at a dispatch site.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ResolvedSignature {
     /// The dynamic parameter types after static substitutions.
     pub dynamic_parameters: Vec<LocalTypeId>,
@@ -169,7 +173,7 @@ pub struct ResolvedSignature {
 }
 
 /// A resolved target symbol, optionally with dispatch information.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub struct ResolutionCandidate {
     /// The dispatch key for runtime overload selection.
     /// Use `None` for simple lookups such as member or field access.

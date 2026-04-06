@@ -1,9 +1,10 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, LocalSymbolId, Mutability, Node, NodeType, StringId};
 
 /// A Pattern is a pattern to match something and unwrap it.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
@@ -70,7 +71,7 @@ impl Pattern {
 
 /// A PatternField is a field in a pattern (tuple, struct, union, etc.).
 /// Field resolution (which struct field it maps to) is in ResolutionTable.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum PatternField {
     /// Named field, maybe with a nested pattern (like `x` or `x: 4` or `x: int32`).
     Named {

@@ -1,9 +1,10 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{Block, Expression, LocalNodeId, LocalScopeId, Node, NodeType, Pattern};
 
 /// The style of a match expression.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, AdaptImage)]
 pub enum MatchKind {
     /// Regular match expression (like `match <expr> { ... }`).
     Match,
@@ -12,7 +13,7 @@ pub enum MatchKind {
 }
 
 /// A MatchSource is where the match was lowered from.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum MatchSource {
     /// Match expression (regular match with cases).
     Match,
@@ -28,7 +29,7 @@ pub enum MatchSource {
 ///
 /// For match expressions, this is a pattern with an optional guard.
 /// For switch expressions, this can also be `Default` (the `default:` case).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum MatchSelector {
     /// A pattern with an optional guard (e.g., `x if x > 0`).
     Pattern {
@@ -75,7 +76,7 @@ impl MatchSelector {
 }
 
 /// A MatchCase is a match case inside a Match expression.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum MatchCase {
     /// A match case with an expression body.
     Expression {

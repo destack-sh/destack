@@ -1,9 +1,10 @@
+use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
 
 /// The position of an annotation.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum AnnotationPosition {
     /// Before the node.
     Prefix,
@@ -16,7 +17,7 @@ pub enum AnnotationPosition {
 /// An annotation attached to a DIR node.
 ///
 /// Annotations include documentation and decorators (metadata/transformations).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Annotation {
     /// Doc annotation (like `///` or `/**`).
     Doc {

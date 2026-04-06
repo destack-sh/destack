@@ -1,4 +1,4 @@
-use destack_source::ModuleId;
+use destack_source::{AdaptImage, ModuleId};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 use std::fmt::Debug;
 
 /// A SymbolTable is a side table for mapping symbols and scopes. NOT THREAD-SAFE.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, AdaptImage)]
 pub struct SymbolTable {
     /// The module id of the symbol table.
     pub module_id: ModuleId,
@@ -43,7 +43,6 @@ impl SymbolTable {
             merge_groups: Arena::new(),
         }
     }
-
     /// Get the symbols.
     #[inline]
     pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
