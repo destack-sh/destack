@@ -17,8 +17,7 @@ pub mod tag;
 
 pub use argument::{Argument, Arguments};
 pub use buffer::{
-    Buffer, BufferExtensions, BufferSnapshot, Inspect, Recorded, Recording, RemoveSoftLinesBuffer,
-    VecBuffer,
+    Buffer, BufferExtensions, Inspect, Recorded, Recording, RemoveSoftLinesBuffer, VecBuffer,
 };
 pub use builder::{
     Align, BestFitParenthesize, BestFitting, BlockIndent, Dedent, ExpandParent, FileSliceBuilder,
@@ -36,7 +35,7 @@ pub use document::Document;
 pub use error::{
     ActualStart, FormatError, FormatResult, InvalidDocumentError, PrintError, PrintResult,
 };
-pub use formatter::{Format, Formatted, Formatter, FormatterSnapshot, format, write};
+pub use formatter::{Format, Formatted, Formatter, format, write};
 pub use group::{ConditionalGroup, DebugGroupId, Group, GroupId, GroupMode, ReleaseGroupId};
 pub use label::{LabelDeclaration, LabelId};
 pub use node::{FormatNode, Interned, LineMode};

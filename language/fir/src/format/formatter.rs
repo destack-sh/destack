@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::format::builder::{FillBuilder, JoinBuilder};
 use crate::format::{
-    Arguments, Buffer, BufferSnapshot, FormatContext, FormatState, GroupId, PrintResult, VecBuffer,
+    Arguments, Buffer, FormatContext, FormatState, GroupId, PrintResult, VecBuffer,
 };
 use crate::prelude::*;
 use crate::print::{Printed, Printer};
@@ -227,25 +227,6 @@ impl<'buf, Context> Formatter<'buf, Context> {
     }
 }
 
-impl<Context> Formatter<'_, Context>
-where
-    Context: FormatContext,
-{
-    /// Take a snapshot of the state of the formatter.
-    #[inline]
-    pub fn state_snapshot(&self) -> FormatterSnapshot {
-        FormatterSnapshot {
-            buffer: self.buffer.snapshot(),
-        }
-    }
-
-    /// Restore the state of the formatter to a previous snapshot.
-    #[inline]
-    pub fn restore_state_snapshot(&mut self, snapshot: FormatterSnapshot) {
-        self.buffer.restore_snapshot(snapshot.buffer);
-    }
-}
-
 impl<Context> Buffer for Formatter<'_, Context> {
     type Context = Context;
 
@@ -273,21 +254,6 @@ impl<Context> Buffer for Formatter<'_, Context> {
     fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
         self.buffer.state_mut()
     }
-
-    fn snapshot(&self) -> BufferSnapshot {
-        self.buffer.snapshot()
-    }
-
-    fn restore_snapshot(&mut self, snapshot: BufferSnapshot) {
-        self.buffer.restore_snapshot(snapshot);
-    }
-}
-
-/// Snapshot of the formatter state used to handle backtracking if errors are encountered in the formatting process and the formatter has to fallback to printing raw tokens.
-/// In practice this only saves the set of printed tokens in debug mode and compiled to nothing in release mode.
-#[derive(Debug)]
-pub struct FormatterSnapshot {
-    buffer: BufferSnapshot,
 }
 
 #[cfg(test)]

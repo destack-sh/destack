@@ -1,7 +1,6 @@
 use crate::format::{
     Arguments, FormatNode, FormatResult, FormatState, FormatTag, Interned, LineMode, write,
 };
-use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::num::NonZeroUsize;
@@ -40,72 +39,6 @@ pub trait Buffer {
 
     /// Returns the mutable formatting state relevant for this formatting program.
     fn state_mut(&mut self) -> &mut FormatState<Self::Context>;
-
-    /// Takes a snapshot of the Buffers state, excluding the formatter state.
-    fn snapshot(&self) -> BufferSnapshot;
-
-    /// Restores the snapshot buffer
-    ///
-    /// ## Panics
-    /// If the passed snapshot id is a snapshot of another buffer OR
-    /// if the snapshot is restored out of order
-    fn restore_snapshot(&mut self, snapshot: BufferSnapshot);
-}
-
-/// Snapshot of a buffer state that can be restored at a later point.
-///
-/// Used in cases where the formatting of an object fails but a parent formatter knows an alternative
-/// strategy on how to format the object that might succeed.
-#[derive(Debug)]
-pub enum BufferSnapshot {
-    /// Stores an absolute position of a buffers state, for example, the offset of the last written node.
-    Position(usize),
-
-    /// Generic structure for custom buffers that need to store more complex data. Slightly more
-    /// expensive because it requires allocating the buffer state on the heap.
-    Any(Box<dyn Any>),
-}
-
-impl BufferSnapshot {
-    /// Creates a new buffer snapshot that points to the specified position.
-    pub const fn position(index: usize) -> Self {
-        Self::Position(index)
-    }
-
-    /// Unwraps the position value.
-    ///
-    /// # Panics
-    ///
-    /// If self is not a [`BufferSnapshot::Position`]
-    pub fn unwrap_position(&self) -> usize {
-        match self {
-            BufferSnapshot::Position(index) => *index,
-            BufferSnapshot::Any(_) => panic!("cannot unwrap position from Any snapshot"),
-        }
-    }
-
-    /// Unwraps the any value.
-    ///
-    /// # Panics
-    ///
-    /// If `self` is not a [`BufferSnapshot::Any`].
-    pub fn unwrap_any<T: 'static>(self) -> T {
-        match self {
-            BufferSnapshot::Position(_) => {
-                panic!("cannot unwrap Any snapshot from Position snapshot")
-            }
-            BufferSnapshot::Any(value) => match value.downcast::<T>() {
-                Ok(snapshot) => *snapshot,
-                Err(err) => {
-                    panic!(
-                        "cannot unwrap snapshot of type {:?} as {:?}",
-                        (*err).type_id(),
-                        TypeId::of::<T>()
-                    )
-                }
-            },
-        }
-    }
 }
 
 /// Implements the `[Buffer]` trait for all mutable references of objects implementing [Buffer].
@@ -130,14 +63,6 @@ impl<W: Buffer<Context = Context> + ?Sized, Context> Buffer for &mut W {
 
     fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
         (**self).state_mut()
-    }
-
-    fn snapshot(&self) -> BufferSnapshot {
-        (**self).snapshot()
-    }
-
-    fn restore_snapshot(&mut self, snapshot: BufferSnapshot) {
-        (**self).restore_snapshot(snapshot);
     }
 }
 
@@ -210,21 +135,6 @@ impl<Context> Buffer for VecBuffer<'_, Context> {
     fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
         self.state
     }
-
-    fn snapshot(&self) -> BufferSnapshot {
-        BufferSnapshot::position(self.nodes.len())
-    }
-
-    fn restore_snapshot(&mut self, snapshot: BufferSnapshot) {
-        let position = snapshot.unwrap_position();
-        assert!(
-            self.nodes.len() >= position,
-            r#"Outdated snapshot. This buffer contains fewer nodes than at the time the snapshot was taken.
-Make sure that you take and restore the snapshot in order and that this snapshot belongs to the current buffer."#
-        );
-
-        self.nodes.truncate(position);
-    }
 }
 
 /// Buffer that allows you inspecting nodes as they get written to the formatter.
@@ -267,14 +177,6 @@ where
     fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
         self.inner.state_mut()
     }
-
-    fn snapshot(&self) -> BufferSnapshot {
-        self.inner.snapshot()
-    }
-
-    fn restore_snapshot(&mut self, snapshot: BufferSnapshot) {
-        self.inner.restore_snapshot(snapshot);
-    }
 }
 
 /// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) nodes.
@@ -290,7 +192,7 @@ pub struct RemoveSoftLinesBuffer<'a, Context> {
     /// The `key` is the [Interned] node as it has been passed to [`Self::write_node`] or the child of another
     /// [Interned] node. The `value` is the matching document of the key where all soft line breaks have been removed.
     ///
-    /// It's fine to not snapshot the cache. The worst that can happen is that it holds on interned nodes
+    /// It's fine to not rewind the cache. The worst that can happen is that it holds on interned nodes
     /// that are now unused. But there's little harm in that and the cache is cleaned when dropping the buffer.
     interned_cache: HashMap<Interned, Interned>,
 
@@ -339,6 +241,7 @@ fn clean_interned(
                     let mut cleaned = Vec::new();
                     let (before, after) = interned.split_at(index);
                     cleaned.extend_from_slice(before);
+                    cleaned.push(FormatNode::Space);
                     Some((cleaned, &after[1..]))
                 }
                 FormatNode::Interned(inner) => {
@@ -425,19 +328,6 @@ impl<Context> Buffer for RemoveSoftLinesBuffer<'_, Context> {
     fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
         self.inner.state_mut()
     }
-
-    fn snapshot(&self) -> BufferSnapshot {
-        BufferSnapshot::Any(Box::new(RemoveSoftLinebreaksSnapshot {
-            inner: self.inner.snapshot(),
-            state: self.state,
-        }))
-    }
-
-    fn restore_snapshot(&mut self, snapshot: BufferSnapshot) {
-        let RemoveSoftLinebreaksSnapshot { inner, state } = snapshot.unwrap_any();
-        self.inner.restore_snapshot(inner);
-        self.state = state;
-    }
 }
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -497,11 +387,6 @@ impl RemoveSoftLineBreaksState {
             }
         }
     }
-}
-
-struct RemoveSoftLinebreaksSnapshot {
-    inner: BufferSnapshot,
-    state: RemoveSoftLineBreaksState,
 }
 
 pub trait BufferExtensions: Buffer + Sized {
