@@ -1,13 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use destack_compiler::CompilerOptions;
 use destack_daemon::{Daemon, WatchPolicy};
-use destack_source::{
-    File, FileSystem, FileType, FileWatchEvent, FileWatchEventKind, MemoryFileWatcher, Uri,
-};
-use destack_workspace::Program;
+use destack_source::{FileSystem, FileWatchEvent, FileWatchEventKind, MemoryFileWatcher};
+use destack_workspace::Repository;
 
 use crate::common::WatchCompileReason;
 use crate::pipeline::watch::{
@@ -16,40 +14,15 @@ use crate::pipeline::watch::{
 
 use super::tests::TestProgram;
 
-/// Register a file in the program registry.
-fn register_file(program: &Program, path: &Path, contents: &str, ty: FileType) {
-    // allocate a file id
-    let file_id = program.files.next_id();
-
-    // build the file metadata
-    let name = path
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .into_owned();
-    let uri = Uri::from_path(path);
-
-    // insert the file record
-    let file = File::from_text(
-        file_id,
-        name,
-        uri,
-        Some(path.to_path_buf()),
-        ty,
-        contents.to_string(),
-    );
-    program.files.insert(file);
-}
-
 /// Build a daemon configured for deterministic test execution.
-fn daemon_with_single_worker(session: Arc<destack_workspace::Session>) -> Daemon {
+fn daemon_with_single_worker(repository: Arc<Repository>) -> Daemon {
     // keep non compiler tests deterministic and deadlock free
     let compiler_options = CompilerOptions {
         workers: 1,
         ..CompilerOptions::default()
     };
 
-    Daemon::with_options(session, compiler_options)
+    Daemon::with_options(repository, compiler_options)
 }
 
 /// State captured by watch loop callbacks.
@@ -79,7 +52,7 @@ struct WatchLoopHarness {
 
 impl WatchLoopHarness {
     /// Build a harness for a test program.
-    fn new(session: Arc<destack_workspace::Session>) -> Self {
+    fn new(repository: Arc<Repository>) -> Self {
         // configure the memory watcher with a short coalesce window
         let watcher = MemoryFileWatcher::new();
         let options = WatchLoopOptions {
@@ -92,7 +65,7 @@ impl WatchLoopHarness {
         };
 
         // create the daemon used for updates
-        let daemon = daemon_with_single_worker(session);
+        let daemon = daemon_with_single_worker(repository);
 
         Self {
             daemon,
@@ -171,17 +144,12 @@ fn test_build_watch_options_filters_paths() {
 #[test]
 fn test_apply_watch_event_updates_file() {
     let test = TestProgram::new("watch_update");
-    let program = test.session.get_or_create_program(test.root.clone());
 
     let path = test.write_text("src/main.ds", "export const value = 1;\n");
-    register_file(
-        &program,
-        &path,
-        "export const value = 1;\n",
-        FileType::Destack,
-    );
-
-    let daemon = daemon_with_single_worker(test.session.clone());
+    let daemon = daemon_with_single_worker(test.repository.clone());
+    let _ = daemon
+        .update_file(&path, "export const value = 1;\n".to_string())
+        .expect("initial source update should succeed");
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,
@@ -198,17 +166,12 @@ fn test_apply_watch_event_updates_file() {
 #[test]
 fn test_apply_watch_event_deletes_file() {
     let test = TestProgram::new("watch_delete");
-    let program = test.session.get_or_create_program(test.root.clone());
 
     let path = test.write_text("src/main.ds", "export const value = 1;\n");
-    register_file(
-        &program,
-        &path,
-        "export const value = 1;\n",
-        FileType::Destack,
-    );
-
-    let daemon = daemon_with_single_worker(test.session.clone());
+    let daemon = daemon_with_single_worker(test.repository.clone());
+    let _ = daemon
+        .update_file(&path, "export const value = 1;\n".to_string())
+        .expect("initial source update should succeed");
     test.fs
         .remove_file(&path)
         .expect("deleted file should be removed from the filesystem");
@@ -219,10 +182,7 @@ fn test_apply_watch_event_deletes_file() {
     };
 
     let result = daemon.apply_watch_event(&event);
-    let file = program
-        .files
-        .get_by_path(&path)
-        .expect("file should be tracked");
+    let file = test.file_for_path(&path);
 
     // check that the deleted files are marked missing
     assert!(result.updated());
@@ -233,25 +193,16 @@ fn test_apply_watch_event_deletes_file() {
 #[test]
 fn test_apply_watch_event_renames_file() {
     let test = TestProgram::new("watch_rename");
-    let program = test.session.get_or_create_program(test.root.clone());
 
     let old_path = test.write_text("src/old.ds", "export const value = 1;\n");
-    register_file(
-        &program,
-        &old_path,
-        "export const value = 1;\n",
-        FileType::Destack,
-    );
-
     let new_path = test.write_text("src/new.ds", "export const value = 1;\n");
-    register_file(
-        &program,
-        &new_path,
-        "export const value = 1;\n",
-        FileType::Destack,
-    );
-
-    let daemon = daemon_with_single_worker(test.session.clone());
+    let daemon = daemon_with_single_worker(test.repository.clone());
+    let _ = daemon
+        .update_file(&old_path, "export const value = 1;\n".to_string())
+        .expect("initial old source update should succeed");
+    let _ = daemon
+        .update_file(&new_path, "export const value = 1;\n".to_string())
+        .expect("initial new source update should succeed");
     test.fs
         .remove_file(&old_path)
         .expect("renamed file should be removed from the old path");
@@ -262,14 +213,8 @@ fn test_apply_watch_event_renames_file() {
     };
 
     let result = daemon.apply_watch_event(&event);
-    let old_file = program
-        .files
-        .get_by_path(&old_path)
-        .expect("old file should be tracked");
-    let new_file = program
-        .files
-        .get_by_path(&new_path)
-        .expect("new file should be tracked");
+    let old_file = test.file_for_path(&old_path);
+    let new_file = test.file_for_path(&new_path);
 
     // check that the rename removes the old file and updates the new one
     assert!(result.updated());
@@ -281,12 +226,12 @@ fn test_apply_watch_event_renames_file() {
 #[test]
 fn test_apply_watch_event_requests_rescan_for_config() {
     let test = TestProgram::new("watch_config");
-    let program = test.session.get_or_create_program(test.root.clone());
 
     let path = test.write_text("destack.json", "{ \"compiler\": {} }\n");
-    register_file(&program, &path, "{ \"compiler\": {} }\n", FileType::Json);
-
-    let daemon = daemon_with_single_worker(test.session.clone());
+    let daemon = daemon_with_single_worker(test.repository.clone());
+    let _ = daemon
+        .update_file(&path, "{ \"compiler\": {} }\n".to_string())
+        .expect("initial config update should succeed");
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,
@@ -303,12 +248,13 @@ fn test_apply_watch_event_requests_rescan_for_config() {
 #[test]
 fn test_run_watch_loop_handles_config_update() {
     let test = TestProgram::new("watch_loop_config");
-    let program = test.session.get_or_create_program(test.root.clone());
 
     let path = test.write_text("destack.json", "{ \"compiler\": {} }\n");
-    register_file(&program, &path, "{ \"compiler\": {} }\n", FileType::Json);
-
-    let harness = WatchLoopHarness::new(test.session.clone());
+    let daemon = daemon_with_single_worker(test.repository.clone());
+    let _ = daemon
+        .update_file(&path, "{ \"compiler\": {} }\n".to_string())
+        .expect("initial config update should succeed");
+    let harness = WatchLoopHarness::new(test.repository.clone());
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,
@@ -331,17 +277,13 @@ fn test_run_watch_loop_handles_config_update() {
 #[test]
 fn test_run_watch_loop_handles_source_update() {
     let test = TestProgram::new("watch_loop_source");
-    let program = test.session.get_or_create_program(test.root.clone());
 
     let path = test.write_text("src/main.ds", "export const value = 1;\n");
-    register_file(
-        &program,
-        &path,
-        "export const value = 1;\n",
-        FileType::Destack,
-    );
-
-    let harness = WatchLoopHarness::new(test.session.clone());
+    let daemon = daemon_with_single_worker(test.repository.clone());
+    let _ = daemon
+        .update_file(&path, "export const value = 1;\n".to_string())
+        .expect("initial source update should succeed");
+    let harness = WatchLoopHarness::new(test.repository.clone());
     let event = FileWatchEvent {
         path: path.clone(),
         previous_path: None,

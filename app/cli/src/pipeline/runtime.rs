@@ -1,9 +1,8 @@
-use destack_artifact::ArtifactStore;
 use destack_runtime::runtime::bindings::BindingPolicy;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, TargetId};
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    DebugMode, ExecutionMode as RuntimeExecutionMode, Program, Target, TargetId, TrustPolicy,
+    DebugMode, ExecutionMode as RuntimeExecutionMode, Repository, Revision, Target, TrustPolicy,
 };
 
 use crate::common::InputSource;
@@ -45,18 +44,20 @@ pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
 
 /// Create a VM isolate from the module MIR.
 pub fn create_isolate(
-    program: &Program,
-    artifacts: &ArtifactStore,
+    repository: &Repository,
+    revision: Revision,
     module_id: ModuleId,
     target_id: &TargetId,
     options: IsolateOptions,
 ) -> CliResult<Isolate> {
     // resolve lowered mir for the target
-    let profile_id = program.default_profile_id_for_module(module_id);
+    let profile_id = repository
+        .default_profile_id_for_module(revision, module_id)
+        .map_err(|error| CliError::message(error.to_string()))?;
     let (tree, strings) =
-        if let Some(mir) = artifacts.mir_optimized(module_id, profile_id, target_id) {
+        if let Some(mir) = repository.mir_optimized(revision, module_id, profile_id, *target_id) {
             (mir.tree.clone(), mir.strings.clone().into_immutable())
-        } else if let Some(mir) = artifacts.mir_base(module_id, profile_id, target_id) {
+        } else if let Some(mir) = repository.mir_base(revision, module_id, profile_id, *target_id) {
             (mir.tree.clone(), mir.strings.clone().into_immutable())
         } else {
             return Err(CliError::message(format!(

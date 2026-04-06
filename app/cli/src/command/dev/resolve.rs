@@ -53,22 +53,13 @@ pub struct ResolveArgs {
 }
 
 pub fn run(args: &ResolveArgs) -> i32 {
-    let session = args.program.setup();
-
-    // get the program from the session
-    let program = match session.programs().into_iter().next() {
-        Some(program) => program,
-        None => {
-            console::error("error: session did not create a program");
-            return 1;
-        }
-    };
+    let repository = args.program.setup();
 
     // determine directory to resolve from
     let directory = match args
         .directory
         .clone()
-        .unwrap_or_else(|| program.cwd.clone())
+        .unwrap_or_else(|| repository.cwd.clone())
         .canonicalize()
     {
         Ok(path) => path,
@@ -79,9 +70,27 @@ pub fn run(args: &ResolveArgs) -> i32 {
     };
 
     // set up resolve options
-    let workspace_config = session.workspace_config();
+    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let revision = match repository.current(&reference) {
+        Ok(revision) => revision,
+        Err(error) => {
+            console::error(&format!(
+                "error: failed to resolve current revision: {error}"
+            ));
+            return 1;
+        }
+    };
+    let workspace_options = match repository.workspace_options(revision) {
+        Ok(workspace_options) => workspace_options,
+        Err(error) => {
+            console::error(&format!(
+                "error: failed to derive workspace options: {error}"
+            ));
+            return 1;
+        }
+    };
     let mut options =
-        ResolveOptions::default_for_workspace(directory.clone(), workspace_config.as_deref());
+        ResolveOptions::default_for_workspace(directory.clone(), workspace_options.as_ref());
     if !args.condition.is_empty() {
         options.conditions = args.condition.clone();
     }
@@ -106,7 +115,7 @@ pub fn run(args: &ResolveArgs) -> i32 {
     };
     options = materialize_import_resolve_options(&options, context);
 
-    let resolver = Resolver::from_program(&program, options);
+    let resolver = Resolver::from_repository(&repository, options);
 
     match resolver.resolve_from_directory(&directory, &args.specifier) {
         Ok(resolution) => {

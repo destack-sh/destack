@@ -7,10 +7,10 @@ use destack_daemon::{
     Daemon, DaemonMessage, DaemonMessageKind, WatchBatch, WatchCoordinator, WatchPolicy,
 };
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, FileRegistry, FileType, FileWatchFilter,
+    DiagnosticCollection, DiagnosticOptions, FileStore, FileType, FileWatchFilter,
     FileWatchOptions, FileWatchRescanReason, FileWatchStatus, FileWatcher, PhysicalFileWatcher,
 };
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 use crate::common::format::{
     FormatOptions, FormatResult, LineWriter, format_diagnostics_with_writer,
@@ -141,14 +141,14 @@ pub fn build_daemon_options(
 }
 
 /// Determine watch roots for the workspace.
-pub fn watch_roots(program: &ProgramArgs, session: &Session) -> Vec<PathBuf> {
+pub fn watch_roots(program: &ProgramArgs, repository: &Repository) -> Vec<PathBuf> {
     // prefer an explicit workspace override
     if let Some(root) = program.workspace.clone() {
         return vec![root];
     }
 
-    // fall back to the session working directory
-    vec![session.cwd.clone()]
+    // fall back to the repository working directory
+    vec![repository.cwd.clone()]
 }
 
 /// Watch context shared by CLI watch commands.
@@ -167,10 +167,10 @@ pub fn build_watch_context(
     command_name: &str,
     program: &ProgramArgs,
     report: &ReportArgs,
-    session: &Session,
+    repository: &Repository,
 ) -> WatchContext {
     // resolve workspace roots
-    let roots = watch_roots(program, session);
+    let roots = watch_roots(program, repository);
 
     // select the primary root
     let root = roots
@@ -236,7 +236,7 @@ pub fn watch_error(message: &str) -> String {
 /// Context for emitting watch compile diagnostics.
 pub struct WatchCompileContext<'a> {
     /// Files associated with the diagnostics.
-    pub files: &'a FileRegistry,
+    pub files: &'a FileStore,
     /// Diagnostics to render.
     pub diagnostics: &'a DiagnosticCollection,
     /// The human readable formatting options.
@@ -404,7 +404,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn run_daemon_watch_command<State, StartFn, RescanFn, CompileFn, ObserveFn>(
     command_name: &str,
-    session: Arc<Session>,
+    repository: Arc<Repository>,
     program: &ProgramArgs,
     report: &ReportArgs,
     diagnostic_options: DiagnosticOptions,
@@ -419,7 +419,7 @@ pub fn run_daemon_watch_command<State, StartFn, RescanFn, CompileFn, ObserveFn>(
 ) -> i32
 where
     StartFn: FnOnce(&mut State),
-    RescanFn: FnMut(&mut State, &Session) -> CliResult<()>,
+    RescanFn: FnMut(&mut State, &Repository) -> CliResult<()>,
     CompileFn: FnMut(
         &ProtocolDaemonClient,
         &Path,
@@ -437,12 +437,13 @@ where
         roots,
         root,
         mut reporter,
-    } = build_watch_context(command_name, program, report, &session);
+    } = build_watch_context(command_name, program, report, &repository);
 
     // configure the daemon client for incremental updates
     let daemon_options = build_daemon_options(program, diagnostic_options, event_handler);
     let daemon =
-        match ProtocolDaemonClient::new(session.clone(), daemon_options, roots.clone(), program) {
+        match ProtocolDaemonClient::new(repository.clone(), daemon_options, roots.clone(), program)
+        {
             Ok(daemon) => daemon,
             Err(error) => {
                 let message = watch_error(&error.to_string());
@@ -475,7 +476,7 @@ where
         watch_loop_options,
         state,
         on_start,
-        |state| on_rescan(state, &session),
+        |state| on_rescan(state, &repository),
         |state, reporter, reason, batch_id, updated, requires_rescan| {
             let next_exit_code = compile(
                 &daemon,
@@ -510,7 +511,7 @@ where
 
 /// Print diagnostics for watch mode without consuming program state.
 pub fn print_watch_diagnostics(
-    files: &FileRegistry,
+    files: &FileStore,
     diagnostics: &DiagnosticCollection,
     format_options: &FormatOptions,
     module_count: usize,

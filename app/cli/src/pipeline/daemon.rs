@@ -19,9 +19,10 @@ use destack_daemon::{
 };
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
+    DiagnosticCollection, DiagnosticOptions, File, FileStore, FileType, FileWatchStatus,
 };
-use destack_workspace::{OptimizeLevel, RuntimeOptionsJson, Session};
+use destack_workspace::config::{OptimizeLevel, RuntimeOptionsJson};
+use destack_workspace::{Repository, Revision};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -111,8 +112,8 @@ impl DaemonLaunchContext {
 /// Connector for daemon clients.
 #[derive(Debug)]
 struct DaemonConnector {
-    /// Session for in process daemons.
-    session: Arc<Session>,
+    /// Repository for in process daemons.
+    repository: Arc<Repository>,
     /// Connect options for the daemon.
     options: DaemonConnectOptions,
     /// Instance metadata for ipc daemons.
@@ -126,7 +127,7 @@ struct DaemonConnector {
 impl DaemonConnector {
     /// Create a connector from program settings.
     fn new(
-        session: Arc<Session>,
+        repository: Arc<Repository>,
         compiler_options: CompilerOptions,
         program: &ProgramArgs,
     ) -> Self {
@@ -137,7 +138,7 @@ impl DaemonConnector {
         };
 
         // resolve daemon instance metadata
-        let instance = DaemonInstance::from_session(&session);
+        let instance = DaemonInstance::from_repository(&repository);
         let launch_context = DaemonLaunchContext::from_program(program);
         let launch = launch_context.build_launch_config(&instance);
 
@@ -145,7 +146,7 @@ impl DaemonConnector {
         let allow_in_process = program.fs_override.is_some();
 
         Self {
-            session,
+            repository,
             options,
             instance,
             launch,
@@ -167,7 +168,7 @@ impl DaemonConnector {
     /// Connect to an in process daemon.
     fn connect_in_process(&self) -> CliResult<DaemonConnection> {
         // connect via loopback transport
-        connect_in_process_daemon(self.session.clone(), self.options.clone())
+        connect_in_process_daemon(self.repository.clone(), self.options.clone())
             .map_err(|error| CliError::message(format!("daemon connect failed: {error}")))
     }
 
@@ -191,7 +192,7 @@ pub struct DaemonCommandResult {
     /// Flattened diagnostics from the response.
     pub diagnostics: DiagnosticCollection,
     /// File registry reconstructed from snapshots.
-    pub files: FileRegistry,
+    pub files: FileStore,
 }
 
 /// Builder for common daemon command options.
@@ -286,13 +287,13 @@ impl CommandOptionsBuilder {
 impl ProtocolDaemonClient {
     /// Create a protocol daemon client for the provided roots.
     pub fn new(
-        session: Arc<Session>,
+        repository: Arc<Repository>,
         compiler_options: CompilerOptions,
         roots: Vec<PathBuf>,
         program: &ProgramArgs,
     ) -> CliResult<Self> {
         // connect to the daemon
-        let connector = DaemonConnector::new(session.clone(), compiler_options, program);
+        let connector = DaemonConnector::new(repository.clone(), compiler_options, program);
         let connection = connector.connect()?;
         let client = connection.client.clone();
 
@@ -417,7 +418,7 @@ impl ProtocolDaemonClient {
     }
 
     /// Resolve the current semantic revision for a root.
-    pub fn run_workspace_revision(&self, root: &Path) -> CliResult<u64> {
+    pub fn run_current_revision(&self, root: &Path) -> CliResult<Revision> {
         // resolve the workspace handle
         let handle = self.workspace_handle_for_root(root).ok_or_else(|| {
             CliError::message(format!("workspace root not opened: {}", root.display()))
@@ -426,11 +427,11 @@ impl ProtocolDaemonClient {
         // send the revision request to the daemon
         let response = self
             .client
-            .send_request(DaemonRequest::Query(DaemonQuery::WorkspaceRevision {
+            .send_request(DaemonRequest::Query(DaemonQuery::CurrentRevision {
                 handle: handle.handle,
             }))
             .map_err(|error| {
-                CliError::message(format!("workspace revision request failed: {error}"))
+                CliError::message(format!("current revision request failed: {error}"))
             })?;
 
         // unwrap the protocol response
@@ -438,7 +439,7 @@ impl ProtocolDaemonClient {
             DaemonResponse::QueryResult(response) => response,
             DaemonResponse::Error(error) => {
                 return Err(CliError::message(format!(
-                    "workspace revision failed: {error}"
+                    "current revision failed: {error}"
                 )));
             }
             other => {
@@ -448,7 +449,7 @@ impl ProtocolDaemonClient {
 
         // unwrap the revision payload
         match response {
-            DaemonQueryResponse::WorkspaceRevision(revision) => Ok(revision),
+            DaemonQueryResponse::CurrentRevision(revision) => Ok(revision),
             other => Err(CliError::message(format!(
                 "unexpected query response: {other:?}"
             ))),
@@ -705,32 +706,39 @@ pub fn run_workspace_command_once(
     payload: CommandPayload,
     event_handler: Option<CompilerEventHandler>,
 ) -> CliResult<DaemonCommandResult> {
-    // prepare the session for a one-shot run
-    let session = program.setup();
+    // prepare the repository for a one-shot run
+    let repository = program.setup();
 
     let diagnostic = diagnostic.unwrap_or_default();
 
-    run_workspace_command_with_session(session, program, diagnostic, common, payload, event_handler)
+    run_workspace_command_with_repository(
+        repository,
+        program,
+        diagnostic,
+        common,
+        payload,
+        event_handler,
+    )
 }
 
-/// Run a daemon command using an existing session.
-pub fn run_workspace_command_with_session(
-    session: Arc<Session>,
+/// Run a daemon command using an existing repository.
+pub fn run_workspace_command_with_repository(
+    repository: Arc<Repository>,
     program: &ProgramArgs,
     diagnostic: DiagnosticOptions,
     common: CommonCommandOptions,
     payload: CommandPayload,
     event_handler: Option<CompilerEventHandler>,
 ) -> CliResult<DaemonCommandResult> {
-    // resolve workspace roots for the daemon session
-    let roots = watch_roots(program, &session);
+    // resolve workspace roots for the daemon repository
+    let roots = watch_roots(program, &repository);
     let Some(root) = roots.first().cloned() else {
         return Err(CliError::message("workspace roots are empty"));
     };
 
     // build compiler options for the daemon
     let daemon_options = build_daemon_options(program, diagnostic, event_handler);
-    let daemon = ProtocolDaemonClient::new(session.clone(), daemon_options, roots, program)?;
+    let daemon = ProtocolDaemonClient::new(repository.clone(), daemon_options, roots, program)?;
 
     // execute the command and shutdown
     let result = daemon.run_workspace_command(&root, common, payload)?;
@@ -779,17 +787,17 @@ pub fn run_workspace_command_with_required_payload_or_report<T: DeserializeOwned
     Ok((result, payload, value))
 }
 
-/// Execute a workspace command with a prepared session or emit a CLI error report.
-pub fn run_workspace_command_with_session_or_report(
+/// Execute a workspace command with a prepared repository or emit a CLI error report.
+pub fn run_workspace_command_with_repository_or_report(
     command: &str,
     report_args: &ReportArgs,
-    session: Arc<Session>,
+    repository: Arc<Repository>,
     program: &ProgramArgs,
     diagnostic: DiagnosticOptions,
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> Result<DaemonCommandResult, i32> {
-    run_workspace_command_with_session(session, program, diagnostic, common, payload, None)
+    run_workspace_command_with_repository(repository, program, diagnostic, common, payload, None)
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
@@ -1146,9 +1154,9 @@ fn diagnostics_from_batches(batches: &[DiagnosticBatch]) -> DiagnosticCollection
 }
 
 /// Convert file snapshots into a file registry.
-fn files_from_snapshots(snapshots: &[FileSnapshot]) -> FileRegistry {
+fn files_from_snapshots(snapshots: &[FileSnapshot]) -> FileStore {
     // rebuild a registry from snapshot metadata
-    let registry = FileRegistry::new();
+    let registry = FileStore::new();
     for snapshot in snapshots {
         let file = match snapshot.content.as_ref() {
             Some(content) => File::from_text(

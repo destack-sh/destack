@@ -1,16 +1,14 @@
 use std::path::{Path, PathBuf};
 
-use destack_workspace::{CacheScope, Destack, resolve_cache_root_for_scope};
+use destack_workspace::resolve_cache_root;
 
 use crate::common::ProgramArgs;
 
-/// Source of a resolved cache location.
+/// Source of one resolved cache location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CacheSource {
-    /// Cache directory from CLI override.
+    /// Cache directory from one CLI override.
     Override,
-    /// Cache directory from destack.json.
-    Destack,
     /// Default cache directory location.
     Default,
 }
@@ -19,48 +17,34 @@ pub enum CacheSource {
 #[derive(Debug, Clone)]
 pub struct CacheLocation {
     /// The resolved cache directory.
-    pub dir: PathBuf,
+    pub directory: PathBuf,
     /// The origin of the cache path.
     pub source: CacheSource,
 }
 
-/// Resolve the cache directory using overrides and destack.json settings.
+/// Resolve one cache directory using runtime overrides and defaults.
 pub fn resolve_cache_location(
     program_args: &ProgramArgs,
-    config: Option<&Destack>,
     workspace_root: &Path,
     cwd: &Path,
 ) -> CacheLocation {
     // honor cli overrides first
-    if let Some(cache_dir) = program_args.cache_dir.as_ref() {
-        let dir = resolve_path(cache_dir, cwd);
+    if let Some(cache_directory) = program_args.cache_dir.as_ref() {
+        let directory = resolve_path(cache_directory, cwd);
         return CacheLocation {
-            dir,
+            directory,
             source: CacheSource::Override,
         };
     }
 
-    // fall back to config cache settings
-    if let Some(config) = config {
-        let dir = resolve_cache_root_for_scope(
-            &config.directory,
-            config.options.cache.dir.as_deref(),
-            config.options.cache.scope,
-        );
-        return CacheLocation {
-            dir,
-            source: CacheSource::Destack,
-        };
-    }
-
-    // default to workspace root
+    // default to the workspace root
     CacheLocation {
-        dir: resolve_cache_root_for_scope(workspace_root, None, CacheScope::Workspace),
+        directory: resolve_cache_root(workspace_root, None),
         source: CacheSource::Default,
     }
 }
 
-/// Resolve a path relative to the provided root.
+/// Resolve one path relative to one root.
 fn resolve_path(path: &Path, root: &Path) -> PathBuf {
     // resolve relative paths against the root
     if path.is_absolute() {

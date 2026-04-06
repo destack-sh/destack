@@ -5,11 +5,10 @@ use std::thread;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
-use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, LintPreset, LintSeverity, LinterOptions,
-    OrganizeImports, QuoteProperty, QuoteStyle, Session, TrailingComma,
+    OrganizeImports, QuoteProperty, QuoteStyle, Ref, Repository, TrailingComma,
 };
 
 use crate::common::{ReportArgs, report_error};
@@ -286,16 +285,16 @@ impl From<LinterOptionsArgs> for LinterOptions {
         }
         // complexity thresholds
         if let Some(max_complexity) = args.max_complexity {
-            options.max_cyclomatic_complexity = max_complexity;
+            options.complexity.max_cyclomatic_complexity = max_complexity;
         }
         if let Some(max_params) = args.max_params {
-            options.max_params = max_params;
+            options.complexity.max_params = max_params;
         }
         if let Some(max_depth) = args.max_depth {
-            options.max_depth = max_depth;
+            options.complexity.max_depth = max_depth;
         }
         if let Some(max_lines) = args.max_lines {
-            options.max_lines = max_lines;
+            options.complexity.max_lines = max_lines;
         }
         options
     }
@@ -487,13 +486,13 @@ impl ProgramArgs {
         self
     }
 
-    /// Create a Session from these arguments.
-    pub fn setup(&self) -> Arc<Session> {
+    /// Create a repository from these arguments.
+    pub fn setup(&self) -> Arc<Repository> {
         self.setup_with_fs(self.fs_override.as_ref().map(FileSystemOverride::fs))
     }
 
-    /// Create a Session using an explicit file system override.
-    pub fn setup_with_fs(&self, fs_override: Option<Arc<dyn FileSystem>>) -> Arc<Session> {
+    /// Create a repository using an explicit file system override.
+    pub fn setup_with_fs(&self, fs_override: Option<Arc<dyn FileSystem>>) -> Arc<Repository> {
         let cwd = self
             .cwd
             .clone()
@@ -507,43 +506,39 @@ impl ProgramArgs {
             fs
         });
 
-        // create session (builtins are always loaded)
-        let mut session = Session::new(cwd.clone())
-            .with_fs(fs.clone())
+        // discover and import the repository in one step
+        let mut repository = Repository::open_detected_from_fs(workspace_root, fs.clone())
+            .expect("failed to import repository from file system")
             .with_formatter(formatter_options)
             .with_linter(linter_options);
 
         // prefer in memory cache stores for test file systems
         if has_fs_override {
-            session = session.with_cache_store(Arc::new(MemoryCacheStore::new()));
+            repository = repository.with_cache_store(Arc::new(MemoryCacheStore::new()));
         }
 
-        // discover workspace
-        let resolver =
-            Resolver::from_session(&session, ResolveOptions::default_for_cwd(cwd.clone()));
-        let workspace = resolver
-            .discover_workspace(&workspace_root)
-            .unwrap_or_else(|_| destack_workspace::Workspace::single_package(workspace_root));
+        let reference = Ref::for_workspace_root(repository.workspace_root());
+        let revision = repository
+            .current(&reference)
+            .expect("failed to resolve current workspace revision");
+        let workspace = repository
+            .workspace(revision)
+            .expect("failed to derive workspace view");
         let root = workspace.root.clone();
         let workspace_kind = workspace.kind;
 
-        // apply workspace configuration
-        let mut session = session.with_workspace(workspace);
-        if let Some(cache_dir) = self.cache_dir.as_ref() {
-            let cache_dir = if cache_dir.is_absolute() {
-                cache_dir.clone()
+        if let Some(cache_directory) = self.cache_dir.as_ref() {
+            let cache_directory = if cache_directory.is_absolute() {
+                cache_directory.clone()
             } else {
-                cwd.join(cache_dir)
+                cwd.join(cache_directory)
             };
-            session = session.with_cache_dir(cache_dir);
+            repository = repository.with_cache_directory(cache_directory);
         }
 
         tracing::trace!(?cwd, ?root, workspace_kind = ?workspace_kind, workers = self.workers, "program.setup");
 
-        // add the root to create a program
-        session.add_root(root);
-
-        Arc::new(session)
+        Arc::new(repository)
     }
 }
 

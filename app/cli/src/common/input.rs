@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Args;
-use destack_source::{File, FileType, Uri};
-use destack_workspace::Program;
+use destack_source::{File, FileId, FileType, Uri};
+use destack_workspace::Repository;
 
 use crate::error::{CliError, CliResult};
 
@@ -135,29 +135,29 @@ impl InputArgs {
     }
 }
 
-/// Load input sources into the program's file registry.
-pub fn load_sources(program: &Program, sources: &[InputSource]) -> CliResult<Vec<Arc<File>>> {
+/// Load input sources into transient file views.
+pub fn load_sources(repository: &Repository, sources: &[InputSource]) -> CliResult<Vec<Arc<File>>> {
     let mut files = Vec::new();
 
     for source in sources {
-        let file = load_source(program, source)?;
+        let file = load_source(repository, source)?;
         files.push(file);
     }
 
     Ok(files)
 }
 
-/// Load a single input source into the program's file registry.
-pub fn load_source(program: &Program, source: &InputSource) -> CliResult<Arc<File>> {
+/// Load a single input source into one transient file view.
+pub fn load_source(repository: &Repository, source: &InputSource) -> CliResult<Arc<File>> {
     match source {
-        InputSource::File(path) => load_file(program, path),
-        InputSource::Inline { code, name } => load_string(program, code, name),
-        InputSource::Stdin { name } => load_stdin(program, name),
+        InputSource::File(path) => load_file(repository, path),
+        InputSource::Inline { code, name } => load_string(repository, code, name),
+        InputSource::Stdin { name } => load_stdin(repository, name),
     }
 }
 
 /// Load a file from disk.
-fn load_file(program: &Program, path: &PathBuf) -> CliResult<Arc<File>> {
+fn load_file(repository: &Repository, path: &PathBuf) -> CliResult<Arc<File>> {
     let path_str = path.display().to_string();
 
     // determine file type from extension
@@ -165,13 +165,13 @@ fn load_file(program: &Program, path: &PathBuf) -> CliResult<Arc<File>> {
     let file_type = FileType::from_extension_or_unknown(ext);
 
     // read file content
-    let content = program
-        .fs
+    let content = repository
+        .file_system()
         .read_to_string(path)
         .map_err(|e| CliError::message(format!("\"{path_str}\": {e}")))?;
 
     // create file
-    let file_id = program.files.next_id();
+    let file_id = repository.file_id_for_workspace_path(path);
     let name = path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -179,16 +179,15 @@ fn load_file(program: &Program, path: &PathBuf) -> CliResult<Arc<File>> {
     let uri = Uri::from_path(path);
 
     let file = File::from_text(file_id, name, uri, Some(path.clone()), file_type, content);
-    program.files.insert(file);
-    Ok(program.files.get(file_id))
+    Ok(Arc::new(file))
 }
 
 /// Load inline code as a virtual file.
-fn load_string(program: &Program, code: &str, name: &str) -> CliResult<Arc<File>> {
+fn load_string(_repository: &Repository, code: &str, name: &str) -> CliResult<Arc<File>> {
     let ext = name.rsplit('.').next().unwrap_or("ds");
     let file_type = FileType::from_extension_or_unknown(ext);
 
-    let file_id = program.files.next_id();
+    let file_id = FileId::from_logical_str(name);
     let uri = Uri::from_string(name);
 
     let file = File::from_text(
@@ -199,8 +198,7 @@ fn load_string(program: &Program, code: &str, name: &str) -> CliResult<Arc<File>
         file_type,
         code.to_string(),
     );
-    program.files.insert(file);
-    Ok(program.files.get(file_id))
+    Ok(Arc::new(file))
 }
 
 /// Parse a --module argument in `name:code` format.
@@ -248,11 +246,11 @@ fn parse_module_arg(arg: &str, default_extension: &str) -> CliResult<(String, St
 }
 
 /// Load from stdin as a virtual file.
-fn load_stdin(program: &Program, name: &str) -> CliResult<Arc<File>> {
+fn load_stdin(repository: &Repository, name: &str) -> CliResult<Arc<File>> {
     let mut content = String::new();
     std::io::stdin()
         .read_to_string(&mut content)
         .map_err(|e| CliError::message(format!("failed to read stdin: {e}")))?;
 
-    load_string(program, &content, name)
+    load_string(repository, &content, name)
 }

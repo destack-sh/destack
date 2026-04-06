@@ -1,10 +1,10 @@
 use destack_compiler::DiagnosticRegistry;
 use destack_parser::source_colorizer;
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, PrintOptions,
+    DiagnosticCollection, DiagnosticOptions, FileStore, PrintOptions,
     print_diagnostics as print_diagnostics_impl,
 };
-use destack_workspace::Program;
+use destack_workspace::{Repository, Revision};
 
 use clap::Args;
 
@@ -36,12 +36,47 @@ impl From<DiagnosticArgs> for DiagnosticOptions {
 }
 
 /// Print diagnostics (and suggestions) to the console.
-pub fn print_diagnostics(program: &Program, diagnostics: &DiagnosticCollection) {
+pub fn print_diagnostics(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollection,
+) {
+    let files = collect_diagnostic_files(repository, revision, diagnostics);
+    let module_count = repository
+        .workspace_module_ids(revision)
+        .map(|modules| modules.len())
+        .unwrap_or(0);
     let options = PrintOptions::new()
         .with_line_width(100)
-        .with_module_count(program.modules.len())
+        .with_module_count(module_count)
         .with_colorizer(source_colorizer());
-    print_diagnostics_impl(&program.files, diagnostics, options);
+    print_diagnostics_impl(&files, diagnostics, options);
+}
+
+/// Collect the file snapshots referenced by diagnostics.
+fn collect_diagnostic_files(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollection,
+) -> FileStore {
+    let files = FileStore::new();
+
+    // load each referenced file snapshot once
+    for diagnostic in diagnostics.iter() {
+        if files.get_maybe(diagnostic.file_id).is_some() {
+            continue;
+        }
+
+        let Ok(file) = repository.file(revision, diagnostic.file_id) else {
+            continue;
+        };
+        let Some(file) = file else {
+            continue;
+        };
+        files.insert((*file).clone());
+    }
+
+    files
 }
 
 /// Validate that a warning code is known.

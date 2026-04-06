@@ -17,7 +17,7 @@ use crate::pipeline::watch::{
     WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
     run_daemon_watch_command, watch_error,
 };
-use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
+use crate::pipeline::workspace::{load_destack_declaration_for_program, workspace_context};
 use clap::Args;
 
 /// State for build watch mode.
@@ -63,18 +63,18 @@ pub fn run(args: &BuildArgs) -> i32 {
             Ok(context) => context,
             Err(error) => return report_error("build", &args.report, &error.to_string()),
         };
-        let config = match load_destack_config_for_program(
+        let declaration = match load_destack_declaration_for_program(
             &args.program,
+            &context.repository,
             &context.resolver,
-            &context.session.cwd,
+            &context.repository.cwd,
         ) {
-            Ok(config) => config,
+            Ok(declaration) => declaration,
             Err(error) => return report_error("build", &args.report, &error.to_string()),
         };
-        config
-            .options
+        declaration
+            .package_options()
             .default_target
-            .clone()
             .unwrap_or_else(|| "default".to_string())
     };
 
@@ -329,7 +329,7 @@ where
                 .stats
                 .as_ref()
                 .map(|stats| command_stats_from_protocol(stats, args.program.timings));
-            let next_exit_code = emit_watch_compile_report(
+            emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {
                     files: &result.files,
@@ -344,9 +344,7 @@ where
                 updated,
                 requires_rescan,
                 batch_id,
-            );
-
-            next_exit_code
+            )
         },
         on_compile,
         is_one_shot,

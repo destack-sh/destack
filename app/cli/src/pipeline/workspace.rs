@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
-use destack_workspace::{Destack, Program, Session, Workspace};
+use destack_resolver::{ResolveOptions, Resolver};
+use destack_workspace::{DestackDeclaration, Repository, Revision, Workspace};
 
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
@@ -11,10 +11,8 @@ use crate::error::{CliError, CliResult};
 /// Resolved workspace context for CLI commands.
 #[derive(Debug)]
 pub struct WorkspaceContext {
-    /// Active session.
-    pub session: Arc<Session>,
-    /// Active program.
-    pub program: Arc<Program>,
+    /// Active repository.
+    pub repository: Arc<Repository>,
     /// Resolver for workspace lookups.
     pub resolver: Resolver,
     /// Discovered workspace.
@@ -33,22 +31,23 @@ pub fn workspace_context(
     }
 
     // initialize
-    let session = args.setup();
-    let program = session
-        .programs()
-        .into_iter()
-        .next()
-        .ok_or_else(|| CliError::message("session did not create a program"))?;
-    let workspace_config = session.workspace_config();
-    let resolver = Resolver::from_session(
-        &session,
-        ResolveOptions::default_for_workspace(session.cwd.clone(), workspace_config.as_deref()),
+    let repository = args.setup();
+    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository.current(&reference).map_err(|error| {
+        CliError::message(format!("failed to resolve current revision: {error}"))
+    })?;
+    let workspace = repository
+        .workspace(revision)
+        .map_err(|error| CliError::message(format!("failed to derive workspace: {error}")))?;
+    let workspace_options = repository.workspace_options(revision).map_err(|error| {
+        CliError::message(format!("failed to derive workspace options: {error}"))
+    })?;
+    let resolver = Resolver::from_repository(
+        &repository,
+        ResolveOptions::default_for_workspace(repository.cwd.clone(), workspace_options.as_ref()),
     );
-    let workspace = Arc::new(session.workspace_snapshot());
-
     Ok(WorkspaceContext {
-        session,
-        program,
+        repository,
         resolver,
         workspace,
     })
@@ -77,12 +76,15 @@ pub fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Load and parse a destack.json file.
-pub fn load_destack_config(resolver: &Resolver, path: &Path) -> CliResult<Destack> {
-    // map resolver errors into strings
-    resolver
-        .read_destack_config(path, CachePolicy::UseCache)
-        .map_err(|error| CliError::message(error.to_string()))
+/// Load one `destack.json` declaration from disk.
+pub fn load_destack_declaration(
+    repository: &Repository,
+    _resolver: &Resolver,
+    path: &Path,
+) -> CliResult<DestackDeclaration> {
+    repository
+        .load_destack_declaration_for_path(path)
+        .ok_or_else(|| CliError::message(format!("failed to load {}", path.display())))
 }
 
 /// Resolve a destack.json path based on program args.
@@ -124,70 +126,87 @@ pub fn resolve_destack_config_path(
 }
 
 /// Resolve a destack.json path and load it.
-pub fn load_destack_config_for_program(
+pub fn load_destack_declaration_for_program(
     program_args: &ProgramArgs,
+    repository: &Repository,
     resolver: &Resolver,
     cwd: &Path,
-) -> CliResult<Destack> {
+) -> CliResult<DestackDeclaration> {
     let path = resolve_destack_config_path(program_args, resolver, cwd)?;
-    load_destack_config(resolver, &path)
+    load_destack_declaration(repository, resolver, &path)
 }
 
 /// Resolve the default target from destack.json when available.
 pub fn default_target_for_program(
     program_args: &ProgramArgs,
+    repository: &Repository,
     resolver: &Resolver,
     cwd: &Path,
 ) -> CliResult<Option<String>> {
     // honor explicit config paths
     if program_args.config.is_some() {
-        let config = load_destack_config_for_program(program_args, resolver, cwd)?;
-        return Ok(config.options.default_target);
+        let declaration =
+            load_destack_declaration_for_program(program_args, repository, resolver, cwd)?;
+        return Ok(declaration.package_options().default_target);
     }
 
     // fall back to auto discovery when present
     let Some(path) = find_destack_config(resolver, cwd) else {
         return Ok(None);
     };
-    let config = load_destack_config(resolver, &path)?;
-    Ok(config.options.default_target)
+    let declaration = load_destack_declaration(repository, resolver, &path)?;
+    Ok(declaration.package_options().default_target)
 }
 
-/// Resolve the default target using a session resolver.
-pub fn default_target_for_session(
+/// Resolve the default target using a repository resolver.
+pub fn default_target_for_repository(
     program_args: &ProgramArgs,
-    session: &Session,
+    repository: &Repository,
 ) -> CliResult<Option<String>> {
-    // build a resolver using the session configuration
-    let workspace_config = session.workspace_config();
-    let resolver = Resolver::from_session(
-        session,
-        ResolveOptions::default_for_workspace(session.cwd.clone(), workspace_config.as_deref()),
+    // build a resolver using the repository configuration
+    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository.current(&reference).map_err(|error| {
+        CliError::message(format!("failed to resolve current revision: {error}"))
+    })?;
+    let workspace_options = repository.workspace_options(revision).map_err(|error| {
+        CliError::message(format!("failed to derive workspace options: {error}"))
+    })?;
+    let resolver = Resolver::from_repository(
+        repository,
+        ResolveOptions::default_for_workspace(repository.cwd.clone(), workspace_options.as_ref()),
     );
 
-    default_target_for_program(program_args, &resolver, &session.cwd)
+    default_target_for_program(program_args, repository, &resolver, &repository.cwd)
 }
 
 /// Resolve a destack.json for a path and load it.
-pub fn load_destack_config_for_path(resolver: &Resolver, path: &Path) -> CliResult<Destack> {
+pub fn load_destack_declaration_for_path(
+    repository: &Repository,
+    resolver: &Resolver,
+    path: &Path,
+) -> CliResult<DestackDeclaration> {
     // resolve the config path from the directory
     let destack_config_path = find_destack_config(resolver, path)
         .ok_or_else(|| CliError::message("destack.json not found"))?;
 
     // load the resolved config
-    load_destack_config(resolver, &destack_config_path)
+    load_destack_declaration(repository, resolver, &destack_config_path)
 }
 
 /// Load destack.json files for all packages in a workspace.
-pub fn load_workspace_configs(
+pub fn load_workspace_declarations(
+    repository: &Repository,
     resolver: &Resolver,
-    workspace: &Workspace,
-) -> CliResult<Vec<Destack>> {
+    revision: Revision,
+) -> CliResult<Vec<DestackDeclaration>> {
     // collect unique config paths
     let mut configs = BTreeMap::new();
+    let package_paths = repository
+        .workspace_package_paths(revision)
+        .map_err(|error| CliError::message(format!("failed to derive package paths: {error}")))?;
 
     // collect config paths for each package path
-    for package_path in &workspace.package_paths {
+    for package_path in &package_paths {
         if let Some(path) = find_destack_config(resolver, package_path) {
             configs.entry(path).or_insert_with(|| package_path.clone());
         }
@@ -196,7 +215,7 @@ pub fn load_workspace_configs(
     // load unique configs in a stable order
     let mut resolved = Vec::new();
     for (path, _) in configs {
-        resolved.push(load_destack_config(resolver, &path)?);
+        resolved.push(load_destack_declaration(repository, resolver, &path)?);
     }
 
     // return the loaded configs

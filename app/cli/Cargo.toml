@@ -51,11 +51,11 @@ destack_json = { workspace = true }
 destack_linter = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
+destack_workspace = { workspace = true }
 destack_resolver = { workspace = true }
 destack_runtime = { workspace = true }
 destack_source = { workspace = true }
 destack_vm = { workspace = true }
-destack_workspace = { workspace = true }
 
 # platform
 destack_daemon = { workspace = true }

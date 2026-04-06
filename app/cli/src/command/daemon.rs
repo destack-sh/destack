@@ -71,22 +71,22 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
     // resolve diagnostic settings
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
-    // build a session and compiler options
-    let session = args.program.setup();
+    // build a repository and compiler options
+    let repository = args.program.setup();
     let compiler_options = build_daemon_options(&args.program, diagnostic_options, None);
 
     // resolve daemon instance metadata
-    let mut instance = DaemonInstance::from_session(&session);
+    let mut instance = DaemonInstance::from_repository(&repository);
 
     // override the socket path when requested
     if let Some(socket) = args.socket.as_ref() {
         instance.socket_path = socket.clone();
     }
 
-    // build server options from the session
-    let mut server_options = DaemonServerOptions::from_session(&session);
+    // build server options from the repository
+    let mut server_options = DaemonServerOptions::from_repository(&repository);
     server_options.compiler_options = compiler_options;
-    let server = DaemonServer::with_options(session, instance, server_options);
+    let server = DaemonServer::with_options(repository, instance, server_options);
 
     // serve until shutdown
     if let Err(error) = server.serve() {
@@ -99,9 +99,9 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
 
 /// Start the daemon for the workspace.
 fn run_start(args: &DaemonLifecycleArgs) -> i32 {
-    // build session metadata
-    let session = args.program.setup();
-    let instance = DaemonInstance::from_session(&session);
+    // build repository metadata
+    let repository = args.program.setup();
+    let instance = DaemonInstance::from_repository(&repository);
     let launch_context = DaemonLaunchContext::from_program(&args.program);
     let launch = launch_context.build_launch_config(&instance);
     let options = DaemonConnectOptions::default();
@@ -122,9 +122,9 @@ fn run_start(args: &DaemonLifecycleArgs) -> i32 {
 
 /// Stop the daemon for the workspace.
 fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
-    // build session metadata
-    let session = args.program.setup();
-    let instance = DaemonInstance::from_session(&session);
+    // build repository metadata
+    let repository = args.program.setup();
+    let instance = DaemonInstance::from_repository(&repository);
     let options = DaemonConnectOptions::default();
     let connection = match connect_ipc_daemon(&instance, options, None) {
         Ok(connection) => connection,
@@ -150,9 +150,9 @@ fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
 
 /// Report daemon status for the workspace.
 fn run_status(args: &DaemonLifecycleArgs) -> i32 {
-    // build session metadata
-    let session = args.program.setup();
-    let instance = DaemonInstance::from_session(&session);
+    // build repository metadata
+    let repository = args.program.setup();
+    let instance = DaemonInstance::from_repository(&repository);
     let options = DaemonConnectOptions::default();
 
     // probe daemon connectivity
