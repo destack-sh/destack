@@ -4,21 +4,21 @@ use std::path::PathBuf;
 use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
 use destack_workspace::{
-    CallIndexEntry, ExtensionIndexEntry, ImportIndexEntry, Module, NominalIndexEntry, Program,
-    Session, SpecifierIndexEntry, SymbolIndexEntry,
+    CallIndexEntry, ExtensionIndexEntry, ImportIndexEntry, Module, NominalIndexEntry, Repository,
+    Revision, SpecifierIndexEntry, SymbolIndexEntry,
 };
 
 use crate::dir::{
     build_call_index_entries_for_module, build_extension_index_entries_for_module,
-    build_import_index_entries_for_program, build_nominal_index_entries_for_module,
+    build_import_index_entries, build_nominal_index_entries_for_module,
     build_reference_index_entries_for_module, build_specifier_index_entries_for_module,
     build_symbol_index_entries_for_module,
 };
 
-/// The session verbs for derived workspace query indexes.
-pub trait SessionQueryIndexExt {
+/// The repository verbs for derived workspace query indexes.
+pub trait RepositoryQueryIndexExt {
     /// Index one set of modules into every workspace query index.
-    fn index_query_modules<I>(&self, module_ids: I)
+    fn index_query_modules<I>(&self, revision: Revision, module_ids: I)
     where
         I: IntoIterator<Item = ModuleId>;
 
@@ -27,16 +27,15 @@ pub trait SessionQueryIndexExt {
     where
         I: IntoIterator<Item = ModuleId>;
 
-    /// Index one program import slice into the workspace query index.
-    fn index_query_imports_for_program(&self, program: &Program);
+    /// Index one import slice into the workspace query index.
+    fn index_query_imports(&self, revision: Revision);
 
-    /// Remove one program import slice from the workspace query index.
-    fn remove_query_imports_for_program(&self, root: &std::path::Path);
+    /// Remove one import slice from the workspace query index.
+    fn remove_query_imports(&self);
 
-    /// Search import entries for one program.
-    fn search_import_entries_for_program(
+    /// Search import entries for the current workspace root.
+    fn search_import_entries(
         &self,
-        program: &Program,
         query: &str,
         exclude_module: Option<ModuleId>,
     ) -> Vec<ImportIndexEntry>;
@@ -89,8 +88,8 @@ struct ModuleQueryIndexSlice {
     specifier_entries: Vec<SpecifierIndexEntry>,
 }
 
-impl SessionQueryIndexExt for Session {
-    fn index_query_modules<I>(&self, module_ids: I)
+impl RepositoryQueryIndexExt for Repository {
+    fn index_query_modules<I>(&self, revision: Revision, module_ids: I)
     where
         I: IntoIterator<Item = ModuleId>,
     {
@@ -100,13 +99,11 @@ impl SessionQueryIndexExt for Session {
 
         // derive replacement slices before taking the write lock
         for module_id in module_ids {
-            if !self.modules.contains(module_id) {
+            let Some(module) = self.module(revision, module_id).ok().flatten() else {
                 continue;
-            }
-
-            let module = self.modules.get(module_id);
+            };
             let module = module.as_ref();
-            let slice = build_module_query_index_slice(self, module_id, module);
+            let slice = build_module_query_index_slice(self, revision, module_id, module);
             slices.push(slice);
         }
 
@@ -156,33 +153,32 @@ impl SessionQueryIndexExt for Session {
         });
     }
 
-    fn index_query_imports_for_program(&self, program: &Program) {
-        // derive the full program import slice before taking the write lock
-        let entries = build_import_index_entries_for_program(self, program);
-        let root = program.cwd.clone();
+    fn index_query_imports(&self, revision: Revision) {
+        // derive the full import slice before taking the write lock
+        let entries = build_import_index_entries(self, revision);
+        let root = self.workspace_root().to_path_buf();
 
         // swap the prepared import slice into the shared index
         self.with_query_index_mut(|query_index| {
-            query_index.import.replace_program(root, entries);
+            query_index.import.replace_root(root, entries);
         });
     }
 
-    fn remove_query_imports_for_program(&self, root: &std::path::Path) {
+    fn remove_query_imports(&self) {
         self.with_query_index_mut(|query_index| {
-            query_index.import.remove_program(root);
+            query_index.import.remove_root(self.workspace_root());
         });
     }
 
-    fn search_import_entries_for_program(
+    fn search_import_entries(
         &self,
-        program: &Program,
         query: &str,
         exclude_module: Option<ModuleId>,
     ) -> Vec<ImportIndexEntry> {
         self.with_query_index(|query_index| {
             query_index
                 .import
-                .search_program(program.cwd.as_path(), query, exclude_module)
+                .search_root(self.workspace_root(), query, exclude_module)
         })
     }
 
@@ -230,25 +226,29 @@ impl SessionQueryIndexExt for Session {
 
 /// Derive every query-index slice for one module.
 fn build_module_query_index_slice(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     module_id: ModuleId,
     module: &Module,
 ) -> ModuleQueryIndexSlice {
     // workspace symbol search
     let symbol_entries = module
         .is_user()
-        .then(|| build_symbol_index_entries_for_module(session, module));
+        .then(|| build_symbol_index_entries_for_module(repository, revision, module_id));
 
     // hierarchy and extension lookup
-    let nominal_entries = build_nominal_index_entries_for_module(session, module);
-    let extension_entries = build_extension_index_entries_for_module(session, module);
+    let nominal_entries = build_nominal_index_entries_for_module(repository, revision, module_id);
+    let extension_entries =
+        build_extension_index_entries_for_module(repository, revision, module_id);
 
     // reference and call fanout
-    let reference_entries = build_reference_index_entries_for_module(session, module);
-    let call_entries = build_call_index_entries_for_module(session, module);
+    let reference_entries =
+        build_reference_index_entries_for_module(repository, revision, module_id);
+    let call_entries = build_call_index_entries_for_module(repository, revision, module_id);
 
     // specifier rewrites
-    let specifier_entries = build_specifier_index_entries_for_module(session, module);
+    let specifier_entries =
+        build_specifier_index_entries_for_module(repository, revision, module_id);
 
     ModuleQueryIndexSlice {
         module_id,

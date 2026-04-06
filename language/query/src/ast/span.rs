@@ -5,11 +5,16 @@ use super::AstQuery;
 use destack_ast as ast;
 use destack_dir::{self as dir, LocalNodeIdAny};
 use destack_source::{EnclosingSpan, File, FileId, Span};
-use destack_workspace::{Module, Session};
+use destack_workspace::{Module, Repository, Revision};
 
 /// Get a module by FileId.
-pub(crate) fn get_module_by_file_id(session: &Session, file_id: FileId) -> Option<Arc<Module>> {
-    session.modules.get_by_file_id(file_id)
+pub(crate) fn get_module_by_file_id(
+    repository: &Repository,
+    revision: Revision,
+    file_id: FileId,
+) -> Option<Arc<Module>> {
+    let module_id = repository.module_id_for_file(revision, file_id).ok()??;
+    repository.module(revision, module_id).ok().flatten()
 }
 
 /// Get the span of a DIR node using one DIR node tree.

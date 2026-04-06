@@ -2,18 +2,19 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{is_simple_identifier, sort_and_dedup_spans, token_at_offset};
-use crate::core::{SessionQueryIndexExt, query_context};
+use crate::core::{RepositoryQueryIndexExt, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
     collect_symbol_references_in_context, find_symbol_at_offset, get_canonical_symbol,
     get_symbol_definition_span, get_symbol_local_definition_span, member_key_name,
     resolve_local_import_alias_name, resolve_symbol_name,
 };
-use destack_workspace::{NominalRelationKind, Session};
+use destack_workspace::{NominalRelationKind, Repository};
 
 /// Result of a prepare rename query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -97,9 +98,14 @@ pub struct RenameResponse {
 /// Check if the symbol at the given position can be renamed.
 ///
 /// Returns the range and current name if renameable.
-pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<PrepareRenameResult> {
+pub fn prepare_rename(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    offset: u32,
+) -> Option<PrepareRenameResult> {
     // resolve the rename target at the cursor
-    let (symbol_at, _, name) = resolve_rename_target(session, file, offset)?;
+    let (symbol_at, _, name) = resolve_rename_target(repository, revision, file, offset)?;
 
     // return the range and current name
     Some(PrepareRenameResult {
@@ -112,7 +118,8 @@ pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<Pr
 ///
 /// Returns edits for all files that need to be modified.
 pub fn rename(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
     new_name: &str,
@@ -123,36 +130,53 @@ pub fn rename(
     }
 
     // resolve the rename target at the cursor
-    let (_, canonical_id, old_name) = resolve_rename_target(session, file, offset)?;
-    let interface_member_target = resolve_interface_member_target(session, canonical_id);
+    let (_, canonical_id, old_name) = resolve_rename_target(repository, revision, file, offset)?;
+    let interface_member_target =
+        resolve_interface_member_target(repository, revision, canonical_id);
     let preserve_local_definition =
-        resolve_local_import_alias_name(session, canonical_id).is_some();
+        resolve_local_import_alias_name(repository, revision, canonical_id).is_some();
 
     // collect primary symbol spans and group by file
     let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
-    let primary_spans =
-        collect_symbol_rename_spans(session, canonical_id, &old_name, preserve_local_definition);
+    let primary_spans = collect_symbol_rename_spans(
+        repository,
+        revision,
+        canonical_id,
+        &old_name,
+        preserve_local_definition,
+    );
     extend_spans_by_file(&mut edits_by_file, primary_spans);
 
     // include default import aliases that bind this export in other modules
     let default_import_alias_symbols =
-        collect_default_import_alias_symbols_for_export(session, canonical_id);
+        collect_default_import_alias_symbols_for_export(repository, revision, canonical_id);
     for alias_symbol in default_import_alias_symbols {
-        let alias_spans = collect_symbol_rename_spans(session, alias_symbol, &old_name, true);
+        let Some(alias_name) = resolve_local_import_alias_name(repository, revision, alias_symbol)
+        else {
+            continue;
+        };
+
+        let alias_spans =
+            collect_symbol_rename_spans(repository, revision, alias_symbol, &alias_name, true);
         extend_spans_by_file(&mut edits_by_file, alias_spans);
     }
 
     // include implementation member spans when renaming interface members
     if let Some(interface_member_target) = interface_member_target {
-        let implementation_members =
-            collect_interface_member_implementations(session, &interface_member_target, &old_name);
+        let implementation_members = collect_interface_member_implementations(
+            repository,
+            revision,
+            &interface_member_target,
+            &old_name,
+        );
 
         for member_symbol in implementation_members {
             if member_symbol == canonical_id {
                 continue;
             }
 
-            let spans = collect_symbol_rename_spans(session, member_symbol, &old_name, false);
+            let spans =
+                collect_symbol_rename_spans(repository, revision, member_symbol, &old_name, false);
             extend_spans_by_file(&mut edits_by_file, spans);
         }
     }
@@ -178,15 +202,16 @@ pub fn rename(
 
 /// Resolve the symbol targeted by rename at a file offset.
 fn resolve_rename_target(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
 ) -> Option<(SymbolAtOffset, dir::GlobalSymbolId, String)> {
     // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
 
     // reject non modifier keywords at the cursor
-    let token = token_at_offset(session, file, offset);
+    let token = token_at_offset(repository, revision, file, offset);
     if token.is_some_and(|token| {
         ast::Keyword::from_str(&token)
             .map(|keyword| !is_rename_target_modifier_keyword(keyword))
@@ -198,13 +223,14 @@ fn resolve_rename_target(
     let symbol_id = symbol_at.symbol_id;
 
     // keep explicit local import aliases as local rename targets
-    if let Some(local_alias_name) = resolve_local_import_alias_name(session, symbol_id) {
+    if let Some(local_alias_name) = resolve_local_import_alias_name(repository, revision, symbol_id)
+    {
         return Some((symbol_at, symbol_id, local_alias_name));
     }
 
     // resolve canonical symbol and stable rename name
-    let canonical_id = get_canonical_symbol(session, symbol_id);
-    let name = resolve_rename_name(session, canonical_id)?;
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
+    let name = resolve_rename_name(repository, revision, canonical_id)?;
 
     Some((symbol_at, canonical_id, name))
 }
@@ -219,13 +245,15 @@ fn rename_reference_options<'a>(target_name: &'a str) -> ReferenceCollectionOpti
         skip_dependency_aliases: true,
         use_dependency_name_spans: true,
         target_name: Some(target_name),
+        require_target_name_match: true,
         limit_to_file: None,
     }
 }
 
 /// Collect all rename spans for one canonical symbol.
 fn collect_symbol_rename_spans(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     canonical_id: dir::GlobalSymbolId,
     target_name: &str,
     preserve_local_definition: bool,
@@ -233,10 +261,10 @@ fn collect_symbol_rename_spans(
     // seed spans with the declaration site
     let mut spans = Vec::new();
     let definition_span = if preserve_local_definition {
-        get_symbol_local_definition_span(session, canonical_id)
-            .or_else(|| get_symbol_definition_span(session, canonical_id))
+        get_symbol_local_definition_span(repository, revision, canonical_id)
+            .or_else(|| get_symbol_definition_span(repository, revision, canonical_id))
     } else {
-        get_symbol_definition_span(session, canonical_id)
+        get_symbol_definition_span(repository, revision, canonical_id)
     };
     if let Some(definition_span) = definition_span {
         spans.push(definition_span);
@@ -245,7 +273,8 @@ fn collect_symbol_rename_spans(
     // collect references across user modules
     let reference_options = rename_reference_options(target_name);
     let reference_spans = collect_symbol_reference_spans_across_user_modules(
-        session,
+        repository,
+        revision,
         canonical_id,
         reference_options,
     );
@@ -258,25 +287,27 @@ fn collect_symbol_rename_spans(
 
 /// Collect symbol reference spans across user modules.
 fn collect_symbol_reference_spans_across_user_modules(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     canonical_id: dir::GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
 ) -> Vec<Span> {
     let mut spans = Vec::new();
 
-    for module_id in session.reference_index_modules_for_target(canonical_id) {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
+    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+        let Some(module) = repository.module(revision, module_id).ok().flatten() else {
+            continue;
+        };
         if !module.is_user() {
             continue;
         }
 
-        let Some(ctx) = query_context(session, module) else {
+        let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
 
         let module_spans = collect_symbol_references_in_context(
-            session,
+            repository,
             ctx.ast(),
             ctx.dir(),
             canonical_id,
@@ -324,25 +355,28 @@ fn prune_overlapping_spans(spans: &mut Vec<Span>) {
 }
 
 /// Resolve the stable rename source name for a symbol.
-fn resolve_rename_name(session: &Session, canonical_id: dir::GlobalSymbolId) -> Option<String> {
+fn resolve_rename_name(
+    repository: &Repository,
+    revision: Revision,
+    canonical_id: dir::GlobalSymbolId,
+) -> Option<String> {
     // prefer the canonical symbol metadata name when present
-    if let Some(name) = resolve_symbol_name(session, canonical_id) {
+    if let Some(name) = resolve_symbol_name(repository, revision, canonical_id) {
         return Some(name);
     }
 
     // fall back to declaration based name extraction
-    resolve_name_from_primary_declaration(session, canonical_id)
+    resolve_name_from_primary_declaration(repository, revision, canonical_id)
 }
 
 /// Resolve a symbol name from its primary declaration when symbol metadata has no name.
 fn resolve_name_from_primary_declaration(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     canonical_id: dir::GlobalSymbolId,
 ) -> Option<String> {
     // resolve query context for the symbol module
-    let module = session.modules.get(canonical_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context(repository, revision, canonical_id.module_id)?;
 
     // resolve the primary declaration node id
     let declaration = {
@@ -357,12 +391,12 @@ fn resolve_name_from_primary_declaration(
             let member_id = declaration.local_id.try_into().ok()?;
             let member = dir_tree.get::<dir::Member>(member_id);
             let key = member.key()?;
-            member_key_name(session, key)
+            member_key_name(repository, key)
         }
         dir::NodeType::EnumField => {
             let field_id = declaration.local_id.try_into().ok()?;
             let field = dir_tree.get::<dir::EnumField>(field_id);
-            Some(session.strings.get(field.name).to_string())
+            Some(repository.strings.get(field.name).to_string())
         }
         dir::NodeType::Declaration => {
             let declaration_id = declaration.local_id.try_into().ok()?;
@@ -370,15 +404,17 @@ fn resolve_name_from_primary_declaration(
             declaration
                 .descriptor()
                 .name
-                .map(|name| session.strings.get(name.string()).to_string())
+                .map(|name| repository.strings.get(name.string()).to_string())
         }
         dir::NodeType::Parameter => {
             let parameter_id = declaration.local_id.try_into().ok()?;
             let parameter = dir_tree.get::<dir::Parameter>(parameter_id);
             match parameter {
-                dir::Parameter::Named { name, .. } => Some(session.strings.get(*name).to_string()),
+                dir::Parameter::Named { name, .. } => {
+                    Some(repository.strings.get(*name).to_string())
+                }
                 dir::Parameter::VariadicNamed { name, .. } => {
-                    Some(session.strings.get(*name).to_string())
+                    Some(repository.strings.get(*name).to_string())
                 }
                 dir::Parameter::Pattern { .. }
                 | dir::Parameter::VariadicPattern { .. }
@@ -389,7 +425,9 @@ fn resolve_name_from_primary_declaration(
             let pattern_id = declaration.local_id.try_into().ok()?;
             let pattern = dir_tree.get::<dir::Pattern>(pattern_id);
             match pattern {
-                dir::Pattern::Binding { name, .. } => Some(session.strings.get(*name).to_string()),
+                dir::Pattern::Binding { name, .. } => {
+                    Some(repository.strings.get(*name).to_string())
+                }
                 _ => None,
             }
         }
@@ -398,7 +436,7 @@ fn resolve_name_from_primary_declaration(
             let field = dir_tree.get::<dir::PatternField>(field_id);
             match field {
                 dir::PatternField::Alias { alias, .. } => {
-                    Some(session.strings.get(*alias).to_string())
+                    Some(repository.strings.get(*alias).to_string())
                 }
                 _ => None,
             }
@@ -429,13 +467,12 @@ struct InterfaceMemberTarget {
 
 /// Resolve the interface member target for an interface member symbol.
 fn resolve_interface_member_target(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     canonical_id: dir::GlobalSymbolId,
 ) -> Option<InterfaceMemberTarget> {
     // resolve query context for the symbol module
-    let module = session.modules.get(canonical_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context(repository, revision, canonical_id.module_id)?;
 
     // resolve the member declaration node
     let declaration = {
@@ -458,7 +495,7 @@ fn resolve_interface_member_target(
         dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key.as_ref()?),
         _ => return None,
     };
-    let member_name = member_key_name(session, member_key)?;
+    let member_name = member_key_name(repository, member_key)?;
 
     // resolve the parent declaration and ensure it is an interface
     let parent = dir_tree.get_parent(member_id.id)?;
@@ -475,7 +512,8 @@ fn resolve_interface_member_target(
     };
 
     let interface_symbol = get_canonical_symbol(
-        session,
+        repository,
+        revision,
         dir::GlobalSymbolId::new(ctx.module_id(), descriptor.symbol),
     );
 
@@ -488,13 +526,14 @@ fn resolve_interface_member_target(
 
 /// Collect implementation member symbols for a resolved interface member target.
 fn collect_interface_member_implementations(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     target: &InterfaceMemberTarget,
     expected_name: &str,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut members = Vec::new();
-    let interface_symbol = get_canonical_symbol(session, target.interface_symbol);
-    let implementing_symbols: Vec<dir::GlobalSymbolId> = session
+    let interface_symbol = get_canonical_symbol(repository, revision, target.interface_symbol);
+    let implementing_symbols: Vec<dir::GlobalSymbolId> = repository
         .nominal_index_entries_for_target(interface_symbol)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelationKind::Implements)
@@ -517,9 +556,7 @@ fn collect_interface_member_implementations(
             });
 
     for (module_id, implementing_symbols) in implementing_module_ids {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
-        let Some(ctx) = query_context(session, module) else {
+        let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
 
@@ -564,7 +601,7 @@ fn collect_interface_member_implementations(
                 continue;
             }
 
-            let Some(member_name) = member_key_name(session, member_key) else {
+            let Some(member_name) = member_key_name(repository, member_key) else {
                 continue;
             };
             if member_name != expected_name && member_name != target.member_name {
@@ -572,7 +609,7 @@ fn collect_interface_member_implementations(
             }
 
             let symbol_id = dir::GlobalSymbolId::new(ctx.module_id(), member.symbol());
-            members.push(get_canonical_symbol(session, symbol_id));
+            members.push(get_canonical_symbol(repository, revision, symbol_id));
         }
     }
 

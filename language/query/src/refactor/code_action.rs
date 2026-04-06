@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use destack_ast as ast;
 use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::{extract_function, extract_variable, inline_symbol};
@@ -12,11 +13,10 @@ use crate::ast::{get_module_by_file_id, is_simple_identifier, token_at_offset};
 use crate::core::{import_relevance, import_sort_key, query_context};
 use crate::dir::{
     ImportEditMode, build_import_display_path, build_import_edits_with_mode,
-    matches_symbol_space_filter, program_for_file, search_importable_symbols_for_program,
+    matches_symbol_space_filter, search_importable_symbols,
 };
 use crate::format::{ImportDeclarationKey, categorize_import, sort_import_declaration_indices};
 use destack_dir::SymbolSpace;
-use destack_workspace::Session;
 
 /// Kind of code action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -138,25 +138,27 @@ pub struct CodeActionsResponse {
 ///
 /// Includes quick fixes from diagnostics and available refactorings.
 pub fn code_actions(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     range: Span,
+    diagnostics: &[Diagnostic],
     context: &CodeActionContext,
 ) -> Vec<CodeAction> {
     // start with an empty action list
     let mut actions = Vec::new();
 
     // collect quick fixes from diagnostics
-    collect_diagnostic_fixes(session, file, range, &mut actions);
+    collect_diagnostic_fixes(diagnostics, file, range, &mut actions);
 
     // collect auto import quick fixes for unresolved symbols
-    collect_auto_import_actions(session, file, range, &mut actions);
+    collect_auto_import_actions(repository, revision, file, range, diagnostics, &mut actions);
 
     // collect organize imports action
-    collect_organize_imports_action(session, file, &mut actions);
+    collect_organize_imports_action(repository, revision, file, &mut actions);
 
     // collect refactor actions
-    collect_refactor_actions(session, file, range, &mut actions);
+    collect_refactor_actions(repository, revision, file, range, &mut actions);
 
     // filter by requested kinds when specified
     if !context.only.is_empty() {
@@ -179,13 +181,14 @@ pub fn code_actions(
 
 /// Collect refactor actions for a range.
 fn collect_refactor_actions(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     range: Span,
     actions: &mut Vec<CodeAction>,
 ) {
     // inline at the cursor start
-    if let Some(result) = inline_symbol(session, file, range.start)
+    if let Some(result) = inline_symbol(repository, revision, file, range.start)
         && !result.is_empty()
     {
         actions.push(CodeAction::refactor(
@@ -197,7 +200,7 @@ fn collect_refactor_actions(
 
     // extract function for non empty selections
     if range.start < range.end
-        && let Some(result) = extract_function(session, file, range, "extracted")
+        && let Some(result) = extract_function(repository, revision, file, range, "extracted")
         && !result.is_empty()
     {
         actions.push(CodeAction::refactor(
@@ -209,7 +212,7 @@ fn collect_refactor_actions(
 
     // extract constant for non empty selections
     if range.start < range.end
-        && let Some(result) = extract_variable(session, file, range, "extracted")
+        && let Some(result) = extract_variable(repository, revision, file, range, "extracted")
         && !result.is_empty()
     {
         actions.push(CodeAction::refactor(
@@ -221,20 +224,26 @@ fn collect_refactor_actions(
 }
 
 /// Collect organize imports actions for a file.
-fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mut Vec<CodeAction>) {
+fn collect_organize_imports_action(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    actions: &mut Vec<CodeAction>,
+) {
     // resolve the module and query context
-    let module = get_module_by_file_id(session, file);
+    let module = get_module_by_file_id(repository, revision, file);
     let Some(module) = module else {
         return;
     };
-    let module = module.as_ref();
-    let ctx = query_context(session, module);
+    let ctx = query_context(repository, revision, module.id);
     let Some(ctx) = ctx else {
         return;
     };
 
     // resolve the file text for slicing
-    let source_file = session.files.get(file);
+    let Some(source_file) = repository.file(revision, file).ok().flatten() else {
+        return;
+    };
     let source = source_file.text();
 
     // collect top level import expressions in order
@@ -347,17 +356,18 @@ fn collect_organize_imports_action(session: &Session, file: FileId, actions: &mu
 
 /// Collect auto import actions for unresolved symbol diagnostics.
 fn collect_auto_import_actions(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     range: Span,
+    diagnostics: &[Diagnostic],
     actions: &mut Vec<CodeAction>,
 ) {
     // resolve the current module for import exclusions
-    let exclude_module_id = get_module_by_file_id(session, file).map(|module| module.id);
-    let program = program_for_file(session, file);
+    let exclude_module_id =
+        get_module_by_file_id(repository, revision, file).map(|module| module.id);
 
-    // scan diagnostics for unresolved symbol codes in the owning program
-    let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
+    // scan diagnostics for unresolved symbol codes in the owning repository
     for diagnostic in diagnostics {
         // skip diagnostics outside of the requested file
         if diagnostic.file_id != file {
@@ -375,13 +385,15 @@ fn collect_auto_import_actions(
         }
 
         // extract the missing symbol name from the diagnostic span
-        let Some(symbol_name) = missing_symbol_name(session, &diagnostic) else {
+        let Some(symbol_name) = missing_symbol_name(repository, revision, diagnostic) else {
             continue;
         };
 
-        let space_filter = auto_import_space_filter_for_offset(session, file, diag_span.start);
+        let space_filter =
+            auto_import_space_filter_for_offset(repository, revision, file, diag_span.start);
         collect_auto_import_actions_for_symbol(
-            session,
+            repository,
+            revision,
             file,
             &symbol_name,
             exclude_module_id,
@@ -392,12 +404,14 @@ fn collect_auto_import_actions(
     }
 
     // allow token-driven auto-imports when diagnostics are unavailable
-    if let Some(symbol_name) = token_at_offset(session, file, range.start)
+    if let Some(symbol_name) = token_at_offset(repository, revision, file, range.start)
         && is_simple_identifier(&symbol_name)
     {
-        let space_filter = auto_import_space_filter_for_offset(session, file, range.start);
+        let space_filter =
+            auto_import_space_filter_for_offset(repository, revision, file, range.start);
         collect_auto_import_actions_for_symbol(
-            session,
+            repository,
+            revision,
             file,
             &symbol_name,
             exclude_module_id,
@@ -410,7 +424,8 @@ fn collect_auto_import_actions(
 
 /// Collect auto import actions for a missing symbol name.
 fn collect_auto_import_actions_for_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     symbol_name: &str,
     exclude_module_id: Option<destack_source::ModuleId>,
@@ -419,13 +434,12 @@ fn collect_auto_import_actions_for_symbol(
     actions: &mut Vec<CodeAction>,
 ) {
     // search exported symbols for exact name matches
-    let program = program_for_file(session, file);
-    let current_package_id = get_module_by_file_id(session, file).map(|module| module.package_id);
-    let current_language_type = get_module_by_file_id(session, file)
+    let current_package_id =
+        get_module_by_file_id(repository, revision, file).map(|module| module.package_id);
+    let current_language_type = get_module_by_file_id(repository, revision, file)
         .map(|module| module.language_type)
         .unwrap_or_default();
-    let mut candidates =
-        search_importable_symbols_for_program(session, &program, symbol_name, exclude_module_id);
+    let mut candidates = search_importable_symbols(repository, symbol_name, exclude_module_id);
     candidates.retain(|export| {
         export.name == symbol_name
             && matches_symbol_space_filter(export.kind, export.space, space_filter)
@@ -443,7 +457,7 @@ fn collect_auto_import_actions_for_symbol(
         };
 
         // build an import path relative to the current file
-        let display_path = build_import_display_path(session, file, module_path);
+        let display_path = build_import_display_path(repository, revision, file, module_path);
 
         // skip duplicate module path entries
         if !seen_paths.insert(display_path.clone()) {
@@ -452,7 +466,8 @@ fn collect_auto_import_actions_for_symbol(
 
         // compute shared import relevance
         let Some(relevance) = import_relevance(
-            session,
+            repository,
+            revision,
             file,
             current_package_id,
             symbol_name,
@@ -481,8 +496,14 @@ fn collect_auto_import_actions_for_symbol(
             ImportEditMode::for_auto_import(space_filter, export.space, current_language_type);
 
         // build import edits and skip already imported symbols
-        let import_edits =
-            build_import_edits_with_mode(session, file, symbol_name, &display_path, import_mode);
+        let import_edits = build_import_edits_with_mode(
+            repository,
+            revision,
+            file,
+            symbol_name,
+            &display_path,
+            import_mode,
+        );
         if import_edits.is_empty() {
             continue;
         }
@@ -520,12 +541,13 @@ fn collect_auto_import_actions_for_symbol(
 
 /// Resolve the auto import space filter for an offset.
 fn auto_import_space_filter_for_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
 ) -> Option<SymbolSpace> {
     // detect the completion context at the cursor
-    let context = completion_input_at_offset(session, file, offset);
+    let context = completion_input_at_offset(repository, revision, file, offset);
 
     // choose import visibility based on type position
     match context.context {
@@ -535,14 +557,22 @@ fn auto_import_space_filter_for_offset(
 }
 
 /// Resolve a missing symbol name from a diagnostic.
-fn missing_symbol_name(session: &Session, diagnostic: &Diagnostic) -> Option<String> {
-    missing_symbol_name_from_span(session, diagnostic.primary_span.span)
+fn missing_symbol_name(
+    repository: &Repository,
+    revision: Revision,
+    diagnostic: &Diagnostic,
+) -> Option<String> {
+    missing_symbol_name_from_span(repository, revision, diagnostic.primary_span.span)
 }
 
 /// Resolve a missing symbol name from a diagnostic span.
-fn missing_symbol_name_from_span(session: &Session, span: Span) -> Option<String> {
+fn missing_symbol_name_from_span(
+    repository: &Repository,
+    revision: Revision,
+    span: Span,
+) -> Option<String> {
     // read the source text for the span
-    let file = session.files.get(span.file);
+    let file = repository.file(revision, span.file).ok().flatten()?;
     let source = file.get_span_str(span)?;
     let name = source.trim();
 
@@ -557,15 +587,11 @@ fn missing_symbol_name_from_span(session: &Session, span: Span) -> Option<String
 
 /// Collect quick fixes from diagnostics that overlap with the range.
 fn collect_diagnostic_fixes(
-    session: &Session,
+    diagnostics: &[Diagnostic],
     file: FileId,
     range: Span,
     actions: &mut Vec<CodeAction>,
 ) {
-    let program = program_for_file(session, file);
-
-    // load diagnostics from the owning program only
-    let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
     for diagnostic in diagnostics {
         // skip diagnostics for other files
         if diagnostic.file_id != file {
@@ -594,7 +620,7 @@ fn collect_diagnostic_fixes(
                 // build the batch edit from suggestion spans
                 let mut file_edit = FileEdit::new(file);
                 for labeled_span in &suggestion.spans {
-                    file_edit.push(Edit::replace(labeled_span.span, replacement.clone()));
+                    file_edit.push(Edit::replace(labeled_span.span, replacement.to_string()));
                 }
 
                 // skip empty edits
@@ -688,7 +714,7 @@ fn file_edit_key(file_edit: &FileEdit) -> String {
 }
 
 /// Build a stable key for a single edit.
-fn edit_key(edit: &Edit) -> (u32, u32, u32, String) {
+fn edit_key(edit: &Edit) -> (u32, u32, u64, String) {
     // extract span coordinates and replacement text
     let span_file = edit.span.file.0;
     let start = edit.span.start;

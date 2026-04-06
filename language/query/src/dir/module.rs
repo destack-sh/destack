@@ -1,13 +1,13 @@
 use destack_dir as dir;
-use std::sync::Arc;
 
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolType};
-use destack_source::{FileId, ModuleId, PathExt};
-use destack_workspace::{ImportIndexEntry, Program, Session, SpecifierIndexEntry};
+use destack_source::{ModuleId, PathExt};
+use destack_workspace::{ImportIndexEntry, Repository, Revision, SpecifierIndexEntry};
 
 use super::module_specifier_in_expression;
 use crate::core::{
-    SessionQueryIndexExt, query_context, with_ast_query_for_module, with_query_context_for_module,
+    RepositoryQueryIndexExt, query_context, with_ast_query_for_module,
+    with_query_context_for_module,
 };
 
 /// Information about an exported symbol from a module.
@@ -25,26 +25,6 @@ pub(crate) struct ExportedSymbol {
     pub local_id: dir::LocalSymbolId,
     /// The module path (for import statement generation).
     pub module_path: Option<String>,
-}
-
-/// Resolve the program that owns a file.
-pub(crate) fn program_for_file(session: &Session, file_id: FileId) -> Arc<Program> {
-    // resolve the file path for program lookup
-    let source_file = session.files.get(file_id);
-    if let Some(path) = source_file.path.as_ref() {
-        return session.find_program_for_path(path);
-    }
-
-    // fall back to the cwd program when the file has no path
-    session.get_or_create_program(session.cwd.clone())
-}
-
-/// Resolve the program that owns a module.
-pub(crate) fn program_for_module(
-    session: &Session,
-    module: &destack_workspace::Module,
-) -> Arc<Program> {
-    program_for_file(session, module.file_id)
 }
 
 /// Resolve the importable module path for a module.
@@ -67,96 +47,54 @@ fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> 
 
 /// Resolve the symbol facts for an export entry.
 fn resolve_export_symbol_info(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<(SymbolType, SymbolSpace)> {
     // resolve the module query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    with_query_context_for_module(session, module, |ctx| {
+    with_query_context_for_module(repository, revision, symbol_id.module_id, |ctx| {
         let symbols = ctx.dir().resolved_symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         (symbol.ty, symbol.space)
     })
 }
 
-/// Get all exported symbols from a module when DIR is available.
-pub(crate) fn get_module_exports_maybe(
-    session: &Session,
-    module_id: ModuleId,
-) -> Option<Vec<ExportedSymbol>> {
-    // get module AST and resolved DIR
-    let module = session.modules.get(module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
-    let module_path = module_path_for_import(module);
-
-    // initialize export collection
-    let mut exports = Vec::new();
-
-    // collect exported symbols from the resolved export table
-    let exported_symbols = &ctx.dir().resolved().exported_symbols;
-    for ((_, key), export) in exported_symbols.iter() {
-        let StaticKey::Name(string_id) = *key else {
-            continue;
-        };
-
-        let Some(target_symbol) = export.target.resolved() else {
-            continue;
-        };
-
-        let Some((kind, space)) = resolve_export_symbol_info(session, target_symbol) else {
-            continue;
-        };
-
-        let name = session.strings.get(string_id).to_string();
-        exports.push(ExportedSymbol {
-            name,
-            kind,
-            space,
-            module_id,
-            local_id: target_symbol.local_id,
-            module_path: module_path.clone(),
-        });
-    }
-
-    // return the collected exports
-    Some(exports)
-}
-
-/// Search for importable symbols within a program.
-pub(crate) fn search_importable_symbols_for_program(
-    session: &Session,
-    program: &Program,
+/// Search for importable symbols across the current workspace root.
+pub(crate) fn search_importable_symbols(
+    repository: &Repository,
     query: &str,
     exclude_module: Option<ModuleId>,
 ) -> Vec<ExportedSymbol> {
-    // search cached entries owned by the program
-    let entries = session.search_import_entries_for_program(program, query, exclude_module);
+    let mut exports = Vec::new();
 
-    entries
-        .into_iter()
-        .map(|entry| ExportedSymbol {
-            name: entry.name,
-            kind: entry.kind,
-            space: entry.space,
-            module_id: entry.module_id,
-            local_id: entry.local_id,
-            module_path: entry.module_path,
-        })
-        .collect()
+    let entries = repository.search_import_entries(query, exclude_module);
+    exports.extend(entries.into_iter().map(|entry| ExportedSymbol {
+        name: entry.name,
+        kind: entry.kind,
+        space: entry.space,
+        module_id: entry.module_id,
+        local_id: entry.local_id,
+        module_path: entry.module_path,
+    }));
+
+    exports
 }
 
-/// Build import index entries for one program.
-pub(crate) fn build_import_index_entries_for_program(
-    session: &Session,
-    program: &Program,
+/// Build import index entries for the repository root.
+pub(crate) fn build_import_index_entries(
+    repository: &Repository,
+    revision: Revision,
 ) -> Vec<ImportIndexEntry> {
     let mut entries = Vec::new();
 
-    // collect every export visible from this program
-    for module in program.modules.iter() {
-        entries.extend(build_import_index_entries_for_module(session, module.id));
+    // collect every export visible from this repository
+    for module_id in repository
+        .workspace_module_ids(revision)
+        .unwrap_or_default()
+    {
+        entries.extend(build_import_index_entries_for_module(
+            repository, revision, module_id,
+        ));
     }
 
     entries
@@ -164,10 +102,11 @@ pub(crate) fn build_import_index_entries_for_program(
 
 /// Build import index entries for one module.
 pub(crate) fn build_import_index_entries_for_module(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     module_id: ModuleId,
 ) -> Vec<ImportIndexEntry> {
-    let Some(exports) = get_module_exports_maybe(session, module_id) else {
+    let Some(exports) = get_module_exports_maybe(repository, revision, module_id) else {
         return Vec::new();
     };
 
@@ -184,14 +123,55 @@ pub(crate) fn build_import_index_entries_for_module(
         .collect()
 }
 
+/// Get all exported symbols from a module when DIR is available.
+pub(crate) fn get_module_exports_maybe(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+) -> Option<Vec<ExportedSymbol>> {
+    let module = repository.module(revision, module_id).ok().flatten()?;
+    let ctx = query_context(repository, revision, module_id)?;
+    let module_path = module_path_for_import(module.as_ref());
+
+    let mut exports = Vec::new();
+
+    for ((_, key), export) in ctx.dir().resolved().exported_symbols.iter() {
+        let StaticKey::Name(string_id) = *key else {
+            continue;
+        };
+
+        let Some(target_symbol) = export.target.resolved() else {
+            continue;
+        };
+
+        let Some((kind, space)) = resolve_export_symbol_info(repository, revision, target_symbol)
+        else {
+            continue;
+        };
+
+        let name = repository.strings.get(string_id).to_string();
+        exports.push(ExportedSymbol {
+            name,
+            kind,
+            space,
+            module_id,
+            local_id: target_symbol.local_id,
+            module_path: module_path.clone(),
+        });
+    }
+
+    Some(exports)
+}
+
 /// Build module specifier index entries for one module.
 pub(crate) fn build_specifier_index_entries_for_module(
-    session: &Session,
-    module: &destack_workspace::Module,
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
 ) -> Vec<SpecifierIndexEntry> {
-    let query_context = query_context(session, module);
+    let query_context = query_context(repository, revision, module_id);
 
-    let Some(entries) = with_ast_query_for_module(session, module, |ast| {
+    let Some(entries) = with_ast_query_for_module(repository, revision, module_id, |ast| {
         let mut dir_targets = std::collections::HashMap::new();
         if let Some(ctx) = query_context.as_ref() {
             let dir_tree = ctx.dir().tree();
@@ -221,14 +201,16 @@ pub(crate) fn build_specifier_index_entries_for_module(
             let specifier = ast.strings().get(target).to_string();
             let target_module_id = dir_targets.get(&expression_id.id).copied().flatten();
             let target_path = target_module_id.and_then(|target_module_id| {
-                let target_module = session.modules.get(target_module_id);
-                let target_module = target_module.as_ref();
+                let target_module = repository
+                    .module(revision, target_module_id)
+                    .ok()
+                    .flatten()?;
                 target_module.path.as_ref().map(|path| path.normalize())
             });
 
             entries.push(SpecifierIndexEntry {
-                module_id: module.id,
-                file_id: module.file_id,
+                module_id,
+                file_id: ast.file_id(),
                 ast_node_id: expression_id.id,
                 specifier,
                 target_module_id,

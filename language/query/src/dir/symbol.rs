@@ -5,12 +5,15 @@ use destack_dir::{
     NodeType, SymbolSpace,
 };
 use destack_source::{ModuleId, Span};
+use destack_workspace::{Repository, Revision};
 
 use super::{container_name_for_node, declaration_display_name, matches_symbol_space_filter};
 use crate::ast::{get_node_tree_main_span, get_node_tree_span, try_span_for_dir_node};
-use crate::core::{AstQuery, QueryContext, query_context, with_ast_and_resolved_for_module};
+use crate::core::{
+    AstQuery, QueryContext, query_context, query_context_for_module_id, with_ast_query_for_module,
+};
 use destack_artifact::DirResolved;
-use destack_workspace::{Session, SymbolIndexEntry, SymbolIndexKind};
+use destack_workspace::{SymbolIndexEntry, SymbolIndexKind};
 
 /// Build a global symbol id from a module and local symbol id.
 pub(crate) fn global_symbol(module_id: ModuleId, local_id: LocalSymbolId) -> GlobalSymbolId {
@@ -22,13 +25,12 @@ pub(crate) fn global_symbol(module_id: ModuleId, local_id: LocalSymbolId) -> Glo
 
 /// Resolve a typed global symbol id from one module-local symbol id.
 pub fn resolve_global_symbol_id(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     module_id: ModuleId,
     local_symbol_id: u32,
 ) -> Option<GlobalSymbolId> {
-    let module = session.modules.get(module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, module_id)?;
     let symbol_entry = ctx.dir().symbols().get_symbol_by_id(local_symbol_id);
 
     Some(GlobalSymbolId {
@@ -38,10 +40,12 @@ pub fn resolve_global_symbol_id(
 }
 
 /// Get the canonical symbol for a given symbol id.
-pub(crate) fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> GlobalSymbolId {
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+pub(crate) fn get_canonical_symbol(
+    repository: &Repository,
+    revision: Revision,
+    symbol_id: GlobalSymbolId,
+) -> GlobalSymbolId {
+    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
         return symbol_id;
     };
 
@@ -53,7 +57,7 @@ pub(crate) fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId)
     if let Some(canonical) = canonical
         && canonical != symbol_id
     {
-        return get_canonical_symbol(session, canonical);
+        return get_canonical_symbol(repository, revision, canonical);
     }
 
     symbol_id
@@ -61,7 +65,8 @@ pub(crate) fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId)
 
 /// Check whether one symbol still refers to one target for reference queries.
 pub(crate) fn symbol_matches_reference_target(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
     target_symbol_id: GlobalSymbolId,
 ) -> bool {
@@ -69,16 +74,15 @@ pub(crate) fn symbol_matches_reference_target(
         return true;
     }
 
-    if get_canonical_symbol(session, symbol_id) == target_symbol_id {
+    if get_canonical_symbol(repository, revision, symbol_id) == target_symbol_id {
         return true;
     }
 
     let mut current_symbol = symbol_id;
     let mut visited = HashSet::new();
     while visited.insert(current_symbol) {
-        let module = session.modules.get(current_symbol.module_id);
-        let module = module.as_ref();
-        let Some(ctx) = query_context(session, module) else {
+        let Some(ctx) = query_context_for_module_id(repository, revision, current_symbol.module_id)
+        else {
             return false;
         };
 
@@ -92,7 +96,7 @@ pub(crate) fn symbol_matches_reference_target(
             return true;
         }
 
-        if get_canonical_symbol(session, target_symbol) == target_symbol_id {
+        if get_canonical_symbol(repository, revision, target_symbol) == target_symbol_id {
             return true;
         }
 
@@ -104,26 +108,26 @@ pub(crate) fn symbol_matches_reference_target(
 
 /// Resolve a symbol name string when possible.
 pub(crate) fn resolve_symbol_name(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
 
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
     symbol
         .name()
-        .map(|name_id| session.strings.get(name_id).to_string())
+        .map(|name_id| repository.strings.get(name_id).to_string())
 }
 
 /// Build symbol index entries for one module.
 pub(crate) fn build_symbol_index_entries_for_module(
-    session: &Session,
-    module: &destack_workspace::Module,
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
 ) -> Vec<SymbolIndexEntry> {
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context(repository, revision, module_id) else {
         return Vec::new();
     };
 
@@ -132,9 +136,10 @@ pub(crate) fn build_symbol_index_entries_for_module(
 
     // declarations, members, enum fields
     for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
-        let name = declaration_display_name(&session.strings, declaration);
+        let name = declaration_display_name(&repository.strings, declaration);
         let kind = symbol_index_kind_for_declaration(declaration);
-        let container_name = container_name_for_node(dir_tree, &session.strings, declaration_id.id);
+        let container_name =
+            container_name_for_node(dir_tree, &repository.strings, declaration_id.id);
 
         let Some(range) = symbol_index_range(&ctx, dir_tree, declaration_id.id) else {
             continue;
@@ -143,7 +148,7 @@ pub(crate) fn build_symbol_index_entries_for_module(
         entries.push(SymbolIndexEntry {
             name: name.clone(),
             kind,
-            module_id: module.id,
+            module_id,
             file_id: ctx.file_id(),
             range,
             container_name: container_name.clone(),
@@ -152,7 +157,7 @@ pub(crate) fn build_symbol_index_entries_for_module(
         if let Some(member_ids) = declaration.member_ids() {
             for member_id in member_ids {
                 let Some(entry) =
-                    member_to_symbol_index_entry(session, &ctx, dir_tree, *member_id, &name)
+                    member_to_symbol_index_entry(repository, &ctx, dir_tree, *member_id, &name)
                 else {
                     continue;
                 };
@@ -164,7 +169,7 @@ pub(crate) fn build_symbol_index_entries_for_module(
         if let dir::Declaration::Enum { fields, .. } = declaration {
             for field_id in fields {
                 let Some(entry) =
-                    enum_field_to_symbol_index_entry(session, &ctx, dir_tree, *field_id, &name)
+                    enum_field_to_symbol_index_entry(repository, &ctx, dir_tree, *field_id, &name)
                 else {
                     continue;
                 };
@@ -178,10 +183,10 @@ pub(crate) fn build_symbol_index_entries_for_module(
 }
 
 /// Resolve a static member name from a dynamic key.
-pub(crate) fn member_key_name(session: &Session, key: &DynamicKey) -> Option<String> {
+pub(crate) fn member_key_name(repository: &Repository, key: &DynamicKey) -> Option<String> {
     match key {
         DynamicKey::Name(name_id) | DynamicKey::Number(name_id) => {
-            Some(session.strings.get(*name_id).to_string())
+            Some(repository.strings.get(*name_id).to_string())
         }
         _ => None,
     }
@@ -203,43 +208,52 @@ pub(crate) fn is_synthetic_function_keyword_field(
 
 /// Get the definition span of a symbol.
 pub(crate) fn get_symbol_definition_span(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
-    get_symbol_span_with(session, symbol_id, get_node_tree_main_span)
+    get_symbol_span_with(repository, revision, symbol_id, get_node_tree_main_span)
 }
 
 /// Get the local definition span of a symbol without canonical expansion.
 pub(crate) fn get_symbol_local_definition_span(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
-    with_resolved_symbol_context(session, symbol_id.module_id, |ast, _module_id, resolved| {
-        let declaration = {
-            let symbols = &resolved.symbols;
-            let symbol = symbols.get_symbol(symbol_id.local_id);
-            symbol.primary_declaration
-        };
+    with_resolved_symbol_context(
+        repository,
+        revision,
+        symbol_id.module_id,
+        |ast, _module_id, resolved| {
+            let declaration = {
+                let symbols = &resolved.symbols;
+                let symbol = symbols.get_symbol(symbol_id.local_id);
+                symbol.primary_declaration
+            };
 
-        if let Some(declaration) = declaration {
-            return Some(get_node_tree_main_span(
-                ast,
-                &resolved.tree,
-                declaration.local_id,
-            ));
-        }
+            if let Some(declaration) = declaration {
+                return Some(get_node_tree_main_span(
+                    ast,
+                    &resolved.tree,
+                    declaration.local_id,
+                ));
+            }
 
-        None
-    })?
+            None
+        },
+    )?
 }
 
 /// Resolve a definition span when the symbol is a type symbol.
 pub(crate) fn type_definition_span_for_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
     with_resolved_symbol_context(
-        session,
+        repository,
+        revision,
         symbol_id.module_id,
         |_ast, _module_id, resolved| {
             if symbol_id.local_id.id >= resolved.symbols.symbol_count() {
@@ -263,20 +277,26 @@ pub(crate) fn type_definition_span_for_symbol(
                 .is_some_and(|declaration| declaration.local_id.ty == NodeType::DependencyItem)
             {
                 let target_symbol = dependency_item_target_symbol(resolved, symbol_id)?;
-                return get_symbol_span_with(session, target_symbol, get_node_tree_main_span);
+                return get_symbol_span_with(
+                    repository,
+                    revision,
+                    target_symbol,
+                    get_node_tree_main_span,
+                );
             }
 
-            get_symbol_span_with(session, symbol_id, get_node_tree_main_span)
+            get_symbol_span_with(repository, revision, symbol_id, get_node_tree_main_span)
         },
     )?
 }
 
 /// Get the full declaration span of a symbol.
 pub(crate) fn get_symbol_declaration_span(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
-    get_symbol_span_with(session, symbol_id, get_node_tree_span)
+    get_symbol_span_with(repository, revision, symbol_id, get_node_tree_span)
 }
 
 /// Map one declaration to the symbol index kind.
@@ -297,7 +317,7 @@ fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolIn
 
 /// Convert one member to one symbol index entry.
 fn member_to_symbol_index_entry(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     member_id: dir::LocalNodeId<dir::Member>,
@@ -305,7 +325,7 @@ fn member_to_symbol_index_entry(
 ) -> Option<SymbolIndexEntry> {
     let member = dir_tree.get::<dir::Member>(member_id);
     let key = member.key()?;
-    let name = member_key_name(session, key)?;
+    let name = member_key_name(repository, key)?;
     let kind = symbol_index_kind_for_member(member)?;
     let range = symbol_index_range(ctx, dir_tree, member_id.id)?;
 
@@ -325,7 +345,7 @@ fn member_to_symbol_index_entry(
 
 /// Convert one enum field to one symbol index entry.
 fn enum_field_to_symbol_index_entry(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     field_id: dir::LocalNodeId<dir::EnumField>,
@@ -335,7 +355,7 @@ fn enum_field_to_symbol_index_entry(
     let range = symbol_index_range(ctx, dir_tree, field_id.id)?;
 
     Some(SymbolIndexEntry {
-        name: session.strings.get(field.name).to_string(),
+        name: repository.strings.get(field.name).to_string(),
         kind: SymbolIndexKind::EnumMember,
         module_id: ctx.module_id(),
         file_id: ctx.file_id(),
@@ -366,57 +386,76 @@ fn symbol_index_range(ctx: &QueryContext, dir_tree: &dir::NodeTree, node_id: u32
 
 /// Resolve a symbol span using the provided declaration span strategy.
 fn get_symbol_span_with(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
     span_for_declaration: impl Fn(AstQuery<'_>, &dir::NodeTree, LocalNodeIdAny) -> Span + Copy,
 ) -> Option<Span> {
-    with_resolved_symbol_context(session, symbol_id.module_id, |ast, _module_id, resolved| {
-        let (canonical_id, declaration, target_symbol) = {
-            let symbols = &resolved.symbols;
-            let symbol = symbols.get_symbol(symbol_id.local_id);
-            let canonical_id = symbol.canonical_symbol.unwrap_or(symbol_id);
+    with_resolved_symbol_context(
+        repository,
+        revision,
+        symbol_id.module_id,
+        |ast, _module_id, resolved| {
+            let (canonical_id, declaration, target_symbol) = {
+                let symbols = &resolved.symbols;
+                let symbol = symbols.get_symbol(symbol_id.local_id);
+                let canonical_id = symbol.canonical_symbol.unwrap_or(symbol_id);
 
+                if canonical_id.module_id != symbol_id.module_id {
+                    (canonical_id, None, None)
+                } else {
+                    let canonical_symbol = symbols.get_symbol(canonical_id.local_id);
+                    (
+                        canonical_id,
+                        canonical_symbol.primary_declaration,
+                        canonical_symbol.target_symbol,
+                    )
+                }
+            };
             if canonical_id.module_id != symbol_id.module_id {
-                (canonical_id, None, None)
-            } else {
-                let canonical_symbol = symbols.get_symbol(canonical_id.local_id);
-                (
+                return get_symbol_span_with(
+                    repository,
+                    revision,
                     canonical_id,
-                    canonical_symbol.primary_declaration,
-                    canonical_symbol.target_symbol,
-                )
+                    span_for_declaration,
+                );
             }
-        };
-        if canonical_id.module_id != symbol_id.module_id {
-            return get_symbol_span_with(session, canonical_id, span_for_declaration);
-        }
 
-        if let Some(declaration) = declaration {
-            return Some(span_for_declaration(
-                ast,
-                &resolved.tree,
-                declaration.local_id,
-            ));
-        }
+            if let Some(declaration) = declaration {
+                return Some(span_for_declaration(
+                    ast,
+                    &resolved.tree,
+                    declaration.local_id,
+                ));
+            }
 
-        if let Some(target) = target_symbol {
-            return get_symbol_span_with(session, target, span_for_declaration);
-        }
+            if let Some(target) = target_symbol {
+                return get_symbol_span_with(repository, revision, target, span_for_declaration);
+            }
 
-        None
-    })?
+            None
+        },
+    )?
 }
 
 /// Execute a closure with AST and resolved DIR for one module.
 fn with_resolved_symbol_context<T>(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     module_id: ModuleId,
     f: impl FnOnce(AstQuery<'_>, ModuleId, &DirResolved) -> T,
 ) -> Option<T> {
-    let module = session.modules.get(module_id);
-    let module = module.as_ref();
+    let module = repository.module(revision, module_id).ok().flatten()?;
+    let profile = repository
+        .default_profile_id_for_module(revision, module.id)
+        .ok()?;
+    let selected_profile =
+        repository.available_profile_id_for_module(revision, module.id, profile, true)?;
+    let resolved = repository.dir_resolved(revision, module.id, selected_profile)?;
 
-    with_ast_and_resolved_for_module(session, module, f)
+    with_ast_query_for_module(repository, revision, module.id, |ast| {
+        f(ast, module.id, resolved.as_ref())
+    })
 }
 
 /// Resolve the imported target symbol for a dependency-item binding.

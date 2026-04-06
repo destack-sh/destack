@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{
     Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree, NodeType, Parameter,
 };
+use destack_workspace::{Repository, Revision};
 
-use crate::core::{AstQuery, query_context};
+use crate::core::{AstQuery, query_context, query_context_for_module_id};
 
 use super::{doc_strings_for_node_or_enclosing, get_canonical_symbol, parse_param_docs};
-use destack_workspace::Session;
 
 /// Parameter names and documentation collected from a declaration.
 #[derive(Debug, Clone, Default)]
@@ -34,12 +34,12 @@ pub(crate) struct ExpectedParameterHint {
 }
 
 /// Format a parameter into a display name.
-pub(crate) fn parameter_display_name(session: &Session, parameter: &Parameter) -> String {
+pub(crate) fn parameter_display_name(repository: &Repository, parameter: &Parameter) -> String {
     // choose the display name based on the parameter shape
     match parameter {
-        Parameter::Named { name, .. } => session.strings.get(*name).to_string(),
+        Parameter::Named { name, .. } => repository.strings.get(*name).to_string(),
         Parameter::VariadicNamed { name, .. } => {
-            let name_str = session.strings.get(*name).to_string();
+            let name_str = repository.strings.get(*name).to_string();
             format!("...{name_str}")
         }
         Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } => "<pattern>".to_string(),
@@ -49,7 +49,7 @@ pub(crate) fn parameter_display_name(session: &Session, parameter: &Parameter) -
 
 /// Collect parameter display names from dynamic parameter nodes.
 pub(crate) fn dynamic_parameter_display_names(
-    session: &Session,
+    repository: &Repository,
     tree: &NodeTree,
     dynamic_parameters: &[LocalNodeId<Parameter>],
 ) -> Vec<String> {
@@ -58,20 +58,20 @@ pub(crate) fn dynamic_parameter_display_names(
         .iter()
         .map(|param_id| {
             let param = tree.get::<Parameter>(*param_id);
-            parameter_display_name(session, param)
+            parameter_display_name(repository, param)
         })
         .collect()
 }
 
 /// Get dynamic parameter names for a function symbol.
 pub(crate) fn dynamic_parameter_names(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Vec<String>> {
     // collect parameter data for the symbol declaration
-    let data = parameter_data_for_symbol(session, symbol_id)?;
+    let data = parameter_data_for_symbol(repository, revision, symbol_id)?;
 
-    // return none for empty parameter lists
     if data.names.is_empty() {
         return None;
     }
@@ -81,14 +81,20 @@ pub(crate) fn dynamic_parameter_names(
 
 /// Collect parameter names and docs for a function or method symbol.
 pub(crate) fn parameter_data_for_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<ParameterData> {
-    // read the target module and build a query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context(repository, revision, symbol_id.module_id)?;
+    parameter_data_for_symbol_with_context(repository, ctx, symbol_id)
+}
 
+/// Collect parameter names and docs from one ready query context.
+fn parameter_data_for_symbol_with_context(
+    repository: &Repository,
+    ctx: crate::core::QueryContext,
+    symbol_id: GlobalSymbolId,
+) -> Option<ParameterData> {
     // resolve the symbol and its primary declaration
     let global_node_id = {
         let symbols = ctx.dir().symbols();
@@ -97,7 +103,10 @@ pub(crate) fn parameter_data_for_symbol(
     };
 
     // resolve the source text for doc parsing
-    let source_file = session.files.get(ctx.file_id());
+    let source_file = repository
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()?;
     let source = source_file.text();
 
     // resolve parameter data based on the declaration node type
@@ -113,8 +122,11 @@ pub(crate) fn parameter_data_for_symbol(
 
             let ast_node_id = dir_tree.get_source(declaration_id.id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
-            let names =
-                dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
+            let names = dynamic_parameter_display_names(
+                repository,
+                dir_tree,
+                &signature.dynamic_parameters,
+            );
 
             Some(ParameterData { names, docs })
         }
@@ -129,8 +141,11 @@ pub(crate) fn parameter_data_for_symbol(
 
             let ast_node_id = dir_tree.get_source(member_id.id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
-            let names =
-                dynamic_parameter_display_names(session, dir_tree, &signature.dynamic_parameters);
+            let names = dynamic_parameter_display_names(
+                repository,
+                dir_tree,
+                &signature.dynamic_parameters,
+            );
 
             Some(ParameterData { names, docs })
         }
@@ -141,14 +156,13 @@ pub(crate) fn parameter_data_for_symbol(
 
 /// Resolve the expected-parameter hint for one active argument.
 pub(crate) fn expected_parameter_hint_for_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: GlobalSymbolId,
     parameter_index: usize,
 ) -> Option<ExpectedParameterHint> {
     // read the target module and build a query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
 
     // resolve the symbol and its primary declaration
     let global_node_id = {
@@ -185,7 +199,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
     let parameter_id =
         resolve_expected_parameter_id(dir_tree, &dynamic_parameters, parameter_index)?;
     let parameter = dir_tree.get::<Parameter>(parameter_id);
-    let name = Some(parameter_display_name(session, parameter));
+    let name = Some(parameter_display_name(repository, parameter));
 
     // resolve the declared parameter type and classify its shape
     let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
@@ -198,8 +212,9 @@ pub(crate) fn expected_parameter_hint_for_symbol(
         .types()
         .get_type(type_id)
         .symbol()
-        .map(|symbol_id| get_canonical_symbol(session, symbol_id));
-    let type_symbols = collect_expected_type_symbols(session, ctx.dir().types(), type_id);
+        .map(|symbol_id| get_canonical_symbol(repository, ctx.revision(), symbol_id));
+    let type_symbols =
+        collect_expected_type_symbols(repository, ctx.revision(), ctx.dir().types(), type_id);
     let (prefers_callable, prefers_constructable) =
         expected_value_shape(ctx.dir().types(), type_id);
 
@@ -214,7 +229,8 @@ pub(crate) fn expected_parameter_hint_for_symbol(
 
 /// Collect nominal type symbols that should contribute to expected-type ranking.
 fn collect_expected_type_symbols(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     types: &destack_dir::TypeTable,
     type_id: LocalTypeId,
 ) -> Vec<GlobalSymbolId> {
@@ -223,7 +239,8 @@ fn collect_expected_type_symbols(
     let mut seen_symbols = HashSet::new();
 
     collect_expected_type_symbols_inner(
-        session,
+        repository,
+        revision,
         types,
         type_id,
         &mut seen_types,
@@ -236,7 +253,8 @@ fn collect_expected_type_symbols(
 
 /// Collect nominal symbols from one declared parameter type.
 fn collect_expected_type_symbols_inner(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     types: &destack_dir::TypeTable,
     type_id: LocalTypeId,
     seen_types: &mut HashSet<LocalTypeId>,
@@ -252,14 +270,15 @@ fn collect_expected_type_symbols_inner(
 
     // direct nominal references
     if let destack_dir::Type::Reference { symbol, .. } = ty {
-        let canonical_symbol = get_canonical_symbol(session, *symbol);
+        let canonical_symbol = get_canonical_symbol(repository, revision, *symbol);
         if seen_symbols.insert(canonical_symbol) {
             symbols.push(canonical_symbol);
         }
 
         if let Some(target_type_id) = types.get_alias_target_type_id(*symbol) {
             collect_expected_type_symbols_inner(
-                session,
+                repository,
+                revision,
                 types,
                 target_type_id,
                 seen_types,
@@ -276,7 +295,8 @@ fn collect_expected_type_symbols_inner(
         destack_dir::Type::Union { elements } | destack_dir::Type::Intersection { elements } => {
             for &element_id in elements {
                 collect_expected_type_symbols_inner(
-                    session,
+                    repository,
+                    revision,
                     types,
                     element_id,
                     seen_types,
@@ -287,7 +307,8 @@ fn collect_expected_type_symbols_inner(
         }
         destack_dir::Type::Value { value } => {
             collect_expected_type_symbols_inner(
-                session,
+                repository,
+                revision,
                 types,
                 *value,
                 seen_types,

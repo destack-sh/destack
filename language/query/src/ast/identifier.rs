@@ -1,9 +1,9 @@
 use destack_ast as ast;
 use destack_ast::TokenType;
 use destack_source::{FileContent, FileId};
+use destack_workspace::{Repository, Revision};
 
 use crate::core::{AstQuery, with_ast_query_for_file};
-use destack_workspace::Session;
 
 /// Check whether a character can start an identifier.
 pub(crate) fn is_identifier_start(ch: char) -> bool {
@@ -16,12 +16,17 @@ pub(crate) fn is_identifier_continue(ch: char) -> bool {
 }
 
 /// Extract the identifier token at a given offset.
-pub(crate) fn token_at_offset(session: &Session, file_id: FileId, offset: u32) -> Option<String> {
+pub(crate) fn token_at_offset(
+    repository: &Repository,
+    revision: Revision,
+    file_id: FileId,
+    offset: u32,
+) -> Option<String> {
     // resolve the token text at the cursor
-    let token_text = token_text_at_offset(session, file_id, offset)?;
+    let token_text = token_text_at_offset(repository, revision, file_id, offset)?;
 
     // ensure the token is an identifier
-    let token = token_span_at_offset(session, file_id, offset)?;
+    let token = token_span_at_offset(repository, revision, file_id, offset)?;
     if token.token.ty != TokenType::Identifier {
         return None;
     }
@@ -31,14 +36,15 @@ pub(crate) fn token_at_offset(session: &Session, file_id: FileId, offset: u32) -
 
 /// Extract the non-trivia token text at a given offset.
 pub(crate) fn token_text_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
 ) -> Option<String> {
     // find the token at the cursor
-    let token = token_span_at_offset(session, file_id, offset)?;
+    let token = token_span_at_offset(repository, revision, file_id, offset)?;
     // read the source content
-    let file = session.files.get(file_id);
+    let file = repository.file(revision, file_id).ok().flatten()?;
     let content = match &file.content {
         FileContent::Text { content } => content.as_str(),
         FileContent::Json { content, .. } => content.as_str(),
@@ -54,11 +60,12 @@ pub(crate) fn token_text_at_offset(
 
 /// Find the non-trivia token span that contains the offset.
 pub(crate) fn token_span_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
 ) -> Option<ast::TokenSpan> {
-    with_ast_query_for_file(session, file_id, |ast| {
+    with_ast_query_for_file(repository, revision, file_id, |ast| {
         token_span_at_offset_in_ast(ast, offset)
     })?
 }

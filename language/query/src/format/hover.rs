@@ -3,11 +3,10 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
+use destack_workspace::{Repository, Revision};
 
 use super::signature::format_call_signature;
 use super::types::format_local_type;
-use destack_artifact::ArtifactStore;
-use destack_workspace::ModuleRegistry;
 
 /// Format hover information as markdown for display.
 pub fn format_hover_markdown(
@@ -50,9 +49,9 @@ pub fn format_hover_markdown(
 
 /// Format hover text for a member (field, method, etc).
 pub fn format_member_hover(
-    artifacts: &ArtifactStore,
     strings: &StringPool,
-    modules: &ModuleRegistry,
+    repository: &Repository,
+    revision: Revision,
     member: &dir::Member,
     member_id: dir::LocalNodeId<dir::Member>,
     module_id: ModuleId,
@@ -82,7 +81,7 @@ pub fn format_member_hover(
     };
     let type_str = types
         .get_declared_or_inferred_type_id(node_id)
-        .map(|type_id| format_local_type(type_id, artifacts, types, modules, strings));
+        .map(|type_id| format_local_type(type_id, types, repository, revision, strings));
 
     // build the qualified name
     let qualified_name = match container {
@@ -116,11 +115,11 @@ pub fn format_member_hover(
         dir::Member::Method { signature, .. } => format_method_hover(
             &qualified_name,
             signature,
-            artifacts,
             module_id,
             dir_tree,
             types,
-            modules,
+            repository,
+            revision,
             strings,
         ),
         dir::Member::Embed { .. } => format!("(embed) {qualified_name}"),
@@ -132,9 +131,9 @@ pub fn format_member_hover(
 
 /// Format hover text for an enum field.
 pub fn format_enum_field_hover(
-    artifacts: &ArtifactStore,
     strings: &StringPool,
-    modules: &ModuleRegistry,
+    repository: &Repository,
+    revision: Revision,
     field: &dir::EnumField,
     field_id: dir::LocalNodeId<dir::EnumField>,
     module_id: ModuleId,
@@ -156,7 +155,7 @@ pub fn format_enum_field_hover(
         local_id: field_id.into(),
     };
     if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let type_text = format_local_type(type_id, artifacts, types, modules, strings);
+        let type_text = format_local_type(type_id, types, repository, revision, strings);
         format!("(enum member) {qualified_name} = {type_text}")
     } else {
         format!("(enum member) {qualified_name}")
@@ -165,9 +164,9 @@ pub fn format_enum_field_hover(
 
 /// Format hover text for a parameter.
 pub fn format_parameter_hover(
-    artifacts: &ArtifactStore,
     strings: &StringPool,
-    modules: &ModuleRegistry,
+    repository: &Repository,
+    revision: Revision,
     param: &dir::Parameter,
     param_id: dir::LocalNodeId<dir::Parameter>,
     module_id: ModuleId,
@@ -188,7 +187,7 @@ pub fn format_parameter_hover(
         local_id: param_id.into(),
     };
     if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let type_text = format_local_type(type_id, artifacts, types, modules, strings);
+        let type_text = format_local_type(type_id, types, repository, revision, strings);
         format!("(parameter) {name}: {type_text}")
     } else {
         format!("(parameter) {name}")
@@ -197,12 +196,12 @@ pub fn format_parameter_hover(
 
 /// Format hover text for a local variable.
 pub fn format_local_variable_hover(
-    artifacts: &ArtifactStore,
     name: Option<&str>,
     symbol_id: dir::GlobalSymbolId,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
-    modules: &ModuleRegistry,
+    repository: &Repository,
+    revision: Revision,
     strings: &StringPool,
 ) -> String {
     // resolve the display name
@@ -210,7 +209,7 @@ pub fn format_local_variable_hover(
 
     // resolve the local type when available
     if let Some(type_id) = types.get_type_id_for_symbol(symbols, symbol_id) {
-        let type_text = format_local_type(type_id, artifacts, types, modules, strings);
+        let type_text = format_local_type(type_id, types, repository, revision, strings);
         format!("let {name}: {type_text}")
     } else {
         format!("let {name}")
@@ -239,22 +238,22 @@ pub fn format_simple_signature(symbol_type: dir::SymbolType, name: Option<&str>)
 fn format_method_hover(
     qualified_name: &str,
     signature: &dir::FunctionSignature,
-    artifacts: &ArtifactStore,
     module_id: ModuleId,
     dir_tree: &dir::NodeTree,
     types: &dir::TypeTable,
-    modules: &ModuleRegistry,
+    repository: &Repository,
+    revision: Revision,
     strings: &StringPool,
 ) -> String {
     // format a call signature label for the method
     let formatted = format_call_signature(
         qualified_name,
         signature,
-        artifacts,
         module_id,
         dir_tree,
         types,
-        modules,
+        repository,
+        revision,
         strings,
         false,
     );

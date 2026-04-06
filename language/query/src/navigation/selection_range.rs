@@ -1,10 +1,10 @@
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 use crate::ast::span_contains_span;
 use crate::core::with_ast_query_for_file;
-use destack_workspace::Session;
 
 /// A selection range with parent.
 ///
@@ -65,8 +65,13 @@ pub struct SelectionRangesResponse {
 /// to least specific (innermost syntax node to outermost).
 ///
 /// Used for "Expand Selection" / "Shrink Selection" editor commands.
-pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> Vec<SelectionRange> {
-    with_ast_query_for_file(session, file, |ast| {
+pub fn selection_ranges(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    positions: &[u32],
+) -> Vec<SelectionRange> {
+    with_ast_query_for_file(repository, revision, file, |ast| {
         // allocate the results vector
         let mut results = Vec::with_capacity(positions.len());
 

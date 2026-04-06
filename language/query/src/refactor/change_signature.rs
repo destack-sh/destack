@@ -1,3 +1,4 @@
+use destack_workspace::Revision;
 use std::collections::{HashMap, HashSet};
 
 use destack_ast::TokenType;
@@ -6,12 +7,14 @@ use destack_source::{BatchEdit, Edit, File, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::{get_module_by_file_id, span_for_dir_node};
-use crate::core::{QueryContext, SessionQueryIndexExt, query_context};
+use crate::core::{
+    QueryContext, RepositoryQueryIndexExt, query_context, query_context_for_module_id,
+};
 use crate::dir::{
     find_symbol_at_offset, get_canonical_symbol, resolve_expression_symbol,
     resolve_member_access_symbol,
 };
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 /// Placeholder argument text inserted for newly required parameters.
 const MISSING_ARGUMENT_PLACEHOLDER: &str = "undefined";
@@ -64,18 +67,19 @@ impl ChangeSignatureResult {
 
 /// Change the signature of a function and update all call sites.
 pub fn change_signature(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     offset: u32,
     new_parameters: &str,
     new_arguments: &str,
 ) -> Option<ChangeSignatureResult> {
     // resolve the function symbol at the cursor
-    let _module = get_module_by_file_id(session, file)?;
-    let symbol_at = find_symbol_at_offset(session, file, offset)?;
-    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-    let constructor_owner = constructor_owner_symbol(session, canonical_id);
-    let old_param_positions = function_parameter_name_positions(session, canonical_id);
+    let _module = get_module_by_file_id(repository, revision, file)?;
+    let symbol_at = find_symbol_at_offset(repository, revision, file, offset)?;
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
+    let constructor_owner = constructor_owner_symbol(repository, revision, canonical_id);
+    let old_param_positions = function_parameter_name_positions(repository, revision, canonical_id);
 
     // format the new parameter/argument lists
     let param_specs = parse_param_specs(new_parameters);
@@ -88,7 +92,7 @@ pub fn change_signature(
     let new_args_override = format_comma_list(new_arguments, false);
 
     // resolve parameter spans for the symbol and overloads
-    let param_spans = function_parameter_spans(session, canonical_id);
+    let param_spans = function_parameter_spans(repository, revision, canonical_id);
     if param_spans.is_empty() {
         return None;
     }
@@ -103,20 +107,18 @@ pub fn change_signature(
 
     // narrow the scan to modules that actually call the target
     let mut candidate_modules = HashSet::new();
-    for entry in session.call_index_entries_for_callee(canonical_id) {
+    for entry in repository.call_index_entries_for_callee(canonical_id) {
         candidate_modules.insert(entry.module_id);
     }
     if let Some(owner_symbol) = constructor_owner {
-        for entry in session.call_index_entries_for_callee(owner_symbol) {
+        for entry in repository.call_index_entries_for_callee(owner_symbol) {
             candidate_modules.insert(entry.module_id);
         }
     }
 
     // update call sites across candidate modules only
     for module_id in candidate_modules {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
-        let Some(ctx) = query_context(session, module) else {
+        let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
         let dir_tree = ctx.dir().tree();
@@ -131,11 +133,10 @@ pub fn change_signature(
                 continue;
             };
 
-            let Some(target_symbol) = call_target_symbol(session, &ctx, dir_tree, left_expression)
-            else {
+            let Some(target_symbol) = call_target_symbol(&ctx, dir_tree, left_expression) else {
                 continue;
             };
-            let target_symbol = get_canonical_symbol(session, target_symbol);
+            let target_symbol = get_canonical_symbol(repository, revision, target_symbol);
             let mut matches = target_symbol == canonical_id;
             if !matches && let Some(owner_symbol) = constructor_owner {
                 matches = target_symbol == owner_symbol;
@@ -149,14 +150,18 @@ pub fn change_signature(
                 continue;
             };
             let argument_text = if new_args_override.is_empty() {
-                build_arguments_for_call(
-                    session,
+                let Some(argument_text) = build_arguments_for_call(
+                    repository,
                     &ctx,
                     dir_tree,
                     expr_id,
                     &param_specs,
                     &old_param_positions,
-                )
+                ) else {
+                    continue;
+                };
+
+                argument_text
             } else {
                 new_args_override.clone()
             };
@@ -184,13 +189,12 @@ pub fn change_signature(
 
 /// Resolve the owning type symbol for a constructor member symbol.
 fn constructor_owner_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalSymbolId> {
     // resolve the module and query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
 
     // resolve the declaration node
     let declaration = {
@@ -233,14 +237,14 @@ fn constructor_owner_symbol(
     };
 
     Some(get_canonical_symbol(
-        session,
+        repository,
+        revision,
         dir::GlobalSymbolId::new(ctx.module_id(), owner_symbol),
     ))
 }
 
 /// Resolve the symbol referenced by a call target expression.
 fn call_target_symbol(
-    _session: &Session,
     ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     call_left: dir::LocalNodeId<dir::Expression>,
@@ -278,11 +282,13 @@ fn call_target_symbol(
 }
 
 /// Resolve the parameter span for the primary declaration of a symbol.
-fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<Span> {
+fn function_parameter_span(
+    repository: &Repository,
+    revision: Revision,
+    symbol_id: dir::GlobalSymbolId,
+) -> Option<Span> {
     // resolve the module and query context
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let ctx = query_context_for_module_id(repository, revision, symbol_id.module_id)?;
 
     // resolve the declaration node
     let declaration = {
@@ -329,18 +335,20 @@ fn function_parameter_span(session: &Session, symbol_id: dir::GlobalSymbolId) ->
 }
 
 /// Resolve parameter spans for a symbol and its overloads.
-fn function_parameter_spans(session: &Session, symbol_id: dir::GlobalSymbolId) -> Vec<Span> {
+fn function_parameter_spans(
+    repository: &Repository,
+    revision: Revision,
+    symbol_id: dir::GlobalSymbolId,
+) -> Vec<Span> {
     let mut spans = Vec::new();
 
     // resolve primary declaration span
-    if let Some(span) = function_parameter_span(session, symbol_id) {
+    if let Some(span) = function_parameter_span(repository, revision, symbol_id) {
         spans.push(span);
     }
 
     // resolve secondary declarations (overloads)
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
         return spans;
     };
     let secondary = {
@@ -354,7 +362,7 @@ fn function_parameter_spans(session: &Session, symbol_id: dir::GlobalSymbolId) -
     };
 
     for declaration in secondary.iter() {
-        let span = parameter_span_for_node(session, *declaration);
+        let span = parameter_span_for_node(repository, revision, *declaration);
         if let Some(span) = span {
             spans.push(span);
         }
@@ -367,13 +375,12 @@ fn function_parameter_spans(session: &Session, symbol_id: dir::GlobalSymbolId) -
 
 /// Collect parameter positions by name for a function symbol.
 fn function_parameter_name_positions(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> HashMap<String, usize> {
     // resolve the module and query context for the symbol
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
         return HashMap::new();
     };
 
@@ -400,7 +407,7 @@ fn function_parameter_name_positions(
         let parameter = dir_tree.get::<dir::Parameter>(*param_id);
         let name = match parameter {
             dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
-                Some(session.strings.get(*name).to_string())
+                Some(repository.strings.get(*name).to_string())
             }
             dir::Parameter::Pattern { .. }
             | dir::Parameter::VariadicPattern { .. }
@@ -415,10 +422,12 @@ fn function_parameter_name_positions(
 }
 
 /// Resolve the parameter span for a declaration node.
-fn parameter_span_for_node(session: &Session, node_id: dir::GlobalNodeIdAny) -> Option<Span> {
-    let module = session.modules.get(node_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+fn parameter_span_for_node(
+    repository: &Repository,
+    revision: Revision,
+    node_id: dir::GlobalNodeIdAny,
+) -> Option<Span> {
+    let ctx = query_context_for_module_id(repository, revision, node_id.module_id)?;
     let dir_tree = ctx.dir().tree();
 
     match node_id.local_id.ty {
@@ -685,13 +694,13 @@ fn parse_param_specs(raw: &str) -> Vec<ParamSpec> {
 
 /// Build the new argument list for a call expression.
 fn build_arguments_for_call(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     dir_tree: &dir::NodeTree,
     expr_id: dir::LocalNodeId<dir::Expression>,
     params: &[ParamSpec],
     old_param_positions: &HashMap<String, usize>,
-) -> String {
+) -> Option<String> {
     // resolve argument texts from the call expression
     let expr = dir_tree.get::<dir::Expression>(expr_id);
     let dynamic_arguments = match expr {
@@ -701,10 +710,13 @@ fn build_arguments_for_call(
         | dir::Expression::New {
             dynamic_arguments, ..
         } => dynamic_arguments.as_slice(),
-        _ => return String::new(),
+        _ => return None,
     };
 
-    let source_file = session.files.get(ctx.file_id());
+    let source_file = repository
+        .file(ctx.revision(), ctx.file_id())
+        .ok()
+        .flatten()?;
     let mut named_args: HashMap<String, String> = HashMap::new();
     let mut positional_args: Vec<String> = Vec::new();
 
@@ -715,12 +727,12 @@ fn build_arguments_for_call(
 
         match argument {
             dir::Argument::Named { name, .. } => {
-                let name = session.strings.get(*name).to_string();
+                let name = repository.strings.get(*name).to_string();
                 let value_text = argument_value_text(&source_file, ctx, dir_tree, argument);
                 named_args.insert(name, value_text);
             }
             dir::Argument::Labeled { label, .. } => {
-                let name = session.strings.get(*label).to_string();
+                let name = repository.strings.get(*label).to_string();
                 let value_text = argument_value_text(&source_file, ctx, dir_tree, argument);
                 named_args.insert(name, value_text);
             }
@@ -815,7 +827,7 @@ fn build_arguments_for_call(
         }
     }
 
-    args.join(", ")
+    Some(args.join(", "))
 }
 
 /// Extract the argument value text without labels.

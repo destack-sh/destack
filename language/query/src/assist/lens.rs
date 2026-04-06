@@ -1,15 +1,16 @@
 use destack_ast as ast;
 use destack_dir::{self as dir, GlobalSymbolId, SymbolType};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use crate::ast::get_module_by_file_id;
-use crate::core::{AstQuery, SessionQueryIndexExt, query_context};
+use crate::core::{AstQuery, RepositoryQueryIndexExt, query_context};
 use crate::dir::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, get_canonical_symbol,
     resolve_symbol_name,
 };
-use destack_workspace::{NominalRelationKind, Session};
+use destack_workspace::NominalRelationKind;
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -137,12 +138,11 @@ impl CodeLens {
 ///
 /// Code lenses appear as inline annotations above functions, classes, etc.
 /// Common uses: reference counts, "Run Test" buttons, implementation counts.
-pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
-    let Some(module) = get_module_by_file_id(session, file) else {
+pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) -> Vec<CodeLens> {
+    let Some(module) = get_module_by_file_id(repository, revision, file) else {
         return Vec::new();
     };
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context(repository, revision, module.id) else {
         return Vec::new();
     };
     let ast = ctx.ast();
@@ -168,7 +168,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
                         .ast()
                         .tree()
                         .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
-                    let name = resolve_symbol_name(session, global_symbol_id);
+                    let name = resolve_symbol_name(repository, revision, global_symbol_id);
                     let is_test = has_decorator_named(ast, ast_node_id, "test");
                     let symbol_type = symbols.get_symbol(symbol_id).ty;
                     (
@@ -191,7 +191,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
 
         // count references for functions/methods
         if matches!(declaration, dir::Declaration::Function { .. }) {
-            let ref_count = count_references(session, global_symbol_id);
+            let ref_count = count_references(repository, revision, global_symbol_id);
             if ref_count > 0 {
                 lenses.push(CodeLens::references(span, ref_count));
             }
@@ -206,7 +206,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
 
         // count implementations for interfaces
         if symbol_type == SymbolType::Interface {
-            let impl_count = count_implementations(session, global_symbol_id);
+            let impl_count = count_implementations(repository, revision, global_symbol_id);
             if impl_count > 0 {
                 lenses.push(CodeLens::implementations(span, impl_count));
             }
@@ -214,7 +214,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
 
         // count subclasses for classes
         if symbol_type == SymbolType::Class {
-            let subclass_count = count_subclasses(session, global_symbol_id);
+            let subclass_count = count_subclasses(repository, revision, global_symbol_id);
             if subclass_count > 0 {
                 lenses.push(CodeLens::implementations(span, subclass_count));
             }
@@ -253,9 +253,13 @@ fn code_lens_kind_rank(data: &CodeLensData) -> u8 {
 }
 
 /// Count references to a symbol across all modules.
-fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
-    let canonical_id = get_canonical_symbol(session, symbol_id);
-    let reference_name = resolve_symbol_name(session, canonical_id);
+fn count_references(
+    repository: &Repository,
+    revision: Revision,
+    symbol_id: GlobalSymbolId,
+) -> usize {
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
+    let reference_name = resolve_symbol_name(repository, revision, canonical_id);
 
     let reference_options = ReferenceCollectionOptions {
         include_expressions: true,
@@ -265,19 +269,18 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
         skip_dependency_aliases: false,
         use_dependency_name_spans: true,
         target_name: reference_name.as_deref(),
+        require_target_name_match: false,
         limit_to_file: None,
     };
 
     let mut count = 0;
-    for module_id in session.reference_index_modules_for_target(canonical_id) {
-        let module = session.modules.get(module_id);
-        let module = module.as_ref();
-        let Some(ctx) = query_context(session, module) else {
+    for module_id in repository.reference_index_modules_for_target(canonical_id) {
+        let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
 
         let spans = collect_symbol_references_in_context(
-            session,
+            repository,
             ctx.ast(),
             ctx.dir(),
             canonical_id,
@@ -290,10 +293,13 @@ fn count_references(session: &Session, symbol_id: GlobalSymbolId) -> usize {
 }
 
 /// Count implementations of an interface across all modules.
-fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize {
-    let canonical_id = get_canonical_symbol(session, symbol_id);
-
-    session
+fn count_implementations(
+    repository: &Repository,
+    revision: Revision,
+    symbol_id: GlobalSymbolId,
+) -> usize {
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
+    repository
         .nominal_index_entries_for_target(canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelationKind::Implements)
@@ -301,10 +307,13 @@ fn count_implementations(session: &Session, symbol_id: GlobalSymbolId) -> usize 
 }
 
 /// Count subclasses of a class across all modules.
-fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
-    let canonical_id = get_canonical_symbol(session, symbol_id);
-
-    session
+fn count_subclasses(
+    repository: &Repository,
+    revision: Revision,
+    symbol_id: GlobalSymbolId,
+) -> usize {
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
+    repository
         .nominal_index_entries_for_target(canonical_id)
         .into_iter()
         .filter(|entry| entry.relation == NominalRelationKind::Extends)
@@ -386,7 +395,7 @@ fn decorator_name_id(
 /// Resolve a code lens (compute its command if deferred).
 ///
 /// Some lenses defer computation until the user hovers/clicks.
-pub fn resolve_code_lens(_session: &Session, lens: &CodeLens) -> CodeLens {
+pub fn resolve_code_lens(lens: &CodeLens) -> CodeLens {
     // lenses are resolved eagerly for now, keep this hook for deferred work
     lens.clone()
 }

@@ -1,8 +1,9 @@
 use destack_dir::{self as dir, EnumField, LocalNodeIdAny, Member, NodeType, Parameter};
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
-use crate::ast::get_node_tree_span;
+use crate::ast::{get_module_by_file_id, get_node_tree_span};
 use crate::core::{QueryContext, query_context};
 use crate::dir::{
     container_name_for_symbol, doc_text_for_symbol, find_symbol_for_hover_at_offset,
@@ -12,7 +13,6 @@ use crate::format::{
     format_enum_field_hover, format_hover_markdown, format_local_type, format_local_variable_hover,
     format_member_hover, format_parameter_hover, format_simple_signature, format_symbol_signature,
 };
-use destack_workspace::Session;
 
 /// Hover information for a symbol.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -108,28 +108,32 @@ pub struct HoverResponse {
 }
 
 /// Get hover information for the symbol at the given position.
-pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> {
+pub fn hover(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+    offset: u32,
+) -> Option<HoverInfo> {
     // resolve the hovered symbol and profile
-    let symbol_at = find_symbol_for_hover_at_offset(session, file, offset)?;
-    let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
-    let module = session.modules.get(canonical_id.module_id);
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let symbol_at = find_symbol_for_hover_at_offset(repository, revision, file, offset)?;
+    let canonical_id = get_canonical_symbol(repository, revision, symbol_at.symbol_id);
+    let module = get_module_by_file_id(repository, revision, file)?;
+    let ctx = query_context(repository, revision, module.id)?;
     let profile = ctx.profile_id();
 
     // get documentation for this symbol
-    let documentation = doc_text_for_symbol(session, canonical_id);
+    let documentation = doc_text_for_symbol(repository, revision, canonical_id);
 
     // try rich signature formatting first (for top level declarations)
     if let Some(formatted) = format_symbol_signature(
         canonical_id,
-        ctx.artifacts(),
-        &session.modules,
-        &session.strings,
+        repository,
+        revision,
+        &repository.strings,
         profile,
     ) {
         // resolve the hover location
-        let location = hover_location(session, symbol_at.span);
+        let location = hover_location(repository, revision, symbol_at.span);
 
         // return a minimal hover payload
         return Some(
@@ -144,7 +148,9 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     // resolve symbol metadata
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
-    let name = symbol.name().map(|id| session.strings.get(id).to_string());
+    let name = symbol
+        .name()
+        .map(|id| repository.strings.get(id).to_string());
 
     // prefer declaration nodes for expression hovers
     let mut hover_node_id = symbol_at.node_id;
@@ -156,7 +162,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     }
 
     // get container name for members
-    let container_name = container_name_for_symbol(session, symbol_at.symbol_id);
+    let container_name = container_name_for_symbol(repository, revision, symbol_at.symbol_id);
 
     // resolve shared dir data for formatting
     let dir_tree = ctx.dir().tree();
@@ -170,9 +176,9 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format member hover with full signature
                 let member = dir_tree.get::<Member>(member_id);
                 format_member_hover(
-                    ctx.artifacts(),
-                    &session.strings,
-                    &session.modules,
+                    &repository.strings,
+                    repository,
+                    revision,
                     member,
                     member_id,
                     module_id,
@@ -189,9 +195,9 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format enum field hover
                 let field = dir_tree.get::<EnumField>(field_id);
                 format_enum_field_hover(
-                    ctx.artifacts(),
-                    &session.strings,
-                    &session.modules,
+                    &repository.strings,
+                    repository,
+                    revision,
                     field,
                     field_id,
                     module_id,
@@ -207,9 +213,9 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format parameter hover
                 let param = dir_tree.get::<Parameter>(param_id);
                 format_parameter_hover(
-                    ctx.artifacts(),
-                    &session.strings,
-                    &session.modules,
+                    &repository.strings,
+                    repository,
+                    revision,
                     param,
                     param_id,
                     module_id,
@@ -222,22 +228,27 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         NodeType::Pattern => {
             // local variable or destructuring pattern
             format_local_variable_hover(
-                ctx.artifacts(),
                 name.as_deref(),
                 symbol_at.symbol_id,
                 symbols,
                 types,
-                &session.modules,
-                &session.strings,
+                repository,
+                revision,
+                &repository.strings,
             )
         }
         _ => format_simple_signature(symbol.ty, name.as_deref()),
     };
 
     // resolve type and location metadata
-    let type_text =
-        resolve_hover_type_text(session, &ctx, symbols, hover_node_id, symbol_at.symbol_id);
-    let location = hover_location(session, symbol_at.span);
+    let type_text = resolve_hover_type_text(
+        repository,
+        &ctx,
+        symbols,
+        hover_node_id,
+        symbol_at.symbol_id,
+    );
+    let location = hover_location(repository, revision, symbol_at.span);
     let range = hover_range_for_symbol(&ctx, symbol_at.node_id, symbol_at.span);
 
     // return the assembled hover payload
@@ -252,7 +263,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
 
 /// Resolve a type string for a hover target when available.
 fn resolve_hover_type_text(
-    session: &Session,
+    repository: &Repository,
     ctx: &QueryContext,
     symbols: &dir::SymbolTable,
     hover_node_id: dir::LocalNodeIdAny,
@@ -273,17 +284,17 @@ fn resolve_hover_type_text(
     // format the local type for display
     Some(format_local_type(
         type_id,
-        ctx.artifacts(),
         types,
-        &session.modules,
-        &session.strings,
+        repository,
+        ctx.revision(),
+        &repository.strings,
     ))
 }
 
 /// Format a source location string for a hover span.
-fn hover_location(session: &Session, span: Span) -> Option<String> {
+fn hover_location(repository: &Repository, revision: Revision, span: Span) -> Option<String> {
     // resolve the source file and path
-    let file = session.files.get(span.file);
+    let file = repository.file(revision, span.file).ok().flatten()?;
     let path = file.path.as_ref()?;
     let (line, col) = file.get_position(span.start)?;
 

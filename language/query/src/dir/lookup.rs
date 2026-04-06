@@ -16,7 +16,7 @@ use crate::ast::{
     token_span_at_offset,
 };
 use crate::core::{AstQuery, DirQuery, query_context};
-use destack_workspace::Session;
+use destack_workspace::{Repository, Revision};
 
 /// Result of finding a symbol at an offset.
 #[derive(Debug, Clone)]
@@ -31,7 +31,8 @@ pub(crate) struct SymbolAtOffset {
 
 /// Resolve the semantic target symbol used by semantic navigation queries.
 pub(crate) fn semantic_target_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
     symbol_at: &SymbolAtOffset,
@@ -41,9 +42,8 @@ pub(crate) fn semantic_target_symbol_at_offset(
     }
 
     let expression_id = symbol_at.node_id.try_into().ok()?;
-    let module = get_module_by_file_id(session, file_id)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file_id)?;
+    let ctx = query_context(repository, revision, module.id)?;
     let ast = ctx.ast();
     let dir = ctx.dir();
 
@@ -60,7 +60,8 @@ pub(crate) fn semantic_target_symbol_at_offset(
 
 /// Resolve the local binding symbol used by declaration style queries.
 pub(crate) fn binding_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
     symbol_at: &SymbolAtOffset,
@@ -70,14 +71,13 @@ pub(crate) fn binding_symbol_at_offset(
     }
 
     let expression_id = symbol_at.node_id.try_into().ok()?;
-    let module = get_module_by_file_id(session, file_id)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file_id)?;
+    let ctx = query_context(repository, revision, module.id)?;
     let ast = ctx.ast();
     let dir = ctx.dir();
 
     // preserve plain path segments as their local binding symbols
-    if let Some(result) = path_segment_symbol_at_offset(session, ast, dir, expression_id, offset) {
+    if let Some(result) = path_segment_symbol_at_offset(ast, dir, expression_id, offset) {
         return Some(result.symbol_id);
     }
 
@@ -94,21 +94,23 @@ pub(crate) fn binding_symbol_at_offset(
 
 /// Find the symbol referenced at a given offset.
 pub(crate) fn find_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    find_symbol_at_offset_impl(session, file_id, offset)
+    find_symbol_at_offset_impl(repository, revision, file_id, offset)
 }
 
 /// Find the symbol for hover at a given offset.
 pub(crate) fn find_symbol_for_hover_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    find_symbol_at_offset(session, file_id, offset)
-        .or_else(|| declaration_modifier_symbol_at_offset(session, file_id, offset))
+    find_symbol_at_offset(repository, revision, file_id, offset)
+        .or_else(|| declaration_modifier_symbol_at_offset(repository, revision, file_id, offset))
 }
 
 /// Resolve one path segment span inside a plain multi segment path expression.
@@ -245,14 +247,14 @@ fn member_access_target_symbol_at_offset(
 
 /// Resolve a symbol from structural AST and DIR mappings.
 fn find_symbol_at_offset_impl(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
     // resolve the module and query context
-    let module = get_module_by_file_id(session, file_id)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file_id)?;
+    let ctx = query_context(repository, revision, module.id)?;
     let ast = ctx.ast();
     let dir = ctx.dir();
 
@@ -297,7 +299,7 @@ fn find_symbol_at_offset_impl(
     let dir_tree = dir.tree();
 
     // check static parameters first to avoid capturing the enclosing declaration
-    if let Some(result) = static_parameter_symbol_at_offset(session, ast, dir, offset) {
+    if let Some(result) = static_parameter_symbol_at_offset(repository, ast, dir, offset) {
         return Some(result);
     }
 
@@ -311,7 +313,7 @@ fn find_symbol_at_offset_impl(
         };
 
         if let Some(result) = member_symbol_at_offset(
-            session,
+            repository,
             ast,
             dir,
             expr_id,
@@ -342,17 +344,18 @@ fn find_symbol_at_offset_impl(
                     let Some(name) = *name else {
                         continue;
                     };
-                    let member_name = session.strings.get(name);
-                    let is_member_name_token = token_at_offset(session, ast.file_id(), offset)
-                        .as_deref()
-                        .is_some_and(|token| member_name == token);
+                    let member_name = repository.strings.get(name);
+                    let is_member_name_token =
+                        token_at_offset(repository, dir.revision(), ast.file_id(), offset)
+                            .as_deref()
+                            .is_some_and(|token| member_name == token);
 
                     if !is_member_name_token {
                         skip_expression_target_symbol = true;
                     }
 
                     let result = member_symbol_at_offset(
-                        session,
+                        repository,
                         ast,
                         dir,
                         expr_id,
@@ -369,8 +372,13 @@ fn find_symbol_at_offset_impl(
                     if is_member_name_token && let Some(target_symbol) = expr.target_symbol() {
                         let span = get_member_access_name_span(ast, dir, expr_id)
                             .or_else(|| {
-                                token_span_at_offset(session, ast.file_id(), offset)
-                                    .map(|token| token.span)
+                                token_span_at_offset(
+                                    repository,
+                                    dir.revision(),
+                                    ast.file_id(),
+                                    offset,
+                                )
+                                .map(|token| token.span)
                             })
                             .unwrap_or_else(|| {
                                 Span::new(
@@ -427,9 +435,7 @@ fn find_symbol_at_offset_impl(
                     }
                 }
 
-                if let Some(result) =
-                    path_segment_symbol_at_offset(session, ast, dir, expr_id, offset)
-                {
+                if let Some(result) = path_segment_symbol_at_offset(ast, dir, expr_id, offset) {
                     return Some(result);
                 }
 
@@ -486,7 +492,7 @@ fn find_symbol_at_offset_impl(
                 }
 
                 if let Some(symbol_at) =
-                    pattern_field_symbol_at_offset(session, ast, dir, dir_tree, field_id, offset)
+                    pattern_field_symbol_at_offset(repository, ast, dir, dir_tree, field_id, offset)
                 {
                     return Some(symbol_at);
                 }
@@ -633,7 +639,7 @@ fn find_symbol_at_offset_impl(
     }
 
     // scan type position expressions directly when source to dir mapping is absent
-    if let Some(result) = type_expression_symbol_at_offset(session, ast, dir, offset) {
+    if let Some(result) = type_expression_symbol_at_offset(repository, ast, dir, offset) {
         return Some(result);
     }
 
@@ -642,7 +648,6 @@ fn find_symbol_at_offset_impl(
 
 /// Resolve one plain path segment symbol when the cursor is on that segment.
 fn path_segment_symbol_at_offset(
-    _session: &Session,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     expression_id: dir::LocalNodeId<Expression>,
@@ -672,13 +677,14 @@ fn path_segment_symbol_at_offset(
 
 /// Resolve one symbol from a type-position expression that covers the cursor.
 fn type_expression_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
     let dir_tree = dir.tree();
-    let token_span = token_span_at_offset(session, ast.file_id(), offset).map(|token| token.span);
+    let token_span = token_span_at_offset(repository, dir.revision(), ast.file_id(), offset)
+        .map(|token| token.span);
 
     for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         if !expression_is_type_position(ast, dir, expression_id) {
@@ -728,16 +734,17 @@ fn path_segment_count(expression: &Expression) -> Option<usize> {
 
 /// Resolve a declaration symbol from a declaration modifier keyword.
 fn declaration_modifier_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    let token = token_span_at_offset(session, file_id, offset)?;
+    let token = token_span_at_offset(repository, revision, file_id, offset)?;
     if token.token.ty != ast::TokenType::Identifier {
         return None;
     }
 
-    let source_file = session.files.get(file_id);
+    let source_file = repository.file(revision, file_id).ok().flatten()?;
     let token_text = source_file.span_str(token.span);
     let Ok(keyword) = ast::Keyword::from_str(token_text) else {
         return None;
@@ -746,9 +753,8 @@ fn declaration_modifier_symbol_at_offset(
         return None;
     }
 
-    let module = get_module_by_file_id(session, file_id)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file_id)?;
+    let ctx = query_context(repository, revision, module.id)?;
     let dir_tree = ctx.dir().tree();
 
     let mut enclosing = ctx
@@ -806,12 +812,12 @@ fn is_declaration_target_modifier_keyword(keyword: ast::Keyword) -> bool {
 
 /// Resolve a static parameter symbol at the given offset.
 fn static_parameter_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    let token_name = token_at_offset(session, ast.file_id(), offset);
+    let token_name = token_at_offset(repository, dir.revision(), ast.file_id(), offset);
 
     let dir_tree = dir.tree();
     for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
@@ -832,7 +838,7 @@ fn static_parameter_symbol_at_offset(
             }
 
             if let Some(token_name) = token_name.as_deref()
-                && let Some(parameter_name) = static_parameter_name(session, parameter)
+                && let Some(parameter_name) = static_parameter_name(repository, parameter)
                 && parameter_name != token_name
             {
                 continue;
@@ -851,10 +857,10 @@ fn static_parameter_symbol_at_offset(
 }
 
 /// Resolve the declared name for a static parameter when available.
-fn static_parameter_name(session: &Session, parameter: &Parameter) -> Option<String> {
+fn static_parameter_name(repository: &Repository, parameter: &Parameter) -> Option<String> {
     match parameter {
         Parameter::Named { name, .. } | Parameter::VariadicNamed { name, .. } => {
-            Some(session.strings.get(*name).to_string())
+            Some(repository.strings.get(*name).to_string())
         }
         Parameter::Pattern { .. } | Parameter::VariadicPattern { .. } | Parameter::Error { .. } => {
             None
@@ -864,7 +870,7 @@ fn static_parameter_name(session: &Session, parameter: &Parameter) -> Option<Str
 
 /// Resolve a binding symbol inside a pattern field at the cursor.
 fn pattern_field_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     dir_tree: &dir::NodeTree,
@@ -878,10 +884,10 @@ fn pattern_field_symbol_at_offset(
         | PatternField::Computed { pattern, .. }
         | PatternField::Spread { pattern, .. } => {
             let pattern = *pattern.as_ref()?;
-            pattern_symbol_at_offset(session, ast, dir, dir_tree, pattern, offset)
+            pattern_symbol_at_offset(repository, ast, dir, dir_tree, pattern, offset)
         }
         PatternField::Positional { pattern, .. } => {
-            pattern_symbol_at_offset(session, ast, dir, dir_tree, *pattern, offset)
+            pattern_symbol_at_offset(repository, ast, dir, dir_tree, *pattern, offset)
         }
         PatternField::Alias { symbol, .. } => {
             let node_id = field_id.into();
@@ -902,7 +908,7 @@ fn pattern_field_symbol_at_offset(
 
 /// Resolve a binding symbol inside a pattern at the cursor.
 fn pattern_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     dir_tree: &dir::NodeTree,
@@ -927,7 +933,7 @@ fn pattern_symbol_at_offset(
 
             if let Some(inner_pattern) = pattern {
                 return pattern_symbol_at_offset(
-                    session,
+                    repository,
                     ast,
                     dir,
                     dir_tree,
@@ -941,7 +947,7 @@ fn pattern_symbol_at_offset(
         Pattern::Must(inner)
         | Pattern::ReferenceOf { right: inner, .. }
         | Pattern::ValueOf { right: inner, .. } => {
-            pattern_symbol_at_offset(session, ast, dir, dir_tree, *inner, offset)
+            pattern_symbol_at_offset(repository, ast, dir, dir_tree, *inner, offset)
         }
         Pattern::Tuple { fields }
         | Pattern::TaggedTuple { fields, .. }
@@ -949,9 +955,9 @@ fn pattern_symbol_at_offset(
         | Pattern::Object { fields }
         | Pattern::TaggedObject { fields, .. } => {
             for field_id in fields {
-                if let Some(symbol_at) =
-                    pattern_field_symbol_at_offset(session, ast, dir, dir_tree, *field_id, offset)
-                {
+                if let Some(symbol_at) = pattern_field_symbol_at_offset(
+                    repository, ast, dir, dir_tree, *field_id, offset,
+                ) {
                     return Some(symbol_at);
                 }
             }
@@ -961,7 +967,7 @@ fn pattern_symbol_at_offset(
         Pattern::Union { patterns } => {
             for pattern_id in patterns {
                 if let Some(symbol_at) =
-                    pattern_symbol_at_offset(session, ast, dir, dir_tree, *pattern_id, offset)
+                    pattern_symbol_at_offset(repository, ast, dir, dir_tree, *pattern_id, offset)
                 {
                     return Some(symbol_at);
                 }
@@ -984,7 +990,7 @@ fn offset_matches_symbol_span(offset: u32, span: Span) -> bool {
 
 /// Resolve a member access symbol when the cursor is on the member name.
 fn member_symbol_at_offset(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     expr_id: dir::LocalNodeId<Expression>,
@@ -993,9 +999,13 @@ fn member_symbol_at_offset(
     name: StringId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
-    let member_name = session.strings.get(name);
-    let source_file = session.files.get(ast.file_id());
-    let token_span = token_span_at_offset(session, ast.file_id(), offset).map(|token| token.span);
+    let member_name = repository.strings.get(name);
+    let source_file = repository
+        .file(dir.revision(), ast.file_id())
+        .ok()
+        .flatten()?;
+    let token_span = token_span_at_offset(repository, dir.revision(), ast.file_id(), offset)
+        .map(|token| token.span);
 
     if let Some(token_span) = token_span {
         let token_name = source_file.span_str(token_span);

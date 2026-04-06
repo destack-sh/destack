@@ -1,3 +1,4 @@
+use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
 use super::method::QueryMethodId;
@@ -8,7 +9,7 @@ use crate::{assist, navigation, refactor};
 pub struct QueryRequestEnvelope {
     /// Expected workspace semantic revision for mutating requests.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expected_revision: Option<u64>,
+    pub expected_revision: Option<Revision>,
     /// Query request payload.
     #[serde(flatten)]
     pub request: QueryRequest,
@@ -18,7 +19,7 @@ pub struct QueryRequestEnvelope {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QueryResponseEnvelope {
     /// Workspace semantic revision after request execution.
-    pub revision: u64,
+    pub revision: Revision,
     /// Query response payload.
     #[serde(flatten)]
     pub response: QueryResponse,

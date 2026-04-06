@@ -2,6 +2,7 @@ use destack_ast as ast;
 use destack_core::StringPool;
 use destack_dir::{Declaration, EnumField, LocalNodeId, Member, NodeTree};
 use destack_source::{FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 pub use crate::SymbolKind;
@@ -11,7 +12,6 @@ use crate::dir::{
     declaration_display_name, declaration_symbol_kind, is_synthetic_function_keyword_field,
     member_key_name, member_symbol_kind,
 };
-use destack_workspace::Session;
 
 /// A symbol in a document (for outline view).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -77,19 +77,27 @@ pub struct DocumentSymbolsResponse {
 }
 
 /// Get all symbols in a document (for outline view).
-pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> {
+pub fn document_symbols(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Vec<DocumentSymbol> {
     // prefer using dir symbols when available
-    if let Some(symbols) = document_symbols_with_dir(session, file) {
+    if let Some(symbols) = document_symbols_with_dir(repository, revision, file) {
         return symbols;
     }
 
     // fall back to ast only symbols
-    document_symbols_with_ast(session, file)
+    document_symbols_with_ast(repository, revision, file)
 }
 
 /// Build document symbols using DIR data when available.
-fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<DocumentSymbol>> {
-    with_query_context_for_file(session, file, |ctx| {
+fn document_symbols_with_dir(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Option<Vec<DocumentSymbol>> {
+    with_query_context_for_file(repository, revision, file, |ctx| {
         // resolve the dir tree
         let dir_tree = ctx.dir().tree();
 
@@ -102,7 +110,7 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
             let kind = declaration_symbol_kind(declaration);
 
             // get the declaration name
-            let name = declaration_display_name(&session.strings, declaration);
+            let name = declaration_display_name(&repository.strings, declaration);
 
             // resolve the full range and the main selection range
             let range = span_for_dir_node(ctx.ast(), dir_tree, declaration_id.into());
@@ -117,7 +125,7 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
             if let Some(member_ids) = declaration.member_ids() {
                 for member_id in member_ids {
                     if let Some(child) =
-                        member_to_document_symbol(dir_tree, *member_id, &ctx, session)
+                        member_to_document_symbol(dir_tree, *member_id, &ctx, repository)
                     {
                         symbol = symbol.with_child(child);
                     }
@@ -128,7 +136,7 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
             if let Declaration::Enum { fields, .. } = declaration {
                 for field_id in fields {
                     if let Some(child) =
-                        enum_field_to_document_symbol(dir_tree, *field_id, &ctx, session)
+                        enum_field_to_document_symbol(dir_tree, *field_id, &ctx, repository)
                     {
                         symbol = symbol.with_child(child);
                     }
@@ -143,8 +151,12 @@ fn document_symbols_with_dir(session: &Session, file: FileId) -> Option<Vec<Docu
 }
 
 /// Build document symbols using AST data when DIR is unavailable.
-fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSymbol> {
-    with_ast_query_for_file(session, file, |ast| {
+fn document_symbols_with_ast(
+    repository: &Repository,
+    revision: Revision,
+    file: FileId,
+) -> Vec<DocumentSymbol> {
+    with_ast_query_for_file(repository, revision, file, |ast| {
         // collect document symbols
         let mut symbols = Vec::new();
 
@@ -207,7 +219,7 @@ fn member_to_document_symbol(
     dir_tree: &NodeTree,
     member_id: LocalNodeId<Member>,
     ctx: &QueryContext,
-    session: &Session,
+    repository: &Repository,
 ) -> Option<DocumentSymbol> {
     let member = dir_tree.get::<Member>(member_id);
     let range = span_for_dir_node(ctx.ast(), dir_tree, member_id.into());
@@ -215,12 +227,12 @@ fn member_to_document_symbol(
     // get the member name and symbol kind
     let (name, kind) = match member {
         Member::Type { name, .. } => {
-            let name = session.strings.get(*name).to_string();
+            let name = repository.strings.get(*name).to_string();
             (name, SymbolKind::TypeParameter)
         }
         _ => {
             let key = member.key()?;
-            let name = member_key_name(session, key)?;
+            let name = member_key_name(repository, key)?;
             let kind = member_symbol_kind(member)?;
             (name, kind)
         }
@@ -244,12 +256,12 @@ fn enum_field_to_document_symbol(
     dir_tree: &NodeTree,
     field_id: LocalNodeId<EnumField>,
     ctx: &QueryContext,
-    session: &Session,
+    repository: &Repository,
 ) -> Option<DocumentSymbol> {
     let field = dir_tree.get::<EnumField>(field_id);
 
     // get the field name
-    let name = session.strings.get(field.name).to_string();
+    let name = repository.strings.get(field.name).to_string();
 
     // get spans
     let range = span_for_dir_node(ctx.ast(), dir_tree, field_id.into());

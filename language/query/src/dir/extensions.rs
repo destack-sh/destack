@@ -1,28 +1,28 @@
 use destack_dir::{Extension, ExtensionKind, GlobalSymbolId};
 use destack_source::ModuleId;
+use destack_workspace::{Repository, Revision};
 
-use crate::core::{DirQuery, SessionQueryIndexExt, query_context};
+use crate::core::{DirQuery, RepositoryQueryIndexExt, query_context};
 
 use super::get_canonical_symbol;
-use destack_workspace::{ExtensionIndexEntry, Module, Session};
+use destack_workspace::ExtensionIndexEntry;
 
 /// Visit each visible extension that targets the given symbol.
 ///
 /// Returns early when the visitor returns true.
 pub(crate) fn for_each_visible_extension(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     target_symbol: GlobalSymbolId,
     current_module_id: ModuleId,
     mut visit: impl FnMut(DirQuery<'_>, &Extension) -> bool,
 ) {
     // normalize the target symbol across imports and re exports
-    let canonical_target = get_canonical_symbol(session, target_symbol);
+    let canonical_target = get_canonical_symbol(repository, revision, target_symbol);
 
     // scan cached extensions for the canonical target
-    for entry in session.extension_index_entries_for_target(canonical_target) {
-        let module = session.modules.get(entry.module_id);
-        let module = module.as_ref();
-        let Some(ctx) = query_context(session, module) else {
+    for entry in repository.extension_index_entries_for_target(canonical_target) {
+        let Some(ctx) = query_context(repository, revision, entry.module_id) else {
             continue;
         };
 
@@ -43,10 +43,11 @@ pub(crate) fn for_each_visible_extension(
 
 /// Build extension index entries for one module.
 pub(crate) fn build_extension_index_entries_for_module(
-    session: &Session,
-    module: &Module,
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
 ) -> Vec<ExtensionIndexEntry> {
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context(repository, revision, module_id) else {
         return Vec::new();
     };
 
@@ -54,9 +55,9 @@ pub(crate) fn build_extension_index_entries_for_module(
 
     for (extension_id, extension) in ctx.dir().types().iter_extensions() {
         entries.push(ExtensionIndexEntry {
-            module_id: module.id,
+            module_id,
             extension_id,
-            target_symbol: get_canonical_symbol(session, extension.target),
+            target_symbol: get_canonical_symbol(repository, revision, extension.target),
         });
     }
 

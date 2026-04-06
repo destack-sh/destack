@@ -1,4 +1,5 @@
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::extract::{
@@ -7,7 +8,6 @@ use super::extract::{
 };
 use crate::ast::{get_module_by_file_id, is_simple_identifier};
 use crate::core::query_context;
-use destack_workspace::Session;
 
 /// Request payload for extract variable queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,7 +50,8 @@ impl ExtractVariableResult {
 
 /// Extract a selected expression into a const variable in the nearest statement scope.
 pub fn extract_variable(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file: FileId,
     selection: Span,
     new_name: &str,
@@ -61,12 +62,11 @@ pub fn extract_variable(
     }
 
     // resolve the module and query context
-    let module = get_module_by_file_id(session, file)?;
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
+    let module = get_module_by_file_id(repository, revision, file)?;
+    let ctx = query_context(repository, revision, module.id)?;
 
     // resolve source text for edits
-    let source_file = session.files.get(file);
+    let source_file = repository.file(revision, file).ok().flatten()?;
     let source = source_file.text();
 
     // resolve the selected expression and source text

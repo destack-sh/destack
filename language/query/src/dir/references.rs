@@ -6,6 +6,7 @@ use destack_dir::{
     NodeType, Resolution,
 };
 use destack_source::{FileId, ModuleId, NodeSpanType, Span};
+use destack_workspace::{Repository, Revision};
 
 use super::import::is_dependency_alias_for_target;
 use super::namespace::resolve_path_segment_symbol;
@@ -16,7 +17,6 @@ use super::{
 };
 use crate::ast::{get_node_tree_main_span, get_node_tree_span};
 use crate::core::{AstQuery, DirQuery, query_context};
-use destack_workspace::{Module, Session};
 
 /// Options for collecting symbol references.
 #[derive(Debug, Clone, Copy)]
@@ -35,16 +35,19 @@ pub(crate) struct ReferenceCollectionOptions<'a> {
     pub use_dependency_name_spans: bool,
     /// An optional target name for name span resolution.
     pub target_name: Option<&'a str>,
+    /// Whether expression-like references must keep the same visible name.
+    pub require_target_name_match: bool,
     /// An optional file filter for collected spans.
     pub limit_to_file: Option<FileId>,
 }
 
 /// Build reference index target keys for one module.
 pub(crate) fn build_reference_index_entries_for_module(
-    session: &Session,
-    module: &Module,
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
 ) -> Vec<GlobalSymbolId> {
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context(repository, revision, module_id) else {
         return Vec::new();
     };
 
@@ -57,19 +60,19 @@ pub(crate) fn build_reference_index_entries_for_module(
         if let Some(target_symbol) =
             resolve_expression_target_symbol(dir, expression_id, expression)
         {
-            insert_reference_target_keys(session, &mut targets, target_symbol);
+            insert_reference_target_keys(repository, dir.revision(), &mut targets, target_symbol);
         }
 
         if let Expression::Member { left, .. } = expression
             && let Some(receiver_symbol) = resolve_namespace_receiver_symbol(dir, *left)
         {
-            insert_reference_target_keys(session, &mut targets, receiver_symbol);
+            insert_reference_target_keys(repository, dir.revision(), &mut targets, receiver_symbol);
         }
 
         if let Expression::Member { .. } = expression
             && let Some(member_symbol) = resolve_member_access_symbol(dir, expression_id)
         {
-            insert_reference_target_keys(session, &mut targets, member_symbol);
+            insert_reference_target_keys(repository, dir.revision(), &mut targets, member_symbol);
         }
 
         let resolution_id = dir
@@ -79,13 +82,19 @@ pub(crate) fn build_reference_index_entries_for_module(
             let resolution = dir.types().get_resolution(resolution_id);
             match resolution {
                 Resolution::Static { candidate, .. } => {
-                    insert_reference_target_keys(session, &mut targets, candidate.target_symbol);
+                    insert_reference_target_keys(
+                        repository,
+                        dir.revision(),
+                        &mut targets,
+                        candidate.target_symbol,
+                    );
                 }
                 Resolution::Dynamic { candidates, .. }
                 | Resolution::Unresolved { candidates, .. } => {
                     for candidate in candidates {
                         insert_reference_target_keys(
-                            session,
+                            repository,
+                            dir.revision(),
                             &mut targets,
                             candidate.target_symbol,
                         );
@@ -107,7 +116,12 @@ pub(crate) fn build_reference_index_entries_for_module(
                     if let Some(segment_symbol) =
                         resolve_path_segment_symbol(dir, expression_id, segment_index)
                     {
-                        insert_reference_target_keys(session, &mut targets, segment_symbol);
+                        insert_reference_target_keys(
+                            repository,
+                            dir.revision(),
+                            &mut targets,
+                            segment_symbol,
+                        );
                     }
                 }
             }
@@ -119,11 +133,11 @@ pub(crate) fn build_reference_index_entries_for_module(
     for (_item_id, item) in dir_tree.iter_nodes_of_type::<DependencyItem>() {
         if let Some(local_symbol) = item.symbol() {
             let symbol_id = GlobalSymbolId::new(dir.module_id(), local_symbol);
-            insert_reference_target_keys(session, &mut targets, symbol_id);
+            insert_reference_target_keys(repository, dir.revision(), &mut targets, symbol_id);
         }
 
         if let Some(target_symbol) = item.target_symbol() {
-            insert_reference_target_keys(session, &mut targets, target_symbol);
+            insert_reference_target_keys(repository, dir.revision(), &mut targets, target_symbol);
         }
     }
 
@@ -132,17 +146,18 @@ pub(crate) fn build_reference_index_entries_for_module(
 
 /// Insert the usable reference target keys for one observed symbol.
 fn insert_reference_target_keys(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     targets: &mut HashSet<GlobalSymbolId>,
     symbol_id: GlobalSymbolId,
 ) {
     targets.insert(symbol_id);
-    targets.insert(get_canonical_symbol(session, symbol_id));
+    targets.insert(get_canonical_symbol(repository, revision, symbol_id));
 }
 
 /// Collect symbol references within a query context.
 pub(crate) fn collect_symbol_references_in_context(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     canonical_id: GlobalSymbolId,
@@ -161,14 +176,14 @@ pub(crate) fn collect_symbol_references_in_context(
     // collect direct expression references
     if options.include_expressions {
         let expression_spans =
-            collect_expression_reference_spans(session, ast, dir, canonical_id, options);
+            collect_expression_reference_spans(repository, ast, dir, canonical_id, options);
         spans.extend(expression_spans);
     }
 
     // collect member access references
     if options.include_members {
         let member_spans = collect_member_reference_spans(
-            session,
+            repository,
             ast,
             dir,
             canonical_id,
@@ -181,7 +196,7 @@ pub(crate) fn collect_symbol_references_in_context(
     // collect dependency item references
     if options.include_dependencies {
         let dependency_spans =
-            collect_dependency_reference_spans(session, ast, dir, canonical_id, options);
+            collect_dependency_reference_spans(repository, ast, dir, canonical_id, options);
         spans.extend(dependency_spans);
     }
 
@@ -191,7 +206,7 @@ pub(crate) fn collect_symbol_references_in_context(
 
 /// Collect direct expression reference spans.
 fn collect_expression_reference_spans(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     canonical_id: GlobalSymbolId,
@@ -215,7 +230,7 @@ fn collect_expression_reference_spans(
                     resolved_target_symbol
                         .map(|target_symbol| {
                             is_dependency_alias_for_target(
-                                session,
+                                repository,
                                 dir,
                                 target_symbol,
                                 canonical_id,
@@ -231,7 +246,12 @@ fn collect_expression_reference_spans(
 
                 // check for a canonical target match
                 if let Some(target_symbol) = resolved_target_symbol {
-                    if symbol_matches_reference_target(session, target_symbol, canonical_id) {
+                    if symbol_matches_reference_target(
+                        repository,
+                        dir.revision(),
+                        target_symbol,
+                        canonical_id,
+                    ) {
                         return Some(expression_id);
                     }
 
@@ -251,6 +271,11 @@ fn collect_expression_reference_spans(
         let Some(span) = span else {
             continue;
         };
+
+        // keep rename style collection on the same visible name
+        if !span_matches_target_name(repository, dir.revision(), span, options) {
+            continue;
+        }
 
         // filter out spans outside the requested file
         if options
@@ -285,13 +310,23 @@ fn collect_expression_reference_spans(
             else {
                 continue;
             };
-            if !symbol_matches_reference_target(session, segment_symbol, canonical_id) {
+            if !symbol_matches_reference_target(
+                repository,
+                dir.revision(),
+                segment_symbol,
+                canonical_id,
+            ) {
                 continue;
             }
 
             let Some(span) = get_path_segment_span(ast, dir, expression_id, segment_index) else {
                 continue;
             };
+
+            // keep rename style collection on the same visible name
+            if !span_matches_target_name(repository, dir.revision(), span, options) {
+                continue;
+            }
 
             if options
                 .limit_to_file
@@ -312,7 +347,7 @@ fn collect_expression_reference_spans(
                 continue;
             };
             if !member_receiver_matches_target(
-                session,
+                repository,
                 dir,
                 dir_tree,
                 *left,
@@ -326,6 +361,11 @@ fn collect_expression_reference_spans(
             let Some(span) = span else {
                 continue;
             };
+
+            // keep rename style collection on the same visible name
+            if !span_matches_target_name(repository, dir.revision(), span, options) {
+                continue;
+            }
 
             if let Some(limit_file) = options.limit_to_file
                 && span.file != limit_file
@@ -341,9 +381,39 @@ fn collect_expression_reference_spans(
     spans
 }
 
+/// Check whether one collected span keeps the requested target name.
+fn span_matches_target_name(
+    repository: &Repository,
+    revision: Revision,
+    span: Span,
+    options: ReferenceCollectionOptions<'_>,
+) -> bool {
+    if !options.require_target_name_match {
+        return true;
+    }
+
+    let Some(target_name) = options.target_name else {
+        return true;
+    };
+
+    let Some(file) = repository.file(revision, span.file).ok().flatten() else {
+        return false;
+    };
+    let file_text = file.text();
+    let start = span.start as usize;
+    let end = span.end as usize;
+    if start > end || end > file_text.len() {
+        return false;
+    }
+
+    file_text
+        .get(start..end)
+        .is_some_and(|span_text| span_text == target_name)
+}
+
 /// Check whether a member receiver expression matches the canonical symbol target.
 fn member_receiver_matches_target(
-    session: &Session,
+    repository: &Repository,
     dir: DirQuery<'_>,
     _dir_tree: &dir::NodeTree,
     receiver_expression_id: dir::LocalNodeId<Expression>,
@@ -355,7 +425,7 @@ fn member_receiver_matches_target(
         return false;
     };
 
-    symbol_matches_reference_target(session, target_symbol, canonical_id)
+    symbol_matches_reference_target(repository, dir.revision(), target_symbol, canonical_id)
 }
 
 /// Resolve the target symbol for an expression reference.
@@ -559,7 +629,7 @@ fn last_identifier_span_in_expression(ast: AstQuery<'_>, expression_span: Span) 
 
 /// Collect member access reference spans.
 fn collect_member_reference_spans(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     canonical_id: GlobalSymbolId,
@@ -581,7 +651,12 @@ fn collect_member_reference_spans(
 
         // resolve the member symbol through normal resolution first
         if let Some(member_symbol) = resolve_member_access_symbol(dir, expression_id) {
-            if !symbol_matches_reference_target(session, member_symbol, canonical_id) {
+            if !symbol_matches_reference_target(
+                repository,
+                dir.revision(),
+                member_symbol,
+                canonical_id,
+            ) {
                 continue;
             }
 
@@ -601,7 +676,8 @@ fn collect_member_reference_spans(
         }
 
         // accept recorded dynamic candidate matches when one member access has no single target
-        if member_resolution_matches_reference_target(session, dir, expression_id, canonical_id) {
+        if member_resolution_matches_reference_target(repository, dir, expression_id, canonical_id)
+        {
             let Some(span) = get_member_access_name_span(ast, dir, expression_id) else {
                 continue;
             };
@@ -635,7 +711,7 @@ fn collect_member_reference_spans(
         }
 
         // require the member name to match the requested target name
-        let member_name = session.strings.get(name).to_string();
+        let member_name = repository.strings.get(name).to_string();
         if member_name != target_name {
             continue;
         }
@@ -660,7 +736,7 @@ fn collect_member_reference_spans(
 
 /// Check whether one member access resolution candidate set matches the target.
 fn member_resolution_matches_reference_target(
-    session: &Session,
+    repository: &Repository,
     dir: DirQuery<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     canonical_id: GlobalSymbolId,
@@ -680,13 +756,18 @@ fn member_resolution_matches_reference_target(
     };
 
     candidates.iter().any(|candidate| {
-        symbol_matches_reference_target(session, candidate.target_symbol, canonical_id)
+        symbol_matches_reference_target(
+            repository,
+            dir.revision(),
+            candidate.target_symbol,
+            canonical_id,
+        )
     })
 }
 
 /// Collect dependency item reference spans.
 fn collect_dependency_reference_spans(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     canonical_id: GlobalSymbolId,
@@ -699,7 +780,8 @@ fn collect_dependency_reference_spans(
             .iter_nodes_of_type::<DependencyItem>()
             .filter_map(|(item_id, item)| {
                 let target = item.target_symbol()?;
-                symbol_matches_reference_target(session, target, canonical_id).then_some(item_id)
+                symbol_matches_reference_target(repository, dir.revision(), target, canonical_id)
+                    .then_some(item_id)
             })
             .collect()
     };
@@ -708,7 +790,7 @@ fn collect_dependency_reference_spans(
     let mut spans = Vec::new();
     for item_id in matching_dependency_ids {
         let span = if options.use_dependency_name_spans {
-            dependency_item_name_span(session, ast, dir, item_id, options.target_name)
+            dependency_item_name_span(repository, ast, dir, item_id, options.target_name)
         } else {
             None
         }
@@ -717,6 +799,11 @@ fn collect_dependency_reference_spans(
         let Some(span) = span else {
             continue;
         };
+
+        // keep rename style collection on the same visible name
+        if !span_matches_target_name(repository, dir.revision(), span, options) {
+            continue;
+        }
 
         // filter out spans outside the requested file
         if let Some(limit_file) = options.limit_to_file
@@ -734,7 +821,7 @@ fn collect_dependency_reference_spans(
 
 /// Resolve a dependency item's name span when a target name is provided.
 fn dependency_item_name_span(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     item_id: dir::LocalNodeId<DependencyItem>,
@@ -764,7 +851,7 @@ fn dependency_item_name_span(
 
     // match the remote/local item name first
     if let Some(name_id) = name_id
-        && session.strings.get(name_id) == target_name
+        && repository.strings.get(name_id) == target_name
     {
         let span = ast
             .tree()
@@ -774,7 +861,7 @@ fn dependency_item_name_span(
 
     // fall back to alias when present
     if let Some(alias_id) = alias_id
-        && session.strings.get(alias_id) == target_name
+        && repository.strings.get(alias_id) == target_name
     {
         let span = ast
             .tree()

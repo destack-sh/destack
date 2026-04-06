@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactStore, Ast, DirAnalyzed, DirResolved};
+use destack_artifact::{ArtifactKey, ArtifactPin, Ast, DirAnalyzed, DirResolved};
 use destack_ast as ast;
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_source::{FileId, ModuleId, NodeSourceMap, ProfileId};
-use destack_workspace::{Module, Program, Session};
+use destack_workspace::{Repository, Revision};
 
 use crate::ast::get_module_by_file_id;
-use crate::dir::program_for_module;
 
 /// Query context for a module.
 ///
@@ -16,14 +15,16 @@ use crate::dir::program_for_module;
 /// Created via [`query_context`].
 #[derive(Debug)]
 pub(crate) struct QueryContext {
-    /// The live artifact store for the program.
-    artifacts: Arc<ArtifactStore>,
+    /// The exact artifact pins retained for this query.
+    _pins: Vec<ArtifactPin>,
     /// The module AST (syntax tree and strings).
     ast: Arc<Ast>,
     /// The module DIR (semantic IR).
-    dir: Arc<DirAnalyzed>,
+    dir_analyzed: Arc<DirAnalyzed>,
     /// The resolved module linkage surface.
-    resolved: Arc<DirResolved>,
+    dir_resolved: Arc<DirResolved>,
+    /// The revision used for this context.
+    revision: Revision,
     /// The profile used for this context.
     profile_id: ProfileId,
     /// The module id.
@@ -88,6 +89,8 @@ impl<'a> AstQuery<'a> {
 pub(crate) struct DirQuery<'a> {
     /// The module id for this dir view.
     module_id: ModuleId,
+    /// The revision for this dir view.
+    revision: Revision,
     /// The analyzed dir surface.
     analyzed: &'a DirAnalyzed,
     /// The resolved dir surface.
@@ -98,6 +101,11 @@ impl<'a> DirQuery<'a> {
     /// Return the module id for this dir view.
     pub(crate) fn module_id(self) -> ModuleId {
         self.module_id
+    }
+
+    /// Return the revision for this dir view.
+    pub(crate) fn revision(self) -> Revision {
+        self.revision
     }
 
     /// Return the DIR node tree.
@@ -152,54 +160,15 @@ impl<'a> DirQuery<'a> {
     }
 }
 
-/// Select a profile that has the requested query artifacts for one module.
-fn select_profile_for_module(
-    artifacts: &ArtifactStore,
-    module_id: ModuleId,
-    requested_profile: ProfileId,
-    require_analyzed: bool,
-) -> Option<ProfileId> {
-    let profile_is_available = if require_analyzed {
-        artifacts
-            .dir_analyzed(module_id, requested_profile)
-            .is_some()
-            && artifacts
-                .dir_resolved(module_id, requested_profile)
-                .is_some()
-    } else {
-        artifacts
-            .dir_resolved(module_id, requested_profile)
-            .is_some()
-    };
-    if profile_is_available {
-        return Some(requested_profile);
-    }
-
-    let mut profile_ids: Vec<_> = artifacts
-        .profile_ids_for_module(module_id)
-        .into_iter()
-        .collect();
-    profile_ids.sort_unstable();
-
-    profile_ids.into_iter().find(|candidate| {
-        if require_analyzed {
-            artifacts.dir_analyzed(module_id, *candidate).is_some()
-                && artifacts.dir_resolved(module_id, *candidate).is_some()
-        } else {
-            artifacts.dir_resolved(module_id, *candidate).is_some()
-        }
-    })
-}
-
 impl QueryContext {
-    /// Return the artifact store for this query context.
-    pub(crate) fn artifacts(&self) -> &ArtifactStore {
-        self.artifacts.as_ref()
-    }
-
     /// Return the profile id for this query context.
     pub(crate) fn profile_id(&self) -> ProfileId {
         self.profile_id
+    }
+
+    /// Return the revision for this query context.
+    pub(crate) fn revision(&self) -> Revision {
+        self.revision
     }
 
     /// Return the module id for this query context.
@@ -224,121 +193,129 @@ impl QueryContext {
     pub(crate) fn dir(&self) -> DirQuery<'_> {
         DirQuery {
             module_id: self.module_id,
-            analyzed: self.dir.as_ref(),
-            resolved: self.resolved.as_ref(),
+            revision: self.revision,
+            analyzed: self.dir_analyzed.as_ref(),
+            resolved: self.dir_resolved.as_ref(),
         }
     }
 }
 
-/// Get query context for a module using its default profile.
-///
-/// Returns `None` if AST, analyzed DIR, or resolved DIR is not available for the module.
-pub(crate) fn query_context(session: &Session, module: &Module) -> Option<QueryContext> {
-    // resolve the owning program and its default profile
-    let program = program_for_module(session, module);
-    let profile = program.default_profile_id_for_module(module.id);
-
-    // build query context
-    query_context_with_program_and_profile(session, module, program, profile)
-}
-
-/// Get query context for a module with an explicit program and profile.
-fn query_context_with_program_and_profile(
-    session: &Session,
-    module: &Module,
-    program: Arc<Program>,
+/// Get query context for a module with one explicit profile.
+fn query_context_with_profile(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
     profile: ProfileId,
 ) -> Option<QueryContext> {
+    let module = repository.module(revision, module_id).ok().flatten()?;
+    let artifacts = repository.artifact_store().clone();
+
+    // resolve and retain the exact live query artifacts
+    let ast_version = repository.artifact_version(revision, &ArtifactKey::ast(module.id));
+    let selected_profile =
+        repository.available_profile_id_for_module(revision, module.id, profile, true)?;
+    let resolved_version = repository.artifact_version(
+        revision,
+        &ArtifactKey::dir_resolved(module.id, selected_profile),
+    );
+    let analyzed_version = repository.artifact_version(
+        revision,
+        &ArtifactKey::dir_analyzed(module.id, selected_profile),
+    );
+
     // resolve module ast and profile dir artifact
-    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
-    let ast = artifacts.ast(module.id)?;
-    let selected_profile = select_profile_for_module(&artifacts, module.id, profile, true)?;
-    let dir = artifacts.dir_analyzed(module.id, selected_profile)?;
-    let resolved = artifacts.dir_resolved(module.id, selected_profile)?;
+    let ast = repository.ast(revision, module.id)?;
+    let dir_analyzed = repository.dir_analyzed(revision, module.id, selected_profile)?;
+    let dir_resolved = repository.dir_resolved(revision, module.id, selected_profile)?;
+
+    // query artifact roots
+    let ast_pin = artifacts.pin(&ast_version)?;
+    let resolved_pin = artifacts.pin(&resolved_version)?;
+    let analyzed_pin = artifacts.pin(&analyzed_version)?;
 
     // build query context
     Some(QueryContext {
-        artifacts,
+        _pins: vec![ast_pin, resolved_pin, analyzed_pin],
         ast,
-        dir,
-        resolved,
+        dir_analyzed,
+        dir_resolved,
+        revision,
         profile_id: selected_profile,
         module_id: module.id,
         file_id: module.file_id,
     })
 }
 
-/// Execute a closure with a query context for a file.
+/// Get query context for one module.
+pub(crate) fn query_context(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+) -> Option<QueryContext> {
+    let profile = repository
+        .default_profile_id_for_module(revision, module_id)
+        .ok()?;
+
+    query_context_with_profile(repository, revision, module_id, profile)
+}
+
+/// Get query context for a module id through the owning repository.
+pub(crate) fn query_context_for_module_id(
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
+) -> Option<QueryContext> {
+    query_context(repository, revision, module_id)
+}
+
+/// Execute a closure with a query context for one file.
 pub(crate) fn with_query_context_for_file<T>(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     f: impl FnOnce(QueryContext) -> T,
 ) -> Option<T> {
-    // resolve the module for the file id
-    let module = get_module_by_file_id(session, file_id)?;
+    let module = get_module_by_file_id(repository, revision, file_id)?;
+    let ctx = query_context(repository, revision, module.id)?;
 
-    // build a query context while the module guard is held
-    let module = module.as_ref();
-    let ctx = query_context(session, module)?;
-
-    // run the caller logic inside the query context
     Some(f(ctx))
 }
 
 /// Execute a closure with a query context for a module.
 pub(crate) fn with_query_context_for_module<T>(
-    session: &Session,
-    module: &Module,
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
     f: impl FnOnce(QueryContext) -> T,
 ) -> Option<T> {
-    let ctx = query_context(session, module)?;
+    let ctx = query_context(repository, revision, module_id)?;
     Some(f(ctx))
 }
 
 /// Execute a closure with an ast query surface for a file.
 pub(crate) fn with_ast_query_for_file<T>(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     file_id: FileId,
     f: impl FnOnce(AstQuery<'_>) -> T,
 ) -> Option<T> {
-    let module = get_module_by_file_id(session, file_id)?;
-    with_ast_query_for_module(session, module.as_ref(), f)
+    let module = get_module_by_file_id(repository, revision, file_id)?;
+    with_ast_query_for_module(repository, revision, module.id, f)
 }
 
-/// Execute a closure with an ast query surface for a module.
+/// Execute a closure with an ast query surface for one module.
 pub(crate) fn with_ast_query_for_module<T>(
-    session: &Session,
-    module: &Module,
+    repository: &Repository,
+    revision: Revision,
+    module_id: ModuleId,
     f: impl FnOnce(AstQuery<'_>) -> T,
 ) -> Option<T> {
-    let program = program_for_module(session, module);
-    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
-    let ast = artifacts.ast(module.id)?;
+    let module = repository.module(revision, module_id).ok().flatten()?;
+    let ast = repository.ast(revision, module.id)?;
     let query = AstQuery {
         file_id: module.file_id,
         ast: ast.as_ref(),
     };
 
     Some(f(query))
-}
-
-/// Execute a closure with ast and resolved dir query surfaces for a module.
-pub(crate) fn with_ast_and_resolved_for_module<T>(
-    session: &Session,
-    module: &Module,
-    f: impl FnOnce(AstQuery<'_>, ModuleId, &DirResolved) -> T,
-) -> Option<T> {
-    let program = program_for_module(session, module);
-    let profile = program.default_profile_id_for_module(module.id);
-    let artifacts = session.get_artifacts_for_program(program.as_ref())?;
-    let ast = artifacts.ast(module.id)?;
-    let selected_profile = select_profile_for_module(&artifacts, module.id, profile, false)?;
-    let resolved = artifacts.dir_resolved(module.id, selected_profile)?;
-
-    let ast_query = AstQuery {
-        file_id: module.file_id,
-        ast: ast.as_ref(),
-    };
-
-    Some(f(ast_query, module.id, resolved.as_ref()))
 }

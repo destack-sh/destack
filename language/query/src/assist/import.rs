@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_artifact::ImportEdgeKind;
 use destack_source::{ModuleId, Span};
-use destack_workspace::Session;
+use destack_workspace::Repository;
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::ast::{
@@ -16,7 +16,7 @@ use super::CompletionContext;
 
 /// Detect import related context.
 pub(super) fn detect_import_context(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     source: &str,
@@ -62,7 +62,7 @@ pub(super) fn detect_import_context(
                 continue;
             };
 
-            let target_module = resolved_import_target_module(session, ast, dir, *target);
+            let target_module = resolved_import_target_module(repository, ast, dir, *target);
 
             return Some(CompletionContext::ImportClause {
                 target_module,
@@ -99,13 +99,13 @@ fn import_path_span_from_tokens(ast: AstQuery<'_>, import_span: Span, offset: u3
 
 /// Resolve one import target module from compiler resolved import edges.
 fn resolved_import_target_module(
-    session: &Session,
+    repository: &Repository,
     ast: AstQuery<'_>,
     dir: DirQuery<'_>,
     target: destack_core::StringId,
 ) -> Option<ModuleId> {
     let specifier = ast.strings().get(target);
-    let target_id = session.strings.intern(&specifier);
+    let target_id = repository.strings.intern(&specifier);
     let cache_key = (
         Some(dir.module_id()),
         target_id,

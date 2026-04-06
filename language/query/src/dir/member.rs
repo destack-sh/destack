@@ -5,10 +5,10 @@ use destack_dir::{
     StaticKey, SymbolTable, SymbolType, Type, TypeTable, WellKnownSymbol,
 };
 use destack_source::ModuleId;
+use destack_workspace::{Repository, Revision};
 
 use super::for_each_visible_extension;
-use crate::core::query_context;
-use destack_workspace::Session;
+use crate::core::query_context_for_module_id;
 
 /// Maximum recursion depth for type member resolution.
 const MAX_TYPE_DEPTH: u32 = 10;
@@ -61,7 +61,8 @@ pub(crate) fn resolve_type_members(
     types: &TypeTable,
     symbols: &SymbolTable,
     type_id: LocalTypeId,
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // resolve the root type and collect members
@@ -70,8 +71,9 @@ pub(crate) fn resolve_type_members(
         ty,
         types,
         symbols,
-        &session.strings,
-        session,
+        &repository.strings,
+        repository,
+        revision,
         current_module_id,
         0,
     )
@@ -83,7 +85,8 @@ fn resolve_type_members_inner(
     types: &TypeTable,
     _symbols: &SymbolTable,
     strings: &StringPool,
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     current_module_id: ModuleId,
     depth: u32,
 ) -> Vec<MemberInfo> {
@@ -95,7 +98,7 @@ fn resolve_type_members_inner(
     match ty {
         // reference to a declared type: look up symbol's owned scope
         Type::Reference { symbol, .. } => {
-            resolve_reference_members(*symbol, session, current_module_id)
+            resolve_reference_members(*symbol, repository, revision, current_module_id)
         }
 
         // object type: return fields directly
@@ -161,7 +164,8 @@ fn resolve_type_members_inner(
                 types,
                 _symbols,
                 strings,
-                session,
+                repository,
+                revision,
                 current_module_id,
                 depth + 1,
             );
@@ -175,7 +179,8 @@ fn resolve_type_members_inner(
                     types,
                     _symbols,
                     strings,
-                    session,
+                    repository,
+                    revision,
                     current_module_id,
                     depth + 1,
                 );
@@ -201,9 +206,9 @@ fn resolve_type_members_inner(
                     let inner = types.get_type(*value);
                     if let Type::Reference { symbol, .. } = inner {
                         // load the symbol and check if it's an enum
-                        let module = session.modules.get(symbol.module_id);
-                        let module = module.as_ref();
-                        if let Some(ctx) = query_context(session, module) {
+                        if let Some(ctx) =
+                            query_context_for_module_id(repository, revision, symbol.module_id)
+                        {
                             let symbols_table = ctx.dir().symbols();
                             let sym = symbols_table.get_symbol(symbol.local_id);
                             return sym.ty == SymbolType::Enum;
@@ -226,7 +231,8 @@ fn resolve_type_members_inner(
                     types,
                     _symbols,
                     strings,
-                    session,
+                    repository,
+                    revision,
                     current_module_id,
                     depth + 1,
                 );
@@ -264,14 +270,18 @@ fn resolve_type_members_inner(
             .collect(),
 
         // array type: resolve members from well known Array type
-        Type::Array { element, .. } => array_members(*element, session, current_module_id),
+        Type::Array { element, .. } => {
+            array_members(*element, repository, revision, current_module_id)
+        }
 
         Type::ArraySized { element, .. } => {
-            array_members(Some(*element), session, current_module_id)
+            array_members(Some(*element), repository, revision, current_module_id)
         }
 
         // primitive types: resolve members from well known types (String, Number, etc.)
-        Type::TypeLiteral { value } => primitive_members(value, session, current_module_id),
+        Type::TypeLiteral { value } => {
+            primitive_members(value, repository, revision, current_module_id)
+        }
 
         // follow value types
         Type::Value { value } => {
@@ -281,7 +291,8 @@ fn resolve_type_members_inner(
                 types,
                 _symbols,
                 strings,
-                session,
+                repository,
+                revision,
                 current_module_id,
                 depth + 1,
             )
@@ -295,13 +306,12 @@ fn resolve_type_members_inner(
 /// Resolve members from a reference type by looking up the symbol.
 pub(crate) fn resolve_reference_members(
     symbol_id: GlobalSymbolId,
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // load the symbol's module
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context_for_module_id(repository, revision, symbol_id.module_id) else {
         return Vec::new();
     };
     let symbols = ctx.dir().symbols();
@@ -309,11 +319,11 @@ pub(crate) fn resolve_reference_members(
 
     // resolve direct members from the symbol definition
     let mut members =
-        resolve_local_symbol_members(symbol_id.local_id, types, symbols, &session.strings);
+        resolve_local_symbol_members(symbol_id.local_id, types, symbols, &repository.strings);
 
     // merge extension members for this symbol
     let extension_members =
-        resolve_extension_members_for_symbol(session, symbol_id, current_module_id);
+        resolve_extension_members_for_symbol(repository, revision, symbol_id, current_module_id);
 
     // avoid duplicate member names across direct and extension members
     for member in extension_members {
@@ -411,14 +421,16 @@ fn resolve_local_symbol_members(
 
 /// Resolve extension members for a target symbol across all modules.
 pub(crate) fn resolve_extension_members_for_symbol(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     target_symbol: GlobalSymbolId,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // prepare member collection
     let mut members = Vec::new();
     for_each_visible_extension(
-        session,
+        repository,
+        revision,
         target_symbol,
         current_module_id,
         |dir, extension| {
@@ -452,7 +464,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
                 };
                 let name = match key {
                     DynamicKey::Name(name_id) | DynamicKey::Number(name_id) => {
-                        session.strings.get(*name_id).to_string()
+                        repository.strings.get(*name_id).to_string()
                     }
                     _ => continue,
                 };
@@ -514,17 +526,24 @@ fn member_names_match(a: &MemberName, b: &MemberName) -> bool {
 /// Get members for array types by resolving the well known Array symbol.
 fn array_members(
     _element_type: Option<LocalTypeId>,
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // resolve members from the Array well known symbol
-    resolve_well_known_members(session, dir::WellKnownSymbol::Array, current_module_id)
+    resolve_well_known_members(
+        repository,
+        revision,
+        dir::WellKnownSymbol::Array,
+        current_module_id,
+    )
 }
 
 /// Get members for primitive types by resolving the appropriate well known symbol.
 fn primitive_members(
     value: &dir::TypeLiteral,
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // import primitive type helpers
@@ -556,30 +575,29 @@ fn primitive_members(
 
     // return members for the resolved well known symbol
     well_known
-        .map(|wk| resolve_well_known_members(session, wk, current_module_id))
+        .map(|wk| resolve_well_known_members(repository, revision, wk, current_module_id))
         .unwrap_or_default()
 }
 
 /// Resolve members from a well known symbol (Array, String, etc.).
 fn resolve_well_known_members(
-    session: &Session,
+    repository: &Repository,
+    revision: Revision,
     well_known: WellKnownSymbol,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // resolve the current query profile so we stay on one exact lib surface
-    let module = session.modules.get(current_module_id);
-    let module = module.as_ref();
-    let Some(ctx) = query_context(session, module) else {
+    let Some(ctx) = query_context_for_module_id(repository, revision, current_module_id) else {
         return Vec::new();
     };
 
     // resolve the exact well known symbol from the current profile
-    let Some(environment) = ctx.artifacts().library_environment(ctx.profile_id()) else {
+    let Some(environment) = repository.library_environment(revision, ctx.profile_id()) else {
         return Vec::new();
     };
     let Some(symbol_id) = environment.well_known_symbols().get_type_symbol(well_known) else {
         return Vec::new();
     };
 
-    resolve_reference_members(symbol_id, session, current_module_id)
+    resolve_reference_members(symbol_id, repository, revision, current_module_id)
 }
