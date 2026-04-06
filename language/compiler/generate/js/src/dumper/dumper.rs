@@ -1419,13 +1419,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         annotation: &Annotation,
     ) {
         match annotation {
-            Annotation::Doc { position, string } => {
-                let string = truncate_string(self.strings.get(*string), 40, " ");
-                self.node("Annotation::Doc", id.id)
-                    .field("position", position)
-                    .field("string", &string.as_ref())
-                    .end();
-            }
             Annotation::Comment { position, string } => {
                 let string = truncate_string(self.strings.get(*string), 40, " ");
                 self.node("Annotation::Comment", id.id)

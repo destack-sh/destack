@@ -56,9 +56,7 @@ impl Compiler {
         tree: &'a NodeTree,
         annotation_id: LocalNodeId<Annotation>,
     ) -> Option<DecoratorCall<'a>> {
-        let Annotation::Decorator { expression, .. } = tree.get(annotation_id) else {
-            return None;
-        };
+        let Annotation::Decorator { expression, .. } = tree.get(annotation_id);
         Some(self.decorator_call(tree, *expression))
     }
 

@@ -37,19 +37,6 @@ impl Compiler {
         let annotation = tree.get(annotation_id);
         let span = self.unbind_span(module, annotation_id.into());
         let ast_annotation = match annotation {
-            dir::Annotation::Doc { position, string } => {
-                let position = self.unbind_annotation_position(context, *position);
-                let string = ast_strings.intern_from(&self.repository.strings, *string);
-                let doc = ast::Doc {
-                    string,
-                    style: ast::DocStyle::Slash,
-                };
-                let doc_id = ast_tree.insert(doc, span);
-                ast::Annotation::Doc {
-                    node: doc_id,
-                    position,
-                }
-            }
             dir::Annotation::Decorator {
                 position,
                 expression,

@@ -381,9 +381,7 @@ impl Compiler {
         decorator_map: &HashMap<dir::GlobalSymbolId, dir::WellKnownDecorator>,
     ) -> Option<DiagnosticDirectiveOverride> {
         let annotation = tree.get(annotation_id);
-        let dir::Annotation::Decorator { expression, .. } = annotation else {
-            return None;
-        };
+        let dir::Annotation::Decorator { expression, .. } = annotation;
 
         // resolve decorator marker symbol
         let call = self.decorator_call(tree, *expression);
