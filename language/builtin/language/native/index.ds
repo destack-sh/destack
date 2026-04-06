@@ -5,7 +5,8 @@ export { type ReadonlyArray, type FixedArray } from "./collections/index.ds";
 export { Slice } from "./collections/index.ds";
 export { Map, type Record } from "./collections/index.ds";
 export { Set } from "./collections/index.ds";
-export { type Vector } from "../primitive/vector.ds";
+export { type Vector } from "intrinsic/primitive/vector.ds";
+export { type PlatformCapability } from "intrinsic/primitive/binding.ds";
 
 // low-level primitives (not ambient, must be imported explicitly)
 export {

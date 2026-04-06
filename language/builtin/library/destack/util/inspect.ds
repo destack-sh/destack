@@ -1,4 +1,4 @@
-import { typeOf } from "../../intrinsic/reflect/type.ds";
+import { typeOf } from "intrinsic/reflect/type.ds";
 
 // NOTE #Incomplete: inspect parity with bun util inspect is still evolving
 

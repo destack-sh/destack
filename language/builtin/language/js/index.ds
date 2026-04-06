@@ -3,4 +3,4 @@ export { Slice } from "./collections/index.ds";
 export type { FixedArray } from "./collections/index.ds";
 
 // simd (ambient)
-export type { Vector } from "../primitive/vector.ds";
+export type { Vector } from "native";

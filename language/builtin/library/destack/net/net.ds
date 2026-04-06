@@ -1,5 +1,5 @@
 import { Slice } from "native";
-import * as platform from "../../platform/index.ds";
+import * as platform from "library/platform/index.ds";
 import type { PlatformError } from "../error/index.ds";
 import { ListenerHandle, SocketHandle } from "../resource/index.ds";
 
