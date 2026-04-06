@@ -76,6 +76,7 @@ impl Compiler {
         member_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<MemberVisibilityContext>> {
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             member_symbol.module_id,
@@ -259,6 +260,7 @@ impl Compiler {
         while let Some(owner_symbol) = current_symbol {
             let context = self
                 .with_module_tree_symbol_view_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     owner_symbol.module_id,
@@ -333,6 +335,7 @@ impl Compiler {
 
             current_symbol = self
                 .with_module_types_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     owner_symbol.module_id,

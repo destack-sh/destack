@@ -476,6 +476,7 @@ impl Compiler {
             owner_is_ambient_lib,
         ) = self
             .with_module_symbols_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
@@ -509,18 +510,23 @@ impl Compiler {
 
         // ensure the defining module is declared before reading its types
         if symbol.module_id != ctx.module.id {
-            self.require_dir_declared(symbol.module_id, ctx.profile)
-                .map_err(AnalyzeError::from)?;
+            self.require_dir_declared(
+                ctx.compiler_context.revision(),
+                symbol.module_id,
+                ctx.profile,
+            )
+            .map_err(AnalyzeError::from)?;
         }
 
         // ensure the global symbol table is available for this module
-        self.require_dir_resolved(ctx.module.id, ctx.profile)
+        self.require_dir_resolved(ctx.compiler_context.revision(), ctx.module.id, ctx.profile)
             .map_err(AnalyzeError::from)?;
 
         // select the global merge group when the symbol participates
         let mut group_symbols = if symbol_is_global_augmentation || owner_is_ambient_lib {
             if let Some(key) = symbol_key {
                 self.collect_global_merge_sources_for_key(
+                    ctx.compiler_context.revision(),
                     ctx.module,
                     &ctx.index,
                     ctx.symbols,
@@ -544,6 +550,7 @@ impl Compiler {
         for group_symbol in group_symbols {
             let normalized = self
                 .with_module_symbols_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     group_symbol.module_id,
@@ -601,6 +608,7 @@ impl Compiler {
                 } else {
                     let Some(imported) = self.import_instance_type_for_symbol(
                         &ctx.index,
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         node_id,
                         group_symbol,
@@ -690,6 +698,7 @@ impl Compiler {
     pub(crate) fn import_instance_type_for_symbol(
         &self,
         index: &AnalyzeIndex,
+        revision: destack_workspace::Revision,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
@@ -703,7 +712,7 @@ impl Compiler {
         // declared instance shapes are the earliest stable boundary for class, struct,
         // interface, and extension member access
         let snapshot = self
-            .require_indexed_dir_declared(index, symbol.module_id, profile)
+            .require_indexed_dir_declared(index, revision, symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let remote_types = &snapshot.types;
         let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {

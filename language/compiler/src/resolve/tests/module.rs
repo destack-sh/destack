@@ -71,9 +71,8 @@ value;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
+        .repository
+        .module_graph(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 
@@ -105,9 +104,8 @@ value;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
+        .repository
+        .module_graph(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 
@@ -175,9 +173,8 @@ type Wrapped = TaskResultPack;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
+        .repository
+        .module_graph(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 
@@ -319,9 +316,8 @@ value;
 
     let profile = test.default_profile_id(consumer_module_id);
     let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
+        .repository
+        .module_graph(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(consumer_module_id);
 
@@ -351,9 +347,8 @@ export * from "./dep.ts";
 
     let profile = test.default_profile_id(export_module_id);
     let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
+        .repository
+        .module_graph(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(export_module_id);
 
@@ -390,9 +385,8 @@ value;
 
     let profile = test.default_profile_id(main_module_id);
     let graph = test
-        .compiler
-        .artifacts
-        .module_graph(profile)
+        .repository
+        .module_graph(test.program.current_revision(), profile)
         .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
     let dependencies = graph.dependencies_for(main_module_id);
 

@@ -315,7 +315,7 @@ fn anchor_instruction(
 ) -> mir::AnchoredGlobalNodeId {
     instruction_id
         .into_any()
-        .into_anchored(ctx.module_id(), ctx.target_id().clone())
+        .into_anchored(ctx.module_id(), *ctx.target_id())
 }
 
 /// Anchor a function for diagnostics.
@@ -328,7 +328,7 @@ fn anchor_function(
         .entry
         .map(|entry| entry.into_any())
         .unwrap_or_else(|| function_id.into_any());
-    node_id.into_anchored(ctx.module_id(), ctx.target_id().clone())
+    node_id.into_anchored(ctx.module_id(), *ctx.target_id())
 }
 
 /// Anchor a type id for diagnostics.
@@ -338,5 +338,5 @@ fn anchor_type(
 ) -> mir::AnchoredGlobalNodeId {
     type_id
         .into_any()
-        .into_anchored(ctx.module_id(), ctx.target_id().clone())
+        .into_anchored(ctx.module_id(), *ctx.target_id())
 }

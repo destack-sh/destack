@@ -288,6 +288,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<StringId> {
         let Some(key) = key.and_then(|key| {
             self.compiler.static_key_from_dynamic_key(
+                self.context.revision(),
                 self.profile,
                 self.dir_tree,
                 self.symbols,

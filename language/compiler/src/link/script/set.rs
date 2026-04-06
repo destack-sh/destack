@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use crate::{ArtifactRequirementCollector, LinkError, LinkResult};
+use crate::{LinkError, LinkResult, RequirementCollector};
 
-use destack_artifact::{DynamicScriptDependencyTarget, ModuleArtifact};
+use destack_artifact::{DynamicScriptDependencyTarget, ModuleOutput};
 use destack_source::ModuleId;
 use destack_workspace::BundleMode;
 use indexmap::IndexSet;
@@ -130,24 +130,24 @@ impl<'a> ScriptLinker<'a> {
         for module_id in &module_set.modules {
             let artifact = self
                 .compiler
-                .artifacts
-                .module_artifact(*module_id, self.target_id)
+                .module_output(*module_id, self.target_id)
                 .ok_or_else(|| LinkError::Internal {
                     package: self.package_id,
                     message: format!(
                         "missing module artifact for module {:?} target '{}'",
-                        module_id, self.target_id.name
+                        module_id,
+                        self.target_name()
                     ),
                 })?;
 
-            let ModuleArtifact::Script(script) = artifact.as_ref() else {
+            let ModuleOutput::Script(script) = artifact.as_ref() else {
                 continue;
             };
 
             // retained static externals
             for dependency in &script.linkage.static_dependencies {
-                if !self.compiler.should_bundle_script_dependency(
-                    self.compiler.module_anchor_span(*module_id),
+                if !self.should_bundle_script_dependency(
+                    self.module_anchor_span(*module_id),
                     self.package_id,
                     self.target_id,
                     self.target,
@@ -163,8 +163,8 @@ impl<'a> ScriptLinker<'a> {
             for dependency in &script.linkage.dynamic_dependencies {
                 match &dependency.target {
                     DynamicScriptDependencyTarget::Resolved(dependency_target) => {
-                        let should_bundle = self.compiler.should_bundle_script_dependency(
-                            self.compiler.module_anchor_span(*module_id),
+                        let should_bundle = self.should_bundle_script_dependency(
+                            self.module_anchor_span(*module_id),
                             self.package_id,
                             self.target_id,
                             self.target,
@@ -180,7 +180,7 @@ impl<'a> ScriptLinker<'a> {
                             return Err(LinkError::InvalidTarget {
                                 anchor: (*module_id).into(),
                                 package: self.package_id,
-                                target: self.target_id.clone(),
+                                target: *self.target_id,
                                 message: format!(
                                     "bundled dynamic import '{}' is not implemented yet",
                                     dependency_target.specifier()
@@ -205,11 +205,11 @@ impl<'a> ScriptLinker<'a> {
     }
 
     /// Require all generated script artifacts needed to link one target.
-    pub(crate) fn require_module_artifacts(
+    pub(crate) fn require_module_outputs(
         &self,
         discovered_modules: &[ModuleId],
     ) -> LinkResult<Vec<ModuleId>> {
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         let mut required_modules = Vec::new();
         let mut queued_modules = HashSet::new();
         let mut pending_modules = discovered_modules.to_vec();
@@ -221,24 +221,25 @@ impl<'a> ScriptLinker<'a> {
             }
 
             let profile_id = self
-                .compiler
-                .program
+                .context
                 .profile_id_for_target(module_id, self.target_id)
                 .ok_or_else(|| LinkError::Internal {
                     package: self.package_id,
-                    message: format!("profile not found for target '{}'", self.target_id.name),
+                    message: format!("profile not found for target '{}'", self.target_name()),
                 })?;
-            let result =
-                self.compiler
-                    .require_module_artifact(module_id, profile_id, self.target_id);
+            let result = self.compiler.require_module_output(
+                self.context.revision(),
+                module_id,
+                profile_id,
+                self.target_id,
+            );
             collector.try_collect(result);
             required_modules.push(module_id);
 
             // only traverse bundled dependencies after the generated artifact exists
             if self
                 .compiler
-                .artifacts
-                .module_artifact(module_id, self.target_id)
+                .module_output(module_id, self.target_id)
                 .is_none()
             {
                 continue;
@@ -280,24 +281,24 @@ impl<'a> ScriptLinker<'a> {
     fn script_bundled_dependency_modules(&self, module_id: ModuleId) -> LinkResult<Vec<ModuleId>> {
         let artifact = self
             .compiler
-            .artifacts
-            .module_artifact(module_id, self.target_id)
+            .module_output(module_id, self.target_id)
             .ok_or_else(|| LinkError::Internal {
                 package: self.package_id,
                 message: format!(
                     "missing module artifact for module {:?} target '{}'",
-                    module_id, self.target_id.name
+                    module_id,
+                    self.target_name()
                 ),
             })?;
-        let ModuleArtifact::Script(script) = artifact.as_ref() else {
+        let ModuleOutput::Script(script) = artifact.as_ref() else {
             return Ok(Vec::new());
         };
 
         // static imports and reexports
         let mut dependencies = Vec::new();
         for dependency in &script.linkage.static_dependencies {
-            if !self.compiler.should_bundle_script_dependency(
-                self.compiler.module_anchor_span(module_id),
+            if !self.should_bundle_script_dependency(
+                self.module_anchor_span(module_id),
                 self.package_id,
                 self.target_id,
                 self.target,
@@ -318,8 +319,8 @@ impl<'a> ScriptLinker<'a> {
                 continue;
             };
 
-            if !self.compiler.should_bundle_script_dependency(
-                self.compiler.module_anchor_span(module_id),
+            if !self.should_bundle_script_dependency(
+                self.module_anchor_span(module_id),
                 self.package_id,
                 self.target_id,
                 self.target,

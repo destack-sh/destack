@@ -39,7 +39,7 @@ impl Compiler {
         let ast_annotation = match annotation {
             dir::Annotation::Doc { position, string } => {
                 let position = self.unbind_annotation_position(context, *position);
-                let string = ast_strings.intern_from(&self.program.strings, *string);
+                let string = ast_strings.intern_from(&self.repository.strings, *string);
                 let doc = ast::Doc {
                     string,
                     style: ast::DocStyle::Slash,

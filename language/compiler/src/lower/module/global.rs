@@ -206,6 +206,7 @@ impl ModuleLowerer<'_> {
         let node = node_id.into_anchored(Some(self.profile));
         let Some(EnumFieldValueDescriptor { backing: _, value }) = enum_field_value_for_symbol(
             self.compiler,
+            self.context.revision(),
             self.profile,
             candidate.target_symbol,
             node,
@@ -260,7 +261,7 @@ impl ModuleLowerer<'_> {
                 if string_type != Some(mir_type) {
                     return Ok(None);
                 }
-                let literal = self.compiler.program.strings.get(value);
+                let literal = self.compiler.repository.strings.get(value);
                 Some(mir::GlobalInitializer::string(literal.as_ref()))
             }
             _ => None,

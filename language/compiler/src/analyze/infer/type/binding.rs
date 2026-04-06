@@ -159,7 +159,7 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> Option<TypeGuardTarget> {
-        match self.program.strings.get(string_id).as_ref() {
+        match self.repository.strings.get(string_id).as_ref() {
             "string" => Some(TypeGuardTarget::TypeId(types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),

@@ -432,9 +432,9 @@ let boxed: Box<Node> = value;
         .expect("expected boxed declared type");
 
     // compare assignability using the module profile
-    let module = test.program.modules.get(module_id);
+    let module = test.program.module_descriptor(module_id);
     let module = module.as_ref();
-    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let options = test.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
     let assignable = is_type_assignable(
@@ -529,9 +529,9 @@ let number_value: number = value;
         .expect("expected number_value declared type");
 
     // compare assignability using the module profile
-    let module = test.program.modules.get(module_id);
+    let module = test.program.module_descriptor(module_id);
     let module = module.as_ref();
-    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let options = test.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
     let assignable = is_type_assignable(
@@ -585,9 +585,9 @@ let ok: boolean = value;
         .types()
         .get_declared_type_id(ok_declarator_id.into_global(module_id).into())
         .expect("expected ok declared type");
-    let module = test.program.modules.get(module_id);
+    let module = test.program.module_descriptor(module_id);
     let module = module.as_ref();
-    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let options = test.analyze_context_options_for_module(module.id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
     let assignable = is_type_assignable(
@@ -648,8 +648,10 @@ declare let value: Buffer<SIZE>;
             }
         }
         let expression_id = expression_id.expect("expected SIZE reference");
-        let options = test.compiler.analyze_context_options_for_module(module.id);
+        let options = test.analyze_context_options_for_module(module.id);
+        let compiler_context = test.context();
         let mut ctx = TypeContext::new(
+            &compiler_context,
             module,
             profile,
             &options,

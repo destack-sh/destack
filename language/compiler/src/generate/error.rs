@@ -1,11 +1,8 @@
-use crate::{
-    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    TaskError,
-};
+use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
 use destack_compiler_macros::DefineError;
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 /// Errors during the generate phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -16,11 +13,11 @@ pub enum GenerateError {
     // -------------------------------------------------------------------------
     /// Wait for artifact requirement.
     #[error(code = "EG000", r#yield)]
-    Yield { requirement: ArtifactRequirementSet },
+    Yield { requirement: RequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EG001", yield_failed)]
-    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
+    UnsatisfiedRequirement { requirement: RequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EG002", message = "task skipped")]

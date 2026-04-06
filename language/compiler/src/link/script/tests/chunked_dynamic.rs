@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_artifact::ArtifactKey;
-use destack_workspace::{BundleMode, TargetDiscovery, TargetId};
+use destack_workspace::{BundleMode, TargetDiscovery};
 
 use crate::link::ScriptOutputKind;
 
@@ -371,8 +371,8 @@ fn test_rejects_chunked_same_chunk_dynamic_import() {
         );
     });
 
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
+    let package_id = test.program.module_descriptor(main).package_id;
+    let target_id = test.target_id(package_id, "js");
     test.run(ArtifactKey::package_output(package_id, target_id));
 
     // report one exact linker diagnostic

@@ -1,10 +1,10 @@
 use destack_dir::{CaptureTable, NodeTree, SymbolTable};
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
 use crate::analyze::common::TreeSymbolView;
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeResult, Compiler, CompilerContext};
 
 impl Compiler {
     /// Post-commit pass: resolve captures for closures and nested functions.
@@ -15,35 +15,26 @@ impl Compiler {
         captures: &mut CaptureTable,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_CAPTURE);
 
         // skip non code modules
-        if !self.is_code_module(module_id) {
+        if !context.is_code_module(module_id) {
             return Ok(());
         }
 
         // skip analysis when module language is disabled
-        if !self.module_language_allowed(module_id) {
+        if !self.module_language_allowed_in_context(context, module_id) {
             return Ok(());
         }
 
         // load module state and phase-local tables
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
+        let module = context.module(module_id);
 
         // compute capture ctx
         self.compute_module_captures(
-            TreeSymbolView::new(module, profile, tree, symbols),
+            TreeSymbolView::new(context, module.as_ref(), profile, tree, symbols),
             captures,
         )?;
 

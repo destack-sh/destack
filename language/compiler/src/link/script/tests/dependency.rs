@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactKey, ModuleArtifact, ScriptDependencyTarget};
+use destack_artifact::{ArtifactKey, ModuleOutput, ScriptDependencyTarget};
 use destack_source::DiagnosticSeverity;
-use destack_workspace::{TargetDiscovery, TargetId};
+use destack_workspace::TargetDiscovery;
 
 use super::{TestProgram, js};
 
@@ -30,14 +30,14 @@ export const value = dependencyValue;
         target.out_file = Some(PathBuf::from("dist/js.js"));
     });
 
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
-    test.run(ArtifactKey::module_artifact(main, target_id));
+    let package_id = test.program.module_descriptor(main).package_id;
+    let target_id = test.target_id(package_id, "js");
+    test.run(ArtifactKey::module_output(main, target_id));
     test.check_no_diagnostic(DiagnosticSeverity::Error);
 
     // keep the resolved module id and the original specifier text
-    let artifact = test.module_artifact(main, "js");
-    let ModuleArtifact::Script(script) = artifact else {
+    let artifact = test.module_output(main, "js");
+    let ModuleOutput::Script(script) = artifact else {
         panic!("expected script artifact");
     };
 
@@ -86,14 +86,14 @@ export const appValue = commonValue;
         target.out_file = Some(PathBuf::from("dist/js.js"));
     });
 
-    let package_id = test.program.modules.get(entry_module).package_id;
-    let target_id = TargetId::new(package_id, "js");
-    test.run(ArtifactKey::module_artifact(entry_module, target_id));
+    let package_id = test.program.module_descriptor(entry_module).package_id;
+    let target_id = test.target_id(package_id, "js");
+    test.run(ArtifactKey::module_output(entry_module, target_id));
     test.check_no_diagnostic(DiagnosticSeverity::Error);
 
     // keep the resolved module id and the original specifier text
-    let artifact = test.module_artifact(entry_module, "js");
-    let ModuleArtifact::Script(script) = artifact else {
+    let artifact = test.module_output(entry_module, "js");
+    let ModuleOutput::Script(script) = artifact else {
         panic!("expected script artifact");
     };
 

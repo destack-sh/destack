@@ -3,12 +3,12 @@ use destack_codegen_js::{
     DependencyItem, DependencyKind, Expression, LocalNodeId, LocalNodeIdAny, NodeType,
     ScriptModule, Statement,
 };
-use destack_source::{ModuleId, PackageId};
-use destack_workspace::{Target, TargetId};
+use destack_source::{ModuleId, PackageId, TargetId};
+use destack_workspace::Target;
 
-use crate::{Compiler, LinkError, LinkResult};
+use crate::{LinkError, LinkResult};
 
-use super::ScriptModuleSet;
+use super::{ScriptLinker, ScriptModuleSet};
 
 /// One rewrite action for bundled script statements.
 #[derive(Debug, Clone)]
@@ -23,7 +23,7 @@ enum ScriptStatementAction {
     RewriteExportValueToExpression(LocalNodeId<Expression>),
 }
 
-impl Compiler {
+impl<'a> ScriptLinker<'a> {
     /// Build one invalid bundled rewrite error.
     fn invalid_bundled_rewrite(
         &self,
@@ -35,7 +35,7 @@ impl Compiler {
         LinkError::InvalidTarget {
             anchor: module_id.into(),
             package: package_id,
-            target: target_id.clone(),
+            target: *target_id,
             message,
         }
     }
@@ -81,7 +81,7 @@ impl Compiler {
                 package_id,
                 format!(
                     "bundled internal import attributes are not supported yet in '{}'",
-                    target_id.name
+                    self.target_name()
                 ),
             ));
         }
@@ -94,7 +94,7 @@ impl Compiler {
                 package_id,
                 format!(
                     "bundled internal import rewriting is only implemented for plain named imports in '{}'",
-                    target_id.name
+                    self.target_name()
                 ),
             ));
         }
@@ -156,7 +156,7 @@ impl Compiler {
                 package_id,
                 format!(
                     "bundled internal re-export rewriting is only implemented for plain named exports in '{}'",
-                    target_id.name
+                    self.target_name()
                 ),
             ));
         }

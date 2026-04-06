@@ -306,12 +306,13 @@ impl Compiler {
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // resolve `Ordering.<member>` symbol
         let ordering_symbol = self.language_symbol(state.ctx.profile, LanguageSymbol::Ordering);
-        let member_key = StaticKey::Name(self.program.strings.intern(member_name));
+        let member_key = StaticKey::Name(self.repository.strings.intern(member_name));
         let node = origin_id
             .into_global_any(state.ctx.module_id)
             .into_anchored(Some(state.ctx.profile));
         let ordering_member_symbol = self
             .resolve_static_member_symbol(
+                state.ctx.compiler_context.revision(),
                 state.ctx.module,
                 state.ctx.profile,
                 origin_id,
@@ -324,10 +325,10 @@ impl Compiler {
 
         // build the reference expression
         let ordering_name = self
-            .program
+            .repository
             .strings
             .intern(LanguageSymbol::Ordering.export_name());
-        let member_name = self.program.strings.intern(member_name);
+        let member_name = self.repository.strings.intern(member_name);
         let reference_id = state.tree.reserve_from(
             NodeType::Expression,
             origin_id.into_any(),
@@ -383,7 +384,7 @@ impl Compiler {
         member_name.push(first_char.to_ascii_lowercase());
         member_name.push_str(chars.as_str());
 
-        self.program.strings.intern(&member_name)
+        self.repository.strings.intern(&member_name)
     }
 }
 

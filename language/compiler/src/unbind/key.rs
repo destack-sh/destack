@@ -11,7 +11,7 @@ impl Compiler {
     /// Unbind a DIR name to an AST name.
     pub(super) fn unbind_name(&self, ast_strings: &mut StringPool, name: dir::Name) -> ast::Name {
         // intern the name into the ast string pool
-        let name_id = ast_strings.intern_from(&self.program.strings, name.string());
+        let name_id = ast_strings.intern_from(&self.repository.strings, name.string());
 
         // preserve the name flavor
         match name {
@@ -34,15 +34,15 @@ impl Compiler {
     ) -> ast::Key {
         match key {
             dir::DynamicKey::Name(name) => {
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 ast::Key::Name(ast::Name::Identifier(name))
             }
             dir::DynamicKey::Private(name) => {
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 ast::Key::Private(name)
             }
             dir::DynamicKey::Number(name) => {
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 ast::Key::Name(ast::Name::Number(name))
             }
             dir::DynamicKey::Expression(expression) => {
@@ -58,7 +58,7 @@ impl Compiler {
                 ast::Key::Expression(expression)
             }
             dir::DynamicKey::NamedExpression { name, key } => {
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let key = self.unbind_expression(
                     module,
                     *key,

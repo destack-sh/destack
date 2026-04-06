@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
-use destack_source::ModuleId;
-use destack_workspace::TargetId;
+use destack_source::{ModuleId, TargetId};
 use mir::{Instruction, Value};
 
 use crate::OptimizeError;
@@ -391,7 +390,7 @@ impl StackPointerMap {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
                         node: instruction_id
                             .into_any()
-                            .into_anchored(*module_id, target_id.clone()),
+                            .into_anchored(*module_id, *target_id),
                     });
                 }
             }
@@ -411,7 +410,7 @@ impl StackPointerMap {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
                         node: instruction_id
                             .into_any()
-                            .into_anchored(*module_id, target_id.clone()),
+                            .into_anchored(*module_id, *target_id),
                     });
                 }
             }
@@ -422,7 +421,7 @@ impl StackPointerMap {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
                         node: instruction_id
                             .into_any()
-                            .into_anchored(*module_id, target_id.clone()),
+                            .into_anchored(*module_id, *target_id),
                     });
                 }
             }
@@ -446,9 +445,7 @@ impl StackPointerMap {
             mir::Terminator::Return { value: Some(v) } => {
                 if self.get(*v).is_maybe_stack() {
                     context.emit_error(OptimizeError::ReturnReferenceToLocal {
-                        node: block_id
-                            .into_any()
-                            .into_anchored(*module_id, target_id.clone()),
+                        node: block_id.into_any().into_anchored(*module_id, *target_id),
                     });
                 }
             }
@@ -469,9 +466,7 @@ impl StackPointerMap {
 
                 if yields_frame_local_pointer || suspends_with_live_frame_local_pointer {
                     context.emit_error(OptimizeError::LocalReferenceEscapes {
-                        node: block_id
-                            .into_any()
-                            .into_anchored(*module_id, target_id.clone()),
+                        node: block_id.into_any().into_anchored(*module_id, *target_id),
                     });
                 }
             }
@@ -616,7 +611,7 @@ impl FunctionPass for StackCheck {
             &call_targets,
             &liveness,
             ctx.module_id(),
-            ctx.target_id().clone(),
+            *ctx.target_id(),
             ctx,
         );
 

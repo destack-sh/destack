@@ -120,7 +120,7 @@ impl Compiler {
             .unwrap_or(unknown_literal_type_id);
 
         // emit a synthetic index signature
-        let name = self.program.strings.intern("key");
+        let name = self.repository.strings.intern("key");
         Some(TypeIndexSignature {
             name,
             key_type: key_type_id,

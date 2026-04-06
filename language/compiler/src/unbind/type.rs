@@ -237,7 +237,7 @@ impl Compiler {
                 value,
             } => {
                 // mapped type expression
-                let name = ast_strings.intern_from(&self.program.strings, parameter.name);
+                let name = ast_strings.intern_from(&self.repository.strings, parameter.name);
                 let constraint = self.unbind_type_expression(
                     module,
                     parameter.constraint,
@@ -310,7 +310,7 @@ impl Compiler {
                 // template literal type expression
                 let strings = strings
                     .iter()
-                    .map(|string| ast_strings.intern_from(&self.program.strings, *string))
+                    .map(|string| ast_strings.intern_from(&self.repository.strings, *string))
                     .collect();
                 let spans = spans
                     .iter()
@@ -335,7 +335,7 @@ impl Compiler {
                 static_arguments,
             } => {
                 // type import expression
-                let target = ast_strings.intern_from(&self.program.strings, *target);
+                let target = ast_strings.intern_from(&self.repository.strings, *target);
                 let target_expression_id = ast_tree.insert(
                     ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(target)),
                     span,
@@ -370,7 +370,7 @@ impl Compiler {
             }
             dir::Type::Infer { name, constraint } => {
                 // infer type expression
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let constraint = constraint.map(|constraint| {
                     self.unbind_type_expression(
                         module,
@@ -625,7 +625,7 @@ impl Compiler {
                         );
                         let label = element
                             .label
-                            .map(|label| ast_strings.intern_from(&self.program.strings, label));
+                            .map(|label| ast_strings.intern_from(&self.repository.strings, label));
                         let modifiers = self.unbind_type_element_modifiers(element, context);
                         let argument = if element.is_rest {
                             ast::Argument::Spread {
@@ -876,11 +876,14 @@ impl Compiler {
                 );
             }
 
-            let argument_module = self.program.modules.get(node.module_id);
-            let argument_module = argument_module.as_ref();
-            if let Some(dir) = self.artifacts.dir_patched(node.module_id, context.profile) {
+            let argument_module = self
+                .cache_module_snapshot(context.revision, node.module_id)
+                .unwrap_or_else(|error| panic!("failed to load module snapshot: {error}"))
+                .as_ref()
+                .clone();
+            if let Some(dir) = self.dir_patched(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -889,12 +892,9 @@ impl Compiler {
                     context,
                 );
             }
-            if let Some(dir) = self
-                .artifacts
-                .dir_elaborated(node.module_id, context.profile)
-            {
+            if let Some(dir) = self.dir_elaborated(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -903,9 +903,9 @@ impl Compiler {
                     context,
                 );
             }
-            if let Some(dir) = self.artifacts.dir_analyzed(node.module_id, context.profile) {
+            if let Some(dir) = self.dir_analyzed(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -914,12 +914,9 @@ impl Compiler {
                     context,
                 );
             }
-            if let Some(dir) = self
-                .artifacts
-                .dir_interface(node.module_id, context.profile)
-            {
+            if let Some(dir) = self.dir_interface(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -928,9 +925,9 @@ impl Compiler {
                     context,
                 );
             }
-            if let Some(dir) = self.artifacts.dir_declared(node.module_id, context.profile) {
+            if let Some(dir) = self.dir_declared(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -939,9 +936,9 @@ impl Compiler {
                     context,
                 );
             }
-            if let Some(dir) = self.artifacts.dir_resolved(node.module_id, context.profile) {
+            if let Some(dir) = self.dir_resolved(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -950,9 +947,9 @@ impl Compiler {
                     context,
                 );
             }
-            if let Some(dir) = self.artifacts.dir_prepared(node.module_id, context.profile) {
+            if let Some(dir) = self.dir_prepared(node.module_id, context.profile) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -961,9 +958,9 @@ impl Compiler {
                     context,
                 );
             }
-            if let Some(dir) = self.artifacts.dir_base(node.module_id) {
+            if let Some(dir) = self.dir_base(node.module_id) {
                 return self.unbind_argument(
-                    argument_module,
+                    &argument_module,
                     argument_id,
                     &dir.tree,
                     &dir.symbols,
@@ -1007,7 +1004,7 @@ impl Compiler {
         // assemble the argument node
         let modifiers = None;
         let argument = if let Some(name) = name {
-            let name = ast_strings.intern_from(&self.program.strings, *name);
+            let name = ast_strings.intern_from(&self.repository.strings, *name);
             let name = ast::Name::Identifier(name);
             ast::Argument::Named {
                 modifiers,
@@ -1183,11 +1180,11 @@ impl Compiler {
         // map the static key into an AST key
         match key {
             dir::StaticKey::Name(name) => {
-                let name = ast_strings.intern_from(&self.program.strings, name);
+                let name = ast_strings.intern_from(&self.repository.strings, name);
                 ast::Key::Name(ast::Name::Identifier(name))
             }
             dir::StaticKey::Number(name) => {
-                let name = ast_strings.intern_from(&self.program.strings, name);
+                let name = ast_strings.intern_from(&self.repository.strings, name);
                 ast::Key::Name(ast::Name::Number(name))
             }
             dir::StaticKey::Symbol(symbol) => {
@@ -1217,7 +1214,7 @@ impl Compiler {
         context: &mut UnbindContext,
     ) -> ast::Key {
         // bind the key name
-        let name = ast_strings.intern_from(&self.program.strings, signature.name);
+        let name = ast_strings.intern_from(&self.repository.strings, signature.name);
 
         // bind the key type expression
         let key = self.unbind_type_expression(
@@ -1418,7 +1415,7 @@ impl Compiler {
 
         // return the interned name with a fallback
 
-        name.map(|name| ast_strings.intern_from(&self.program.strings, name))
+        name.map(|name| ast_strings.intern_from(&self.repository.strings, name))
             .unwrap_or_else(|| ast_strings.intern("_"))
     }
 

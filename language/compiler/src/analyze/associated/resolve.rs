@@ -5,7 +5,7 @@ use crate::analyze::common::{
     TreeSymbolView, TypeContext, TypeRewriteCache, TypeView, TypeWalkContext, TypeWalkKey,
     rewrite_type_with_cache,
 };
-use crate::{AnalyzeError, AnalyzeResult, Compiler, ResolveResult};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext, ResolveError, ResolveResult};
 use destack_core::StringId;
 use destack_dir::{
     Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
@@ -19,6 +19,8 @@ use destack_workspace::{Module, ProfileId};
 pub(super) struct AssociatedAliasProjectionRewriter<'a> {
     /// The compiler instance.
     compiler: &'a Compiler,
+    /// The pinned compiler context.
+    compiler_context: &'a CompilerContext<'a>,
     /// The current module.
     module: &'a Module,
     /// The active profile.
@@ -48,6 +50,7 @@ impl<'a> AssociatedAliasProjectionRewriter<'a> {
     /// Create a rewriter for a projected associated alias graph.
     pub(super) fn new(
         compiler: &'a Compiler,
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         source_id: LocalNodeIdAny,
@@ -71,6 +74,7 @@ impl<'a> AssociatedAliasProjectionRewriter<'a> {
 
         Self {
             compiler,
+            compiler_context,
             module,
             profile,
             source_id,
@@ -87,7 +91,12 @@ impl<'a> AssociatedAliasProjectionRewriter<'a> {
 
     /// Borrow the rewriter module and symbols as an immutable symbol view.
     fn module_symbol_view(&self) -> ModuleSymbolView<'_> {
-        ModuleSymbolView::new(self.module, self.profile, self.symbols)
+        ModuleSymbolView::new(
+            self.compiler_context,
+            self.module,
+            self.profile,
+            self.symbols,
+        )
     }
 }
 
@@ -123,9 +132,10 @@ impl TypeRewriter for AssociatedAliasProjectionRewriter<'_> {
             .unwrap_or(symbol);
 
         let options = self
-            .compiler
+            .compiler_context
             .analyze_context_options_for_module(self.module.id);
         let mut ctx = TypeContext::new(
+            self.compiler_context,
             self.module,
             self.profile,
             &options,
@@ -480,6 +490,7 @@ impl Compiler {
 
         let has_missing_requirements = self
             .with_module_types_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
@@ -630,6 +641,7 @@ impl Compiler {
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
             .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 contract_symbol.module_id,
@@ -801,6 +813,7 @@ impl Compiler {
         // collect local requirements and direct parent contracts
         let (local_requirements, parent_contracts) = self
             .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 contract_symbol.module_id,
@@ -962,10 +975,10 @@ impl Compiler {
                         ctx.type_view(),
                         &fallback_arguments,
                     );
-                let use_fallback_arguments = (syntax_requires_deferral
+                let should_use_fallback_arguments = (syntax_requires_deferral
                     && !fallback_requires_deferral)
                     || (syntax_arguments.is_empty() && !fallback_arguments.is_empty());
-                let chosen_arguments = if use_fallback_arguments {
+                let chosen_arguments = if should_use_fallback_arguments {
                     fallback_arguments
                 } else {
                     syntax_arguments
@@ -993,6 +1006,7 @@ impl Compiler {
         // resolve the projected member symbol on the normalized receiver symbol
         let projected_symbol = self
             .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 lookup_symbol.module_id,
@@ -1001,6 +1015,7 @@ impl Compiler {
                 destack_artifact::ArtifactKey::dir_interface,
                 |view| {
                     self.query_static_member_symbol(
+                        ctx.compiler_context.revision(),
                         view.module,
                         ctx.profile,
                         lookup_symbol,
@@ -1151,6 +1166,7 @@ impl Compiler {
 
         let symbol = self
             .query_declared_direct_member_symbol_for_name_and_kind(
+                ctx.compiler_context,
                 ctx.module.id,
                 ctx.profile,
                 owner_symbol.module_id,
@@ -1235,6 +1251,7 @@ impl Compiler {
     /// Query one direct declared member symbol by name and static-member kind.
     fn query_declared_direct_member_symbol_for_name_and_kind(
         &self,
+        context: &CompilerContext<'_>,
         current_module_id: ModuleId,
         profile_id: ProfileId,
         owner_module_id: ModuleId,
@@ -1244,10 +1261,20 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
-        let module = self.program.modules.get(current_module_id);
+        let revision = context.revision();
+        let module = self
+            .repository
+            .module(revision, current_module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?
+            .ok_or_else(|| ResolveError::Internal {
+                message: format!("missing module snapshot for {current_module_id:?}"),
+            })?;
         let module = module.as_ref();
 
         Ok(self.with_module_tree_symbol_view_or_local_for_artifact(
+            context,
             module,
             profile_id,
             owner_module_id,
@@ -1281,12 +1308,18 @@ impl Compiler {
             else {
                 continue;
             };
-            if !self.is_extension_visible(ctx.module, ctx.profile, &extension)? {
+            if !self.is_extension_visible(
+                ctx.compiler_context.revision(),
+                ctx.module,
+                ctx.profile,
+                &extension,
+            )? {
                 continue;
             }
 
             let symbol = self
                 .with_module_tree_symbol_view_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     extension_symbol.module_id,
@@ -1329,6 +1362,7 @@ impl Compiler {
             .unwrap_or(receiver_symbol);
 
         let Some(mut member_symbol) = self.query_static_member_symbol(
+            ctx.compiler_context.revision(),
             ctx.module,
             ctx.profile,
             receiver_symbol,
@@ -1452,6 +1486,7 @@ impl Compiler {
             });
 
         self.with_module_symbols_or_local_for_artifact(
+            view.compiler_context,
             view.module,
             view.profile,
             member_symbol.module_id,
@@ -1493,6 +1528,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<StaticMemberSymbolKind>> {
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol.module_id,

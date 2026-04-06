@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_source::{
     DiagnosticSeverity, DiffOptions, FileType, ModuleId, PackageId, Uri, print_diff,
 };
-use destack_workspace::{BundleMode, SourceMapMode, Target, TargetDiscovery, TargetId};
+use destack_workspace::{BundleMode, SourceMapMode, Target, TargetDiscovery};
 use indexmap::{IndexMap, indexmap};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -411,7 +411,7 @@ impl TestProgram {
     /// Configure one single-file JavaScript target for linker tests.
     pub(super) fn configure_single_file_js_target(&self, module_id: ModuleId, name: &str) {
         let entry_path = {
-            let module = self.program.modules.get(module_id);
+            let module = self.program.module_descriptor(module_id);
             self.normalize_uri_path(module.package_id, &module.uri)
         };
 
@@ -434,7 +434,7 @@ impl TestProgram {
         let entry_paths = module_ids
             .iter()
             .map(|module_id| {
-                let module = self.program.modules.get(*module_id);
+                let module = self.program.module_descriptor(*module_id);
                 self.normalize_uri_path(module.package_id, &module.uri)
             })
             .map(PathBuf::from)
@@ -457,7 +457,7 @@ impl TestProgram {
 
     /// Return the package-relative path for one module.
     pub(super) fn module_relative_path(&self, module_id: ModuleId) -> String {
-        let module = self.program.modules.get(module_id);
+        let module = self.program.module_descriptor(module_id);
 
         self.normalize_uri_path(module.package_id, &module.uri)
     }
@@ -481,8 +481,8 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_id).package_id;
-        let target_id = TargetId::new(package_id, name);
+        let package_id = self.program.module_descriptor(module_id).package_id;
+        let target_id = self.target_id(package_id, name);
 
         self.configure_single_file_js_target(module_id, name);
         self.configure_target(module_id, name, configure);
@@ -505,8 +505,8 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_ids[0]).package_id;
-        let target_id = TargetId::new(package_id, name);
+        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
+        let target_id = self.target_id(package_id, name);
 
         self.configure_chunked_js_target(module_ids, name);
         self.configure_target(module_ids[0], name, configure);
@@ -528,7 +528,7 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_ids[0]).package_id;
+        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
         let output = self.link_chunked_js_target_with(module_ids, name, configure);
 
         self.linked_chunked_script_target(package_id, &output)
@@ -544,30 +544,30 @@ impl TestProgram {
     where
         F: FnOnce(&mut Target),
     {
-        let package_id = self.program.modules.get(module_ids[0]).package_id;
-        let target_id = TargetId::new(package_id, name);
+        let package_id = self.program.module_descriptor(module_ids[0]).package_id;
+        let target_id = self.target_id(package_id, name);
 
         self.configure_chunked_js_target(module_ids, name);
         self.configure_target(module_ids[0], name, configure);
-        self.run(ArtifactKey::package_output(package_id, target_id.clone()));
+        self.run(ArtifactKey::package_output(package_id, target_id));
 
         // clean builds are easier to reason about in linker tests
         self.check_no_diagnostic(DiagnosticSeverity::Error);
 
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
+        let package = self.program.package_descriptor(package_id);
         let package_dir = package
             .path
             .clone()
-            .unwrap_or_else(|| self.program.cwd.clone());
+            .unwrap_or_else(|| self.program.root_directory().clone());
         let target = package
             .targets
             .get(&target_id)
             .cloned()
             .unwrap_or_else(|| panic!("missing target '{name}'"));
-        drop(package);
+        let compiler_context = self.context();
         let linker = ScriptLinker::new(
             self.compiler.as_ref(),
+            &compiler_context,
             &package_dir,
             None,
             &target,
@@ -575,7 +575,7 @@ impl TestProgram {
             package_id,
         );
         let linked_modules = linker
-            .require_module_artifacts(module_ids)
+            .require_module_outputs(module_ids)
             .unwrap_or_else(|error| panic!("failed to require script target artifacts: {error:?}"));
 
         let module_set = linker
@@ -997,12 +997,11 @@ impl TestProgram {
 
     /// Normalize one path to a package-relative path when possible.
     fn normalize_package_path(&self, package_id: PackageId, path: &Path) -> String {
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
+        let package = self.program.package_descriptor(package_id);
         let package_dir = package
             .path
             .clone()
-            .unwrap_or_else(|| self.program.cwd.clone());
+            .unwrap_or_else(|| self.program.root_directory().clone());
         let relative = path.strip_prefix(&package_dir).unwrap_or(path);
 
         relative.to_string_lossy().replace('\\', "/")

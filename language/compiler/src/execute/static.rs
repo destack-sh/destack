@@ -46,8 +46,7 @@ impl Compiler {
             // resolve managed string objects through the isolate helper
             ValueTag::ManagedReference => {
                 let literal = isolate.string_value(heap, *value).ok()?;
-                let literal_id = self.program.strings.intern(&literal);
-
+                let literal_id = self.repository.strings.intern(&literal);
                 return Some(dir::StaticExpression::ScalarLiteral {
                     value: dir::ScalarLiteral::String(literal_id),
                 });

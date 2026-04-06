@@ -4,14 +4,14 @@ use destack_workspace::ProfileId;
 
 /// Stage-owned mutable state for one infer task execution.
 #[derive(Debug)]
-pub struct InferSession {
+pub struct InferRepository {
     /// Inference variables and constraints for this infer run.
     table: InferTable,
     /// Contextual and flow-sensitive infer state for this infer run.
     context: InferState,
 }
 
-impl InferSession {
+impl InferRepository {
     /// Create a fresh infer session for one module/profile run.
     pub fn new(profile: ProfileId, options: AnalyzeOptions) -> Self {
         // initialize infer-owned state

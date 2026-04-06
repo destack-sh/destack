@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use destack_core::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
-use destack_source::{DiffOptions, FileId, ModuleId, PackageId, print_diff};
-use destack_workspace::TargetId;
+use destack_source::{DiffOptions, FileId, ModuleId, PackageId, TargetId, print_diff};
 use mir::parse::ParseOptions;
 
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
@@ -16,7 +15,12 @@ fn test_module_id() -> ModuleId {
 
 /// Placeholder target id for tests.
 fn test_target_id() -> TargetId {
-    TargetId::new(PackageId::new(0), "test")
+    test_target_id_for_package(PackageId::new(0), "test")
+}
+
+/// Placeholder target id for one package and test name.
+fn test_target_id_for_package(package_id: PackageId, name: &str) -> TargetId {
+    TargetId::new(package_id, name)
 }
 
 /// Test program for optimization passes.

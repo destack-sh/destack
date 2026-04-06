@@ -65,7 +65,7 @@ impl Compiler {
             return true;
         }
 
-        let name_str = self.program.strings.get(name);
+        let name_str = self.repository.strings.get(name);
         if name_str.as_ref() == "null"
             || name_str.as_ref() == "true"
             || name_str.as_ref() == "false"
@@ -81,7 +81,7 @@ impl Compiler {
 
     /// Check if a name is reserved for strict mode assignment targets.
     pub(super) fn is_reserved_strict_assignment_name(&self, name: StringId) -> bool {
-        let name_str = self.program.strings.get(name);
+        let name_str = self.repository.strings.get(name);
         name_str.as_ref() == "eval" || name_str.as_ref() == "arguments"
     }
 
@@ -103,7 +103,7 @@ impl Compiler {
                 if let StaticKey::Name(name) = key
                     && self.is_reserved_binding_name(name)
                 {
-                    if self.program.strings.get(name) == "this"
+                    if self.repository.strings.get(name) == "this"
                         && primary_declaration.local_id.ty == NodeType::Parameter
                     {
                         let parameter_id =

@@ -1,8 +1,8 @@
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
-    ModuleCheckOptions,
+    AnalyzeError, AnalyzeResult, Compiler, CompilerContext, ModuleCheckOptions,
+    RequirementCollector, RequirementError,
 };
 use destack_artifact::{ArtifactKey, DirResolved};
 use destack_builtin::BuiltinLibraryKind;
@@ -10,19 +10,23 @@ use destack_dir::{
     CaptureTable, Declaration, DeclarationAbstraction, GlobalSymbolId, LocalSymbolId, LocalTypeId,
     Member, NodeType, SymbolTable, SymbolType, Type, TypeTable,
 };
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_source::ModuleId;
+use destack_workspace::{Module, ModuleSource, ProfileId, Revision};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 impl Compiler {
     /// Ensure declared DIR exists for a module.
     pub fn require_dir_declared(
         &self,
+        revision: Revision,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), ArtifactRequirementError> {
+    ) -> Result<(), RequirementError> {
         // skip ambient builtin declarations when libs are disabled
-        let module_ref = self.program.modules.get(module);
+        let module_ref = self.cache_module_snapshot(revision, module).ok();
+        let Some(module_ref) = module_ref else {
+            return Ok(());
+        };
         let module_ref = module_ref.as_ref();
         if !self.options.load_libraries
             && matches!(
@@ -38,7 +42,7 @@ impl Compiler {
             return Ok(());
         }
 
-        self.require_artifact(ArtifactKey::dir_declared(module, profile))
+        self.require_artifact(revision, ArtifactKey::dir_declared(module, profile))
     }
 
     /// Phase 1: Evaluate declarations.
@@ -50,46 +54,38 @@ impl Compiler {
         captures: &mut CaptureTable,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_DECLARE);
 
-        if !self.is_code_module(module_id) {
+        if !context.is_code_module(module_id) {
             return Ok(());
         }
 
         // load module state and resolved directory inputs
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
+        let module = context.module(module_id);
 
         // skip analysis when module language is disabled
-        if !self.module_language_allowed(module_id) {
+        if !self.module_language_allowed_in_context(context, module_id) {
             return Ok(());
         }
 
         // ensure builtins are resolved before declaring symbols
-        self.require_language_environment(profile)
+        self.require_language_environment(context.revision(), profile)
             .map_err(AnalyzeError::from)?;
 
         // ensure ambient libs are declared before user modules
-        self.ensure_ambient_libs_declared(module, profile)?;
+        self.ensure_ambient_libs_declared(module.as_ref(), profile, context)?;
 
         // declaration inputs
         let tree = resolved.tree.as_ref();
         let roots = resolved.roots.as_ref();
-        let mut collector = ArtifactRequirementCollector::new();
-        let module_checks = self.module_check_options_for_module(module.id);
-        let options = self.analyze_context_options_for_module(module.id);
+        let mut collector = RequirementCollector::new();
+        let module_checks = context.module_check_options_for_module(module.id);
+        let options = context.analyze_context_options_for_module(module.id);
         let mut ctx = TypeContext::new(
-            module,
+            context,
+            module.as_ref(),
             profile,
             &options,
             tree,
@@ -120,7 +116,7 @@ impl Compiler {
             return Err(AnalyzeError::Yield { requirement });
         }
 
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
@@ -136,12 +132,12 @@ impl Compiler {
             return Err(AnalyzeError::Yield { requirement });
         }
 
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
             // evaluate remaining unevaluated types after declaration metadata is available
-            if self.should_eager_evaluate_declared_types(module, module_checks) {
+            if self.should_eager_evaluate_declared_types(context, module.as_ref(), module_checks) {
                 let has_dependency = self
                     .evaluate_unevaluated_types_to_fixpoint(&mut ctx.reborrow(), &mut collector);
                 if has_dependency {
@@ -155,7 +151,7 @@ impl Compiler {
         }
 
         // publish declared static parameter constraints
-        let mut publish_collector = ArtifactRequirementCollector::new();
+        let mut publish_collector = RequirementCollector::new();
         {
             self.collect(
                 &mut publish_collector,
@@ -187,13 +183,23 @@ impl Compiler {
             // attach well known decorator metadata to symbols
             self.collect(
                 &mut collector,
-                self.register_symbol_decorators(module, profile, tree, symbols, captures),
+                self.register_symbol_decorators(
+                    module.as_ref(),
+                    profile,
+                    context,
+                    tree,
+                    symbols,
+                    captures,
+                ),
             );
         }
 
         // cache well-known intrinsics after decorator registration
         if module.is_user() {
-            self.collect(&mut collector, self.resolve_intrinsic_environment(profile));
+            self.collect(
+                &mut collector,
+                self.resolve_intrinsic_environment(profile, context),
+            );
         }
         // yield on any yields
         if let Some(requirement) = collector.try_into_requirement() {
@@ -264,18 +270,20 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<()> {
         if self.options.load_libraries && module.is_user() {
             // resolve library environment before declaring ambient modules
-            self.require_library_environment(profile)
+            self.require_library_environment(context.revision(), profile)
                 .map_err(AnalyzeError::from)?;
 
-            let mut collector = ArtifactRequirementCollector::new();
+            let mut collector = RequirementCollector::new();
             for lib_module_id in self.library_environment_modules(profile) {
                 if lib_module_id == module.id {
                     continue;
                 }
-                if let Err(error) = self.require_dir_declared(lib_module_id, profile)
+                if let Err(error) =
+                    self.require_dir_declared(context.revision(), lib_module_id, profile)
                     && let Some(error) = collector.try_collect::<(), _>(Err(error))
                 {
                     return Err(AnalyzeError::from(error));
@@ -293,6 +301,7 @@ impl Compiler {
     /// Decide whether declared types should be eagerly evaluated for a module.
     fn should_eager_evaluate_declared_types(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         _module_checks: ModuleCheckOptions,
     ) -> bool {
@@ -309,7 +318,7 @@ impl Compiler {
             return true;
         }
 
-        !self.should_defer_declaration_types(module)
+        !self.should_defer_declaration_types(context, module)
     }
 
     /// Evaluate unevaluated types to a fixed point.
@@ -318,7 +327,7 @@ impl Compiler {
     fn evaluate_unevaluated_types_to_fixpoint(
         &self,
         ctx: &mut TypeContext<'_>,
-        collector: &mut ArtifactRequirementCollector,
+        collector: &mut RequirementCollector,
     ) -> bool {
         let mut skipped_alias_targets = HashSet::new();
         for symbol_id in 0..ctx.symbols.symbol_count() {

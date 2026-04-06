@@ -2,7 +2,7 @@ use destack_dir::{NodeTree, SymbolTable, TypeTable};
 use destack_workspace::{Module, ProfileId};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
-use crate::{Compiler, ElaborateResult};
+use crate::{Compiler, CompilerContext, ElaborateResult};
 
 impl Compiler {
     /// Transform a module with target-independent simplifications:
@@ -18,16 +18,18 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        options: crate::AnalyzeOptions,
+        context: &CompilerContext<'_>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         // ensure analysis is complete
-        if !self.is_code_module(module.id) {
+        if !context.is_code_module(module.id) {
             return Ok(());
         }
 
-        let ctx = ElaborateContext::new(module.id, module, profile);
+        let ctx = ElaborateContext::new(context, module.id, module, profile, options);
         let mut state = ElaborateState::new(ctx, tree, symbols, types);
 
         // 0. split multi-declarators into individual lets

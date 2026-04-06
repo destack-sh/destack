@@ -1,12 +1,9 @@
-use crate::{
-    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    TaskError,
-};
+use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
 use destack_builtin::LanguageSymbol;
 use destack_compiler_macros::DefineError;
 use destack_dir::{AnchoredGlobalNodeId, GlobalScopeId, GlobalSymbolId, StaticKey, StringId};
-use destack_source::{ModuleId, PackageId};
-use destack_workspace::{Program, TargetId};
+use destack_source::{ModuleId, PackageId, TargetId};
+use destack_workspace::Repository;
 
 /// Errors during the resolve phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -17,11 +14,11 @@ pub enum ResolveError {
     // -------------------------------------------------------------------------
     /// Wait for an artifact requirement.
     #[error(code = "ER000", r#yield)]
-    Yield { requirement: ArtifactRequirementSet },
+    Yield { requirement: RequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "ER001", yield_failed)]
-    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
+    UnsatisfiedRequirement { requirement: RequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "ER002", message = "task skipped")]
@@ -203,4 +200,8 @@ pub enum ResolveError {
         node: AnchoredGlobalNodeId,
         message: String,
     },
+
+    /// Internal resolve failure.
+    #[error(code = "ER902", message = "internal error: {message}")]
+    Internal { message: String },
 }

@@ -14,7 +14,7 @@ impl Compiler {
         let segments: SmallVec<[StringId; 3]> = path
             .segments
             .iter()
-            .map(|segment| self.program.strings.intern_from(&ast.strings, *segment))
+            .map(|segment| self.repository.strings.intern_from(&ast.strings, *segment))
             .collect();
         Path { segments }
     }

@@ -33,6 +33,7 @@ impl Compiler {
         // rewrite associated aliases for the owner in one pass
         let mut rewriter = AssociatedAliasProjectionRewriter::new(
             self,
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             source_id,
@@ -199,6 +200,7 @@ impl Compiler {
             // resolve the heritage target and applied arguments
             let resolved_heritage = self
                 .with_module_tree_symbol_view_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     heritage_expression_id.module_id,
@@ -206,8 +208,11 @@ impl Compiler {
                     ctx.symbols,
                     destack_artifact::ArtifactKey::dir_declared,
                     |view| -> AnalyzeResult<Option<(GlobalSymbolId, Vec<StaticArgument>)>> {
-                        let owner_options = self.analyze_context_options_for_module(view.module.id);
+                        let owner_options = view
+                            .compiler_context
+                            .analyze_context_options_for_module(view.module.id);
                         let mut ctx = TypeContext::new(
+                            ctx.compiler_context,
                             view.module,
                             ctx.profile,
                             &owner_options,
@@ -326,6 +331,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Vec<GlobalNodeId<Expression>>> {
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol.module_id,
@@ -417,6 +423,7 @@ impl Compiler {
         // include directly declared extensions from the receiver module
         let declared_extension_symbols = self
             .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 canonical_receiver_symbol.module_id,
@@ -468,6 +475,7 @@ impl Compiler {
         for extension_symbol in extension_symbols {
             let substitutions = self
                 .with_module_tree_symbol_view_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     extension_symbol.module_id,
@@ -492,8 +500,11 @@ impl Compiler {
                             return Ok(None);
                         };
 
-                        let owner_options = self.analyze_context_options_for_module(view.module.id);
+                        let owner_options = view
+                            .compiler_context
+                            .analyze_context_options_for_module(view.module.id);
                         let mut ctx = TypeContext::new(
+                            ctx.compiler_context,
                             view.module,
                             ctx.profile,
                             &owner_options,
@@ -531,6 +542,7 @@ impl Compiler {
         interface_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<HashMap<GlobalSymbolId, LocalTypeId>>> {
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             receiver_symbol.module_id,
@@ -557,8 +569,11 @@ impl Compiler {
                     return Ok(None);
                 };
 
-                let owner_options = self.analyze_context_options_for_module(view.module.id);
+                let owner_options = view
+                    .compiler_context
+                    .analyze_context_options_for_module(view.module.id);
                 let mut ctx = TypeContext::new(
+                    ctx.compiler_context,
                     view.module,
                     ctx.profile,
                     &owner_options,
@@ -906,6 +921,7 @@ impl Compiler {
         // collect owner associated comptime member symbols by name
         let owner_members = self
             .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 owner_symbol.module_id,
@@ -969,6 +985,7 @@ impl Compiler {
 
             let resolved_member_symbol = self
                 .with_module_tree_symbol_view_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     canonical_receiver_symbol.module_id,
@@ -977,6 +994,7 @@ impl Compiler {
                     destack_artifact::ArtifactKey::dir_interface,
                     |view| {
                         self.query_static_member_symbol(
+                            ctx.compiler_context.revision(),
                             view.module,
                             ctx.profile,
                             canonical_receiver_symbol,
@@ -1191,6 +1209,7 @@ impl Compiler {
             && let Some(name) = *name
             && let Some((owner_symbol, _)) = self.owner_symbol_for_this_expression(ctx, *left)
             && let Some(member_symbol) = self.query_static_member_symbol(
+                ctx.compiler_context.revision(),
                 ctx.module,
                 ctx.profile,
                 owner_symbol,
@@ -1894,6 +1913,7 @@ impl Compiler {
 
         let mapped_alias_target = self
             .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 target_symbol.module_id,
@@ -1901,15 +1921,23 @@ impl Compiler {
                 ctx.symbols,
                 destack_artifact::ArtifactKey::dir_declared,
                 |view| -> AnalyzeResult<LocalTypeId> {
-                    let owner_view =
-                        TreeSymbolView::new(view.module, ctx.profile, view.tree, view.symbols);
+                    let owner_view = TreeSymbolView::new(
+                        view.compiler_context,
+                        view.module,
+                        ctx.profile,
+                        view.tree,
+                        view.symbols,
+                    );
                     let expression_id =
                         self.projection_alias_expression_for_symbol(owner_view, target_symbol);
                     let Some(expression_id) = expression_id else {
                         return Ok(alias_target_id);
                     };
-                    let owner_options = self.analyze_context_options_for_module(view.module.id);
+                    let owner_options = view
+                        .compiler_context
+                        .analyze_context_options_for_module(view.module.id);
                     let mut ctx = TypeContext::new(
+                        ctx.compiler_context,
                         view.module,
                         ctx.profile,
                         &owner_options,

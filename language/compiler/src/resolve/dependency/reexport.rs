@@ -6,7 +6,7 @@ use destack_dir::{
     NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, Revision};
 use indexmap::IndexMap;
 
 use crate::resolve::dependency::cache::{
@@ -62,6 +62,7 @@ impl Compiler {
     /// Resolve an export entry by walking reexport chains.
     pub(super) fn resolve_reexport_chain_symbol(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         origin_symbol: Option<GlobalSymbolId>,
         node: GlobalNodeIdAny,
@@ -77,6 +78,7 @@ impl Compiler {
         let order = self.export_spaces_for_kind(kind);
         for space in order.spaces() {
             let symbol = self.resolve_reexport_chain_symbol_for_space(
+                revision,
                 origin_module_id,
                 origin_symbol,
                 node,
@@ -102,6 +104,7 @@ impl Compiler {
     /// Resolve an export entry for a target with an explicit symbol space order.
     pub(crate) fn resolve_export_symbol_for_target(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         node: GlobalNodeIdAny,
         target: ModuleTarget,
@@ -110,10 +113,11 @@ impl Compiler {
         key: StaticKey,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // resolve in the requested symbol space order
-        let default_name = self.program.strings.intern("default");
+        let default_name = self.repository.strings.intern("default");
         let mut visited = ReexportVisitStack::default();
         for space in order.spaces() {
             let symbol = self.resolve_reexport_chain_symbol_for_space(
+                revision,
                 origin_module_id,
                 None,
                 node,
@@ -136,6 +140,7 @@ impl Compiler {
     /// Resolve an export entry for a specific symbol space.
     fn resolve_reexport_chain_symbol_for_space(
         &self,
+        revision: destack_workspace::Revision,
         origin_module_id: ModuleId,
         origin_symbol: Option<GlobalSymbolId>,
         node: GlobalNodeIdAny,
@@ -171,7 +176,7 @@ impl Compiler {
             }
             // report missing symbols when a chain loops without an origin symbol
             let (scope, via_module) =
-                self.export_chain_scope_for_target(origin_module_id, target, profile)?;
+                self.export_chain_scope_for_target(revision, origin_module_id, target, profile)?;
             return Err(ResolveError::MissingSymbol {
                 node: node.into_anchored(Some(profile)),
                 scope,
@@ -185,6 +190,7 @@ impl Compiler {
 
         // resolve the export entry for this space and key
         let result = self.resolve_export_entry_for_target(
+            revision,
             origin_module_id,
             origin_symbol,
             node,
@@ -214,6 +220,7 @@ impl Compiler {
     /// Get a scope for errors while resolving export chains.
     pub(super) fn export_chain_scope_for_target(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
@@ -221,25 +228,30 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // non-code modules don't have scopes - use origin module scope
-                if !self.is_code_module(module_id) {
+                let module = self
+                    .cache_module_snapshot(revision, module_id)
+                    .map_err(|error| ResolveError::Internal {
+                        message: format!("failed to load module snapshot: {error}"),
+                    })?;
+                if !module.is_code() {
                     let dir = self
-                        .require_artifact_dir_prepared(origin_module_id, profile)
+                        .require_artifact_dir_prepared(revision, origin_module_id, profile)
                         .map_err(ResolveError::from)?;
                     return Ok((dir.namespace_scope.into_global(origin_module_id), None));
                 }
 
                 // ensure the target module is prepared
-                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
+                self.require_dir_prepared_if_other(revision, origin_module_id, module_id, profile)?;
 
                 // use the module namespace scope for error reporting
                 let dir = self
-                    .require_artifact_dir_prepared(module_id, profile)
+                    .require_artifact_dir_prepared(revision, module_id, profile)
                     .map_err(ResolveError::from)?;
                 Ok((dir.namespace_scope.into_global(module_id), Some(module_id)))
             }
             ModuleTarget::External(_) => {
                 let dir = self
-                    .require_artifact_dir_prepared(origin_module_id, profile)
+                    .require_artifact_dir_prepared(revision, origin_module_id, profile)
                     .map_err(ResolveError::from)?;
                 Ok((
                     dir.namespace_scope.into_global(origin_module_id),
@@ -248,13 +260,17 @@ impl Compiler {
             }
             ModuleTarget::Binding(specifier) => {
                 // load the module bindings for this specifier
-                let bindings =
-                    self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                let bindings = self.module_bindings_for_specifier(
+                    revision,
+                    origin_module_id,
+                    profile,
+                    specifier,
+                )?;
 
                 // fall back to the origin scope when bindings are missing
                 let Some(bindings) = bindings else {
                     let dir = self
-                        .require_artifact_dir_prepared(origin_module_id, profile)
+                        .require_artifact_dir_prepared(revision, origin_module_id, profile)
                         .map_err(ResolveError::from)?;
                     return Ok((
                         dir.namespace_scope.into_global(origin_module_id),
@@ -265,7 +281,7 @@ impl Compiler {
                 // fall back to the origin scope when the list is empty
                 let Some(binding_ref) = bindings.first() else {
                     let dir = self
-                        .require_artifact_dir_prepared(origin_module_id, profile)
+                        .require_artifact_dir_prepared(revision, origin_module_id, profile)
                         .map_err(ResolveError::from)?;
                     return Ok((
                         dir.namespace_scope.into_global(origin_module_id),
@@ -275,6 +291,7 @@ impl Compiler {
 
                 // ensure the binding module is prepared
                 self.require_dir_prepared_if_other(
+                    revision,
                     origin_module_id,
                     binding_ref.module_id,
                     profile,
@@ -282,7 +299,7 @@ impl Compiler {
 
                 // load the binding scope from the owning module
                 let dir = self
-                    .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                    .require_artifact_dir_prepared(revision, binding_ref.module_id, profile)
                     .map_err(ResolveError::from)?;
                 let Some((scope_id, _, _)) =
                     self.binding_info_for_declaration(&dir, binding_ref.declaration)
@@ -304,6 +321,7 @@ impl Compiler {
     /// Resolve an export entry for a target to a concrete symbol.
     fn resolve_export_entry_for_target(
         &self,
+        revision: destack_workspace::Revision,
         origin_module_id: ModuleId,
         origin_symbol: Option<GlobalSymbolId>,
         node: GlobalNodeIdAny,
@@ -318,12 +336,16 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
+                self.require_dir_prepared_if_other(revision, origin_module_id, module_id, profile)?;
 
                 // load the module dir for this profile
-                let module_context = self.program.modules.get(module_id);
+                let module_context =
+                    self.cache_module_snapshot(revision, module_id)
+                        .map_err(|error| ResolveError::Internal {
+                            message: format!("failed to load module snapshot: {error}"),
+                        })?;
                 let dir = self
-                    .require_artifact_dir_prepared(module_id, profile)
+                    .require_artifact_dir_prepared(revision, module_id, profile)
                     .map_err(ResolveError::from)?;
 
                 // read the export entry for the requested key
@@ -341,7 +363,7 @@ impl Compiler {
 
                 // for data/text/binary modules, return the default symbol directly
                 // (no need to resolve through export entry since it's a simple local export)
-                if !self.is_code_module(module_id) {
+                if !module_context.is_code() {
                     if let Some(symbol) = export.symbol {
                         let symbol = symbol.into_global(module_id);
                         let symbol_type = self.symbol_type_for_global(profile, symbol);
@@ -354,6 +376,7 @@ impl Compiler {
 
                 // resolve the export entry for this module
                 self.resolve_export_entry_symbol(
+                    revision,
                     &module_context,
                     &dir,
                     dir.namespace_scope,
@@ -370,8 +393,12 @@ impl Compiler {
             ModuleTarget::External(_) => Ok(None),
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
-                let bindings =
-                    self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                let bindings = self.module_bindings_for_specifier(
+                    revision,
+                    origin_module_id,
+                    profile,
+                    specifier,
+                )?;
                 let Some(bindings) = bindings else {
                     return Ok(None);
                 };
@@ -381,15 +408,20 @@ impl Compiler {
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
                     self.require_dir_prepared_if_other(
+                        revision,
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
                     )?;
 
                     // load the binding export table
-                    let module_context = self.program.modules.get(binding_ref.module_id);
+                    let module_context = self
+                        .cache_module_snapshot(revision, binding_ref.module_id)
+                        .map_err(|error| ResolveError::Internal {
+                            message: format!("failed to load module snapshot: {error}"),
+                        })?;
                     let dir = self
-                        .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                        .require_artifact_dir_prepared(revision, binding_ref.module_id, profile)
                         .map_err(ResolveError::from)?;
                     let binding_exports = if let Some(cache) = cache.as_deref_mut() {
                         let cache_key = BindingExportCacheKey {
@@ -426,6 +458,7 @@ impl Compiler {
 
                     // resolve the export entry for this binding
                     let symbol = self.resolve_export_entry_symbol(
+                        revision,
                         &module_context,
                         &dir,
                         scope_id,
@@ -450,6 +483,7 @@ impl Compiler {
                                 self.export_entry_node(binding_ref.module_id, &export, symbols);
                             if let (Some(node), Some(other_node)) = (node, other_node) {
                                 self.check_can_merge_declarations(
+                                    revision,
                                     existing,
                                     symbol,
                                     node,
@@ -478,6 +512,7 @@ impl Compiler {
     /// Resolve a single export entry into a concrete symbol.
     fn resolve_export_entry_symbol(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         dir: &DirPrepared,
         scope_id: LocalScopeId,
@@ -505,6 +540,7 @@ impl Compiler {
 
                 // resolve the reexport target
                 self.resolve_reexport_item_target(
+                    revision,
                     module,
                     dir,
                     scope_id,
@@ -565,6 +601,7 @@ impl Compiler {
     /// Resolve a reexport item to a concrete target symbol.
     fn resolve_reexport_item_target(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         dir: &DirPrepared,
         scope_id: LocalScopeId,
@@ -596,6 +633,7 @@ impl Compiler {
                 // (for types defined in `global { }` blocks within module declarations)
                 let symbol_id = self
                     .resolve_absolute_symbol_from_artifact(
+                        revision,
                         module,
                         dir,
                         profile,
@@ -610,6 +648,7 @@ impl Compiler {
                         let global_scope_id = dir.global_augmentation_scope;
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol_from_artifact(
+                            revision,
                             module,
                             dir,
                             profile,
@@ -655,10 +694,9 @@ impl Compiler {
                 } else if let Some(target_module) = expression_target_module {
                     target_module
                 } else {
-                    let module_handle = self.program.modules.get(module.id);
-                    let module_handle = module_handle.as_ref();
                     let Some(target_module) = self.resolve_import_maybe_from_artifact(
-                        module_handle,
+                        revision,
+                        module,
                         dir,
                         profile,
                         item_node,
@@ -680,6 +718,7 @@ impl Compiler {
                     }
 
                     let target_symbol = self.resolve_namespace_symbol(
+                        revision,
                         origin_module_id,
                         node,
                         target_module,
@@ -693,6 +732,7 @@ impl Compiler {
                     return Ok(None);
                 };
                 let resolved = self.resolve_reexport_chain_symbol(
+                    revision,
                     origin_module_id,
                     origin_symbol,
                     node,
@@ -713,6 +753,7 @@ impl Compiler {
     /// Resolve a remote item symbol result with cache access and optional binding fallback.
     pub(super) fn resolve_remote_item_symbol_result(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         node: GlobalNodeIdAny,
         remote_target: ModuleTarget,
@@ -726,6 +767,7 @@ impl Compiler {
     ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
         // resolve against the selected module target first
         let resolved = self.resolve_remote_item_symbol_result_for_target(
+            revision,
             module,
             node,
             remote_target,
@@ -742,6 +784,7 @@ impl Compiler {
             && fallback_remote_target != remote_target
         {
             return self.resolve_remote_item_symbol_result_for_target(
+                revision,
                 module,
                 node,
                 fallback_remote_target,
@@ -758,9 +801,10 @@ impl Compiler {
             && matches!(remote_target, ModuleTarget::Module(_))
             && let Some(target_specifier) = target_specifier
             && let Some(binding_target) =
-                self.resolve_module_binding_target(module.id, profile, target_specifier)?
+                self.resolve_module_binding_target(revision, module.id, profile, target_specifier)?
         {
             return self.resolve_remote_item_symbol_result_for_target(
+                revision,
                 module,
                 node,
                 binding_target,
@@ -778,6 +822,7 @@ impl Compiler {
     /// Resolve a remote item symbol result for one module target, using cache when present.
     fn resolve_remote_item_symbol_result_for_target(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         node: GlobalNodeIdAny,
         remote_target: ModuleTarget,
@@ -800,6 +845,7 @@ impl Compiler {
             }
 
             let resolved = self.resolve_remote_item_symbol_result_uncached(
+                revision,
                 module,
                 node,
                 remote_target,
@@ -816,6 +862,7 @@ impl Compiler {
 
         // resolve directly when no cache is available
         self.resolve_remote_item_symbol_result_uncached(
+            revision,
             module,
             node,
             remote_target,
@@ -830,6 +877,7 @@ impl Compiler {
     /// Resolve a remote item symbol result and align dependency kind to export space.
     fn resolve_remote_item_symbol_result_uncached(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         node: GlobalNodeIdAny,
         remote_target: ModuleTarget,
@@ -840,6 +888,7 @@ impl Compiler {
         cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
         let resolved = self.resolve_remote_item_symbol(
+            revision,
             module,
             node,
             remote_target,
@@ -857,6 +906,7 @@ impl Compiler {
     /// Resolve an item symbol in a remote module, searching through namespace exports if needed.
     fn resolve_remote_item_symbol(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         node: GlobalNodeIdAny,
         remote_target: ModuleTarget,
@@ -868,6 +918,7 @@ impl Compiler {
     ) -> ResolveResult<ResolvedExportSymbol> {
         // resolve the requested kind first
         let resolved = self.resolve_remote_item_symbol_for_requested_kind(
+            revision,
             module,
             node,
             remote_target,
@@ -881,9 +932,10 @@ impl Compiler {
         // fall back to type lookups for declaration modules
         if kind == DependencyKind::Value
             && let Err(ResolveError::MissingSymbol { .. }) = resolved
-            && self.target_is_declaration_module(module.id, remote_target, profile)?
+            && self.target_is_declaration_module(revision, module.id, remote_target, profile)?
         {
             return self.resolve_remote_item_symbol_for_requested_kind(
+                revision,
                 module,
                 node,
                 remote_target,
@@ -914,6 +966,7 @@ impl Compiler {
     /// Resolve an item symbol for a specific dependency kind.
     fn resolve_remote_item_symbol_for_requested_kind(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         node: GlobalNodeIdAny,
         remote_target: ModuleTarget,
@@ -923,11 +976,12 @@ impl Compiler {
         key: StaticKey,
         mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<ResolvedExportSymbol> {
-        let default_name = self.program.strings.intern("default");
+        let default_name = self.repository.strings.intern("default");
 
         // resolve explicit exports and reexport chains first
         let mut visited = ReexportVisitStack::default();
         let resolved_symbol = self.resolve_reexport_chain_symbol(
+            revision,
             module.id,
             origin_symbol,
             node,
@@ -946,7 +1000,7 @@ impl Compiler {
         // resolve default imports from export assignments and CommonJS assignments
         if kind == DependencyKind::Value && key == StaticKey::Name(default_name) {
             if let Some(symbol) =
-                self.resolve_export_assignment_symbol(module.id, remote_target, profile)?
+                self.resolve_export_assignment_symbol(revision, module.id, remote_target, profile)?
             {
                 return Ok(ResolvedExportSymbol {
                     symbol,
@@ -954,9 +1008,12 @@ impl Compiler {
                 });
             }
 
-            if let Some(symbol) =
-                self.resolve_commonjs_default_export_symbol(module.id, remote_target, profile)?
-            {
+            if let Some(symbol) = self.resolve_commonjs_default_export_symbol(
+                revision,
+                module.id,
+                remote_target,
+                profile,
+            )? {
                 return Ok(ResolvedExportSymbol {
                     symbol,
                     export_space: SymbolSpace::Value,
@@ -967,6 +1024,7 @@ impl Compiler {
         // fall back to export assignment target (e.g., `export = X`)
         // handles both module redirects and local namespace lookups
         if let Some(target) = self.resolve_export_assignment_target(
+            revision,
             module.id,
             remote_target,
             profile,
@@ -976,6 +1034,7 @@ impl Compiler {
                 ExportAssignmentTarget::Module(redirect_target) => {
                     // recursively resolve the symbol in the redirected module
                     return self.resolve_remote_item_symbol(
+                        revision,
                         module,
                         node,
                         redirect_target,
@@ -989,6 +1048,7 @@ impl Compiler {
                 ExportAssignmentTarget::Namespace(namespace_symbol) => {
                     // look up the key in the namespace symbol's scope
                     if let Some(symbol) = self.resolve_symbol_in_namespace(
+                        revision,
                         node,
                         namespace_symbol,
                         profile,
@@ -1011,6 +1071,7 @@ impl Compiler {
 
         // fall back to namespace exports
         let global_symbol = self.resolve_symbol_via_namespace_exports(
+            revision,
             module,
             node,
             remote_target,
@@ -1033,13 +1094,18 @@ impl Compiler {
     /// in runtime modules.
     fn target_is_declaration_module(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
     ) -> ResolveResult<bool> {
         // module targets are declaration-only when the module says so
         if let ModuleTarget::Module(module_id) = target {
-            let module = self.program.modules.get(module_id);
+            let module = self
+                .cache_module_snapshot(revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let module = module.as_ref();
             return Ok(module.language_type.is_declaration());
         }
@@ -1047,14 +1113,18 @@ impl Compiler {
         // specifier bindings are declaration-only when all bindings are declaration modules
         if let ModuleTarget::Binding(specifier) = target {
             let bindings =
-                self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                self.module_bindings_for_specifier(revision, origin_module_id, profile, specifier)?;
             let Some(bindings) = bindings else {
                 return Ok(false);
             };
 
             // if any binding module is not a declaration module, treat it as mixed
             for binding_ref in bindings {
-                let module = self.program.modules.get(binding_ref.module_id);
+                let module = self
+                    .cache_module_snapshot(revision, binding_ref.module_id)
+                    .map_err(|error| ResolveError::Internal {
+                        message: format!("failed to load module snapshot: {error}"),
+                    })?;
                 let module = module.as_ref();
                 if !module.language_type.is_declaration() {
                     return Ok(false);

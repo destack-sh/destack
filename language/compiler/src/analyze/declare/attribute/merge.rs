@@ -208,7 +208,7 @@ impl Compiler {
         annotation_id: LocalNodeId<Annotation>,
         message: &str,
     ) {
-        let message = self.program.strings.intern(message);
+        let message = self.repository.strings.intern(message);
         self.error(AnalyzeError::InvalidWellKnownDecorator {
             node: annotation_id
                 .into_global_any(module.id)

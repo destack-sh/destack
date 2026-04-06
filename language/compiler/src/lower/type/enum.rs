@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_dir::{
     AnchoredGlobalNodeId, EnumBackingType, EnumFieldValue, GlobalSymbolId, NodeType,
 };
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 
-use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
+use crate::{Compiler, LowerError, LowerResult, RequirementError};
 
 use crate::lower::ModuleLowerer;
 
@@ -20,18 +20,20 @@ pub(crate) struct EnumFieldValueDescriptor {
 /// Resolve the backing type and value for an enum field symbol.
 pub(crate) fn enum_field_value_for_symbol(
     compiler: &Compiler,
+    revision: Revision,
     profile: ProfileId,
     member_symbol: GlobalSymbolId,
     node: AnchoredGlobalNodeId,
 ) -> LowerResult<Option<EnumFieldValueDescriptor>> {
     // load the analyzed dir artifact for this symbol
-    let snapshot = compiler.require_artifact_dir_analyzed(member_symbol.module_id, profile);
+    let snapshot =
+        compiler.require_artifact_dir_analyzed(revision, member_symbol.module_id, profile);
     let snapshot = match snapshot {
         Ok(snapshot) => snapshot,
-        Err(ArtifactRequirementError::NotReady { requirement }) => {
+        Err(RequirementError::NotReady { requirement }) => {
             return Err(LowerError::Yield { requirement });
         }
-        Err(ArtifactRequirementError::Failed { requirement }) => {
+        Err(RequirementError::Failed { requirement }) => {
             return Err(LowerError::UnsatisfiedRequirement { requirement });
         }
     };

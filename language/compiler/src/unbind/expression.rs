@@ -45,7 +45,7 @@ impl Compiler {
                 }
 
                 dir::Expression::Labelled { label, body, .. } => {
-                    let label = ast_strings.intern_from(&self.program.strings, *label);
+                    let label = ast_strings.intern_from(&self.repository.strings, *label);
                     let body = self.unbind_expression(module, *body, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Labelled { label, body }
                 }
@@ -63,7 +63,7 @@ impl Compiler {
                     let target = match target {
                         dir::ImportTarget::String(target) => {
                             ast::ImportTarget::String(
-                                ast_strings.intern_from(&self.program.strings, *target),
+                                ast_strings.intern_from(&self.repository.strings, *target),
                             )
                         }
                         dir::ImportTarget::Expression { target } => {
@@ -143,7 +143,7 @@ impl Compiler {
                     let source = self.unbind_import_source(*source);
                     let kind = self.unbind_dependency_kind(context, *kind);
                     let target = ast::ImportTarget::String(
-                        ast_strings.intern_from(&self.program.strings, *target),
+                        ast_strings.intern_from(&self.repository.strings, *target),
                     );
                     let items = items.as_ref().map(|items| {
                         items
@@ -211,7 +211,7 @@ impl Compiler {
                     ..
                 } => {
                     let kind = self.unbind_dependency_kind(context, *kind);
-                    let target = ast_strings.intern_from(&self.program.strings, *target);
+                    let target = ast_strings.intern_from(&self.repository.strings, *target);
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
@@ -282,7 +282,7 @@ impl Compiler {
                     }
                 }
                 dir::Expression::ExportNamespace { name } => {
-                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    let name = ast_strings.intern_from(&self.repository.strings, *name);
                     ast::Expression::ExportNamespace { name }
                 }
 
@@ -373,7 +373,7 @@ impl Compiler {
                     modifiers,
                     value,
                 } => {
-                    let name = ast_strings.intern_from(&self.program.strings, parameter.name);
+                    let name = ast_strings.intern_from(&self.repository.strings, parameter.name);
                     let constraint = self.unbind_expression(
                         module,
                         parameter.constraint,
@@ -417,7 +417,7 @@ impl Compiler {
                 dir::Expression::TypeTemplateLiteral { strings, spans } => {
                     let strings = strings
                         .iter()
-                        .map(|string| ast_strings.intern_from(&self.program.strings, *string))
+                        .map(|string| ast_strings.intern_from(&self.repository.strings, *string))
                         .collect();
                     let spans = spans
                         .iter()
@@ -485,7 +485,7 @@ impl Compiler {
                 }
 
                 dir::Expression::TypeInfer { name, constraint } => {
-                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    let name = ast_strings.intern_from(&self.repository.strings, *name);
                     let constraint = constraint.map(|constraint| {
                         self.unbind_expression(
                             module,
@@ -615,7 +615,7 @@ impl Compiler {
 
                 dir::Expression::Member { left, name, static_arguments } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
-                    let name = name.map(|name| ast_strings.intern_from(&self.program.strings, name));
+                    let name = name.map(|name| ast_strings.intern_from(&self.repository.strings, name));
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
                             self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
@@ -625,7 +625,7 @@ impl Compiler {
                 }
                 dir::Expression::PrivateMember { left, name, static_arguments } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
-                    let name = name.map(|name| ast_strings.intern_from(&self.program.strings, name));
+                    let name = name.map(|name| ast_strings.intern_from(&self.repository.strings, name));
                     let static_arguments = static_arguments.as_ref().map(|args| {
                         args.iter().map(|arg| {
                             self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
@@ -736,7 +736,7 @@ impl Compiler {
                 }
 
                 dir::Expression::PrivateIdentifier { name } => {
-                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    let name = ast_strings.intern_from(&self.repository.strings, *name);
                     ast::Expression::PrivateIdentifier { name }
                 }
 
@@ -771,7 +771,7 @@ impl Compiler {
                 dir::Expression::Type { value } => {
                     // read the most advanced published type table for the active profile
                     let ast_expression_id =
-                        if let Some(dir) = self.artifacts.dir_patched(module.id, context.profile) {
+                        if let Some(dir) = self.dir_patched(module.id, context.profile) {
                             self.unbind_type_expression(
                                 module,
                                 *value,
@@ -783,7 +783,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.artifacts.dir_elaborated(module.id, context.profile)
+                            self.dir_elaborated(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,
@@ -796,7 +796,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.artifacts.dir_analyzed(module.id, context.profile)
+                            self.dir_analyzed(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,
@@ -809,7 +809,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.artifacts.dir_interface(module.id, context.profile)
+                            self.dir_interface(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,
@@ -822,7 +822,7 @@ impl Compiler {
                                 context,
                             )
                         } else if let Some(dir) =
-                            self.artifacts.dir_declared(module.id, context.profile)
+                            self.dir_declared(module.id, context.profile)
                         {
                             self.unbind_type_expression(
                                 module,
@@ -1163,24 +1163,24 @@ impl Compiler {
                 }
 
                 dir::Expression::UnresolvedBreak { target, value } => {
-                    let label = Some(ast_strings.intern_from(&self.program.strings, *target));
+                    let label = Some(ast_strings.intern_from(&self.repository.strings, *target));
                     let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings, context));
                     ast::Expression::Break { label, value }
                 }
 
                 dir::Expression::Break { target, value, .. } => {
-                    let label = target.map(|t| ast_strings.intern_from(&self.program.strings, t));
+                    let label = target.map(|t| ast_strings.intern_from(&self.repository.strings, t));
                     let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, ast_tree, ast_strings, context));
                     ast::Expression::Break { label, value }
                 }
 
                 dir::Expression::UnresolvedContinue { target } => {
-                    let label = Some(ast_strings.intern_from(&self.program.strings, *target));
+                    let label = Some(ast_strings.intern_from(&self.repository.strings, *target));
                     ast::Expression::Continue { label }
                 }
 
                 dir::Expression::Continue { target, .. } => {
-                    let label = target.map(|t| ast_strings.intern_from(&self.program.strings, t));
+                    let label = target.map(|t| ast_strings.intern_from(&self.repository.strings, t));
                     ast::Expression::Continue { label }
                 }
 
@@ -1240,7 +1240,7 @@ impl Compiler {
         match subject {
             dir::TypePredicateSubject::This => ast::TypePredicateSubject::This,
             dir::TypePredicateSubject::Unresolved(name) => {
-                let name = ast_strings.intern_from(&self.program.strings, name);
+                let name = ast_strings.intern_from(&self.repository.strings, name);
                 ast::TypePredicateSubject::Identifier(name)
             }
             dir::TypePredicateSubject::Symbol(symbol_id) => {
@@ -1251,7 +1251,7 @@ impl Compiler {
                         .and_then(|dir| dir.symbols.get_symbol(symbol_id.into_local()).name())
                 };
                 let name_id = name_id
-                    .map(|name| ast_strings.intern_from(&self.program.strings, name))
+                    .map(|name| ast_strings.intern_from(&self.repository.strings, name))
                     .unwrap_or_else(|| ast_strings.intern("_"));
                 ast::TypePredicateSubject::Identifier(name_id)
             }

@@ -34,7 +34,7 @@ impl Compiler {
             parent_id,
         );
         let left = self
-            .program
+            .repository
             .strings
             .intern_from(&ast.strings, ast_where_clause.left);
         let right = self.bind_expression(

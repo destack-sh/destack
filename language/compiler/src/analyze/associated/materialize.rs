@@ -55,6 +55,7 @@ impl Compiler {
         {
             let parameter_count = self
                 .with_module_tree_symbol_view_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     target_symbol.module_id,
@@ -137,6 +138,7 @@ impl Compiler {
         let alias_target_id = if let Some(owner_symbol) = owner_symbol {
             let mut rewriter = AssociatedAliasProjectionRewriter::new(
                 self,
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 source_id,
@@ -188,6 +190,7 @@ impl Compiler {
     ) -> AnalyzeResult<bool> {
         // only associated type aliases can require projection arguments
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol.module_id,

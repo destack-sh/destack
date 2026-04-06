@@ -3,8 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::ModuleId;
-use destack_workspace::TargetId;
+use destack_source::{ModuleId, TargetId};
 use mir::{Instruction, Terminator, Type, Value};
 
 use crate::optimize::common::{ValueTypeMap, terminator_arguments_for_successor};
@@ -146,7 +145,7 @@ impl FunctionPass for LifetimeCheck {
                 && let Some(block_id) = function.blocks.first()
             {
                 ctx.emit_warning(OptimizeWarning::LifetimeAnnotationIgnored {
-                    node: anchor_block(ctx.module_id(), ctx.target_id().clone(), *block_id),
+                    node: anchor_block(ctx.module_id(), *ctx.target_id(), *block_id),
                 });
             }
             return AnalysisPreservation::all();
@@ -205,7 +204,7 @@ impl FunctionPass for LifetimeCheck {
 
         // validate returns against the declared lifetime
         let module_id = ctx.module_id();
-        let target_id = ctx.target_id().clone();
+        let target_id = *ctx.target_id();
         for (block_id, state) in &result.block_exit {
             let block = tree.get(*block_id);
             let Terminator::Return { value: Some(value) } = &block.terminator else {
@@ -227,11 +226,11 @@ impl FunctionPass for LifetimeCheck {
                 if has_invalid_origin {
                     if strict_mode {
                         ctx.emit_error(OptimizeError::ReturnReferenceToLocal {
-                            node: anchor_block(module_id, target_id.clone(), *block_id),
+                            node: anchor_block(module_id, target_id, *block_id),
                         });
                     } else {
                         ctx.emit_warning(OptimizeWarning::PotentialBorrowEscape {
-                            node: anchor_block(module_id, target_id.clone(), *block_id),
+                            node: anchor_block(module_id, target_id, *block_id),
                         });
                     }
                 }
@@ -249,12 +248,12 @@ impl FunctionPass for LifetimeCheck {
 
             if strict_mode {
                 ctx.emit_error(OptimizeError::LifetimeAnnotationMismatch {
-                    node: anchor_block(module_id, target_id.clone(), *block_id),
+                    node: anchor_block(module_id, target_id, *block_id),
                     origin: disallowed,
                 });
             } else {
                 ctx.emit_warning(OptimizeWarning::PotentialLifetimeAnnotationMismatch {
-                    node: anchor_block(module_id, target_id.clone(), *block_id),
+                    node: anchor_block(module_id, target_id, *block_id),
                 });
             }
         }

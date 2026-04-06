@@ -46,14 +46,17 @@ impl ModuleLowerer<'_> {
             });
         };
 
-        let result =
-            resolve_result_union(self.types, &self.compiler.program.strings, return_type_id)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                    message: "binding return type must be Result<T, PlatformError>".to_string(),
-                })?;
+        let result = resolve_result_union(
+            self.types,
+            &self.compiler.repository.strings,
+            return_type_id,
+        )
+        .ok_or_else(|| LowerError::UnsupportedConstruct {
+            node: expression_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile)),
+            message: "binding return type must be Result<T, PlatformError>".to_string(),
+        })?;
 
         let ok_is_void = is_void_type(self.types, result.ok_value_type);
         let ok_mir_type = if ok_is_void {
@@ -214,7 +217,7 @@ impl ModuleLowerer<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<dir::GlobalSymbolId> {
-        let name = self.compiler.program.strings.intern("takePlatformError");
+        let name = self.compiler.repository.strings.intern("takePlatformError");
         let symbol = self
             .compiler
             .get_declared_library_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)
@@ -231,7 +234,7 @@ impl ModuleLowerer<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<dir::GlobalSymbolId> {
-        let name = self.compiler.program.strings.intern("PlatformError");
+        let name = self.compiler.repository.strings.intern("PlatformError");
         let symbol = self
             .compiler
             .get_declared_library_symbol_from(self.profile, name, SymbolSpaceOrder::ValueThenType)

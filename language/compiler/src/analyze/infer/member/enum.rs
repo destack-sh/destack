@@ -11,6 +11,7 @@ impl Compiler {
         // resolve the enum field symbol entry
         let Some((is_enum_field, scope_owner)) = self
             .with_module_symbols_or_local_for_artifact(
+                view.compiler_context,
                 view.module,
                 view.profile,
                 member_symbol.module_id,
@@ -69,6 +70,7 @@ impl Compiler {
         // resolve the member symbol from the enum declaration
         let mut visited = Vec::new();
         self.resolve_member_symbol_for_symbol(
+            ctx.compiler_context,
             ctx.module,
             ctx.module.id,
             ctx.profile,
@@ -179,14 +181,24 @@ impl Compiler {
             return Ok(self.enum_field_symbol_for_member_key_in_tree(ctx, enum_symbol, member_key));
         }
 
-        let module = self.program.modules.get(enum_symbol.module_id);
+        let module = ctx.compiler_context.module(enum_symbol.module_id);
         let module = module.as_ref();
         let dir = self
-            .require_artifact_dir_declared(enum_symbol.module_id, ctx.profile)
+            .require_artifact_dir_declared(
+                ctx.compiler_context.revision(),
+                enum_symbol.module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
 
         Ok(self.enum_field_symbol_for_member_key_in_tree(
-            TreeSymbolView::new(module, ctx.profile, &dir.tree, &dir.symbols),
+            TreeSymbolView::new(
+                ctx.compiler_context,
+                module,
+                ctx.profile,
+                &dir.tree,
+                &dir.symbols,
+            ),
             enum_symbol,
             member_key,
         ))

@@ -3,33 +3,34 @@ use std::collections::HashSet;
 use destack_builtin::BuiltinLibraryKind;
 use destack_dir::{DependencyKind, DependencySource, Expression, ScalarLiteral};
 use destack_source::ModuleId;
-use destack_workspace::{ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId, Revision};
 
-use crate::{AnalyzeError, AnalyzeResult, ArtifactRequirementSet, Compiler, ResolveError};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, RequirementSet, ResolveError};
 
 impl Compiler {
     /// Require declared and interface analysis for type-import dependencies used during infer.
     pub(super) fn require_type_import_dependencies_for_infer(
         &self,
-        module: &destack_workspace::Module,
+        revision: Revision,
+        module: &Module,
         profile: ProfileId,
         tree: &destack_dir::NodeTree,
     ) -> AnalyzeResult<()> {
         // collect the direct and projected type-import owner modules
         let required_modules =
-            self.collect_type_import_dependencies_for_infer(module, profile, tree)?;
+            self.collect_type_import_dependencies_for_infer(revision, module, profile, tree)?;
         let module_ids = self.sorted_unique_module_ids(required_modules);
         let mut first_error = None;
 
         // require declared and interface state for each type-import dependency
         for module_id in module_ids {
-            if let Err(error) = self.require_dir_declared(module_id, profile)
+            if let Err(error) = self.require_dir_declared(revision, module_id, profile)
                 && first_error.is_none()
             {
                 first_error = Some(error);
             }
 
-            if let Err(error) = self.require_dir_interface(module_id, profile)
+            if let Err(error) = self.require_dir_interface(revision, module_id, profile)
                 && first_error.is_none()
             {
                 first_error = Some(error);
@@ -46,12 +47,13 @@ impl Compiler {
     /// Collect dependency modules for type-import expressions used during infer.
     fn collect_type_import_dependencies_for_infer(
         &self,
-        module: &destack_workspace::Module,
+        revision: Revision,
+        module: &Module,
         profile: ProfileId,
         tree: &destack_dir::NodeTree,
     ) -> AnalyzeResult<HashSet<ModuleId>> {
         let dir = self
-            .require_artifact_dir_resolved(module.id, profile)
+            .require_artifact_dir_resolved(revision, module.id, profile)
             .map_err(AnalyzeError::from)?;
         let mut required = HashSet::new();
 
@@ -73,6 +75,7 @@ impl Compiler {
             // resolve the direct type-import target
             let source_node_id = expression_id.into_global_any(module.id);
             let target_module = match self.resolve_import_from_resolved_artifact(
+                revision,
                 module,
                 dir.as_ref(),
                 profile,
@@ -126,6 +129,7 @@ impl Compiler {
             // direct target modules are the hard precondition here
             // owner refinement can wait until those modules are ready
             let resolved_symbol = self.query_import_type_symbol(
+                revision,
                 module,
                 profile,
                 expression_id.into_any(),
@@ -148,12 +152,12 @@ impl Compiler {
         &self,
         required: &mut HashSet<ModuleId>,
         origin_module_id: ModuleId,
-        requirement: &ArtifactRequirementSet,
+        requirement: &RequirementSet,
     ) -> bool {
         let mut did_collect = false;
 
         // collect module ids from exact artifact requirements
-        requirement.for_each(|requirement| {
+        requirement.for_each_artifact(|requirement| {
             let key = &requirement.key;
             let Some(module_id) = key.module_id() else {
                 return;
@@ -172,16 +176,14 @@ impl Compiler {
     /// Ensure declare analysis is complete for infer dependency modules.
     pub(crate) fn require_declare_dependencies_for_infer(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // require the module graph snapshot before infer dependency preconditions
-        let graph = self
-            .artifacts
-            .module_graph(profile)
-            .ok_or(AnalyzeError::Internal {
-                message: format!("missing module graph snapshot for infer declare deps: profile={profile:?}, module={module_id:?}"),
-            })?;
+        let graph = self.module_graph(profile).ok_or(AnalyzeError::Internal {
+            message: format!("missing module graph artifact: profile={profile:?}"),
+        })?;
 
         // require declared artifacts for the transitive dependency closure
         // this prevents late declared-boundary yields during remote alias or template evaluation
@@ -192,7 +194,7 @@ impl Compiler {
                 continue;
             }
 
-            if self.skip_builtin_lib_dependency_for_infer(dependency) {
+            if self.skip_builtin_lib_dependency_for_infer(revision, dependency) {
                 continue;
             }
 
@@ -204,7 +206,7 @@ impl Compiler {
         let module_ids = self.sorted_unique_module_ids(visited);
         let mut first_error = None;
         for module_id in module_ids {
-            if let Err(error) = self.require_dir_declared(module_id, profile)
+            if let Err(error) = self.require_dir_declared(revision, module_id, profile)
                 && first_error.is_none()
             {
                 first_error = Some(error);
@@ -221,26 +223,26 @@ impl Compiler {
     /// Ensure interface analysis is complete for infer dependency modules.
     pub(crate) fn require_interface_dependencies(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         // require the module graph snapshot before infer dependency preconditions
-        let graph = self
-            .artifacts
-            .module_graph(profile)
-            .ok_or(AnalyzeError::Internal {
-                message: format!("missing module graph snapshot for infer interface deps: profile={profile:?}, module={module_id:?}"),
-            })?;
+        let graph = self.module_graph(profile).ok_or(AnalyzeError::Internal {
+            message: format!("missing module graph artifact: profile={profile:?}"),
+        })?;
 
         // require interface analysis for direct dependencies
         let dependencies = graph
             .dependencies_for(module_id)
             .into_iter()
-            .filter(|dependency| !self.skip_builtin_lib_dependency_for_infer(*dependency));
+            .filter(|dependency| {
+                !self.skip_builtin_lib_dependency_for_infer(revision, *dependency)
+            });
         let module_ids = self.sorted_unique_module_ids(dependencies);
         let mut first_error = None;
         for module_id in module_ids {
-            if let Err(error) = self.require_dir_interface(module_id, profile)
+            if let Err(error) = self.require_dir_interface(revision, module_id, profile)
                 && first_error.is_none()
             {
                 first_error = Some(error);
@@ -255,12 +257,18 @@ impl Compiler {
     }
 
     /// Return true when one dependency should be skipped for infer preconditions.
-    fn skip_builtin_lib_dependency_for_infer(&self, module_id: ModuleId) -> bool {
+    fn skip_builtin_lib_dependency_for_infer(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+    ) -> bool {
         if self.options.load_libraries {
             return false;
         }
 
-        let module = self.program.modules.get(module_id);
+        let Some(module) = self.repository.module(revision, module_id).ok().flatten() else {
+            return false;
+        };
         let module = module.as_ref();
         matches!(
             module.source,

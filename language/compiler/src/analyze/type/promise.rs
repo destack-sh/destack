@@ -160,7 +160,7 @@ impl Compiler {
             CanonicalSymbolMode::FollowAliases,
         );
 
-        let generator_name = self.program.strings.intern("Generator");
+        let generator_name = self.repository.strings.intern("Generator");
         let generator_symbol = self.get_declared_library_symbol_from(
             ctx.profile,
             generator_name,

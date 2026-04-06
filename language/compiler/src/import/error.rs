@@ -1,13 +1,10 @@
-use crate::{
-    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    TaskError,
-};
+use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
 use destack_ast::StringId;
 use destack_compiler_macros::DefineError;
 use destack_dir::{AnchoredGlobalNodeId, GlobalScopeId, StaticKey};
 use destack_parser::ParseError;
 use destack_source::{FileType, ModuleId, Span};
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 /// Errors during the import phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -18,11 +15,11 @@ pub enum ImportError {
     // -------------------------------------------------------------------------
     /// Yield to an artifact requirement.
     #[error(code = "EI000", r#yield)]
-    Yield { requirement: ArtifactRequirementSet },
+    Yield { requirement: RequirementSet },
 
     /// Unsatisfied requirement (requirement failed).
     #[error(code = "EI001", yield_failed)]
-    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
+    UnsatisfiedRequirement { requirement: RequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EI002", message = "task skipped")]
@@ -116,4 +113,11 @@ pub enum ImportError {
     /// Export declarations must be direct module roots.
     #[error(code = "EI305", message = "export declarations must be top-level")]
     ExportNotTopLevel { node: AnchoredGlobalNodeId },
+
+    // -------------------------------------------------------------------------
+    // 9xx: Internal
+    // -------------------------------------------------------------------------
+    /// Internal import failure.
+    #[error(code = "EI900", message = "{message}")]
+    Internal { message: String },
 }

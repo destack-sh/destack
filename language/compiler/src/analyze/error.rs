@@ -1,6 +1,6 @@
 use crate::{
-    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    ResolveError, TaskError,
+    DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, ResolveError,
+    TaskError,
 };
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
@@ -8,7 +8,7 @@ use destack_dir::{
     AnchoredGlobalNodeId, FunctionAbstraction, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
 use destack_source::ModuleId;
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 /// Errors during the analyze phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -19,11 +19,11 @@ pub enum AnalyzeError {
     // -------------------------------------------------------------------------
     /// Wait for artifact requirement.
     #[error(code = "EA000", r#yield)]
-    Yield { requirement: ArtifactRequirementSet },
+    Yield { requirement: RequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EA001", yield_failed)]
-    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
+    UnsatisfiedRequirement { requirement: RequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EA002", message = "task skipped")]

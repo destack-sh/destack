@@ -13,7 +13,7 @@ impl ModuleLowerer<'_> {
         // resolve the symbol name
         symbol
             .name()
-            .map(|name| self.compiler.program.strings.get(name).to_string())
+            .map(|name| self.compiler.repository.strings.get(name).to_string())
     }
 
     /// Get the name of a symbol, returning an error if it has no name.

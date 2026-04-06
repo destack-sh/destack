@@ -2,11 +2,12 @@ use std::mem;
 use std::str::FromStr;
 
 use crate::timing::tags;
-use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult, ModuleLowerer};
+use crate::{Compiler, CompilerContext, LowerError, LowerResult, ModuleLowerer, RequirementError};
 
 use destack_artifact::{ArtifactKey, EmitFormat, MirBase, TargetArch};
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ProfileId, Target, TargetId};
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::Target;
+use destack_workspace::workspace::ProfileId;
 use target_lexicon::Triple;
 
 impl Compiler {
@@ -16,42 +17,36 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: TargetId,
+        context: &CompilerContext<'_>,
     ) -> LowerResult<()> {
-        let module_version = self.module_version(module);
-        let profile_version = self.profile_version(profile);
-        self.ensure_module_profile_matches::<LowerError>(
-            module,
-            module_version,
-            profile,
-            profile_version,
-        )?;
-        let artifact_key = ArtifactKey::mir_base(module, profile, target.clone());
+        let revision = context.revision();
+        let artifact_key = ArtifactKey::mir_base(module, profile, target);
+        let artifact_stamp = context.artifact_stamp(&artifact_key);
 
         // reuse one persisted mir image when available
-        if self
-            .load_published_artifact(artifact_key.clone(), |compiler| {
-                compiler.load_mir_base_image(module, module_version, profile, &target)
-            })
+        if context
+            .restore_cached_artifact(
+                artifact_key,
+                |compiler| {
+                    compiler.load_mir_base_image(revision, module, artifact_stamp, profile, &target)
+                },
+                |store, version, payload| store.publish_mir_base(version, payload),
+            )
             .is_some()
         {
             return Ok(());
         }
 
-        let payload = self.lower_module(
-            module,
-            profile,
-            module_version,
-            profile_version,
-            target.clone(),
-        )?;
-        if self.is_code_module(module) {
+        let payload = self.lower_module(module, profile, target, context)?;
+        if context.is_code_module(module) {
             self.stats.record_lower();
         }
 
-        self.artifacts
-            .publish(artifact_key.clone(), payload.clone());
-        self.store_artifact(&artifact_key, &payload, |compiler, mir| {
-            compiler.store_mir_base_image(module, profile, &target, mir)
+        context.publish_artifact(artifact_key, payload.clone(), |store, version, payload| {
+            store.publish_mir_base(version, payload)
+        });
+        context.store_artifact(&artifact_key, &payload, |compiler, artifact_stamp, mir| {
+            compiler.store_mir_base_image(revision, module, profile, &target, artifact_stamp, mir)
         });
 
         Ok(())
@@ -62,12 +57,10 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        _profile_version: ProfileVersion,
         target_id: TargetId,
+        context: &CompilerContext<'_>,
     ) -> LowerResult<MirBase> {
-        let resolved_profile = self
-            .program
+        let resolved_profile = context
             .profile_id_for_target(module_id, &target_id)
             .ok_or_else(|| LowerError::Internal {
                 module: module_id,
@@ -83,16 +76,16 @@ impl Compiler {
         }
         let _timing = self.timing_scope(tags::LOWER_MODULE);
 
-        self.require_dir_elaborated(module_id, profile)?;
-        self.require_dir_patched(module_id, profile)?;
-        self.require_intrinsic_environment(profile)
+        self.require_dir_elaborated(context.revision(), module_id, profile)?;
+        self.require_dir_patched(context.revision(), module_id, profile)?;
+        self.require_intrinsic_environment(context.revision(), profile)
             .map_err(LowerError::from)?;
 
         // lowering depends on the selected library surface for well known layouts
-        self.require_library_environment(profile)
+        self.require_library_environment(context.revision(), profile)
             .map_err(LowerError::from)?;
 
-        if !self.is_code_module(module_id) {
+        if !context.is_code_module(module_id) {
             return Err(LowerError::Internal {
                 module: module_id,
                 message: "attempted to lower MIR for non-code module".to_string(),
@@ -101,10 +94,8 @@ impl Compiler {
 
         // resolve target configuration
         let target = {
-            let module = self.program.modules.get(module_id);
-            let module = module.as_ref();
-            let package = self.program.packages.get(module.package_id);
-            let package = package.read();
+            let module = context.module(module_id);
+            let package = context.package(module.package_id);
             package
                 .targets
                 .get(&target_id)
@@ -117,7 +108,6 @@ impl Compiler {
 
         // load the patched DIR artifact
         let dir = self
-            .artifacts
             .dir_patched(module_id, profile)
             .ok_or_else(|| LowerError::Internal {
                 module: module_id,
@@ -126,13 +116,13 @@ impl Compiler {
 
         // lower the module
         let (mir_tree, mir_strings) = {
-            let module = self.program.modules.get(module_id);
-            let module = module.as_ref();
+            let module = context.module(module_id);
             let pointer_bytes = self.pointer_bytes_for_target_config(module_id, &target)?;
 
             let mut lowerer = ModuleLowerer::new(
                 self,
-                module,
+                context,
+                module.as_ref(),
                 profile,
                 &dir.tree,
                 &dir.roots,
@@ -142,15 +132,14 @@ impl Compiler {
                 &dir.captures,
                 &target_id,
                 pointer_bytes,
-            );
+            )?;
             lowerer.lower_module()?;
             lowerer.finish()
         };
 
         let payload = MirBase {
             id: module_id,
-            version: module_version,
-            target: target_id.clone(),
+            target: target_id,
             tree: mir_tree,
             strings: mir_strings,
             profile: None,
@@ -162,11 +151,12 @@ impl Compiler {
     /// Ensure MIR exists for one module and target.
     pub fn require_mir(
         &self,
+        revision: destack_workspace::Revision,
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), ArtifactRequirementError> {
-        self.require_artifact(ArtifactKey::mir_base(module, profile, target.clone()))
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::mir_base(module, profile, *target))
     }
 
     /// Resolve the pointer size in bytes for a lowering target.
@@ -175,13 +165,12 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
+        context: &CompilerContext<'_>,
     ) -> LowerResult<u8> {
         // resolve target configuration
         let target = {
-            let module = self.program.modules.get(module_id);
-            let module = module.as_ref();
-            let package = self.program.packages.get(module.package_id);
-            let package = package.read();
+            let module = context.module(module_id);
+            let package = context.package(module.package_id);
 
             package
                 .targets

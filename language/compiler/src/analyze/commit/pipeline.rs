@@ -1,5 +1,5 @@
 use crate::analyze::common::{AnalyzeIndex, CommitContext};
-use crate::{AnalyzeResult, Compiler};
+use crate::{AnalyzeResult, Compiler, CompilerContext};
 use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
 use destack_workspace::{Module, ProfileId};
 
@@ -13,10 +13,12 @@ impl Compiler {
         infer: &mut InferTable,
         module: &Module,
         profile: ProfileId,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<()> {
         // commit solved infer state in one deterministic pass
-        let options = self.analyze_context_options_for_module(module.id);
+        let options = context.analyze_context_options_for_module(module.id);
         let mut ctx = CommitContext::new(
+            context,
             module,
             profile,
             &options,

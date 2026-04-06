@@ -1,22 +1,21 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactStore, BinaryArtifact, EmitFormat, ObjectArtifact, WasmArtifact, WasmInterface,
+    BinaryArtifact, EmitFormat, MirBase, MirOptimized, ObjectArtifact, WasmArtifact, WasmInterface,
 };
-use destack_source::ModuleId;
-use destack_workspace::{Program, Target, TargetId};
+use destack_workspace::{Module, Target};
 
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
 
 /// One generator for binary module artifacts.
 #[derive(Debug)]
 pub struct BinaryArtifactGenerator<'a> {
-    /// The shared program state.
-    program: Arc<Program>,
-    /// The shared artifact store.
-    artifacts: Arc<ArtifactStore>,
-    /// The module to generate.
-    module_id: ModuleId,
+    /// The current module snapshot.
+    module: Arc<Module>,
+    /// The current optimized MIR, when available.
+    mir_optimized: Option<Arc<MirOptimized>>,
+    /// The current base MIR fallback.
+    mir_base: Option<Arc<MirBase>>,
     /// The target configuration.
     target: &'a Target,
 }
@@ -24,15 +23,15 @@ pub struct BinaryArtifactGenerator<'a> {
 impl<'a> BinaryArtifactGenerator<'a> {
     /// Create one binary artifact generator.
     pub fn new(
-        program: Arc<Program>,
-        artifacts: Arc<ArtifactStore>,
-        module_id: ModuleId,
+        module: Arc<Module>,
+        mir_optimized: Option<Arc<MirOptimized>>,
+        mir_base: Option<Arc<MirBase>>,
         target: &'a Target,
     ) -> Self {
         Self {
-            program,
-            artifacts,
-            module_id,
+            module,
+            mir_optimized,
+            mir_base,
             target,
         }
     }
@@ -61,35 +60,26 @@ impl<'a> BinaryArtifactGenerator<'a> {
 
         // get module and its MIR
         // compile
-        let module_ref = self.program.modules.get(self.module_id);
-        let module = module_ref.as_ref();
+        let module = self.module.as_ref();
         let name = module.uri.last_segment().unwrap_or("module");
-        let profile_id = self.program.default_profile_id_for_module(self.module_id);
-        let target_id = TargetId::new(module.package_id, self.target.name.clone());
-        let compile_output = if let Some(mir) =
-            self.artifacts
-                .mir_optimized(self.module_id, profile_id, &target_id)
-        {
+        let compile_output = if let Some(mir) = self.mir_optimized.as_ref() {
             backend.compile_module(&mir.tree, &mir.strings, name)?
-        } else if let Some(mir) = self
-            .artifacts
-            .mir_base(self.module_id, profile_id, &target_id)
-        {
+        } else if let Some(mir) = self.mir_base.as_ref() {
             backend.compile_module(&mir.tree, &mir.strings, name)?
         } else {
             panic!("codegen requires committed MIR artifact");
         };
 
         let artifact = match self.target.emit {
-            EmitFormat::Native => BinaryArtifact::Object(ObjectArtifact {
+            EmitFormat::Native => BinaryArtifact::Object(Box::new(ObjectArtifact {
                 bytes: Arc::from(compile_output.bytes),
                 debug: Vec::new(),
-            }),
-            EmitFormat::Wasm => BinaryArtifact::Wasm(WasmArtifact {
+            })),
+            EmitFormat::Wasm => BinaryArtifact::Wasm(Box::new(WasmArtifact {
                 bytes: Arc::from(compile_output.bytes),
                 interface: WasmInterface::default(),
                 source_map: None,
-            }),
+            })),
             _ => unreachable!(),
         };
 

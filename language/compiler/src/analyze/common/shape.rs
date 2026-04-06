@@ -321,6 +321,7 @@ impl Compiler {
         kind: RemoteMergeShapeKind,
     ) -> AnalyzeResult<Option<ObjectShape>> {
         self.require_remote_artifact_dir(
+            ctx.compiler_context,
             ctx.module.id,
             global_symbol.module_id,
             ctx.profile,
@@ -328,7 +329,12 @@ impl Compiler {
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self
-            .require_indexed_dir_declared(&ctx.index, global_symbol.module_id, ctx.profile)
+            .require_indexed_dir_declared(
+                &ctx.index,
+                ctx.compiler_context.revision(),
+                global_symbol.module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
 
         // pick the remote shape source type
@@ -667,6 +673,7 @@ impl Compiler {
         // traverse lineage to collect inherited or embedded fields
         if let Some(lineage) = self
             .lineage_for_symbol_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol,
@@ -1093,6 +1100,7 @@ impl Compiler {
 
         // collect merge symbols for this key and space
         let merge_symbols = self.collect_global_merge_sources_for_key(
+            ctx.compiler_context.revision(),
             ctx.module,
             &ctx.index,
             ctx.symbols,
@@ -1160,6 +1168,7 @@ impl Compiler {
 
         // collect merge symbols for this key and space
         let merge_symbols = self.collect_global_merge_sources_for_key(
+            ctx.compiler_context.revision(),
             ctx.module,
             &ctx.index,
             ctx.symbols,

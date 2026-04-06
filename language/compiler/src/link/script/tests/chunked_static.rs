@@ -441,7 +441,7 @@ export const appValue = helperValue;
     );
 
     // emit the vendor chunk without any internal same-chunk import
-    let package_id = test.program.modules.get(app).package_id;
+    let package_id = test.program.module_descriptor(app).package_id;
     let output = test.link_chunked_js_target_with(&[app], "js", |target| {
         target
             .bundle

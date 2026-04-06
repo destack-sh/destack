@@ -4,10 +4,10 @@ use destack_dir::{
 };
 use destack_mir as mir;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 use std::sync::Arc;
 
-use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
+use crate::{Compiler, LowerError, LowerResult, RequirementError};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::lower::static_key_to_field_name;
@@ -16,6 +16,8 @@ use crate::lower::static_key_to_field_name;
 pub(crate) struct BuiltinTypeLayouts<'a> {
     /// Access to compiler helpers and shared state.
     compiler: &'a Compiler,
+    /// Pinned revision for cross-module reads.
+    revision: Revision,
     /// Profile used for lookup and analysis.
     profile: ProfileId,
     /// MIR module builder to install layouts.
@@ -28,12 +30,14 @@ impl<'a> BuiltinTypeLayouts<'a> {
     /// Create a builtin layout helper.
     pub(crate) fn new(
         compiler: &'a Compiler,
+        revision: Revision,
         profile: ProfileId,
         builder: &'a mut mir::ModuleBuilder,
         type_lowerer: &'a mut TypeLowerer,
     ) -> Self {
         Self {
             compiler,
+            revision,
             profile,
             builder,
             type_lowerer,
@@ -42,16 +46,16 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
     /// Read one committed analyzed DIR snapshot for a module.
     fn require_analyzed_dir_data(&self, module_id: ModuleId) -> LowerResult<Arc<DirAnalyzed>> {
-        let snapshot = self
-            .compiler
-            .require_artifact_dir_analyzed(module_id, self.profile);
+        let snapshot =
+            self.compiler
+                .require_artifact_dir_analyzed(self.revision, module_id, self.profile);
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
-            Err(ArtifactRequirementError::NotReady { requirement }) => {
+            Err(RequirementError::NotReady { requirement }) => {
                 Err(LowerError::Yield { requirement })
             }
-            Err(ArtifactRequirementError::Failed { requirement }) => {
+            Err(RequirementError::Failed { requirement }) => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
@@ -59,9 +63,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
     /// Read one committed declared DIR snapshot for a module when available.
     fn artifact_dir_data_if_present(&self, module_id: ModuleId) -> Option<Arc<DirDeclared>> {
-        self.compiler
-            .artifacts
-            .dir_declared(module_id, self.profile)
+        self.compiler.dir_declared(module_id, self.profile)
     }
 
     /// Return the builtin String type for lowering.
@@ -111,7 +113,11 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
         // fall back to declared lib symbols when not registered
         let Some(resolved) = resolved else {
-            let name = self.compiler.program.strings.intern(symbol.export_name());
+            let name = self
+                .compiler
+                .repository
+                .strings
+                .intern(symbol.export_name());
             return Ok(self.compiler.get_declared_concrete_library_symbol_from(
                 self.profile,
                 name,
@@ -125,17 +131,17 @@ impl<'a> BuiltinTypeLayouts<'a> {
     /// Ensure the module has been analyzed for this profile.
     fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
         // request the analyzed module
-        let result = self.compiler.require_dir_analyzed(module_id, self.profile);
+        let result = self
+            .compiler
+            .require_dir_analyzed(self.revision, module_id, self.profile);
         let Err(error) = result else {
             return Ok(());
         };
 
         // forward dependency failures as lower errors
         match error {
-            ArtifactRequirementError::NotReady { requirement } => {
-                Err(LowerError::Yield { requirement })
-            }
-            ArtifactRequirementError::Failed { requirement } => {
+            RequirementError::NotReady { requirement } => Err(LowerError::Yield { requirement }),
+            RequirementError::Failed { requirement } => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
@@ -189,9 +195,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
-            self.compiler.artifacts.clone(),
-            self.compiler.program.modules.clone(),
-            self.compiler.program.packages.clone(),
+            self.compiler.repository.clone(),
             vector_symbol,
         );
 
@@ -202,8 +206,14 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
             // resolve a static key for the field
             let Some(key) = key.and_then(|key| {
-                self.compiler
-                    .static_key_from_dynamic_key(self.profile, tree, symbols, types, key)
+                self.compiler.static_key_from_dynamic_key(
+                    self.revision,
+                    self.profile,
+                    tree,
+                    symbols,
+                    types,
+                    key,
+                )
             }) else {
                 continue;
             };

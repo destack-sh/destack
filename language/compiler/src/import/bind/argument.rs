@@ -115,7 +115,7 @@ impl Compiler {
                 let binding_mutability = modifiers
                     .and_then(|modifiers| modifiers.mutability)
                     .unwrap_or(default_mutability);
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,
@@ -255,7 +255,7 @@ impl Compiler {
                 let binding_mutability = modifiers
                     .and_then(|modifiers| modifiers.mutability)
                     .unwrap_or(default_mutability);
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
                 let (symbol_id, _) = self.bind_named_item(
                     module,
                     ast,
@@ -392,7 +392,7 @@ impl Compiler {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let name = self
-                    .program
+                    .repository
                     .strings
                     .intern_from(&ast.strings, name.string());
                 let value = self.bind_expression(
@@ -446,7 +446,7 @@ impl Compiler {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let label =
-                    label.map(|label| self.program.strings.intern_from(&ast.strings, label));
+                    label.map(|label| self.repository.strings.intern_from(&ast.strings, label));
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -478,7 +478,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let label = self.program.strings.intern_from(&ast.strings, *label);
+                let label = self.repository.strings.intern_from(&ast.strings, *label);
                 let value = self.bind_expression(
                     module,
                     ast,

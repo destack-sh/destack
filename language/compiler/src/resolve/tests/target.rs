@@ -188,6 +188,7 @@ type Share = (typeof import("node:worker_threads"))["SHARE_ENV"];
     let bindings = test
         .compiler
         .module_bindings_for_specifier(
+            test.program.current_revision(),
             main_module_id,
             profile,
             test.program.strings.intern("node:worker_threads"),
@@ -1340,22 +1341,25 @@ export * from "react";
     // direct import resolution should already preserve the external target
     let profile_id = test.default_profile_id(main_module_id);
     test.compiler
-        .run_to_completion(|compiler| compiler.require_dir_prepared(main_module_id, profile_id))
+        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+            compiler.require_dir_prepared(_context.revision(), main_module_id, profile_id)
+        })
         .unwrap();
     let dir = test
         .compiler
-        .require_artifact_dir_prepared(main_module_id, profile_id)
+        .require_artifact_dir_prepared(test.program.current_revision(), main_module_id, profile_id)
         .unwrap();
     let dir: &DirPrepared = dir.as_ref();
-    let module = test.program.modules.get(main_module_id);
+    let module = test.program.module_descriptor(main_module_id);
     let module = module.as_ref();
     let anchor = dir.anchor_node.into_global(main_module_id);
     let target = test.program.strings.intern("react");
     let mut imported_modules = ImportedModuleTable::default();
     let resolved_target = test
         .compiler
-        .run_to_completion(|compiler| {
+        .run_to_completion(test.program.current_revision(), |compiler, _context| {
             compiler.resolve_import(
+                _context.revision(),
                 module,
                 &mut imported_modules,
                 profile_id,

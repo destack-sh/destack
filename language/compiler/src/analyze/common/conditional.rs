@@ -635,7 +635,7 @@ impl Compiler {
                 },
                 Type::TemplateLiteral { strings, spans },
             ) => {
-                let value = self.program.strings.get(string_id).to_string();
+                let value = self.repository.strings.get(string_id).to_string();
                 self.infer_template_substitutions_from_string(
                     &mut ctx.reborrow(),
                     &value,
@@ -657,7 +657,7 @@ impl Compiler {
                 // treat spanless templates as string literals for matching
                 let mut value = String::new();
                 for string_id in left_strings {
-                    let fragment = self.program.strings.get(string_id);
+                    let fragment = self.repository.strings.get(string_id);
                     value.push_str(fragment.as_ref());
                 }
                 self.infer_template_substitutions_from_string(

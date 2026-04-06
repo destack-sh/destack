@@ -1,11 +1,11 @@
 use crate::analyze::common::{SymbolTypeView, TreeSymbolView, TypeView};
-use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, CompilerContext};
 use destack_artifact::{ArtifactKey, DirInterface, ModuleGraph};
 use destack_dir::{
     Declarator, Export, Expression, GlobalSymbolId, LocalNodeId, NodeTree, StaticKey, SymbolSpace,
     SymbolTable, Type, TypeLiteral, TypeTable,
 };
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::{ModuleSource, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -58,10 +58,14 @@ fn interface_cycle_symbol_identity(symbol: GlobalSymbolId) -> (ModuleId, u32) {
 
 impl Compiler {
     /// Return true when one module should skip interface unknown export warnings.
-    fn module_skips_interface_unknown_export_warnings(&self, module_id: ModuleId) -> bool {
-        let module = self.program.modules.get(module_id);
+    fn module_skips_interface_unknown_export_warnings(
+        &self,
+        context: &CompilerContext<'_>,
+        module_id: ModuleId,
+    ) -> bool {
+        let module = context.module(module_id);
         let module = module.as_ref();
-        let module_checks = self.module_check_options_for_module(module_id);
+        let module_checks = context.module_check_options_for_module(module_id);
 
         module.language_type.is_declaration()
             && (module_checks.skip_lib_check
@@ -74,27 +78,16 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<Vec<(ModuleId, ProfileId, Arc<DirInterface>)>> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
-
         // resolve the strict component ownership from the graph snapshot
-        self.artifacts
-            .module_graph(profile)
-            .ok_or(AnalyzeError::Internal {
-                message: format!("missing interface graph snapshot for profile {profile:?}"),
-            })?;
+        self.module_graph(profile).ok_or(AnalyzeError::Internal {
+            message: format!("missing module graph artifact: profile={profile:?}"),
+        })?;
         let index =
             self.interface_component_graph_index(profile)
                 .ok_or(AnalyzeError::Internal {
-                    message: format!("missing interface component index for profile {profile:?}"),
+                    message: format!("missing interface component index: profile={profile:?}"),
                 })?;
         let component_modules = index
             .component_modules_for_module(module_id)
@@ -107,12 +100,14 @@ impl Compiler {
 
         // ensure declarations are available for all component modules
         for component_module_id in component_modules.iter().copied() {
-            self.require_dir_declared(component_module_id, profile)?;
+            self.require_dir_declared(context.revision(), component_module_id, profile)?;
         }
 
         // require already solved interface dependencies outside the component
         for dependency_module_id in dependency_modules.iter().copied() {
-            if let Err(error) = self.require_dir_interface(dependency_module_id, profile) {
+            if let Err(error) =
+                self.require_dir_interface(context.revision(), dependency_module_id, profile)
+            {
                 return Err(AnalyzeError::from(error));
             }
         }
@@ -120,6 +115,7 @@ impl Compiler {
         // iterate component-local interface equations to a fixed point
         let mut component_dirs = FxHashMap::default();
         let component_set = self.converge_interface_component(
+            context,
             module_id,
             profile,
             &component_modules,
@@ -128,6 +124,7 @@ impl Compiler {
 
         // report unresolved interface cycle dependencies after convergence
         self.report_interface_component_cycle_exports(
+            context,
             profile,
             &component_modules,
             &component_set,
@@ -136,6 +133,7 @@ impl Compiler {
 
         // report unknown interface exports after convergence
         self.report_interface_component_unknown_exports(
+            context,
             profile,
             &component_modules,
             &component_dirs,
@@ -160,37 +158,38 @@ impl Compiler {
     /// Converge one interface component to a fixed point and return its module set.
     fn converge_interface_component(
         &self,
+        context: &CompilerContext<'_>,
         anchor_module_id: ModuleId,
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_dirs: &mut FxHashMap<ModuleId, Arc<DirInterface>>,
     ) -> AnalyzeResult<FxHashSet<ModuleId>> {
         let component_set: FxHashSet<_> = component_modules.iter().copied().collect();
-        let graph = self
-            .artifacts
-            .module_graph(profile)
-            .ok_or(AnalyzeError::Internal {
-                message: format!(
-                    "missing interface graph snapshot during component convergence: anchor={anchor_module_id:?}, profile={profile:?}"
-                ),
-            })?;
+        let graph = self.module_graph(profile).ok_or(AnalyzeError::Internal {
+            message: format!("missing module graph artifact: profile={profile:?}"),
+        })?;
         let dependents_by_module = self.interface_component_dependents(&graph, &component_set);
         let export_slot_count = component_modules
             .iter()
             .copied()
             .map(|module_id| {
                 let resolved = self
-                    .require_artifact_dir_resolved(module_id, profile)
+                    .require_artifact_dir_resolved(context.revision(), module_id, profile)
                     .map_err(AnalyzeError::from)?;
                 let dir = self
-                    .require_artifact_dir_declared(module_id, profile)
+                    .require_artifact_dir_declared(context.revision(), module_id, profile)
                     .map_err(AnalyzeError::from)?;
 
                 let interface_dir =
                     DirInterface::from_resolved_and_declared(resolved.as_ref(), dir.as_ref());
                 Ok::<usize, AnalyzeError>(
-                    self.interface_module_value_snapshot(module_id, profile, &interface_dir)
-                        .len(),
+                    self.interface_module_value_snapshot(
+                        context,
+                        module_id,
+                        profile,
+                        &interface_dir,
+                    )
+                    .len(),
                 )
             })
             .try_fold(0usize, |sum, count| count.map(|count| sum + count))?;
@@ -201,21 +200,22 @@ impl Compiler {
         let mut pending_set = FxHashSet::default();
         for module_id in component_modules.iter().copied() {
             let resolved = self
-                .require_artifact_dir_resolved(module_id, profile)
+                .require_artifact_dir_resolved(context.revision(), module_id, profile)
                 .map_err(AnalyzeError::from)?;
             let declared = self
-                .require_artifact_dir_declared(module_id, profile)
+                .require_artifact_dir_declared(context.revision(), module_id, profile)
                 .map_err(AnalyzeError::from)?;
             let dir = Arc::new(DirInterface::from_resolved_and_declared(
                 resolved.as_ref(),
                 declared.as_ref(),
             ));
-            self.artifacts.publish(
+            self.publish_artifact(
                 ArtifactKey::DirInterface {
                     module: module_id,
                     profile,
                 },
                 dir.clone(),
+                |store, version, payload| store.publish_dir_interface(version, payload),
             );
             component_dirs.insert(module_id, dir);
             pending.push_back(module_id);
@@ -239,22 +239,20 @@ impl Compiler {
                 });
             }
 
-            let module_version = self.module_version(component_module_id);
-            let profile_version = self.profile_version(profile);
-            let dir = self.analyze_module_interface_inner(
+            let dir = self.analyze_module_interface_inner(component_module_id, profile, context)?;
+            let next_snapshot = self.interface_module_value_snapshot(
+                context,
                 component_module_id,
                 profile,
-                module_version,
-                profile_version,
-            )?;
-            let next_snapshot =
-                self.interface_module_value_snapshot(component_module_id, profile, dir.as_ref());
-            self.artifacts.publish(
+                dir.as_ref(),
+            );
+            self.publish_artifact(
                 ArtifactKey::DirInterface {
                     module: component_module_id,
                     profile,
                 },
                 dir.clone(),
+                |store, version, payload| store.publish_dir_interface(version, payload),
             );
             component_dirs.insert(component_module_id, dir);
 
@@ -314,14 +312,15 @@ impl Compiler {
     /// Snapshot one interface module value state vector.
     fn interface_module_value_snapshot(
         &self,
+        context: &CompilerContext<'_>,
         module_id: ModuleId,
         profile: ProfileId,
         dir: &DirInterface,
     ) -> Vec<InterfaceValueSnapshot> {
         let mut snapshot = Vec::new();
-        let module = self.program.modules.get(module_id);
+        let module = context.module(module_id);
         let module = module.as_ref();
-        let ctx = SymbolTypeView::new(module, profile, &dir.symbols, &dir.types);
+        let ctx = SymbolTypeView::new(context, module, profile, &dir.symbols, &dir.types);
         self.interface_value_snapshot_for_exports(ctx, &dir.exported_symbols, &mut snapshot);
 
         for exports in dir
@@ -391,12 +390,14 @@ impl Compiler {
     /// Report unresolved interface cycles after component convergence.
     fn report_interface_component_cycle_exports(
         &self,
+        context: &CompilerContext<'_>,
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
         component_dirs: &mut FxHashMap<ModuleId, Arc<DirInterface>>,
     ) -> AnalyzeResult<()> {
         let cycle_candidates = self.collect_interface_cycle_candidates(
+            context,
             profile,
             component_modules,
             component_set,
@@ -454,6 +455,7 @@ impl Compiler {
     /// Collect exported values that participate in this interface component.
     fn collect_interface_cycle_candidates(
         &self,
+        context: &CompilerContext<'_>,
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_set: &FxHashSet<ModuleId>,
@@ -464,7 +466,7 @@ impl Compiler {
         let mut cycle_candidate_by_symbol = FxHashMap::default();
 
         for component_module_id in component_modules.iter().copied() {
-            let module = self.program.modules.get(component_module_id);
+            let module = context.module(component_module_id);
             let module = module.as_ref();
             let Some(dir) = component_dirs.get(&component_module_id) else {
                 return Err(AnalyzeError::Internal {
@@ -480,6 +482,7 @@ impl Compiler {
             let binding_exports = &dir.module_binding_exports;
 
             self.collect_interface_cycle_candidates_for_table(
+                context,
                 module,
                 profile,
                 tree,
@@ -492,6 +495,7 @@ impl Compiler {
 
             for binding in binding_exports.values() {
                 self.collect_interface_cycle_candidates_for_table(
+                    context,
                     module,
                     profile,
                     tree,
@@ -534,6 +538,7 @@ impl Compiler {
     /// Collect exported values from one export table for interface cycle reporting.
     fn collect_interface_cycle_candidates_for_table(
         &self,
+        context: &CompilerContext<'_>,
         module: &destack_workspace::Module,
         profile: ProfileId,
         tree: &NodeTree,
@@ -543,7 +548,7 @@ impl Compiler {
         cycle_candidates: &mut Vec<InterfaceCycleCandidate>,
         cycle_candidate_by_symbol: &mut FxHashMap<(ModuleId, u32), usize>,
     ) -> AnalyzeResult<()> {
-        let tree_symbol_view = TreeSymbolView::new(module, profile, tree, symbols);
+        let tree_symbol_view = TreeSymbolView::new(context, module, profile, tree, symbols);
 
         for export in exports.values() {
             let Some((export_symbol, value_symbol)) =
@@ -720,6 +725,7 @@ impl Compiler {
     /// Report semantic-unknown interface exports after component convergence.
     fn report_interface_component_unknown_exports(
         &self,
+        context: &CompilerContext<'_>,
         profile: ProfileId,
         component_modules: &[ModuleId],
         component_dirs: &FxHashMap<ModuleId, Arc<DirInterface>>,
@@ -727,7 +733,7 @@ impl Compiler {
         let mut warned_symbols = FxHashSet::default();
 
         for component_module_id in component_modules.iter().copied() {
-            if self.module_skips_interface_unknown_export_warnings(component_module_id) {
+            if self.module_skips_interface_unknown_export_warnings(context, component_module_id) {
                 continue;
             }
 
@@ -738,7 +744,7 @@ impl Compiler {
                     ),
                 });
             };
-            let module = self.program.modules.get(component_module_id);
+            let module = context.module(component_module_id);
             let module = module.as_ref();
             let dir = dir.as_ref();
             let tree = &dir.tree;
@@ -746,7 +752,7 @@ impl Compiler {
             let types = &dir.types;
             let exported_symbols = &dir.exported_symbols;
             self.report_interface_unknown_exports_for_table(
-                TypeView::new(module, profile, tree, symbols, types),
+                TypeView::new(context, module, profile, tree, symbols, types),
                 exported_symbols,
                 &mut warned_symbols,
             )?;
@@ -754,7 +760,7 @@ impl Compiler {
             let binding_exports = &dir.module_binding_exports;
             for binding in binding_exports.values() {
                 self.report_interface_unknown_exports_for_table(
-                    TypeView::new(module, profile, tree, symbols, types),
+                    TypeView::new(context, module, profile, tree, symbols, types),
                     &binding.exports,
                     &mut warned_symbols,
                 )?;

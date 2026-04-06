@@ -179,6 +179,7 @@ impl Compiler {
 
         // infer interface declarations and initializers with one shared ctx context
         let mut ctx = InferContext {
+            compiler_context: ctx.compiler_context,
             module: ctx.module,
             profile: ctx.profile,
             options: &base_ctx.options,

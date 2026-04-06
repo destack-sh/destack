@@ -1,7 +1,7 @@
-use crate::{ArtifactRequirementCollector, Compiler, LinkError, LinkResult};
+use crate::{Compiler, LinkError, LinkResult, RequirementCollector};
 
 use destack_artifact::{
-    BuildManifest, BuildManifestFile, ModuleArtifact, OutputFile, PackageOutput, TargetOutputName,
+    BuildManifest, BuildManifestFile, ModuleOutput, OutputFile, PackageOutput, TargetOutputName,
 };
 use destack_source::{FileType, ModuleId};
 use indexmap::IndexMap;
@@ -13,7 +13,7 @@ use super::BinaryLinker;
 impl<'a> BinaryLinker<'a> {
     /// Link one discovered binary target.
     pub(crate) fn link_target(&self, discovered_modules: &[ModuleId]) -> LinkResult<PackageOutput> {
-        let module_ids = self.require_module_artifacts(discovered_modules)?;
+        let module_ids = self.require_module_outputs(discovered_modules)?;
 
         self.link(&module_ids)
     }
@@ -40,26 +40,28 @@ impl<'a> BinaryLinker<'a> {
     }
 
     /// Require all generated binary artifacts needed for this target.
-    fn require_module_artifacts(
-        &self,
-        discovered_modules: &[ModuleId],
-    ) -> LinkResult<Vec<ModuleId>> {
-        let mut collector = ArtifactRequirementCollector::new();
+    fn require_module_outputs(&self, discovered_modules: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
+        let mut collector = RequirementCollector::new();
         let mut required_modules = Vec::new();
 
         // require one generated artifact per discovered module
         for module_id in discovered_modules.iter().copied() {
             let profile_id = self
-                .compiler
-                .program
+                .context
                 .profile_id_for_target(module_id, self.target_id)
                 .ok_or_else(|| LinkError::Internal {
                     package: self.package_id,
-                    message: format!("profile not found for target '{}'", self.target_id.name),
+                    message: format!(
+                        "profile not found for target '{}'",
+                        self.compiler.target_name(self.target_id)
+                    ),
                 })?;
-            let result =
-                self.compiler
-                    .require_module_artifact(module_id, profile_id, self.target_id);
+            let result = self.compiler.require_module_output(
+                self.context.revision(),
+                module_id,
+                profile_id,
+                self.target_id,
+            );
             collector.try_collect(result);
             required_modules.push(module_id);
         }
@@ -83,27 +85,28 @@ impl<'a> BinaryLinker<'a> {
         for module_id in module_ids {
             let artifact = self
                 .compiler
-                .artifacts
-                .module_artifact(*module_id, self.target_id)
+                .module_output(*module_id, self.target_id)
                 .ok_or_else(|| LinkError::Internal {
                     package: self.package_id,
                     message: format!(
                         "missing module artifact for module {:?} target '{}'",
-                        module_id, self.target_id.name
+                        module_id,
+                        self.compiler.target_name(self.target_id)
                     ),
                 })?;
 
-            let ModuleArtifact::Binary(binary) = artifact.as_ref() else {
+            let ModuleOutput::Binary(binary) = artifact.as_ref() else {
                 return Err(LinkError::Internal {
                     package: self.package_id,
                     message: format!(
                         "expected binary artifact for module {:?} target '{}'",
-                        module_id, self.target_id.name
+                        module_id,
+                        self.compiler.target_name(self.target_id)
                     ),
                 });
             };
 
-            let module = self.compiler.program.modules.get(*module_id);
+            let module = self.context.module(*module_id);
             let binary_files = crate::emit::emit_binary_artifact_files(
                 module.as_ref(),
                 binary,

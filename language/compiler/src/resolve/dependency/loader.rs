@@ -30,7 +30,7 @@ impl Compiler {
         let Some(arguments) = arguments else {
             return LoaderAttribute::None;
         };
-        let type_key = self.program.strings.intern("type");
+        let type_key = self.repository.strings.intern("type");
         for arg_id in arguments {
             let Argument::Named { name, value, .. } = tree.get(*arg_id) else {
                 continue;
@@ -43,7 +43,7 @@ impl Compiler {
             let value = match tree.get(*value) {
                 Expression::ScalarLiteral {
                     value: ScalarLiteral::String(s),
-                } => self.program.strings.get(*s).to_string(),
+                } => self.repository.strings.get(*s).to_string(),
                 _ => {
                     return LoaderAttribute::InvalidType {
                         value: "<non-string>".to_string(),

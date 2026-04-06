@@ -5,7 +5,7 @@ use destack_dir::{
     SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 use indexmap::IndexMap;
 
 use crate::{Compiler, ResolveError, ResolveResult};
@@ -117,6 +117,7 @@ impl Compiler {
     /// Resolve a CommonJS default export symbol from `module.exports = ...` assignments.
     pub(crate) fn resolve_commonjs_default_export_symbol(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
@@ -124,6 +125,7 @@ impl Compiler {
         // handle direct module targets
         if let ModuleTarget::Module(module_id) = target {
             return self.resolve_commonjs_default_export_symbol_for_module(
+                revision,
                 origin_module_id,
                 module_id,
                 profile,
@@ -134,7 +136,8 @@ impl Compiler {
         let ModuleTarget::Binding(specifier) = target else {
             return Ok(None);
         };
-        let bindings = self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+        let bindings =
+            self.module_bindings_for_specifier(revision, origin_module_id, profile, specifier)?;
         let Some(bindings) = bindings else {
             return Ok(None);
         };
@@ -142,6 +145,7 @@ impl Compiler {
         // return the first module binding that exposes a CommonJS default
         for binding in bindings {
             let symbol = self.resolve_commonjs_default_export_symbol_for_module(
+                revision,
                 origin_module_id,
                 binding.module_id,
                 profile,
@@ -157,27 +161,32 @@ impl Compiler {
     /// Resolve a CommonJS default export symbol for one module.
     fn resolve_commonjs_default_export_symbol_for_module(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // only code modules can carry CommonJS assignments
-        if !self.is_code_module(module_id) {
+        let module = self
+            .cache_module_snapshot(revision, module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?;
+        if !module.is_code() {
             return Ok(None);
         }
 
         // skip non commonjs modules
-        let module = self.program.modules.get(module_id);
         let module = module.as_ref();
-        if !self.program.modules.module_format(module.id).is_commonjs() {
+        if !module.module_format.is_commonjs() {
             return Ok(None);
         }
         // ensure the target module is ready before scanning roots
-        self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
+        self.require_dir_prepared_if_other(revision, origin_module_id, module_id, profile)?;
 
         // load target module state
         let dir = self
-            .require_artifact_dir_prepared(module_id, profile)
+            .require_artifact_dir_prepared(revision, module_id, profile)
             .map_err(ResolveError::from)?;
         let tree = &dir.tree;
         let symbols = &dir.symbols;
@@ -229,8 +238,8 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> CommonjsExportState {
         // cache common runtime identifiers
-        let module_name = self.program.strings.intern("module");
-        let exports_name = self.program.strings.intern("exports");
+        let module_name = self.repository.strings.intern("module");
+        let exports_name = self.repository.strings.intern("exports");
         let is_module_name_shadowed =
             self.module_name_is_shadowed(symbols, module_id, namespace_scope, module_name);
         let is_exports_name_shadowed =
@@ -708,7 +717,7 @@ impl Compiler {
                 value: ScalarLiteral::Boolean(value),
             } => {
                 let value = if *value { "true" } else { "false" };
-                Some(self.program.strings.intern(value))
+                Some(self.repository.strings.intern(value))
             }
             Expression::ScalarLiteral {
                 value: ScalarLiteral::Integer(value),
@@ -717,19 +726,19 @@ impl Compiler {
                 value: ScalarLiteral::Bigint(value),
             } => {
                 let value = value.to_string();
-                Some(self.program.strings.intern(&value))
+                Some(self.repository.strings.intern(&value))
             }
             Expression::ScalarLiteral {
                 value: ScalarLiteral::Float(value),
             } => {
                 let value = value.to_string();
-                Some(self.program.strings.intern(&value))
+                Some(self.repository.strings.intern(&value))
             }
             Expression::ScalarLiteral {
                 value: ScalarLiteral::Character(value),
             } => {
                 let value = value.to_string();
-                Some(self.program.strings.intern(&value))
+                Some(self.repository.strings.intern(&value))
             }
             _ => None,
         }

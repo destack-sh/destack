@@ -200,7 +200,7 @@ impl Compiler {
                 let mut keys = self.key_set_for_index_kind(MappedIndexKind::Number);
                 // collect tuple element indexes as literal keys
                 for (index, _) in elements.iter().enumerate() {
-                    let index_id = self.program.strings.intern(&index.to_string());
+                    let index_id = self.repository.strings.intern(&index.to_string());
                     keys.insert_literal(StaticKey::Number(index_id));
                 }
                 keys
@@ -1196,15 +1196,15 @@ impl Compiler {
         match literal {
             ScalarLiteral::String(name) => Some(StaticKey::Name(*name)),
             ScalarLiteral::Integer(value) => {
-                let name = self.program.strings.intern(&value.to_string());
+                let name = self.repository.strings.intern(&value.to_string());
                 Some(StaticKey::Number(name))
             }
             ScalarLiteral::Float(value) => {
-                let name = self.program.strings.intern(&value.to_string());
+                let name = self.repository.strings.intern(&value.to_string());
                 Some(StaticKey::Number(name))
             }
             ScalarLiteral::Bigint(value) => {
-                let name = self.program.strings.intern(&value.to_string());
+                let name = self.repository.strings.intern(&value.to_string());
                 Some(StaticKey::Number(name))
             }
             _ => None,
@@ -1253,7 +1253,7 @@ impl Compiler {
                     let StaticKey::Number(name) = key else {
                         continue;
                     };
-                    let index_str = self.program.strings.get(*name);
+                    let index_str = self.repository.strings.get(*name);
                     let Ok(index) = index_str.as_ref().parse::<usize>() else {
                         continue;
                     };

@@ -24,6 +24,7 @@ impl Compiler {
 
         let remote_constraint = self
             .with_module_types_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
@@ -110,6 +111,7 @@ impl Compiler {
 
         // resolve from published declare entries first
         if let Ok(Some(kind)) = self.with_module_types_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol.module_id,
@@ -148,6 +150,7 @@ impl Compiler {
 
         // resolve from published declare entries first
         if let Ok(Some(variance)) = self.with_module_types_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol.module_id,
@@ -313,6 +316,7 @@ impl Compiler {
     ) -> Option<Vec<GlobalSymbolId>> {
         if let Some(cached) = self
             .with_module_types_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
@@ -355,11 +359,14 @@ impl Compiler {
                 continue;
             }
 
-            let Ok(owner_dir) = self.require_artifact_dir_declared(current.module_id, ctx.profile)
-            else {
+            let Ok(owner_dir) = self.require_artifact_dir_declared(
+                ctx.compiler_context.revision(),
+                current.module_id,
+                ctx.profile,
+            ) else {
                 break None;
             };
-            let owner_module = self.program.modules.get(current.module_id);
+            let owner_module = ctx.compiler_context.module(current.module_id);
             let owner_module = owner_module.as_ref();
             let (parameters, next) = if let Some(cached) = owner_dir
                 .types
@@ -368,6 +375,7 @@ impl Compiler {
                 (Some(cached), None)
             } else if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
                 TreeSymbolView::new(
+                    ctx.compiler_context,
                     owner_module,
                     ctx.profile,
                     &owner_dir.tree,
@@ -469,6 +477,7 @@ impl Compiler {
         // prefer parameter metadata from the owning module
         let parameter = self
             .with_module_tree_symbol_view_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol_id.module_id,
@@ -476,8 +485,11 @@ impl Compiler {
                 ctx.symbols,
                 destack_artifact::ArtifactKey::dir_declared,
                 |view| {
-                    let owner_options = self.analyze_context_options_for_module(view.module.id);
+                    let owner_options = view
+                        .compiler_context
+                        .analyze_context_options_for_module(view.module.id);
                     let mut ctx = TypeContext::new(
+                        ctx.compiler_context,
                         view.module,
                         ctx.profile,
                         &owner_options,
@@ -713,6 +725,7 @@ impl Compiler {
                 let remote_dir = self
                     .require_indexed_dir_declared(
                         &ctx.index,
+                        ctx.compiler_context.revision(),
                         primary_declaration.module_id,
                         ctx.profile,
                     )

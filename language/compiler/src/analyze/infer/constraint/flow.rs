@@ -1301,6 +1301,7 @@ impl Compiler {
                         PatternField::Alias { name, .. } => (Some(StaticKey::Name(*name)), None),
                         PatternField::Computed { key, pattern, .. } => (
                             self.static_key_from_dynamic_key(
+                                ctx.compiler_context.revision(),
                                 ctx.profile,
                                 ctx.tree,
                                 ctx.symbols,
@@ -2478,6 +2479,7 @@ impl Compiler {
                 let right_id = right.as_ref()?;
                 let right_id = self.unwrap_parenthesized_expression(*right_id, ctx.tree);
                 let key = self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,

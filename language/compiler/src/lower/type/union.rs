@@ -4,6 +4,7 @@ use destack_core::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
 use destack_query::format::format_unique_symbol_qualified_name;
 use destack_source::ModuleId;
+use destack_workspace::Ref;
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
@@ -862,20 +863,14 @@ impl TypeLowerer {
         strings: &StringPool,
     ) -> std::cmp::Ordering {
         // build qualified names for unique symbols
-        let left_name = format_unique_symbol_qualified_name(
-            left,
-            &self.artifacts,
-            &self.modules,
-            &self.packages,
-            strings,
-        );
-        let right_name = format_unique_symbol_qualified_name(
-            right,
-            &self.artifacts,
-            &self.modules,
-            &self.packages,
-            strings,
-        );
+        let reference = Ref::for_workspace_root(self.repository.workspace_root());
+        let Some(revision) = self.repository.current(&reference).ok() else {
+            return left.cmp(&right);
+        };
+        let left_name =
+            format_unique_symbol_qualified_name(left, &self.repository, revision, strings);
+        let right_name =
+            format_unique_symbol_qualified_name(right, &self.repository, revision, strings);
 
         // prefer qualified ordering with a stable fallback
         match (left_name, right_name) {

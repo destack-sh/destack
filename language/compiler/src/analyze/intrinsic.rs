@@ -1,23 +1,35 @@
 use destack_artifact::{ArtifactKey, IntrinsicEnvironment, WellKnownIntrinsics};
 use destack_dir::{AnchoredGlobalNodeId, Symbol, SymbolType};
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 
 use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView};
 use crate::{
-    AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
+    AnalyzeError, AnalyzeResult, Compiler, CompilerContext, RequirementCollector, RequirementError,
 };
 
 impl Compiler {
     /// Process the intrinsic environment for a profile.
-    pub(crate) fn process_intrinsic_environment(&self, profile: ProfileId) -> AnalyzeResult<()> {
-        let environment = self.resolve_intrinsic_environment(profile)?;
+    pub(crate) fn process_intrinsic_environment(
+        &self,
+        profile: ProfileId,
+        context: &CompilerContext<'_>,
+    ) -> AnalyzeResult<()> {
+        let revision = context.revision();
+        let environment = self.resolve_intrinsic_environment(profile, context)?;
         let artifact_key = ArtifactKey::intrinsic_environment(profile);
-        self.artifacts
-            .publish(artifact_key.clone(), environment.clone());
-        self.store_artifact(&artifact_key, &environment, |compiler, environment| {
-            compiler.store_intrinsic_environment_image(profile, environment.clone())
-        });
+        context.publish_artifact(
+            artifact_key,
+            environment.clone(),
+            |store, version, payload| store.publish_intrinsic_environment(version, payload),
+        );
+        context.store_artifact(
+            &artifact_key,
+            &environment,
+            |compiler, _artifact_stamp, environment| {
+                compiler.store_intrinsic_environment_image(revision, profile, environment.clone())
+            },
+        );
 
         Ok(())
     }
@@ -25,28 +37,31 @@ impl Compiler {
     /// Require the intrinsic environment for a profile.
     pub(crate) fn require_intrinsic_environment(
         &self,
+        revision: Revision,
         profile: ProfileId,
-    ) -> Result<(), ArtifactRequirementError> {
-        self.require_artifact(ArtifactKey::intrinsic_environment(profile))
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::intrinsic_environment(profile))
     }
 
     /// Resolve the intrinsic environment for a profile.
     pub(crate) fn resolve_intrinsic_environment(
         &self,
         profile: ProfileId,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<IntrinsicEnvironment> {
         // skip when builtins are unavailable
-        if self.program.builtins.is_none() {
+        if false {
             return Ok(IntrinsicEnvironment::default());
         }
 
         // reuse the committed environment when available
-        if let Some(environment) = self.artifacts.intrinsic_environment(profile) {
+        if let Some(environment) = self.intrinsic_environment(profile) {
             return Ok(environment.as_ref().clone());
         }
 
         let artifact_key = ArtifactKey::intrinsic_environment(profile);
-        match self.load_intrinsic_environment_image(profile) {
+        let revision = context.revision();
+        match self.load_intrinsic_environment_image(revision, profile) {
             Ok(Some(environment)) => return Ok(environment),
             Ok(None) => {}
             Err(error) => {
@@ -55,17 +70,13 @@ impl Compiler {
         }
 
         // collect builtin modules that can host intrinsic bindings
-        let mut collector = ArtifactRequirementCollector::new();
-        let builtins = self
-            .program
-            .builtins
-            .as_ref()
-            .unwrap_or_else(|| unreachable!());
+        let mut collector = RequirementCollector::new();
+        let builtins = self.repository.builtins.as_ref();
         let module_ids = builtins.intrinsic_module_ids();
 
         // ensure builtin module decorators are registered before scanning bindings
         for module_id in module_ids.iter().copied() {
-            if let Err(error) = self.require_dir_declared(module_id, profile)
+            if let Err(error) = self.require_dir_declared(revision, module_id, profile)
                 && let Some(error) = collector.try_collect::<(), _>(Err(error))
             {
                 return Err(AnalyzeError::from(error));
@@ -78,7 +89,7 @@ impl Compiler {
         }
 
         // build and publish the intrinsic binding table
-        let intrinsics = self.build_well_known_intrinsics(module_ids, profile)?;
+        let intrinsics = self.build_well_known_intrinsics(module_ids, profile, context)?;
         Ok(IntrinsicEnvironment { intrinsics })
     }
 
@@ -87,6 +98,7 @@ impl Compiler {
         &self,
         module_ids: Vec<ModuleId>,
         profile: ProfileId,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<WellKnownIntrinsics> {
         // seed the intrinsic table
         let mut intrinsics = WellKnownIntrinsics::new();
@@ -94,7 +106,7 @@ impl Compiler {
         // scan builtin modules for intrinsic binding decorators
         for module_id in module_ids {
             // load the builtin module
-            let module = self.program.modules.get(module_id);
+            let module = context.module(module_id);
             let module = module.as_ref();
 
             // skip non-builtin modules defensively
@@ -104,7 +116,7 @@ impl Compiler {
 
             // scan active symbols for intrinsic bindings
             let dir = self
-                .require_artifact_dir_declared(module_id, profile)
+                .require_artifact_dir_declared(context.revision(), module_id, profile)
                 .map_err(AnalyzeError::from)?;
             let symbols = &dir.symbols;
             for local_symbol_id in symbols.active_symbol_ids() {
@@ -122,7 +134,7 @@ impl Compiler {
                 // resolve the binding name id
                 let symbol_id = local_symbol_id.into_global(module_id);
                 let canonical_symbol_id = self.canonical_symbol_id(
-                    ModuleSymbolView::new(module, profile, symbols),
+                    ModuleSymbolView::new(context, module, profile, symbols),
                     symbol_id,
                     CanonicalSymbolMode::FollowAliases,
                 );
@@ -137,10 +149,10 @@ impl Compiler {
                 let Some(name) = binding
                     .name
                     .or(symbol.name())
-                    .map(|name_id| self.program.strings.get(name_id).to_string())
+                    .map(|name_id| self.repository.strings.get(name_id).to_string())
                 else {
                     let message = self
-                        .program
+                        .repository
                         .strings
                         .intern("intrinsic binding missing symbol name");
                     return Err(AnalyzeError::InvalidWellKnownDecorator {
@@ -154,7 +166,7 @@ impl Compiler {
                     && *existing != canonical_symbol_id
                 {
                     let message = self
-                        .program
+                        .repository
                         .strings
                         .intern(&format!("intrinsic name '{name}' is already bound"));
                     return Err(AnalyzeError::InvalidWellKnownDecorator {

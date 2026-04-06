@@ -3,7 +3,7 @@ use destack_dir::{
     LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId, SymbolSpace,
     SymbolTable, SymbolType,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::workspace::{Module, ProfileId};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 

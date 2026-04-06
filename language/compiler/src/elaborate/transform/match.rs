@@ -1269,8 +1269,9 @@ impl Compiler {
         };
 
         // derive and record the runtime check kind
-        let options = self.analyze_context_options_for_module(state.ctx.module.id);
+        let options = state.ctx.options;
         let mut ctx = TypeContext::new(
+            state.ctx.compiler_context,
             state.ctx.module,
             state.ctx.profile,
             &options,

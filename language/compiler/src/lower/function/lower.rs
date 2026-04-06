@@ -5,10 +5,10 @@ use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
 use destack_core::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{ProfileId, Repository, Revision};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
+use crate::{Compiler, LowerError, LowerResult, RequirementError};
 
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
@@ -26,8 +26,10 @@ pub(crate) struct FunctionLoweringContext<'a> {
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
     pub(crate) profile: ProfileId,
+    /// Pinned revision for cross-module reads.
+    pub(crate) revision: Revision,
     /// Provide access to program metadata for remote symbol lookup.
-    pub(crate) program: &'a Program,
+    pub(crate) program: &'a Repository,
     /// Provide access to compiler helpers for artifact-backed reads.
     pub(crate) compiler: &'a Compiler,
     /// Provide access to the DIR tree for expression lookup.
@@ -199,7 +201,6 @@ impl<'a> FunctionLowerer<'a> {
     ) -> Option<Arc<DirDeclared>> {
         self.context
             .compiler
-            .artifacts
             .dir_declared(module_id, self.context.profile)
     }
 
@@ -208,17 +209,18 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         module_id: ModuleId,
     ) -> LowerResult<Arc<DirAnalyzed>> {
-        let snapshot = self
-            .context
-            .compiler
-            .require_artifact_dir_analyzed(module_id, self.context.profile);
+        let snapshot = self.context.compiler.require_artifact_dir_analyzed(
+            self.context.revision,
+            module_id,
+            self.context.profile,
+        );
 
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
-            Err(ArtifactRequirementError::NotReady { requirement }) => {
+            Err(RequirementError::NotReady { requirement }) => {
                 Err(LowerError::Yield { requirement })
             }
-            Err(ArtifactRequirementError::Failed { requirement }) => {
+            Err(RequirementError::Failed { requirement }) => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }

@@ -1,8 +1,23 @@
 use destack_dir::SymbolDecorators;
-use destack_source::{ModuleId, TargetId};
-use destack_workspace::{CompilerOptions, DiagnosticPolicy, Module, Program, TsCompilerOptions};
+use destack_source::ModuleId;
+use destack_workspace::{
+    CompilerOptions, DiagnosticPolicy, Module, Package, Repository, Revision, TsCompilerOptions,
+};
 
-use crate::{AnalyzeError, Compiler};
+use crate::{AnalyzeError, Compiler, CompilerContext};
+
+/// Load one package from one explicit revision.
+fn package_in_revision(
+    compiler: &Compiler,
+    revision: Revision,
+    package_id: destack_source::PackageId,
+) -> std::sync::Arc<Package> {
+    compiler
+        .repository
+        .package(revision, package_id)
+        .unwrap_or_else(|error| panic!("failed to load package: {error}"))
+        .unwrap_or_else(|| panic!("missing package"))
+}
 
 /// "TS++" semantic options used during analysis.
 #[derive(Debug, Clone, Copy)]
@@ -314,23 +329,31 @@ impl From<&TsCompilerOptions> for AnalyzeOptions {
     }
 }
 
-impl Compiler {
+impl CompilerContext<'_> {
     /// Apply target-derived restrictions to compiler options when available.
     fn compiler_options_for_module_target(
         &self,
+        revision: Revision,
         module: &Module,
         options: CompilerOptions,
     ) -> (CompilerOptions, bool) {
         // use target-specific options when a config target is present
-        let package = self.program.packages.get(module.package_id);
-        let package = package.read();
-        let Some(config) = package.config.as_ref() else {
+        let package = package_in_revision(self.compiler(), revision, module.package_id);
+        let package_options = self
+            .compiler()
+            .repository
+            .package_options(revision, package.id)
+            .unwrap_or_else(|error| panic!("failed to load package options: {error}"));
+        let Some(package_options) = package_options else {
             return (options, false);
         };
 
         // select a target when we have an explicit default (or a single target)
-        let target = if let Some(name) = config.options.default_target.as_ref() {
-            let target_id = TargetId::new(package.id, name);
+        let target = if let Some(name) = package_options.default_target.as_ref() {
+            let target_id = self
+                .compiler()
+                .repository
+                .intern_target_id(package.id, name);
             package.targets.get(&target_id).cloned()
         } else if package.targets.len() == 1 {
             package.targets.values().next().cloned()
@@ -344,7 +367,7 @@ impl Compiler {
         };
 
         let is_native_output = target.emit.is_wasm() || target.emit.is_native();
-        let options = Program::compiler_options_for_target(&target, &options);
+        let options = Repository::compiler_options_for_target(&target, &options);
 
         (options, is_native_output)
     }
@@ -401,9 +424,10 @@ impl Compiler {
         analyze_options.no_computed_property_access = native_options.no_computed_property_access;
     }
 
-    /// Get the effective TS-compatible semantic options for a module.
+    /// Return the effective TS-compatible semantic options for one module.
     pub(crate) fn analyze_context_options_for_module(&self, module_id: ModuleId) -> AnalyzeOptions {
-        let module = self.program.modules.get(module_id);
+        let revision = self.revision();
+        let module = self.module(module_id);
         let module = module.as_ref();
         let apply_language_defaults = |mut options: CompilerOptions| {
             // default destack modules to deep readonly unless explicitly configured
@@ -420,21 +444,16 @@ impl Compiler {
 
             options
         };
-        let apply_target_restrictions =
-            |options: CompilerOptions| self.compiler_options_for_module_target(module, options);
+        let apply_target_restrictions = |options: CompilerOptions| {
+            self.compiler_options_for_module_target(revision, module, options)
+        };
 
         // use tsconfig options for ts/js modules when available
         if module.language_type.is_typescript() || module.language_type.is_javascript() {
-            if let Some(options) = self
-                .program
-                .with_tsconfig_options(module, |ts| ts.compiler.clone())
-            {
+            if let Some(options) = self.ts_compiler_options_for_module(module) {
                 let mut analyze_options = AnalyzeOptions::from(&options);
 
-                if let Some(ds_options) = self
-                    .program
-                    .with_config_options(module, |ds| ds.compiler.clone())
-                {
+                if let Some(ds_options) = self.compiler_options_for_module(module) {
                     let ds_options = apply_language_defaults(ds_options);
                     let (ds_options, is_native_output) = apply_target_restrictions(ds_options);
                     let native_options = AnalyzeOptions::from(&ds_options);
@@ -448,10 +467,7 @@ impl Compiler {
                 return analyze_options;
             }
 
-            if let Some(options) = self
-                .program
-                .with_config_options(module, |ds| ds.compiler.clone())
-            {
+            if let Some(options) = self.compiler_options_for_module(module) {
                 let options = apply_language_defaults(options);
                 let (options, _is_native_output) = apply_target_restrictions(options);
                 return AnalyzeOptions::from(&options);
@@ -460,10 +476,7 @@ impl Compiler {
             return AnalyzeOptions::from(&CompilerOptions::default());
         }
 
-        if let Some(options) = self
-            .program
-            .with_config_options(module, |ds| ds.compiler.clone())
-        {
+        if let Some(options) = self.compiler_options_for_module(module) {
             let options = apply_language_defaults(options);
             let (options, _is_native_output) = apply_target_restrictions(options);
             return AnalyzeOptions::from(&options);
@@ -473,63 +486,39 @@ impl Compiler {
         AnalyzeOptions::from(&options)
     }
 
-    /// Get the module compatibility options for a module.
+    /// Return the module compatibility options for one module.
     pub(crate) fn module_check_options_for_module(
         &self,
         module_id: ModuleId,
     ) -> ModuleCheckOptions {
-        let module = self.program.modules.get(module_id);
+        let module = self.module(module_id);
         let module = module.as_ref();
 
         // start from config defaults
         let mut options = self
-            .program
-            .with_config_options(module, |ds| ds.compiler.clone())
+            .compiler_options_for_module(module)
             .map(|options| ModuleCheckOptions::from_destack_config(&options))
-            .or_else(|| self.module_check_options_from_path(module))
             .unwrap_or_else(
                 || ModuleCheckOptions::from_destack_config(&CompilerOptions::default()),
             );
 
         // overlay tsconfig options when present
-        if let Some(ts_options) = self
-            .program
-            .with_tsconfig_options(module, |ts| ts.compiler.clone())
-        {
+        if let Some(ts_options) = self.ts_compiler_options_for_module(module) {
             options.apply_tsconfig(&ts_options);
         }
 
         options
     }
+}
 
-    /// Load module checks from a destack.json alongside the module path.
-    fn module_check_options_from_path(&self, module: &Module) -> Option<ModuleCheckOptions> {
-        let path = module.path.as_ref()?;
-
-        // locate destack.json in the module directory
-        let directory = path.parent().unwrap_or(path);
-        let destack_config_path = directory.join("destack.json");
-        let has_destack_config = self.program.fs.exists(&destack_config_path).ok()?;
-        if !has_destack_config {
-            return None;
-        }
-
-        // load destack.json through the tracked workspace file path
-        let config = self.session.load_destack_for_path(&destack_config_path)?;
-
-        // cache the config on the package for future lookups
-        let package = self.program.packages.get(module.package_id);
-        let mut package = package.write();
-        package.config = Some(config.clone());
-
-        Some(ModuleCheckOptions::from_destack_config(
-            &config.options.compiler,
-        ))
-    }
-
+impl Compiler {
     /// Check whether a module language mode is allowed by configuration.
-    pub(crate) fn module_language_allowed(&self, module_id: ModuleId) -> bool {
-        let module = self.program.modules.get(module_id);
+    pub(crate) fn module_language_allowed_in_context(
+        &self,
+        context: &CompilerContext<'_>,
+        module_id: ModuleId,
+    ) -> bool {
+        let module = context.module(module_id);
         let module = module.as_ref();
 
         // skip enforcement for builtins
@@ -538,15 +527,21 @@ impl Compiler {
         }
 
         // read compatibility options
-        let options = self.module_check_options_for_module(module_id);
+        let options = context.module_check_options_for_module(module_id);
 
         // enforce allowTs and allowJs for user modules
         if module.language_type.is_typescript() && !options.allow_ts {
-            self.error(AnalyzeError::TypeScriptDisabled { module: module_id });
+            self.error_for_revision(
+                context.revision(),
+                AnalyzeError::TypeScriptDisabled { module: module_id },
+            );
             return false;
         }
         if module.language_type.is_javascript() && !options.allow_js {
-            self.error(AnalyzeError::JavaScriptDisabled { module: module_id });
+            self.error_for_revision(
+                context.revision(),
+                AnalyzeError::JavaScriptDisabled { module: module_id },
+            );
             return false;
         }
 

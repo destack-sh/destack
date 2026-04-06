@@ -10,7 +10,7 @@ use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
 use crate::analyze::common::{ModuleSymbolView, TypeContext};
-use crate::{ArtifactRequirementError, Compiler};
+use crate::{Compiler, RequirementError};
 
 /// Control how canonical symbol resolution treats aliases.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -74,10 +74,7 @@ impl Compiler {
                 return current_symbol;
             }
 
-            let Some(dir) = self
-                .artifacts
-                .dir_declared(current_symbol.module_id, profile)
-            else {
+            let Some(dir) = self.dir_declared(current_symbol.module_id, profile) else {
                 return current_symbol;
             };
 
@@ -126,7 +123,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
-    ) -> Result<GlobalSymbolId, ArtifactRequirementError> {
+    ) -> Result<GlobalSymbolId, RequirementError> {
         let mut current_symbol = symbol;
         let mut visited = Vec::new();
 
@@ -139,6 +136,7 @@ impl Compiler {
 
             let (symbol_ty, canonical_symbol, target_symbol) = self
                 .with_module_symbols_or_local_for_artifact(
+                    view.compiler_context,
                     view.module,
                     view.profile,
                     current_symbol.module_id,
@@ -182,7 +180,7 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         symbol: GlobalSymbolId,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
-    ) -> Result<Option<GlobalSymbolId>, ArtifactRequirementError> {
+    ) -> Result<Option<GlobalSymbolId>, RequirementError> {
         let mut current_symbol = self.canonical_symbol_id_for_artifact(
             view,
             symbol,
@@ -198,6 +196,7 @@ impl Compiler {
 
             let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
                 .with_module_symbols_or_local_for_artifact(
+                    view.compiler_context,
                     view.module,
                     view.profile,
                     current_symbol.module_id,
@@ -258,6 +257,7 @@ impl Compiler {
 
             let Some((symbol_ty, canonical_symbol, target_symbol)) = self
                 .with_module_symbols_or_local_for_artifact(
+                    view.compiler_context,
                     view.module,
                     view.profile,
                     current_symbol.module_id,
@@ -316,6 +316,7 @@ impl Compiler {
 
             let (normalized_symbol, is_declaration, target_symbol, canonical_symbol) = self
                 .with_module_symbols_or_local_for_artifact(
+                    view.compiler_context,
                     view.module,
                     view.profile,
                     current_symbol.module_id,
@@ -396,6 +397,7 @@ impl Compiler {
         }
 
         self.with_module_symbols_or_local_for_artifact(
+            view.compiler_context,
             view.module,
             view.profile,
             symbol.module_id,

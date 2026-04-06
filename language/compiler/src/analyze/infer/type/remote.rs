@@ -1,4 +1,5 @@
 use super::*;
+use crate::CompilerContext;
 use crate::analyze::common::{InferContext, ModuleSymbolView, SymbolTypeView, TypeView};
 use destack_dir::{AnchoredGlobalNodeId, DependencyItem, NodeType, Symbol, SymbolSpace};
 /// Select the cross-module read domain used for remote value type resolution.
@@ -24,6 +25,8 @@ struct RemoteValueTypeLookupResult {
 /// One immutable remote module snapshot used for cross-module value type reads.
 #[derive(Debug, Clone, Copy)]
 struct RemoteModuleSnapshot<'a> {
+    /// The pinned compiler context.
+    compiler_context: &'a CompilerContext<'a>,
     /// The remote module handle.
     remote_module: &'a Module,
     /// The remote syntax tree snapshot.
@@ -127,6 +130,7 @@ impl Compiler {
                     candidate_symbol,
                     read_domain,
                     RemoteModuleSnapshot {
+                        compiler_context: ctx.compiler_context,
                         remote_module: ctx.module,
                         remote_tree: ctx.tree,
                         remote_symbols: ctx.symbols,
@@ -136,6 +140,7 @@ impl Compiler {
                 )?
             } else {
                 self.require_remote_artifact_dir(
+                    ctx.compiler_context,
                     ctx.module.id,
                     candidate_symbol.module_id,
                     ctx.profile,
@@ -144,6 +149,7 @@ impl Compiler {
                 .map_err(AnalyzeError::from)?;
 
                 self.with_remote_dir_for_artifact(
+                    ctx.compiler_context,
                     candidate_symbol.module_id,
                     ctx.profile,
                     read_boundary,
@@ -155,6 +161,7 @@ impl Compiler {
                             candidate_symbol,
                             read_domain,
                             RemoteModuleSnapshot {
+                                compiler_context: ctx.compiler_context,
                                 remote_module,
                                 remote_tree,
                                 remote_symbols,
@@ -224,7 +231,12 @@ impl Compiler {
 
             if is_value_capable {
                 let is_interface_artifact_value = self.remote_symbol_is_interface_artifact_value(
-                    ModuleSymbolView::new(remote.remote_module, profile, remote.remote_symbols),
+                    ModuleSymbolView::new(
+                        remote.compiler_context,
+                        remote.remote_module,
+                        profile,
+                        remote.remote_symbols,
+                    ),
                     resolved_symbol,
                 );
                 if read_domain == RemoteValueTypeReadDomain::Interface
@@ -237,6 +249,7 @@ impl Compiler {
                 let remote_type_id = match read_domain {
                     RemoteValueTypeReadDomain::Surface => self.query_remote_surface_value_type_id(
                         TypeView::new(
+                            remote.compiler_context,
                             remote.remote_module,
                             profile,
                             remote.remote_tree,
@@ -249,6 +262,7 @@ impl Compiler {
                         if is_interface_artifact_value && resolved_symbol.ty() != SymbolType::Void {
                             Some(self.require_remote_interface_value_type_id(
                                 SymbolTypeView::new(
+                                    remote.compiler_context,
                                     remote.remote_module,
                                     profile,
                                     remote.remote_symbols,
@@ -259,6 +273,7 @@ impl Compiler {
                         } else {
                             self.query_remote_surface_value_type_id(
                                 TypeView::new(
+                                    remote.compiler_context,
                                     remote.remote_module,
                                     profile,
                                     remote.remote_tree,
@@ -502,7 +517,11 @@ impl Compiler {
         view: ModuleSymbolView<'_>,
         target_symbol: GlobalSymbolId,
     ) -> bool {
-        let Ok(dir) = self.require_artifact_dir_interface(view.module.id, view.profile) else {
+        let Ok(dir) = self.require_artifact_dir_interface(
+            view.compiler_context.revision(),
+            view.module.id,
+            view.profile,
+        ) else {
             return false;
         };
         let exported_symbols = &dir.exported_symbols;

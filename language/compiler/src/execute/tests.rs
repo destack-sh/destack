@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 fn builtin_module_id_with_uri_suffix(test: &TestProgram, suffix: &str) -> ModuleId {
     test.program
-        .modules
-        .iter()
+        .visible_modules()
+        .into_iter()
         .find_map(|module| {
             let module = module.as_ref();
             module.uri.as_ref().ends_with(suffix).then_some(module.id)

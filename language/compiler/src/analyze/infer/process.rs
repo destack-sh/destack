@@ -4,14 +4,15 @@ use crate::analyze::common::{AnalyzeIndex, InferContext, NormalizationMode, Type
 use crate::analyze::r#type::json_value_to_type;
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, Compiler, FlowContext, InferSession,
+    AnalyzeError, AnalyzeResult, Compiler, CompilerContext, FlowContext, InferRepository,
+    RequirementCollector,
 };
 use destack_dir::{
     Declaration, Declarator, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId,
     LocalNodeIdAny, LocalSymbolId, NodeTree, PrimitiveType, SymbolTable, Type, TypeLiteral,
     TypeTable,
 };
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashSet;
 
@@ -27,33 +28,24 @@ impl Compiler {
         anchor_node: LocalNodeIdAny,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<Option<InferTable>> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_INFER);
         // analyze data modules specially
-        if !self.is_code_module(module_id) {
-            self.analyze_data_module_infer(types, default_symbol, anchor_node, module_id)?;
+        if !context.is_code_module(module_id) {
+            self.analyze_data_module_infer(context, types, default_symbol, anchor_node, module_id)?;
             return Ok(None);
         }
 
         // skip inference when module language is disabled
-        if !self.module_language_allowed(module_id) {
+        if !self.module_language_allowed_in_context(context, module_id) {
             return Ok(None);
         }
 
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
+        let module = context.module(module_id);
 
         if module.language_type.is_declaration() {
-            let module_checks = self.module_check_options_for_module(module.id);
+            let module_checks = context.module_check_options_for_module(module.id);
             let should_skip_enum_validation = module_checks.skip_lib_check
                 || (matches!(module.source, ModuleSource::Builtin(_))
                     && !self.options.validate_builtin_libs);
@@ -61,9 +53,10 @@ impl Compiler {
                 return Ok(None);
             }
 
-            let options = self.analyze_context_options_for_module(module.id);
+            let options = context.analyze_context_options_for_module(module.id);
             let mut ctx = TypeContext::new(
-                module,
+                context,
+                module.as_ref(),
                 profile,
                 &options,
                 tree,
@@ -93,7 +86,7 @@ impl Compiler {
         }
 
         // select runtime roots for the inference pass
-        let runtime_roots = self.collect_runtime_roots(module, tree, roots);
+        let runtime_roots = self.collect_runtime_roots(module.as_ref(), tree, roots);
         let infer_roots = runtime_roots.clone();
 
         // skip infer entirely when no roots require infer work
@@ -102,22 +95,28 @@ impl Compiler {
         }
 
         // resolve builtins before resolving type-import operator dependencies
-        self.require_language_environment(profile)
+        self.require_language_environment(context.revision(), profile)
             .map_err(AnalyzeError::from)?;
-        self.require_type_import_dependencies_for_infer(module, profile, tree)?;
+        self.require_type_import_dependencies_for_infer(
+            context.revision(),
+            module.as_ref(),
+            profile,
+            tree,
+        )?;
 
         // establish infer dependency preconditions
-        self.require_dir_interface(module_id, profile)?;
-        self.require_declare_dependencies_for_infer(module_id, profile)?;
-        self.require_interface_dependencies(module_id, profile)?;
+        self.require_dir_interface(context.revision(), module_id, profile)?;
+        self.require_declare_dependencies_for_infer(context.revision(), module_id, profile)?;
+        self.require_interface_dependencies(context.revision(), module_id, profile)?;
 
-        let mut collector = ArtifactRequirementCollector::new();
-        let options = self.analyze_context_options_for_module(module.id);
+        let mut collector = RequirementCollector::new();
+        let options = context.analyze_context_options_for_module(module.id);
         // initialize infer session state
-        let mut session = InferSession::new(profile, options);
-        let (infer_table, context) = session.parts_mut();
+        let mut session = InferRepository::new(profile, options);
+        let (infer_table, infer_state) = session.parts_mut();
         let mut ctx = InferContext::new(
-            module,
+            context,
+            module.as_ref(),
             profile,
             &options,
             tree,
@@ -146,10 +145,10 @@ impl Compiler {
                 self.compute_flow_table_for_graph(
                     &mut ctx.type_context_reborrow(),
                     &graph,
-                    context,
+                    infer_state,
                 )?
             };
-            context.flow = Some(FlowContext {
+            infer_state.flow = Some(FlowContext {
                 module_id: module.id,
                 graph: Arc::new(graph),
                 table: Arc::new(flow),
@@ -181,7 +180,7 @@ impl Compiler {
             for root_id in infer_roots.iter() {
                 self.collect(
                     &mut collector,
-                    self.infer_expression(&mut ctx.reborrow(), *root_id, context),
+                    self.infer_expression(&mut ctx.reborrow(), *root_id, infer_state),
                 );
             }
         }
@@ -273,15 +272,16 @@ impl Compiler {
     /// it with the module's default export symbol.
     fn analyze_data_module_infer(
         &self,
+        context: &CompilerContext<'_>,
         types: &mut TypeTable,
         default_symbol: LocalSymbolId,
         source_id: LocalNodeIdAny,
         module_id: ModuleId,
     ) -> AnalyzeResult<()> {
-        let module_ref = self.program.modules.get(module_id);
-        let module = module_ref.as_ref();
+        let module = context.module(module_id);
+        let module = module.as_ref();
         if module.loader.is_data() {
-            let ast = match self.artifacts.ast(module_id) {
+            let ast = match self.ast(module_id) {
                 Some(ast) => ast,
                 None => return Ok(()),
             };
@@ -290,7 +290,8 @@ impl Compiler {
                 None => return Ok(()),
             };
 
-            let inferred_type = json_value_to_type(value, source_id, types, &self.program.strings);
+            let inferred_type =
+                json_value_to_type(value, source_id, types, &self.repository.strings);
 
             // associate the inferred type with the default symbol
             types.set_value_type(default_symbol.into_global(module_id), inferred_type);

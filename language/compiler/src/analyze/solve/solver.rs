@@ -13,7 +13,7 @@ use crate::analyze::common::{
     rewrite_type_with_cache,
 };
 use crate::timing::tags;
-use crate::{AnalyzeOptions, Assignability, Compiler};
+use crate::{AnalyzeOptions, Assignability, Compiler, CompilerContext};
 
 /// Track bounds for a single inference variable.
 #[derive(Debug, Clone)]
@@ -80,6 +80,8 @@ impl InferSolution {
 struct InferTypeMaterializer<'a> {
     /// The compiler instance.
     compiler: &'a Compiler,
+    /// The pinned compiler context.
+    compiler_context: &'a CompilerContext<'a>,
     /// The current module.
     module: &'a Module,
     /// The active profile.
@@ -105,6 +107,7 @@ impl<'a> InferTypeMaterializer<'a> {
     /// Create a materializer for infer vars.
     fn new(
         compiler: &'a Compiler,
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         tree: &'a NodeTree,
@@ -121,6 +124,7 @@ impl<'a> InferTypeMaterializer<'a> {
         let cache_key = rewrite_options.cache_key();
         Self {
             compiler,
+            compiler_context,
             module,
             profile,
             tree,
@@ -153,9 +157,10 @@ impl TypeRewriter for InferTypeMaterializer<'_> {
                 Type::InferVar { .. } => {
                     let resolved = {
                         let options = self
-                            .compiler
+                            .compiler_context
                             .analyze_context_options_for_module(self.module.id);
                         let mut ctx = TypeContext::new(
+                            self.compiler_context,
                             self.module,
                             self.profile,
                             &options,
@@ -187,6 +192,7 @@ impl Compiler {
     /// Materialize one type by rewriting infer vars with validation-mode bounds.
     fn materialize_infer_type_for_validation(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         options: &AnalyzeOptions,
@@ -198,6 +204,7 @@ impl Compiler {
     ) -> LocalTypeId {
         let mut materializer = InferTypeMaterializer::new(
             self,
+            context,
             module,
             profile,
             tree,
@@ -220,6 +227,7 @@ impl Compiler {
         // shape mode placeholder to keep the variant live
         let _ = MaterializationMode::Shape;
         self.materialize_infer_type_for_validation(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             ctx.options,

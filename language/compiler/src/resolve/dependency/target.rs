@@ -1,8 +1,8 @@
-use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, RequirementCollector, ResolveError, ResolveResult};
 use destack_core::StringId;
 use destack_dir::{Declaration, LocalNodeId, ModuleTarget};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{ModuleFormat, PackageKind, ProfileId};
+use destack_workspace::{ModuleFormat, PackageKind, ProfileId, Revision};
 
 /// Reference a module binding declaration in a module.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -17,13 +17,14 @@ impl Compiler {
     /// Return whether one source set contains a matching module binding.
     pub(crate) fn module_binding_exists_in_modules(
         &self,
+        revision: Revision,
         module_ids: &[ModuleId],
         specifier: StringId,
     ) -> ResolveResult<bool> {
         for &module_id in module_ids {
-            self.require_dir_base(module_id)
+            self.require_dir_base(revision, module_id)
                 .map_err(ResolveError::from)?;
-            if self.module_has_binding_specifier(module_id, specifier)? {
+            if self.module_has_binding_specifier(revision, module_id, specifier)? {
                 return Ok(true);
             }
         }
@@ -34,18 +35,24 @@ impl Compiler {
     /// Resolve a specifier to a module binding target when available.
     pub(crate) fn resolve_module_binding_target(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<Option<ModuleTarget>> {
-        let package_id = self.program.modules.get(module_id).package_id;
-        let package_module_ids = self.package_module_ids(package_id);
-        if self.module_binding_exists_in_modules(&package_module_ids, specifier)? {
+        let package_id = self
+            .cache_module_snapshot(revision, module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?
+            .package_id;
+        let package_module_ids = self.package_module_ids(revision, package_id)?;
+        if self.module_binding_exists_in_modules(revision, &package_module_ids, specifier)? {
             return Ok(Some(ModuleTarget::Binding(specifier)));
         }
 
         let ambient_module_ids = self.ambient_binding_module_ids(profile_id)?;
-        if self.module_binding_exists_in_modules(&ambient_module_ids, specifier)? {
+        if self.module_binding_exists_in_modules(revision, &ambient_module_ids, specifier)? {
             return Ok(Some(ModuleTarget::Binding(specifier)));
         }
 
@@ -55,17 +62,33 @@ impl Compiler {
     /// Look up module bindings for a specifier.
     pub(crate) fn module_bindings_for_specifier(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<Option<Vec<ModuleBindingReference>>> {
-        let package_id = self.program.modules.get(module_id).package_id;
-        let package_module_ids = self.package_module_ids(package_id);
+        let package_id = self
+            .cache_module_snapshot(revision, module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?
+            .package_id;
+        let package_module_ids = self.package_module_ids(revision, package_id)?;
         let ambient_module_ids = self.ambient_binding_module_ids(profile_id)?;
         let mut bindings = Vec::new();
 
-        self.collect_module_bindings_for_specifier(&mut bindings, &package_module_ids, specifier)?;
-        self.collect_module_bindings_for_specifier(&mut bindings, &ambient_module_ids, specifier)?;
+        self.collect_module_bindings_for_specifier(
+            revision,
+            &mut bindings,
+            &package_module_ids,
+            specifier,
+        )?;
+        self.collect_module_bindings_for_specifier(
+            revision,
+            &mut bindings,
+            &ambient_module_ids,
+            specifier,
+        )?;
 
         if bindings.is_empty() {
             Ok(None)
@@ -79,13 +102,18 @@ impl Compiler {
     /// Returns `None` when the target has no runtime module, or when bindings mix formats.
     pub(crate) fn module_format_for_target(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         profile_id: ProfileId,
         target: ModuleTarget,
     ) -> ResolveResult<Option<ModuleFormat>> {
         // module targets expose one direct runtime format
         if let ModuleTarget::Module(module_id) = target {
-            let module = self.program.modules.get(module_id);
+            let module = self
+                .cache_module_snapshot(revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let module = module.as_ref();
 
             // declaration modules do not encode runtime format
@@ -93,7 +121,7 @@ impl Compiler {
                 return Ok(None);
             }
 
-            return Ok(Some(self.program.modules.module_format(module.id)));
+            return Ok(Some(module.module_format));
         }
 
         // external targets do not carry one local runtime format
@@ -107,7 +135,7 @@ impl Compiler {
         };
 
         let bindings =
-            self.module_bindings_for_specifier(origin_module_id, profile_id, specifier)?;
+            self.module_bindings_for_specifier(revision, origin_module_id, profile_id, specifier)?;
         let Some(bindings) = bindings else {
             return Ok(None);
         };
@@ -116,7 +144,11 @@ impl Compiler {
         let mut saw_commonjs = false;
         let mut saw_esm = false;
         for binding_ref in bindings {
-            let module = self.program.modules.get(binding_ref.module_id);
+            let module = self
+                .cache_module_snapshot(revision, binding_ref.module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let module = module.as_ref();
 
             // declaration modules do not encode runtime format
@@ -124,7 +156,7 @@ impl Compiler {
                 continue;
             }
 
-            if self.program.modules.module_format(module.id).is_commonjs() {
+            if module.module_format.is_commonjs() {
                 saw_commonjs = true;
             } else {
                 saw_esm = true;
@@ -157,40 +189,61 @@ impl Compiler {
     }
 
     /// Collect module ids that belong to one package.
-    fn package_module_ids(&self, package_id: PackageId) -> Vec<ModuleId> {
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
+    fn package_module_ids(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> ResolveResult<Vec<ModuleId>> {
+        let package = self
+            .cache_package_snapshot(revision, package_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load package snapshot: {error}"),
+            })?;
+        let package = package.as_ref();
 
         // builtin modules are a synthetic aggregate package, not one package-local binding scope
         if package.kind == PackageKind::Builtin {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let mut module_ids = Vec::new();
 
         // collect modules from the target package
-        for module in self.program.modules.iter() {
+        let workspace_module_ids =
+            self.repository
+                .workspace_module_ids(revision)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to enumerate workspace modules: {error}"),
+                })?;
+        for module_id in workspace_module_ids {
+            let module = self
+                .cache_module_snapshot(revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
+
             if module.package_id == package_id {
-                module_ids.push(module.id);
+                module_ids.push(module_id);
             }
         }
 
         // keep traversal deterministic
         module_ids.sort_unstable();
-        module_ids
+        Ok(module_ids)
     }
 
     /// Collect matching bindings from one source set.
     fn collect_module_bindings_for_specifier(
         &self,
+        revision: Revision,
         bindings: &mut Vec<ModuleBindingReference>,
         module_ids: &[ModuleId],
         specifier: StringId,
     ) -> ResolveResult<()> {
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
 
         for &module_id in module_ids {
-            if let Err(error) = self.require_dir_base(module_id)
+            if let Err(error) = self.require_dir_base(revision, module_id)
                 && let Some(error) = collector.try_collect::<(), _>(Err(error))
             {
                 let requirement = error.into_requirement();
@@ -201,7 +254,7 @@ impl Compiler {
                 continue;
             }
 
-            self.append_module_bindings_for_specifier(bindings, module_id, specifier)?;
+            self.append_module_bindings_for_specifier(revision, bindings, module_id, specifier)?;
         }
 
         if let Some(requirement) = collector.try_into_requirement() {
@@ -214,10 +267,15 @@ impl Compiler {
     /// Return whether one module contributes a specific binding specifier.
     fn module_has_binding_specifier(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         specifier: StringId,
     ) -> ResolveResult<bool> {
-        let module = self.program.modules.get(module_id);
+        let module = self
+            .cache_module_snapshot(revision, module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?;
         let module = module.as_ref();
 
         // only code modules can contribute module bindings
@@ -225,7 +283,7 @@ impl Compiler {
             return Ok(false);
         }
 
-        self.require_dir_base(module_id)
+        self.require_dir_base(revision, module_id)
             .map_err(ResolveError::from)?;
         let dir = self
             .artifact_dir_base(module_id)
@@ -240,11 +298,16 @@ impl Compiler {
     /// Append one module's matching bindings to the result set.
     fn append_module_bindings_for_specifier(
         &self,
+        revision: Revision,
         bindings: &mut Vec<ModuleBindingReference>,
         module_id: ModuleId,
         specifier: StringId,
     ) -> ResolveResult<()> {
-        let module = self.program.modules.get(module_id);
+        let module = self
+            .cache_module_snapshot(revision, module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?;
         let module = module.as_ref();
 
         // only code modules can contribute module bindings

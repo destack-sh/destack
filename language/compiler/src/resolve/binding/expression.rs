@@ -10,7 +10,7 @@ use crate::resolve::binding::cache::{ResolveExpressionCache, ResolvePathCacheKey
 use crate::resolve::dependency::loader::LoaderAttribute;
 use crate::{Compiler, ResolveError, ResolveResult};
 use destack_artifact::{ExportedSymbolTable, ImportedModuleTable};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -93,6 +93,7 @@ impl Compiler {
     /// Resolve an Expression.
     pub(crate) fn resolve_expression(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         tree: &mut NodeTree,
@@ -116,8 +117,7 @@ impl Compiler {
             }
         };
         let expression = tree.get(expression_id).clone();
-        let module_handle = self.program.modules.get(module.id);
-        let module_handle = module_handle.as_ref();
+        let module_handle = module;
 
         let expression: Expression = match expression {
             Expression::UnresolvedImport {
@@ -158,6 +158,7 @@ impl Compiler {
                         }
                     };
                     let Some(remote_target) = self.resolve_import_maybe(
+                        revision,
                         module_handle,
                         imported_modules,
                         profile,
@@ -206,6 +207,7 @@ impl Compiler {
                     }
                 };
                 let Some(remote_target) = self.resolve_import_maybe(
+                    revision,
                     module_handle,
                     imported_modules,
                     profile,
@@ -260,6 +262,7 @@ impl Compiler {
                         Ok((cached, ResolvedPathSymbolTargets::new()))
                     } else {
                         let resolved = self.resolve_absolute_path(
+                            revision,
                             module,
                             namespace_symbol,
                             namespace_scope,
@@ -286,6 +289,7 @@ impl Compiler {
                     }
                 } else {
                     self.resolve_absolute_path(
+                        revision,
                         module,
                         namespace_symbol,
                         namespace_scope,

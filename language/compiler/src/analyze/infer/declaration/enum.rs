@@ -224,12 +224,18 @@ impl Compiler {
         }
 
         let owner_dir = self
-            .require_indexed_dir_declared(&ctx.index, target_symbol.module_id, ctx.profile)
+            .require_indexed_dir_declared(
+                &ctx.index,
+                ctx.compiler_context.revision(),
+                target_symbol.module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
-        let owner_module = self.program.modules.get(target_symbol.module_id);
+        let owner_module = ctx.compiler_context.module(target_symbol.module_id);
         let owner_module = owner_module.as_ref();
         Ok(self.enum_field_value_for_symbol_reference_read(
             SymbolTypeView::new(
+                ctx.compiler_context,
                 owner_module,
                 ctx.profile,
                 &owner_dir.symbols,
@@ -322,8 +328,12 @@ impl Compiler {
 
         // consume already published values from remote modules
         if enum_symbol.module_id != ctx.module.id {
-            let remote_dir =
-                self.require_indexed_dir_declared(&ctx.index, enum_symbol.module_id, ctx.profile);
+            let remote_dir = self.require_indexed_dir_declared(
+                &ctx.index,
+                ctx.compiler_context.revision(),
+                enum_symbol.module_id,
+                ctx.profile,
+            );
             match remote_dir {
                 Ok(remote_dir) => return remote_dir.types.get_enum_backing_type(enum_symbol),
                 Err(error) => {
@@ -429,6 +439,7 @@ impl Compiler {
         enum_symbol: GlobalSymbolId,
     ) -> Vec<GlobalSymbolId> {
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             enum_symbol.module_id,
@@ -508,14 +519,24 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve fields in remote modules when needed
         if enum_symbol.module_id != ctx.module.id {
-            let module = self.program.modules.get(enum_symbol.module_id);
+            let module = ctx.compiler_context.module(enum_symbol.module_id);
             let module = module.as_ref();
             let dir = self
-                .require_artifact_dir_declared(enum_symbol.module_id, ctx.profile)
+                .require_artifact_dir_declared(
+                    ctx.compiler_context.revision(),
+                    enum_symbol.module_id,
+                    ctx.profile,
+                )
                 .map_err(AnalyzeError::from)?;
 
             return Ok(self.enum_field_symbol_for_name_in_tree(
-                TreeSymbolView::new(module, ctx.profile, &dir.tree, &dir.symbols),
+                TreeSymbolView::new(
+                    ctx.compiler_context,
+                    module,
+                    ctx.profile,
+                    &dir.tree,
+                    &dir.symbols,
+                ),
                 enum_symbol,
                 field_name,
             ));

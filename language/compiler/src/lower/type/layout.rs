@@ -497,18 +497,17 @@ impl TypeLowerer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use destack_artifact::ArtifactStore;
     use destack_core::StringPool;
-    use destack_workspace::{ModuleRegistry, PackageRegistry};
+    use destack_workspace::Repository;
     use std::sync::Arc;
 
     /// Create a type lowerer for layout tests.
     fn test_lowerer() -> TypeLowerer {
         let mut builder = mir::ModuleBuilder::unchecked();
-        let artifacts = Arc::new(ArtifactStore::new());
-        let modules = Arc::new(ModuleRegistry::new());
-        let packages = Arc::new(PackageRegistry::new());
-        TypeLowerer::new(&mut builder, 8, artifacts, modules, packages, None)
+        let repository = Arc::new(Repository::open_root(
+            std::env::current_dir().unwrap_or_default(),
+        ));
+        TypeLowerer::new(&mut builder, 8, repository, None)
     }
 
     /// Align value up to alignment boundary.

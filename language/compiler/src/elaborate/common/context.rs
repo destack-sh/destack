@@ -1,3 +1,4 @@
+use crate::{AnalyzeOptions, CompilerContext};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -5,21 +6,33 @@ use destack_workspace::{Module, ProfileId};
 /// Shared immutable elaborate phase identity.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ElaborateContext<'a> {
+    /// The pinned compiler context for this elaboration.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The active module id.
     pub module_id: ModuleId,
     /// The active module data.
     pub module: &'a Module,
     /// The active profile id.
     pub profile: ProfileId,
+    /// The active analysis options.
+    pub options: AnalyzeOptions,
 }
 
 impl<'a> ElaborateContext<'a> {
     /// Construct an elaborate context from module phase inputs.
-    pub(crate) fn new(module_id: ModuleId, module: &'a Module, profile: ProfileId) -> Self {
+    pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
+        module_id: ModuleId,
+        module: &'a Module,
+        profile: ProfileId,
+        options: AnalyzeOptions,
+    ) -> Self {
         Self {
+            compiler_context,
             module_id,
             module,
             profile,
+            options,
         }
     }
 }

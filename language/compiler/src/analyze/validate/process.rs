@@ -1,22 +1,23 @@
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeResult, ArtifactRequirementError, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext, RequirementError};
 use destack_artifact::ArtifactKey;
 use destack_dir::{
     Annotation, Declaration, Expression, LocalNodeIdAny, Member, NodeTree, Parameter, Pattern,
     SymbolTable, TypeTable,
 };
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::{ModuleSource, ProfileId};
 
 impl Compiler {
     /// Ensure analyzed DIR exists for a module.
     pub fn require_dir_analyzed(
         &self,
+        revision: destack_workspace::Revision,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), ArtifactRequirementError> {
-        self.require_artifact(ArtifactKey::dir_analyzed(module, profile))
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::dir_analyzed(module, profile))
     }
 
     /// Final pass: run validation checks over committed semantics.
@@ -28,38 +29,29 @@ impl Compiler {
         anchor_node: LocalNodeIdAny,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_VALIDATE);
 
         // skip validation for non-code modules
-        if !self.is_code_module(module_id) {
+        if !context.is_code_module(module_id) {
             return Ok(());
         }
 
         // skip validation when module language is disabled
-        if !self.module_language_allowed(module_id) {
+        if !self.module_language_allowed_in_context(context, module_id) {
             return Ok(());
         }
 
         // decide whether declaration modules should skip validation
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
+        let module = context.module(module_id);
         let should_skip_declaration_validation = if module.language_type.is_declaration() {
-            let module_checks = self.module_check_options_for_module(module_id);
+            let module_checks = context.module_check_options_for_module(module_id);
             module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_))
         } else {
             false
         };
-        let analyze_options = self.analyze_context_options_for_module(module_id);
+        let analyze_options = context.analyze_context_options_for_module(module_id);
         let should_check_untrusted_declarations = module.language_type.is_declaration()
             && !matches!(module.source, ModuleSource::Builtin(_))
             && analyze_options.no_untrusted_declarations;
@@ -68,8 +60,6 @@ impl Compiler {
             return Ok(());
         }
 
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
         let mut should_return_after_validation = false;
         // reject untrusted declaration files when configured
         if should_check_untrusted_declarations {
@@ -83,7 +73,8 @@ impl Compiler {
             should_return_after_validation = true;
         } else {
             let mut ctx = TypeContext::new(
-                module,
+                context,
+                module.as_ref(),
                 profile,
                 &analyze_options,
                 tree,

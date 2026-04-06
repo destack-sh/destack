@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactStore, EmitFormat, ScriptArtifact, ScriptDeclaration, ScriptLanguage,
+    Ast, DirPatched, EmitFormat, ScriptArtifact, ScriptDeclaration, ScriptLanguage,
 };
-use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program, Target};
+use destack_core::StringPool;
+use destack_workspace::{Module, Target};
 
 use super::{JsBackend, lower_module};
 use crate::{CodegenJsError, CodegenJsResult};
@@ -12,33 +12,33 @@ use crate::{CodegenJsError, CodegenJsResult};
 /// One generator for script module artifacts.
 #[derive(Debug)]
 pub struct ScriptArtifactGenerator<'a> {
-    /// The shared program state.
-    program: Arc<Program>,
-    /// The shared artifact store.
-    artifacts: Arc<ArtifactStore>,
-    /// The module to generate.
-    module_id: ModuleId,
+    /// The current module snapshot.
+    module: Arc<Module>,
+    /// The current module AST.
+    ast: Arc<Ast>,
+    /// The current patched DIR artifact.
+    dir: Arc<DirPatched>,
+    /// The shared string pool.
+    strings: Arc<StringPool>,
     /// The target configuration.
     target: &'a Target,
-    /// The active profile.
-    profile: ProfileId,
 }
 
 impl<'a> ScriptArtifactGenerator<'a> {
     /// Create one script artifact generator.
     pub fn new(
-        program: Arc<Program>,
-        artifacts: Arc<ArtifactStore>,
-        module_id: ModuleId,
+        module: Arc<Module>,
+        ast: Arc<Ast>,
+        dir: Arc<DirPatched>,
+        strings: Arc<StringPool>,
         target: &'a Target,
-        profile: ProfileId,
     ) -> Self {
         Self {
-            program,
-            artifacts,
-            module_id,
+            module,
+            ast,
+            dir,
+            strings,
             target,
-            profile,
         }
     }
 
@@ -58,31 +58,13 @@ impl<'a> ScriptArtifactGenerator<'a> {
             });
         }
 
-        // get module
-        let module_ref = self.program.modules.get(self.module_id);
-        let module = module_ref.as_ref();
-        let ast = self
-            .artifacts
-            .ast(self.module_id)
-            .unwrap_or_else(|| panic!("missing committed AST artifact for {:?}", self.module_id));
-        let dir = self
-            .artifacts
-            .dir_patched(self.module_id, self.profile)
-            .unwrap_or_else(|| {
-                panic!(
-                    "missing committed patched DIR artifact for {:?}",
-                    self.module_id
-                )
-            });
+        // current module inputs
+        let module = self.module.as_ref();
+        let ast = self.ast.as_ref();
+        let dir = self.dir.as_ref();
 
         // emit one lowered JavaScript module tree
-        let lower = lower_module(
-            module,
-            &ast,
-            &self.program.strings,
-            dir.as_ref(),
-            self.target,
-        )?;
+        let lower = lower_module(module, ast, self.strings.as_ref(), dir, self.target)?;
         let warnings = lower.warnings;
         let errors = lower.errors;
 

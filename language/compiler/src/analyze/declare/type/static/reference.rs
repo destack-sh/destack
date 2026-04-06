@@ -28,6 +28,7 @@ impl Compiler {
         };
 
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             target_symbol.module_id,
@@ -35,8 +36,11 @@ impl Compiler {
             ctx.symbols,
             destack_artifact::ArtifactKey::dir_declared,
             |view| {
-                let owner_options = self.analyze_context_options_for_module(view.module.id);
+                let owner_options = ctx
+                    .compiler_context
+                    .analyze_context_options_for_module(view.module.id);
                 let mut ctx = TypeContext::new(
+                    ctx.compiler_context,
                     view.module,
                     ctx.profile,
                     &owner_options,

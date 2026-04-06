@@ -302,7 +302,7 @@ impl Compiler {
             };
 
             // check for static lifetime
-            let name = self.program.strings.get(name_id);
+            let name = self.repository.strings.get(name_id);
             if name == "static" {
                 is_static = true;
                 continue;

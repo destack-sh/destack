@@ -21,7 +21,12 @@ impl ModuleLowerer<'_> {
         }
 
         let method_name = self.member_dispatch_name_or_error(key, signature.mode, member_id)?;
-        let method_name = self.compiler.program.strings.get(method_name).to_string();
+        let method_name = self
+            .compiler
+            .repository
+            .strings
+            .get(method_name)
+            .to_string();
         let name_str = if let Some(owner_name) = self.symbol_path_name(interface_symbol) {
             format!("{owner_name}.{method_name}")
         } else {

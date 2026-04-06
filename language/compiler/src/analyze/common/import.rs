@@ -5,20 +5,21 @@ use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalTypeId, Path, StaticArgument, StaticKey, StringId,
     SymbolSpaceOrder, Type,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Query one type import symbol without reporting deferred dependency states as errors.
     pub(crate) fn query_import_type_symbol(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         node: LocalNodeIdAny,
         target: StringId,
         qualifier: Option<&Path>,
     ) -> Option<GlobalSymbolId> {
-        match self.resolve_import_type_symbol(module, profile, node, target, qualifier) {
+        match self.resolve_import_type_symbol(revision, module, profile, node, target, qualifier) {
             Ok(symbol) => symbol,
             Err(AnalyzeError::Yield { .. } | AnalyzeError::UnsatisfiedRequirement { .. }) => None,
             Err(error) => {
@@ -31,6 +32,7 @@ impl Compiler {
     /// Resolve a type import into a concrete exported symbol.
     pub(crate) fn resolve_import_type_symbol(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         node: LocalNodeIdAny,
@@ -44,10 +46,11 @@ impl Compiler {
 
         // resolve the module target from the import specifier
         let dir = self
-            .require_artifact_dir_resolved(module.id, profile)
+            .require_artifact_dir_resolved(revision, module.id, profile)
             .map_err(AnalyzeError::from)?;
         let node = node.into_global(module.id);
         let target = match self.resolve_import_from_resolved_artifact(
+            revision,
             module,
             dir.as_ref(),
             profile,
@@ -72,6 +75,7 @@ impl Compiler {
 
         // resolve the exported symbol from the target module
         let symbol = match self.resolve_export_symbol_for_target(
+            revision,
             module.id,
             node,
             target,
@@ -108,8 +112,14 @@ impl Compiler {
         qualifier: Option<&Path>,
         static_arguments: Option<&[StaticArgument]>,
     ) -> Option<LocalTypeId> {
-        let symbol =
-            self.query_import_type_symbol(ctx.module, ctx.profile, source_id, target, qualifier)?;
+        let symbol = self.query_import_type_symbol(
+            ctx.compiler_context.revision(),
+            ctx.module,
+            ctx.profile,
+            source_id,
+            target,
+            qualifier,
+        )?;
 
         let static_arguments = static_arguments.map(|arguments| arguments.to_vec());
         let reference = Type::Reference {
@@ -159,6 +169,7 @@ impl Compiler {
 
             return self
                 .resolve_symbol_in_namespace(
+                    ctx.compiler_context.revision(),
                     expression_id.into_global_any(ctx.module.id),
                     target_symbol,
                     ctx.profile,
@@ -174,6 +185,7 @@ impl Compiler {
         let target_module = target_module?;
         let target_module = target_module.ty.or(target_module.value)?;
         self.resolve_export_symbol_for_target(
+            ctx.compiler_context.revision(),
             ctx.module.id,
             expression_id.into_global_any(ctx.module.id),
             target_module,

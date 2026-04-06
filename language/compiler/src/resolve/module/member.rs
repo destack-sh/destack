@@ -4,7 +4,7 @@ use destack_dir::{
     BindingAnchor, Declaration, DynamicKey, Expression, GlobalSymbolId, Heritage, LocalNodeId,
     NodeTree, StaticKey, SymbolTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, Revision};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
@@ -13,6 +13,7 @@ impl Compiler {
     /// Resolve a static member symbol for a target symbol using module context fields.
     pub fn query_static_member_symbol(
         &self,
+        revision: Revision,
         module: &Module,
         profile: ProfileId,
         target_symbol: GlobalSymbolId,
@@ -28,6 +29,7 @@ impl Compiler {
         // use the current module tables when the target is local
         if target_symbol.module_id == module.id {
             return self.query_static_member_symbol_inner(
+                revision,
                 module,
                 profile,
                 target_symbol,
@@ -39,10 +41,11 @@ impl Compiler {
         }
 
         // otherwise switch to the canonical target module snapshot
-        let target_module = self.program.modules.get(target_symbol.module_id);
+        let target_module = self
+            .cache_module_snapshot(revision, target_symbol.module_id)
+            .ok()?;
         let target_module = target_module.as_ref();
         let snapshot = self
-            .artifacts
             .dir_resolved(target_symbol.module_id, profile)
             .unwrap_or_else(|| {
                 panic!(
@@ -52,6 +55,7 @@ impl Compiler {
             });
 
         self.query_static_member_symbol_inner(
+            revision,
             target_module,
             profile,
             target_symbol,
@@ -65,6 +69,7 @@ impl Compiler {
     /// Resolve a static member symbol for a target symbol using module context fields.
     fn query_static_member_symbol_inner(
         &self,
+        revision: Revision,
         module: &Module,
         profile: ProfileId,
         target_symbol: GlobalSymbolId,
@@ -143,6 +148,7 @@ impl Compiler {
 
             if let Some(heritage) = heritage
                 && let Some(symbol) = self.query_static_member_symbol_in_heritage(
+                    revision,
                     module,
                     profile,
                     heritage,
@@ -185,6 +191,7 @@ impl Compiler {
 
             // fall back to implemented interfaces when no extension member matches
             if let Some(symbol) = self.query_static_member_symbol_in_heritage(
+                revision,
                 module,
                 profile,
                 heritage,
@@ -302,6 +309,7 @@ impl Compiler {
     /// Resolve inherited static members from heritage expressions.
     fn query_static_member_symbol_in_heritage(
         &self,
+        revision: Revision,
         module: &Module,
         profile: ProfileId,
         heritage: &Heritage,
@@ -329,6 +337,7 @@ impl Compiler {
 
             if canonical_symbol.module_id == module.id {
                 if let Some(symbol) = self.query_static_member_symbol_inner(
+                    revision,
                     module,
                     profile,
                     canonical_symbol,
@@ -340,10 +349,11 @@ impl Compiler {
                     return Some(symbol);
                 }
             } else {
-                let remote_module = self.program.modules.get(canonical_symbol.module_id);
+                let remote_module = self
+                    .cache_module_snapshot(revision, canonical_symbol.module_id)
+                    .ok()?;
                 let remote_module = remote_module.as_ref();
                 let snapshot = self
-                    .artifacts
                     .dir_resolved(canonical_symbol.module_id, profile)
                     .unwrap_or_else(|| {
                         panic!(
@@ -353,6 +363,7 @@ impl Compiler {
                     });
 
                 if let Some(symbol) = self.query_static_member_symbol_inner(
+                    revision,
                     remote_module,
                     profile,
                     canonical_symbol,
@@ -399,7 +410,6 @@ impl Compiler {
             (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
         } else {
             let snapshot = self
-                .artifacts
                 .dir_prepared(symbol.module_id, profile)
                 .unwrap_or_else(|| {
                     panic!(
@@ -433,6 +443,7 @@ impl Compiler {
     /// Resolve a static member symbol for a target symbol across module tables.
     pub fn resolve_static_member_symbol(
         &self,
+        revision: Revision,
         module: &Module,
         profile: ProfileId,
         origin_id: LocalNodeId<Expression>,
@@ -442,7 +453,7 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> ResolveResult<GlobalSymbolId> {
         // prefer the canonical symbol when available
-        self.require_dir_resolved(target_symbol.module_id, profile)?;
+        self.require_dir_resolved(revision, target_symbol.module_id, profile)?;
         let canonical_symbol =
             self.canonical_symbol_in_tables(module, profile, target_symbol, symbols);
 
@@ -450,11 +461,12 @@ impl Compiler {
         let target_symbol = canonical_symbol;
 
         // ensure target module symbols are resolved for member lookup
-        self.require_dir_resolved(target_symbol.module_id, profile)?;
+        self.require_dir_resolved(revision, target_symbol.module_id, profile)?;
 
         // resolve the member when the target is in the current module
         if target_symbol.module_id == module.id {
             let Some(symbol) = self.query_static_member_symbol(
+                revision,
                 module,
                 profile,
                 target_symbol,
@@ -472,10 +484,13 @@ impl Compiler {
         }
 
         // load the target module tables for member lookup
-        let target_module = self.program.modules.get(target_symbol.module_id);
+        let target_module = self
+            .cache_module_snapshot(revision, target_symbol.module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?;
         let target_module = target_module.as_ref();
         let snapshot = self
-            .artifacts
             .dir_resolved(target_symbol.module_id, profile)
             .unwrap_or_else(|| {
                 panic!(
@@ -485,6 +500,7 @@ impl Compiler {
             });
 
         let Some(symbol) = self.query_static_member_symbol(
+            revision,
             target_module,
             profile,
             target_symbol,

@@ -79,13 +79,14 @@ impl Compiler {
                 let (literal_string, literal_integer) = match ctx.tree.get(index_id) {
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::String(name_id),
-                    } => (Some(self.program.strings.get(*name_id)), None),
+                    } => (Some(self.repository.strings.get(*name_id)), None),
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::Integer(value),
                     } => (None, Some(*value)),
                     _ => (None, None),
                 };
                 let static_key = self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
@@ -108,6 +109,7 @@ impl Compiler {
             && let Some(index_id) = index_id
         {
             let static_key = self.static_key_from_dynamic_key(
+                ctx.compiler_context.revision(),
                 ctx.profile,
                 ctx.tree,
                 ctx.symbols,
@@ -325,13 +327,14 @@ impl Compiler {
                 let (literal_string, literal_integer) = match ctx.tree.get(*index_id) {
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::String(name_id),
-                    } => (Some(self.program.strings.get(*name_id)), None),
+                    } => (Some(self.repository.strings.get(*name_id)), None),
                     Expression::ScalarLiteral {
                         value: ScalarLiteral::Integer(value),
                     } => (None, Some(*value)),
                     _ => (None, None),
                 };
                 let static_key = self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
@@ -356,7 +359,7 @@ impl Compiler {
             literal_string.as_deref(),
         ) {
             let member_key = static_key.unwrap_or_else(|| {
-                let name_id = self.program.strings.intern("<index>");
+                let name_id = self.repository.strings.intern("<index>");
                 StaticKey::Name(name_id)
             });
             self.error(AnalyzeError::ReadonlyProperty {
@@ -373,6 +376,7 @@ impl Compiler {
             && let Some(index_id) = *index_id
         {
             let static_key = self.static_key_from_dynamic_key(
+                ctx.compiler_context.revision(),
                 ctx.profile,
                 ctx.tree,
                 ctx.symbols,
@@ -746,7 +750,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let key_kind =
-            index_key_kind_for_index(index_ty_id, literal_string, types, &self.program.strings)?;
+            index_key_kind_for_index(index_ty_id, literal_string, types, &self.repository.strings)?;
         let mut value_types = Vec::new();
 
         for signature in index_signatures {
@@ -847,7 +851,7 @@ impl Compiler {
                         index_ty_id,
                         literal_string,
                         ctx.types,
-                        &self.program.strings,
+                        &self.repository.strings,
                     ) else {
                         continue;
                     };

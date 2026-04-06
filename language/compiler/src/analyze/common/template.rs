@@ -85,7 +85,7 @@ impl Compiler {
 
         // copy string values
         for string_id in strings {
-            let value = self.program.strings.get(*string_id);
+            let value = self.repository.strings.get(*string_id);
             parts.push(value.to_string());
         }
 
@@ -732,7 +732,7 @@ impl Compiler {
 
                 return None;
             }
-            _ => Some(ScalarLiteral::String(self.program.strings.intern(value))),
+            _ => Some(ScalarLiteral::String(self.repository.strings.intern(value))),
         }?;
 
         let type_id = types.insert_type_from_any(
@@ -776,7 +776,7 @@ impl Compiler {
         // match the scalar literal kind
         match scalar {
             ScalarLiteral::String(string_id) => {
-                self.program.strings.get(*string_id).as_ref() == value
+                self.repository.strings.get(*string_id).as_ref() == value
             }
             ScalarLiteral::Boolean(value_boolean) => {
                 matches!((value, *value_boolean), ("true", true) | ("false", false))
@@ -1184,7 +1184,7 @@ impl Compiler {
         // ensure all literal parts are empty
         let mut has_span = false;
         for string_id in strings {
-            if !self.program.strings.get(*string_id).is_empty() {
+            if !self.repository.strings.get(*string_id).is_empty() {
                 return false;
             }
         }
@@ -1235,9 +1235,9 @@ impl Compiler {
         }
 
         // build all literal string combinations
-        let mut combinations = vec![self.program.strings.get(strings[0]).to_string()];
+        let mut combinations = vec![self.repository.strings.get(strings[0]).to_string()];
         for (index, values) in span_values.iter().enumerate() {
-            let suffix = self.program.strings.get(strings[index + 1]);
+            let suffix = self.repository.strings.get(strings[index + 1]);
             let mut next = Vec::new();
             for base in combinations.iter() {
                 for value in values.iter() {
@@ -1257,7 +1257,7 @@ impl Compiler {
         // intern literal keys
         let mut literal_keys = Vec::new();
         for value in combinations {
-            let key_id = self.program.strings.intern(&value);
+            let key_id = self.repository.strings.intern(&value);
             literal_keys.push(StaticKey::Name(key_id));
         }
 
@@ -1312,7 +1312,7 @@ impl Compiler {
                 value: TypeLiteral::ScalarLiteral(literal),
             } => {
                 let value = match literal {
-                    ScalarLiteral::String(name) => self.program.strings.get(name).to_string(),
+                    ScalarLiteral::String(name) => self.repository.strings.get(name).to_string(),
                     ScalarLiteral::Integer(value) => value.to_string(),
                     ScalarLiteral::Bigint(value) => value.to_string(),
                     ScalarLiteral::Float(value) => value.to_string(),
@@ -1386,9 +1386,9 @@ impl Compiler {
         }
 
         // build all string combinations
-        let mut combinations = vec![self.program.strings.get(strings[0]).to_string()];
+        let mut combinations = vec![self.repository.strings.get(strings[0]).to_string()];
         for (index, values) in span_values.iter().enumerate() {
-            let suffix = self.program.strings.get(strings[index + 1]);
+            let suffix = self.repository.strings.get(strings[index + 1]);
             let mut next = Vec::new();
             for base in combinations.iter() {
                 for value in values.iter() {

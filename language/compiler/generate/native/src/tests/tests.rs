@@ -3,11 +3,15 @@ use std::num::NonZeroU32;
 use destack_artifact::MirBase;
 use destack_core::StringId;
 use destack_mir as mir;
-use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
-use destack_workspace::TargetId;
+use destack_source::{FileId, ModuleId, PackageId, TargetId};
 use mir::parse::ParseOptions;
 
 use crate::CodegenCraneliftBackend;
+
+/// Build one stable test target id for CLIF fixtures.
+fn test_target_id(package_id: PackageId, name: &str) -> TargetId {
+    TargetId::new(package_id, name)
+}
 
 /// Helper to compile MIR text to CLIF text.
 pub(crate) fn compile_mir_to_clif(source: &str) -> String {
@@ -18,8 +22,7 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
     // create a base MIR payload and populate it
     let mut module = MirBase::new(
         ModuleId::EPHEMERAL,
-        ModuleVersion::INITIAL,
-        TargetId::new(PackageId::EPHEMERAL, "clif"),
+        test_target_id(PackageId::EPHEMERAL, "clif"),
     );
     module.tree = tree;
 

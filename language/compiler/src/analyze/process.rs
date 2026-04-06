@@ -1,4 +1,4 @@
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext};
 use destack_artifact::{ArtifactKey, DirAnalyzed, DirDeclared};
 use destack_dir::CaptureTable;
 use destack_source::ModuleId;
@@ -6,29 +6,32 @@ use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Build declared DIR for one module.
-    pub fn process_dir_declared(&self, module: ModuleId, profile: ProfileId) -> AnalyzeResult<()> {
-        let module_version = self.module_version(module);
-        let profile_version = self.profile_version(profile);
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module,
-            module_version,
-            profile,
-            profile_version,
-        )?;
+    pub fn process_dir_declared(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        context: &CompilerContext<'_>,
+    ) -> AnalyzeResult<()> {
+        let revision = context.revision();
+        let artifact_key = ArtifactKey::dir_declared(module, profile);
+        let artifact_stamp = context.artifact_stamp(&artifact_key);
 
         // reuse a persisted declared dir when it is still valid
-        let artifact_key = ArtifactKey::DirDeclared { module, profile };
-        if self
-            .load_published_artifact(artifact_key.clone(), |compiler| {
-                compiler.load_dir_declared_image(module, module_version, profile)
-            })
+        if context
+            .restore_cached_artifact(
+                artifact_key,
+                |compiler| {
+                    compiler.load_dir_declared_image(revision, module, artifact_stamp, profile)
+                },
+                |store, version, payload| store.publish_dir_declared(version, payload),
+            )
             .is_some()
         {
             return Ok(());
         }
 
         // transient declared builder
-        let resolved = self
+        let resolved = context
             .require_artifact_dir_resolved(module, profile)
             .map_err(AnalyzeError::from)?;
         let mut symbols = resolved.symbols.as_ref().clone();
@@ -41,98 +44,120 @@ impl Compiler {
             &mut captures,
             module,
             profile,
-            module_version,
-            profile_version,
+            context,
         )?;
 
         let payload = DirDeclared::from_resolved_with(resolved.as_ref(), symbols, types, captures);
-        self.artifacts
-            .publish(artifact_key.clone(), payload.clone());
-        self.store_artifact(&artifact_key, &payload, |compiler, payload| {
-            compiler.store_dir_declared_image(module, profile, payload)
+        context.publish_artifact(artifact_key, payload.clone(), |store, version, payload| {
+            store.publish_dir_declared(version, payload)
         });
+        context.store_artifact(
+            &artifact_key,
+            &payload,
+            |compiler, artifact_stamp, payload| {
+                compiler.store_dir_declared_image(
+                    revision,
+                    module,
+                    profile,
+                    artifact_stamp,
+                    payload,
+                )
+            },
+        );
 
         Ok(())
     }
 
     /// Build interface DIR for one module.
-    pub fn process_dir_interface(&self, module: ModuleId, profile: ProfileId) -> AnalyzeResult<()> {
-        let module_version = self.module_version(module);
-        let profile_version = self.profile_version(profile);
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module,
-            module_version,
-            profile,
-            profile_version,
-        )?;
+    pub fn process_dir_interface(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        context: &CompilerContext<'_>,
+    ) -> AnalyzeResult<()> {
+        let revision = context.revision();
+        let artifact_key = ArtifactKey::dir_interface(module, profile);
+        let artifact_stamp = context.artifact_stamp(&artifact_key);
 
         // reuse a persisted interface dir when it is still valid
-        let artifact_key = ArtifactKey::DirInterface { module, profile };
-        if self
-            .load_published_artifact(artifact_key, |compiler| {
-                compiler.load_dir_interface_image(module, module_version, profile)
-            })
+        if context
+            .restore_cached_artifact(
+                artifact_key,
+                |compiler| {
+                    compiler.load_dir_interface_image(revision, module, artifact_stamp, profile)
+                },
+                |store, version, payload| store.publish_dir_interface(version, payload),
+            )
             .is_some()
         {
             return Ok(());
         }
 
-        let entries =
-            self.analyze_module_interface(module, profile, module_version, profile_version)?;
+        let entries = self.analyze_module_interface(module, profile, context)?;
 
         for (module_id, profile_id, dir) in entries {
             let artifact_key = ArtifactKey::DirInterface {
                 module: module_id,
                 profile: profile_id,
             };
-            let build_key = artifact_key.clone();
-            let dependency = self.artifact_dependency_for_key(&build_key);
 
-            self.artifacts.publish(
+            context.publish_artifact(
                 ArtifactKey::DirInterface {
                     module: module_id,
                     profile: profile_id,
                 },
                 dir.clone(),
+                |store, version, payload| store.publish_dir_interface(version, payload),
             );
-            self.artifacts
-                .set_dependency(artifact_key.clone(), dependency);
 
-            self.store_artifact(&artifact_key, dir.as_ref(), |compiler, dir| {
-                compiler.store_dir_interface_image(module_id, profile_id, dir)
-            });
+            context.store_artifact(
+                &artifact_key,
+                dir.as_ref(),
+                |compiler, artifact_stamp, dir| {
+                    compiler.store_dir_interface_image(
+                        revision,
+                        module_id,
+                        profile_id,
+                        artifact_stamp,
+                        dir,
+                    )
+                },
+            );
         }
 
         Ok(())
     }
 
     /// Build analyzed DIR for one module.
-    pub fn process_dir_analyzed(&self, module: ModuleId, profile: ProfileId) -> AnalyzeResult<()> {
-        let module_version = self.module_version(module);
-        let profile_version = self.profile_version(profile);
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module,
-            module_version,
-            profile,
-            profile_version,
-        )?;
+    pub fn process_dir_analyzed(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        context: &CompilerContext<'_>,
+    ) -> AnalyzeResult<()> {
+        let revision = context.revision();
+        let artifact_key = ArtifactKey::dir_analyzed(module, profile);
+        let artifact_stamp = context.artifact_stamp(&artifact_key);
 
         // reuse a persisted analyzed dir when it is still valid
-        let artifact_key = ArtifactKey::DirAnalyzed { module, profile };
-        if self
-            .load_published_artifact(artifact_key.clone(), |compiler| {
-                compiler.load_dir_analyzed_image(module, module_version, profile)
-            })
+        if context
+            .restore_cached_artifact(
+                artifact_key,
+                |compiler| {
+                    compiler.load_dir_analyzed_image(revision, module, artifact_stamp, profile)
+                },
+                |store, version, payload| store.publish_dir_analyzed(version, payload),
+            )
             .is_some()
         {
             return Ok(());
         }
 
         // transient analyzed builder
-        let interface = self
+        let interface = context
             .require_artifact_dir_interface(module, profile)
             .map_err(AnalyzeError::from)?;
-        let declared = self
+        let declared = context
             .require_artifact_dir_declared(module, profile)
             .map_err(AnalyzeError::from)?;
         let tree = interface.tree.clone();
@@ -151,8 +176,7 @@ impl Compiler {
             anchor_node,
             module,
             profile,
-            module_version,
-            profile_version,
+            context,
         )?;
         self.analyze_module_solve(
             tree.as_ref(),
@@ -161,8 +185,7 @@ impl Compiler {
             infer_table.as_mut(),
             module,
             profile,
-            module_version,
-            profile_version,
+            context,
         )?;
         self.analyze_module_commit(
             tree.as_ref(),
@@ -171,8 +194,7 @@ impl Compiler {
             infer_table.as_mut(),
             module,
             profile,
-            module_version,
-            profile_version,
+            context,
         )?;
         self.analyze_module_capture(
             tree.as_ref(),
@@ -180,8 +202,7 @@ impl Compiler {
             &mut captures,
             module,
             profile,
-            module_version,
-            profile_version,
+            context,
         )?;
         self.analyze_module_validate(
             tree.as_ref(),
@@ -190,8 +211,7 @@ impl Compiler {
             anchor_node,
             module,
             profile,
-            module_version,
-            profile_version,
+            context,
         )?;
 
         // publish the analyzed artifact from interface inputs plus local semantic tables
@@ -202,15 +222,26 @@ impl Compiler {
             captures,
         );
 
-        if self.is_code_module(module) {
+        if context.is_code_module(module) {
             self.stats.record_analyze();
         }
 
-        self.artifacts
-            .publish(artifact_key.clone(), payload.clone());
-        self.store_artifact(&artifact_key, &payload, |compiler, payload| {
-            compiler.store_dir_analyzed_image(module, profile, payload)
+        context.publish_artifact(artifact_key, payload.clone(), |store, version, payload| {
+            store.publish_dir_analyzed(version, payload)
         });
+        context.store_artifact(
+            &artifact_key,
+            &payload,
+            |compiler, artifact_stamp, payload| {
+                compiler.store_dir_analyzed_image(
+                    revision,
+                    module,
+                    profile,
+                    artifact_stamp,
+                    payload,
+                )
+            },
+        );
 
         Ok(())
     }

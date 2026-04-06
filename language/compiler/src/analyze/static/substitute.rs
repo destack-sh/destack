@@ -7,7 +7,7 @@ use crate::analyze::common::{
     rewrite_type_with_cache,
 };
 use crate::timing::tags;
-use crate::{AnalyzeResult, Compiler};
+use crate::{AnalyzeResult, Compiler, CompilerContext};
 use destack_dir::{
     Argument, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
     StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolTable, SymbolType,
@@ -20,6 +20,8 @@ use destack_workspace::{Module, ProfileId};
 struct StaticArgumentMaterializer<'a> {
     /// The compiler instance.
     compiler: &'a Compiler,
+    /// The pinned compiler context.
+    compiler_context: &'a CompilerContext<'a>,
     /// The module that owns the arguments.
     argument_module: &'a Module,
     /// The active profile.
@@ -42,6 +44,7 @@ impl<'a> StaticArgumentMaterializer<'a> {
     /// Create a materializer for static arguments.
     fn new(
         compiler: &'a Compiler,
+        compiler_context: &'a CompilerContext<'a>,
         argument_module: &'a Module,
         profile: ProfileId,
         argument_tree: &'a NodeTree,
@@ -60,6 +63,7 @@ impl<'a> StaticArgumentMaterializer<'a> {
         // seed the materializer state
         Self {
             compiler,
+            compiler_context,
             argument_module,
             profile,
             argument_tree,
@@ -104,7 +108,7 @@ fn static_argument_context_key(argument_module: &Module, profile: ProfileId) -> 
     let module_key = module_id.package_id.raw() ^ ((module_id.local_id as u64) << 32);
 
     // profile key mix
-    let profile_key = (profile.raw() as u64).rotate_left(17);
+    let profile_key = profile.raw().rotate_left(17);
 
     module_key ^ profile_key
 }
@@ -123,9 +127,10 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         // evaluate unevaluated types before rewriting
         if matches!(types.get_type(id), Type::Unevaluated(_)) {
             let options = self
-                .compiler
+                .compiler_context
                 .analyze_context_options_for_module(self.argument_module.id);
             let mut ctx = TypeContext::new(
+                self.compiler_context,
                 self.argument_module,
                 self.profile,
                 &options,
@@ -170,7 +175,12 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
 
         // normalize to the type space symbol for the reference
         let symbol = self.compiler.normalize_reference_symbol_id(
-            ModuleSymbolView::new(self.argument_module, self.profile, self.argument_symbols),
+            ModuleSymbolView::new(
+                self.compiler_context,
+                self.argument_module,
+                self.profile,
+                self.argument_symbols,
+            ),
             *symbol,
         );
 
@@ -183,9 +193,10 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         let source_id = types.get_type_source(id);
         let resolved_arguments = if symbol.module_id == self.argument_module.id {
             let options = self
-                .compiler
+                .compiler_context
                 .analyze_context_options_for_module(self.argument_module.id);
             let mut ctx = TypeContext::new(
+                self.compiler_context,
                 self.argument_module,
                 self.profile,
                 &options,
@@ -201,18 +212,21 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
                 static_arguments,
             )
         } else {
-            let reference_module = self.compiler.program.modules.get(symbol.module_id);
+            let reference_module = self.compiler_context.module(symbol.module_id);
             let reference_module = reference_module.as_ref();
-            let reference_snapshot = self
-                .compiler
-                .require_artifact_dir_resolved(symbol.module_id, self.profile);
+            let reference_snapshot = self.compiler.require_artifact_dir_resolved(
+                self.compiler_context.revision(),
+                symbol.module_id,
+                self.profile,
+            );
             let Ok(reference_snapshot) = reference_snapshot else {
                 return rewrite_type(self, types, id, ty);
             };
             let reference_options = self
-                .compiler
+                .compiler_context
                 .analyze_context_options_for_module(reference_module.id);
             let mut ctx = TypeContext::new(
+                self.compiler_context,
                 reference_module,
                 self.profile,
                 &reference_options,
@@ -1138,6 +1152,7 @@ impl Compiler {
         let local_cache = std::mem::take(cache);
         let mut materializer = StaticArgumentMaterializer::new(
             self,
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             ctx.tree,

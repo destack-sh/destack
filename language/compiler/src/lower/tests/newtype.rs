@@ -41,10 +41,10 @@ fn test_lower_newtype_distinct_from_alias() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-type SessionId = int32;
+type RepositoryId = int32;
 newtype UserId = int32;
 
-function lookupSession(id: SessionId): SessionId {
+function lookupRepository(id: RepositoryId): RepositoryId {
     return id;
 }
 
@@ -64,7 +64,7 @@ function lookupUser(id: UserId): UserId {
         r#"
 type @UserId = newtype<i32>
 
-function @lookupSession(v0: i32) -> i32 {
+function @lookupRepository(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
 }

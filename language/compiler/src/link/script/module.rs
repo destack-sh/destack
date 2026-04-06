@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::link::OutputLayout;
-use crate::{Compiler, LinkError, LinkResult};
+use crate::{LinkError, LinkResult};
 
 use destack_artifact::{ScriptArtifact, ScriptDependencyTarget};
 use destack_codegen_js::{
@@ -9,10 +9,10 @@ use destack_codegen_js::{
     NodeVisitor, NodeVisitorOptions, ScalarLiteral, ScriptModule, Statement, walk_expression,
     walk_root,
 };
-use destack_source::{ModuleId, PackageId};
-use destack_workspace::{Target, TargetId};
+use destack_source::{ModuleId, PackageId, TargetId};
+use destack_workspace::Target;
 
-use super::{ScriptOutputGraph, ScriptOutputId, ScriptOutputLayout};
+use super::{ScriptLinker, ScriptOutputGraph, ScriptOutputId, ScriptOutputLayout};
 
 /// One rewrite action for one top-level script statement in linked output.
 #[derive(Debug, Clone)]
@@ -62,7 +62,7 @@ impl NodeVisitor for DynamicImportCallCollector {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl Compiler {
+impl<'a> ScriptLinker<'a> {
     /// Return whether one internal import can be stripped during script linking.
     pub(super) fn can_strip_internal_script_import(
         &self,
@@ -118,7 +118,7 @@ impl Compiler {
         LinkError::InvalidTarget {
             anchor: module_id.into(),
             package: package_id,
-            target: target_id.clone(),
+            target: *target_id,
             message,
         }
     }
@@ -176,7 +176,7 @@ impl Compiler {
                 package_id,
                 format!(
                     "bundled same-output import attributes are not supported yet in '{}'",
-                    target_id.name
+                    self.target_name()
                 ),
             ));
         }
@@ -189,7 +189,7 @@ impl Compiler {
                 package_id,
                 format!(
                     "bundled same-output import rewriting is only implemented for plain named imports in '{}'",
-                    target_id.name
+                    self.target_name()
                 ),
             ));
         }
@@ -220,7 +220,7 @@ impl Compiler {
                 package_id,
                 format!(
                     "bundled same-output re-export rewriting is only implemented for plain named exports in '{}'",
-                    target_id.name
+                    self.target_name()
                 ),
             ));
         }
@@ -421,7 +421,7 @@ impl Compiler {
                 package_id,
                 format!(
                     "bundled same-output dynamic imports are not supported yet in '{}'",
-                    target_id.name
+                    self.target_name()
                 ),
             ));
         }

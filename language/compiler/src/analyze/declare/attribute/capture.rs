@@ -175,7 +175,7 @@ impl Compiler {
             };
 
             // set policy for that name
-            if self.program.strings.get(*name) == "default" {
+            if self.repository.strings.get(*name) == "default" {
                 let policy =
                     self.capture_policy_from_string(module, profile, annotation_id, *value_id)?;
                 directive.policy = policy;
@@ -223,7 +223,7 @@ impl Compiler {
         value: StringId,
     ) -> Option<CapturePolicy> {
         // compare without holding the string pool lock during diagnostics
-        let value = self.program.strings.get(value);
+        let value = self.repository.strings.get(value);
         let is_by_value = &*value == "byValue";
         let is_by_reference = &*value == "byReference";
         let is_by_move = &*value == "byMove";
@@ -257,7 +257,7 @@ impl Compiler {
         value: StringId,
     ) -> Option<CaptureKind> {
         // compare without holding the string pool lock during diagnostics
-        let value = self.program.strings.get(value);
+        let value = self.repository.strings.get(value);
         let is_by_value = &*value == "byValue";
         let is_by_reference = &*value == "byReference";
         let is_by_move = &*value == "byMove";

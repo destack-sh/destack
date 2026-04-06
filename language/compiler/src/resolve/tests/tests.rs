@@ -12,13 +12,13 @@ impl TestProgram {
         emit: EmitFormat,
         libs: &[&str],
     ) {
-        let default_profile = self.program.profile(self.default_profile_id(module_id));
+        let default_profile = self.profile(self.default_profile_id(module_id));
         let mut key = default_profile.key.clone();
         key.emit = emit;
         key.runtime = runtime;
         key.lib = libs.iter().map(|lib| (*lib).to_string()).collect();
 
-        let profile_id = self.program.profiles.get_or_create(key);
+        let profile_id = self.program.profile_id(key);
         self.default_profile_override = Some(profile_id);
     }
 

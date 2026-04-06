@@ -1,7 +1,7 @@
 use crate::timing::tags;
-use crate::{Compiler, ImportError, ImportResult};
+use crate::{Compiler, CompilerContext, ImportResult};
 use destack_dir::{Expression, NodeTree};
-use destack_source::{ModuleId, ModuleVersion};
+use destack_source::ModuleId;
 
 impl Compiler {
     /// Desugar module syntactically: transforms that don't need type information:
@@ -10,15 +10,13 @@ impl Compiler {
     pub(crate) fn import_module_desugar(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
         tree: &mut NodeTree,
+        context: &CompilerContext<'_>,
     ) -> ImportResult<()> {
-        // skip stale tasks
-        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let _timing = self.timing_scope(tags::IMPORT_MODULE_DESUGAR);
 
         // syntax-only modules stop at AST
-        if !self.is_code_module(module_id) {
+        if !context.is_code_module(module_id) {
             return Ok(());
         }
 

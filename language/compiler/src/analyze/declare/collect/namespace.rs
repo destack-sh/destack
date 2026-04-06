@@ -196,7 +196,11 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module has interface surface inference
-                let target_dir = self.require_artifact_dir_interface(module_id, ctx.profile)?;
+                let target_dir = self.require_artifact_dir_interface(
+                    ctx.compiler_context.revision(),
+                    module_id,
+                    ctx.profile,
+                )?;
 
                 // merge direct exports
                 self.merge_exports_map_into_shape(

@@ -94,7 +94,10 @@ impl Compiler {
             ast::Annotation::Doc { node, position } => {
                 let doc = ast.tree.get(*node);
                 let position = self.bind_annotation_position(*position);
-                let string = self.program.strings.intern_from(&ast.strings, doc.string);
+                let string = self
+                    .repository
+                    .strings
+                    .intern_from(&ast.strings, doc.string);
                 Annotation::Doc { position, string }
             }
             ast::Annotation::Decorator { node, position } => {

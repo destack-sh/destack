@@ -211,9 +211,9 @@ impl Compiler {
                         modifiers.is_some_and(|modifiers| modifiers.declaration.is_some());
                     let key_name = self.member_key_name(key.as_ref());
                     let is_constructor_name = key_name
-                        .is_some_and(|name| self.program.strings.get(name) == "constructor");
-                    let is_prototype_name =
-                        key_name.is_some_and(|name| self.program.strings.get(name) == "prototype");
+                        .is_some_and(|name| self.repository.strings.get(name) == "constructor");
+                    let is_prototype_name = key_name
+                        .is_some_and(|name| self.repository.strings.get(name) == "prototype");
 
                     // reject invalid constructor named instance members
                     if !is_static && is_constructor_name && !is_constructor {
@@ -601,7 +601,7 @@ impl Compiler {
         }
 
         let key_name = self.member_key_name(key);
-        key_name.is_some_and(|name| self.program.strings.get(name) == "constructor")
+        key_name.is_some_and(|name| self.repository.strings.get(name) == "constructor")
     }
 
     /// Check whether a member belongs to an abstract class.

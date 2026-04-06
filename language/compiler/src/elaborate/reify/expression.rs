@@ -5,7 +5,7 @@ use destack_workspace::{Module, ProfileId};
 use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind, TypeBinaryOperator};
 
 use crate::elaborate::common::{ElaborateContext, ElaborateState};
-use crate::{Compiler, ElaborateError, ElaborateResult};
+use crate::{Compiler, CompilerContext, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -18,16 +18,18 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        options: crate::AnalyzeOptions,
+        context: &CompilerContext<'_>,
         tree: &mut dir::NodeTree,
         symbols: &mut dir::SymbolTable,
         types: &mut dir::TypeTable,
     ) -> ElaborateResult<()> {
         // skip non-code modules
-        if !self.is_code_module(module.id) {
+        if !context.is_code_module(module.id) {
             return Ok(());
         }
 
-        let ctx = ElaborateContext::new(module.id, module, profile);
+        let ctx = ElaborateContext::new(context, module.id, module, profile, options);
         let mut state = ElaborateState::new(ctx, tree, symbols, types);
 
         // collect member expressions used as call or new callees

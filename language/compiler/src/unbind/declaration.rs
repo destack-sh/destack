@@ -267,7 +267,7 @@ impl Compiler {
                 let kind = self.unbind_dependency_kind(context, *kind);
                 let target = match target {
                     dir::ImportAliasTarget::Require { target } => {
-                        let target = ast_strings.intern_from(&self.program.strings, *target);
+                        let target = ast_strings.intern_from(&self.repository.strings, *target);
                         ast::ImportAliasTarget::Require { target }
                     }
                     dir::ImportAliasTarget::Path { value } => {
@@ -616,7 +616,7 @@ impl Compiler {
         let field = tree.get(field_id);
         let span = self.unbind_span(module, field_id.into());
         let name =
-            ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, field.name));
+            ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, field.name));
         let value = field.value.map(|value| {
             self.unbind_expression(module, value, tree, symbols, ast_tree, ast_strings, context)
         });

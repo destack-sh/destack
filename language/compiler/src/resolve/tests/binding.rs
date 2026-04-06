@@ -450,7 +450,7 @@ export let B = A + 1;
 fn test_resolve_symbol_across_n_modules() {
     const N: usize = 10;
     let test = TestProgram::memory_parallel();
-    let initial_module_count = test.program.modules.len();
+    let initial_module_count = test.program.tracked_module_count();
 
     // add module 1 to fs: export let M1 = 1;
     test.add_file(
@@ -509,7 +509,7 @@ export let M{N} = {sum_expression_str} + 1;
     test.compile_check_clean();
 
     // verify all N modules were created (no duplicates from race conditions)
-    let module_count = test.program.modules.len();
+    let module_count = test.program.tracked_module_count();
     assert_eq!(module_count, initial_module_count + N);
 }
 
@@ -657,7 +657,7 @@ type C = A;
     test.compile();
 
     // should produce a CyclicSymbol error
-    let diagnostics = test.program.diagnostics.collect();
+    let diagnostics = test.diagnostics();
     let has_cyclic = diagnostics
         .iter()
         .into_iter()
@@ -1781,9 +1781,17 @@ function printType(t: Type) {
     test.resolve_module(module_id);
     test.compile();
     test.check_clean();
+    let profile = test.default_profile_id_for_root();
+    let revision = test.program.current_revision();
+    let environment = test
+        .repository
+        .language_environment(revision, profile)
+        .unwrap_or_else(|| panic!("missing language environment for test profile"));
+
     for item in LanguageSymbol::all() {
-        let profile = test.default_profile_id_for_root();
-        let _ = test.compiler.language_symbol(profile, item);
+        let _ = environment
+            .item(item)
+            .unwrap_or_else(|| panic!("missing language item {item:?}"));
     }
 }
 

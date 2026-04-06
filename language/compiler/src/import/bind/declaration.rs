@@ -642,7 +642,7 @@ impl Compiler {
                 let alias_name = descriptor.name.map(|name| name.string());
                 let target = match target {
                     ast::ImportAliasTarget::Require { target } => {
-                        let target = self.program.strings.intern_from(&ast.strings, *target);
+                        let target = self.repository.strings.intern_from(&ast.strings, *target);
                         ImportAliasTarget::Require { target }
                     }
                     ast::ImportAliasTarget::Path { value } => {
@@ -1206,7 +1206,7 @@ impl Compiler {
         let field_id =
             tree.reserve_from_source(NodeType::EnumField, ast_field_id.id, scope, parent_id);
         let name = self
-            .program
+            .repository
             .strings
             .intern_from(&ast.strings, ast_field.name.string());
         let value = ast_field.value.map(|value| {

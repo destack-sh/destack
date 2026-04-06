@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{ModuleId, PackageId};
-use destack_workspace::{FloatMathPolicy, TargetId};
+use destack_source::{ModuleId, PackageId, TargetId};
+use destack_workspace::FloatMathPolicy;
 use parking_lot::Mutex;
 
 use crate::optimize::{
@@ -478,7 +478,7 @@ impl PackagePipelineContext {
             &strings,
             module.options().clone(),
             module.module_id(),
-            module.target_id().clone(),
+            *module.target_id(),
             profile,
             self.diagnostics.clone(),
         );
@@ -588,7 +588,7 @@ impl ProgramPipelineContext {
         // build the package context
         let mut context = PackagePipelineContext::with_diagnostics(
             package.package_id(),
-            package.target_id().clone(),
+            *package.target_id(),
             self.diagnostics.clone(),
         );
 

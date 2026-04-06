@@ -1,6 +1,6 @@
 use super::{StaticEvaluationDiagnosticMode, StaticEvaluationMode};
 use crate::analyze::common::{AnalyzeIndex, RelationMode, TypeContext, TypeRewriteCache};
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext};
 use destack_artifact::ArtifactKey;
 use destack_dir::{
     DependencyItem, Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, Mutability,
@@ -314,6 +314,7 @@ impl Compiler {
     /// Query one remote published static constant lookup from one exact artifact family.
     fn query_remote_artifact_static_constant_lookup(
         &self,
+        context: &CompilerContext<'_>,
         module_id: ModuleId,
         profile: ProfileId,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
@@ -326,6 +327,7 @@ impl Compiler {
         AnalyzeError,
     > {
         self.with_remote_dir_for_artifact(
+            context,
             module_id,
             profile,
             artifact_key,
@@ -346,6 +348,7 @@ impl Compiler {
     /// Evaluate one unresolved remote static constant on one cloned exact artifact snapshot.
     fn evaluate_remote_artifact_static_constant(
         &self,
+        context: &CompilerContext<'_>,
         profile: ProfileId,
         local_types: &mut TypeTable,
         symbol: GlobalSymbolId,
@@ -357,11 +360,12 @@ impl Compiler {
         cycle_diagnostic_mode: StaticCycleDiagnosticMode,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         self.with_remote_dir_for_artifact(
+            context,
             symbol.module_id,
             profile,
             remote_dependency_artifact,
             |remote_module, remote_tree, remote_symbols, remote_types| {
-                let remote_options = self.analyze_context_options_for_module(remote_module.id);
+                let remote_options = context.analyze_context_options_for_module(remote_module.id);
                 let mut remote_snapshot = remote_types.clone();
                 let mut remote_visited = visited.clone();
                 let remote_substitutions = substitution_entries.map(|entries| {
@@ -379,6 +383,7 @@ impl Compiler {
                 });
 
                 let mut view = TypeContext::new(
+                    context,
                     remote_module,
                     profile,
                     &remote_options,
@@ -575,6 +580,7 @@ impl Compiler {
 
                     let (found_value, forwarded_symbols) = self
                         .query_remote_artifact_static_constant_lookup(
+                            ctx.compiler_context,
                             candidate_symbol.module_id,
                             ctx.profile,
                             remote_dependency_artifact,
@@ -602,6 +608,7 @@ impl Compiler {
             // evaluate unresolved remote constants on a cloned remote snapshot when publication is absent
             if local_value.is_none() {
                 local_value = self.evaluate_remote_artifact_static_constant(
+                    ctx.compiler_context,
                     ctx.profile,
                     ctx.types,
                     symbol,
@@ -622,7 +629,7 @@ impl Compiler {
 
         // ensure dependency items are resolved before evaluating local constants
         if symbol.module_id == ctx.module.id && mode == StaticEvaluationMode::Parametric {
-            self.require_dir_resolved(ctx.module.id, ctx.profile)
+            self.require_dir_resolved(ctx.compiler_context.revision(), ctx.module.id, ctx.profile)
                 .map_err(AnalyzeError::from)?;
         }
 

@@ -543,6 +543,7 @@ impl Compiler {
                 Some(self.static_parameter_kind_for_symbol(&mut ctx.reborrow(), target_symbol))
             } else {
                 self.with_module_types_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     target_symbol.module_id,
@@ -1077,6 +1078,7 @@ impl Compiler {
             if let Some(projected_symbol) = ctx.tree.get(expression_id).target_symbol() {
                 let is_enum_field = self
                     .with_module_tree_symbol_view_or_local_for_artifact(
+                        ctx.compiler_context,
                         ctx.module,
                         ctx.profile,
                         projected_symbol.module_id,
@@ -1396,6 +1398,7 @@ impl Compiler {
         target_symbol: GlobalSymbolId,
     ) -> Option<SymbolSpace> {
         self.with_module_symbols_or_local_for_artifact(
+            view.compiler_context,
             view.module,
             view.profile,
             target_symbol.module_id,

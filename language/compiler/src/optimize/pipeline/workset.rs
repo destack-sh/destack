@@ -3,8 +3,7 @@ use std::sync::Arc;
 use destack_artifact::MirBase;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{ModuleId, PackageId};
-use destack_workspace::TargetId;
+use destack_source::{ModuleId, PackageId, TargetId};
 use parking_lot::RwLock;
 
 use crate::optimize::{OptimizationLevel, PipelineOptions};

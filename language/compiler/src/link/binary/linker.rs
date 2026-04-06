@@ -1,14 +1,16 @@
 use std::path::Path;
 
-use crate::Compiler;
+use crate::{Compiler, CompilerContext};
 
-use destack_source::PackageId;
-use destack_workspace::{Target, TargetId};
+use destack_source::{PackageId, TargetId};
+use destack_workspace::Target;
 
 /// One binary target linker.
 pub(crate) struct BinaryLinker<'a> {
     /// The compiler driving the current link.
     pub(super) compiler: &'a Compiler,
+    /// The pinned revision used by this link.
+    pub(super) context: &'a CompilerContext<'a>,
     /// The package directory that anchors output resolution.
     pub(super) package_dir: &'a Path,
     /// The configured root directory when one exists.
@@ -25,6 +27,7 @@ impl<'a> BinaryLinker<'a> {
     /// Create one binary linker for one target.
     pub(crate) fn new(
         compiler: &'a Compiler,
+        context: &'a CompilerContext<'a>,
         package_dir: &'a Path,
         root_dir: Option<&'a Path>,
         target: &'a Target,
@@ -33,6 +36,7 @@ impl<'a> BinaryLinker<'a> {
     ) -> Self {
         Self {
             compiler,
+            context,
             package_dir,
             root_dir,
             target,

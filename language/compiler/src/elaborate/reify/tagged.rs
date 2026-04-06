@@ -50,6 +50,7 @@ impl Compiler {
         let callee_id = self.unwrap_parenthesized_expression(callee, state.tree);
         let Some(callee_symbol) = self.reference_symbol_for_expression(
             TreeSymbolView::new(
+                state.ctx.compiler_context,
                 state.ctx.module,
                 state.ctx.profile,
                 state.tree,
@@ -131,7 +132,11 @@ impl Compiler {
 
         // load the remote module data for imported symbols
         let dir = self
-            .require_artifact_dir_analyzed(symbol.module_id, state.ctx.profile)
+            .require_artifact_dir_analyzed(
+                state.ctx.compiler_context.revision(),
+                symbol.module_id,
+                state.ctx.profile,
+            )
             .map_err(|error| self.elaborate_error_from_requirement(error))?;
 
         let view = NominalLookupView {

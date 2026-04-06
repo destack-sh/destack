@@ -5,21 +5,21 @@ use crate::tests::TestProgram;
 
 fn test_program_js() -> TestProgram {
     let mut test = TestProgram::memory_sequential();
-    let default_profile = test.program.profile(test.default_profile_id_for_root());
+    let default_profile = test.profile(test.default_profile_id_for_root());
     let mut key = default_profile.key.clone();
     key.emit = EmitFormat::Js;
-    let profile_id = test.program.profiles.get_or_create(key);
+    let profile_id = test.program.profile_id(key);
     test.default_profile_override = Some(profile_id);
     test
 }
 
 fn test_program_js_for_platform(platform: Platform) -> TestProgram {
     let mut test = TestProgram::memory_sequential();
-    let default_profile = test.program.profile(test.default_profile_id_for_root());
+    let default_profile = test.profile(test.default_profile_id_for_root());
     let mut key = default_profile.key.clone();
     key.emit = EmitFormat::Js;
     key.platform = platform;
-    let profile_id = test.program.profiles.get_or_create(key);
+    let profile_id = test.program.profile_id(key);
     test.default_profile_override = Some(profile_id);
     test
 }

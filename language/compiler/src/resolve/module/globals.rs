@@ -1,4 +1,4 @@
-use destack_artifact::DirPrepared;
+use destack_artifact::{ArtifactKey, ArtifactStamp, DirPrepared};
 use destack_builtin::builtin_library;
 use destack_core::StringId;
 use destack_dir::{
@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use crate::resolve::binding::ResolvedPathSymbolTargets;
 use crate::resolve::binding::cache::ResolveScopeIndexCache;
-use crate::{ArtifactRequirementError, Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, RequirementError, ResolveError, ResolveResult};
 
 /// Key for grouping global symbols by name and space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -28,8 +28,8 @@ pub(crate) struct GlobalSymbolGroupKey {
 /// Track global symbols from declare global blocks reachable from a root set.
 #[derive(Debug, Clone)]
 pub(crate) struct GlobalSymbolTable {
-    /// Versions for modules included in the table.
-    pub module_versions: IndexMap<ModuleId, destack_source::ModuleVersion>,
+    /// Dependencies for modules included in the table.
+    pub module_dependencies: IndexMap<ModuleId, ArtifactStamp>,
     /// First symbol observed for each global key.
     pub symbols: IndexMap<StaticKey, GlobalSymbolId>,
     /// First symbol observed for each global key and space.
@@ -61,7 +61,7 @@ impl GlobalSymbolTable {
     /// Create an empty table.
     fn new() -> Self {
         Self {
-            module_versions: IndexMap::new(),
+            module_dependencies: IndexMap::new(),
             symbols: IndexMap::new(),
             symbols_by_space: IndexMap::new(),
             sources: IndexMap::new(),
@@ -102,13 +102,14 @@ impl Compiler {
     /// Build the global symbol table for a module and profile.
     pub(crate) fn global_symbol_table_for_module(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<Arc<GlobalSymbolTable>> {
-        let roots = self.select_global_symbol_table(module_id, profile_id)?;
-        let Some(module_graph) = self.artifacts.module_graph(profile_id) else {
+        let roots = self.select_global_symbol_table(revision, module_id, profile_id)?;
+        let Some(module_graph) = self.module_graph(profile_id) else {
             return Ok(Arc::new(
-                self.build_global_symbol_table(&roots, profile_id)?,
+                self.build_global_symbol_table(revision, &roots, profile_id)?,
             ));
         };
         let cache_key = GlobalSymbolTableCacheKey {
@@ -125,7 +126,7 @@ impl Compiler {
             }
         }
 
-        let cache = Arc::new(self.build_global_symbol_table(&roots, profile_id)?);
+        let cache = Arc::new(self.build_global_symbol_table(revision, &roots, profile_id)?);
         self.index
             .global_symbol_tables
             .insert(cache_key, (module_graph, cache.clone()));
@@ -136,6 +137,7 @@ impl Compiler {
     /// Resolve a path against the global symbol table.
     pub(crate) fn resolve_global_path(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         node: GlobalNodeIdAny,
@@ -147,7 +149,7 @@ impl Compiler {
         tree: &mut NodeTree,
     ) -> ResolveResult<Option<(Expression, ResolvedPathSymbolTargets)>> {
         // load the cached table for this module
-        let cache = self.global_symbol_table_for_module(module.id, profile_id)?;
+        let cache = self.global_symbol_table_for_module(revision, module.id, profile_id)?;
 
         // resolve the first path segment against global symbols
         let first_segment = path.first_segment().expect("path is empty");
@@ -182,6 +184,7 @@ impl Compiler {
         let target_symbol = match target_symbol {
             Some(target_symbol) => Some(target_symbol),
             None => self.resolve_selected_lib_symbol(
+                revision,
                 module,
                 profile_id,
                 node,
@@ -198,15 +201,18 @@ impl Compiler {
         receiver_targets.push(target_symbol);
 
         // ensure the target module is prepared before reading its symbols
-        self.require_dir_prepared_if_other(module.id, target_symbol.module_id, profile_id)
-            .map_err(|error| match error {
-                ArtifactRequirementError::NotReady { requirement } => {
-                    ResolveError::Yield { requirement }
-                }
-                ArtifactRequirementError::Failed { requirement } => {
-                    ResolveError::UnsatisfiedRequirement { requirement }
-                }
-            })?;
+        self.require_dir_prepared_if_other(
+            revision,
+            module.id,
+            target_symbol.module_id,
+            profile_id,
+        )
+        .map_err(|error| match error {
+            RequirementError::NotReady { requirement } => ResolveError::Yield { requirement },
+            RequirementError::Failed { requirement } => {
+                ResolveError::UnsatisfiedRequirement { requirement }
+            }
+        })?;
 
         // return the global reference when the path is a single segment
         if path.segments.len() == 1 {
@@ -221,9 +227,13 @@ impl Compiler {
         }
 
         // load the target module symbols for namespace resolution
-        let target_context = self.program.modules.get(target_symbol.module_id);
+        let target_context = self
+            .cache_module_snapshot(revision, target_symbol.module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?;
         let target_dir = self
-            .require_artifact_dir_prepared(target_symbol.module_id, profile_id)
+            .require_artifact_dir_prepared(revision, target_symbol.module_id, profile_id)
             .map_err(ResolveError::from)?;
         let symbols = &target_dir.symbols;
         let local_symbol_id = target_symbol.local_id;
@@ -233,6 +243,7 @@ impl Compiler {
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
             match self.resolve_relative_symbol_with_ambient_merge_from_artifact(
+                revision,
                 &target_context,
                 &target_dir,
                 profile_id,
@@ -260,6 +271,7 @@ impl Compiler {
                     if remaining.segments.len() == remaining_path.segments.len()
                         && let Some((export_symbol, export_remaining)) = self
                             .resolve_global_namespace_member_via_exports(
+                                revision,
                                 &target_context,
                                 profile_id,
                                 &remaining_path,
@@ -320,6 +332,7 @@ impl Compiler {
                 Err(error @ ResolveError::MissingSymbol { .. }) => {
                     if let Some((resolved_id, remaining)) = self
                         .resolve_global_namespace_member_via_exports(
+                            revision,
                             &target_context,
                             profile_id,
                             &remaining_path,
@@ -386,6 +399,7 @@ impl Compiler {
     /// Resolve a global namespace member through module exports.
     fn resolve_global_namespace_member_via_exports(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile_id: ProfileId,
         path: &Path,
@@ -408,6 +422,7 @@ impl Compiler {
             .unwrap_or_else(|| panic!("missing committed base dir artifact for {:?}", module.id));
         let anchor = dir_base.anchor_node.into_global(module.id);
         let Some(resolved_symbol) = self.resolve_export_symbol_for_target(
+            revision,
             module.id,
             anchor,
             ModuleTarget::Module(module.id),
@@ -428,6 +443,7 @@ impl Compiler {
     /// This collects all global symbols from the given modules in one go.
     pub(crate) fn build_global_symbol_table_freestanding(
         &self,
+        revision: destack_workspace::Revision,
         modules: &[ModuleId],
         profile_id: ProfileId,
     ) -> ResolveResult<GlobalSymbolTable> {
@@ -437,20 +453,27 @@ impl Compiler {
         // process all lib modules
         while let Some(module_id) = cache.pending.pop_front() {
             // skip already processed modules
-            if cache.module_versions.contains_key(&module_id) {
+            if cache.module_dependencies.contains_key(&module_id) {
                 continue;
             }
 
             // load the module tree and symbols
-            self.require_dir_base(module_id)?;
-            self.require_dir_prepared(module_id, profile_id)?;
-            let module = self.program.modules.get(module_id);
+            self.require_dir_base(revision, module_id)?;
+            self.require_dir_prepared(revision, module_id, profile_id)?;
+            let module = self
+                .cache_module_snapshot(revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let dir = self
-                .require_artifact_dir_prepared(module_id, profile_id)
+                .require_artifact_dir_prepared(revision, module_id, profile_id)
                 .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            cache.module_versions.insert(module_id, dir.version);
+            cache.module_dependencies.insert(
+                module_id,
+                self.artifact_stamp_for_key(&ArtifactKey::dir_prepared(module_id, profile_id)),
+            );
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
@@ -468,6 +491,7 @@ impl Compiler {
     /// Build the global symbol table for a root module set.
     fn build_global_symbol_table(
         &self,
+        revision: destack_workspace::Revision,
         roots: &[ModuleId],
         profile_id: ProfileId,
     ) -> ResolveResult<GlobalSymbolTable> {
@@ -477,28 +501,35 @@ impl Compiler {
         // walk the module graph
         while let Some(module_id) = cache.pending.pop_front() {
             // skip already processed modules
-            if cache.module_versions.contains_key(&module_id) {
+            if cache.module_dependencies.contains_key(&module_id) {
                 continue;
             }
 
             // ensure bind validation before reading dir data
-            if let Err(error) = self.require_dir_base(module_id) {
+            if let Err(error) = self.require_dir_base(revision, module_id) {
                 return Err(error.into());
             }
 
             // ensure per profile module data is prepared before reading dir data
-            if let Err(error) = self.require_dir_prepared(module_id, profile_id) {
+            if let Err(error) = self.require_dir_prepared(revision, module_id, profile_id) {
                 return Err(error.into());
             }
 
             // load the module tree and symbols
-            let module = self.program.modules.get(module_id);
+            let module = self
+                .cache_module_snapshot(revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let dir = self
-                .require_artifact_dir_prepared(module_id, profile_id)
+                .require_artifact_dir_prepared(revision, module_id, profile_id)
                 .map_err(ResolveError::from)?;
             let tree = &dir.tree;
             let symbols = &dir.symbols;
-            cache.module_versions.insert(module_id, dir.version);
+            cache.module_dependencies.insert(
+                module_id,
+                self.artifact_stamp_for_key(&ArtifactKey::dir_prepared(module_id, profile_id)),
+            );
 
             // collect global declarations from this module
             self.collect_global_augmentation_symbols(&module, &dir, symbols, &mut cache);
@@ -514,7 +545,12 @@ impl Compiler {
             for dependency in dependency_targets {
                 // skip module bindings before resolving file targets
                 if self
-                    .resolve_module_binding_target(module_id, profile_id, dependency.target)?
+                    .resolve_module_binding_target(
+                        revision,
+                        module_id,
+                        profile_id,
+                        dependency.target,
+                    )?
                     .is_some()
                 {
                     continue;
@@ -522,7 +558,7 @@ impl Compiler {
 
                 // resolve specifiers to modules for traversal
                 let resolved_targets = match self.resolve_dependency_targets_for_global_traversal(
-                    module_id, profile_id, dependency,
+                    revision, module_id, profile_id, dependency,
                 ) {
                     Ok(targets) => targets,
                     Err(_) if module.is_builtin() && dependency.kind == DependencyKind::Type => {
@@ -549,8 +585,8 @@ impl Compiler {
     /// Return true when a module's namespace scope contributes global symbols.
     fn module_exposes_namespace_scope_globals(&self, module: &Module) -> bool {
         // ambient libs always contribute top-level global declarations
-        if let Some(builtins) = self.program.builtins.as_ref()
-            && let Some(lib_name) = builtins.library_name_for_module(module.id)
+        let builtins = self.repository.builtins.as_ref();
+        if let Some(lib_name) = builtins.library_name_for_module(module.id)
             && let Some(lib) = builtin_library(lib_name)
             && lib.is_ambient
         {
@@ -558,22 +594,22 @@ impl Compiler {
         }
 
         // declaration scripts also contribute top-level global declarations
-        module.language_type.is_declaration()
-            && self.program.modules.source_type(module.id).is_script()
+        module.language_type.is_declaration() && module.source_type.is_script()
     }
 
     /// Resolve one dependency target for global symbol table traversal.
     fn resolve_dependency_targets_for_global_traversal(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile_id: ProfileId,
         dependency: DependencyTarget,
     ) -> ResolveResult<ModuleResolution> {
         // resolve triple slash reference lib directives through builtin library loading
         if dependency.source == DependencySource::ReferenceLibDirective {
-            let target_text = self.program.strings.get(dependency.target);
+            let target_text = self.repository.strings.get(dependency.target);
             let module_id = self
-                .resolve_reference_lib_to_module(profile_id, target_text.as_ref())
+                .resolve_reference_lib_to_module(revision, profile_id, target_text.as_ref())
                 .map_err(|_| ResolveError::UnresolvedModule {
                     node: dependency.node.into_anchored(Some(profile_id)),
                     target: dependency.target,
@@ -587,22 +623,28 @@ impl Compiler {
         // normalize triple slash reference path directives before specifier resolution
         let target =
             self.resolve_target_for_dependency_source(dependency.source, dependency.target);
-        let source_module = self.program.modules.get(module_id);
+        let source_module = self
+            .cache_module_snapshot(revision, module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?;
         let source_module = source_module.as_ref();
-        let target =
-            self.canonical_import_specifier(source_module, profile_id, dependency.node, target)?;
+        let target = self.canonical_import_specifier(
+            revision,
+            source_module,
+            profile_id,
+            dependency.node,
+            target,
+        )?;
 
         // match direct resolve import edge semantics
-        let is_typescript_commonjs = self
-            .program
-            .modules
-            .module_format(source_module.id)
-            .is_commonjs()
+        let is_typescript_commonjs = source_module.module_format.is_commonjs()
             && source_module.language_type.is_typescript();
         let edge_kind =
             Self::import_edge_kind_for_dependency(dependency.source, is_typescript_commonjs);
 
         if let Ok(targets) = self.resolve_specifier_to_module_resolution(
+            revision,
             profile_id,
             target,
             Some(module_id),
@@ -613,13 +655,13 @@ impl Compiler {
         }
 
         if let Some(binding_target) =
-            self.resolve_module_binding_target(module_id, profile_id, target)?
+            self.resolve_module_binding_target(revision, module_id, profile_id, target)?
         {
             return Ok(ModuleResolution::from_target(binding_target));
         }
 
         if let Some(external_target) =
-            self.externalized_package_import_target(source_module, profile_id, target)?
+            self.externalized_package_import_target(revision, source_module, profile_id, target)?
         {
             return Ok(ModuleResolution::from_target(external_target));
         }
@@ -684,7 +726,7 @@ impl Compiler {
         symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
-        let Some(dir_base) = self.artifacts.dir_base(module.id) else {
+        let Some(dir_base) = self.dir_base(module.id) else {
             return;
         };
         let symbol_id = dir_base.namespace_symbol.into_global(module.id);

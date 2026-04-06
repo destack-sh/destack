@@ -171,7 +171,7 @@ impl Compiler {
                 });
 
                 // bind the implicit this local for method bodies
-                let this_name = self.program.strings.intern("this");
+                let this_name = self.repository.strings.intern("this");
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 self.bind_named_local(
                     module,
@@ -303,7 +303,7 @@ impl Compiler {
                     tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
 
                 // bind associated type static parameters
                 let static_parameters = static_parameters.as_ref().map(|parameters| {
@@ -424,7 +424,7 @@ impl Compiler {
                     tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
                 let ty = ty.map(|ty| {
                     self.bind_expression(
                         module,
@@ -602,7 +602,7 @@ impl Compiler {
                 let modifiers = self.apply_private_member_visibility(modifiers, key);
 
                 // bind the implicit this local for method bodies
-                let this_name = self.program.strings.intern("this");
+                let this_name = self.repository.strings.intern("this");
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 self.bind_named_local(
                     module,

@@ -601,10 +601,15 @@ mod tests {
         }
     }
 
+    /// Build one stable test target id for one package.
+    fn test_target_id(package_id: PackageId, name: &str) -> TargetId {
+        TargetId::new(package_id, name)
+    }
+
     /// Create a package workset for routing tests.
     fn package_workset(id: u64, level: OptimizationLevel) -> PackageWorkset {
         let package_id = PackageId::new(id);
-        let target_id = TargetId::new(package_id, "test");
+        let target_id = test_target_id(package_id, "test");
 
         PackageWorkset::new(package_id, target_id, level)
     }

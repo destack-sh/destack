@@ -150,7 +150,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let static_parameters = static_parameters.as_ref().map(|static_parameters| {
                     static_parameters
                         .iter()
@@ -223,7 +223,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let ty = ty.map(|ty| {
                     self.unbind_expression(
                         module,

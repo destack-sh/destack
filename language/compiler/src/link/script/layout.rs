@@ -241,7 +241,7 @@ impl<'a> ScriptLinker<'a> {
                 .facade_module()
                 .or_else(|| output.modules().first().copied())
                 .unwrap_or_else(|| panic!("preserve output must contain at least one module"));
-            let module = self.compiler.program.modules.get(module_id);
+            let module = self.context.module(module_id);
             let file_type = self.script_output_file_type()?;
             let output_location = ScriptOutputLayout::module_output_location(
                 self.package_dir,
@@ -285,9 +285,9 @@ impl<'a> ScriptLinker<'a> {
 
     /// Build one default output name candidate for one module.
     fn base_script_output_name(&self, module_id: ModuleId, package_dir: &Path) -> String {
-        let module_path = self
-            .compiler
-            .package_relative_module_path(package_dir, module_id);
+        let module_path =
+            self.compiler
+                .package_relative_module_path(package_dir, module_id, self.context);
         let module_path = Path::new(&module_path);
         let stem = module_path
             .file_stem()
