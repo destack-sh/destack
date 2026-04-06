@@ -4,8 +4,8 @@ use destack_builtin::LanguageSymbol;
 use destack_compiler::Compiler;
 use destack_core::{StringPool, fnv1a_64};
 use destack_dir::{
-    self as dir, Annotation, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId,
-    PrimitiveType, StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
+    self as dir, Argument, Declaration, DependencyItem, Expression, GlobalSymbolId, PrimitiveType,
+    StaticArgument, StaticExpression, TypeLiteral, WellKnownSymbol,
 };
 use destack_query::format::{format_local_type, format_type_literal};
 use destack_source::ModuleId;
@@ -1223,7 +1223,14 @@ fn binding_type_from_struct(
         };
         fields.push(BindingField {
             name: field_name,
-            documentation: node_documentation(tree, member_id.id, strings),
+            documentation: node_documentation(
+                compiler,
+                artifacts,
+                modules,
+                struct_symbol.module_id,
+                tree,
+                member_id.id,
+            ),
             binding_type: field_binding,
         });
     }
@@ -1235,31 +1242,18 @@ fn binding_type_from_struct(
     }
 }
 
-/// Collect documentation comments from one typed node id.
-fn node_documentation(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> Option<String> {
-    let mut lines = Vec::new();
-    let annotations = tree.get_annotations(node_id);
+/// Collect documentation comments from one source-backed node.
+fn node_documentation(
+    compiler: &Compiler,
+    _artifacts: &ArtifactStore,
+    _modules: &ModuleRegistry,
+    _module_id: ModuleId,
+    tree: &dir::NodeTree,
+    node_id: u32,
+) -> Option<String> {
+    let documentation = tree.get_documentation(node_id)?;
 
-    for annotation_id in annotations {
-        let annotation = tree.get::<Annotation>(annotation_id);
-        let Annotation::Doc { string, .. } = annotation else {
-            continue;
-        };
-        let text = strings.get(*string);
-        for line in text.lines() {
-            lines.push(line.trim_end().to_string());
-        }
-    }
-
-    let Some(start) = lines.iter().position(|line| !line.trim().is_empty()) else {
-        return None;
-    };
-    let end = lines
-        .iter()
-        .rposition(|line| !line.trim().is_empty())
-        .unwrap_or(start);
-
-    Some(lines[start..=end].join("\n"))
+    Some(compiler.program.strings.get(documentation.text).to_string())
 }
 
 /// Resolve enum metadata into a binding type.

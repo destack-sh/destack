@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, EnumField,
-    Expression, FunctionMode, IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, Documentation,
+    EnumField, Expression, FunctionMode, IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, MatchCase, Member, Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter,
     Pattern, PatternField, Property, WhereClause,
 };
@@ -58,6 +58,8 @@ pub struct NodeTree {
     alias_node_id_by_node_id: HashMap<u32, u32>,
     /// The annotations attached to nodes.
     annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
+    /// The normalized documentation attached to nodes.
+    documentation_by_node_id: HashMap<u32, Documentation>,
     /// The node ids explicitly marked inactive.
     inactive_node_ids: HashSet<u32>,
 }
@@ -107,6 +109,7 @@ impl NodeTree {
             alias_node_id_by_source_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
             annotations_by_node_id: HashMap::new(),
+            documentation_by_node_id: HashMap::new(),
             inactive_node_ids: HashSet::new(),
         }
     }
@@ -1059,6 +1062,24 @@ impl NodeTree {
             .get(&node_id)
             .cloned()
             .unwrap_or_else(Vec::new)
+    }
+
+    /// Set normalized documentation for a node.
+    #[inline]
+    pub fn set_documentation(&mut self, node_id: u32, documentation: Documentation) {
+        self.documentation_by_node_id.insert(node_id, documentation);
+    }
+
+    /// Return whether one node has normalized documentation.
+    #[inline]
+    pub fn has_documentation(&self, node_id: u32) -> bool {
+        self.documentation_by_node_id.contains_key(&node_id)
+    }
+
+    /// Get normalized documentation attached to a node.
+    #[inline]
+    pub fn get_documentation(&self, node_id: u32) -> Option<&Documentation> {
+        self.documentation_by_node_id.get(&node_id)
     }
 }
 

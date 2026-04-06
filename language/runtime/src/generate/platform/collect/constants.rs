@@ -102,7 +102,7 @@ pub(crate) fn collect_platform_constants(
                 );
                 known_values.insert(constant_name.clone(), value);
 
-                let documentation = annotation_docs(tree, expression_id.id, strings);
+                let documentation = node_documentation(strings, tree, expression_id.id);
                 let entry = ConstantEntry {
                     name: constant_name.clone(),
                     documentation,
@@ -293,32 +293,9 @@ fn evaluate_integer_binary_expression(
     }
 }
 
-/// Collect documentation comments from one annotated node.
-fn annotation_docs(tree: &dir::NodeTree, node_id: u32, strings: &StringPool) -> Option<String> {
-    let mut docs = Vec::new();
-    let annotations = tree.get_annotations(node_id);
+/// Collect semantic documentation from one DIR node.
+fn node_documentation(strings: &StringPool, tree: &dir::NodeTree, node_id: u32) -> Option<String> {
+    let documentation = tree.get_documentation(node_id)?;
 
-    for annotation_id in annotations {
-        let annotation = tree.get::<dir::Annotation>(annotation_id);
-        let dir::Annotation::Doc { string, .. } = annotation else {
-            continue;
-        };
-
-        // keep paragraph breaks from source docs
-        let text = strings.get(*string);
-        for line in text.lines() {
-            docs.push(line.trim_end().to_string());
-        }
-    }
-
-    // trim leading and trailing blank lines after collection
-    let Some(start) = docs.iter().position(|line| !line.trim().is_empty()) else {
-        return None;
-    };
-    let end = docs
-        .iter()
-        .rposition(|line| !line.trim().is_empty())
-        .unwrap_or(start);
-
-    Some(docs[start..=end].join("\n"))
+    Some(strings.get(documentation.text).to_string())
 }
