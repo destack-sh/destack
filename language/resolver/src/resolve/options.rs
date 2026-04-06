@@ -2,7 +2,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_workspace::{Destack, NodeLinker};
+use destack_workspace::{NodeLinker, WorkspaceOptions};
 use indexmap::IndexMap;
 
 /// The options controlling resolver behavior.
@@ -109,9 +109,12 @@ impl Default for ResolveOptions {
 
 impl ResolveOptions {
     /// Create default options for one working directory with workspace linker policy.
-    pub fn default_for_workspace(cwd: PathBuf, workspace_config: Option<&Destack>) -> Self {
-        let node_linker = workspace_config
-            .map(|workspace_config| workspace_config.options.compiler.node_linker)
+    pub fn default_for_workspace(
+        cwd: PathBuf,
+        workspace_options: Option<&WorkspaceOptions>,
+    ) -> Self {
+        let node_linker = workspace_options
+            .map(|workspace_options| workspace_options.package.compiler.node_linker)
             .unwrap_or_default();
 
         Self::default_for_cwd_with_node_linker(cwd, node_linker)

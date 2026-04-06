@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::Path;
 
 use destack_source::{PathExt, SLASH_START};
-use destack_workspace::PackageManifest;
+use destack_workspace::PackageDeclaration;
 
 use crate::{
     Alias, AliasValue, Resolution, ResolveError, ResolveFrame, ResolveOrigin, ResolveRequest,
@@ -104,12 +104,12 @@ impl Resolver {
     /// Resolve the browser field value for a path or request.
     pub(crate) fn browser_field_rewrite<'a>(
         &self,
-        package_config: &'a PackageManifest,
+        package_declaration: &'a PackageDeclaration,
         path: &Path,
         request: Option<&str>,
     ) -> Result<Option<&'a str>, ResolveError> {
-        let Some(object) = package_config
-            .content
+        let Some(object) = package_declaration
+            .json
             .browser
             .as_ref()
             .and_then(|v| v.as_object())
@@ -131,10 +131,10 @@ impl Resolver {
         }
         // otherwise match by the resolved path
         else {
-            let directory = package_config.path.parent().unwrap_or_else(|| {
+            let directory = package_declaration.path.parent().unwrap_or_else(|| {
                 panic!(
                     "package.json path is not in a directory: {}",
-                    package_config.path.display()
+                    package_declaration.path.display()
                 )
             });
             for (key, value) in object {
@@ -159,7 +159,7 @@ impl Resolver {
         &self,
         path: &Path,
         module_specifier: Option<&str>,
-        package_config: &PackageManifest,
+        package_declaration: &PackageDeclaration,
         ctx: &mut ResolveFrame,
     ) -> Result<Option<Resolution>, ResolveError> {
         if ctx.is_fully_specified {
@@ -168,7 +168,7 @@ impl Resolver {
 
         // return early when there is no browser rewrite
         let Some(new_specifier) =
-            self.browser_field_rewrite(package_config, path, module_specifier)?
+            self.browser_field_rewrite(package_declaration, path, module_specifier)?
         else {
             return Ok(None);
         };
@@ -205,7 +205,7 @@ impl Resolver {
             return Err(ResolveError::RecursiveDependency { depth: ctx.depth });
         }
 
-        let package_url = package_config.path.parent().unwrap().to_path_buf();
+        let package_url = package_declaration.path.parent().unwrap().to_path_buf();
         let request = ResolveRequest::parse(new_specifier);
         self.with_rewrite_scope(Some(new_specifier.to_string()), ctx, |ctx| {
             self.resolve_request(

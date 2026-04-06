@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_source::PackageId;
-use destack_workspace::TsConfigId;
+use destack_workspace::TsConfigDeclaration;
 
 use crate::{CachePolicy, Resolution, ResolveError, ResolveFrame, ResolveRequest, Resolver};
 
@@ -163,19 +163,32 @@ impl Resolver {
     }
 
     /// Find the effective tsconfig.json for one file path.
-    pub fn find_tsconfig_for_file(&self, path: &Path) -> Result<Option<TsConfigId>, ResolveError> {
+    pub fn find_tsconfig_for_file(
+        &self,
+        path: &Path,
+    ) -> Result<Option<TsConfigDeclaration>, ResolveError> {
         self.ensure_file_origin(path)?;
         let mut ctx = ResolveFrame::default();
-        self.find_applicable_tsconfig(ResolveOrigin::File, path, &mut ctx)
+        let tsconfig_file_id =
+            self.find_applicable_tsconfig(ResolveOrigin::File, path, &mut ctx)?;
+
+        tsconfig_file_id
+            .map(|tsconfig_file_id| self.get_tsconfig(tsconfig_file_id))
+            .transpose()
     }
 
     /// Find the effective tsconfig.json for one directory path.
     pub fn find_tsconfig_for_directory(
         &self,
         path: &Path,
-    ) -> Result<Option<TsConfigId>, ResolveError> {
+    ) -> Result<Option<TsConfigDeclaration>, ResolveError> {
         self.ensure_directory_origin(path)?;
         let mut ctx = ResolveFrame::default();
-        self.find_applicable_tsconfig(ResolveOrigin::Directory, path, &mut ctx)
+        let tsconfig_file_id =
+            self.find_applicable_tsconfig(ResolveOrigin::Directory, path, &mut ctx)?;
+
+        tsconfig_file_id
+            .map(|tsconfig_file_id| self.get_tsconfig(tsconfig_file_id))
+            .transpose()
     }
 }

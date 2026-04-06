@@ -146,9 +146,9 @@ impl Resolver {
         // try browser field
         if let Some(package_id) = self.find_nearest_package_scope(path, ctx)? {
             let package = self.packages.get(package_id);
-            let package = package.read();
-            if let Some(ref config) = package.manifest
-                && let Some(resolved) = self.rewrite_browser_field(path, None, config, ctx)?
+            let package = package.read().unwrap();
+            if let Some(ref declaration) = package.package_declaration
+                && let Some(resolved) = self.rewrite_browser_field(path, None, declaration, ctx)?
             {
                 return Ok(Some(resolved));
             }

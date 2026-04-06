@@ -5,10 +5,81 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::sync::{Arc, RwLock};
 
-use destack_source::{FileRegistry, FileSystem, PackageId, PhysicalFileSystem};
-use destack_workspace::{PackageRegistry, Program, Session, TsConfigId, TsConfigRegistry};
+use destack_source::{FileId, FileStore, FileSystem, PackageId, PhysicalFileSystem};
+use destack_workspace::{
+    DestackDeclaration, Package, PackageDeclaration, PackageOptions, Repository,
+    TsConfigDeclaration,
+};
 
 use crate::{CompiledAliasTable, ResolveOptions, ResolveOrigin};
+
+/// Private cached resolver package state.
+#[derive(Debug, Clone)]
+pub(crate) struct ResolverPackageEntry {
+    /// The semantic package view.
+    pub package: Package,
+    /// The parsed package.json declaration when present.
+    pub package_declaration: Option<PackageDeclaration>,
+    /// The parsed destack.json declaration when present.
+    pub destack_declaration: Option<DestackDeclaration>,
+    /// The effective package options when present.
+    pub package_options: Option<PackageOptions>,
+}
+
+/// Private cache of parsed package state for one resolver.
+#[derive(Debug, Default)]
+pub(crate) struct ResolverPackageCache {
+    /// The cached packages by id.
+    packages_by_id: RwLock<HashMap<PackageId, Arc<RwLock<ResolverPackageEntry>>>>,
+    /// The cached package ids by root path.
+    package_ids_by_path: RwLock<HashMap<PathBuf, PackageId>>,
+}
+
+impl ResolverPackageCache {
+    /// Create one empty resolver package cache.
+    fn new() -> Self {
+        Self::default()
+    }
+
+    /// Get one cached package id by path.
+    pub(crate) fn get_id_by_path(&self, path: &Path) -> Option<PackageId> {
+        self.package_ids_by_path.read().unwrap().get(path).copied()
+    }
+
+    /// Get one cached package by id.
+    pub(crate) fn get(&self, id: PackageId) -> Arc<RwLock<ResolverPackageEntry>> {
+        self.packages_by_id
+            .read()
+            .unwrap()
+            .get(&id)
+            .unwrap_or_else(|| panic!("package not found for id: {id:?}"))
+            .clone()
+    }
+
+    /// Get one cached package by id when present.
+    pub(crate) fn get_maybe(&self, id: PackageId) -> Option<Arc<RwLock<ResolverPackageEntry>>> {
+        self.packages_by_id.read().unwrap().get(&id).cloned()
+    }
+
+    /// Insert or replace one cached package.
+    pub(crate) fn insert(&self, entry: ResolverPackageEntry) {
+        let package_id = entry.package.id;
+        let package_path = entry.package.path.clone();
+        let entry = Arc::new(RwLock::new(entry));
+
+        self.packages_by_id
+            .write()
+            .unwrap()
+            .insert(package_id, entry);
+
+        if let Some(package_path) = package_path {
+            self.package_ids_by_path
+                .write()
+                .unwrap()
+                .insert(package_path, package_id);
+        }
+    }
+}
 
 /// The shared runtime state reused across option variants.
 #[derive(Debug)]
@@ -16,11 +87,15 @@ pub(crate) struct ResolverState {
     /// The cached nearest package scope lookup results.
     pub(crate) package_scope_cache: RwLock<HashMap<PathBuf, Option<PackageId>>>,
     /// The cached nearest tsconfig lookup results.
-    pub(crate) nearest_tsconfig_cache: RwLock<HashMap<PathBuf, Option<TsConfigId>>>,
+    pub(crate) nearest_tsconfig_cache: RwLock<HashMap<PathBuf, Option<FileId>>>,
     /// The cached effective file tsconfig lookup results.
-    pub(crate) effective_file_tsconfig_cache: RwLock<HashMap<PathBuf, Option<TsConfigId>>>,
+    pub(crate) effective_file_tsconfig_cache: RwLock<HashMap<PathBuf, Option<FileId>>>,
     /// The cached effective directory tsconfig lookup results.
-    pub(crate) effective_directory_tsconfig_cache: RwLock<HashMap<PathBuf, Option<TsConfigId>>>,
+    pub(crate) effective_directory_tsconfig_cache: RwLock<HashMap<PathBuf, Option<FileId>>>,
+    /// The cached parsed tsconfigs by file id.
+    pub(crate) tsconfigs_by_file_id: RwLock<HashMap<FileId, TsConfigDeclaration>>,
+    /// The cached tsconfig file ids by path.
+    pub(crate) tsconfig_file_ids_by_path: RwLock<HashMap<PathBuf, FileId>>,
     /// The cached Yarn PnP manifest for this resolver state.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) pnp_manifest: OnceLock<pnp::Manifest>,
@@ -37,6 +112,8 @@ impl ResolverState {
             nearest_tsconfig_cache: RwLock::new(HashMap::new()),
             effective_file_tsconfig_cache: RwLock::new(HashMap::new()),
             effective_directory_tsconfig_cache: RwLock::new(HashMap::new()),
+            tsconfigs_by_file_id: RwLock::new(HashMap::new()),
+            tsconfig_file_ids_by_path: RwLock::new(HashMap::new()),
             #[cfg(not(target_arch = "wasm32"))]
             pnp_manifest: OnceLock::new(),
             #[cfg(not(target_arch = "wasm32"))]
@@ -50,11 +127,9 @@ pub struct Resolver {
     /// The file system used for reads and metadata lookups.
     pub fs: Arc<dyn FileSystem>,
     /// The file registry for parsed source and config files.
-    pub files: Arc<FileRegistry>,
-    /// The package registry for parsed package manifests.
-    pub packages: Arc<PackageRegistry>,
-    /// The tsconfig registry for parsed TypeScript projects.
-    pub tsconfigs: Arc<TsConfigRegistry>,
+    pub files: Arc<FileStore>,
+    /// The private cache for parsed package manifests.
+    pub(crate) packages: Arc<ResolverPackageCache>,
     /// The configuration options controlling resolution behavior.
     pub options: ResolveOptions,
     /// The precompiled primary alias matchers for this option set.
@@ -74,21 +149,14 @@ impl fmt::Debug for Resolver {
 #[allow(dead_code)]
 impl Resolver {
     /// Create a new resolver with individual registries.
-    pub fn new(
-        fs: Arc<dyn FileSystem>,
-        files: Arc<FileRegistry>,
-        packages: Arc<PackageRegistry>,
-        tsconfigs: Arc<TsConfigRegistry>,
-        options: ResolveOptions,
-    ) -> Self {
+    pub fn new(fs: Arc<dyn FileSystem>, files: Arc<FileStore>, options: ResolveOptions) -> Self {
         let compiled_alias = CompiledAliasTable::from_aliases(&options.alias);
         let compiled_fallback = CompiledAliasTable::from_aliases(&options.fallback);
 
         Self {
             fs,
             files,
-            packages,
-            tsconfigs,
+            packages: Arc::new(ResolverPackageCache::new()),
             options,
             compiled_alias,
             compiled_fallback,
@@ -96,24 +164,11 @@ impl Resolver {
         }
     }
 
-    /// Create a new resolver from a Program (unpacks its registries).
-    pub fn from_program(program: &Program, options: ResolveOptions) -> Self {
+    /// Create a resolver from one repository.
+    pub fn from_repository(repository: &Repository, options: ResolveOptions) -> Self {
         Self::new(
-            program.fs.clone(),
-            program.files.clone(),
-            program.packages.clone(),
-            program.tsconfigs.clone(),
-            options,
-        )
-    }
-
-    /// Create a new resolver from a Session (unpacks its registries).
-    pub fn from_session(session: &Session, options: ResolveOptions) -> Self {
-        Self::new(
-            session.fs.clone(),
-            session.files.clone(),
-            session.packages.clone(),
-            session.tsconfigs.clone(),
+            Arc::clone(repository.file_system()),
+            Arc::new(FileStore::new()),
             options,
         )
     }
@@ -140,7 +195,6 @@ impl Resolver {
             fs: self.fs.clone(),
             files: self.files.clone(),
             packages: self.packages.clone(),
-            tsconfigs: self.tsconfigs.clone(),
             options,
             compiled_alias,
             compiled_fallback,
@@ -176,6 +230,14 @@ impl Resolver {
             .clear();
     }
 
+    /// Return one cached package snapshot when present.
+    pub fn package_maybe(&self, id: PackageId) -> Option<Package> {
+        let package = self.packages.get_maybe(id)?;
+        let package = package.read().unwrap();
+
+        Some(package.package.clone())
+    }
+
     /// Read one cached nearest package scope result.
     pub(crate) fn cached_package_scope(&self, path: &Path) -> Option<Option<PackageId>> {
         self.state
@@ -196,7 +258,7 @@ impl Resolver {
     }
 
     /// Read one cached nearest tsconfig lookup result.
-    pub(crate) fn cached_nearest_tsconfig(&self, path: &Path) -> Option<Option<TsConfigId>> {
+    pub(crate) fn cached_nearest_tsconfig(&self, path: &Path) -> Option<Option<FileId>> {
         self.state
             .nearest_tsconfig_cache
             .read()
@@ -206,7 +268,7 @@ impl Resolver {
     }
 
     /// Store one cached nearest tsconfig lookup result.
-    pub(crate) fn cache_nearest_tsconfig(&self, path: &Path, tsconfig_id: Option<TsConfigId>) {
+    pub(crate) fn cache_nearest_tsconfig(&self, path: &Path, tsconfig_id: Option<FileId>) {
         self.state
             .nearest_tsconfig_cache
             .write()
@@ -219,7 +281,7 @@ impl Resolver {
         &self,
         origin: ResolveOrigin,
         path: &Path,
-    ) -> Option<Option<TsConfigId>> {
+    ) -> Option<Option<FileId>> {
         match origin {
             ResolveOrigin::File => self
                 .state
@@ -243,7 +305,7 @@ impl Resolver {
         &self,
         origin: ResolveOrigin,
         path: &Path,
-        tsconfig_id: Option<TsConfigId>,
+        tsconfig_id: Option<FileId>,
     ) {
         match origin {
             ResolveOrigin::File => {
@@ -266,17 +328,50 @@ impl Resolver {
     /// Create a new resolver with physical file system and empty registries (for testing).
     pub(crate) fn physical(options: ResolveOptions) -> Self {
         let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
-        let files = Arc::new(FileRegistry::new());
-        let packages = Arc::new(PackageRegistry::new());
-        let tsconfigs = Arc::new(TsConfigRegistry::new());
-        Self::new(fs, files, packages, tsconfigs, options)
+        let files = Arc::new(FileStore::new());
+        Self::new(fs, files, options)
     }
 
     /// Create a new resolver with a custom file system and empty registries (for testing).
     pub(crate) fn blank(fs: Arc<dyn FileSystem>, options: ResolveOptions) -> Self {
-        let files = Arc::new(FileRegistry::new());
-        let packages = Arc::new(PackageRegistry::new());
-        let tsconfigs = Arc::new(TsConfigRegistry::new());
-        Self::new(fs, files, packages, tsconfigs, options)
+        let files = Arc::new(FileStore::new());
+        Self::new(fs, files, options)
+    }
+
+    /// Return one cached tsconfig by file id.
+    pub(crate) fn cached_tsconfig(&self, file_id: FileId) -> Option<TsConfigDeclaration> {
+        self.state
+            .tsconfigs_by_file_id
+            .read()
+            .unwrap()
+            .get(&file_id)
+            .cloned()
+    }
+
+    /// Return one cached tsconfig file id by path.
+    pub(crate) fn cached_tsconfig_file_id_by_path(&self, path: &Path) -> Option<FileId> {
+        self.state
+            .tsconfig_file_ids_by_path
+            .read()
+            .unwrap()
+            .get(path)
+            .copied()
+    }
+
+    /// Store one parsed tsconfig in shared resolver state.
+    pub(crate) fn cache_tsconfig(&self, tsconfig: TsConfigDeclaration) {
+        let file_id = tsconfig.file_id;
+        let path = tsconfig.path.clone();
+
+        self.state
+            .tsconfigs_by_file_id
+            .write()
+            .unwrap()
+            .insert(file_id, tsconfig);
+        self.state
+            .tsconfig_file_ids_by_path
+            .write()
+            .unwrap()
+            .insert(path, file_id);
     }
 }

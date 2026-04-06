@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use destack_source::{File, FileType, PackageId, PathExt, Uri};
-use destack_workspace::{Destack, PackageManifest};
+use destack_source::{File, FileId, FileType, PackageId, PathExt, Uri};
+use destack_workspace::{DestackDeclaration, PackageDeclaration};
 
 use crate::{CachePolicy, ResolveError, ResolveFrame, Resolver};
 
@@ -47,15 +47,12 @@ impl Resolver {
     /// Read the destack.json for a package.
     pub fn read_package_destack_config(
         &self,
-        package_config: &PackageManifest,
+        package_declaration: &PackageDeclaration,
         cache_policy: CachePolicy,
-    ) -> Result<Destack, ResolveError> {
-        let destack_config_path = package_config.directory.join("destack.json");
+    ) -> Result<DestackDeclaration, ResolveError> {
+        let destack_config_path = package_declaration.directory.join("destack.json");
 
-        // read the package local Destack config
-        let config = self.read_destack_config(&destack_config_path, cache_policy)?;
-
-        Ok(config)
+        self.read_destack_config(&destack_config_path, cache_policy)
     }
 
     /// Load the Destack config for one package into the package registry when present.
@@ -64,8 +61,12 @@ impl Resolver {
         package_id: PackageId,
         cache_policy: CachePolicy,
     ) -> Result<(), ResolveError> {
-        let package = self.packages.get(package_id);
-        let package_path = package.read().path.clone();
+        // read the package path without holding the guard across the write phase
+        let package_path = {
+            let package = self.packages.get(package_id);
+            let package = package.read().unwrap();
+            package.package.path.clone()
+        };
 
         let Some(package_path) = package_path else {
             return Ok(());
@@ -79,26 +80,32 @@ impl Resolver {
         };
 
         let package = self.packages.get(package_id);
-        let mut package = package.write();
-        package.config = next_destack_config;
-        let config = package.config.clone();
+        let mut package = package.write().unwrap();
+        package.destack_declaration = next_destack_config;
+        package.package_options = package
+            .destack_declaration
+            .as_ref()
+            .map(DestackDeclaration::package_options);
 
-        let next_name_version = config.as_ref().map(|config| {
-            let name = config.options.name.clone();
-            let version = config.options.version.clone();
-            (name, version)
-        });
+        let option_name = package
+            .package_options
+            .as_ref()
+            .and_then(|package_options| package_options.name.clone());
+        let option_version = package
+            .package_options
+            .as_ref()
+            .and_then(|package_options| package_options.version.clone());
+        let declared_name = package
+            .package_declaration
+            .as_ref()
+            .and_then(|package_declaration| package_declaration.name().map(ToOwned::to_owned));
+        let declared_version = package
+            .package_declaration
+            .as_ref()
+            .and_then(|package_declaration| package_declaration.version().map(ToOwned::to_owned));
 
-        if let Some(manifest) = package.manifest.as_mut() {
-            manifest.refresh_from_destack(config.as_ref());
-            let name = manifest.content.name.clone();
-            let version = manifest.content.version.clone();
-            package.name = name;
-            package.version = version;
-        } else if let Some((name, version)) = next_name_version {
-            package.name = name;
-            package.version = version;
-        }
+        package.package.name = option_name.or(declared_name);
+        package.package.version = option_version.or(declared_version);
 
         Ok(())
     }
@@ -108,7 +115,7 @@ impl Resolver {
         &self,
         path: &Path,
         cache_policy: CachePolicy,
-    ) -> Result<Option<Destack>, ResolveError> {
+    ) -> Result<Option<DestackDeclaration>, ResolveError> {
         let mut ctx = ResolveFrame::default();
         let Some(package_id) = self.find_nearest_package_scope(path, &mut ctx)? else {
             return Ok(None);
@@ -117,7 +124,8 @@ impl Resolver {
         self.ensure_package_destack_config(package_id, cache_policy)?;
 
         let package = self.packages.get(package_id);
-        Ok(package.read().config.clone())
+        let package = package.read().unwrap();
+        Ok(package.destack_declaration.clone())
     }
 
     /// Read and parse a `destack.json` file recursively, handling extends.
@@ -125,7 +133,7 @@ impl Resolver {
         &self,
         path: &Path,
         cache_policy: CachePolicy,
-    ) -> Result<Destack, ResolveError> {
+    ) -> Result<DestackDeclaration, ResolveError> {
         self.read_destack_config_with_context(
             path,
             &mut DestackResolveFrame::default(),
@@ -139,8 +147,8 @@ impl Resolver {
         path: &Path,
         ctx: &mut DestackResolveFrame,
         cache_policy: CachePolicy,
-    ) -> Result<Destack, ResolveError> {
-        // parse the local config first
+    ) -> Result<DestackDeclaration, ResolveError> {
+        // parse the local declaration first
         let mut config = self.parse_destack_config(path, cache_policy)?;
 
         // reject circular extends chains
@@ -152,16 +160,8 @@ impl Resolver {
 
         // resolve every extended config path up front
         let extended_config_paths: Vec<PathBuf> = config
-            .content
-            .extends
-            .as_ref()
-            .map(|extends| match extends {
-                destack_workspace::ExtendsFieldJson::Single(s) => vec![s.clone()],
-                destack_workspace::ExtendsFieldJson::Multiple(m) => m.clone(),
-            })
-            .unwrap_or_default()
-            .into_iter()
-            .map(|specifier| self.get_extended_destack_config_path(&config.directory, &specifier))
+            .extends()
+            .map(|specifier| self.get_extended_destack_config_path(&config.directory, specifier))
             .collect::<Result<Vec<_>, _>>()?;
 
         // merge parent configs in order
@@ -180,9 +180,6 @@ impl Resolver {
             })?;
         }
 
-        // rebuild the derived options after merging
-        config.build();
-
         Ok(config)
     }
 
@@ -191,7 +188,7 @@ impl Resolver {
         &self,
         path: &Path,
         cache_policy: CachePolicy,
-    ) -> Result<Destack, ResolveError> {
+    ) -> Result<DestackDeclaration, ResolveError> {
         // normalize the input into a concrete config path
         let meta = self.metadata(path).ok();
         let destack_config_path = if meta.is_some_and(|m| m.is_file) {
@@ -210,9 +207,10 @@ impl Resolver {
             && let Some(file_id) = existing_id
             && let Some(file) = self.files.get_maybe(file_id)
         {
-            let config = Destack::parse(&file).map_err(|_| ResolveError::DestackInvalid {
-                path: destack_config_path.to_path_buf(),
-            })?;
+            let config =
+                DestackDeclaration::parse(&file).map_err(|_| ResolveError::DestackInvalid {
+                    path: destack_config_path.to_path_buf(),
+                })?;
             return Ok(config);
         }
 
@@ -224,8 +222,9 @@ impl Resolver {
             })?;
 
         // reuse file ids to keep incremental mappings stable
-        let file_id = existing_id.unwrap_or_else(|| self.files.next_id());
         let (name, uri) = Uri::from_path_with_name(&*destack_config_path);
+        let file_id =
+            existing_id.unwrap_or_else(|| FileId::from_logical_path(&destack_config_path));
         let file = File::from_text_as_jsonc(
             file_id,
             name,
@@ -246,11 +245,9 @@ impl Resolver {
         let file = self.files.get(file_id);
 
         // parse the Destack config from the tracked file
-        let config = Destack::parse(&file).map_err(|_| ResolveError::DestackInvalid {
+        DestackDeclaration::parse(&file).map_err(|_| ResolveError::DestackInvalid {
             path: destack_config_path.to_path_buf(),
-        })?;
-
-        Ok(config)
+        })
     }
 
     /// Resolve the path of one extended Destack config file.

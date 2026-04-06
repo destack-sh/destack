@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::path::{Component, Path};
 
 use destack_source::PathExt;
-use destack_workspace::PackageManifest;
+use destack_workspace::PackageDeclaration;
 
 use crate::{CachePolicy, Resolution, ResolveError, ResolveFrame, ResolveRequest, Resolver};
 
@@ -77,11 +77,11 @@ impl Resolver {
             return Ok(None);
         };
         let package = self.packages.get(package_id);
-        let package = package.read();
+        let package = package.read().unwrap();
 
         // resolve package imports when present
-        if let Some(ref config) = package.manifest
-            && let Some(resolved) = self.package_imports_resolve(specifier, config, ctx)?
+        if let Some(ref declaration) = package.package_declaration
+            && let Some(resolved) = self.package_imports_resolve(specifier, declaration, ctx)?
         {
             return self.finalize_package_target(specifier, resolved, ctx);
         }
@@ -101,11 +101,11 @@ impl Resolver {
             return Ok(None);
         };
         let package = self.packages.get(package_id);
-        let package = package.read();
+        let package = package.read().unwrap();
 
         // resolve package exports when present
-        if let Some(ref config) = package.manifest
-            && let Some(exports) = config.content.exports.as_ref()
+        if let Some(ref declaration) = package.package_declaration
+            && let Some(exports) = declaration.json.exports.as_ref()
             && let Some(resolved) =
                 self.package_exports_resolve(path, &format!(".{subpath}"), exports, ctx)?
         {
@@ -127,10 +127,10 @@ impl Resolver {
             return Ok(None);
         };
         let package = self.packages.get(package_id);
-        let package = package.read();
+        let package = package.read().unwrap();
 
         // return early when the package has no manifest
-        let Some(ref config) = package.manifest else {
+        let Some(ref declaration) = package.package_declaration else {
             return Ok(None);
         };
 
@@ -138,26 +138,26 @@ impl Resolver {
         let mut browser_field_path = path.to_path_buf();
 
         // resolve package self references by package name
-        if let Some(subpath) = config
-            .content
+        if let Some(subpath) = declaration
+            .json
             .name
             .as_ref()
             .and_then(|package_name: &String| {
                 Self::strip_package_name(specifier, package_name.as_str())
             })
         {
-            let package_url = config
+            let package_url = declaration
                 .path
                 .parent()
                 .unwrap_or_else(|| {
                     panic!(
                         "package.json path is not in a directory: {}",
-                        config.path.display()
+                        declaration.path.display()
                     )
                 })
                 .to_path_buf();
 
-            if let Some(exports) = config.content.exports.as_ref()
+            if let Some(exports) = declaration.json.exports.as_ref()
                 && let Some(resolved) = self.package_exports_resolve(
                     &package_url,
                     &format!(".{subpath}"),
@@ -175,7 +175,7 @@ impl Resolver {
                     .conditions
                     .iter()
                     .any(|condition| condition == "types")
-                && let Some(types_field) = config.content.types.as_deref()
+                && let Some(types_field) = declaration.json.types.as_deref()
             {
                 let types_path = package_url.normalize_with(types_field);
                 if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
@@ -187,7 +187,7 @@ impl Resolver {
         }
 
         // fall back to the browser field
-        self.rewrite_browser_field(&browser_field_path, Some(specifier), config, ctx)
+        self.rewrite_browser_field(&browser_field_path, Some(specifier), declaration, ctx)
     }
 
     /// Resolve an ESM match by loading as file or directory.
@@ -308,13 +308,13 @@ impl Resolver {
     fn package_imports_resolve(
         &self,
         specifier: &str,
-        package_config: &PackageManifest,
+        package_declaration: &PackageDeclaration,
         ctx: &mut ResolveFrame,
     ) -> Result<Option<Resolution>, ResolveError> {
         debug_assert!(specifier.starts_with('#'), "{specifier}");
 
         // return early when imports are not configured
-        let Some(imports) = package_config.content.imports.as_ref() else {
+        let Some(imports) = package_declaration.json.imports.as_ref() else {
             return Ok(None);
         };
 
@@ -322,7 +322,7 @@ impl Resolver {
         if specifier == "#" || specifier.starts_with("#/") {
             return Err(ResolveError::InvalidModuleSpecifier {
                 specifier: specifier.to_string(),
-                package_path: package_config.path.to_path_buf(),
+                package_path: package_declaration.path.to_path_buf(),
             });
         }
 
@@ -330,7 +330,7 @@ impl Resolver {
         if let Some(resolved) = self.package_match_resolve(
             specifier,
             imports,
-            &package_config.directory,
+            &package_declaration.directory,
             true,
             &self.options.conditions,
             ctx,
@@ -339,7 +339,7 @@ impl Resolver {
         } else {
             Err(ResolveError::PackageImportNotDefined {
                 specifier: specifier.to_string(),
-                package_path: package_config.path.to_path_buf(),
+                package_path: package_declaration.path.to_path_buf(),
             })
         }
     }
