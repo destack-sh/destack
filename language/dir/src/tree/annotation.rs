@@ -1,7 +1,7 @@
 use destack_source::AdaptImage;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
@@ -10,21 +10,13 @@ pub enum AnnotationPosition {
     Prefix,
     /// Inside the node.
     Infix,
-    /// After the node.
+/// After the node.
     Postfix,
 }
 
 /// An annotation attached to a DIR node.
-///
-/// Annotations include documentation and decorators (metadata/transformations).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, AdaptImage)]
 pub enum Annotation {
-    /// Doc annotation (like `///` or `/**`).
-    Doc {
-        position: AnnotationPosition,
-        string: StringId,
-    },
-
     /// Decorator annotation (like `@foo`, `@foo()`, or `@obj.method(args)`).
     ///
     /// Decorators serve both as metadata (when resolving to a newtype) and
@@ -57,7 +49,6 @@ impl Annotation {
     /// Get the position of the annotation.
     pub fn position(&self) -> AnnotationPosition {
         match self {
-            Annotation::Doc { position, .. } => *position,
             Annotation::Decorator { position, .. } => *position,
         }
     }

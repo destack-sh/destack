@@ -2155,12 +2155,6 @@ impl<'a> NodeVisitor for Dumper<'a> {
         annotation: &Annotation,
     ) {
         match annotation {
-            Annotation::Doc { position, string } => {
-                self.node("Annotation::Doc", id.id)
-                    .field("position", position)
-                    .field("string", string)
-                    .end();
-            }
             Annotation::Decorator {
                 position,
                 expression,
