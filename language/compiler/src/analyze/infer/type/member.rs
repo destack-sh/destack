@@ -1,5 +1,6 @@
 use super::*;
 use destack_dir::ModuleTarget;
+use destack_workspace::Revision;
 
 impl Compiler {
     /// Normalize one well known reference symbol before member inference recursion.
@@ -382,7 +383,7 @@ impl Compiler {
         let member_name = member_key.name()?;
 
         // only override call/apply/bind with strict signatures
-        let member_name = self.program.strings.get(member_name);
+        let member_name = self.repository.strings.get(member_name);
         let member_name = member_name.as_ref();
         if member_name != "call" && member_name != "apply" && member_name != "bind" {
             return None;
@@ -735,7 +736,12 @@ impl Compiler {
                 continue;
             };
             if !matches!(
-                self.is_extension_visible(ctx.module, ctx.profile, &extension),
+                self.is_extension_visible(
+                    ctx.compiler_context.revision(),
+                    ctx.module,
+                    ctx.profile,
+                    &extension,
+                ),
                 Ok(true)
             ) {
                 continue;
@@ -838,7 +844,12 @@ impl Compiler {
                 continue;
             };
             if !matches!(
-                self.is_extension_visible(ctx.module, ctx.profile, &extension),
+                self.is_extension_visible(
+                    ctx.compiler_context.revision(),
+                    ctx.module,
+                    ctx.profile,
+                    &extension,
+                ),
                 Ok(true)
             ) {
                 continue;
@@ -899,6 +910,7 @@ impl Compiler {
     /// Named: Extension on foreign type, must be explicitly imported to use.
     pub(crate) fn is_extension_visible(
         &self,
+        revision: Revision,
         module: &Module,
         profile: ProfileId,
         extension: &Extension,
@@ -911,7 +923,7 @@ impl Compiler {
                 }
 
                 let dir = self
-                    .require_artifact_dir_resolved(module.id, profile)
+                    .require_artifact_dir_resolved(revision, module.id, profile)
                     .map_err(AnalyzeError::from)?;
 
                 Ok(dir

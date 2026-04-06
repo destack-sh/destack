@@ -171,6 +171,7 @@ impl Compiler {
                 continue;
             };
             let Some(static_key) = self.static_key_from_dynamic_key(
+                ctx.compiler_context.revision(),
                 ctx.profile,
                 ctx.tree,
                 ctx.symbols,
@@ -294,6 +295,7 @@ impl Compiler {
             match member {
                 Member::Field { key: Some(key), .. } => {
                     if let Some(static_key) = self.static_key_from_dynamic_key(
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,

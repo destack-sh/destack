@@ -1,64 +1,67 @@
 use std::sync::Arc;
 
+use crate::{Compiler, CompilerContext, ImportError, ImportResult, RequirementError};
 use destack_artifact::{ArtifactKey, DirBase};
 use destack_dir::{
     DependencyMode, Expression, LocalNodeIdAny, LocalScopeMark, NodeTree, NodeType, ScopeKind,
     SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType, TypeLiteral, TypeTable,
 };
-use destack_source::ModuleId;
+use destack_source::{FileId, ModuleId};
 
-use crate::{ArtifactRequirementError, Compiler, ImportError, ImportResult};
-
-impl Compiler {
-    /// Create a stable module-level anchor node.
-    fn create_base_dir_anchor(
+impl CompilerContext<'_> {
+    /// Load one module for import work.
+    pub(crate) fn import_module(
         &self,
-        tree: &mut NodeTree,
-        namespace_scope: destack_dir::LocalScopeId,
-        anchor_source_id: u32,
-    ) -> LocalNodeIdAny {
-        // anchor nodes should always point to a real AST id
-        let scope = (namespace_scope, LocalScopeMark::end());
-        let anchor_slot =
-            tree.reserve_from_source(NodeType::Expression, anchor_source_id, scope, None);
-        let expression = Expression::TypeLiteral {
-            value: TypeLiteral::Void,
-        };
-
-        tree.insert(anchor_slot, expression).into_any()
+        module_id: ModuleId,
+    ) -> Result<std::sync::Arc<destack_workspace::Module>, ImportError> {
+        Ok(self.module(module_id))
     }
 
+    /// Load one file for import work.
+    pub(crate) fn import_file(
+        &self,
+        file_id: FileId,
+    ) -> Result<std::sync::Arc<destack_source::File>, ImportError> {
+        Ok(self.file(file_id))
+    }
+}
+
+impl Compiler {
     /// Build the parsed syntax tree for one module.
-    pub fn process_ast(&self, module: ModuleId) -> ImportResult<()> {
-        let module_version = self.module_version(module);
-        self.ensure_module_version_matches::<ImportError>(module, module_version)?;
-        self.import_module_parse(module, module_version)?;
-        self.artifacts
-            .ast(module)
-            .expect("missing AST on parsed module");
+    pub fn process_ast(&self, module: ModuleId, context: &CompilerContext<'_>) -> ImportResult<()> {
+        let artifact_key = ArtifactKey::ast(module);
+        let artifact_stamp = context.artifact_stamp(&artifact_key);
+        self.import_module_parse(module, artifact_stamp, context)?;
+        context.ast(module).expect("missing AST on parsed module");
 
         Ok(())
     }
 
     /// Build base DIR for one module.
-    pub fn process_dir_base(&self, module: ModuleId) -> ImportResult<()> {
-        let module_version = self.module_version(module);
-        self.ensure_module_version_matches::<ImportError>(module, module_version)?;
-        self.require_ast(module)?;
+    pub fn process_dir_base(
+        &self,
+        module: ModuleId,
+        context: &CompilerContext<'_>,
+    ) -> ImportResult<()> {
+        let revision = context.revision();
         let artifact_key = ArtifactKey::dir_base(module);
+        let artifact_stamp = context.artifact_stamp(&artifact_key);
+        self.require_ast(revision, module)?;
 
         // reuse one persisted base dir image when available
-        if self
-            .load_published_artifact(artifact_key.clone(), |compiler| {
-                compiler.load_dir_base_image(module, module_version)
-            })
+        if context
+            .restore_cached_artifact(
+                artifact_key,
+                |compiler| compiler.load_dir_base_image(revision, module, artifact_stamp),
+                |store, version, payload| store.publish_dir_base(version, payload),
+            )
             .is_some()
         {
             return Ok(());
         }
 
         // read the committed AST artifact directly
-        let ast = self.artifacts.ast(module);
+        let ast = context.ast(module);
 
         // build one transient base DIR from the current AST
         let (
@@ -75,9 +78,8 @@ impl Compiler {
             export_assignment_symbol,
             mut module_bindings,
         ) = {
-            let module_handle = self.program.modules.get(module);
+            let module_handle = context.import_module(module)?;
             let module_guard = module_handle.as_ref();
-            self.ensure_module_version_matches_guard::<ImportError>(module_guard, module_version)?;
             let ast = ast.expect("missing AST on parsed module");
             let anchor_id = ast
                 .anchor_expression
@@ -148,7 +150,6 @@ impl Compiler {
         // run bind, desugar, and validate on the transient base DIR
         self.import_module_bind(
             module,
-            module_version,
             &ast,
             namespace_scope,
             global_augmentation_scope,
@@ -157,25 +158,24 @@ impl Compiler {
             &mut symbols,
             &mut types,
             &mut roots,
+            context,
         )?;
-        self.import_module_desugar(module, module_version, &mut tree)?;
+        self.import_module_desugar(module, &mut tree, context)?;
         self.import_module_validate(
             module,
-            module_version,
             &tree,
             &symbols,
             &roots,
             global_augmentation_scope,
+            context,
         )?;
-        if self.is_code_module(module) {
+        if context.is_code_module(module) {
             self.stats.record_bind();
         }
 
         // publish the final base artifact
         let dir = DirBase {
-            profile_id: None,
             id: module,
-            version: module_version,
             tree: Arc::new(tree),
             symbols: Arc::new(symbols),
             types: Arc::new(types),
@@ -189,21 +189,49 @@ impl Compiler {
             module_bindings: Arc::new(module_bindings),
         };
 
-        self.artifacts.publish(artifact_key.clone(), dir.clone());
-        self.store_artifact(&artifact_key, &dir, |compiler, dir| {
-            compiler.store_dir_base_image(module, dir)
+        context.publish_artifact(artifact_key, dir.clone(), |store, version, payload| {
+            store.publish_dir_base(version, payload)
+        });
+        context.store_artifact(&artifact_key, &dir, |compiler, artifact_stamp, dir| {
+            compiler.store_dir_base_image(revision, module, artifact_stamp, dir)
         });
 
         Ok(())
     }
 
     /// Ensure a module AST exists.
-    pub fn require_ast(&self, module: ModuleId) -> Result<(), ArtifactRequirementError> {
-        self.require_artifact(ArtifactKey::ast(module))
+    pub fn require_ast(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::ast(module))
     }
 
     /// Ensure a module base DIR exists.
-    pub fn require_dir_base(&self, module: ModuleId) -> Result<(), ArtifactRequirementError> {
-        self.require_artifact(ArtifactKey::dir_base(module))
+    pub fn require_dir_base(
+        &self,
+        revision: destack_workspace::Revision,
+        module: ModuleId,
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::dir_base(module))
+    }
+
+    /// Create a stable module-level anchor node.
+    fn create_base_dir_anchor(
+        &self,
+        tree: &mut NodeTree,
+        namespace_scope: destack_dir::LocalScopeId,
+        anchor_source_id: u32,
+    ) -> LocalNodeIdAny {
+        // anchor nodes should always point to a real AST id
+        let scope = (namespace_scope, LocalScopeMark::end());
+        let anchor_slot =
+            tree.reserve_from_source(NodeType::Expression, anchor_source_id, scope, None);
+        let expression = Expression::TypeLiteral {
+            value: TypeLiteral::Void,
+        };
+
+        tree.insert(anchor_slot, expression).into_any()
     }
 }

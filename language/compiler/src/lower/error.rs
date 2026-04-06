@@ -1,12 +1,9 @@
-use crate::{
-    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    TaskError,
-};
+use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
 use destack_compiler_macros::DefineError;
 use destack_core::StringId;
 use destack_dir::{AnchoredGlobalNodeId, GlobalSymbolId, GlobalTypeId};
 use destack_source::ModuleId;
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 /// Errors during the lower phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -19,14 +16,14 @@ pub enum LowerError {
     #[error(code = "EM000", r#yield)]
     Yield {
         /// Carry the requirement that must be satisfied before lowering can proceed.
-        requirement: ArtifactRequirementSet,
+        requirement: RequirementSet,
     },
 
     /// Yield requirement has failed.
     #[error(code = "EM001", yield_failed)]
     UnsatisfiedRequirement {
         /// Carry the requirement that failed to resolve.
-        requirement: ArtifactRequirementSet,
+        requirement: RequirementSet,
     },
 
     /// Task was skipped due to stale versions.

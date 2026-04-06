@@ -1,7 +1,7 @@
 use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
 use destack_compiler_macros::DefineWarning;
 use destack_dir as dir;
-use destack_workspace::Program;
+use destack_workspace::Repository;
 use dir::AnchoredGlobalNodeId;
 
 /// Warnings during the elaborate phase.

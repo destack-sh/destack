@@ -16,7 +16,7 @@ impl Compiler {
         let segments = path
             .segments
             .iter()
-            .map(|segment| ast_strings.intern_from(&self.program.strings, *segment))
+            .map(|segment| ast_strings.intern_from(&self.repository.strings, *segment))
             .collect();
         ast::Path { segments }
     }

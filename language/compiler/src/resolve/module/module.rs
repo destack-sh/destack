@@ -1,7 +1,7 @@
 use crate::resolve::binding::cache::ResolveExpressionCache;
 use crate::resolve::dependency::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
-use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, CompilerContext, RequirementCollector, ResolveError, ResolveResult};
 use destack_artifact::{
     DirPrepared, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable,
 };
@@ -87,6 +87,7 @@ impl Compiler {
     /// Resolve one batch of active expressions for one module.
     fn resolve_expression_ids(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         prepared: &DirPrepared,
@@ -98,7 +99,7 @@ impl Compiler {
         expression_ids: &[LocalNodeId<Expression>],
         expression_cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<()> {
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         for expression_id in expression_ids {
             if !self.is_node_active(tree, symbols, (*expression_id).into_any()) {
                 continue;
@@ -107,6 +108,7 @@ impl Compiler {
             self.collect(
                 &mut collector,
                 self.resolve_expression(
+                    revision,
                     module,
                     profile,
                     tree,
@@ -133,6 +135,7 @@ impl Compiler {
     /// Resolve expressions, dependencies, and declarations for one module.
     pub(crate) fn resolve_module_direct(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         prepared: &DirPrepared,
@@ -146,7 +149,8 @@ impl Compiler {
         exported_symbols: &mut ExportedSymbolTable,
     ) -> ResolveResult<()> {
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
-        if !self.is_code_module(module.id) {
+        let revision = context.revision();
+        if !context.is_code_module(module.id) {
             return Ok(());
         }
 
@@ -170,6 +174,7 @@ impl Compiler {
 
             if !skip_builtin_declaration_expressions {
                 self.resolve_expression_ids(
+                    revision,
                     module,
                     profile,
                     prepared,
@@ -184,6 +189,7 @@ impl Compiler {
             }
 
             self.resolve_dependency_items(
+                revision,
                 module,
                 prepared,
                 tree,
@@ -195,7 +201,7 @@ impl Compiler {
             )?;
 
             if !skip_builtin_global_symbol_table {
-                let _ = self.global_symbol_table_for_module(module.id, profile)?;
+                let _ = self.global_symbol_table_for_module(revision, module.id, profile)?;
             }
         }
 
@@ -205,6 +211,7 @@ impl Compiler {
 
             if !skip_builtin_declaration_expressions {
                 self.resolve_expression_ids(
+                    revision,
                     module,
                     profile,
                     prepared,
@@ -222,7 +229,7 @@ impl Compiler {
         // declarations
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_DECLARATIONS);
-            let mut collector = ArtifactRequirementCollector::new();
+            let mut collector = RequirementCollector::new();
             for declaration_id in &worklist.declaration_ids {
                 if !self.is_node_active(tree, symbols, (*declaration_id).into_any()) {
                     continue;
@@ -231,6 +238,7 @@ impl Compiler {
                 self.collect(
                     &mut collector,
                     self.resolve_declaration(
+                        revision,
                         module,
                         profile,
                         tree,
@@ -256,6 +264,7 @@ impl Compiler {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPORTS);
 
             self.finalize_module_exports(
+                context,
                 module,
                 profile,
                 tree,
@@ -266,6 +275,7 @@ impl Compiler {
                 exported_symbols,
             );
             self.finalize_module_binding_exports(
+                context,
                 module,
                 profile,
                 tree,
@@ -282,6 +292,7 @@ impl Compiler {
     /// Resolve dependency items for one module.
     pub(crate) fn resolve_dependency_items(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         prepared: &DirPrepared,
         tree: &mut NodeTree,
@@ -293,6 +304,7 @@ impl Compiler {
     ) -> ResolveResult<()> {
         let mut cache = ResolveDependencyItemCache::default();
         self.resolve_dependency_items_with_cache(
+            revision,
             module,
             prepared,
             tree,
@@ -308,6 +320,7 @@ impl Compiler {
     /// Resolve dependency items using one shared cache.
     pub(crate) fn resolve_dependency_items_with_cache(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         prepared: &DirPrepared,
         tree: &mut NodeTree,
@@ -325,10 +338,11 @@ impl Compiler {
         let item_ids = cache.dependency_item_ids_for(module.id, tree);
 
         // resolve dependency items
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         let mut resolved_items = Vec::new();
         for item_id in item_ids {
             let resolved_item = self.resolve_dependency_item(
+                revision,
                 module,
                 tree,
                 symbols,

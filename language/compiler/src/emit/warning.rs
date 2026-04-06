@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{DiagnosticAnchor, DiagnosticDefinition};
 use destack_compiler_macros::DefineWarning;
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 /// Warnings during the emit phase.
 #[derive(Debug, Clone, PartialEq, DefineWarning)]

@@ -7,7 +7,7 @@ use destack_dir::{
     PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
 };
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 
 use super::mapped::MappedIndexKind;
 use crate::Compiler;
@@ -89,16 +89,17 @@ impl KeySet {
 impl Compiler {
     /// Create the internal name for a private key (like `#field`).
     pub(crate) fn private_key_string_id(&self, name: StringId) -> StringId {
-        let name_str = self.program.strings.get(name).to_string();
+        let name_str = self.repository.strings.get(name).to_string();
         let mut full = String::with_capacity(name_str.len() + 1);
         full.push('#');
         full.push_str(&name_str);
-        self.program.strings.intern(&full)
+        self.repository.strings.intern(&full)
     }
 
     /// Resolve a static key from a dynamic key when possible.
     pub(crate) fn static_key_from_dynamic_key(
         &self,
+        revision: Revision,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -112,9 +113,14 @@ impl Compiler {
                 Some(StaticKey::Name(private_name))
             }
             DynamicKey::Number(name) => Some(StaticKey::Number(name)),
-            DynamicKey::Expression(expression_id) => {
-                self.static_key_from_expression(profile, tree, symbols, types, expression_id)
-            }
+            DynamicKey::Expression(expression_id) => self.static_key_from_expression(
+                revision,
+                profile,
+                tree,
+                symbols,
+                types,
+                expression_id,
+            ),
             DynamicKey::NamedExpression { .. } => None,
         }
     }
@@ -122,6 +128,7 @@ impl Compiler {
     /// Resolve a static key from a key expression when possible.
     fn static_key_from_expression(
         &self,
+        revision: Revision,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -144,7 +151,7 @@ impl Compiler {
             }
 
             let dir = self
-                .require_artifact_dir_declared(symbol.module_id, profile)
+                .require_artifact_dir_declared(revision, symbol.module_id, profile)
                 .ok()?;
             dir.symbols.get_symbol(symbol.local_id).key
         };
@@ -179,7 +186,7 @@ impl Compiler {
         if let Expression::Member { left, name, .. } = expression {
             let name = (*name)?;
             let well_known = self.get_well_known_symbols(profile)?;
-            let name = self.program.strings.get(name);
+            let name = self.repository.strings.get(name);
             let symbol_key = tree.get(*left).target_symbol().and_then(|base_symbol| {
                 well_known
                     .symbol_key_for_member(base_symbol, name.as_ref())
@@ -210,7 +217,7 @@ impl Compiler {
             {
                 return None;
             }
-            let member_name = self.program.strings.get(name);
+            let member_name = self.repository.strings.get(name);
             if member_name.as_ref() != "for" {
                 return None;
             }
@@ -299,15 +306,8 @@ impl Compiler {
             let is_unique = if symbol.module_id == symbols.module_id {
                 is_unique_symbol(symbols, types, tree)
             } else {
-                self.require_remote_artifact_dir(
-                    symbols.module_id,
-                    symbol.module_id,
-                    profile,
-                    destack_artifact::ArtifactKey::dir_declared,
-                )
-                .ok()?;
                 let snapshot = self
-                    .require_artifact_dir_declared(symbol.module_id, profile)
+                    .require_artifact_dir_declared(revision, symbol.module_id, profile)
                     .ok()?;
                 is_unique_symbol(&snapshot.symbols, &snapshot.types, &snapshot.tree)
             };

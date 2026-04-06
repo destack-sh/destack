@@ -6,19 +6,21 @@ use destack_dir::{Declaration, TypeKind};
 impl Compiler {
     pub(super) fn check_implicit_collection_conversion(
         &self,
+        ctx: &AssignContext<'_>,
         module: &Module,
         profile: ProfileId,
         anchor: LocalNodeIdAny,
     ) {
         // native outputs handle this in elaborate reify
-        if self.program.profile(profile).key.emit.is_native() {
+        if self.profile(profile).key.emit.is_native() {
             return;
         }
 
         // read the conversion policy from config
-        let policy = self
-            .program
-            .with_config_options(module, |ds| ds.compiler.implicit_collection_conversions)
+        let policy = ctx
+            .compiler_context
+            .compiler_options_for_module(module)
+            .map(|options| options.implicit_collection_conversions)
             .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
 
         // honor the configured policy
@@ -61,6 +63,7 @@ impl Compiler {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_ASSIGN_CHECK);
 
         let mut ctx = AssignContext {
+            compiler_context: ctx.compiler_context,
             module: ctx.module,
             profile: ctx.profile,
             tree: ctx.tree,
@@ -360,7 +363,7 @@ impl Compiler {
             {
                 // check implicit collection conversion policy for record-like targets
                 let anchor = ctx.types.get_type_source(target_id);
-                self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
+                self.check_implicit_collection_conversion(ctx, ctx.module, ctx.profile, anchor);
 
                 // accept record-like references when static arguments align
                 if let Type::Reference {
@@ -439,7 +442,7 @@ impl Compiler {
                 Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
                 } => {
-                    let value = self.program.strings.get(string_id).to_string();
+                    let value = self.repository.strings.get(string_id).to_string();
                     if self.template_literal_matches_string(
                         &mut ctx.type_context_reborrow(),
                         &strings,
@@ -881,7 +884,7 @@ impl Compiler {
                 },
             ) => {
                 let anchor = ctx.types.get_type_source(target_id);
-                self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
+                self.check_implicit_collection_conversion(ctx, ctx.module, ctx.profile, anchor);
 
                 if !self.array_readonly_assignable(*target_readonly, *source_readonly) {
                     return Some(Assignability::NotAssignable);
@@ -916,7 +919,7 @@ impl Compiler {
                 },
             ) => {
                 let anchor = ctx.types.get_type_source(target_id);
-                self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
+                self.check_implicit_collection_conversion(ctx, ctx.module, ctx.profile, anchor);
 
                 if !self.array_readonly_assignable(*target_readonly, *source_readonly) {
                     return Some(Assignability::NotAssignable);
@@ -1149,7 +1152,7 @@ impl Compiler {
             ) => {
                 if !target_index_signatures.is_empty() {
                     let anchor = ctx.types.get_type_source(target_id);
-                    self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
+                    self.check_implicit_collection_conversion(ctx, ctx.module, ctx.profile, anchor);
                 }
 
                 let mut relation_ctx = ctx.reborrow();
@@ -1184,7 +1187,7 @@ impl Compiler {
             {
                 if !target_index_signatures.is_empty() {
                     let anchor = ctx.types.get_type_source(target_id);
-                    self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
+                    self.check_implicit_collection_conversion(ctx, ctx.module, ctx.profile, anchor);
                 }
 
                 let mut relation_ctx = ctx.reborrow();
@@ -1247,7 +1250,7 @@ impl Compiler {
             ) => {
                 if !target_index_signatures.is_empty() {
                     let anchor = ctx.types.get_type_source(target_id);
-                    self.check_implicit_collection_conversion(ctx.module, ctx.profile, anchor);
+                    self.check_implicit_collection_conversion(ctx, ctx.module, ctx.profile, anchor);
                 }
 
                 let mut relation_ctx = ctx.reborrow();
@@ -1596,11 +1599,23 @@ impl Compiler {
         }
 
         let target_is_nominal_interface = self.symbol_is_nominal_interface(
-            TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols),
+            TreeSymbolView::new(
+                ctx.compiler_context,
+                ctx.module,
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+            ),
             target_symbol,
         );
         let source_is_nominal_interface = self.symbol_is_nominal_interface(
-            TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols),
+            TreeSymbolView::new(
+                ctx.compiler_context,
+                ctx.module,
+                ctx.profile,
+                ctx.tree,
+                ctx.symbols,
+            ),
             source_symbol,
         );
 
@@ -1690,6 +1705,7 @@ impl Compiler {
 
         if self
             .require_remote_artifact_dir(
+                view.compiler_context,
                 view.module.id,
                 symbol.module_id,
                 view.profile,
@@ -1706,8 +1722,11 @@ impl Compiler {
         let (tree, symbols) = if symbol.module_id == view.module.id {
             (view.tree, view.symbols)
         } else {
-            let Ok(snapshot) = self.require_artifact_dir_declared(symbol.module_id, view.profile)
-            else {
+            let Ok(snapshot) = self.require_artifact_dir_declared(
+                view.compiler_context.revision(),
+                symbol.module_id,
+                view.profile,
+            ) else {
                 return false;
             };
             remote_snapshot = snapshot;

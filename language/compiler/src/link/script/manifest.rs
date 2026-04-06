@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use crate::Compiler;
 use crate::link::{OutputLayout, OutputLocation};
+use crate::{Compiler, CompilerContext};
 use destack_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, OutputFile,
     PackageOutput, TargetOutputName,
@@ -72,6 +72,7 @@ impl Compiler {
         output: &PackageOutput,
         output_graph: &ScriptOutputGraph,
         output_layout: &ScriptOutputLayout,
+        context: &CompilerContext<'_>,
     ) -> BuildManifest {
         let target_layout = OutputLayout::new(package_dir, target);
         let mut files = output
@@ -86,6 +87,7 @@ impl Compiler {
                         file,
                         output_graph,
                         output_layout,
+                        context,
                     )
                 })
             })
@@ -108,6 +110,7 @@ impl Compiler {
         file: &OutputFile,
         output_graph: &ScriptOutputGraph,
         output_layout: &ScriptOutputLayout,
+        context: &CompilerContext<'_>,
     ) -> BuildManifestFile {
         let output_location = self.file_output_location(target_layout, file);
         let path = output_location
@@ -122,6 +125,7 @@ impl Compiler {
             output_location.as_ref(),
             output_graph,
             output_layout,
+            context,
         );
 
         ManifestFileRecord {
@@ -143,6 +147,7 @@ impl Compiler {
         output_location: Option<&OutputLocation>,
         output_graph: &ScriptOutputGraph,
         output_layout: &ScriptOutputLayout,
+        context: &CompilerContext<'_>,
     ) -> Option<ManifestChunkMetadata> {
         if matches!(file_type, FileType::Html) {
             return Some(ManifestChunkMetadata {
@@ -172,6 +177,7 @@ impl Compiler {
             output,
             output_graph,
             output_layout,
+            context,
         ))
     }
 
@@ -184,6 +190,7 @@ impl Compiler {
         output: &ScriptOutputNode,
         output_graph: &ScriptOutputGraph,
         output_layout: &ScriptOutputLayout,
+        context: &CompilerContext<'_>,
     ) -> ManifestChunkMetadata {
         let output_location = output_layout
             .output_location(output_id)
@@ -222,9 +229,9 @@ impl Compiler {
                     .output_name(output_id)
                     .map(ToString::to_string)
             },
-            input: output
-                .facade_module()
-                .map(|module_id| self.package_relative_module_path(package_dir, module_id)),
+            input: output.facade_module().map(|module_id| {
+                self.package_relative_module_path(package_dir, module_id, context)
+            }),
             is_entry: output.is_entry(),
             is_dynamic_entry: output.is_dynamic_entry(),
             imports,

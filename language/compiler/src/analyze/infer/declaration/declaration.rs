@@ -13,7 +13,7 @@ use crate::analyze::{
 };
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, CanonicalSymbolMode, Compiler,
-    InferState,
+    CompilerContext, InferState,
 };
 use destack_core::StringId;
 use destack_dir::{
@@ -71,6 +71,8 @@ struct AssociatedContractContext {
 struct OverrideAssociatedTypeRewriter<'a> {
     /// The compiler instance.
     compiler: &'a Compiler,
+    /// The pinned compiler context.
+    compiler_context: &'a CompilerContext<'a>,
     /// The current module.
     module: &'a Module,
     /// The active profile.
@@ -93,13 +95,14 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
     /// Create a rewriter for one override receiver symbol.
     fn new(
         compiler: &'a Compiler,
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         tree: &'a NodeTree,
         symbols: &'a SymbolTable,
         receiver_symbol: GlobalSymbolId,
     ) -> Self {
-        let module_symbol_view = ModuleSymbolView::new(module, profile, symbols);
+        let module_symbol_view = ModuleSymbolView::new(compiler_context, module, profile, symbols);
         let receiver_symbol = compiler.canonical_symbol_id(
             module_symbol_view,
             receiver_symbol,
@@ -119,6 +122,7 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
 
         Self {
             compiler,
+            compiler_context,
             module,
             profile,
             tree,
@@ -132,12 +136,23 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
 
     /// Borrow module and symbols as one module symbol view.
     fn module_symbol_view(&self) -> ModuleSymbolView<'_> {
-        ModuleSymbolView::new(self.module, self.profile, self.symbols)
+        ModuleSymbolView::new(
+            self.compiler_context,
+            self.module,
+            self.profile,
+            self.symbols,
+        )
     }
 
     /// Borrow module, tree, and symbols as one tree symbol view.
     fn tree_symbol_view(&self) -> TreeSymbolView<'_> {
-        TreeSymbolView::new(self.module, self.profile, self.tree, self.symbols)
+        TreeSymbolView::new(
+            self.compiler_context,
+            self.module,
+            self.profile,
+            self.tree,
+            self.symbols,
+        )
     }
 
     /// Resolve one direct associated type member symbol for the receiver and member name.
@@ -151,6 +166,7 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
             .unwrap_or(self.receiver_symbol);
         self.compiler
             .with_module_tree_symbol_view_or_local_for_artifact(
+                self.compiler_context,
                 self.module,
                 self.profile,
                 receiver_symbol.module_id,
@@ -205,7 +221,13 @@ impl<'a> OverrideAssociatedTypeRewriter<'a> {
     /// Return true when one owner symbol belongs to the receiver extends chain.
     fn owner_is_receiver_ancestor(&self, owner_symbol: GlobalSymbolId, types: &TypeTable) -> bool {
         self.compiler.is_type_lineage_assignable(
-            SymbolTypeView::new(self.module, self.profile, self.symbols, types),
+            SymbolTypeView::new(
+                self.compiler_context,
+                self.module,
+                self.profile,
+                self.symbols,
+                types,
+            ),
             self.receiver_symbol,
             owner_symbol,
         )
@@ -272,6 +294,7 @@ impl TypeRewriter for OverrideAssociatedTypeRewriter<'_> {
             .direct_associated_type_symbol_for_name(source_name)
             .or_else(|| {
                 self.compiler.query_static_member_symbol(
+                    self.compiler_context.revision(),
                     self.module,
                     self.profile,
                     self.receiver_symbol,
@@ -757,7 +780,14 @@ impl Compiler {
             };
 
             let Some(member_key) = key.and_then(|key| {
-                self.static_key_from_dynamic_key(ctx.profile, ctx.tree, ctx.symbols, ctx.types, key)
+                self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    key,
+                )
             }) else {
                 continue;
             };
@@ -832,6 +862,7 @@ impl Compiler {
     ) -> LocalTypeId {
         let mut rewriter = OverrideAssociatedTypeRewriter::new(
             self,
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             ctx.tree,
@@ -989,6 +1020,7 @@ impl Compiler {
         member_key: StaticKey,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            view.compiler_context,
             view.module,
             view.profile,
             contract_symbol.module_id,
@@ -997,6 +1029,7 @@ impl Compiler {
             destack_artifact::ArtifactKey::dir_declared,
             |remote_view| {
                 self.query_static_member_symbol(
+                    view.compiler_context.revision(),
                     remote_view.module,
                     remote_view.profile,
                     contract_symbol,
@@ -1052,6 +1085,7 @@ impl Compiler {
             let contract_symbol = contract_context.contract_symbol;
             let contract_is_user_module = self
                 .with_module_types_or_local_for_artifact(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.profile,
                     contract_symbol.module_id,
@@ -1224,7 +1258,12 @@ impl Compiler {
 
         // import declared types from remote modules
         let remote_dir = self
-            .require_indexed_dir_declared(&ctx.index, node_id.module_id, ctx.profile)
+            .require_indexed_dir_declared(
+                &ctx.index,
+                ctx.compiler_context.revision(),
+                node_id.module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
         let remote_declared = remote_dir
             .types
@@ -2094,7 +2133,8 @@ impl Compiler {
         );
 
         // infer the body when needed
-        let should_infer_body = self.should_infer_function_body(ctx.module, signature, body);
+        let should_infer_body =
+            self.should_infer_function_body(ctx.compiler_context, ctx.module, signature, body);
         if let Some(body) = body
             && should_infer_body
         {
@@ -2204,6 +2244,7 @@ impl Compiler {
     /// Decide whether a function body should be inferred.
     fn should_infer_function_body(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         signature: &FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
@@ -2216,7 +2257,7 @@ impl Compiler {
             return false;
         }
 
-        let module_checks = self.module_check_options_for_module(module.id);
+        let module_checks = context.module_check_options_for_module(module.id);
         if module_checks.skip_lib_check
             && matches!(module.source, ModuleSource::Builtin(_))
             && signature.return_type.is_some()
@@ -2597,6 +2638,7 @@ impl Compiler {
                     .is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
                 let static_key = key.and_then(|key| {
                     self.static_key_from_dynamic_key(
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
@@ -2684,7 +2726,7 @@ impl Compiler {
 
                 // assign the implicit this binding type when available
                 if let Some(this_ty_id) = this_ty_id {
-                    let this_name = self.program.strings.intern("this");
+                    let this_name = self.repository.strings.intern("this");
                     let (_scope_id, scope, _mark) = ctx.symbols.get_scope(member_id, ctx.tree);
                     if let Some(this_symbol) = ctx
                         .symbols
@@ -2917,7 +2959,7 @@ impl Compiler {
         declared_signature_ty_id: Option<LocalTypeId>,
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
-        let module_options = self.analyze_context_options_for_module(ctx.module.id);
+        let module_options = *ctx.options;
         let enforce_decorator_no_managed = state.options.no_managed && !module_options.no_managed;
 
         // walk generics
@@ -2995,7 +3037,7 @@ impl Compiler {
         } else if signature.kind == FunctionKind::Lambda {
             // contextual "this" for lambdas
             if let Some(expected_this_ty_id) = expected_this_ty_id {
-                let this_name = self.program.strings.intern("this");
+                let this_name = self.repository.strings.intern("this");
                 let (_scope_id, scope, _mark) = match node_id.ty {
                     // use the lambda declaration scope
                     NodeType::Declaration => ctx
@@ -3246,7 +3288,7 @@ impl Compiler {
             .or_else(|| self.function_return_type(declared_signature_ty_id, ctx.types));
 
         // enforce no-managed decorators on signature types
-        let module_options = self.analyze_context_options_for_module(ctx.module.id);
+        let module_options = *ctx.options;
         let enforce_decorator_no_managed = state.options.no_managed && !module_options.no_managed;
         if enforce_decorator_no_managed {
             self.check_no_managed_signature(
@@ -3581,7 +3623,7 @@ impl Compiler {
                 ..
             } => {
                 // infer remote value imports from non code module targets
-                let target = self.program.modules.get(target_symbol.module_id);
+                let target = ctx.compiler_context.module(target_symbol.module_id);
                 let target = target.as_ref();
 
                 // infer from non code module targets
@@ -3616,7 +3658,6 @@ impl Compiler {
         use crate::analyze::r#type::json_value_to_type;
 
         let ast = self
-            .artifacts
             .ast(target_module.id)
             .ok_or_else(|| AnalyzeError::Internal {
                 message: format!(
@@ -3630,7 +3671,7 @@ impl Compiler {
                 value,
                 source_node,
                 types,
-                &self.program.strings,
+                &self.repository.strings,
             ))
         }
         // otherwise text imports are always string

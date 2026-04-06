@@ -4,8 +4,8 @@ use std::sync::Arc;
 use destack_artifact::DirElaborated;
 use destack_ast::StringId;
 use destack_dir::AnchoredGlobalNodeId;
-use destack_source::ModuleId;
-use destack_workspace::{CheckFailurePolicy, Module, ProfileId, TargetId};
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Revision};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::{
@@ -13,22 +13,23 @@ use crate::lower::{
     FunctionState, InstanceKey, RuntimeCheckConfig, StructLayout, TypeLowerer,
     collect_expression_string_literals, string_literal_global_name_for_content,
 };
-use crate::{Compiler, ExecuteError, ExecuteResult, LowerError, ModuleLowerer};
+use crate::{Compiler, CompilerContext, ExecuteError, ExecuteResult, LowerError, ModuleLowerer};
 
 #[allow(dead_code)]
 impl Compiler {
     /// Require the elaborated DIR artifact for one module and profile.
     pub(crate) fn require_dir_elaborated_data(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ExecuteResult<Arc<DirElaborated>> {
-        self.require_artifact_dir_elaborated(module_id, profile)
+        self.require_artifact_dir_elaborated(revision, module_id, profile)
             .map_err(|error| match error {
-                crate::ArtifactRequirementError::NotReady { requirement } => {
+                crate::RequirementError::NotReady { requirement } => {
                     ExecuteError::Yield { requirement }
                 }
-                crate::ArtifactRequirementError::Failed { requirement } => {
+                crate::RequirementError::Failed { requirement } => {
                     ExecuteError::UnsatisfiedRequirement { requirement }
                 }
             })
@@ -40,11 +41,12 @@ impl Compiler {
         module: &Arc<Module>,
         profile: ProfileId,
         target_id: &TargetId,
+        context: &CompilerContext<'_>,
     ) -> ExecuteResult<(mir::NodeTree, destack_core::StringPool)> {
         // snapshot dir inputs for lowering
         let module = module.as_ref();
         let module_id = module.id;
-        let dir = self.require_dir_elaborated_data(module_id, profile)?;
+        let dir = self.require_dir_elaborated_data(context.revision(), module_id, profile)?;
 
         // FUGU #Performance: avoid cloning whole node dir tree for comptime
         let dir_tree = dir.tree.clone();
@@ -56,7 +58,7 @@ impl Compiler {
 
         // build the module lowerer
         let pointer_bytes = self
-            .pointer_bytes_for_target(module_id, target_id)
+            .pointer_bytes_for_target(module_id, target_id, context)
             .map_err(|error| ExecuteError::FailedLower {
                 module: module_id,
                 error: Box::new(error.clone()),
@@ -64,6 +66,7 @@ impl Compiler {
             })?;
         let mut lowerer = ModuleLowerer::new(
             self,
+            context,
             module,
             profile,
             &dir_tree,
@@ -74,7 +77,12 @@ impl Compiler {
             &captures,
             target_id,
             pointer_bytes,
-        );
+        )
+        .map_err(|error| ExecuteError::FailedLower {
+            module: module_id,
+            error: Box::new(error.clone()),
+            message: format!("{error}"),
+        })?;
 
         // lower the full module for comptime execution
         lowerer
@@ -95,12 +103,13 @@ impl Compiler {
         module: &destack_workspace::Module,
         profile: destack_workspace::ProfileId,
         expression_id: dir::LocalNodeId<dir::Expression>,
+        context: &CompilerContext<'_>,
     ) -> ExecuteResult<(
         mir::NodeTree,
         destack_core::StringPool,
         mir::LocalNodeId<mir::Function>,
     )> {
-        let lowerer = ComptimeLowerer::new(self, module, profile)?;
+        let lowerer = ComptimeLowerer::new(self, context.revision(), module, profile)?;
         lowerer.lower_expression(expression_id)
     }
 
@@ -129,6 +138,8 @@ impl Compiler {
 struct ComptimeLowerer<'a> {
     /// The active compiler instance.
     compiler: &'a Compiler,
+    /// The pinned revision for lowering.
+    revision: Revision,
     /// The module containing the expression.
     module: &'a Module,
     /// The profile used to resolve module context.
@@ -154,15 +165,25 @@ struct ComptimeLowerer<'a> {
 
 impl<'a> ComptimeLowerer<'a> {
     /// Create a comptime lowerer for a module.
-    fn new(compiler: &'a Compiler, module: &'a Module, profile: ProfileId) -> ExecuteResult<Self> {
+    fn new(
+        compiler: &'a Compiler,
+        revision: Revision,
+        module: &'a Module,
+        profile: ProfileId,
+    ) -> ExecuteResult<Self> {
         // snapshot dir inputs
-        let dir = compiler.require_dir_elaborated_data(module.id, profile)?;
+        let dir = compiler.require_dir_elaborated_data(revision, module.id, profile)?;
 
         // initialize the mir builder
         let mut builder = mir::ModuleBuilder::unchecked();
 
         // seed the mir string pool with program strings
-        let strings = compiler.program.strings.as_ref().clone().into_immutable();
+        let strings = compiler
+            .repository
+            .strings
+            .as_ref()
+            .clone()
+            .into_immutable();
         builder.strings().copy_from_immutable(&strings);
 
         // intern comptime dispatch names
@@ -189,14 +210,13 @@ impl<'a> ComptimeLowerer<'a> {
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
-            compiler.artifacts.clone(),
-            compiler.program.modules.clone(),
-            compiler.program.packages.clone(),
+            compiler.repository.clone(),
             vector_symbol,
         );
 
         Ok(Self {
             compiler,
+            revision,
             module,
             profile,
             dir,
@@ -227,6 +247,7 @@ impl<'a> ComptimeLowerer<'a> {
         // prepare builtin layouts for comptime lowering
         let mut builtin_layouts = BuiltinTypeLayouts::new(
             self.compiler,
+            self.revision,
             self.profile,
             &mut self.builder,
             &mut self.type_lowerer,
@@ -260,7 +281,6 @@ impl<'a> ComptimeLowerer<'a> {
         // resolve cached intrinsic bindings when available
         let well_known_intrinsics = self
             .compiler
-            .artifacts
             .intrinsic_environment(self.profile)
             .map(|environment| environment.intrinsics.clone());
 
@@ -277,13 +297,14 @@ impl<'a> ComptimeLowerer<'a> {
         let context = FunctionLoweringContext {
             module_id: self.module.id,
             profile: self.profile,
-            program: &self.compiler.program,
+            revision: self.revision,
+            program: &self.compiler.repository,
             compiler: self.compiler,
             dir_tree: &self.dir.tree,
             symbols: &self.dir.symbols,
             types: &self.dir.types,
             captures: &self.dir.captures,
-            strings: &self.compiler.program.strings,
+            strings: &self.compiler.repository.strings,
             well_known_intrinsics: well_known_intrinsics.as_ref(),
             functions_by_instance: &functions_by_instance,
             function_signature_types: &function_signature_types,
@@ -363,14 +384,14 @@ impl<'a> ComptimeLowerer<'a> {
         // order literals by stable string content
         let mut ordered: Vec<_> = literals.into_iter().collect();
         ordered.sort_by(|left, right| {
-            let left_value = self.compiler.program.strings.get(*left);
-            let right_value = self.compiler.program.strings.get(*right);
+            let left_value = self.compiler.repository.strings.get(*left);
+            let right_value = self.compiler.repository.strings.get(*right);
             left_value.as_ref().cmp(right_value.as_ref())
         });
 
         // emit a global constant for each literal
         for literal_id in ordered {
-            let literal = self.compiler.program.strings.get(literal_id);
+            let literal = self.compiler.repository.strings.get(literal_id);
             let name = string_literal_global_name_for_content(literal.as_ref());
             let global = self.builder.global_constant(
                 &name,

@@ -1,31 +1,30 @@
 use std::path::PathBuf;
 
-use destack_source::{ModuleId, PackageId};
+use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::{
     EntryResolutionMode, EntrySource, Target, TargetDiscoveryIssue, TargetDiscoveryOptions,
-    TargetId, discover_entry_modules, discover_include_modules,
 };
 
 use crate::Compiler;
-
 impl Compiler {
     /// Discover modules from entry points.
     pub(crate) fn discover_entry_modules(
         &self,
+        revision: destack_workspace::Revision,
         package_id: PackageId,
         package_path: &Option<PathBuf>,
         target: &Target,
         target_id: &TargetId,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
         // resolve manifest entry targets for auto entry source mode
-        let manifest_entry_targets = self.manifest_entry_targets(package_id);
+        let manifest_entry_targets = self.manifest_entry_targets(revision, package_id);
         let options = TargetDiscoveryOptions {
             entry_source: EntrySource::Auto,
             entry_resolution: EntryResolutionMode::Strict,
             manifest_entry_targets: &manifest_entry_targets,
         };
-        discover_entry_modules(
-            &self.program.modules,
+        self.repository.entry_module_ids(
+            revision,
             package_id,
             package_path,
             target,
@@ -37,21 +36,30 @@ impl Compiler {
     /// Discover modules matching include and exclude patterns.
     pub(crate) fn discover_include_modules(
         &self,
+        revision: destack_workspace::Revision,
         package_id: PackageId,
         package_path: &Option<PathBuf>,
         target: &Target,
+        target_id: &TargetId,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryIssue> {
-        discover_include_modules(&self.program.modules, package_id, package_path, target)
+        self.repository
+            .include_module_ids(revision, package_id, package_path, target, target_id)
     }
 
     /// Return package manifest entry targets for one package.
-    fn manifest_entry_targets(&self, package_id: PackageId) -> Vec<String> {
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
-        package
-            .manifest
-            .as_ref()
-            .map(|manifest| manifest.content.entry_targets())
+    fn manifest_entry_targets(
+        &self,
+        revision: destack_workspace::Revision,
+        package_id: PackageId,
+    ) -> Vec<String> {
+        let Some(package) = self.cache_package_snapshot(revision, package_id).ok() else {
+            return Vec::new();
+        };
+        self.repository
+            .package_declaration(revision, package.as_ref())
+            .ok()
+            .flatten()
+            .map(|declaration| declaration.json.entry_targets())
             .unwrap_or_default()
     }
 }

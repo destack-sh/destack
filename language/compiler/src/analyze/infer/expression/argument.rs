@@ -6,7 +6,10 @@ use crate::analyze::common::{
     TypeContext, TypeView,
 };
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferState};
+use crate::{
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, CompilerContext,
+    InferState,
+};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
     DynamicKey, EnumFieldValue, Expression, Freshness, GlobalNodeId, GlobalNodeIdAny,
@@ -59,14 +62,22 @@ impl Compiler {
             return handle(&mut ctx);
         }
 
-        let owner_module = self.program.modules.get(module_id);
+        let owner_module = ctx.compiler_context.module(module_id);
         let owner_module = owner_module.as_ref();
-        let owner_options = self.analyze_context_options_for_module(owner_module.id);
+        let owner_options = ctx
+            .compiler_context
+            .analyze_context_options_for_module(owner_module.id);
 
         let owner_dir = self
-            .require_indexed_dir_declared(&ctx.index, module_id, ctx.profile)
+            .require_indexed_dir_declared(
+                &ctx.index,
+                ctx.compiler_context.revision(),
+                module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
         let mut owner_ctx = TypeContext::new(
+            ctx.compiler_context,
             owner_module,
             ctx.profile,
             &owner_options,
@@ -93,6 +104,7 @@ impl Compiler {
         };
 
         self.with_module_symbols_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             target_symbol.module_id,
@@ -100,7 +112,13 @@ impl Compiler {
             destack_artifact::ArtifactKey::dir_resolved,
             |owner_module, owner_symbols| {
                 if self.symbol_is_static_parameter(
-                    SymbolTypeView::new(owner_module, ctx.profile, owner_symbols, ctx.types),
+                    SymbolTypeView::new(
+                        ctx.compiler_context,
+                        owner_module,
+                        ctx.profile,
+                        owner_symbols,
+                        ctx.types,
+                    ),
                     *target_symbol,
                 ) {
                     Some(*target_symbol)
@@ -139,8 +157,11 @@ impl Compiler {
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_snapshot =
-            self.require_artifact_dir_declared(argument_node.module_id, view.profile)?;
+        let argument_snapshot = self.require_artifact_dir_declared(
+            view.compiler_context.revision(),
+            argument_node.module_id,
+            view.profile,
+        )?;
         if !argument_snapshot
             .tree
             .has_node_id(argument_node.local_id.id)
@@ -152,9 +173,10 @@ impl Compiler {
             return Ok(None);
         }
 
-        let argument_module = self.program.modules.get(argument_node.module_id);
+        let argument_module = view.compiler_context.module(argument_node.module_id);
         let argument_module = argument_module.as_ref();
         let view = TreeSymbolView::new(
+            view.compiler_context,
             argument_module,
             view.profile,
             &argument_snapshot.tree,
@@ -192,8 +214,11 @@ impl Compiler {
         }
 
         // otherwise, resolve the owning module and ensure the node exists there
-        let argument_snapshot =
-            self.require_artifact_dir_resolved(argument_node.module_id, ctx.profile)?;
+        let argument_snapshot = self.require_artifact_dir_resolved(
+            ctx.compiler_context.revision(),
+            argument_node.module_id,
+            ctx.profile,
+        )?;
         if !argument_snapshot
             .tree
             .has_node_id(argument_node.local_id.id)
@@ -205,10 +230,13 @@ impl Compiler {
             return Ok(None);
         }
 
-        let argument_module = self.program.modules.get(argument_node.module_id);
+        let argument_module = ctx.compiler_context.module(argument_node.module_id);
         let argument_module = argument_module.as_ref();
-        let argument_options = self.analyze_context_options_for_module(argument_module.id);
+        let argument_options = ctx
+            .compiler_context
+            .analyze_context_options_for_module(argument_module.id);
         let mut ctx = TypeContext::new(
+            ctx.compiler_context,
             argument_module,
             ctx.profile,
             &argument_options,
@@ -892,6 +920,7 @@ impl Compiler {
         let resolved_argument = match (static_parameter.kind, argument) {
             (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
                 let mut call_site_ctx = TypeContext::new(
+                    ctx.compiler_context,
                     call_site.module,
                     call_site.profile,
                     call_site_options,
@@ -915,6 +944,7 @@ impl Compiler {
             }
             (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => {
                 let mut call_site_ctx = TypeContext::new(
+                    ctx.compiler_context,
                     call_site.module,
                     call_site.profile,
                     call_site_options,
@@ -1417,6 +1447,7 @@ impl Compiler {
             self.enum_literal_matches_symbol(ctx.tree, ctx.symbols, ctx.types, enum_symbol, literal)
         } else {
             self.require_remote_artifact_dir(
+                ctx.compiler_context,
                 ctx.module.id,
                 enum_symbol.module_id,
                 ctx.profile,
@@ -1424,7 +1455,11 @@ impl Compiler {
             )
             .map_err(AnalyzeError::from)?;
             let snapshot = self
-                .require_artifact_dir_declared(enum_symbol.module_id, ctx.profile)
+                .require_artifact_dir_declared(
+                    ctx.compiler_context.revision(),
+                    enum_symbol.module_id,
+                    ctx.profile,
+                )
                 .map_err(AnalyzeError::from)?;
             self.enum_literal_matches_symbol(
                 &snapshot.tree,
@@ -1952,6 +1987,7 @@ impl Compiler {
     /// Resolve the target argument mapping for an extension declaration.
     pub(crate) fn extension_target_argument_mapping(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         extension_symbol: GlobalSymbolId,
         extension_parameters: &[GlobalSymbolId],
@@ -1960,6 +1996,7 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> AnalyzeResult<Option<Vec<usize>>> {
         self.require_remote_artifact_dir(
+            context,
             module.id,
             extension_symbol.module_id,
             profile,
@@ -1973,7 +2010,11 @@ impl Compiler {
             (tree, symbols)
         } else {
             remote_snapshot = self
-                .require_artifact_dir_declared(extension_symbol.module_id, profile)
+                .require_artifact_dir_declared(
+                    context.revision(),
+                    extension_symbol.module_id,
+                    profile,
+                )
                 .map_err(AnalyzeError::from)?;
             (
                 remote_snapshot.tree.as_ref(),
@@ -2385,13 +2426,23 @@ impl Compiler {
         validation_mode: StaticArgumentValidationMode,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // preserve caller module context for bound validation
-        let call_site = TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols);
+        let call_site = TreeSymbolView::new(
+            ctx.compiler_context,
+            ctx.module,
+            ctx.profile,
+            ctx.tree,
+            ctx.symbols,
+        );
         let call_site_options = ctx.options;
 
         // ensure remote declarations are resolved before reading defaults
         if symbol.module_id != ctx.module.id {
-            self.require_dir_resolved(symbol.module_id, ctx.profile)
-                .map_err(AnalyzeError::from)?;
+            self.require_dir_resolved(
+                ctx.compiler_context.revision(),
+                symbol.module_id,
+                ctx.profile,
+            )
+            .map_err(AnalyzeError::from)?;
         }
 
         if symbol.module_id == ctx.module.id {
@@ -2623,6 +2674,7 @@ impl Compiler {
             // validate type and value arguments against declared bounds
             let validated_type = if validate_static_argument_bounds {
                 let mut ctx = TypeContext::new(
+                    ctx.compiler_context,
                     call_site.module,
                     ctx.profile,
                     call_site_options,
@@ -2906,8 +2958,12 @@ impl Compiler {
 
         // ensure enum declarations are available before scanning enum fields
         if enum_symbol.module_id != ctx.module.id {
-            self.require_dir_declared(enum_symbol.module_id, ctx.profile)
-                .map_err(AnalyzeError::from)?;
+            self.require_dir_declared(
+                ctx.compiler_context.revision(),
+                enum_symbol.module_id,
+                ctx.profile,
+            )
+            .map_err(AnalyzeError::from)?;
         }
 
         let Some(name) = *name else {
@@ -3503,7 +3559,13 @@ impl Compiler {
         };
 
         // resolve the owning tree before checking the argument expression
-        let view = TreeSymbolView::new(ctx.module, ctx.profile, ctx.tree, ctx.symbols);
+        let view = TreeSymbolView::new(
+            ctx.compiler_context,
+            ctx.module,
+            ctx.profile,
+            ctx.tree,
+            ctx.symbols,
+        );
         self.with_static_argument_owner_read(view, *node, |view, argument_id| {
             let expression_id = view.tree.get(argument_id).value();
             Ok(self.reference_symbol_for_expression(view, expression_id) == Some(target_symbol))

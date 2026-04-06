@@ -1130,7 +1130,9 @@ impl Compiler {
         enforce_implicit_managed: bool,
         resolve_static_arguments: bool,
     ) -> AnalyzeResult<Option<Type>> {
-        let module_checks = self.module_check_options_for_module(ctx.module.id);
+        let module_checks = ctx
+            .compiler_context
+            .module_check_options_for_module(ctx.module.id);
         let is_user_module = matches!(ctx.module.source, ModuleSource::User);
         let defer_reference_resolution = ctx.module.language_type.is_declaration()
             && (module_checks.skip_lib_check
@@ -1374,7 +1376,7 @@ impl Compiler {
 
                 // map builtin iterator return to configured strictness
                 if let TypeLiteral::Intrinsic(IntrinsicType::BuiltinIteratorReturn) = value {
-                    let current_profile = self.program.profile(ctx.profile);
+                    let current_profile = self.profile(ctx.profile);
                     let mapped = if current_profile.key.flags.strict_builtin_iterator_return {
                         TypeLiteral::Undefined
                     } else {
@@ -1965,6 +1967,7 @@ impl Compiler {
 
                             let Some(key) = key.and_then(|key| {
                                 self.static_key_from_dynamic_key(
+                                    ctx.compiler_context.revision(),
                                     ctx.profile,
                                     ctx.tree,
                                     ctx.symbols,
@@ -2046,6 +2049,7 @@ impl Compiler {
 
                             let Some(key) = key.and_then(|key| {
                                 self.static_key_from_dynamic_key(
+                                    ctx.compiler_context.revision(),
                                     ctx.profile,
                                     ctx.tree,
                                     ctx.symbols,

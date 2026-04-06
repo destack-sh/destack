@@ -80,8 +80,8 @@ const raw: int32 = status;
 
     // load typed module data
     let view = test.view(module_id);
-    let options = test.compiler.analyze_context_options_for_module(module_id);
-    let module = test.program.modules.get(module_id);
+    let options = test.analyze_context_options_for_module(module_id);
+    let module = test.program.module_descriptor(module_id);
     let module = module.as_ref();
     let profile = view.profile_id();
 
@@ -399,7 +399,7 @@ const status = Status.Active;
     let active_field_ty = active_field.ty;
 
     // confirm enums are not implicitly assignable to their backing type
-    let options = test.compiler.analyze_context_options_for_module(module_id);
+    let options = test.analyze_context_options_for_module(module_id);
     let symbols = view.symbols().clone();
     let mut types = view.types().clone();
     let int32_ty_id = types.insert_type_from_any(

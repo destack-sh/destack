@@ -25,7 +25,7 @@ impl Compiler {
         scope_id: LocalScopeId,
         symbols: &SymbolTable,
     ) -> bool {
-        let arguments_name = self.program.strings.intern("arguments");
+        let arguments_name = self.repository.strings.intern("arguments");
         let arguments_key = StaticKey::Name(arguments_name);
         let scope = symbols.get_scope_by_id(scope_id);
         scope
@@ -154,11 +154,11 @@ impl Compiler {
             if this_parameter.is_none()
                 && let Some(first_id) = dynamic_parameters.first().copied()
             {
-                let this_name = self.program.strings.intern("this");
+                let this_name = self.repository.strings.intern("this");
                 let ast_parameter = ast.tree.get(first_id);
                 let is_explicit_this = match ast_parameter {
                     ast::Parameter::Named { name, .. } => {
-                        let name = self.program.strings.intern_from(&ast.strings, *name);
+                        let name = self.repository.strings.intern_from(&ast.strings, *name);
                         name == this_name
                     }
                     _ => false,
@@ -213,7 +213,7 @@ impl Compiler {
         if self.function_has_runtime_arguments(module, kind)
             && !self.function_scope_has_arguments_binding(scope.0, symbols)
         {
-            let arguments_name = self.program.strings.intern("arguments");
+            let arguments_name = self.repository.strings.intern("arguments");
             let arguments_key = StaticKey::Name(arguments_name);
             self.bind_named_local(
                 module,

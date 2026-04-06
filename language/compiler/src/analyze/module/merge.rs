@@ -24,6 +24,7 @@ impl Compiler {
     fn normalize_declared_merge_source_symbol(
         &self,
         index: &AnalyzeIndex,
+        revision: destack_workspace::Revision,
         current_module_id: ModuleId,
         current_symbols: &SymbolTable,
         profile: ProfileId,
@@ -39,7 +40,8 @@ impl Compiler {
         }
 
         // otherwise read the published declared artifact once
-        let owner_dir = self.require_indexed_dir_declared(index, symbol.module_id, profile)?;
+        let owner_dir =
+            self.require_indexed_dir_declared(index, revision, symbol.module_id, profile)?;
 
         let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
         Ok(GlobalSymbolId::new(
@@ -52,6 +54,7 @@ impl Compiler {
     fn collect_normalized_merge_sources(
         &self,
         index: &AnalyzeIndex,
+        revision: destack_workspace::Revision,
         current_module_id: ModuleId,
         current_symbols: &SymbolTable,
         profile: ProfileId,
@@ -63,6 +66,7 @@ impl Compiler {
         for symbol in raw_symbols {
             let normalized_symbol = self.normalize_declared_merge_source_symbol(
                 index,
+                revision,
                 current_module_id,
                 current_symbols,
                 profile,
@@ -79,6 +83,7 @@ impl Compiler {
     /// Collect global and ambient merge sources for a symbol key and category.
     pub(crate) fn collect_global_merge_sources_for_key(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         index: &AnalyzeIndex,
         current_symbols: &SymbolTable,
@@ -101,7 +106,9 @@ impl Compiler {
         } else {
             let mut raw_symbols = Vec::new();
             for space in self.global_merge_spaces_for_category(anchor_space, category) {
-                if let Some(group) = self.get_global_symbol_group(module.id, profile, key, *space) {
+                if let Some(group) =
+                    self.get_global_symbol_group(revision, module.id, profile, key, *space)
+                {
                     raw_symbols.extend(group);
                 }
             }
@@ -123,6 +130,7 @@ impl Compiler {
 
         self.collect_normalized_merge_sources(
             index,
+            revision,
             module.id,
             current_symbols,
             profile,
@@ -133,6 +141,7 @@ impl Compiler {
     /// Select one preferred type-space carrier symbol for a merge key.
     pub(crate) fn select_preferred_type_carrier_symbol(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         index: &AnalyzeIndex,
         current_symbols: &SymbolTable,
@@ -141,6 +150,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // normalize candidates before canonical ordering
         let mut normalized_symbols = self.collect_global_merge_sources_for_key(
+            revision,
             module,
             index,
             current_symbols,
@@ -188,8 +198,12 @@ impl Compiler {
             let owner_symbol = view.symbols.get_symbol(symbol.local_id);
             (owner_symbol.space, owner_symbol.key)
         } else {
-            let owner_dir =
-                self.require_indexed_dir_declared(index, symbol.module_id, view.profile)?;
+            let owner_dir = self.require_indexed_dir_declared(
+                index,
+                view.compiler_context.revision(),
+                symbol.module_id,
+                view.profile,
+            )?;
             let owner_symbol = owner_dir.symbols.get_symbol(symbol.local_id);
             (owner_symbol.space, owner_symbol.key)
         };
@@ -201,6 +215,7 @@ impl Compiler {
             return Ok(symbol);
         };
         if let Some(candidate) = self.select_preferred_type_carrier_symbol(
+            view.compiler_context.revision(),
             view.module,
             index,
             view.symbols,

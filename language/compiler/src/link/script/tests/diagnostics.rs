@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_artifact::ArtifactKey;
-use destack_workspace::{BundleFormat, TargetDiscovery, TargetId};
+use destack_workspace::{BundleFormat, TargetDiscovery};
 
 use super::{ExpectedDiagnostic, TestProgram, js};
 
@@ -30,8 +30,8 @@ fn test_rejects_unlisted_only_bundle_dependency() {
         target.bundle.dependencies.only_bundle = vec!["lodash".to_string()];
     });
 
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
+    let package_id = test.program.module_descriptor(main).package_id;
+    let target_id = test.target_id(package_id, "js");
     test.run(ArtifactKey::package_output(package_id, target_id));
 
     // report one exact linker diagnostic
@@ -63,8 +63,8 @@ fn test_rejects_bundled_dynamic_import() {
         target.out_file = Some(PathBuf::from("dist/js.js"));
     });
 
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
+    let package_id = test.program.module_descriptor(main).package_id;
+    let target_id = test.target_id(package_id, "js");
     test.run(ArtifactKey::package_output(package_id, target_id));
 
     // report one exact linker diagnostic
@@ -93,8 +93,8 @@ fn test_rejects_unimplemented_bundle_output_format() {
         target.bundle.output.format = Some(BundleFormat::Cjs);
     });
 
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
+    let package_id = test.program.module_descriptor(main).package_id;
+    let target_id = test.target_id(package_id, "js");
     test.run(ArtifactKey::package_output(package_id, target_id));
 
     // report one exact linker diagnostic
@@ -122,8 +122,8 @@ fn test_rejects_unimplemented_bundle_minify() {
         target.bundle.minify.enabled = true;
     });
 
-    let package_id = test.program.modules.get(main).package_id;
-    let target_id = TargetId::new(package_id, "js");
+    let package_id = test.program.module_descriptor(main).package_id;
+    let target_id = test.target_id(package_id, "js");
     test.run(ArtifactKey::package_output(package_id, target_id));
 
     // report one exact linker diagnostic

@@ -7,7 +7,7 @@ use destack_dir::{
     GlobalSymbolId, LocalNodeId, LocalScopeId, ModuleTarget, NodeTree, StaticKey,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::workspace::{Module, ProfileId};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -22,6 +22,7 @@ impl Compiler {
     /// Collect namespace reexport targets for a specific scope.
     pub(super) fn collect_namespace_exports_for_scope(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         scope_id: LocalScopeId,
@@ -33,8 +34,9 @@ impl Compiler {
             if !cache.namespace_exports_by_scope.contains_key(&module.id) {
                 let tree = &dir.tree;
                 let item_ids = cache.dependency_item_ids_for(module.id, tree);
-                let exports_by_scope =
-                    self.build_namespace_exports_by_scope(module, profile, dir, tree, &item_ids)?;
+                let exports_by_scope = self.build_namespace_exports_by_scope(
+                    revision, module, profile, dir, tree, &item_ids,
+                )?;
                 cache
                     .namespace_exports_by_scope
                     .insert(module.id, exports_by_scope);
@@ -53,13 +55,14 @@ impl Compiler {
         let tree = &dir.tree;
         let item_ids = tree.iter_node_ids_of_type::<DependencyItem>();
         self.collect_namespace_exports_in_scope_direct(
-            module, profile, dir, tree, &item_ids, scope_id,
+            revision, module, profile, dir, tree, &item_ids, scope_id,
         )
     }
 
     /// Collect namespace exports in a scope without caching.
     fn collect_namespace_exports_in_scope_direct(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
@@ -71,8 +74,9 @@ impl Compiler {
 
         // walk dependency items for namespace exports
         for item_id in item_ids {
-            let Some(export) =
-                self.namespace_export_for_item(module, profile, dir, tree, *item_id, scope_id)?
+            let Some(export) = self.namespace_export_for_item(
+                revision, module, profile, dir, tree, *item_id, scope_id,
+            )?
             else {
                 continue;
             };
@@ -85,6 +89,7 @@ impl Compiler {
     /// Build a scope grouped namespace export table for the module.
     fn build_namespace_exports_by_scope(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
@@ -96,8 +101,9 @@ impl Compiler {
 
         // walk dependency items once and group exports by scope
         for item_id in item_ids {
-            let Some((scope_id, export)) =
-                self.namespace_export_for_item_with_scope(module, profile, dir, tree, *item_id)?
+            let Some((scope_id, export)) = self.namespace_export_for_item_with_scope(
+                revision, module, profile, dir, tree, *item_id,
+            )?
             else {
                 continue;
             };
@@ -110,6 +116,7 @@ impl Compiler {
     /// Resolve a namespace export for a dependency item in the given scope.
     fn namespace_export_for_item(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
@@ -118,8 +125,8 @@ impl Compiler {
         scope_id: LocalScopeId,
     ) -> ResolveResult<Option<destack_dir::NamespaceExport>> {
         // ensure the dependency item belongs to the requested scope
-        let Some((item_scope_id, export)) =
-            self.namespace_export_for_item_with_scope(module, profile, dir, tree, item_id)?
+        let Some((item_scope_id, export)) = self
+            .namespace_export_for_item_with_scope(revision, module, profile, dir, tree, item_id)?
         else {
             return Ok(None);
         };
@@ -133,6 +140,7 @@ impl Compiler {
     /// Resolve a namespace export and return its owning scope.
     fn namespace_export_for_item_with_scope(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         dir: &DirPrepared,
@@ -209,10 +217,9 @@ impl Compiler {
         } else if let Some(target_module) = expression_target_module {
             target_module
         } else if let Some(target) = target {
-            let module_handle = self.program.modules.get(module.id);
-            let module_handle = module_handle.as_ref();
             let Some(target_module) = self.resolve_import_maybe_from_artifact(
-                module_handle,
+                revision,
+                module,
                 dir,
                 profile,
                 item_id.into_global_any(module.id),
@@ -244,6 +251,7 @@ impl Compiler {
     /// Collect namespace exports for a module or module binding target.
     pub(super) fn collect_namespace_exports_for_target(
         &self,
+        revision: destack_workspace::Revision,
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
@@ -261,14 +269,19 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
+                self.require_dir_prepared_if_other(revision, origin_module_id, module_id, profile)?;
 
                 // load namespace exports from the module scope
-                let module = self.program.modules.get(module_id);
+                let module = self
+                    .cache_module_snapshot(revision, module_id)
+                    .map_err(|error| ResolveError::Internal {
+                        message: format!("failed to load module snapshot: {error}"),
+                    })?;
                 let dir = self
-                    .require_artifact_dir_prepared(module_id, profile)
+                    .require_artifact_dir_prepared(revision, module_id, profile)
                     .map_err(ResolveError::from)?;
                 let exports = self.collect_namespace_exports_for_scope(
+                    revision,
                     &module,
                     profile,
                     dir.namespace_scope,
@@ -289,8 +302,12 @@ impl Compiler {
             ModuleTarget::External(_) => Ok(Vec::new()),
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
-                let bindings =
-                    self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                let bindings = self.module_bindings_for_specifier(
+                    revision,
+                    origin_module_id,
+                    profile,
+                    specifier,
+                )?;
                 let Some(bindings) = bindings else {
                     return Ok(Vec::new());
                 };
@@ -300,15 +317,20 @@ impl Compiler {
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
                     self.require_dir_prepared_if_other(
+                        revision,
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
                     )?;
 
                     // load the binding scope
-                    let module = self.program.modules.get(binding_ref.module_id);
+                    let module = self
+                        .cache_module_snapshot(revision, binding_ref.module_id)
+                        .map_err(|error| ResolveError::Internal {
+                            message: format!("failed to load module snapshot: {error}"),
+                        })?;
                     let dir = self
-                        .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                        .require_artifact_dir_prepared(revision, binding_ref.module_id, profile)
                         .map_err(ResolveError::from)?;
                     let Some((scope_id, _, _)) =
                         self.binding_info_for_declaration(&dir, binding_ref.declaration)
@@ -318,6 +340,7 @@ impl Compiler {
 
                     // collect namespace exports from the binding scope
                     let nested = self.collect_namespace_exports_for_scope(
+                        revision,
                         &module,
                         profile,
                         scope_id,
@@ -403,6 +426,7 @@ impl Compiler {
     /// This is used when a symbol isn't found in the direct namespace scope.
     pub(super) fn resolve_symbol_via_namespace_exports(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         node: GlobalNodeIdAny,
         via_target: ModuleTarget,
@@ -430,10 +454,11 @@ impl Compiler {
 
         // resolve the scope for missing symbol errors
         let (via_scope, via_module_id) =
-            self.export_chain_scope_for_target(module.id, via_target, profile)?;
+            self.export_chain_scope_for_target(revision, module.id, via_target, profile)?;
 
         // collect namespace exports from export * statements
         let namespace_exports = self.collect_namespace_exports_for_target(
+            revision,
             module.id,
             via_target,
             profile,
@@ -471,6 +496,7 @@ impl Compiler {
             // resolve explicit exports within the namespace target
             let mut visited_exports = ReexportVisitStack::default();
             if let Some(resolved) = self.resolve_reexport_chain_symbol(
+                revision,
                 module.id,
                 origin_symbol,
                 node,
@@ -490,6 +516,7 @@ impl Compiler {
                         if existing.symbol != resolved.symbol {
                             let node = origin_item.into_global_any(source_module_id);
                             self.check_can_merge_declarations(
+                                revision,
                                 existing.symbol,
                                 resolved.symbol,
                                 node,
@@ -505,6 +532,7 @@ impl Compiler {
 
             // enqueue nested namespace exports
             let nested_exports = self.collect_namespace_exports_for_target(
+                revision,
                 module.id,
                 namespace_target,
                 profile,

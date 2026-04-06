@@ -210,7 +210,7 @@ impl Compiler {
                 pattern,
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
                 let pattern = pattern.map(|pattern| {
                     self.bind_pattern(
                         module,
@@ -553,7 +553,7 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self
-                    .program
+                    .repository
                     .strings
                     .intern_from(&ast.strings, name.string());
                 let pattern = if let Some(pattern) = pattern {
@@ -690,10 +690,10 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
                 let name = self
-                    .program
+                    .repository
                     .strings
                     .intern_from(&ast.strings, name.string());
-                let alias = self.program.strings.intern_from(&ast.strings, *alias);
+                let alias = self.repository.strings.intern_from(&ast.strings, *alias);
                 let default = default.map(|default| {
                     self.bind_expression(
                         module,

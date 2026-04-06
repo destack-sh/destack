@@ -1541,8 +1541,7 @@ impl CallSite {
 mod tests {
     use destack_artifact::MirBase;
     use destack_mir::parse::ParseOptions;
-    use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
-    use destack_workspace::TargetId;
+    use destack_source::{FileId, ModuleId, PackageId, TargetId};
 
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::{
@@ -1552,17 +1551,22 @@ mod tests {
 
     use super::*;
 
+    /// Build one stable test target id for one package.
+    fn test_target_id(package_id: PackageId, name: &str) -> TargetId {
+        TargetId::new(package_id, name)
+    }
+
     /// Build a module work item from MIR text.
     fn module_work_item(package_id: PackageId, module_index: u32, source: &str) -> ModuleWorkItem {
         let module_id = ModuleId::new(package_id, module_index);
-        let target_id = TargetId::new(package_id, "test");
+        let target_id = test_target_id(package_id, "test");
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
                 .expect("failed to parse MIR");
         let pool = destack_core::StringPool::new();
         pool.copy_from_immutable(&strings);
 
-        let mut module_mir = MirBase::new(module_id, ModuleVersion::INITIAL, target_id.clone());
+        let mut module_mir = MirBase::new(module_id, target_id);
         module_mir.tree = tree;
         module_mir.strings = pool;
 
@@ -1879,7 +1883,7 @@ block2(v2: ref<managed readonly i32>):
     #[test]
     fn test_package_call_graph_resolves_import() {
         let package_id = PackageId::new(1);
-        let target_id = TargetId::new(package_id, "test");
+        let target_id = test_target_id(package_id, "test");
 
         let module_a = module_work_item(
             package_id,
@@ -1923,7 +1927,7 @@ block0:
     #[test]
     fn test_package_call_graph_import_missing_definition() {
         let package_id = PackageId::new(7);
-        let target_id = TargetId::new(package_id, "test");
+        let target_id = test_target_id(package_id, "test");
 
         let module = module_work_item(
             package_id,
@@ -1958,7 +1962,7 @@ block0:
     #[test]
     fn test_package_call_graph_skips_local_definition() {
         let package_id = PackageId::new(8);
-        let target_id = TargetId::new(package_id, "test");
+        let target_id = test_target_id(package_id, "test");
 
         let module_a = module_work_item(
             package_id,
@@ -2002,7 +2006,7 @@ block0:
     #[test]
     fn test_package_call_graph_signature_mismatch() {
         let package_id = PackageId::new(9);
-        let target_id = TargetId::new(package_id, "test");
+        let target_id = test_target_id(package_id, "test");
 
         let module_a = module_work_item(
             package_id,
@@ -2047,8 +2051,8 @@ block0(v0: i64):
         let caller_pkg = PackageId::new(2);
         let callee_pkg = PackageId::new(3);
 
-        let caller_target = TargetId::new(caller_pkg, "test");
-        let callee_target = TargetId::new(callee_pkg, "test");
+        let caller_target = test_target_id(caller_pkg, "test");
+        let callee_target = test_target_id(callee_pkg, "test");
 
         let caller_module = module_work_item(
             caller_pkg,
@@ -2102,9 +2106,9 @@ block0:
         let callee_pkg_a = PackageId::new(5);
         let callee_pkg_b = PackageId::new(6);
 
-        let caller_target = TargetId::new(caller_pkg, "test");
-        let target_a = TargetId::new(callee_pkg_a, "test");
-        let target_b = TargetId::new(callee_pkg_b, "test");
+        let caller_target = test_target_id(caller_pkg, "test");
+        let target_a = test_target_id(callee_pkg_a, "test");
+        let target_b = test_target_id(callee_pkg_b, "test");
 
         let caller_module = module_work_item(
             caller_pkg,

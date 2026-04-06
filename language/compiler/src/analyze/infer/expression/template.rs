@@ -263,7 +263,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> LocalTypeId {
         // prefer the builtin template strings array type when available
-        let name = self.program.strings.intern("TemplateStringsArray");
+        let name = self.repository.strings.intern("TemplateStringsArray");
         if let Some(symbol) =
             self.get_declared_library_symbol_from(profile, name, SymbolSpaceOrder::TypeThenValue)
         {
@@ -449,7 +449,7 @@ impl Compiler {
                 visited,
             );
         };
-        let span_value_id = self.program.strings.intern(span_value);
+        let span_value_id = self.repository.strings.intern(span_value);
         if let Some(previous_span_value_id) = repeated_span_values.get(&target.infer_ty_id) {
             if *previous_span_value_id != span_value_id {
                 self.report_template_inference_unassignable(
@@ -609,7 +609,7 @@ impl Compiler {
         // require a single empty span template
         if !strings
             .iter()
-            .all(|string_id| self.program.strings.get(*string_id).is_empty())
+            .all(|string_id| self.repository.strings.get(*string_id).is_empty())
             || spans.len() != 1
         {
             return false;
@@ -689,7 +689,7 @@ impl Compiler {
                 Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
                 } => {
-                    let value = self.program.strings.get(string_id).to_string();
+                    let value = self.repository.strings.get(string_id).to_string();
                     self.infer_template_literal_from_string_argument(
                         &context,
                         &strings,
@@ -744,7 +744,7 @@ impl Compiler {
                 return;
             };
 
-            let value = self.program.strings.get(*string_id).to_string();
+            let value = self.repository.strings.get(*string_id).to_string();
             let Some(span_values) = self.match_template_literal_to_string(strings, &value) else {
                 return;
             };

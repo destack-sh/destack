@@ -10,7 +10,7 @@ use destack_dir::{
 use destack_workspace::ProfileId;
 
 use crate::analyze::common::{CanonicalSymbolMode, ModuleSymbolView, TreeSymbolView};
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -19,6 +19,7 @@ impl Compiler {
         &self,
         module: &destack_workspace::Module,
         profile: ProfileId,
+        context: &CompilerContext<'_>,
         tree: &NodeTree,
         symbols: &mut SymbolTable,
         captures: &mut CaptureTable,
@@ -50,7 +51,7 @@ impl Compiler {
             };
             for node_id in declaration_nodes {
                 self.apply_decorators_for_node(
-                    TreeSymbolView::new(module, profile, tree, symbols),
+                    TreeSymbolView::new(context, module, profile, tree, symbols),
                     &decorator_map,
                     node_id,
                     symbol_id.into_global(module.id),
@@ -345,6 +346,7 @@ impl Compiler {
         target_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<WellKnownDecorator>> {
         self.with_module_symbols_or_local_for_artifact(
+            view.compiler_context,
             view.module,
             view.profile,
             target_symbol.module_id,

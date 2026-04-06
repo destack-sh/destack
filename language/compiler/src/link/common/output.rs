@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::{Compiler, LinkResult};
+use crate::{Compiler, CompilerContext, LinkResult};
 
 use destack_artifact::{
     BuildManifest, OutputContent, OutputFile, PackageAssembly, PackageOutput, TargetOutputName,
@@ -41,8 +41,9 @@ impl Compiler {
         &self,
         package_dir: &Path,
         module_id: ModuleId,
+        context: &CompilerContext<'_>,
     ) -> String {
-        let module = self.program.modules.get(module_id);
+        let module = context.module(module_id);
 
         if let Some(path) = &module.path {
             return self.package_relative_path(package_dir, path);

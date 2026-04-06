@@ -1,9 +1,9 @@
 use indexmap::IndexMap;
 
-use crate::{ArtifactRequirementCollector, Compiler, ExecuteError, ExecuteResult};
+use crate::{Compiler, CompilerContext, ExecuteError, ExecuteResult, RequirementCollector};
 
 use destack_artifact::DirPatched;
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::{ComptimeOutput, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
@@ -19,20 +19,12 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        context: &CompilerContext<'_>,
     ) -> Result<DirPatched, ExecuteError> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ExecuteError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-
         // skip modules without executable comptime state
-        if !self.is_code_module(module_id) {
-            let elaborated = self.require_dir_elaborated_data(module_id, profile_id)?;
+        if !context.is_code_module(module_id) {
+            let elaborated =
+                self.require_dir_elaborated_data(context.revision(), module_id, profile_id)?;
             let payload = DirPatched::from_elaborated_with(
                 elaborated.as_ref(),
                 elaborated.tree.as_ref().clone(),
@@ -42,7 +34,8 @@ impl Compiler {
 
         // collect comptime expressions in this module
         let comptime_nodes: Vec<dir::LocalNodeIdAny> = {
-            let dir = self.require_dir_elaborated_data(module_id, profile_id)?;
+            let dir =
+                self.require_dir_elaborated_data(context.revision(), module_id, profile_id)?;
             let tree = &dir.tree;
             let mut nodes = Vec::new();
             for (expression_id, expression) in tree.iter_nodes_of_type::<dir::Expression>() {
@@ -54,7 +47,7 @@ impl Compiler {
         };
 
         // execute each comptime expression
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         let mut results = ComptimeResults::new();
         for expression_id in &comptime_nodes {
             self.collect(
@@ -62,10 +55,9 @@ impl Compiler {
                 self.execute_expression(
                     module_id,
                     profile_id,
-                    module_version,
-                    profile_version,
                     expression_id.into_global(module_id),
                     &mut results,
+                    context,
                 ),
             );
         }
@@ -89,13 +81,8 @@ impl Compiler {
             .collect::<Vec<_>>();
 
         // patch comptime results into one transient DIR snapshot
-        self.ensure_module_profile_matches::<ExecuteError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-        let elaborated = self.require_dir_elaborated_data(module_id, profile_id)?;
+        let elaborated =
+            self.require_dir_elaborated_data(context.revision(), module_id, profile_id)?;
         let mut tree = elaborated.tree.as_ref().clone();
         for patch in patches {
             self.apply_comptime_patch(module_id, profile_id, &mut tree, patch);
@@ -112,19 +99,10 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
         expression: dir::GlobalNodeIdAny,
         results: &mut ComptimeResults,
+        context: &CompilerContext<'_>,
     ) -> ExecuteResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ExecuteError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-
         // ensure the expression belongs to the target module
         if module_id != expression.module_id {
             return Err(ExecuteError::UnsupportedConstruct {
@@ -139,7 +117,7 @@ impl Compiler {
             })?;
 
         // skip modules without executable comptime state
-        if !self.is_code_module(module_id) {
+        if !context.is_code_module(module_id) {
             return Ok(());
         }
 
@@ -154,9 +132,10 @@ impl Compiler {
         // run comptime evaluation for this expression
         let result = {
             // get the comptime expression
-            let module = self.program.modules.get(module_id);
+            let module = context.module(module_id);
             let module = module.as_ref();
-            let dir = self.require_dir_elaborated_data(module_id, profile_id)?;
+            let dir =
+                self.require_dir_elaborated_data(context.revision(), module_id, profile_id)?;
             let tree = &dir.tree;
             let expression = tree.get(expression_id);
             let dir::Expression::Comptime { body } = expression else {
@@ -168,19 +147,12 @@ impl Compiler {
             for dependency in dependencies {
                 // execute each nested comptime dependency first
                 let dependency_id = dependency.into_global(module_id);
-                self.execute_expression(
-                    module_id,
-                    profile_id,
-                    module_version,
-                    profile_version,
-                    dependency_id,
-                    results,
-                )?;
+                self.execute_expression(module_id, profile_id, dependency_id, results, context)?;
             }
 
             // lower the comptime expression to MIR
             let (mir_tree, strings, function_id) =
-                self.lower_comptime_expression(module, profile_id, *body)?;
+                self.lower_comptime_expression(module, profile_id, *body, context)?;
 
             // execute the MIR with the interpreter
             let mut options = vm::IsolateOptions::comptime();

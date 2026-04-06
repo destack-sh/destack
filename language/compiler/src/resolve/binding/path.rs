@@ -8,7 +8,9 @@ use destack_dir::{
     LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_source::ModuleId;
+use destack_workspace::Revision;
+use destack_workspace::workspace::{Module, ModuleSource, ProfileId};
 use smallvec::SmallVec;
 
 use crate::resolve::binding::cache::{
@@ -21,7 +23,7 @@ pub(crate) type ResolvedPathSymbolTargets = SmallVec<[GlobalSymbolId; 4]>;
 
 /// Lift local path segment targets into one global target list.
 fn lift_local_path_segment_targets(
-    module_id: destack_source::ModuleId,
+    module_id: ModuleId,
     targets: SmallVec<[LocalSymbolId; 4]>,
 ) -> ResolvedPathSymbolTargets {
     let mut lifted = SmallVec::new();
@@ -42,6 +44,8 @@ fn single_path_segment_target(symbol_id: GlobalSymbolId) -> ResolvedPathSymbolTa
 /// Shared resolve state for one unresolved path pass.
 #[derive(Clone, Copy)]
 struct ResolveState<'a> {
+    /// The pinned revision for remote module reads.
+    revision: Revision,
     /// The module being resolved.
     module: &'a Module,
     /// The current module namespace symbol when resolving inside the active module.
@@ -77,6 +81,7 @@ struct ResolveState<'a> {
 impl<'a> ResolveState<'a> {
     /// Build resolve state for one current-module pass.
     fn current(
+        revision: Revision,
         module: &'a Module,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
@@ -89,6 +94,7 @@ impl<'a> ResolveState<'a> {
         tree: Option<&'a NodeTree>,
     ) -> Self {
         Self {
+            revision,
             module,
             current_namespace_symbol: Some(namespace_symbol),
             current_namespace_scope: Some(namespace_scope),
@@ -108,6 +114,7 @@ impl<'a> ResolveState<'a> {
 
     /// Build resolve state for one artifact-backed pass.
     fn artifact(
+        revision: Revision,
         module: &'a Module,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
@@ -120,6 +127,7 @@ impl<'a> ResolveState<'a> {
         tree: Option<&'a NodeTree>,
     ) -> Self {
         Self {
+            revision,
             module,
             current_namespace_symbol: None,
             current_namespace_scope: None,
@@ -221,6 +229,7 @@ impl Compiler {
     /// Return the prelude module context and resolved DIR artifact for one profile.
     fn prelude_resolved_artifact(
         &self,
+        revision: Revision,
         profile: ProfileId,
     ) -> ResolveResult<Option<(Arc<Module>, Arc<destack_artifact::DirResolved>)>> {
         // check if prelude injection is enabled
@@ -229,15 +238,17 @@ impl Compiler {
         }
 
         // get the prelude module ID from builtins
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(None);
-        };
+        let builtins = self.repository.builtins.as_ref();
         let prelude_module_id = builtins.prelude_module_id;
 
         // prelude symbols can come from reexports, so require resolved exports
-        let prelude_context = self.program.modules.get(prelude_module_id);
+        let prelude_context = self
+            .cache_module_snapshot(revision, prelude_module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: error.to_string(),
+            })?;
         let prelude_dir = self
-            .require_artifact_dir_resolved(prelude_module_id, profile)
+            .require_artifact_dir_resolved(revision, prelude_module_id, profile)
             .map_err(ResolveError::from)?;
 
         Ok(Some((prelude_context, prelude_dir)))
@@ -258,18 +269,13 @@ impl Compiler {
         }
 
         // only commonjs modules expose these runtime bindings by default
-        if !self
-            .program
-            .modules
-            .module_format(pass.module.id)
-            .is_commonjs()
-        {
+        if !pass.module.module_format.is_commonjs() {
             return None;
         }
 
         // only handle top-level runtime roots
         let first_segment = path.first_segment()?;
-        let first_segment_str = self.program.strings.get(first_segment);
+        let first_segment_str = self.repository.strings.get(first_segment);
         let is_module_root = first_segment_str.as_str() == "module";
         let is_exports_root = first_segment_str.as_str() == "exports";
         let is_self_root = first_segment_str.as_str() == "self";
@@ -338,7 +344,7 @@ impl Compiler {
         }
 
         // map `exports` to the commonjs runtime alias binding
-        let exports_name = self.program.strings.intern("exports");
+        let exports_name = self.repository.strings.intern("exports");
         let exports_path = Path {
             segments: vec![exports_name].into(),
         };
@@ -446,9 +452,14 @@ impl Compiler {
                     continue;
                 };
 
-                let module = self.program.modules.get(pass.module.id);
+                let module = self
+                    .cache_module_snapshot(pass.revision, pass.module.id)
+                    .map_err(|error| ResolveError::Internal {
+                        message: format!("failed to load module snapshot: {error}"),
+                    })?;
                 let module = module.as_ref();
                 let resolved_member = self.resolve_static_member_symbol(
+                    pass.revision,
                     module,
                     pass.profile_id,
                     expression_id,
@@ -472,6 +483,7 @@ impl Compiler {
     /// Resolve one absolute symbol from one mutable phase-local DIR builder.
     pub(crate) fn resolve_absolute_symbol_from_builder(
         &self,
+        revision: Revision,
         module: &Module,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
@@ -487,6 +499,7 @@ impl Compiler {
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
         let pass = ResolveState::current(
+            revision,
             module,
             profile_id,
             node,
@@ -505,6 +518,7 @@ impl Compiler {
     /// Resolve one absolute symbol from one immutable DIR artifact.
     pub(crate) fn resolve_absolute_symbol_from_artifact(
         &self,
+        revision: Revision,
         module: &Module,
         dir: &DirPrepared,
         profile_id: ProfileId,
@@ -516,6 +530,7 @@ impl Compiler {
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
         let pass = ResolveState::artifact(
+            revision,
             module,
             profile_id,
             node,
@@ -740,13 +755,17 @@ impl Compiler {
 
         for module_id in selected_library_modules {
             let is_current_module = module_id == pass.module.id;
-            let selected_module = self.program.modules.get(module_id);
+            let selected_module = self
+                .cache_module_snapshot(pass.revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let selected_context = selected_module.clone();
             let selected_artifact = if is_current_module {
                 None
             } else {
                 Some(
-                    self.require_artifact_dir_prepared(module_id, profile_id)
+                    self.require_artifact_dir_prepared(pass.revision, module_id, profile_id)
                         .map_err(ResolveError::from)?,
                 )
             };
@@ -816,6 +835,7 @@ impl Compiler {
 
                 let candidate = if let Some(dir) = selected_artifact.as_ref() {
                     ResolveState::artifact(
+                        pass.revision,
                         &selected_context,
                         profile_id,
                         pass.node,
@@ -857,17 +877,20 @@ impl Compiler {
     /// Resolve a symbol from the prelude by name.
     pub(crate) fn resolve_prelude_symbol(
         &self,
+        revision: Revision,
         name: StringId,
         profile: ProfileId,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // builtin environment is the primary source of implicit language item symbols
-        self.require_language_environment(profile)?;
+        self.require_language_environment(revision, profile)?;
         if let Some(symbol_id) = self.get_builtin_symbol(profile, name) {
             return Ok(Some(symbol_id));
         }
 
         // the prelude module can also contribute reexported names
-        let Some((prelude_context, prelude_dir)) = self.prelude_resolved_artifact(profile)? else {
+        let Some((prelude_context, prelude_dir)) =
+            self.prelude_resolved_artifact(revision, profile)?
+        else {
             return Ok(None);
         };
 
@@ -916,7 +939,7 @@ impl Compiler {
 
         // multi-segment path: need to check if prelude symbol is a namespace
         let Some((prelude_context, prelude_dir)) =
-            self.prelude_resolved_artifact(pass.profile_id)?
+            self.prelude_resolved_artifact(pass.revision, pass.profile_id)?
         else {
             return Err(ResolveError::MissingSymbol {
                 node: pass.node.into_anchored(Some(pass.profile_id)),
@@ -929,9 +952,17 @@ impl Compiler {
         let (target_context, target_dir) = if prelude_symbol.module_id == prelude_context.id {
             (prelude_context, prelude_dir)
         } else {
-            let target_context = self.program.modules.get(prelude_symbol.module_id);
+            let target_context = self
+                .cache_module_snapshot(pass.revision, prelude_symbol.module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let target_dir = self
-                .require_artifact_dir_resolved(prelude_symbol.module_id, pass.profile_id)
+                .require_artifact_dir_resolved(
+                    pass.revision,
+                    prelude_symbol.module_id,
+                    pass.profile_id,
+                )
                 .map_err(ResolveError::from)?;
             (target_context, target_dir)
         };
@@ -944,6 +975,7 @@ impl Compiler {
             // resolve remaining path within the prelude module's namespace
             let remaining_path = path.slice(1..);
             let prelude_pass = ResolveState::artifact(
+                pass.revision,
                 &target_context,
                 pass.profile_id,
                 pass.node,
@@ -1042,19 +1074,28 @@ impl Compiler {
             let ambient_artifact = if is_current_module {
                 None
             } else {
-                Some(self.require_artifact_dir_prepared(symbol_id.module_id, pass.profile_id)?)
+                Some(self.require_artifact_dir_prepared(
+                    pass.revision,
+                    symbol_id.module_id,
+                    pass.profile_id,
+                )?)
             };
             let ambient_module_owner = if is_current_module {
                 None
             } else {
-                Some(self.program.modules.get(symbol_id.module_id))
+                Some(
+                    self.cache_module_snapshot(pass.revision, symbol_id.module_id)
+                        .map_err(|error| ResolveError::Internal {
+                            message: format!("failed to load module snapshot: {error}"),
+                        })?,
+                )
             };
             let ambient_module = ambient_module_owner.as_deref().unwrap_or(pass.module);
             let symbols = ambient_artifact
                 .as_ref()
                 .map_or(pass.symbols, |dir| &dir.symbols);
             let symbol = symbols.get_symbol(symbol_id.local_id);
-            let global_this_name = self.program.strings.intern("globalThis");
+            let global_this_name = self.repository.strings.intern("globalThis");
             let matches_space = symbol.space == SymbolSpace::TypeValue
                 || pass.space_order.spaces().contains(&symbol.space)
                 || (symbol.space == SymbolSpace::Value && first_segment == global_this_name);
@@ -1074,6 +1115,7 @@ impl Compiler {
                     let remaining_path = path.slice(1..);
                     let mut ambient_pass = if let Some(dir) = ambient_artifact.as_ref() {
                         ResolveState::artifact(
+                            pass.revision,
                             ambient_module,
                             pass.profile_id,
                             pass.node,
@@ -1161,12 +1203,17 @@ impl Compiler {
             }
 
             // read the ambient module's symbols
-            let ambient_context = self.program.modules.get(module_id);
+            let ambient_context = self
+                .cache_module_snapshot(pass.revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let ambient_dir = self
-                .require_artifact_dir_prepared(module_id, pass.profile_id)
+                .require_artifact_dir_prepared(pass.revision, module_id, pass.profile_id)
                 .map_err(ResolveError::from)?;
             let symbols = &ambient_dir.symbols;
             let ambient_pass = ResolveState::artifact(
+                pass.revision,
                 &ambient_context,
                 pass.profile_id,
                 pass.node,
@@ -1297,6 +1344,7 @@ impl Compiler {
     /// Resolve one top-level symbol from the selected lib modules for a profile.
     pub(crate) fn resolve_selected_lib_symbol(
         &self,
+        revision: Revision,
         module: &Module,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
@@ -1312,12 +1360,17 @@ impl Compiler {
             }
 
             // read the selected lib module symbols
-            let selected_context = self.program.modules.get(module_id);
+            let selected_context =
+                self.cache_module_snapshot(revision, module_id)
+                    .map_err(|error| ResolveError::Internal {
+                        message: format!("failed to load module snapshot: {error}"),
+                    })?;
             let selected_dir = self
-                .require_artifact_dir_prepared(module_id, profile_id)
+                .require_artifact_dir_prepared(revision, module_id, profile_id)
                 .map_err(ResolveError::from)?;
             let symbols = &selected_dir.symbols;
             let selected_pass = ResolveState::artifact(
+                revision,
                 &selected_context,
                 profile_id,
                 node,
@@ -1379,6 +1432,7 @@ impl Compiler {
     /// Resolve one relative symbol from one immutable DIR artifact with ambient merge rules.
     pub(crate) fn resolve_relative_symbol_with_ambient_merge_from_artifact(
         &self,
+        revision: Revision,
         module: &Module,
         dir: &DirPrepared,
         profile_id: ProfileId,
@@ -1390,6 +1444,7 @@ impl Compiler {
         scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>, ResolvedPathSymbolTargets)> {
         let pass = ResolveState::artifact(
+            revision,
             module,
             profile_id,
             node,
@@ -1490,12 +1545,21 @@ impl Compiler {
             }
 
             // prepare and read the source module before resolving
-            let source_context = self.program.modules.get(source_symbol.module_id);
+            let source_context = self
+                .cache_module_snapshot(pass.revision, source_symbol.module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             let source_dir = self
-                .require_artifact_dir_prepared(source_symbol.module_id, pass.profile_id)
+                .require_artifact_dir_prepared(
+                    pass.revision,
+                    source_symbol.module_id,
+                    pass.profile_id,
+                )
                 .map_err(ResolveError::from)?;
             let source_symbols = &source_dir.symbols;
             let source_pass = ResolveState::artifact(
+                pass.revision,
                 &source_context,
                 pass.profile_id,
                 pass.node,
@@ -1637,6 +1701,7 @@ impl Compiler {
     /// Falls back to prelude lookup if local lookup fails and inject_prelude is enabled.
     pub(crate) fn resolve_absolute_path(
         &self,
+        revision: Revision,
         module: &Module,
         namespace_symbol: LocalSymbolId,
         namespace_scope: LocalScopeId,
@@ -1654,6 +1719,7 @@ impl Compiler {
         cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<(Expression, ResolvedPathSymbolTargets)> {
         let pass = ResolveState::current(
+            revision,
             module,
             profile,
             node,
@@ -1666,7 +1732,7 @@ impl Compiler {
             None,
         );
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
-        let first_segment_str = self.program.strings.get(first_segment);
+        let first_segment_str = self.repository.strings.get(first_segment);
         let scope_mark = if module.language_type.is_declaration() {
             LocalScopeMark::end()
         } else {
@@ -1677,7 +1743,7 @@ impl Compiler {
         // resolve import.meta intrinsic
         if first_segment_str.as_str() == "import" && path.segments.len() >= 2 {
             let second_segment = path.segments[1];
-            let second_segment_str = self.program.strings.get(second_segment);
+            let second_segment_str = self.repository.strings.get(second_segment);
             if second_segment_str.as_str() == "meta" {
                 let root_expr = Expression::ImportMeta;
                 if path.segments.len() == 2 {
@@ -1699,7 +1765,7 @@ impl Compiler {
         // keep `new.target` unresolved so validate can enforce lexical context rules
         if first_segment_str.as_str() == "new" && path.segments.len() >= 2 {
             let second_segment = path.segments[1];
-            let second_segment_str = self.program.strings.get(second_segment);
+            let second_segment_str = self.repository.strings.get(second_segment);
             if second_segment_str.as_str() == "target" {
                 let expression = Expression::UnresolvedPath {
                     path: path.clone(),
@@ -1933,6 +1999,7 @@ impl Compiler {
 
         // resolve global symbols
         if let Some(resolved) = self.resolve_global_path(
+            revision,
             module,
             expression_id,
             node,
@@ -1948,11 +2015,17 @@ impl Compiler {
 
         // prelude injection applies to modules that consume the builtin environment
         if self.module_uses_prelude(module)
-            && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment, profile)?
+            && let Some(prelude_symbol) =
+                self.resolve_prelude_symbol(revision, first_segment, profile)?
         {
             // canonicalize prelude symbols to avoid alias identity mismatches
-            let prelude_symbol =
-                self.resolve_canonical_symbol_chain(profile, node, prelude_symbol, pass.symbols)?;
+            let prelude_symbol = self.resolve_canonical_symbol_chain(
+                revision,
+                profile,
+                node,
+                prelude_symbol,
+                pass.symbols,
+            )?;
             return self.resolve_prelude_path(
                 pass,
                 expression_id,

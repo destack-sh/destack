@@ -188,7 +188,7 @@ impl ModuleLowerer<'_> {
         let symbol_data = self.symbols.get_symbol(symbol.local_id);
         symbol_data
             .name()
-            .unwrap_or_else(|| self.compiler.program.strings.intern("capture"))
+            .unwrap_or_else(|| self.compiler.repository.strings.intern("capture"))
     }
 
     /// Resolve a canonical empty function environment type.

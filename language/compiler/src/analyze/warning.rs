@@ -1,7 +1,7 @@
 use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
 use destack_compiler_macros::DefineWarning;
 use destack_dir::{AnchoredGlobalNodeId, GlobalTypeId};
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 /// Warnings during the analyze phase.
 #[derive(Debug, Clone, PartialEq, DefineWarning)]

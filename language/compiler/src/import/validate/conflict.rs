@@ -9,20 +9,21 @@ use destack_dir::{
 use destack_workspace::{DiagnosticPolicy, Module};
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
-use crate::{Compiler, ImportError};
+use crate::{Compiler, CompilerContext, ImportError};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check for conflicting bindings in module scopes.
     pub(super) fn validate_binding_conflicts(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
         global_augmentation_scope: LocalScopeId,
     ) {
         // resolve local redeclaration policy by language mode
-        let no_redeclare_locals = self.no_redeclared_locals_enabled(module);
+        let no_redeclare_locals = self.no_redeclared_locals_enabled(context, module);
         let mut reported_conflicts = HashSet::new();
 
         // load symbol tables
@@ -160,16 +161,16 @@ impl Compiler {
     }
 
     /// Return true when local redeclarations should report conflicts.
-    fn no_redeclared_locals_enabled(&self, module: &Module) -> bool {
+    fn no_redeclared_locals_enabled(&self, context: &CompilerContext<'_>, module: &Module) -> bool {
         // JS/TS modes always enforce ecmascript redeclaration rules
         if !module.language_type.is_destack() {
             return true;
         }
 
         // destack modes read the configurable local redeclaration policy
-        let policy = self
-            .program
-            .with_config_options(module, |opts| opts.compiler.no_redeclared_locals)
+        let policy = context
+            .compiler_options_for_module(module)
+            .map(|options| options.no_redeclared_locals)
             .unwrap_or(DiagnosticPolicy::Allow);
 
         !policy.is_allow()
@@ -690,7 +691,7 @@ impl Compiler {
             return key;
         };
 
-        let raw_name = self.program.strings.get(name_id).to_string();
+        let raw_name = self.repository.strings.get(name_id).to_string();
         if !raw_name.contains('\\') {
             return key;
         }
@@ -698,7 +699,7 @@ impl Compiler {
         let Some(decoded_name) = self.decode_identifier_unicode_escapes(&raw_name) else {
             return key;
         };
-        let decoded_name_id = self.program.strings.intern(&decoded_name);
+        let decoded_name_id = self.repository.strings.intern(&decoded_name);
         StaticKey::Name(decoded_name_id)
     }
 

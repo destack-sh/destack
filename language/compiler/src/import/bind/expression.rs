@@ -180,7 +180,7 @@ impl Compiler {
             }
             ast::Expression::Labelled { label, body } => {
                 let label = self
-                    .program
+                    .repository
                     .strings
                     .intern_from(&ast.strings, *label);
                 let (symbol_id, _) = symbols.insert_symbol(
@@ -223,7 +223,7 @@ impl Compiler {
             } => {
                 let (target, dependency_target) = match target {
                     ast::ImportTarget::String(target) => {
-                        let target = self.program.strings.intern_from(&ast.strings, *target);
+                        let target = self.repository.strings.intern_from(&ast.strings, *target);
                         (destack_dir::ImportTarget::String(target), Some(target))
                     }
                     ast::ImportTarget::Expression { target } => {
@@ -341,7 +341,7 @@ impl Compiler {
                 attributes,
             } => {
                 let target = target.map(|target| {
-                    self.program
+                    self.repository
                         .strings
                         .intern_from(&ast.strings, target)
                 });
@@ -469,7 +469,7 @@ impl Compiler {
             }
             ast::Expression::ExportNamespace { name } => {
                 let name = self
-                    .program
+                    .repository
                     .strings
                     .intern_from(&ast.strings, *name);
                 Expression::ExportNamespace { name }
@@ -880,7 +880,7 @@ impl Compiler {
                 value,
             } => {
                 let name = self
-                    .program
+                    .repository
                     .strings
                     .intern_from(&ast.strings, parameter.name);
                 let constraint = self.bind_expression(
@@ -991,7 +991,7 @@ impl Compiler {
             ast::Expression::TypeTemplateLiteral { strings, spans } => {
                 let strings = strings
                     .iter()
-                    .map(|string| self.program.strings.intern_from(&ast.strings, *string))
+                    .map(|string| self.repository.strings.intern_from(&ast.strings, *string))
                     .collect();
                 let spans = spans
                     .iter()
@@ -1112,7 +1112,7 @@ impl Compiler {
                 }
             }
             ast::Expression::TypeInfer { name, constraint } => {
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
                 let constraint = constraint.map(|constraint| {
                     self.bind_expression(
                         module,
@@ -1151,7 +1151,7 @@ impl Compiler {
             } => {
                 let subject = match subject {
                     ast::TypePredicateSubject::Identifier(name) => {
-                        let name = self.program.strings.intern_from(&ast.strings, *name);
+                        let name = self.repository.strings.intern_from(&ast.strings, *name);
                         TypePredicateSubject::Unresolved(name)
                     }
                     ast::TypePredicateSubject::This => TypePredicateSubject::This,
@@ -1242,7 +1242,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let name = name.map(|name| self.program.strings.intern_from(&ast.strings, name));
+                let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
                 let static_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
@@ -1294,7 +1294,7 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                let name = name.map(|name| self.program.strings.intern_from(&ast.strings, name));
+                let name = name.map(|name| self.repository.strings.intern_from(&ast.strings, name));
                 let static_argument_space_order = if module.language_type.is_destack() {
                     SymbolSpaceOrder::ValueThenType
                 } else {
@@ -1601,7 +1601,7 @@ impl Compiler {
 
             ast::Expression::Identifier { name } => {
                 let path = Path {
-                    segments: smallvec![self.program.strings.intern_from(&ast.strings, *name)],
+                    segments: smallvec![self.repository.strings.intern_from(&ast.strings, *name)],
                 };
                 Expression::UnresolvedPath {
                     path,
@@ -1643,7 +1643,7 @@ impl Compiler {
                 }
             }
             ast::Expression::PrivateIdentifier { name } => {
-                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let name = self.repository.strings.intern_from(&ast.strings, *name);
                 Expression::PrivateIdentifier { name }
             }
             ast::Expression::ScalarLiteral(value) => {
@@ -2471,7 +2471,7 @@ impl Compiler {
 
             ast::Expression::Break { label, value } => {
                 let label =
-                    label.map(|label| self.program.strings.intern_from(&ast.strings, label));
+                    label.map(|label| self.repository.strings.intern_from(&ast.strings, label));
                 let value = value.map(|value| {
                     self.bind_expression(
                         module,
@@ -2503,7 +2503,7 @@ impl Compiler {
             }
             ast::Expression::Continue { label } => {
                 let label =
-                    label.map(|label| self.program.strings.intern_from(&ast.strings, label));
+                    label.map(|label| self.repository.strings.intern_from(&ast.strings, label));
                 if let Some(label) = label {
                     Expression::UnresolvedContinue { target: label }
                 } else {

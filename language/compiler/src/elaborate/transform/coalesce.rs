@@ -489,8 +489,9 @@ impl Compiler {
         };
         let left_type_id = state.types.unwrap_value_type_id(left_type_id);
 
-        let options = self.analyze_context_options_for_module(state.ctx.module.id);
+        let options = state.ctx.options;
         let ctx = TypeContext::new(
+            state.ctx.compiler_context,
             state.ctx.module,
             state.ctx.profile,
             &options,
@@ -553,7 +554,7 @@ impl Compiler {
 
         // create one stable synthetic name
         let name_text = format!("{name_prefix}{}", symbol_id.id);
-        let name = self.program.strings.intern(&name_text);
+        let name = self.repository.strings.intern(&name_text);
 
         // create one immutable let expression with the synthetic value
         let let_id = self.insert_single_binding_let_expression(
@@ -632,7 +633,7 @@ impl Compiler {
 
     /// Return true when the profile should keep nullish syntax as-is.
     fn profile_keeps_nullish_coalesce(&self, state: &ElaborateState<'_>) -> bool {
-        let emit = self.program.profile(state.ctx.profile).key.emit;
+        let emit = self.profile(state.ctx.profile).key.emit;
         matches!(emit, EmitFormat::Js | EmitFormat::Ts | EmitFormat::Html)
     }
 

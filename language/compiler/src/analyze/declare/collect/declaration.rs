@@ -10,7 +10,7 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
 
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler, CompilerContext};
 
 use crate::analyze::common::{
     CanonicalSymbolMode, NormalizationMode, ObjectShape, ObjectShapeSet, TypeContext,
@@ -186,6 +186,7 @@ impl Compiler {
 
                 let next_symbol = self
                     .with_module_symbols_or_local_for_artifact(
+                        ctx.compiler_context,
                         ctx.module,
                         ctx.profile,
                         current_symbol.module_id,
@@ -281,7 +282,11 @@ impl Compiler {
     }
 
     /// Decide whether declared types should be deferred for a module.
-    pub(crate) fn should_defer_declaration_types(&self, module: &Module) -> bool {
+    pub(crate) fn should_defer_declaration_types(
+        &self,
+        context: &CompilerContext<'_>,
+        module: &Module,
+    ) -> bool {
         if module.is_builtin() {
             return true;
         }
@@ -290,7 +295,7 @@ impl Compiler {
             return false;
         }
 
-        let module_checks = self.module_check_options_for_module(module.id);
+        let module_checks = context.module_check_options_for_module(module.id);
         module_checks.skip_lib_check
     }
 
@@ -862,7 +867,8 @@ impl Compiler {
                 ..
             } => {
                 // decide whether to defer declared types
-                let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+                let defer_type_evaluation =
+                    self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
                 // resolve declaration merge state
                 let symbol_entry = ctx.symbols.get_symbol(descriptor.symbol);
@@ -963,7 +969,8 @@ impl Compiler {
                 ..
             } => {
                 // decide whether to defer declared types
-                let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+                let defer_type_evaluation =
+                    self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
                 // declare generics and heritage
                 self.collect_generics(&mut ctx.reborrow(), generics)?;
@@ -1032,7 +1039,7 @@ impl Compiler {
         generics: &Generics,
     ) -> AnalyzeResult<()> {
         // defer generic constraint evaluation for declaration modules
-        if self.should_defer_declaration_types(ctx.module) {
+        if self.should_defer_declaration_types(ctx.compiler_context, ctx.module) {
             return Ok(());
         }
 
@@ -1053,7 +1060,7 @@ impl Compiler {
         parameter_id: LocalNodeId<Parameter>,
     ) -> AnalyzeResult<()> {
         // defer parameter evaluation for declaration modules
-        if self.should_defer_declaration_types(ctx.module) {
+        if self.should_defer_declaration_types(ctx.compiler_context, ctx.module) {
             return Ok(());
         }
 
@@ -1120,7 +1127,8 @@ impl Compiler {
         symbol: Option<LocalSymbolId>,
     ) -> AnalyzeResult<()> {
         // defer heritage evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+        let defer_type_evaluation =
+            self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
         // resolve extends symbols
         let mut extends_symbols = Vec::new();
@@ -1485,7 +1493,8 @@ impl Compiler {
         constructor_return: Option<LocalTypeId>,
     ) -> AnalyzeResult<ObjectShapeSet> {
         // defer member type evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+        let defer_type_evaluation =
+            self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
         // enforce single implementations for TypeScript methods and constructors
         if self.should_enforce_single_overload(ctx.module) {
@@ -1524,6 +1533,7 @@ impl Compiler {
                     continue;
                 };
                 let Some(static_key) = self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,
@@ -1608,6 +1618,7 @@ impl Compiler {
                     // resolve a static key for the field
                     let static_key = key.and_then(|key| {
                         self.static_key_from_dynamic_key(
+                            ctx.compiler_context.revision(),
                             ctx.profile,
                             ctx.tree,
                             ctx.symbols,
@@ -1760,6 +1771,7 @@ impl Compiler {
                     // resolve the method key
                     let Some(key) = key.and_then(|key| {
                         self.static_key_from_dynamic_key(
+                            ctx.compiler_context.revision(),
                             ctx.profile,
                             ctx.tree,
                             ctx.symbols,
@@ -1841,7 +1853,8 @@ impl Compiler {
                 dynamic_parameters.push(element.ty);
             }
         } else {
-            let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+            let defer_type_evaluation =
+                self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
             match ctx.tree.get(value_expression_id) {
                 Expression::ArrayExpression { elements }
                 | Expression::TupleExpression { elements } => {
@@ -1881,7 +1894,8 @@ impl Compiler {
         owner_static_parameters: Option<&[LocalNodeId<Parameter>]>,
     ) -> AnalyzeResult<ObjectShape> {
         // defer member type evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+        let defer_type_evaluation =
+            self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
         let mut shape = ObjectShape::default();
 
         // predeclare associated type members so later member references can resolve by symbol
@@ -1957,6 +1971,7 @@ impl Compiler {
                 // resolve a static key for the field
                 let static_key = key.and_then(|key| {
                     self.static_key_from_dynamic_key(
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
@@ -2070,6 +2085,7 @@ impl Compiler {
                 // resolve the method key
                 let Some(key) = key.and_then(|key| {
                     self.static_key_from_dynamic_key(
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
@@ -2139,7 +2155,11 @@ impl Compiler {
         }
 
         let remote_dir = self
-            .require_artifact_dir_declared(symbol.module_id, ctx.profile)
+            .require_artifact_dir_declared(
+                ctx.compiler_context.revision(),
+                symbol.module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
         let remote_value = remote_dir
             .types
@@ -2286,7 +2306,8 @@ impl Compiler {
         members: &[LocalNodeId<Member>],
     ) -> AnalyzeResult<LocalTypeId> {
         // defer field type evaluation for declaration modules
-        let defer_type_evaluation = self.should_defer_declaration_types(ctx.module);
+        let defer_type_evaluation =
+            self.should_defer_declaration_types(ctx.compiler_context, ctx.module);
 
         // collect field types in source order
         let mut dynamic_parameters = Vec::new();

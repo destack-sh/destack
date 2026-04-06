@@ -7,10 +7,10 @@ use destack_dir::{
     TypeIndexSignature, TypeLiteral, TypeTable,
 };
 use destack_source::{FileContent, Span};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, Ref};
 
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
-use crate::{AnalyzeOptions, Assignability, Compiler, TestProgram};
+use crate::{AnalyzeError, AnalyzeOptions, Assignability, Compiler, TestProgram};
 
 /// Insert a type with a shared source id.
 fn insert_test_type(types: &mut TypeTable, source_id: LocalNodeIdAny, ty: Type) -> LocalTypeId {
@@ -47,7 +47,17 @@ fn is_type_assignable(
     types: &mut TypeTable,
     options: &AnalyzeOptions,
 ) -> Assignability {
+    let reference = Ref::for_workspace_root(compiler.repository.workspace_root());
+    let revision = compiler
+        .repository
+        .current(&reference)
+        .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
+    let compiler_context = compiler
+        .context(revision)
+        .unwrap_or_else(|error| panic!("{error}"));
+
     let mut ctx = TypeContext::new(
+        &compiler_context,
         module,
         profile,
         options,
@@ -56,7 +66,17 @@ fn is_type_assignable(
         types,
         AnalyzeIndex::default(),
     );
-    compiler.is_type_assignable(&mut ctx, target_id, source_id)
+    let reference = Ref::for_workspace_root(compiler.repository.workspace_root());
+    let revision = compiler
+        .repository
+        .current(&reference)
+        .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
+
+    compiler
+        .run_to_completion(revision, |compiler, _context| {
+            Ok::<_, AnalyzeError>(compiler.is_type_assignable(&mut ctx, target_id, source_id))
+        })
+        .unwrap_or_else(|error| panic!("failed to compute test assignability: {error:?}"))
 }
 
 /// Number is assignable to number.
@@ -1676,7 +1696,7 @@ fn test_type_check_excess_property_anchor() {
     test.analyze_module(module_id);
     test.compile();
 
-    let diagnostics = test.program.diagnostics.collect();
+    let diagnostics = test.diagnostics();
     let diagnostic_vec = diagnostics.iter();
     let diagnostic = diagnostic_vec
         .iter()

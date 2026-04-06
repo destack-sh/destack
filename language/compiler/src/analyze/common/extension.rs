@@ -57,7 +57,11 @@ impl Compiler {
 
         // include local extensions from directly imported modules
         let declared_dir = self
-            .require_artifact_dir_resolved(ctx.module.id, ctx.profile)
+            .require_artifact_dir_resolved(
+                ctx.compiler_context.revision(),
+                ctx.module.id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
         let mut imported_module_ids = HashSet::new();
         for resolution in declared_dir.imported_modules.values() {
@@ -70,7 +74,11 @@ impl Compiler {
         }
         for imported_module_id in imported_module_ids {
             let imported_dir = self
-                .require_artifact_dir_declared(imported_module_id, ctx.profile)
+                .require_artifact_dir_declared(
+                    ctx.compiler_context.revision(),
+                    imported_module_id,
+                    ctx.profile,
+                )
                 .map_err(AnalyzeError::from)?;
             if let Some(extension_ids) = imported_dir
                 .types
@@ -91,6 +99,7 @@ impl Compiler {
         // include inherent extensions from the target module
         let mut include_inherent_extensions = |target_symbol: GlobalSymbolId| -> AnalyzeResult<()> {
             self.with_module_types_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 target_symbol.module_id,
@@ -122,6 +131,7 @@ impl Compiler {
         // include inherent extensions for global symbol groups
         let (should_scan_global_group, target_key, target_space) = self
             .with_module_symbols_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 declaration_target.module_id,
@@ -149,9 +159,13 @@ impl Compiler {
             let mut merge_symbols = Vec::new();
 
             // target-discovery globals
-            if let Some(global_symbols) =
-                self.get_global_symbol_group(ctx.module.id, ctx.profile, key, target_space)
-            {
+            if let Some(global_symbols) = self.get_global_symbol_group(
+                ctx.compiler_context.revision(),
+                ctx.module.id,
+                ctx.profile,
+                key,
+                target_space,
+            ) {
                 merge_symbols.extend(global_symbols);
             }
 
@@ -220,11 +234,12 @@ impl Compiler {
     /// Load extension metadata for a symbol from its defining module.
     pub(crate) fn extension_for_symbol(
         &self,
+        revision: destack_workspace::Revision,
         profile: ProfileId,
         extension_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Option<Extension>> {
         let dir = self
-            .require_artifact_dir_declared(extension_symbol.module_id, profile)
+            .require_artifact_dir_declared(revision, extension_symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let extension_id = dir.types.get_extension_id_for_symbol(extension_symbol);
 
@@ -244,7 +259,11 @@ impl Compiler {
             return Ok(Some(ctx.types.get_extension(extension_id).clone()));
         }
 
-        self.extension_for_symbol(ctx.profile, extension_symbol)
+        self.extension_for_symbol(
+            ctx.compiler_context.revision(),
+            ctx.profile,
+            extension_symbol,
+        )
     }
 
     /// Query extension metadata using local ctx when dependency state is ready.
@@ -281,7 +300,11 @@ impl Compiler {
         }
 
         let owner_dir = self
-            .require_artifact_dir_declared(extension_symbol.module_id, ctx.profile)
+            .require_artifact_dir_declared(
+                ctx.compiler_context.revision(),
+                extension_symbol.module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
         Ok(Some(owner_dir.types.get_lineage(lineage_id).clone()))
     }

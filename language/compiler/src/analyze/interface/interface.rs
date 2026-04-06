@@ -1,10 +1,10 @@
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, ArtifactRequirementCollector, ArtifactRequirementError, Compiler,
+    AnalyzeError, AnalyzeResult, Compiler, CompilerContext, RequirementCollector, RequirementError,
 };
 use destack_artifact::{ArtifactKey, DirInterface};
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 use std::sync::Arc;
 
@@ -12,11 +12,12 @@ impl Compiler {
     /// Ensure interface DIR exists for a module.
     pub fn require_dir_interface(
         &self,
+        revision: destack_workspace::Revision,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<(), ArtifactRequirementError> {
+    ) -> Result<(), RequirementError> {
         // ensure the component graph exists before selecting an anchor
-        self.require_resolved_dependency_closure([module], profile)?;
+        self.require_resolved_dependency_closure(revision, [module], profile)?;
 
         // avoid self dependency when already analyzing this module interface
         if self.current_artifact_key() == Some(ArtifactKey::dir_interface(module, profile)) {
@@ -33,7 +34,6 @@ impl Compiler {
             let current_anchor = self.interface_component_anchor_module_id(current_module, profile);
             if current_anchor == current_module {
                 let shares_component = self
-                    .artifacts
                     .module_graph(profile)
                     .and_then(|_| self.interface_component_graph_index(profile))
                     .map(|index| {
@@ -50,7 +50,10 @@ impl Compiler {
         }
 
         let anchor_module_id = self.interface_component_anchor_module_id(module, profile);
-        self.require_artifact(ArtifactKey::dir_interface(anchor_module_id, profile))
+        self.require_artifact(
+            revision,
+            ArtifactKey::dir_interface(anchor_module_id, profile),
+        )
     }
 
     /// Phase 2: Build interface summaries.
@@ -58,32 +61,24 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        context: &CompilerContext<'_>,
     ) -> AnalyzeResult<Arc<DirInterface>> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<AnalyzeError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_INTERFACE);
 
         // ensure local declarations are ready
-        self.require_dir_declared(module_id, profile)?;
+        self.require_dir_declared(context.revision(), module_id, profile)?;
 
         // load module state and dir ctx
-        let module = self.program.modules.get(module_id);
+        let module = context.module(module_id);
         let module = module.as_ref();
 
         // skip analysis when module language is disabled
-        if !self.module_language_allowed(module_id) {
+        if !self.module_language_allowed_in_context(context, module_id) {
             let resolved = self
-                .require_artifact_dir_resolved(module_id, profile)
+                .require_artifact_dir_resolved(context.revision(), module_id, profile)
                 .map_err(AnalyzeError::from)?;
             let dir = self
-                .require_artifact_dir_declared(module_id, profile)
+                .require_artifact_dir_declared(context.revision(), module_id, profile)
                 .map_err(AnalyzeError::from)?;
             return Ok(Arc::new(DirInterface::from_resolved_and_declared(
                 resolved.as_ref(),
@@ -93,10 +88,10 @@ impl Compiler {
 
         // read the module dir ctx for analysis
         let resolved = self
-            .require_artifact_dir_resolved(module_id, profile)
+            .require_artifact_dir_resolved(context.revision(), module_id, profile)
             .map_err(AnalyzeError::from)?;
         let dir = self
-            .require_artifact_dir_declared(module_id, profile)
+            .require_artifact_dir_declared(context.revision(), module_id, profile)
             .map_err(AnalyzeError::from)?;
         let base = self
             .require_artifact_dir_base(module_id)
@@ -112,11 +107,12 @@ impl Compiler {
         let exported_symbols = resolved.exported_symbols.clone();
         let mut types = dir.types.as_ref().clone();
         {
-            let mut collector = ArtifactRequirementCollector::new();
+            let mut collector = RequirementCollector::new();
 
-            if self.is_code_module(module_id) {
-                let options = self.analyze_context_options_for_module(module_id);
+            if context.is_code_module(module_id) {
+                let options = context.analyze_context_options_for_module(module_id);
                 let mut ctx = TypeContext::new(
+                    context,
                     module,
                     profile,
                     &options,

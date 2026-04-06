@@ -1,4 +1,4 @@
-use destack_artifact::ModuleArtifact;
+use destack_artifact::ModuleOutput;
 use destack_source::ModuleId;
 use destack_workspace::BundleMode;
 use indexmap::{IndexMap, IndexSet};
@@ -119,24 +119,24 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module_set: &ScriptModuleSet,
     ) -> LinkResult<ScriptOutputGraph> {
-        let static_entry_sets = self.compiler.collect_script_static_entry_sets(
+        let static_entry_sets = self.collect_script_static_entry_sets(
             self.target,
             self.target_id,
             self.package_id,
             module_set,
         )?;
         let static_reachable_modules = static_entry_sets.keys().copied().collect::<IndexSet<_>>();
-        let dynamic_target_modules = self.compiler.collect_script_dynamic_target_modules(
+        let dynamic_target_modules = self.collect_script_dynamic_target_modules(
             self.target,
             self.target_id,
             self.package_id,
             module_set,
         )?;
-        let dynamic_entry_modules = self.compiler.collect_script_dynamic_entry_modules(
+        let dynamic_entry_modules = self.collect_script_dynamic_entry_modules(
             &dynamic_target_modules,
             &static_reachable_modules,
         );
-        let dynamic_target_sets = self.compiler.collect_script_dynamic_target_sets(
+        let dynamic_target_sets = self.collect_script_dynamic_target_sets(
             self.target,
             self.target_id,
             self.package_id,
@@ -197,10 +197,10 @@ impl<'a> ScriptLinker<'a> {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
-                target: self.target_id.clone(),
+                target: *self.target_id,
                 message: format!(
                     "bundled opaque dynamic imports are not supported yet in '{}'",
-                    self.target_id.name
+                    self.target_name()
                 ),
             });
         }
@@ -217,20 +217,20 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module_set: &ScriptModuleSet,
     ) -> LinkResult<ScriptOutputGraph> {
-        let static_entry_sets = self.compiler.collect_script_static_entry_sets(
+        let static_entry_sets = self.collect_script_static_entry_sets(
             self.target,
             self.target_id,
             self.package_id,
             module_set,
         )?;
         let static_reachable_modules = static_entry_sets.keys().copied().collect::<IndexSet<_>>();
-        let dynamic_target_modules = self.compiler.collect_script_dynamic_target_modules(
+        let dynamic_target_modules = self.collect_script_dynamic_target_modules(
             self.target,
             self.target_id,
             self.package_id,
             module_set,
         )?;
-        let dynamic_entry_modules = self.compiler.collect_script_dynamic_entry_modules(
+        let dynamic_entry_modules = self.collect_script_dynamic_entry_modules(
             &dynamic_target_modules,
             &static_reachable_modules,
         );
@@ -272,8 +272,11 @@ impl<'a> ScriptLinker<'a> {
             .map(|module_id| {
                 (
                     *module_id,
-                    self.compiler
-                        .package_relative_module_path(package_dir, *module_id),
+                    self.compiler.package_relative_module_path(
+                        package_dir,
+                        *module_id,
+                        self.context,
+                    ),
                 )
             })
             .collect::<IndexMap<_, _>>();
@@ -288,7 +291,7 @@ impl<'a> ScriptLinker<'a> {
                     return Err(LinkError::InvalidTarget {
                         anchor: self.package_id.into(),
                         package: self.package_id,
-                        target: self.target_id.clone(),
+                        target: *self.target_id,
                         message: format!(
                             "bundle.manualChunks['{output_name}'] references unknown linked module '{module_path}'"
                         ),
@@ -301,7 +304,7 @@ impl<'a> ScriptLinker<'a> {
                     return Err(LinkError::InvalidTarget {
                         anchor: self.package_id.into(),
                         package: self.package_id,
-                        target: self.target_id.clone(),
+                        target: *self.target_id,
                         message: format!(
                             "linked module '{module_path}' is assigned to both manual chunks '{previous_name}' and '{output_name}'"
                         ),
@@ -405,25 +408,26 @@ impl<'a> ScriptLinker<'a> {
     ) -> LinkResult<ScriptOutputNode> {
         let artifact = self
             .compiler
-            .artifacts
-            .module_artifact(module_id, self.target_id)
+            .module_output(module_id, self.target_id)
             .ok_or_else(|| LinkError::Internal {
                 package: self.package_id,
                 message: format!(
                     "missing module artifact for module {:?} target '{}'",
-                    module_id, self.target_id.name
+                    module_id,
+                    self.target_name()
                 ),
             })?;
-        let ModuleArtifact::Script(script) = artifact.as_ref() else {
+        let ModuleOutput::Script(script) = artifact.as_ref() else {
             return Err(LinkError::Internal {
                 package: self.package_id,
                 message: format!(
                     "expected script artifact for module {:?} target '{}'",
-                    module_id, self.target_id.name
+                    module_id,
+                    self.target_name()
                 ),
             });
         };
-        let dependencies = self.compiler.classify_script_module_dependencies(
+        let dependencies = self.classify_script_module_dependencies(
             module_id,
             script,
             self.target,
@@ -481,7 +485,7 @@ impl<'a> ScriptLinker<'a> {
         // aggregate outgoing edges and retained externals per output
         for output_index in 0..output_graph.outputs.len() {
             let output_id = ScriptOutputId(output_index);
-            let dependencies = self.compiler.collect_output_dependencies(
+            let dependencies = self.collect_output_dependencies(
                 output_id,
                 &output_graph.outputs[output_index],
                 output_graph,

@@ -1,36 +1,52 @@
-use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
+use crate::{Compiler, CompilerContext, GenerateError, GenerateResult, GenerateWarning};
 
-use destack_artifact::{ArtifactKey, ModuleArtifact};
+use destack_artifact::{ArtifactKey, ModuleOutput};
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Target, TargetId};
+use destack_workspace::{ProfileId, Target};
 
 impl Compiler {
     /// Generate one script module artifact.
-    pub(super) fn generate_script_module_artifact(
+    pub(super) fn generate_script_module_output(
         &self,
         module_id: ModuleId,
         target: &Target,
         profile: ProfileId,
+        context: &CompilerContext<'_>,
     ) -> GenerateResult<()> {
         // require the patched module state
-        self.require_dir_patched(module_id, profile)?;
+        self.require_dir_patched(context.revision(), module_id, profile)?;
+
+        // snapshot module for this generate pass
+        let module = context.module(module_id);
+        let ast = self.ast(module_id).ok_or_else(|| GenerateError::Internal {
+            module: module_id,
+            message: "missing compiler AST artifact".to_string(),
+        })?;
+        let dir = self
+            .dir_patched(module_id, profile)
+            .ok_or_else(|| GenerateError::Internal {
+                module: module_id,
+                message: "missing compiler patched DIR artifact".to_string(),
+            })?;
 
         // generate one script artifact through the current backend
         let (artifact, warnings, errors) = destack_codegen_js::ScriptArtifactGenerator::new(
-            self.program.clone(),
-            self.artifacts.clone(),
-            module_id,
+            module.clone(),
+            ast,
+            dir,
+            self.repository.string_pool().clone(),
             target,
-            profile,
         )
         .generate()
         .map_err(|error| Self::map_script_generate_error(module_id, profile, error))?;
-        let module = self.program.modules.get(module_id);
-        let target_id = TargetId::new(module.package_id, &target.name);
-        self.artifacts.publish(
-            ArtifactKey::module_artifact(module_id, target_id),
-            ModuleArtifact::Script(Box::new(artifact)),
+        let target_id = self
+            .repository
+            .intern_target_id(module.package_id, &target.name);
+        context.publish_artifact(
+            ArtifactKey::module_output(module_id, target_id),
+            ModuleOutput::Script(Box::new(artifact)),
+            |store, version, payload| store.publish_module_output(version, payload),
         );
 
         // map backend diagnostics into compiler diagnostics

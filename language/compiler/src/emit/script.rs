@@ -1,8 +1,8 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use crate::Compiler;
 use crate::link::{ScriptOutputLayout, SourceMapBuilder, SourceMapMarker};
+use crate::{Compiler, CompilerContext};
 use base64::Engine as _;
 use destack_artifact::{
     DirPatched, EmitFormat, OutputContent, OutputFile, ScriptArtifact, SourceMapArtifact,
@@ -10,8 +10,10 @@ use destack_artifact::{
 use destack_codegen_js::{
     PrintedScriptModule, ScriptModule, print_script_module as print_codegen_script_module,
 };
-use destack_source::{FileType, ModuleId, Uri};
-use destack_workspace::{Module, SourceMapMode, Target, TargetId};
+use destack_source::{FileType, ModuleId, TargetId, Uri};
+use destack_workspace::{Module, SourceMapMode, Target};
+
+use super::EmitError;
 
 /// One final script text output policy derived from one target.
 #[derive(Debug, Clone, Copy)]
@@ -181,17 +183,15 @@ impl Compiler {
         target: &Target,
         file_type: FileType,
         module: &ScriptModule,
+        context: &CompilerContext<'_>,
     ) -> Result<PrintedScriptModule, String> {
         // source artifacts
         let ast = self
-            .artifacts
             .ast(module_id)
             .ok_or_else(|| format!("missing committed AST artifact for module {module_id:?}"))?;
-        let dir = self.script_dir(module_id, target_id)?;
-        let source_file = self
-            .program
-            .files
-            .get(self.program.modules.get(module_id).file_id);
+        let dir = self.script_dir(module_id, target_id, context)?;
+        let source_module = context.module(module_id);
+        let source_file = context.file(source_module.file_id);
 
         print_codegen_script_module(
             target,
@@ -209,23 +209,25 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         target_id: &TargetId,
+        context: &CompilerContext<'_>,
     ) -> Result<Arc<DirPatched>, String> {
         // target profile
-        let profile_id = self
-            .program
+        let profile_id = context
             .profile_id_for_target(module_id, target_id)
-            .ok_or_else(|| format!("profile not found for target '{}'", target_id.name))?;
-
-        // patched dir
-        let dir = self
-            .artifacts
-            .dir_patched(module_id, profile_id)
             .ok_or_else(|| {
                 format!(
-                    "missing patched DIR artifact for module {module_id:?} target '{}'",
-                    target_id.name
+                    "profile not found for target '{}'",
+                    self.target_name(target_id)
                 )
             })?;
+
+        // patched dir
+        let dir = self.dir_patched(module_id, profile_id).ok_or_else(|| {
+            format!(
+                "missing patched DIR artifact for module {module_id:?} target '{}'",
+                self.target_name(target_id)
+            )
+        })?;
 
         Ok(dir)
     }
@@ -236,9 +238,10 @@ impl Compiler {
         package_dir: &Path,
         module: &Module,
         printed: &PrintedScriptModule,
-    ) -> SourceMapBuilder {
+        context: &CompilerContext<'_>,
+    ) -> Result<SourceMapBuilder, EmitError> {
         let source_path = self.package_relative_uri_path(package_dir, &module.uri);
-        let source_file = self.program.files.get(module.file_id);
+        let source_file = context.file(module.file_id);
         let markers = printed
             .markers
             .iter()
@@ -246,7 +249,7 @@ impl Compiler {
             .filter_map(|marker| SourceMapMarker::from_file_marker(0, source_file.as_ref(), marker))
             .collect();
 
-        SourceMapBuilder::new(vec![source_path], markers)
+        Ok(SourceMapBuilder::new(vec![source_path], markers))
     }
 
     /// Emit one printed JavaScript or TypeScript module output.
@@ -259,9 +262,12 @@ impl Compiler {
         output_path: &Path,
         printed: PrintedScriptModule,
         source_map_path: Option<&Path>,
+        context: &CompilerContext<'_>,
     ) -> Result<Vec<OutputFile>, String> {
         // source map
-        let source_map = self.emitted_script_source_map(package_dir, module, &printed);
+        let source_map = self
+            .emitted_script_source_map(package_dir, module, &printed, context)
+            .map_err(|error| error.to_string())?;
 
         self.emit_script_text_output(
             target,
@@ -284,10 +290,17 @@ impl Compiler {
         file_type: FileType,
         output_path: &Path,
         source_map_path: Option<&Path>,
+        context: &CompilerContext<'_>,
     ) -> Result<Vec<OutputFile>, String> {
         // print once
-        let printed =
-            self.print_script_module(module.id, target_id, target, file_type, &artifact.module)?;
+        let printed = self.print_script_module(
+            module.id,
+            target_id,
+            target,
+            file_type,
+            &artifact.module,
+            context,
+        )?;
 
         // script text
         if matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
@@ -299,6 +312,7 @@ impl Compiler {
                 output_path,
                 printed,
                 source_map_path,
+                context,
             );
         }
 
@@ -342,6 +356,7 @@ impl Compiler {
         target: &Target,
         package_dir: &Path,
         root_dir: Option<&Path>,
+        context: &CompilerContext<'_>,
     ) -> Result<Vec<OutputFile>, String> {
         let mut entries = Vec::new();
         let file_types = planned_script_file_types(target)?;
@@ -384,6 +399,7 @@ impl Compiler {
                 *file_type,
                 &output_path,
                 source_map_path.as_deref(),
+                context,
             )?;
 
             entries.extend(files);

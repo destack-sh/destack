@@ -20,7 +20,7 @@ impl Compiler {
         ctx: TreeSymbolView<'_>,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<GlobalSymbolId> {
-        let this_name = self.program.strings.intern("this");
+        let this_name = self.repository.strings.intern("this");
 
         // resolve an explicit this parameter in a signature
         let resolve_signature_this = |signature: &FunctionSignature| {

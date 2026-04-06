@@ -1,63 +1,54 @@
-use crate::{Compiler, GenerateError, GenerateResult};
+use crate::{Compiler, CompilerContext, GenerateError, GenerateResult};
 
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ProfileId, TargetId};
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::ProfileId;
 
 impl Compiler {
     /// Generate one module artifact for one target.
-    pub(super) fn generate_target_module_artifact(
+    pub(super) fn generate_target_module_output(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
         target_id: &TargetId,
+        context: &CompilerContext<'_>,
     ) -> GenerateResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<GenerateError>(
-            module_id,
-            module_version,
-            profile,
-            profile_version,
-        )?;
-
         // look up target from the module package
         let target = {
-            let module = self.program.modules.get(module_id);
-            let module = module.as_ref();
-            let package = self.program.packages.get(module.package_id);
-            let package = package.read();
+            let module = context.module(module_id);
+            let package = context.package(module.package_id);
             package.targets.get(target_id).cloned()
         };
 
         let target = target.ok_or_else(|| GenerateError::Internal {
             module: module_id,
-            message: format!("target '{}' not found", target_id.name),
+            message: format!("target '{}' not found", self.target_name(target_id)),
         })?;
 
-        let resolved_profile = self
-            .program
+        let resolved_profile = context
             .profile_id_for_target(module_id, target_id)
             .ok_or_else(|| GenerateError::Internal {
                 module: module_id,
-                message: format!("profile not found for target '{}'", target_id.name),
+                message: format!(
+                    "profile not found for target '{}'",
+                    self.target_name(target_id)
+                ),
             })?;
         if resolved_profile != profile {
             return Ok(());
         }
 
-        self.require_dir_patched(module_id, profile)?;
+        self.require_dir_patched(context.revision(), module_id, profile)?;
 
         // generate one script artifact through the script pipeline
         if target.uses_js_generate_pipeline() {
-            return self.generate_script_module_artifact(module_id, &target, profile);
+            return self.generate_script_module_output(module_id, &target, profile, context);
         }
 
         #[cfg(feature = "native-codegen")]
         {
             // otherwise generate one binary artifact through the native pipeline
             if target.uses_native_generate_pipeline() {
-                return self.generate_binary_module_artifact(module_id, &target, profile);
+                return self.generate_binary_module_output(module_id, &target, profile, context);
             }
         }
 

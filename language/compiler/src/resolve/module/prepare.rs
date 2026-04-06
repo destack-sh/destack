@@ -1,38 +1,43 @@
 use crate::timing::tags;
-use crate::{Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, CompilerContext, ResolveResult};
 use destack_artifact::{
-    ArtifactKey, DirPrepared, ExportedSymbolTable, ImportedModuleTable, ModuleBindingExportTable,
-    TargetEnv, TargetVendor,
+    ArtifactKey, ArtifactStamp, DirPrepared, ExportedSymbolTable, ImportedModuleTable,
+    ModuleBindingExportTable, TargetEnv, TargetVendor,
 };
 use destack_dir::{DependencyItem, Export, GlobalSymbolId, LocalSymbolId};
-use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
+use destack_source::ModuleId;
 use destack_workspace::{ImportMeta, ImportMetaTarget, ProfileId};
+
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
     pub(crate) fn resolve_module_prepare(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
+        artifact_key: ArtifactKey,
+        artifact_stamp: ArtifactStamp,
+        context: &CompilerContext<'_>,
     ) -> ResolveResult<()> {
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ResolveError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
+        let revision = context.revision();
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE);
 
-        self.require_dir_base(module_id)?;
+        self.require_dir_base(revision, module_id)?;
 
-        // reuse one persisted prepared dir image after the current source state is known
-        let artifact_key = ArtifactKey::dir_prepared(module_id, profile_id);
+        // reuse one persisted prepared dir image after the current file state is known
         if self
-            .load_published_artifact(artifact_key.clone(), |compiler| {
-                compiler.load_dir_prepared_image(module_id, module_version, profile_id)
-            })
+            .restore_cached_artifact(
+                revision,
+                artifact_key,
+                |compiler| {
+                    compiler.load_dir_prepared_image(
+                        revision,
+                        module_id,
+                        artifact_stamp,
+                        profile_id,
+                    )
+                },
+                |store, version, payload| store.publish_dir_prepared(version, payload),
+            )
             .is_some()
         {
             tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache_hit");
@@ -40,35 +45,18 @@ impl Compiler {
         }
 
         // data/text/binary modules have simpler preparation
-        if !self.is_code_module(module_id) {
-            return self.resolve_data_module_prepare(
-                module_id,
-                profile_id,
-                module_version,
-                profile_version,
-            );
+        if !context.is_code_module(module_id) {
+            return self.resolve_data_module_prepare(module_id, profile_id);
         }
 
         // load the module
-        self.ensure_module_profile_matches::<ResolveError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-        let module = self.program.modules.get(module_id);
+        let module = context.module(module_id);
         let module = module.as_ref();
-        self.ensure_module_profile_matches_guard::<ResolveError>(
-            module,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
         // load the base dir and profile
         let base = self
             .artifact_dir_base(module_id)
             .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
-        let profile = self.program.profile(profile_id);
+        let profile = self.profile(profile_id);
         let path = module.path.clone();
         let dir = module
             .path
@@ -188,9 +176,11 @@ impl Compiler {
             exported_symbols,
         );
 
-        self.artifacts.publish(artifact_key.clone(), dir.clone());
-        self.store_artifact(&artifact_key, &dir, |compiler, dir| {
-            compiler.store_dir_prepared_image(module_id, profile_id, dir)
+        self.publish_artifact(artifact_key, dir.clone(), |store, version, payload| {
+            store.publish_dir_prepared(version, payload)
+        });
+        context.store_artifact(&artifact_key, &dir, |compiler, artifact_stamp, dir| {
+            compiler.store_dir_prepared_image(revision, module_id, profile_id, artifact_stamp, dir)
         });
 
         Ok(())
@@ -325,33 +315,14 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-        module_version: ModuleVersion,
-        profile_version: ProfileVersion,
     ) -> ResolveResult<()> {
-        let module = self.program.modules.get(module_id);
-
-        // skip stale tasks
-        self.ensure_module_profile_matches::<ResolveError>(
-            module_id,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-        let module = module.as_ref();
-        self.ensure_module_profile_matches_guard::<ResolveError>(
-            module,
-            module_version,
-            profile_id,
-            profile_version,
-        )?;
-
         // get base DIR (must exist for parsed data modules)
         let base = self
             .artifact_dir_base(module_id)
             .unwrap_or_else(|| panic!("missing committed base dir artifact for {module_id:?}"));
 
         // populate default export in exported_symbols
-        let default_key_id = self.program.strings.intern("default");
+        let default_key_id = self.repository.strings.intern("default");
         let default_key = destack_dir::StaticKey::Name(default_key_id);
         let default_export = Export::local(
             module_id,
@@ -378,12 +349,13 @@ impl Compiler {
             exported_symbols,
         );
 
-        self.artifacts.publish(
+        self.publish_artifact(
             ArtifactKey::DirPrepared {
                 module: module_id,
                 profile: profile_id,
             },
             payload,
+            |store, version, payload| store.publish_dir_prepared(version, payload),
         );
 
         Ok(())

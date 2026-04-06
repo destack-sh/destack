@@ -28,7 +28,7 @@ use destack_dir::{
     TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId, Revision};
 
 /// Object literal field metadata for excess property checks.
 #[derive(Debug, Clone)]
@@ -80,8 +80,7 @@ impl Compiler {
         expression: &Expression,
     ) {
         // cache strict mode once per expression
-        let is_strict = self.program.modules.source_type(ctx.module.id).is_module()
-            || ctx.options.always_strict;
+        let is_strict = ctx.module.source_type.is_module() || ctx.options.always_strict;
 
         match expression {
             Expression::Assign { left, .. } | Expression::AssignBinary { left, .. } => {
@@ -1317,8 +1316,7 @@ impl Compiler {
         state: &mut InferState,
     ) -> AnalyzeResult<LocalTypeId> {
         // enforce strict mode delete restrictions on bindings
-        let enforce_strict_mode = self.program.modules.source_type(ctx.module.id).is_module()
-            || state.options.always_strict;
+        let enforce_strict_mode = ctx.module.source_type.is_module() || state.options.always_strict;
         if enforce_strict_mode && matches!(ctx.module.source, ModuleSource::User) {
             let target_id = self.unwrap_parenthesized_expression(value, ctx.tree);
 
@@ -1398,6 +1396,7 @@ impl Compiler {
                     )
                     .or(self.import_instance_type_for_symbol(
                         &ctx.index,
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         expression_id.into_any(),
                         import_meta_symbol,
@@ -1441,7 +1440,7 @@ impl Compiler {
                     if state.options.no_implicit_this
                         && !matches!(ctx.module.source, ModuleSource::Builtin(_))
                     {
-                        let is_script = self.program.modules.source_type(ctx.module.id).is_script();
+                        let is_script = ctx.module.source_type.is_script();
                         let in_function = state.in_function.is_some();
                         if is_script || in_function {
                             self.error(AnalyzeError::ImplicitThis {
@@ -1453,7 +1452,7 @@ impl Compiler {
                     }
 
                     // default to undefined in modules, unknown in scripts
-                    if self.program.modules.source_type(ctx.module.id).is_module() {
+                    if ctx.module.source_type.is_module() {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Undefined,
                         };
@@ -3981,6 +3980,7 @@ impl Compiler {
                 // extract the static key from the dynamic key
                 let static_key = key.and_then(|key| {
                     self.static_key_from_dynamic_key(
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
@@ -4088,6 +4088,7 @@ impl Compiler {
                 let expected_method_ty_id = key
                     .and_then(|key| {
                         self.static_key_from_dynamic_key(
+                            ctx.compiler_context.revision(),
                             ctx.profile,
                             ctx.tree,
                             ctx.symbols,
@@ -4196,6 +4197,7 @@ impl Compiler {
                 }
                 let static_key = key.and_then(|key| {
                     self.static_key_from_dynamic_key(
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
@@ -4288,6 +4290,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> Option<StringId> {
         self.with_module_symbols_or_local_for_artifact(
+            view.compiler_context,
             view.module,
             view.profile,
             symbol.module_id,
@@ -4334,12 +4337,13 @@ impl Compiler {
     /// Check whether a remote export is type-only for a specific name.
     fn is_type_only_export_name(
         &self,
+        revision: Revision,
         module_id: ModuleId,
         profile: ProfileId,
         export_name: StringId,
     ) -> bool {
         let Some(exports) = self
-            .require_artifact_dir_interface(module_id, profile)
+            .require_artifact_dir_interface(revision, module_id, profile)
             .ok()
             .map(|snapshot| snapshot.exported_symbols.clone())
         else {
@@ -4392,7 +4396,7 @@ impl Compiler {
                 target_module,
                 ..
             } => {
-                let default_name = self.program.strings.intern("default");
+                let default_name = self.repository.strings.intern("default");
                 let export_name = match mode {
                     DependencyMode::Item => name.map(|name| name.string()),
                     DependencyMode::Default => {
@@ -4413,7 +4417,7 @@ impl Compiler {
                 target_module,
                 ..
             } => {
-                let default_name = self.program.strings.intern("default");
+                let default_name = self.repository.strings.intern("default");
                 let export_name = match mode {
                     DependencyMode::Item => name.map(|name| name.string()),
                     DependencyMode::Default => {
@@ -4515,6 +4519,7 @@ impl Compiler {
                     if let Some(export_name) = export_name
                         && let Some(target_module_id) = target_module_id
                         && self.is_type_only_export_name(
+                            ctx.compiler_context.revision(),
                             target_module_id,
                             state.profile,
                             export_name,
@@ -4537,7 +4542,12 @@ impl Compiler {
             if dependency_id.is_none()
                 && let Some(target_symbol) = symbol_entry.target_symbol
                 && let Some(StaticKey::Name(name)) = symbol_entry.key
-                && self.is_type_only_export_name(target_symbol.module_id, state.profile, name)
+                && self.is_type_only_export_name(
+                    ctx.compiler_context.revision(),
+                    target_symbol.module_id,
+                    state.profile,
+                    name,
+                )
                 && !allow_type_only_reference
             {
                 let ty_id = self.type_only_value_error_type(&mut ctx.reborrow(), expression_id);
@@ -4562,7 +4572,7 @@ impl Compiler {
 
         // reject globalThis references when configured
         if state.options.no_global_this && matches!(ctx.module.source, ModuleSource::User) {
-            let global_this_name = self.program.strings.intern("globalThis");
+            let global_this_name = self.repository.strings.intern("globalThis");
             if self.symbol_name_for_global_in(ctx.module_symbol_view(), canonical_symbol)
                 == Some(global_this_name)
             {
@@ -4575,7 +4585,7 @@ impl Compiler {
         }
 
         // synthesize a globalThis object type on demand
-        let global_this_name = self.program.strings.intern("globalThis");
+        let global_this_name = self.repository.strings.intern("globalThis");
         let is_global_this = self
             .symbol_name_for_global_in(ctx.module_symbol_view(), canonical_symbol)
             == Some(global_this_name);
@@ -5174,11 +5184,19 @@ impl Compiler {
         }
 
         // read decorators from the target module artifact
-        self.require_dir_resolved(symbol_id.module_id, view.profile)
-            .ok()?;
+        self.require_dir_resolved(
+            view.compiler_context.revision(),
+            symbol_id.module_id,
+            view.profile,
+        )
+        .ok()?;
 
         let snapshot = self
-            .require_artifact_dir_resolved(symbol_id.module_id, view.profile)
+            .require_artifact_dir_resolved(
+                view.compiler_context.revision(),
+                symbol_id.module_id,
+                view.profile,
+            )
             .ok()?;
         let symbol = snapshot.symbols.get_symbol(symbol_id.local_id);
 

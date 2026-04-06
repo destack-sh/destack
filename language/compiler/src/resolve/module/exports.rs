@@ -2,7 +2,7 @@ use crate::analyze::common::TreeSymbolView;
 use std::collections::HashSet;
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
-use crate::{Compiler, ImportError};
+use crate::{Compiler, CompilerContext, ImportError};
 use destack_artifact::{ExportedSymbolTable, ModuleBindingExportTable};
 use destack_builtin::builtin_library;
 use destack_dir::{
@@ -12,7 +12,7 @@ use destack_dir::{
     SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, walk_expression,
 };
 use destack_source::{LanguageType, ModuleId};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, Revision};
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
@@ -21,6 +21,8 @@ use rustc_hash::FxHashMap;
 struct ExportDependencyCollector<'a> {
     /// The compiler driving export resolution.
     compiler: &'a Compiler,
+    /// The pinned revision for remote module reads.
+    revision: Revision,
     /// The module being resolved.
     module: &'a Module,
     /// The active profile.
@@ -37,12 +39,14 @@ impl<'a> ExportDependencyCollector<'a> {
     /// Create a new export dependency collector.
     fn new(
         compiler: &'a Compiler,
+        revision: Revision,
         module: &'a Module,
         profile: ProfileId,
         symbols: &'a SymbolTable,
     ) -> Self {
         Self {
             compiler,
+            revision,
             module,
             profile,
             symbols,
@@ -112,6 +116,7 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
                 && let Some(namespace_target) = self.namespace_target_symbol_maybe(target_symbol)
             {
                 if let Ok(Some(member_symbol)) = self.compiler.resolve_symbol_in_namespace(
+                    self.revision,
                     id.into_global_any(self.module.id),
                     namespace_target,
                     self.profile,
@@ -121,6 +126,7 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
                 ) {
                     self.dependencies.push(member_symbol);
                 } else if let Some(member_symbol) = self.compiler.query_static_member_symbol(
+                    self.revision,
                     self.module,
                     self.profile,
                     target_symbol,
@@ -157,6 +163,7 @@ impl NodeVisitor for ExportDependencyCollector<'_> {
             for segment in path.segments.iter().copied().skip(1) {
                 let member_key = StaticKey::Name(segment);
                 let Some(member_symbol) = self.compiler.query_static_member_symbol(
+                    self.revision,
                     self.module,
                     self.profile,
                     current_symbol,
@@ -209,7 +216,7 @@ impl Compiler {
         export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
         // cache the default export name
-        let default_name = self.program.strings.intern("default");
+        let default_name = self.repository.strings.intern("default");
 
         // build the binding export table
         if module_bindings.is_empty() {
@@ -762,8 +769,8 @@ impl Compiler {
         export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
         // cache the default export name
-        let default_name = self.program.strings.intern("default");
-        let is_commonjs_module = self.program.modules.module_format(module.id).is_commonjs();
+        let default_name = self.repository.strings.intern("default");
+        let is_commonjs_module = module.module_format.is_commonjs();
 
         // collect the export assignment if present
         let dependency_items = dependency_items_by_scope
@@ -1096,6 +1103,7 @@ impl Compiler {
     /// Finalize export targets after dependency resolution.
     pub(super) fn finalize_module_exports(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
@@ -1144,12 +1152,20 @@ impl Compiler {
             symbols,
             exported_symbols,
         );
-        self.finalize_export_dependencies(module, profile, tree, symbols, exported_symbols);
+        self.finalize_export_dependencies(
+            context,
+            module,
+            profile,
+            tree,
+            symbols,
+            exported_symbols,
+        );
     }
 
     /// Finalize export targets for module bindings after dependency resolution.
     pub(super) fn finalize_module_binding_exports(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
@@ -1209,6 +1225,7 @@ impl Compiler {
                     &mut binding_exports.exports,
                 );
                 self.finalize_export_dependencies(
+                    context,
                     module,
                     profile,
                     tree,
@@ -1314,6 +1331,7 @@ impl Compiler {
     /// Finalize canonical export dependency symbols after target resolution.
     fn finalize_export_dependencies(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
@@ -1322,14 +1340,15 @@ impl Compiler {
     ) {
         // publish the canonical dependency surface once at export finalization time
         for export in exports.values_mut() {
-            export.dependencies =
-                self.export_dependencies_for_export(module, profile, tree, symbols, export);
+            export.dependencies = self
+                .export_dependencies_for_export(context, module, profile, tree, symbols, export);
         }
     }
 
     /// Compute canonical dependency symbols for one finalized export.
     fn export_dependencies_for_export(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
@@ -1343,7 +1362,7 @@ impl Compiler {
 
         // only local value exports with one direct binding initializer participate in
         // export dependency cycles
-        let tree_symbol_view = TreeSymbolView::new(module, profile, tree, symbols);
+        let tree_symbol_view = TreeSymbolView::new(context, module, profile, tree, symbols);
         let Some((_, value_symbol)) =
             self.interface_value_symbol_for_export(symbols, module.id, export)
         else {
@@ -1359,7 +1378,8 @@ impl Compiler {
         };
 
         // collect dependencies from the initializer once
-        let mut collector = ExportDependencyCollector::new(self, module, profile, symbols);
+        let mut collector =
+            ExportDependencyCollector::new(self, context.revision(), module, profile, symbols);
         collector.visit_expression(tree, value_id, tree.get(value_id));
         collector.finish()
     }
@@ -1436,9 +1456,7 @@ impl Compiler {
 
     /// Check if this module should export all symbols from its namespace.
     pub(crate) fn module_is_ambient_lib(&self, module: &Module) -> bool {
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return false;
-        };
+        let builtins = self.repository.builtins.as_ref();
         let Some(lib_name) = builtins.library_name_for_module(module.id) else {
             return false;
         };
@@ -1537,7 +1555,6 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> SymbolSpace {
         let dir = self
-            .artifacts
             .dir_prepared(symbol.module_id, profile)
             .unwrap_or_else(|| {
                 panic!(
@@ -1555,7 +1572,6 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> SymbolType {
         let dir = self
-            .artifacts
             .dir_prepared(symbol.module_id, profile)
             .unwrap_or_else(|| {
                 panic!(
@@ -1575,13 +1591,12 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> bool {
-        if let Some(dir) = self.artifacts.dir_resolved(symbol.module_id, profile) {
+        if let Some(dir) = self.dir_resolved(symbol.module_id, profile) {
             let entry = dir.symbols.get_symbol(symbol.local_id);
             return symbol_entry_is_value_capable(entry);
         }
 
         let dir = self
-            .artifacts
             .dir_prepared(symbol.module_id, profile)
             .unwrap_or_else(|| {
                 panic!(

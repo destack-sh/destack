@@ -1,8 +1,8 @@
 use destack_artifact::ArtifactKey;
-use destack_source::ModuleId;
-use destack_workspace::{ProfileId, TargetId};
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::ProfileId;
 
-use crate::{ArtifactRequirementError, Compiler, OptimizeError, OptimizeResult};
+use crate::{Compiler, CompilerContext, OptimizeError, OptimizeResult, RequirementError};
 
 impl Compiler {
     /// Build optimized MIR for one module and target.
@@ -12,17 +12,7 @@ impl Compiler {
         profile: ProfileId,
         target: TargetId,
     ) -> OptimizeResult<()> {
-        // keep dependency and stale checks stable when optimize is disabled
-        let module_stamp = self.module_stamp(module);
-        let profile_stamp = self.profile_stamp(profile);
-        self.ensure_module_profile_matches::<OptimizeError>(
-            module_stamp.id,
-            module_stamp.version,
-            profile_stamp.id,
-            profile_stamp.version,
-        )?;
-
-        self.require_mir(module_stamp.id, profile_stamp.id, &target)?;
+        self.require_mir(module, profile, &target)?;
 
         Ok(())
     }
@@ -33,7 +23,9 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
         target: &TargetId,
-    ) -> Result<(), ArtifactRequirementError> {
+        context: &CompilerContext<'_>,
+    ) -> Result<(), RequirementError> {
+        let _ = context;
         self.require_artifact(ArtifactKey::mir_optimized(module, profile, target.clone()))
     }
 }

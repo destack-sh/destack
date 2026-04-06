@@ -1,14 +1,14 @@
 use crate::{Compiler, LinkError, LinkResult};
 
 use destack_artifact::{
-    DynamicScriptDependencyTarget, ModuleArtifact, ScriptArtifact, ScriptDependencyKind,
+    DynamicScriptDependencyTarget, ModuleOutput, ScriptArtifact, ScriptDependencyKind,
     ScriptDependencyTarget,
 };
-use destack_source::{ModuleId, PackageId, Span};
-use destack_workspace::{Target, TargetId};
+use destack_source::{ModuleId, PackageId, Span, TargetId};
+use destack_workspace::Target;
 use indexmap::{IndexMap, IndexSet};
 
-use super::{ScriptModuleSet, ScriptOutputGraph, ScriptOutputId, ScriptOutputNode};
+use super::{ScriptLinker, ScriptModuleSet, ScriptOutputGraph, ScriptOutputId, ScriptOutputNode};
 
 /// The finalized dependencies for one output.
 #[derive(Debug)]
@@ -88,7 +88,7 @@ impl ScriptOutputDependencyCollector {
     }
 }
 
-impl Compiler {
+impl<'a> ScriptLinker<'a> {
     /// Return whether target policy explicitly externalizes one dependency specifier.
     fn script_dependency_is_external(&self, target: &Target, specifier: &str) -> bool {
         let dependency = &target.bundle.dependencies;
@@ -124,7 +124,7 @@ impl Compiler {
     ) -> LinkResult<bool> {
         let specifier = dependency_target.specifier();
         let has_resolved_module = dependency_target.module().is_some();
-        let is_package_like = Self::is_package_like_dependency_specifier(specifier);
+        let is_package_like = Compiler::is_package_like_dependency_specifier(specifier);
         let dependency = &target.bundle.dependencies;
 
         // explicit external policy
@@ -153,7 +153,7 @@ impl Compiler {
             return Err(LinkError::InvalidTarget {
                 anchor: span.into(),
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
                 message: format!(
                     "bundle.dependencies.onlyBundle does not allow bundled dependency '{specifier}'"
                 ),
@@ -257,27 +257,33 @@ impl Compiler {
         // aggregate every member module into one output-level dependency set
         for module_id in output.modules() {
             let artifact = self
-                .artifacts
-                .module_artifact(*module_id, target_id)
+                .compiler
+                .module_output(*module_id, target_id)
                 .ok_or_else(|| LinkError::Internal {
                     package: package_id,
                     message: format!(
                         "missing module artifact for module {:?} target '{}'",
-                        module_id, target_id.name
+                        module_id,
+                        self.target_name()
                     ),
                 })?;
 
-            let ModuleArtifact::Script(script) = artifact.as_ref() else {
+            let ModuleOutput::Script(script) = artifact.as_ref() else {
                 return Err(LinkError::Internal {
                     package: package_id,
                     message: format!(
                         "expected script artifact for module {:?} target '{}'",
-                        module_id, target_id.name
+                        module_id,
+                        self.target_name()
                     ),
                 });
             };
             let module_dependencies = self.classify_script_module_dependencies(
-                *module_id, script, target, target_id, package_id,
+                *module_id,
+                script.as_ref(),
+                target,
+                target_id,
+                package_id,
             )?;
 
             dependencies.collect_internal_dependencies(
@@ -329,21 +335,26 @@ impl Compiler {
                     .insert(*entry_module);
 
                 let artifact = self
-                    .artifacts
-                    .module_artifact(module_id, target_id)
+                    .compiler
+                    .module_output(module_id, target_id)
                     .ok_or_else(|| LinkError::Internal {
                         package: package_id,
                         message: format!(
                             "missing module artifact for module {:?} target '{}'",
-                            module_id, target_id.name
+                            module_id,
+                            self.target_name()
                         ),
                     })?;
 
-                let ModuleArtifact::Script(script) = artifact.as_ref() else {
+                let ModuleOutput::Script(script) = artifact.as_ref() else {
                     continue;
                 };
                 let dependencies = self.classify_script_module_dependencies(
-                    module_id, script, target, target_id, package_id,
+                    module_id,
+                    script.as_ref(),
+                    target,
+                    target_id,
+                    package_id,
                 )?;
 
                 for dependency_module in dependencies.static_modules {
@@ -368,21 +379,26 @@ impl Compiler {
         // bundled dynamic imports become internal lazy boundaries
         for module_id in module_set.modules() {
             let artifact = self
-                .artifacts
-                .module_artifact(*module_id, target_id)
+                .compiler
+                .module_output(*module_id, target_id)
                 .ok_or_else(|| LinkError::Internal {
                     package: package_id,
                     message: format!(
                         "missing module artifact for module {:?} target '{}'",
-                        module_id, target_id.name
+                        module_id,
+                        self.target_name()
                     ),
                 })?;
 
-            let ModuleArtifact::Script(script) = artifact.as_ref() else {
+            let ModuleOutput::Script(script) = artifact.as_ref() else {
                 continue;
             };
             let dependencies = self.classify_script_module_dependencies(
-                *module_id, script, target, target_id, package_id,
+                *module_id,
+                script.as_ref(),
+                target,
+                target_id,
+                package_id,
             )?;
 
             for target_module in dependencies.dynamic_modules {
@@ -432,21 +448,26 @@ impl Compiler {
                     .insert(*dynamic_target_module);
 
                 let artifact = self
-                    .artifacts
-                    .module_artifact(module_id, target_id)
+                    .compiler
+                    .module_output(module_id, target_id)
                     .ok_or_else(|| LinkError::Internal {
                         package: package_id,
                         message: format!(
                             "missing module artifact for module {:?} target '{}'",
-                            module_id, target_id.name
+                            module_id,
+                            self.target_name()
                         ),
                     })?;
 
-                let ModuleArtifact::Script(script) = artifact.as_ref() else {
+                let ModuleOutput::Script(script) = artifact.as_ref() else {
                     continue;
                 };
                 let dependencies = self.classify_script_module_dependencies(
-                    module_id, script, target, target_id, package_id,
+                    module_id,
+                    script.as_ref(),
+                    target,
+                    target_id,
+                    package_id,
                 )?;
 
                 for dependency_module in dependencies.static_modules {

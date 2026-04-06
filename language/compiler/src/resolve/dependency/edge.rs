@@ -100,17 +100,18 @@ impl Compiler {
     /// Return one explicit external module target when target policy preserves the package.
     pub(crate) fn externalized_package_import_target(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         target: StringId,
     ) -> ResolveResult<Option<ModuleTarget>> {
-        let specifier = self.program.strings.get(target);
+        let specifier = self.repository.strings.get(target);
         if !Self::is_package_like_dependency_specifier(&specifier) {
             return Ok(None);
         }
 
         let Some((_, selected_target)) =
-            self.target_policy_for_module_profile(module.id, profile)?
+            self.target_policy_for_module_profile(revision, module.id, profile)?
         else {
             return Ok(None);
         };
@@ -125,13 +126,14 @@ impl Compiler {
     /// Resolve one reference-lib directive target to a module target.
     fn resolve_reference_lib_target(
         &self,
+        revision: destack_workspace::Revision,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         target: StringId,
     ) -> ResolveResult<ModuleTarget> {
-        let target_text = self.program.strings.get(target).to_string();
+        let target_text = self.repository.strings.get(target).to_string();
         let module_id = self
-            .resolve_reference_lib_to_module(profile, target_text.as_str())
+            .resolve_reference_lib_to_module(revision, profile, target_text.as_str())
             .map_err(|_| ResolveError::UnresolvedModule {
                 node: node.into_anchored(Some(profile)),
                 target,
@@ -143,13 +145,14 @@ impl Compiler {
     /// Resolve one ambient module binding target when available for the requested kind.
     fn resolve_binding_import_target(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         resolve_target: StringId,
         kind: DependencyKind,
     ) -> ResolveResult<Option<(ModuleTarget, ModuleResolution)>> {
         let Some(binding_target) =
-            self.resolve_module_binding_target(module.id, profile, resolve_target)?
+            self.resolve_module_binding_target(revision, module.id, profile, resolve_target)?
         else {
             return Ok(None);
         };
@@ -165,6 +168,7 @@ impl Compiler {
     /// Resolve one specifier to a module target when available for the requested kind.
     fn resolve_specifier_import_target(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         resolve_target: StringId,
@@ -175,6 +179,7 @@ impl Compiler {
     ) -> Option<(ModuleTarget, ModuleResolution)> {
         let resolved_targets = self
             .resolve_specifier_to_module_resolution(
+                revision,
                 profile,
                 resolve_target,
                 source_module,
@@ -190,6 +195,7 @@ impl Compiler {
     /// Require module artifacts needed to trust one import resolution.
     fn require_import_target_modules(
         &self,
+        revision: destack_workspace::Revision,
         profile: ProfileId,
         targets: ModuleResolution,
     ) -> ResolveResult<()> {
@@ -205,12 +211,16 @@ impl Compiler {
 
         for module_id in required_module_ids {
             // bind surfaces are enough for ordinary module targeting
-            self.require_dir_base(module_id)?;
+            self.require_dir_base(revision, module_id)?;
 
             // declaration modules need resolved import state before their type surface is trusted
-            let module = self.program.modules.get(module_id);
+            let module = self
+                .cache_module_snapshot(revision, module_id)
+                .map_err(|error| ResolveError::Internal {
+                    message: format!("failed to load module snapshot: {error}"),
+                })?;
             if module.language_type.is_declaration() && !module.is_builtin() {
-                self.require_dir_resolved(module_id, profile)?;
+                self.require_dir_resolved(revision, module_id, profile)?;
             }
         }
 
@@ -262,7 +272,7 @@ impl Compiler {
 
     /// Normalize one triple slash reference path target.
     pub(super) fn normalize_reference_path_directive_target(&self, target: StringId) -> StringId {
-        let target_text = self.program.strings.get(target).to_string();
+        let target_text = self.repository.strings.get(target).to_string();
 
         // keep explicit path forms as-is
         if Self::reference_path_target_is_explicit(&target_text) {
@@ -270,7 +280,7 @@ impl Compiler {
         }
 
         // normalize bare file names to same directory relative imports
-        self.program.strings.intern(&format!("./{target_text}"))
+        self.repository.strings.intern(&format!("./{target_text}"))
     }
 
     /// Return true when a reference path target already specifies an explicit path.
@@ -302,7 +312,7 @@ impl Compiler {
     /// Whether the target is a relative import.
     pub(crate) fn is_import_relative(&self, target: StringId) -> bool {
         // check relative path specifiers
-        let target_str = self.program.strings.get(target);
+        let target_str = self.repository.strings.get(target);
         target_str == "."
             || target_str == ".."
             || target_str.starts_with("./")
@@ -315,8 +325,8 @@ impl Compiler {
         module: &Module,
         source: DependencySource,
     ) -> ImportEdgeKind {
-        let is_typescript_commonjs = self.program.modules.module_format(module.id).is_commonjs()
-            && module.language_type.is_typescript();
+        let is_typescript_commonjs =
+            module.module_format.is_commonjs() && module.language_type.is_typescript();
 
         Self::import_edge_kind_for_dependency(source, is_typescript_commonjs)
     }
@@ -339,7 +349,7 @@ impl Compiler {
 
         let source_module = Some(module_id);
         let cache_key = (source_module, target, edge_kind, loader_override);
-        let snapshot = self.artifacts.dir_resolved(module_id, profile)?;
+        let snapshot = self.dir_resolved(module_id, profile)?;
         snapshot.imported_modules.get(&cache_key).copied()
     }
 
@@ -368,6 +378,7 @@ impl Compiler {
     /// (This is mainly used for debug-only lenient resolve mode.)
     pub(crate) fn resolve_import_maybe(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         imported_modules: &mut ImportedModuleTable,
         profile: ProfileId,
@@ -379,6 +390,7 @@ impl Compiler {
     ) -> ResolveResult<Option<ModuleTarget>> {
         let resolved = if let Some(loader_override) = loader_override {
             self.resolve_import_with_loader(
+                revision,
                 module,
                 imported_modules,
                 profile,
@@ -390,6 +402,7 @@ impl Compiler {
             )
         } else {
             self.resolve_import(
+                revision,
                 module,
                 imported_modules,
                 profile,
@@ -412,6 +425,7 @@ impl Compiler {
     /// Resolve an import from one immutable prepared DIR artifact, returning `None` for unresolved modules.
     pub(crate) fn resolve_import_maybe_from_artifact(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         dir: &DirPrepared,
         profile: ProfileId,
@@ -423,6 +437,7 @@ impl Compiler {
     ) -> ResolveResult<Option<ModuleTarget>> {
         let resolved = if let Some(loader_override) = loader_override {
             self.resolve_import_with_loader_from_artifact(
+                revision,
                 module,
                 dir,
                 profile,
@@ -433,7 +448,9 @@ impl Compiler {
                 Some(loader_override),
             )
         } else {
-            self.resolve_import_from_artifact(module, dir, profile, node, source, target, kind)
+            self.resolve_import_from_artifact(
+                revision, module, dir, profile, node, source, target, kind,
+            )
         };
         match resolved {
             Ok(target) => Ok(Some(target)),
@@ -448,6 +465,7 @@ impl Compiler {
     /// Try to resolve an import of some target specifier synchronously.
     pub(crate) fn resolve_import(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         imported_modules: &mut ImportedModuleTable,
         profile: ProfileId,
@@ -457,6 +475,7 @@ impl Compiler {
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
         self.resolve_import_with_loader(
+            revision,
             module,
             imported_modules,
             profile,
@@ -471,6 +490,7 @@ impl Compiler {
     /// Try to resolve an import of one target specifier from one immutable prepared DIR artifact.
     pub(crate) fn resolve_import_from_artifact(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         dir: &DirPrepared,
         profile: ProfileId,
@@ -480,13 +500,14 @@ impl Compiler {
         kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
         self.resolve_import_with_loader_from_artifact(
-            module, dir, profile, node, source, target, kind, None,
+            revision, module, dir, profile, node, source, target, kind, None,
         )
     }
 
     /// Try to resolve an import of one target specifier from one immutable resolved DIR artifact.
     pub(crate) fn resolve_import_from_resolved_artifact(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         dir: &DirResolved,
         profile: ProfileId,
@@ -506,8 +527,8 @@ impl Compiler {
             return Ok(remote_target);
         }
 
-        let resolved =
-            self.resolve_import_uncached(module, profile, node, source, target, kind, None)?;
+        let resolved = self
+            .resolve_import_uncached(revision, module, profile, node, source, target, kind, None)?;
 
         Ok(resolved.target)
     }
@@ -515,6 +536,7 @@ impl Compiler {
     /// Try to resolve an import with an optional loader override.
     pub(crate) fn resolve_import_with_loader(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         imported_modules: &mut ImportedModuleTable,
         profile: ProfileId,
@@ -536,6 +558,7 @@ impl Compiler {
         }
 
         let resolved = self.resolve_import_uncached(
+            revision,
             module,
             profile,
             node,
@@ -552,6 +575,7 @@ impl Compiler {
     /// Try to resolve an import from one immutable prepared DIR artifact with an optional loader override.
     pub(crate) fn resolve_import_with_loader_from_artifact(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         dir: &DirPrepared,
         profile: ProfileId,
@@ -573,6 +597,7 @@ impl Compiler {
         }
 
         let resolved = self.resolve_import_uncached(
+            revision,
             module,
             profile,
             node,
@@ -588,6 +613,7 @@ impl Compiler {
     /// Resolve one import edge without consulting or mutating local import caches.
     fn resolve_import_uncached(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
@@ -601,7 +627,7 @@ impl Compiler {
 
         // resolve reference lib directives through builtin library loading
         if source == DependencySource::ReferenceLibDirective {
-            let target = self.resolve_reference_lib_target(profile, node, target)?;
+            let target = self.resolve_reference_lib_target(revision, profile, node, target)?;
             return Ok(ImportResolutionResult {
                 target,
                 cache: ModuleResolution::from_target(target),
@@ -611,8 +637,8 @@ impl Compiler {
         // normalize target specifiers for source-specific semantics
         let resolve_target = self.resolve_target_for_dependency_source(source, target);
         let resolve_target =
-            self.canonical_import_specifier(module, profile, node, resolve_target)?;
-        let resolve_target_text = self.program.strings.get(resolve_target).to_string();
+            self.canonical_import_specifier(revision, module, profile, node, resolve_target)?;
+        let resolve_target_text = self.repository.strings.get(resolve_target).to_string();
 
         // explicit runtime builtin protocols resolve through ambient bindings only
         if !module.is_builtin()
@@ -625,7 +651,7 @@ impl Compiler {
             )
         {
             let protocol_modules = self.protocol_binding_module_ids(profile, namespace)?;
-            if self.module_binding_exists_in_modules(&protocol_modules, resolve_target)? {
+            if self.module_binding_exists_in_modules(revision, &protocol_modules, resolve_target)? {
                 let binding_targets =
                     ModuleResolution::from_target(ModuleTarget::Binding(resolve_target));
                 let Some(remote_target) =
@@ -653,19 +679,25 @@ impl Compiler {
         if module.is_builtin()
             && loader_override.is_none()
             && let Some((target, cache)) =
-                self.resolve_binding_import_target(module, profile, resolve_target, kind)?
+                self.resolve_binding_import_target(revision, module, profile, resolve_target, kind)?
         {
             return Ok(ImportResolutionResult { target, cache });
         }
 
         // prepare root context for non-relative import resolution
         if !self.is_import_relative(resolve_target) && !module.is_builtin() {
-            self.require_dir_prepared_if_other(module.id, self.program.root_module_id, profile)?;
+            self.require_dir_prepared_if_other(
+                revision,
+                module.id,
+                self.repository.root_module_id(),
+                profile,
+            )?;
         }
 
         // resolve specifier to module ids first
         // use resolved module targets when they satisfy the dependency kind
         if let Some((remote_target, resolved_targets)) = self.resolve_specifier_import_target(
+            revision,
             module,
             profile,
             resolve_target,
@@ -674,7 +706,7 @@ impl Compiler {
             loader_override,
             kind,
         ) {
-            self.require_import_target_modules(profile, resolved_targets)?;
+            self.require_import_target_modules(revision, profile, resolved_targets)?;
 
             return Ok(ImportResolutionResult {
                 target: remote_target,
@@ -685,14 +717,14 @@ impl Compiler {
         // user modules fall back to ambient module bindings after package resolution
         if loader_override.is_none()
             && let Some((target, cache)) =
-                self.resolve_binding_import_target(module, profile, resolve_target, kind)?
+                self.resolve_binding_import_target(revision, module, profile, resolve_target, kind)?
         {
             return Ok(ImportResolutionResult { target, cache });
         }
 
         // explicit external package policy preserves unresolved package specifiers for link
         if let Some(target) =
-            self.externalized_package_import_target(module, profile, resolve_target)?
+            self.externalized_package_import_target(revision, module, profile, resolve_target)?
         {
             return Ok(ImportResolutionResult {
                 target,
@@ -703,10 +735,13 @@ impl Compiler {
         // only user modules get bare node builtin compatibility
         if !module.is_builtin()
             && loader_override.is_none()
-            && let Some(prefixed_target) =
-                self.ambient_node_builtin_prefixed_specifier_for_bare(profile, resolve_target)?
+            && let Some(prefixed_target) = self.ambient_node_builtin_prefixed_specifier_for_bare(
+                revision,
+                profile,
+                resolve_target,
+            )?
         {
-            let runtime = self.program.profile(profile).key.runtime;
+            let runtime = self.profile(profile).key.runtime;
             if !self.node_bare_builtin_compat_enabled_for_runtime(runtime) {
                 return Err(ResolveError::UnprefixedBuiltinModule {
                     node: node.into_anchored(Some(profile)),
@@ -724,6 +759,7 @@ impl Compiler {
             }
 
             return self.resolve_import_uncached(
+                revision,
                 module,
                 profile,
                 node,
@@ -740,6 +776,7 @@ impl Compiler {
     /// Canonicalize one import specifier and enforce protocol policy for resolve.
     pub(crate) fn canonical_import_specifier(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
@@ -750,7 +787,7 @@ impl Compiler {
             return Ok(target);
         }
 
-        let target_text = self.program.strings.get(target).to_string();
+        let target_text = self.repository.strings.get(target).to_string();
         // reject unknown protocol schemes before filesystem resolution
         if let Some(scheme) = self.non_builtin_protocol_scheme_for_specifier(target_text.as_str()) {
             return Err(ResolveError::UnknownProtocolScheme {
@@ -771,7 +808,7 @@ impl Compiler {
 
             // report internal protocol imports according to compiler policy
             if namespace == BuiltinNamespace::Platform {
-                self.report_internal_module_import_policy(module, profile, node, target);
+                self.report_internal_module_import_policy(revision, module, profile, node, target)?;
             }
 
             return Ok(target);
@@ -786,7 +823,7 @@ impl Compiler {
         namespace: BuiltinNamespace,
         profile: ProfileId,
     ) -> bool {
-        let profile_key = self.program.profile(profile).key.clone();
+        let profile_key = self.profile(profile).key.clone();
         if !namespace.is_supported_for_runtime(profile_key.runtime) {
             return false;
         }
@@ -794,41 +831,46 @@ impl Compiler {
         let Some(lib_name) = namespace.protocol_lib_name() else {
             return true;
         };
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return false;
-        };
+        let builtins = self.repository.builtins.as_ref();
 
         builtins.has_library_for_profile(lib_name, &profile_key)
     }
 
     /// Describe one active target profile for protocol diagnostics.
     fn protocol_runtime_support_description(&self, profile: ProfileId) -> String {
-        let key = self.program.profile(profile).key.clone();
+        let key = self.profile(profile).key.clone();
         format!("{:?}/{:?}/{:?}", key.runtime, key.emit, key.platform)
     }
 
     /// Report one internal module import diagnostic when policy requires it.
     fn report_internal_module_import_policy(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         node: destack_dir::GlobalNodeIdAny,
         target: StringId,
-    ) {
+    ) -> ResolveResult<()> {
         let policy = self
-            .program
-            .with_config_options(module, |ds| ds.compiler.no_internal_import);
+            .repository
+            .package_options_for_module(revision, module)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load package options: {error}"),
+            })?
+            .map(|options| options.compiler.no_internal_import);
         let Some(policy) = policy else {
-            return;
+            return Ok(());
         };
         if policy.is_allow() {
-            return;
+            return Ok(());
         }
 
         self.error(ResolveError::UnsupportedInternalModule {
             node: node.into_anchored(Some(profile)),
             target,
         });
+
+        Ok(())
     }
 
     /// Return true when bare node builtins are allowed for one runtime.
@@ -842,22 +884,16 @@ impl Compiler {
         profile: ProfileId,
         namespace: BuiltinNamespace,
     ) -> ResolveResult<Vec<ModuleId>> {
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(Vec::new());
-        };
-
-        let profile_key = self.program.profile(profile).key.clone();
+        let profile_key = self.profile(profile).key.clone();
         let Some(lib_name) =
             resolve_profile_builtin_library_name(namespace.scheme(), &profile_key.lib)
         else {
             return Ok(Vec::new());
         };
-        let Some(module_ids) = builtins.load_library(
-            &lib_name,
-            self.program.files.clone(),
-            self.program.modules.clone(),
-            &profile_key,
-        ) else {
+        let Some(module_ids) = self
+            .repository
+            .load_builtin_library(&lib_name, &profile_key)
+        else {
             return Ok(Vec::new());
         };
 
@@ -867,6 +903,7 @@ impl Compiler {
     /// Resolve the canonical `node:` target for one bare ambient node builtin.
     fn ambient_node_builtin_prefixed_specifier_for_bare(
         &self,
+        revision: destack_workspace::Revision,
         profile: ProfileId,
         target: StringId,
     ) -> ResolveResult<Option<StringId>> {
@@ -875,15 +912,18 @@ impl Compiler {
             return Ok(None);
         }
 
-        let target_text = self.program.strings.get(target).to_string();
+        let target_text = self.repository.strings.get(target).to_string();
         if Self::protocol_scheme_for_specifier(target_text.as_str()).is_some() {
             return Ok(None);
         }
 
         // build canonical node protocol form
-        let prefixed_target = self.program.strings.intern(&format!("node:{target_text}"));
+        let prefixed_target = self
+            .repository
+            .strings
+            .intern(&format!("node:{target_text}"));
         let has_ambient_node_binding =
-            self.module_bindings_include_ambient_module(profile, prefixed_target)?;
+            self.module_bindings_include_ambient_module(revision, profile, prefixed_target)?;
         if !has_ambient_node_binding {
             return Ok(None);
         }
@@ -894,11 +934,12 @@ impl Compiler {
     /// Return true when a specifier has at least one ambient binding module.
     fn module_bindings_include_ambient_module(
         &self,
+        revision: destack_workspace::Revision,
         profile: ProfileId,
         specifier: StringId,
     ) -> ResolveResult<bool> {
         let ambient_modules = self.ambient_binding_module_ids(profile)?;
-        self.module_binding_exists_in_modules(&ambient_modules, specifier)
+        self.module_binding_exists_in_modules(revision, &ambient_modules, specifier)
     }
 
     /// Select the unresolved import error for one target specifier.
@@ -909,7 +950,7 @@ impl Compiler {
         target: StringId,
         resolve_target: StringId,
     ) -> ResolveError {
-        let resolve_target_text = self.program.strings.get(resolve_target).to_string();
+        let resolve_target_text = self.repository.strings.get(resolve_target).to_string();
         if self
             .builtin_namespace_for_specifier(resolve_target_text.as_str())
             .is_some()
@@ -939,7 +980,7 @@ impl Compiler {
             return None;
         }
 
-        Some(self.program.strings.intern(scheme))
+        Some(self.repository.strings.intern(scheme))
     }
 
     /// Return the protocol scheme for a specifier when it has URI style syntax.
@@ -1021,6 +1062,7 @@ impl Compiler {
     /// Return whether one default import may fall back to namespace lookup.
     pub(super) fn default_import_uses_namespace_fallback(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         source: DependencySource,
         kind: DependencyKind,
@@ -1041,19 +1083,28 @@ impl Compiler {
 
         // read target runtime format
         let target_module_format =
-            self.module_format_for_target(module.id, profile, remote_target)?;
+            self.module_format_for_target(revision, module.id, profile, remote_target)?;
 
         // read source interop policy from config first, then tsconfig fallback
         let is_typescript_commonjs_default_interop_enabled = self
-            .program
-            .with_config_options(module, |options| {
-                let compiler = &options.compiler;
-                compiler.es_module_interop || compiler.allow_synthetic_default_imports
+            .repository
+            .package_options_for_module(revision, module)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load package options: {error}"),
+            })?
+            .map(|options| {
+                let options = options.compiler;
+
+                options.es_module_interop || options.allow_synthetic_default_imports
             })
             .or_else(|| {
-                self.program.with_tsconfig_options(module, |options| {
-                    typescript_commonjs_default_interop_is_enabled(&options.compiler)
-                })
+                self.repository
+                    .tsconfig_options_for_module(revision, module)
+                    .ok()
+                    .flatten()
+                    .map(|options| {
+                        typescript_commonjs_default_interop_is_enabled(&options.compiler)
+                    })
             })
             .unwrap_or(false);
 

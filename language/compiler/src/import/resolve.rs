@@ -5,16 +5,16 @@ use destack_builtin::{builtin_library, resolve_profile_builtin_library_name};
 use destack_core::StringId;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{ResolveOptions, Resolver};
-use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
-use destack_workspace::{
-    Module, ModuleSource, NodeLinker, Package, PackageKind, ProfileId, TargetId, TsCompilerOptions,
-};
+use destack_source::{FileType, LanguageType, ModuleId, PackageId, Uri};
+use destack_workspace::{Edit, NodeLinker, ProfileId, TsCompilerOptions};
 
 use crate::import::{
     ImportResolveContext, apply_node_linker_resolve_policy, apply_typescript_import_resolve_policy,
     declaration_companion_path_for_module_path, materialize_import_resolve_options,
 };
-use crate::{Compiler, ImportError, ImportResult};
+use crate::{
+    Compiler, DiagnosticAnchor, FileRequirement, ImportError, ImportResult, RequirementSet,
+};
 
 /// Extensions to try for builtin modules.
 const BUILTIN_EXTENSIONS: &[&str] = &[
@@ -47,96 +47,50 @@ enum SourceImportResolvePolicy {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Refresh package Destack config state from the filesystem.
-    fn refresh_package_destack_config(
+    /// Convert one repository failure into an internal import error.
+    fn import_repository_error(error: destack_workspace::RepositoryError) -> ImportError {
+        ImportError::Internal {
+            message: error.to_string(),
+        }
+    }
+
+    /// Return the current revision module id for one workspace path when present.
+    fn current_module_id_for_path(
         &self,
-        package_id: PackageId,
-        directory: &Path,
-        resolver: &Resolver,
-    ) {
-        // stop when the package already has config state
-        if self
-            .program
-            .packages
-            .get(package_id)
-            .read()
-            .config
-            .is_some()
-        {
-            return;
-        }
-
-        // load and attach the discovered config
-        let Some(config_path) = self.find_destack_config_path(directory, resolver) else {
-            return;
-        };
-        let Some(config) = self.session.load_destack_for_path(&config_path) else {
-            return;
-        };
-        let targets = config
-            .options
-            .targets
-            .iter()
-            .map(|(name, options)| {
-                let target_id = TargetId::new(package_id, name);
-                let target = options.to_target(name);
-
-                (target_id, target)
-            })
-            .collect::<Vec<_>>();
-
-        let package = self.program.packages.get(package_id);
-        let mut package = package.write();
-        package.config = Some(config);
-
-        // keep target policy available during resolve for synthetic packages
-        if package.targets.is_empty() {
-            for (target_id, target) in targets {
-                package.targets.insert(target_id, target);
-            }
-        }
+        revision: destack_workspace::Revision,
+        path: &Path,
+    ) -> ImportResult<Option<ModuleId>> {
+        self.repository
+            .module_id_for_path(revision, path)
+            .map_err(Self::import_repository_error)
     }
 
-    /// Find the nearest `destack.json` for one directory before crossing a package boundary.
-    fn find_destack_config_path(&self, directory: &Path, resolver: &Resolver) -> Option<PathBuf> {
-        let mut current = directory.to_path_buf();
-        loop {
-            let candidate = current.join("destack.json");
-            if resolver
-                .fs()
-                .metadata(&candidate)
-                .is_ok_and(|meta| meta.is_file)
-            {
-                return Some(candidate);
-            }
-
-            let package_json_path = current.join("package.json");
-            if resolver
-                .fs()
-                .metadata(&package_json_path)
-                .is_ok_and(|meta| meta.is_file)
-            {
-                return None;
-            }
-
-            let parent = current.parent()?;
-            current = parent.to_path_buf();
-        }
+    /// Return the current revision module id for one uri when present.
+    fn current_module_id_for_uri(
+        &self,
+        revision: destack_workspace::Revision,
+        uri: &Uri,
+    ) -> ImportResult<Option<ModuleId>> {
+        self.repository
+            .module_id_for_uri(revision, uri)
+            .map_err(Self::import_repository_error)
     }
 
-    /// Resolve a specifier to a ModuleId, registering a blank module if needed.
+    /// Resolve a specifier to a ModuleId, materializing source into the current revision if needed.
     ///
-    /// If `loader_override` is provided and the module doesn't exist yet, the module
-    /// will be registered with the specified loader instead of the default for its file type.
+    /// If `loader_override` is provided and the module doesn't exist yet, the materialized
+    /// module will use that loader instead of the default for its file type.
     /// If the module already exists, the override is ignored.
     pub fn resolve_specifier_to_module(
         &self,
+        revision: destack_workspace::Revision,
         profile_id: ProfileId,
         specifier: StringId,
         source_module: Option<ModuleId>,
         kind: DependencyKind,
     ) -> ImportResult<ModuleId> {
         self.resolve_specifier_to_module_with_loader(
+            revision,
             profile_id,
             specifier,
             source_module,
@@ -148,11 +102,12 @@ impl Compiler {
 
     /// Resolve a specifier to a ModuleId with explicit edge semantics.
     ///
-    /// If `loader_override` is provided and the module doesn't exist yet, the module
-    /// will be registered with the specified loader instead of the default for its file type.
+    /// If `loader_override` is provided and the module doesn't exist yet, the materialized
+    /// module will use that loader instead of the default for its file type.
     /// If the module already exists, the override is ignored (Option B from plan).
     pub fn resolve_specifier_to_module_with_loader(
         &self,
+        revision: destack_workspace::Revision,
         profile_id: ProfileId,
         specifier: StringId,
         source_module: Option<ModuleId>,
@@ -160,27 +115,31 @@ impl Compiler {
         edge_kind: ImportEdgeKind,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleId> {
-        let specifier_str = self.program.strings.get(specifier).to_string();
-        let profile_key = self.program.profile(profile_id).key.clone();
-        let source_language_type = self.source_language_type_for_resolution(source_module);
+        let specifier_str = self.repository.strings.get(specifier).to_string();
+        let profile_key = self.profile(profile_id).key.clone();
+        let source_language_type =
+            self.source_language_type_for_resolution(revision, source_module);
 
         // resolve protocol specifiers (destack:, platform:)
-        if let Some(module_id) = self.resolve_protocol_specifier(&specifier_str, &profile_key) {
+        if let Some(module_id) =
+            self.resolve_protocol_specifier(revision, &specifier_str, &profile_key)
+        {
             return Ok(module_id);
         }
 
         // resolve builtin module imports (builtin:// URIs)
         if let Some(source_id) = source_module
             && let Some(module_id) =
-                self.resolve_builtin_specifier(&specifier_str, source_id, &profile_key)
+                self.resolve_builtin_specifier(revision, &specifier_str, source_id, &profile_key)
         {
             return Ok(module_id);
         }
 
         // resolve non-builtin imports
-        let source_path = self.get_resolve_origin_path(source_module);
-        let directory = self.get_resolve_directory(source_module);
+        let source_path = self.get_resolve_origin_path(revision, source_module);
+        let directory = self.get_resolve_directory(revision, source_module);
         let (path, resolver) = self.resolve_specifier_to_path(
+            revision,
             source_path.as_deref(),
             &directory,
             specifier,
@@ -190,7 +149,8 @@ impl Compiler {
             source_language_type,
             edge_kind,
         )?;
-        let module_id = self.resolve_specifier_registration(&path, loader_override, &resolver)?;
+        let module_id =
+            self.resolve_specifier_materialization(revision, &path, loader_override, &resolver)?;
 
         Ok(module_id)
     }
@@ -198,12 +158,13 @@ impl Compiler {
     /// Resolve one triple slash `reference lib` target to a builtin module.
     pub(crate) fn resolve_reference_lib_to_module(
         &self,
+        _revision: destack_workspace::Revision,
         profile_id: ProfileId,
         target: &str,
     ) -> ImportResult<ModuleId> {
         // normalize one reference lib target into a builtin lib name
         let Some(lib_name) = Self::reference_lib_name(target) else {
-            let target = self.program.strings.intern(target);
+            let target = self.repository.strings.intern(target);
             return Err(ImportError::ModuleNotFound {
                 target,
                 error: None,
@@ -211,21 +172,12 @@ impl Compiler {
         };
 
         // load the builtin lib modules for this profile
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            let target = self.program.strings.intern(target);
-            return Err(ImportError::ModuleNotFound {
-                target,
-                error: None,
-            });
-        };
-        let profile_key = self.program.profile(profile_id).key.clone();
-        let Some(module_ids) = builtins.load_library(
-            &lib_name,
-            self.program.files.clone(),
-            self.program.modules.clone(),
-            &profile_key,
-        ) else {
-            let target = self.program.strings.intern(target);
+        let profile_key = self.profile(profile_id).key.clone();
+        let Some(module_ids) = self
+            .repository
+            .load_builtin_library(&lib_name, &profile_key)
+        else {
+            let target = self.repository.strings.intern(target);
             return Err(ImportError::ModuleNotFound {
                 target,
                 error: None,
@@ -233,12 +185,13 @@ impl Compiler {
         };
 
         // return the library entry module
-        Ok(Self::entry_module_id(&self.program.modules, &module_ids))
+        Ok(Self::entry_module_id(self.repository.as_ref(), &module_ids))
     }
 
     /// Resolve a specifier to a path using dependency-aware rules.
     fn resolve_specifier_to_path(
         &self,
+        revision: destack_workspace::Revision,
         source_path: Option<&Path>,
         directory: &Path,
         specifier_id: StringId,
@@ -248,7 +201,13 @@ impl Compiler {
         source_language_type: Option<LanguageType>,
         edge_kind: ImportEdgeKind,
     ) -> ImportResult<(PathBuf, Resolver)> {
-        let resolver = self.resolver_for_kind(kind, source_module, source_language_type, edge_kind);
+        let resolver = self.resolver_for_kind(
+            revision,
+            kind,
+            source_module,
+            source_language_type,
+            edge_kind,
+        );
         let resolution = match source_path {
             Some(source_path) => resolver.resolve_from_file(source_path, specifier_str),
             None => resolver.resolve_from_directory(directory, specifier_str),
@@ -267,6 +226,7 @@ impl Compiler {
     /// Resolve a specifier to value and type targets with explicit edge semantics.
     pub(crate) fn resolve_specifier_to_module_resolution(
         &self,
+        revision: destack_workspace::Revision,
         profile_id: ProfileId,
         specifier: StringId,
         source_module: Option<ModuleId>,
@@ -275,13 +235,17 @@ impl Compiler {
     ) -> ImportResult<ModuleResolution> {
         // detect declaration import sites: they should keep type targets in declaration space
         let source_is_declaration = source_module.is_some_and(|source_module_id| {
-            let source_module = self.program.modules.get(source_module_id);
-            source_module.language_type.is_declaration()
+            self.repository
+                .module(revision, source_module_id)
+                .ok()
+                .flatten()
+                .is_some_and(|module| module.language_type.is_declaration())
         });
 
         // resolve value and type targets through standard resolver options
         let value_target = self
             .resolve_specifier_to_module_with_loader(
+                revision,
                 profile_id,
                 specifier,
                 source_module,
@@ -293,6 +257,7 @@ impl Compiler {
             .map(ModuleTarget::Module);
         let mut type_target = self
             .resolve_specifier_to_module_with_loader(
+                revision,
                 profile_id,
                 specifier,
                 source_module,
@@ -305,7 +270,8 @@ impl Compiler {
 
         // for declaration sources: prefer declaration companions for type targets
         if source_is_declaration {
-            type_target = self.preferred_declaration_type_target(type_target, value_target);
+            type_target =
+                self.preferred_declaration_type_target(revision, type_target, value_target);
         }
 
         if value_target.is_none() && type_target.is_none() {
@@ -323,9 +289,10 @@ impl Compiler {
         Ok(resolution)
     }
 
-    /// Register or reuse a module for a resolved path.
-    fn resolve_specifier_registration(
+    /// Materialize or reuse a module for a resolved path.
+    fn resolve_specifier_materialization(
         &self,
+        revision: destack_workspace::Revision,
         path: &PathBuf,
         loader_override: Option<Loader>,
         resolver: &Resolver,
@@ -333,24 +300,29 @@ impl Compiler {
         // check if module already exists for this path
         // only use this fast path for default loader resolution
         if loader_override.is_none()
-            && let Some(module_id) = self.program.modules.get_id_by_path(path)
+            && let Some(module_id) = self.current_module_id_for_path(revision, path)?
         {
             return Ok(module_id);
         }
 
-        // register blank module with optional loader override
-        self.register_blank_module(path, None, loader_override, resolver)
+        // materialize the module with the requested loader semantics
+        self.materialize_module_for_path(revision, path, None, loader_override, resolver)
     }
 
     /// Resolve a specifier from a builtin module to a builtin module (see LanguageBuiltins).
     fn resolve_builtin_specifier(
         &self,
+        revision: destack_workspace::Revision,
         specifier: &str,
         source_module: ModuleId,
         profile_key: &ProfileKey,
     ) -> Option<ModuleId> {
         // get source module URI
-        let source = self.program.modules.get(source_module);
+        let source = self
+            .repository
+            .module(revision, source_module)
+            .ok()
+            .flatten()?;
         let source_uri = source.uri.clone();
         let source_str: &str = source_uri.as_ref();
 
@@ -361,12 +333,12 @@ impl Compiler {
 
         // resolve builtin libs by name for builtin modules
         if !Self::specifier_is_relative(specifier) {
-            let builtins = self.program.builtins.as_ref()?;
-
             // map specifier to builtin lib name
             let lib_name =
                 // prefer source lib aliases when available
-                if let Some(source_lib_name) = builtins.library_name_for_module(source_module) {
+                if let Some(source_lib_name) =
+                    self.repository.builtins().library_name_for_module(source_module)
+                {
                     let source_lib = builtin_library(source_lib_name)?;
 
                     // alias mapping for bare specifiers
@@ -400,13 +372,10 @@ impl Compiler {
                 };
 
             // resolve entry module and ensure lib is loaded
-            let module_ids = builtins.load_library(
-                &lib_name,
-                self.program.files.clone(),
-                self.program.modules.clone(),
-                profile_key,
-            )?;
-            let module_id = Self::entry_module_id(&self.program.modules, &module_ids);
+            let module_ids = self
+                .repository
+                .load_builtin_library(&lib_name, profile_key)?;
+            let module_id = Self::entry_module_id(self.repository.as_ref(), &module_ids);
             return Some(module_id);
         }
 
@@ -419,14 +388,14 @@ impl Compiler {
         let target_uri = Uri::from_string(&target_uri_str);
 
         // look up target module by exact URI
-        if let Some(module_id) = self.program.modules.get_id_by_uri(&target_uri) {
+        if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &target_uri) {
             return Some(module_id);
         }
 
         // try extensions
         for extension in BUILTIN_EXTENSIONS {
             let candidate_uri = Uri::from_string(format!("{target_uri_str}{extension}"));
-            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+            if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &candidate_uri) {
                 return Some(module_id);
             }
         }
@@ -434,7 +403,7 @@ impl Compiler {
         // try index (with extensions)
         for extension in BUILTIN_EXTENSIONS {
             let candidate_uri = Uri::from_string(format!("{target_uri_str}/index{extension}"));
-            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+            if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &candidate_uri) {
                 return Some(module_id);
             }
         }
@@ -445,6 +414,7 @@ impl Compiler {
     /// Resolve a protocol specifier (destack:, platform:) to a builtin module.
     fn resolve_protocol_specifier(
         &self,
+        revision: destack_workspace::Revision,
         specifier: &str,
         profile_key: &ProfileKey,
     ) -> Option<ModuleId> {
@@ -462,28 +432,23 @@ impl Compiler {
         };
 
         // load the namespace builtin lib first
-        let builtins = self.program.builtins.as_ref()?;
         let lib_name = protocol;
-        builtins.load_library(
-            lib_name,
-            self.program.files.clone(),
-            self.program.modules.clone(),
-            profile_key,
-        )?;
+        self.repository
+            .load_builtin_library(lib_name, profile_key)?;
 
         // resolve namespace modules under their builtin root
         let base_path = format!("{root}/{path}");
         let base_uri = Uri::from_string(format!("builtin://{base_path}"));
 
         // try exact path
-        if let Some(module_id) = self.program.modules.get_id_by_uri(&base_uri) {
+        if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &base_uri) {
             return Some(module_id);
         }
 
         // try extensions
         for extension in BUILTIN_EXTENSIONS {
             let candidate_uri = Uri::from_string(format!("builtin://{base_path}{extension}"));
-            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+            if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &candidate_uri) {
                 return Some(module_id);
             }
         }
@@ -491,7 +456,7 @@ impl Compiler {
         // try index (with extensions)
         for extension in BUILTIN_EXTENSIONS {
             let candidate_uri = Uri::from_string(format!("builtin://{base_path}/index{extension}"));
-            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+            if let Ok(Some(module_id)) = self.current_module_id_for_uri(revision, &candidate_uri) {
                 return Some(module_id);
             }
         }
@@ -499,45 +464,74 @@ impl Compiler {
         None
     }
 
-    /// Resolve a path to a ModuleId, registering a blank module if needed.
-    pub fn resolve_path_to_module(&self, path: &PathBuf) -> ImportResult<ModuleId> {
-        let resolver =
-            self.resolver_for_kind(DependencyKind::Value, None, None, ImportEdgeKind::Import);
+    /// Resolve a path to a module id inside the active execution scope.
+    fn resolve_path_to_module_in_revision(
+        &self,
+        revision: destack_workspace::Revision,
+        path: &PathBuf,
+    ) -> ImportResult<ModuleId> {
+        let resolver = self.resolver_for_kind(
+            revision,
+            DependencyKind::Value,
+            None,
+            None,
+            ImportEdgeKind::Import,
+        );
 
         // check if module already exists for this path
-        if let Some(module_id) = self.program.modules.get_id_by_path(path) {
+        if let Some(module_id) = self.current_module_id_for_path(revision, path)? {
             return Ok(module_id);
         }
 
-        // register blank module
-        self.register_blank_module(path, None, None, &resolver)
+        // materialize the module into the active revision
+        self.materialize_module_for_path(revision, path, None, None, &resolver)
     }
 
-    /// Resolve a URI to a ModuleId, registering a blank module if needed.
-    pub fn resolve_uri_to_module(&self, uri: &Uri) -> ImportResult<ModuleId> {
+    /// Resolve a path to a module id at one explicit revision.
+    pub fn resolve_path_to_module(
+        &self,
+        revision: destack_workspace::Revision,
+        path: &PathBuf,
+    ) -> ImportResult<ModuleId> {
+        self.resolve_path_to_module_in_revision(revision, path)
+    }
+
+    /// Resolve a URI to a module id inside the active execution scope.
+    fn resolve_uri_to_module_in_revision(
+        &self,
+        revision: destack_workspace::Revision,
+        uri: &Uri,
+    ) -> ImportResult<ModuleId> {
         // check if module already exists for this URI
-        if let Some(module_id) = self.program.modules.get_id_by_uri(uri) {
+        if let Some(module_id) = self.current_module_id_for_uri(revision, uri)? {
             return Ok(module_id);
         }
 
         let path = uri.to_path().ok_or_else(|| ImportError::ModuleNotFound {
-            target: self.program.strings.intern(uri.as_ref()),
+            target: self.repository.strings.intern(uri.as_ref()),
             error: None,
         })?;
 
-        self.resolve_path_to_module(&path.to_path_buf())
+        self.resolve_path_to_module_in_revision(revision, &path.to_path_buf())
     }
 
-    /// Register a blank module for a path.
-    ///
-    /// Creates a blank File, determines the package, computes ModuleId,
-    /// and registers a blank Module (without AST).
+    /// Resolve a URI to a module id at one explicit revision.
+    pub fn resolve_uri_to_module(
+        &self,
+        revision: destack_workspace::Revision,
+        uri: &Uri,
+    ) -> ImportResult<ModuleId> {
+        self.resolve_uri_to_module_in_revision(revision, uri)
+    }
+
+    /// Materialize one module for a path in the active revision.
     ///
     /// If `loader_override` is provided, it will be used instead of the default
     /// loader for the file type. Different loaders produce different ModuleIds
     /// (via hash salting), allowing the same file to be imported multiple ways.
-    fn register_blank_module(
+    fn materialize_module_for_path(
         &self,
+        revision: destack_workspace::Revision,
         path: &PathBuf,
         ty: Option<FileType>,
         loader_override: Option<Loader>,
@@ -554,7 +548,7 @@ impl Compiler {
         let import_lock = self.get_import_lock(&uri, loader_key);
         let mut import_guard = import_lock.lock();
 
-        // check if another thread already registered this module
+        // check if another thread already materialized this module
         if let Some(module_id) = *import_guard {
             return Ok(module_id);
         }
@@ -562,84 +556,68 @@ impl Compiler {
         // for default loaders, check URI index (fast path)
         // (for non-default loaders, we skip this since ModuleId is salted)
         if loader_key.is_none()
-            && let Some(module_id) = self.program.modules.get_id_by_uri(&uri)
+            && let Some(module_id) = self.current_module_id_for_uri(revision, &uri)?
         {
             *import_guard = Some(module_id);
             return Ok(module_id);
         }
 
         // find or create package (needed to compute ModuleId)
-        let (package_id, package_root) = self.resolve_or_create_package_for_path(path, resolver)?;
+        let (package_id, package_root) =
+            self.resolve_or_create_package_for_path(revision, path, resolver)?;
 
         // compute ModuleId with loader key
         let module_id =
             ModuleId::from_path_with_loader(package_id, path, package_root.as_deref(), loader_key);
 
         // check if this exact module already exists
-        if self.program.modules.contains(module_id) {
+        if self
+            .repository
+            .module(revision, module_id)
+            .map_err(Self::import_repository_error)?
+            .is_some()
+        {
             *import_guard = Some(module_id);
             return Ok(module_id);
         }
 
-        // create blank file entry (content loaded later during import)
-        let name = path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .into_owned();
-        let file_id = self.program.files.next_id();
-        let file_version = self.session.workspace_file_version_for_path(path);
-        let file = File::unloaded(file_id, name, uri.clone(), Some(path.clone()), ty)
-            .with_version(file_version);
-        self.program.files.insert(file);
+        let file_id = self.repository.file_id_for_workspace_path(path);
+
+        // request source expansion when this file is not in the current snapshot
+        if self
+            .repository
+            .file(revision, file_id)
+            .map_err(Self::import_repository_error)?
+            .is_none()
+        {
+            let logical_path = self.repository.normalize_workspace_path(path);
+            let content = self
+                .repository
+                .load_workspace_file_content(path)
+                .map_err(Self::import_repository_error)?;
+            let requirement = FileRequirement::new(
+                DiagnosticAnchor::from(module_id),
+                Edit::SetFile {
+                    logical_path,
+                    content,
+                },
+            );
+
+            return Err(ImportError::Yield {
+                requirement: RequirementSet::one(requirement),
+            });
+        }
 
         // find tsconfig (if any)
-        let tsconfig_id =
-            resolver
-                .find_tsconfig_for_file(path)
-                .map_err(|error| ImportError::ModuleNotFound {
-                    target: self.program.strings.intern(uri.as_ref()),
-                    error: Some(error),
-                })?;
+        let _tsconfig_file_id = resolver
+            .find_tsconfig_for_file(path)
+            .map_err(|error| ImportError::ModuleNotFound {
+                target: self.repository.strings.intern(uri.as_ref()),
+                error: Some(error),
+            })?
+            .map(|tsconfig| self.repository.file_id_for_workspace_path(&tsconfig.path));
 
-        // create and register blank module
-        let language_type = LanguageType::from(ty);
-        let source_type = self.program.detect_module_source_type(
-            Some(path.as_path()),
-            package_id,
-            tsconfig_id,
-            false,
-        );
-        let module_format = self.program.detect_module_format(
-            Some(path.as_path()),
-            language_type,
-            source_type,
-            package_id,
-            tsconfig_id,
-        );
-        let module = Module::blank(
-            module_id,
-            file_id,
-            uri,
-            Some(path.clone()),
-            package_id,
-            language_type,
-            loader,
-            ModuleSource::User,
-        );
-        let module_version = self
-            .session
-            .workspace_module_version_for_id(module_id, file_version);
-        self.program.modules.insert(
-            module,
-            module_version,
-            file_version,
-            tsconfig_id,
-            source_type,
-            module_format,
-        );
-
-        // mark as registered
+        // publish the resolved module id under the import lock
         *import_guard = Some(module_id);
         drop(import_guard);
 
@@ -648,7 +626,7 @@ impl Compiler {
             ?path,
             ?loader,
             ?loader_key,
-            "import.resolve.register"
+            "import.resolve.materialize"
         );
         Ok(module_id)
     }
@@ -656,13 +634,14 @@ impl Compiler {
     /// Build resolve options for a dependency kind.
     fn resolver_options_for_kind(
         &self,
+        revision: destack_workspace::Revision,
         kind: DependencyKind,
         source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
         edge_kind: ImportEdgeKind,
     ) -> ResolveOptions {
         let mut base_options = self.options.import_resolve.clone();
-        let source_policy = self.source_import_resolve_policy(source_module);
+        let source_policy = self.source_import_resolve_policy(revision, source_module);
         let node_linker = match &source_policy {
             SourceImportResolvePolicy::Destack { node_linker } => *node_linker,
             SourceImportResolvePolicy::TsConfig { .. } | SourceImportResolvePolicy::None => {
@@ -674,7 +653,7 @@ impl Compiler {
         apply_node_linker_resolve_policy(
             &mut base_options,
             node_linker,
-            self.program.cwd.as_path(),
+            self.repository.cwd.as_path(),
         );
 
         // config-owned packages suppress tsconfig overlays
@@ -708,6 +687,7 @@ impl Compiler {
     /// Read source module resolver ownership from package and tsconfig data.
     fn source_import_resolve_policy(
         &self,
+        revision: destack_workspace::Revision,
         source_module: Option<ModuleId>,
     ) -> SourceImportResolvePolicy {
         let Some(source_module_id) = source_module else {
@@ -715,45 +695,69 @@ impl Compiler {
         };
 
         // read source module identity
-        let source_module = self.program.modules.get(source_module_id);
+        let Some(source_module) = self
+            .repository
+            .module(revision, source_module_id)
+            .ok()
+            .flatten()
+        else {
+            return SourceImportResolvePolicy::None;
+        };
         let source_module = source_module.as_ref();
         let package_id = source_module.package_id;
-        let tsconfig_id = self.program.modules.tsconfig_id(source_module.id);
+        let tsconfig_file_id = source_module.tsconfig_file_id;
 
         // prefer package config ownership over tsconfig fallbacks
-        let package = self.program.packages.get(package_id);
-        let package = package.read();
-        if let Some(config) = package.config.as_ref() {
+        let Some(package) = self.repository.package(revision, package_id).ok().flatten() else {
+            return SourceImportResolvePolicy::None;
+        };
+        let package_options = self
+            .repository
+            .package_options(revision, package.id)
+            .ok()
+            .flatten();
+        if let Some(config) = package_options {
             return SourceImportResolvePolicy::Destack {
-                node_linker: config.options.compiler.node_linker,
+                node_linker: config.compiler.node_linker,
             };
         }
-        drop(package);
 
         // use source tsconfig policy when present
-        let Some(tsconfig_id) = tsconfig_id else {
+        let Some(tsconfig_file_id) = tsconfig_file_id else {
             return SourceImportResolvePolicy::None;
         };
 
-        let tsconfig = self.program.tsconfigs.get(tsconfig_id);
-        let tsconfig = tsconfig.read();
+        let Some(tsconfig) = self
+            .repository
+            .tsconfig_declaration(revision, tsconfig_file_id)
+            .ok()
+            .flatten()
+        else {
+            return SourceImportResolvePolicy::None;
+        };
 
         SourceImportResolvePolicy::TsConfig {
             config_file: tsconfig.path.clone(),
-            compiler_options: tsconfig.options.compiler.clone(),
+            compiler_options: tsconfig.options().compiler.clone(),
         }
     }
 
     /// Create a resolver configured for a dependency kind.
     fn resolver_for_kind(
         &self,
+        revision: destack_workspace::Revision,
         kind: DependencyKind,
         source_module: Option<ModuleId>,
         source_language_type: Option<LanguageType>,
         edge_kind: ImportEdgeKind,
     ) -> Resolver {
-        let resolver_options =
-            self.resolver_options_for_kind(kind, source_module, source_language_type, edge_kind);
+        let resolver_options = self.resolver_options_for_kind(
+            revision,
+            kind,
+            source_module,
+            source_language_type,
+            edge_kind,
+        );
 
         self.resolver_with_options(resolver_options)
     }
@@ -761,38 +765,48 @@ impl Compiler {
     /// Return the source language used when resolving one import.
     fn source_language_type_for_resolution(
         &self,
+        revision: destack_workspace::Revision,
         source_module: Option<ModuleId>,
     ) -> Option<LanguageType> {
-        source_module.map(|module_id| {
-            let module = self.program.modules.get(module_id);
-            module.language_type
-        })
+        let module_id = source_module?;
+        let module = self.repository.module(revision, module_id).ok().flatten()?;
+
+        Some(module.language_type)
     }
 
     /// Resolve a declaration companion target for one value module.
     fn declaration_companion_target_for_module(
         &self,
+        revision: destack_workspace::Revision,
         value_module_id: ModuleId,
     ) -> Option<ModuleTarget> {
-        let value_module = self.program.modules.get(value_module_id);
+        let value_module = self
+            .repository
+            .module(revision, value_module_id)
+            .ok()
+            .flatten()?;
         let value_module = value_module.as_ref();
         let value_path = value_module.path.as_ref()?;
 
         let companion_path = declaration_companion_path_for_module_path(value_path)?;
         let companion_exists = self
-            .program
-            .fs
+            .repository
+            .file_system()
             .metadata(&companion_path)
             .is_ok_and(|meta| meta.is_file);
         if !companion_exists {
             return None;
         }
 
-        if let Some(companion_module_id) = self.program.modules.get_id_by_path(&companion_path) {
+        if let Ok(Some(companion_module_id)) =
+            self.current_module_id_for_path(revision, &companion_path)
+        {
             return Some(ModuleTarget::Module(companion_module_id));
         }
 
-        let companion_module_id = self.resolve_path_to_module(&companion_path).ok()?;
+        let companion_module_id = self
+            .resolve_path_to_module_in_revision(revision, &companion_path)
+            .ok()?;
 
         Some(ModuleTarget::Module(companion_module_id))
     }
@@ -800,19 +814,24 @@ impl Compiler {
     /// Select one declaration target for imports from declaration modules.
     fn preferred_declaration_type_target(
         &self,
+        revision: destack_workspace::Revision,
         type_target: Option<ModuleTarget>,
         value_target: Option<ModuleTarget>,
     ) -> Option<ModuleTarget> {
         // keep declaration targets as-is
         if let Some(ModuleTarget::Module(type_module_id)) = type_target {
-            let type_module = self.program.modules.get(type_module_id);
+            let type_module = self
+                .repository
+                .module(revision, type_module_id)
+                .ok()
+                .flatten()?;
             if type_module.language_type.is_declaration() {
                 return Some(ModuleTarget::Module(type_module_id));
             }
 
             // upgrade non-declaration type targets through declaration companions
             if let Some(companion_target) =
-                self.declaration_companion_target_for_module(type_module_id)
+                self.declaration_companion_target_for_module(revision, type_module_id)
             {
                 return Some(companion_target);
             }
@@ -821,7 +840,7 @@ impl Compiler {
         // fall back to declaration companions for value targets
         if let Some(ModuleTarget::Module(value_module_id)) = value_target
             && let Some(companion_target) =
-                self.declaration_companion_target_for_module(value_module_id)
+                self.declaration_companion_target_for_module(revision, value_module_id)
         {
             return Some(companion_target);
         }
@@ -831,28 +850,46 @@ impl Compiler {
     }
 
     /// Get the directory to resolve from for a source module.
-    pub(super) fn get_resolve_directory(&self, source_module: Option<ModuleId>) -> PathBuf {
+    pub(super) fn get_resolve_directory(
+        &self,
+        revision: destack_workspace::Revision,
+        source_module: Option<ModuleId>,
+    ) -> PathBuf {
         if let Some(module_id) = source_module {
-            let module = self.program.modules.get(module_id);
-            let module_file = self.program.files.get(module.file_id);
+            let Some(module) = self.repository.module(revision, module_id).ok().flatten() else {
+                return self.repository.cwd.clone();
+            };
+            let Some(module_file) = self
+                .repository
+                .file(revision, module.file_id)
+                .ok()
+                .flatten()
+            else {
+                return self.repository.cwd.clone();
+            };
             module_file
                 .uri
                 .to_path_buf()
                 .and_then(|path| path.parent().map(|p| p.to_path_buf()))
-                .unwrap_or_else(|| self.program.cwd.clone())
+                .unwrap_or_else(|| self.repository.cwd.clone())
         } else {
-            self.program.cwd.clone()
+            self.repository.cwd.clone()
         }
     }
 
     /// Get the origin file path to resolve from for a source module.
     pub(super) fn get_resolve_origin_path(
         &self,
+        revision: destack_workspace::Revision,
         source_module: Option<ModuleId>,
     ) -> Option<PathBuf> {
         let module_id = source_module?;
-        let module = self.program.modules.get(module_id);
-        let module_file = self.program.files.get(module.file_id);
+        let module = self.repository.module(revision, module_id).ok().flatten()?;
+        let module_file = self
+            .repository
+            .file(revision, module.file_id)
+            .ok()
+            .flatten()?;
         module_file
             .path
             .clone()
@@ -862,6 +899,7 @@ impl Compiler {
     /// Resolve or create a package for a file path.
     pub(super) fn resolve_or_create_package_for_path(
         &self,
+        revision: destack_workspace::Revision,
         path: &Path,
         resolver: &Resolver,
     ) -> ImportResult<(PackageId, Option<PathBuf>)> {
@@ -870,62 +908,38 @@ impl Compiler {
             resolver
                 .find_package(path)
                 .map_err(|error| ImportError::ModuleNotFound {
-                    target: self.program.strings.intern(path.to_string_lossy().as_ref()),
+                    target: self
+                        .repository
+                        .strings
+                        .intern(path.to_string_lossy().as_ref()),
                     error: Some(error),
                 })?
         {
-            let package = self.program.packages.get(package_id);
-            let package_root = package.read().path.clone();
-            if let Some(package_root) = package_root.as_deref() {
-                self.refresh_package_destack_config(package_id, package_root, resolver);
-            }
+            let package_root = self
+                .repository
+                .package(revision, package_id)
+                .ok()
+                .flatten()
+                .and_then(|package| package.path.clone())
+                .or_else(|| {
+                    resolver
+                        .package_maybe(package_id)
+                        .and_then(|package| package.path)
+                });
             return Ok((package_id, package_root));
         }
 
         // create synthetic package for file's directory
         let directory = path.parent().unwrap_or(path);
         let package_id = PackageId::from_synthetic_path(directory);
-
-        // check if synthetic package already exists
-        if self.program.packages.contains(package_id) {
-            self.refresh_package_destack_config(package_id, directory, resolver);
-            return Ok((package_id, Some(directory.to_path_buf())));
-        }
-
-        // load destack.json for synthetic packages when present
-        let config = self
-            .find_destack_config_path(directory, resolver)
-            .and_then(|path| self.session.load_destack_for_path(&path));
-        // create and insert synthetic package
-        let package_name = self.synthetic_package_name(directory);
-        let package = Package {
-            id: package_id,
-            package_version: PackageVersion::INITIAL,
-            kind: PackageKind::Synthetic,
-            uri: Uri::from_path(directory),
-            path: Some(directory.to_path_buf()),
-            name: Some(package_name),
-            version: None,
-            manifest: None,
-            config,
-            tsconfig: None,
-            targets: Default::default(),
+        let package_path = if directory.is_absolute() {
+            directory.to_path_buf()
+        } else {
+            self.repository.workspace_root().join(directory)
         };
-        self.program.packages.insert(package);
-        self.refresh_package_destack_config(package_id, directory, resolver);
 
-        Ok((package_id, Some(directory.to_path_buf())))
+        Ok((package_id, Some(package_path)))
     }
-
-    /// Build a synthetic package name from a directory.
-    fn synthetic_package_name(&self, directory: &Path) -> String {
-        let name = directory
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("synthetic");
-        format!("<{name}>")
-    }
-
     /// Normalize one triple slash `reference lib` target to a builtin lib name.
     fn reference_lib_name(target: &str) -> Option<String> {
         let target = target.trim();
@@ -960,13 +974,20 @@ impl Compiler {
 
     /// Return the entry module id for a loaded builtin lib module set.
     fn entry_module_id(
-        modules: &destack_workspace::ModuleRegistry,
+        repository: &destack_workspace::Repository,
         module_ids: &[ModuleId],
     ) -> ModuleId {
+        let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+        let revision = repository
+            .current(&reference)
+            .expect("workspace revision should be tracked");
         let mut fallback = None;
         for module_id in module_ids {
-            let module = modules.get(*module_id);
-            let module = module.as_ref();
+            let module = repository
+                .module(revision, *module_id)
+                .ok()
+                .flatten()
+                .expect("builtin module snapshot should exist");
             let uri = module.uri.as_ref();
             if uri.ends_with("/index.d.ts")
                 || uri.ends_with("/index.d.ds")

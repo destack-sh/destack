@@ -1,4 +1,5 @@
 use super::*;
+use crate::CompilerContext;
 use crate::analyze::StaticMemberSymbolKind;
 use crate::analyze::common::{
     AnalyzeIndex, CanonicalSymbolMode, InferContext, ModuleSymbolView, ModuleTypeView,
@@ -53,7 +54,10 @@ impl Compiler {
             return Some(symbol);
         }
 
-        let symbol_name = self.program.strings.intern(well_known_symbol.export_name());
+        let symbol_name = self
+            .repository
+            .strings
+            .intern(well_known_symbol.export_name());
         let symbol_key = StaticKey::Name(symbol_name);
         if let Some(symbol) = self
             .get_library_symbol_sources_for_space_order(
@@ -190,6 +194,7 @@ impl Compiler {
 
             let (normalized_symbol, has_concrete_primary_declaration, next_symbol) = self
                 .with_module_symbols_or_local_for_artifact(
+                    view.compiler_context,
                     view.module,
                     view.profile,
                     current_symbol.module_id,
@@ -277,7 +282,11 @@ impl Compiler {
         }
 
         let remote_dir = self
-            .require_artifact_dir_analyzed(member_symbol.module_id, ctx.profile)
+            .require_artifact_dir_analyzed(
+                ctx.compiler_context.revision(),
+                member_symbol.module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
         let mut remote_snapshot = remote_dir.types.as_ref().clone();
         let remote_symbol_entry = remote_dir.symbols.get_symbol(member_symbol.local_id);
@@ -311,11 +320,13 @@ impl Compiler {
                     member_type.into_global_any(primary_declaration.module_id),
                 );
                 if remote_type_id.is_none() {
-                    let remote_options =
-                        self.analyze_context_options_for_module(member_symbol.module_id);
-                    let remote_module = self.program.modules.get(member_symbol.module_id);
+                    let remote_options = ctx
+                        .compiler_context
+                        .analyze_context_options_for_module(member_symbol.module_id);
+                    let remote_module = ctx.compiler_context.module(member_symbol.module_id);
                     let remote_module = remote_module.as_ref();
                     let mut view = TypeContext::new(
+                        ctx.compiler_context,
                         remote_module,
                         ctx.profile,
                         &remote_options,
@@ -361,6 +372,7 @@ impl Compiler {
                 // resolve nominal members first
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.module.id,
                     ctx.profile,
@@ -383,6 +395,7 @@ impl Compiler {
                 // resolve implicit members for primitive and literal receivers
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.module.id,
                     ctx.profile,
@@ -408,6 +421,7 @@ impl Compiler {
                     let element_ty = ctx.types.get_type(*element_id).clone();
                     let mut visited = Vec::new();
                     let mut member_symbol = self.resolve_member_symbol_for_type(
+                        ctx.compiler_context,
                         ctx.module,
                         ctx.module.id,
                         ctx.profile,
@@ -426,6 +440,7 @@ impl Compiler {
                             ctx.types.symbol_for_instance_type(*element_id)
                         {
                             member_symbol = self.resolve_member_symbol_for_symbol(
+                                ctx.compiler_context,
                                 ctx.module,
                                 ctx.module.id,
                                 ctx.profile,
@@ -462,6 +477,7 @@ impl Compiler {
                 // resolve implicit well known member resolution
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.module.id,
                     ctx.profile,
@@ -523,6 +539,7 @@ impl Compiler {
         let nominal_receiver = if let Some(nominal_symbol) = receiver_context.nominal_symbol {
             let mut visited = Vec::new();
             let member_symbol = self.resolve_member_symbol_for_symbol(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.module.id,
                 ctx.profile,
@@ -598,6 +615,7 @@ impl Compiler {
 
         let mut visited = Vec::new();
         self.resolve_member_symbol_for_symbol(
+            ctx.compiler_context,
             ctx.module,
             ctx.module.id,
             ctx.profile,
@@ -636,7 +654,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         member: &str,
     ) -> bool {
-        let member_key = self.program.strings.intern(member);
+        let member_key = self.repository.strings.intern(member);
         match tree.get(expression_id) {
             Expression::Member { left, name, .. } => {
                 *name == Some(member_key) && self.is_import_meta_chain(tree, *left)
@@ -869,6 +887,7 @@ impl Compiler {
     /// Resolve the member symbol for a type and member key.
     pub(crate) fn resolve_member_symbol_for_type(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
@@ -891,6 +910,7 @@ impl Compiler {
                     return Ok(None);
                 };
                 self.resolve_member_symbol_for_symbol(
+                    context,
                     module,
                     owner_module_id,
                     profile,
@@ -910,6 +930,7 @@ impl Compiler {
                 for element_id in element_ids {
                     let element_ty = types.get_type(element_id).clone();
                     resolved = self.resolve_member_symbol_for_type(
+                        context,
                         module,
                         owner_module_id,
                         profile,
@@ -930,6 +951,7 @@ impl Compiler {
             }
             Type::Reference { symbol, .. } => {
                 let resolved = self.resolve_member_symbol_for_symbol(
+                    context,
                     module,
                     owner_module_id,
                     profile,
@@ -945,7 +967,7 @@ impl Compiler {
                 if resolved.is_some() {
                     resolved
                 } else if self.symbol_is_static_parameter(
-                    SymbolTypeView::new(module, profile, symbols, types),
+                    SymbolTypeView::new(context, module, profile, symbols, types),
                     *symbol,
                 ) {
                     if let Some(constraint_type_id) =
@@ -961,6 +983,7 @@ impl Compiler {
                             None
                         } else {
                             self.resolve_member_symbol_for_type(
+                                context,
                                 module,
                                 owner_module_id,
                                 profile,
@@ -995,7 +1018,7 @@ impl Compiler {
         let mut symbol =
             self.resolve_implicit_well_known_carrier_symbol(profile, well_known_symbol);
         if symbol.is_none() && module.is_user() && self.options.load_libraries {
-            self.require_library_environment(profile)
+            self.require_library_environment(context.revision(), profile)
                 .map_err(AnalyzeError::from)?;
             symbol = self.resolve_implicit_well_known_carrier_symbol(profile, well_known_symbol);
         }
@@ -1004,11 +1027,12 @@ impl Compiler {
             return Ok(None);
         };
         let symbol = self.remap_typevalue_symbol_to_type_space(
-            ModuleSymbolView::new(module, profile, symbols),
+            ModuleSymbolView::new(context, module, profile, symbols),
             index,
             symbol,
         )?;
         self.resolve_member_symbol_for_symbol(
+            context,
             module,
             owner_module_id,
             profile,
@@ -1026,6 +1050,7 @@ impl Compiler {
     /// Resolve the member symbol for a nominal type symbol.
     pub(crate) fn resolve_member_symbol_for_symbol(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
@@ -1052,6 +1077,7 @@ impl Compiler {
                 || symbol_entry.origin.is_global_augmentation()
                 || self.module_is_ambient_lib(module);
             let resolved = self.resolve_member_symbol_in_module(
+                context,
                 module,
                 owner_module_id,
                 profile,
@@ -1072,6 +1098,7 @@ impl Compiler {
 
             // apply visible extensions only after declaration, merge, and lineage lookup
             return self.resolve_member_symbol_in_extensions(
+                context,
                 module,
                 profile,
                 index,
@@ -1090,16 +1117,17 @@ impl Compiler {
         }
 
         let owner_dir = self
-            .require_indexed_dir_declared(index, symbol.module_id, profile)
+            .require_indexed_dir_declared(index, context.revision(), symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
         let owner_symbol_entry = owner_dir.symbols.get_symbol(symbol.local_id);
-        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = context.module(symbol.module_id);
         let remote_module = remote_module.as_ref();
         let is_ambient_lib = self.module_is_ambient_lib(remote_module);
         let allow_merge = remote_module.language_type.supports_declaration_merging()
             || owner_symbol_entry.origin.is_global_augmentation()
             || is_ambient_lib;
         let resolved = self.resolve_member_symbol_in_module(
+            context,
             module,
             symbol.module_id,
             profile,
@@ -1120,6 +1148,7 @@ impl Compiler {
 
         // apply visible extensions only after remote declaration, merge, and lineage lookup
         self.resolve_member_symbol_in_extensions(
+            context,
             module,
             profile,
             index,
@@ -1137,6 +1166,7 @@ impl Compiler {
     /// This follows infer_member_of_symbol lookup order using module data.
     pub(crate) fn resolve_member_symbol_in_module(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
@@ -1155,6 +1185,7 @@ impl Compiler {
 
         // step 1: check members declared directly on this symbol
         if let Some(member_symbol) = self.find_member_symbol_in_declaration(
+            context.revision(),
             owner_module_id,
             profile,
             tree,
@@ -1177,6 +1208,7 @@ impl Compiler {
                     }
 
                     if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
+                        context,
                         module,
                         owner_module_id,
                         profile,
@@ -1204,6 +1236,7 @@ impl Compiler {
                     MemberLookupMode::Any => GlobalMergeCategory::Any,
                 };
                 let merge_symbols = self.collect_global_merge_sources_for_key(
+                    context.revision(),
                     module,
                     index,
                     symbols,
@@ -1221,6 +1254,7 @@ impl Compiler {
                         }
 
                         if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
+                            context,
                             module,
                             owner_module_id,
                             profile,
@@ -1246,6 +1280,7 @@ impl Compiler {
             // follow extends first
             if let Some(extends) = lineage.extends
                 && let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
+                    context,
                     module,
                     owner_module_id,
                     profile,
@@ -1265,6 +1300,7 @@ impl Compiler {
             // check embedded types
             for embedded in &lineage.embedded {
                 if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
+                    context,
                     module,
                     owner_module_id,
                     profile,
@@ -1287,6 +1323,7 @@ impl Compiler {
     /// Resolve members from extensions visible in the current module.
     pub(crate) fn resolve_member_symbol_in_extensions(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         index: &AnalyzeIndex,
@@ -1300,22 +1337,23 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // check visible extensions for this symbol
         let extension_symbols = self.visible_extension_symbols_for_target(
-            SymbolTypeView::new(module, profile, symbols, types),
+            SymbolTypeView::new(context, module, profile, symbols, types),
             symbol,
         )?;
         for extension_symbol in extension_symbols {
             let Some(extension) = self.extension_for_symbol_in_module(
-                ModuleTypeView::new(module, profile, types),
+                ModuleTypeView::new(context, module, profile, types),
                 extension_symbol,
             )?
             else {
                 continue;
             };
-            if !self.is_extension_visible(module, profile, &extension)? {
+            if !self.is_extension_visible(context.revision(), module, profile, &extension)? {
                 continue;
             }
 
             let member_symbol = self.find_member_symbol_in_extension(
+                context,
                 module,
                 owner_module_id,
                 profile,
@@ -1338,6 +1376,7 @@ impl Compiler {
     /// Find a member symbol inside an extension declaration.
     pub(crate) fn find_member_symbol_in_extension(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         owner_module_id: ModuleId,
         profile: ProfileId,
@@ -1352,6 +1391,7 @@ impl Compiler {
         // reuse local module data when the extension is local
         if extension_symbol.module_id == module.id {
             return Ok(self.find_member_symbol_in_declaration(
+                context.revision(),
                 owner_module_id,
                 profile,
                 tree,
@@ -1365,6 +1405,7 @@ impl Compiler {
 
         if extension_symbol.module_id == owner_module_id {
             return Ok(self.find_member_symbol_in_declaration(
+                context.revision(),
                 extension_symbol.module_id,
                 profile,
                 tree,
@@ -1377,6 +1418,7 @@ impl Compiler {
         }
 
         self.require_remote_artifact_dir(
+            context,
             owner_module_id,
             extension_symbol.module_id,
             profile,
@@ -1384,9 +1426,15 @@ impl Compiler {
         )
         .map_err(AnalyzeError::from)?;
         let snapshot = self
-            .require_indexed_dir_declared(index, extension_symbol.module_id, profile)
+            .require_indexed_dir_declared(
+                index,
+                context.revision(),
+                extension_symbol.module_id,
+                profile,
+            )
             .map_err(AnalyzeError::from)?;
         Ok(self.find_member_symbol_in_declaration(
+            context.revision(),
             extension_symbol.module_id,
             profile,
             &snapshot.tree,
@@ -1401,6 +1449,7 @@ impl Compiler {
     /// Find a member symbol inside a declaration for a key.
     pub(crate) fn find_member_symbol_in_declaration(
         &self,
+        revision: destack_workspace::Revision,
         owner_module_id: ModuleId,
         profile: ProfileId,
         tree: &NodeTree,
@@ -1452,7 +1501,9 @@ impl Compiler {
                     }
 
                     let static_key = member.key().and_then(|key| {
-                        self.static_key_from_dynamic_key(profile, tree, symbols, types, *key)
+                        self.static_key_from_dynamic_key(
+                            revision, profile, tree, symbols, types, *key,
+                        )
                     });
 
                     if let Some(static_key) = static_key
@@ -1478,7 +1529,7 @@ impl Compiler {
                 }
 
                 let static_key = member.key().and_then(|key| {
-                    self.static_key_from_dynamic_key(profile, tree, symbols, types, *key)
+                    self.static_key_from_dynamic_key(revision, profile, tree, symbols, types, *key)
                 });
 
                 if let Some(static_key) = static_key

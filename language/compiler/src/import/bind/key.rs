@@ -14,7 +14,7 @@ impl Compiler {
     pub(super) fn bind_name(&self, ast: &Ast, name: ast::Name) -> Name {
         // intern the name into the program string pool
         let name_id = name.string();
-        let name_id = self.program.strings.intern_from(&ast.strings, name_id);
+        let name_id = self.repository.strings.intern_from(&ast.strings, name_id);
 
         // preserve the name flavor
         match name {
@@ -44,18 +44,18 @@ impl Compiler {
                 // numeric keys evaluate to canonical string representation
                 let source = ast.strings.get(string_id);
                 let canonical = evaluate_numeric_literal(&source);
-                let name = self.program.strings.intern(&canonical);
+                let name = self.repository.strings.intern(&canonical);
                 DynamicKey::Number(name)
             }
             ast::Key::Name(name) => {
                 let name = self
-                    .program
+                    .repository
                     .strings
                     .intern_from(&ast.strings, name.string());
                 DynamicKey::Name(name)
             }
             ast::Key::Private(name) => {
-                let name = self.program.strings.intern_from(&ast.strings, name);
+                let name = self.repository.strings.intern_from(&ast.strings, name);
                 DynamicKey::Private(name)
             }
             ast::Key::Expression(expression) => {
@@ -76,7 +76,7 @@ impl Compiler {
                 DynamicKey::Expression(expression)
             }
             ast::Key::NamedExpression { name, key } => {
-                let name = self.program.strings.intern_from(&ast.strings, name);
+                let name = self.repository.strings.intern_from(&ast.strings, name);
                 let key = self.bind_expression(
                     module,
                     ast,

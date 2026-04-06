@@ -34,8 +34,7 @@ impl Compiler {
         expression: &Expression,
     ) {
         // cache strict mode once per expression validation
-        let is_strict =
-            self.program.modules.source_type(ctx.module.id).is_module() || options.always_strict;
+        let is_strict = ctx.module.source_type.is_module() || options.always_strict;
 
         match expression {
             Expression::Labelled { label, .. } => {
@@ -511,7 +510,7 @@ impl Compiler {
 
     /// Return true when a name is reserved in strict identifier reference positions.
     fn strict_reserved_reference_name(&self, name: StringId) -> bool {
-        let name_str = self.program.strings.get(name);
+        let name_str = self.repository.strings.get(name);
         let Ok(keyword) = Keyword::from_str(name_str.as_ref()) else {
             return false;
         };
@@ -1042,8 +1041,8 @@ impl Compiler {
         } = tree.get(expression_id)
         {
             let starts_with_new_target = path.segments.len() >= 2
-                && self.program.strings.get(path.segments[0]).as_str() == "new"
-                && self.program.strings.get(path.segments[1]).as_str() == "target";
+                && self.repository.strings.get(path.segments[0]).as_str() == "new"
+                && self.repository.strings.get(path.segments[1]).as_str() == "target";
             if starts_with_new_target {
                 return true;
             }
@@ -1059,7 +1058,7 @@ impl Compiler {
             return false;
         };
 
-        let target_name = self.program.strings.intern("target");
+        let target_name = self.repository.strings.intern("target");
         if *name != Some(target_name) {
             return false;
         }
@@ -1087,7 +1086,7 @@ impl Compiler {
                 ..
             } => {
                 path.segments.len() == 1
-                    && self.program.strings.get(path.segments[0]).as_str() == "new"
+                    && self.repository.strings.get(path.segments[0]).as_str() == "new"
             }
             _ => false,
         }
@@ -1376,7 +1375,7 @@ impl Compiler {
                 name,
                 pattern: None,
                 ..
-            } => self.program.strings.get(*name) == "async",
+            } => self.repository.strings.get(*name) == "async",
             Pattern::Expression { value } => self.expression_is_async_identifier(tree, *value),
             _ => false,
         }
@@ -1408,7 +1407,9 @@ impl Compiler {
                 path,
                 static_arguments: None,
                 ..
-            } => path.segments.len() == 1 && self.program.strings.get(path.segments[0]) == "async",
+            } => {
+                path.segments.len() == 1 && self.repository.strings.get(path.segments[0]) == "async"
+            }
             _ => false,
         }
     }
@@ -2404,7 +2405,7 @@ impl Compiler {
         properties: &[LocalNodeId<Property>],
     ) {
         // reserve the proto setter key once per object
-        let proto_name = self.program.strings.intern("__proto__");
+        let proto_name = self.repository.strings.intern("__proto__");
 
         // validate each property for object literal restrictions
         for property_id in properties {
@@ -2741,7 +2742,7 @@ impl Compiler {
                     if static_arguments.is_some() || path.segments.len() != 1 {
                         return false;
                     }
-                    let name = self.program.strings.get(path.segments[0]);
+                    let name = self.repository.strings.get(path.segments[0]);
                     return name == "intrinsic";
                 }
                 _ => return false,
@@ -3088,6 +3089,7 @@ impl Compiler {
 
         // resolve the import type symbol
         let resolved_symbol = self.query_import_type_symbol(
+            ctx.compiler_context.revision(),
             ctx.module,
             ctx.profile,
             expression_id.into_any(),
@@ -3162,10 +3164,7 @@ impl Compiler {
         }
 
         // check symbols from dependent modules
-        let Some(target_dir) = self
-            .artifacts
-            .dir_declared(symbol_id.module_id, ctx.profile)
-        else {
+        let Some(target_dir) = self.dir_declared(symbol_id.module_id, ctx.profile) else {
             return false;
         };
         let symbol = target_dir.symbols.get_symbol(symbol_id.local_id);
@@ -3266,7 +3265,7 @@ impl Compiler {
                 if path.segments.len() != 1 {
                     return false;
                 }
-                let name = self.program.strings.get(path.segments[0]);
+                let name = self.repository.strings.get(path.segments[0]);
                 name == "_"
             }
             _ => false,

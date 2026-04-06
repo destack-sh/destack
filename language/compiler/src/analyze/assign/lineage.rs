@@ -97,6 +97,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> Option<Lineage> {
         self.lineage_for_symbol_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol,

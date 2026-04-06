@@ -5,18 +5,19 @@ use destack_artifact::{
 };
 use destack_builtin::builtin_library;
 use destack_dir::GlobalSymbolId;
-use destack_workspace::{BuiltinLibrarySelection, Builtins, ProfileId};
+use destack_workspace::{BuiltinLibrarySelection, Builtins, ProfileId, Revision};
 use indexmap::IndexMap;
 
 use crate::resolve::module::globals::GlobalSymbolTable;
 use crate::timing::tags;
-use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, RequirementCollector, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve the library environment for one profile.
-    pub fn resolve_library_environment(
+    pub(crate) fn resolve_library_environment(
         &self,
+        revision: Revision,
         profile_id: ProfileId,
     ) -> ResolveResult<LibraryEnvironment> {
         if self.library_environment(profile_id).is_some() {
@@ -28,7 +29,7 @@ impl Compiler {
         }
 
         let artifact_key = ArtifactKey::library_environment(profile_id);
-        match self.load_library_environment_image(profile_id) {
+        match self.load_library_environment_image(revision, profile_id) {
             Ok(Some(environment)) => return Ok(environment),
             Ok(None) => {}
             Err(error) => {
@@ -40,16 +41,14 @@ impl Compiler {
             return Ok(LibraryEnvironment::default());
         }
 
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(LibraryEnvironment::default());
-        };
+        let builtins = self.repository.builtins.as_ref();
         let _timing = self.timing_scope(tags::RESOLVE_LIBS);
 
-        self.require_language_environment(profile_id)
+        self.require_language_environment(revision, profile_id)
             .map_err(ResolveError::from)?;
 
         // collect libraries to resolve
-        let profile_key = self.program.profile(profile_id).key.clone();
+        let profile_key = self.profile(profile_id).key.clone();
         let BuiltinLibrarySelection {
             ordered_libraries,
             modules_to_resolve,
@@ -61,10 +60,10 @@ impl Compiler {
         };
 
         // resolve selected library surfaces in order
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         for module_ids in &modules_to_resolve {
             for &module_id in module_ids {
-                if let Err(error) = self.require_dir_resolved(module_id, profile_id)
+                if let Err(error) = self.require_dir_resolved(revision, module_id, profile_id)
                     && let Some(error) = collector.try_collect::<(), _>(Err(error))
                 {
                     let requirement = error.into_requirement();
@@ -79,13 +78,18 @@ impl Compiler {
         // build the global symbol cache for library modules
         let global_cache = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_GLOBAL_CACHE);
-            self.build_global_symbol_table_freestanding(&library_modules, profile_id)?
+            self.build_global_symbol_table_freestanding(revision, &library_modules, profile_id)?
         };
 
         // collect selected symbol source facts once
         let symbol_sources = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_AMBIENT_SOURCES);
-            self.collect_library_symbol_sources(profile_id, &library_modules, &global_cache)
+            self.collect_library_symbol_sources(
+                revision,
+                profile_id,
+                &library_modules,
+                &global_cache,
+            )
         };
         let declared_symbol_sources = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_DECLARED_SYMBOLS);
@@ -113,11 +117,9 @@ impl Compiler {
             return Ok(Vec::new());
         }
 
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(Vec::new());
-        };
+        let builtins = self.repository.builtins.as_ref();
 
-        let profile_key = self.program.profile(profile_id).key.clone();
+        let profile_key = self.profile(profile_id).key.clone();
         let selection = self.builtin_library_selection(builtins, &profile_key)?;
 
         Ok(selection.library_modules)
@@ -136,11 +138,9 @@ impl Compiler {
             return Ok(Vec::new());
         }
 
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(Vec::new());
-        };
+        let builtins = self.repository.builtins.as_ref();
 
-        let profile_key = self.program.profile(profile_id).key.clone();
+        let profile_key = self.profile(profile_id).key.clone();
         let selection = self.builtin_library_selection(builtins, &profile_key)?;
 
         Ok(selection.ambient_modules)
@@ -193,6 +193,7 @@ impl Compiler {
     /// Collect selected library symbol sources grouped by key and space.
     fn collect_library_symbol_sources(
         &self,
+        revision: Revision,
         profile_id: ProfileId,
         library_modules: &[destack_source::ModuleId],
         global_cache: &GlobalSymbolTable,
@@ -214,7 +215,10 @@ impl Compiler {
 
             sources.insert(
                 LibrarySymbolKey {
-                    key: CanonicalStaticKey::from_static_key(group_key.key, &self.program.strings),
+                    key: CanonicalStaticKey::from_static_key(
+                        group_key.key,
+                        &self.repository.strings,
+                    ),
                     space: group_key.space,
                 },
                 filtered,
@@ -224,7 +228,7 @@ impl Compiler {
         // supplement merge sources from module scopes and exports
         for &module_id in library_modules {
             let dir = self
-                .require_artifact_dir_resolved(module_id, profile_id)
+                .require_artifact_dir_resolved(revision, module_id, profile_id)
                 .map_err(ResolveError::from)
                 .unwrap_or_else(|_| unreachable!());
             let symbols_table = &dir.symbols;
@@ -235,7 +239,7 @@ impl Compiler {
             for (key, symbol_id) in symbols_table.active_named_symbols(namespace_scope) {
                 let symbol = symbols_table.get_symbol(symbol_id);
                 let group_key = LibrarySymbolKey {
-                    key: CanonicalStaticKey::from_static_key(key, &self.program.strings),
+                    key: CanonicalStaticKey::from_static_key(key, &self.repository.strings),
                     space: symbol.space,
                 };
                 let group_sources = sources.entry(group_key).or_default();
@@ -251,7 +255,7 @@ impl Compiler {
             for (key, symbol_id) in symbols_table.active_named_symbols(global_scope) {
                 let symbol = symbols_table.get_symbol(symbol_id);
                 let group_key = LibrarySymbolKey {
-                    key: CanonicalStaticKey::from_static_key(key, &self.program.strings),
+                    key: CanonicalStaticKey::from_static_key(key, &self.repository.strings),
                     space: symbol.space,
                 };
                 let group_sources = sources.entry(group_key).or_default();
@@ -268,7 +272,7 @@ impl Compiler {
                 };
 
                 let group_key = LibrarySymbolKey {
-                    key: CanonicalStaticKey::from_static_key(*key, &self.program.strings),
+                    key: CanonicalStaticKey::from_static_key(*key, &self.repository.strings),
                     space: *space,
                 };
                 let group_sources = sources.entry(group_key).or_default();
@@ -315,12 +319,7 @@ impl Compiler {
                 })?;
 
             // load the library modules
-            let module_ids = builtins.load_library(
-                lib_name,
-                self.program.files.clone(),
-                self.program.modules.clone(),
-                profile_key,
-            );
+            let module_ids = self.repository.load_builtin_library(lib_name, profile_key);
             let module_ids = module_ids.ok_or_else(|| ResolveError::MissingBuiltinLibrary {
                 name: lib_name.clone(),
             })?;
@@ -383,19 +382,16 @@ impl Compiler {
         &self,
         libs: &[&str],
     ) -> ResolveResult<Vec<destack_source::ModuleId>> {
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(Vec::new());
-        };
+        let builtins = self.repository.builtins.as_ref();
 
         let mut lib_names: Vec<String> = libs.iter().map(|lib| (*lib).to_string()).collect();
         if !lib_names.iter().any(|name| name == "globals") {
             lib_names.push("globals".to_string());
         }
 
-        let default_profile_id = self
-            .program
-            .default_profile_id_for_module(self.program.root_module_id);
-        let mut profile_key = self.program.profile(default_profile_id).key.clone();
+        let default_profile_id =
+            self.default_profile_id_for_module(self.repository.root_module_id());
+        let mut profile_key = self.profile(default_profile_id).key.clone();
         profile_key.lib = lib_names;
 
         let selection = self.builtin_library_selection(builtins, &profile_key)?;

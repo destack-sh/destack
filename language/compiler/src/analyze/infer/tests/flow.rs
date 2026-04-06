@@ -1,4 +1,5 @@
 use super::*;
+use destack_dir::NormalizationMode;
 
 /// Preserve function body and branch value tails from declared into analyzed DIR.
 #[test]
@@ -16,12 +17,13 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 
     // check the parsed ast shape first
     test.compiler
-        .run_to_completion(|compiler| compiler.process_ast(module_id))
+        .run_to_completion(test.program.current_revision(), |compiler, context| {
+            compiler.process_ast(module_id, context)
+        })
         .unwrap_or_else(|error| panic!("failed to parse module {module_id:?}: {error:?}"));
     let ast = test
-        .compiler
-        .artifacts
-        .ast(module_id)
+        .repository
+        .ast(test.program.current_revision(), module_id)
         .expect("expected ast artifact");
     assert_choose_body_if_tails_in_ast_tree(&ast.tree, &ast.roots);
 
@@ -224,7 +226,7 @@ fn test_build_flow_graph_short_circuit_guard() {
     test.analyze_module_and_check_clean(module_id);
 
     // load tree data
-    let module = test.program.modules.get(module_id);
+    let module = test.program.module_descriptor(module_id);
     let module = module.as_ref();
     let profile = test.default_profile_id(module_id);
     let dir = test.artifact_dir(module_id, profile);
@@ -285,7 +287,9 @@ fn test_build_flow_graph_short_circuit_guard() {
     // build the flow graph
     let graph = FlowGraphBuilder::new(module.id, tree).build(condition_id);
     let context = InferState::new(profile, AnalyzeOptions::from(&CompilerOptions::default()));
+    let compiler_context = test.context();
     let mut flow_ctx = TypeContext::new(
+        &compiler_context,
         module,
         profile,
         &context.options,
@@ -476,38 +480,56 @@ fn test_analyze_flow_helpers_converge_for_loop_and_union_narrowing() {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let view = test.view(module_id);
-    let body_str_symbol = test.expect_nth_function_symbol(module_id, 2);
     let request_body_symbol = test.resolve_to_symbol("test.ts", "requestBody").unwrap();
     let redirect_allowed_symbol = test
         .resolve_to_symbol("test.ts", "redirectAllowed")
         .unwrap();
 
-    let _body_str_type_id = view
-        .types()
-        .get_value_type_id(body_str_symbol)
-        .expect("expected bodyStr type");
+    test.with_dir_types_mut(module_id, |module, profile, _dir, tree, symbols, types| {
+        let options = test.analyze_context_options_for_module(module.id);
+        let compiler_context = test.context();
+        let mut ctx = TypeContext::new(
+            &compiler_context,
+            module,
+            profile,
+            &options,
+            tree,
+            symbols,
+            types,
+            AnalyzeIndex::default(),
+        );
 
-    // request body stays string after union narrowing
-    let request_body_type = view.types().get_value_type(request_body_symbol).unwrap();
-    assert_eq!(
-        *request_body_type,
-        Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::String)
-        }
-    );
+        // request body normalizes back to string after union narrowing
+        let request_body_type_id = ctx.types.get_value_type_id(request_body_symbol).unwrap();
+        let request_body_type_id = test.compiler.normalize_type(
+            &mut ctx.reborrow(),
+            request_body_type_id,
+            NormalizationMode::Assign,
+        );
+        assert_eq!(
+            *ctx.types.get_type(request_body_type_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String)
+            }
+        );
 
-    // redirect result stays boolean after loop convergence
-    let redirect_allowed_type = view
-        .types()
-        .get_value_type(redirect_allowed_symbol)
-        .unwrap();
-    assert_eq!(
-        *redirect_allowed_type,
-        Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Boolean)
-        }
-    );
+        // redirect result stays boolean after loop convergence
+        let redirect_allowed_type_id = ctx
+            .types
+            .get_value_type_id(redirect_allowed_symbol)
+            .unwrap();
+        let redirect_allowed_type_id = test.compiler.normalize_type(
+            &mut ctx.reborrow(),
+            redirect_allowed_type_id,
+            NormalizationMode::Assign,
+        );
+        assert_eq!(
+            *ctx.types.get_type(redirect_allowed_type_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+            }
+        );
+    });
 }
 
 /// Collapse string literal returns under a string return family.

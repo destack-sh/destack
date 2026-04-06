@@ -1,50 +1,48 @@
-use crate::{Compiler, EmitError, EmitResult};
+use crate::{Compiler, CompilerContext};
+use destack_source::{PackageId, TargetId};
 
-use destack_source::PackageId;
-use destack_workspace::TargetId;
+use super::EmitError;
 
 impl Compiler {
     /// Emit all outputs for a package target.
-    pub fn emit_package(&self, package_id: PackageId, target_id: &TargetId) -> EmitResult<()> {
+    pub fn emit_package(
+        &self,
+        package_id: PackageId,
+        target_id: &TargetId,
+        context: &CompilerContext<'_>,
+    ) -> Result<(), EmitError> {
+        // current snapshot
+        let package = context.package(package_id);
+        let package_options = context.package_options(package_id);
+
         // verify target exists
-        let has_target = {
-            let package_ref = self.program.packages.get(package_id);
-            let package = package_ref.read();
-            package.targets.contains_key(target_id)
-        };
-        if !has_target {
+        if !package.targets.contains_key(target_id) {
             return Err(EmitError::TargetNotFound {
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
             });
         }
 
         // honor noEmit configuration
-        if self
-            .program
-            .packages
-            .get(package_id)
-            .read()
-            .config
+        if package_options
             .as_ref()
-            .is_some_and(|config| config.options.compiler.no_emit)
+            .is_some_and(|config| config.compiler.no_emit)
         {
             return Err(EmitError::NoEmit {
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
             });
         }
 
         // ensure linking is complete
-        self.require_package_output(package_id, target_id)?;
+        self.require_package_output(context.revision(), package_id, target_id)?;
 
         // get the package output artifact
         let emit = self
-            .artifacts
             .package_output(package_id, target_id)
-            .ok_or_else(|| EmitError::TargetNotFound {
+            .ok_or(EmitError::TargetNotFound {
                 package: package_id,
-                target: target_id.clone(),
+                target: *target_id,
             })?;
 
         // emit each file using its precomputed output path

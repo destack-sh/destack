@@ -1,11 +1,12 @@
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, SymbolTable, SymbolType};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, Revision};
 
 use crate::{Compiler, ResolveError, ResolveResult};
 
 impl Compiler {
     pub(super) fn resolve_canonical_symbol_chain(
         &self,
+        revision: Revision,
         profile_id: ProfileId,
         node: GlobalNodeIdAny,
         start_symbol: GlobalSymbolId,
@@ -27,7 +28,12 @@ impl Compiler {
             visited.push(current);
 
             // ensure the target module's direct symbols are resolved (may yield) - skip if it's the calling module
-            self.require_dir_prepared_if_other(calling_module, current.module_id, profile_id)?;
+            self.require_dir_prepared_if_other(
+                revision,
+                calling_module,
+                current.module_id,
+                profile_id,
+            )?;
 
             // read the symbol state
             let (symbol_type, canonical_symbol, target_symbol) =
@@ -36,7 +42,7 @@ impl Compiler {
                     (symbol.ty, symbol.canonical_symbol, symbol.target_symbol)
                 } else {
                     let dir = self
-                        .require_artifact_dir_prepared(current.module_id, profile_id)
+                        .require_artifact_dir_prepared(revision, current.module_id, profile_id)
                         .map_err(ResolveError::from)?;
                     let symbol = dir.symbols.get_symbol(current.local_id);
                     (symbol.ty, symbol.canonical_symbol, symbol.target_symbol)
@@ -65,6 +71,7 @@ impl Compiler {
     /// Resolve and set the canonical_symbol for a symbol that has a target_symbol.
     pub(crate) fn resolve_canonical_symbol(
         &self,
+        revision: Revision,
         _module: &Module,
         symbols: &mut SymbolTable,
         node: GlobalNodeIdAny,
@@ -82,7 +89,7 @@ impl Compiler {
         };
         // follow the chain from target
         let canonical_symbol =
-            self.resolve_canonical_symbol_chain(profile, node, target_symbol, symbols)?;
+            self.resolve_canonical_symbol_chain(revision, profile, node, target_symbol, symbols)?;
 
         // set the canonical_symbol
         symbols.get_symbol_mut(symbol_id.local_id).canonical_symbol = Some(canonical_symbol);

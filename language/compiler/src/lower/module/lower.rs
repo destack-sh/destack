@@ -5,12 +5,12 @@ use destack_artifact::{DirAnalyzed, DirDeclared, WellKnownIntrinsics};
 use destack_ast::StringId;
 use destack_core::StringPool;
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
-use destack_source::ModuleId;
-use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target, TargetId};
+use destack_source::{ModuleId, TargetId};
+use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target};
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
+use crate::{Compiler, CompilerContext, LowerError, LowerResult, RequirementError};
 
 use crate::lower::{
     BuiltinTypeLayouts, FunctionEnvironmentLayout, GlobalBinding, InstanceKey, InterfaceEntry,
@@ -24,6 +24,8 @@ use crate::lower::{
 pub(crate) struct ModuleLowerer<'a> {
     /// Provide access to the compiler for shared resources.
     pub(crate) compiler: &'a Compiler,
+    /// Provide access to the pinned revision for cross-module reads.
+    pub(crate) context: &'a CompilerContext<'a>,
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
@@ -133,6 +135,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Create a new module lowering context.
     pub(crate) fn new(
         compiler: &'a Compiler,
+        context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         dir_tree: &'a dir::NodeTree,
@@ -143,13 +146,18 @@ impl<'a> ModuleLowerer<'a> {
         captures: &'a dir::CaptureTable,
         target: &'a TargetId,
         pointer_bytes: u8,
-    ) -> Self {
+    ) -> LowerResult<Self> {
         // initialize the module builder
         let mut builder = mir::ModuleBuilder::new_with_verify(compiler.options.verify_mir);
         builder.set_pointer_bytes(pointer_bytes);
 
         // seed the mir string pool with program strings
-        let strings = compiler.program.strings.as_ref().clone().into_immutable();
+        let strings = compiler
+            .repository
+            .strings
+            .as_ref()
+            .clone()
+            .into_immutable();
         builder.strings().copy_from_immutable(&strings);
 
         // resolve vector builtin symbols for SIMD lowering
@@ -163,9 +171,7 @@ impl<'a> ModuleLowerer<'a> {
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
-            compiler.artifacts.clone(),
-            compiler.program.modules.clone(),
-            compiler.program.packages.clone(),
+            compiler.repository.clone(),
             vector_symbol,
         );
         let dispatch_call_name = builder.intern("@call");
@@ -173,20 +179,20 @@ impl<'a> ModuleLowerer<'a> {
         let vtable_field_name = builder.intern("@vtable");
 
         // resolve the target configuration
-        let target_config = Self::target_config_for_module(compiler, module, target);
+        let target_config = Self::target_config_for_module(context, module, target)?;
 
         // resolve runtime check policies
-        let debug = compiler.program.profile(profile).key.debug;
+        let debug = compiler.profile(profile).key.debug;
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
         let binding_abi_lowering = target_config.emit.is_native();
 
         let well_known_intrinsics = compiler
-            .artifacts
             .intrinsic_environment(profile)
             .map(|environment| environment.intrinsics.clone());
 
-        Self {
+        Ok(Self {
             compiler,
+            context,
             module_id: module.id,
             profile,
             module,
@@ -233,7 +239,7 @@ impl<'a> ModuleLowerer<'a> {
             take_platform_error_function: None,
             pending_function_bodies: VecDeque::new(),
             queued_function_bodies: HashSet::new(),
-        }
+        })
     }
 
     /// Read one committed declared DIR snapshot for a module when available.
@@ -241,9 +247,7 @@ impl<'a> ModuleLowerer<'a> {
         &self,
         module_id: ModuleId,
     ) -> Option<Arc<DirDeclared>> {
-        self.compiler
-            .artifacts
-            .dir_declared(module_id, self.profile)
+        self.compiler.dir_declared(module_id, self.profile)
     }
 
     /// Read one committed analyzed DIR snapshot for a module.
@@ -251,34 +255,44 @@ impl<'a> ModuleLowerer<'a> {
         &self,
         module_id: ModuleId,
     ) -> LowerResult<Arc<DirAnalyzed>> {
-        let snapshot = self
-            .compiler
-            .require_artifact_dir_analyzed(module_id, self.profile);
+        let snapshot = self.compiler.require_artifact_dir_analyzed(
+            self.context.revision(),
+            module_id,
+            self.profile,
+        );
         match snapshot {
             Ok(snapshot) => Ok(snapshot),
-            Err(ArtifactRequirementError::NotReady { requirement }) => {
+            Err(RequirementError::NotReady { requirement }) => {
                 Err(LowerError::Yield { requirement })
             }
-            Err(ArtifactRequirementError::Failed { requirement }) => {
+            Err(RequirementError::Failed { requirement }) => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }
     }
 
     /// Resolve the target configuration for a module.
-    fn target_config_for_module(compiler: &Compiler, module: &Module, target: &TargetId) -> Target {
-        // load the package configuration
-        let package = compiler.program.packages.get(module.package_id);
-        let package = package.read();
+    fn target_config_for_module(
+        context: &CompilerContext<'_>,
+        module: &Module,
+        target: &TargetId,
+    ) -> LowerResult<Target> {
+        let package = context.package(module.package_id);
 
         // use the configured target when present
         if let Some(target_config) = package.targets.get(target) {
-            return target_config.clone();
+            return Ok(target_config.clone());
         }
 
         // fall back to implicit targets for tests and synthetic builds
-        Target::implicit_for_name(&target.name).unwrap_or_else(|| {
-            panic!("missing target config for module {module:?} with target {target:?}")
+        let target_name = context.compiler().target_name(target);
+
+        Target::implicit_for_name(&target_name).ok_or_else(|| LowerError::Internal {
+            module: module.id,
+            message: format!(
+                "missing target config for module {:?} with target {target:?}",
+                module.id
+            ),
         })
     }
 
@@ -679,7 +693,7 @@ impl<'a> ModuleLowerer<'a> {
             if self.runtime_checks.bounds {
                 let literal_id = self
                     .compiler
-                    .program
+                    .repository
                     .strings
                     .intern(RUNTIME_CHECK_MESSAGES.bounds_check);
                 literals.insert(literal_id);
@@ -688,7 +702,7 @@ impl<'a> ModuleLowerer<'a> {
             if self.runtime_checks.null {
                 let literal_id = self
                     .compiler
-                    .program
+                    .repository
                     .strings
                     .intern(RUNTIME_CHECK_MESSAGES.null_check);
                 literals.insert(literal_id);
@@ -697,13 +711,13 @@ impl<'a> ModuleLowerer<'a> {
             if self.runtime_checks.division {
                 let zero_id = self
                     .compiler
-                    .program
+                    .repository
                     .strings
                     .intern(RUNTIME_CHECK_MESSAGES.division_by_zero);
                 literals.insert(zero_id);
                 let overflow_id = self
                     .compiler
-                    .program
+                    .repository
                     .strings
                     .intern(RUNTIME_CHECK_MESSAGES.division_overflow);
                 literals.insert(overflow_id);
@@ -712,7 +726,7 @@ impl<'a> ModuleLowerer<'a> {
             if self.runtime_checks.overflow {
                 let literal_id = self
                     .compiler
-                    .program
+                    .repository
                     .strings
                     .intern(RUNTIME_CHECK_MESSAGES.integer_overflow);
                 literals.insert(literal_id);
@@ -721,7 +735,7 @@ impl<'a> ModuleLowerer<'a> {
             if self.runtime_checks.shift {
                 let literal_id = self
                     .compiler
-                    .program
+                    .repository
                     .strings
                     .intern(RUNTIME_CHECK_MESSAGES.shift_out_of_range);
                 literals.insert(literal_id);
@@ -750,12 +764,12 @@ impl<'a> ModuleLowerer<'a> {
         // create globals in deterministic order
         let mut ordered: Vec<_> = literals.into_iter().collect();
         ordered.sort_by(|left, right| {
-            let left_value = self.compiler.program.strings.get(*left);
-            let right_value = self.compiler.program.strings.get(*right);
+            let left_value = self.compiler.repository.strings.get(*left);
+            let right_value = self.compiler.repository.strings.get(*right);
             left_value.as_ref().cmp(right_value.as_ref())
         });
         for literal_id in ordered {
-            let literal = self.compiler.program.strings.get(literal_id);
+            let literal = self.compiler.repository.strings.get(literal_id);
             let name = self.string_literal_global_name(literal_id);
             let global = self.builder.global_constant(
                 &name,
@@ -877,6 +891,7 @@ impl<'a> ModuleLowerer<'a> {
         // ensure builtin layouts are installed
         let mut builtin_layouts = BuiltinTypeLayouts::new(
             self.compiler,
+            self.context.revision(),
             self.profile,
             &mut self.builder,
             &mut self.type_lowerer,

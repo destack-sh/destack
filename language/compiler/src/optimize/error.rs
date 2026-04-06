@@ -1,12 +1,9 @@
 use destack_compiler_macros::DefineError;
 use destack_mir as mir;
-use destack_source::PackageId;
-use destack_workspace::{Program, TargetId};
+use destack_source::{PackageId, TargetId};
+use destack_workspace::Repository;
 
-use crate::{
-    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    TaskError,
-};
+use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
 
 /// Errors during the optimize phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -17,11 +14,11 @@ pub enum OptimizeError {
     // -------------------------------------------------------------------------
     /// Wait for artifact requirement.
     #[error(code = "EO000", r#yield)]
-    Yield { requirement: ArtifactRequirementSet },
+    Yield { requirement: RequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EO001", yield_failed)]
-    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
+    UnsatisfiedRequirement { requirement: RequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EO002", message = "task skipped")]

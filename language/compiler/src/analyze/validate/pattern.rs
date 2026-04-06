@@ -796,6 +796,7 @@ impl Compiler {
                 }
                 PatternField::Computed { key, pattern, .. } => {
                     let Some(key) = self.static_key_from_dynamic_key(
+                        ctx.compiler_context.revision(),
                         ctx.profile,
                         ctx.tree,
                         ctx.symbols,
@@ -1598,6 +1599,7 @@ impl Compiler {
                     Some(StaticKey::Name(*name))
                 }
                 PatternField::Computed { key: field_key, .. } => self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,

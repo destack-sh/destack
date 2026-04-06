@@ -1,15 +1,14 @@
 use crate::timing::tags;
-use crate::{Compiler, ImportError, ImportResult};
+use crate::{Compiler, CompilerContext, ImportResult};
 use destack_artifact::Ast;
 use destack_dir::{LocalScopeId, ModuleBinding, NodeTree, SymbolTable, TypeTable};
-use destack_source::{ModuleId, ModuleVersion};
+use destack_source::ModuleId;
 
 impl Compiler {
     /// Bind a module's AST to DIR (create symbols, scopes, and base DIR).
     pub(crate) fn import_module_bind(
         &self,
         module_id: ModuleId,
-        module_version: ModuleVersion,
         ast: &Ast,
         namespace_scope: LocalScopeId,
         global_augmentation_scope: LocalScopeId,
@@ -18,17 +17,16 @@ impl Compiler {
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
         roots: &mut Vec<destack_dir::LocalNodeId<destack_dir::Expression>>,
+        context: &CompilerContext<'_>,
     ) -> ImportResult<()> {
-        // skip stale tasks
-        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let _timing = self.timing_scope(tags::IMPORT_MODULE_BIND);
 
         // syntax-only modules stop at AST
-        if !self.is_code_module(module_id) {
+        if !context.is_code_module(module_id) {
             return Ok(());
         }
 
-        let module = self.program.modules.get(module_id);
+        let module = context.import_module(module_id)?;
 
         // bind module roots
         let bound_roots = {

@@ -1,12 +1,9 @@
 use std::path::PathBuf;
 
-use crate::{
-    ArtifactRequirementError, ArtifactRequirementSet, DiagnosticAnchor, DiagnosticDefinition,
-    TaskError,
-};
+use crate::{DiagnosticAnchor, DiagnosticDefinition, RequirementError, RequirementSet, TaskError};
 use destack_compiler_macros::DefineError;
-use destack_source::{FileType, PackageId, Uri};
-use destack_workspace::{Program, TargetId};
+use destack_source::{FileType, PackageId, TargetId, Uri};
+use destack_workspace::Repository;
 
 /// Errors during the emit phase.
 #[derive(Debug, Clone, PartialEq, DefineError)]
@@ -17,11 +14,11 @@ pub enum EmitError {
     // -------------------------------------------------------------------------
     /// Wait for artifact requirement.
     #[error(code = "EW000", r#yield)]
-    Yield { requirement: ArtifactRequirementSet },
+    Yield { requirement: RequirementSet },
 
     /// Yield requirement has failed.
     #[error(code = "EW001", yield_failed)]
-    UnsatisfiedRequirement { requirement: ArtifactRequirementSet },
+    UnsatisfiedRequirement { requirement: RequirementSet },
 
     /// Task was skipped due to stale versions.
     #[error(code = "EW002", message = "task skipped")]

@@ -28,13 +28,20 @@ impl Compiler {
 
         // remote declared types reuse local storage with owner syntax and symbols
         let dir = self
-            .require_indexed_dir_declared(&ctx.index, module_id, ctx.profile)
+            .require_indexed_dir_declared(
+                &ctx.index,
+                ctx.compiler_context.revision(),
+                module_id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
-        let options = self.analyze_context_options_for_module(module.id);
+        let module = ctx.compiler_context.module(module_id);
+        let options = ctx
+            .compiler_context
+            .analyze_context_options_for_module(module.id);
         let mut owner_ctx = TypeContext::new(
-            module,
+            ctx.compiler_context,
+            module.as_ref(),
             ctx.profile,
             &options,
             &dir.tree,
@@ -331,6 +338,7 @@ impl Compiler {
         let source_id = ctx.types.get_type_source(count_ty_id);
         let symbol = self
             .with_module_symbols_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,

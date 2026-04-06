@@ -415,6 +415,7 @@ impl Compiler {
                 Member::Field { key, .. } => {
                     let Some(key) = key.and_then(|key| {
                         self.static_key_from_dynamic_key(
+                            ctx.compiler_context.revision(),
                             ctx.profile,
                             ctx.tree,
                             ctx.symbols,
@@ -503,12 +504,12 @@ impl Compiler {
             return false;
         };
 
-        self.program.strings.get(*name) == "constructor"
+        self.repository.strings.get(*name) == "constructor"
     }
 
     /// Check whether a name is reserved as an intrinsic type identifier.
     fn is_reserved_type_name(&self, name: Name) -> bool {
-        let name_str = self.program.strings.get(name.string());
+        let name_str = self.repository.strings.get(name.string());
         RESERVED_TYPE_NAMES.contains(&name_str.as_ref())
     }
 
@@ -616,7 +617,7 @@ impl Compiler {
 
     /// Check whether an import alias segment is valid.
     fn is_valid_import_alias_segment(&self, segment: StringId) -> bool {
-        let name = self.program.strings.get(segment);
+        let name = self.repository.strings.get(segment);
         Keyword::from_str(name.as_ref()).is_err()
     }
 
@@ -644,7 +645,7 @@ impl Compiler {
         body_id: LocalNodeId<Expression>,
     ) -> bool {
         // intern the strict directive once for stable comparisons
-        let use_strict = self.program.strings.intern("use strict");
+        let use_strict = self.repository.strings.intern("use strict");
 
         // only block bodies can contain directive prologues
         let Expression::Block { block } = tree.get(body_id) else {

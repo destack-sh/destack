@@ -4,7 +4,7 @@ use destack_dir::{
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{ArtifactRequirementError, LowerError, LowerResult};
+use crate::{LowerError, LowerResult, RequirementError};
 
 use crate::lower::ModuleLowerer;
 
@@ -231,7 +231,7 @@ impl ModuleLowerer<'_> {
             && let Some(name) = binding.name
         {
             return Ok(Some(BindingResolution {
-                name: self.compiler.program.strings.get(name).to_string(),
+                name: self.compiler.repository.strings.get(name).to_string(),
                 is_binding: true,
             }));
         }
@@ -239,7 +239,7 @@ impl ModuleLowerer<'_> {
             && let Some(name) = binding.name
         {
             return Ok(Some(BindingResolution {
-                name: self.compiler.program.strings.get(name).to_string(),
+                name: self.compiler.repository.strings.get(name).to_string(),
                 is_binding: false,
             }));
         }
@@ -247,7 +247,7 @@ impl ModuleLowerer<'_> {
         // fall back to the symbol name
         let default_name = symbol_entry
             .name()
-            .map(|name| self.compiler.program.strings.get(name).to_string())
+            .map(|name| self.compiler.repository.strings.get(name).to_string())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.module_id)
@@ -267,17 +267,17 @@ impl ModuleLowerer<'_> {
     /// Ensure the module has been analyzed for this profile.
     pub(crate) fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
         // request analysis for the target module
-        let result = self.compiler.require_dir_analyzed(module_id, self.profile);
+        let result =
+            self.compiler
+                .require_dir_analyzed(self.context.revision(), module_id, self.profile);
         let Err(error) = result else {
             return Ok(());
         };
 
         // map task errors to lowering diagnostics
         match error {
-            ArtifactRequirementError::NotReady { requirement } => {
-                Err(LowerError::Yield { requirement })
-            }
-            ArtifactRequirementError::Failed { requirement } => {
+            RequirementError::NotReady { requirement } => Err(LowerError::Yield { requirement }),
+            RequirementError::Failed { requirement } => {
                 Err(LowerError::UnsatisfiedRequirement { requirement })
             }
         }

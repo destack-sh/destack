@@ -170,7 +170,11 @@ impl Compiler {
             symbol_entry.space
         } else {
             let dir = self
-                .require_artifact_dir_analyzed(target_symbol.module_id, state.ctx.profile)
+                .require_artifact_dir_analyzed(
+                    state.ctx.compiler_context.revision(),
+                    target_symbol.module_id,
+                    state.ctx.profile,
+                )
                 .map_err(|error| self.elaborate_error_from_requirement(error))?;
             let symbol_entry = dir.symbols.get_symbol(target_symbol.local_id);
             symbol_entry.space
@@ -715,8 +719,9 @@ impl Compiler {
                 state.types.get_type(inner_target_type_id),
                 state.types,
             ) {
-                let options = self.analyze_context_options_for_module(state.ctx.module_id);
+                let options = state.ctx.options;
                 let mut ctx = TypeContext::new(
+                    state.ctx.compiler_context,
                     state.ctx.module,
                     state.ctx.profile,
                     &options,
@@ -1014,10 +1019,11 @@ impl Compiler {
         }
 
         // resolve unevaluated target types for cast classification
-        let options = self.analyze_context_options_for_module(state.ctx.module.id);
+        let options = state.ctx.options;
         let target_type_source = state.types.get_type_source(target_type_id);
         let target_type_id = {
             let mut ctx = TypeContext::new(
+                state.ctx.compiler_context,
                 state.ctx.module,
                 state.ctx.profile,
                 &options,
@@ -1070,6 +1076,7 @@ impl Compiler {
         // skip when the types are mutually assignable
         let (to_target, to_source) = {
             let mut ctx = TypeContext::new(
+                state.ctx.compiler_context,
                 state.ctx.module,
                 state.ctx.profile,
                 &options,
@@ -1102,6 +1109,7 @@ impl Compiler {
         {
             let (to_target, to_source) = {
                 let mut ctx = TypeContext::new(
+                    state.ctx.compiler_context,
                     state.ctx.module,
                     state.ctx.profile,
                     &options,
@@ -1146,6 +1154,7 @@ impl Compiler {
         ) {
             let (to_target, to_source) = {
                 let mut ctx = TypeContext::new(
+                    state.ctx.compiler_context,
                     state.ctx.module,
                     state.ctx.profile,
                     &options,
@@ -1440,8 +1449,9 @@ impl Compiler {
         }
 
         // fall back to assignability based instance casts
-        let options = self.analyze_context_options_for_module(state.ctx.module_id);
+        let options = state.ctx.options;
         let mut ctx = TypeContext::new(
+            state.ctx.compiler_context,
             state.ctx.module,
             state.ctx.profile,
             &options,
@@ -1465,15 +1475,15 @@ impl Compiler {
         origin_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<bool> {
         // read the conversion policy from config
-        let policy = self
-            .program
-            .with_config_options(state.ctx.module, |ds| {
-                ds.compiler.implicit_collection_conversions
-            })
+        let policy = state
+            .ctx
+            .compiler_context
+            .compiler_options_for_module(state.ctx.module)
+            .map(|options| options.implicit_collection_conversions)
             .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
 
         // skip reify for non-native outputs
-        if !self.program.profile(state.ctx.profile).key.emit.is_native() {
+        if !self.profile(state.ctx.profile).key.emit.is_native() {
             return Ok(false);
         }
 
@@ -1528,6 +1538,7 @@ impl Compiler {
         let parameter_symbols = self
             .collect_static_parameter_symbols(
                 TypeView::new(
+                    state.ctx.compiler_context,
                     state.ctx.module,
                     state.ctx.profile,
                     state.tree,
@@ -1636,10 +1647,10 @@ impl Compiler {
 
         // build a module reference to Map.from
         let map_name = self
-            .program
+            .repository
             .strings
             .intern(WellKnownSymbol::Map.export_name());
-        let from_name = self.program.strings.intern("from");
+        let from_name = self.repository.strings.intern("from");
         let left_id = state.tree.reserve_from(
             NodeType::Expression,
             origin_id.into_any(),
@@ -1747,8 +1758,9 @@ impl Compiler {
                 let Some(well_known) = self.well_known_array_kind(state.ctx.profile, symbol) else {
                     return Ok(None);
                 };
-                let options = self.analyze_context_options_for_module(state.ctx.module.id);
+                let options = state.ctx.options;
                 let mut ctx = TypeContext::new(
+                    state.ctx.compiler_context,
                     state.ctx.module,
                     state.ctx.profile,
                     &options,
@@ -1771,8 +1783,9 @@ impl Compiler {
         };
         // ensure element compatibility when the target is explicit
         if let Some(target_element_type_id) = target_element_type_id {
-            let options = self.analyze_context_options_for_module(state.ctx.module.id);
+            let options = state.ctx.options;
             let mut ctx = TypeContext::new(
+                state.ctx.compiler_context,
                 state.ctx.module,
                 state.ctx.profile,
                 &options,
@@ -1813,6 +1826,7 @@ impl Compiler {
         let parameter_symbols = self
             .collect_static_parameter_symbols(
                 TypeView::new(
+                    state.ctx.compiler_context,
                     state.ctx.module,
                     state.ctx.profile,
                     state.tree,
@@ -1842,10 +1856,10 @@ impl Compiler {
 
         // build a module reference to Array.fromSized
         let array_name = self
-            .program
+            .repository
             .strings
             .intern(WellKnownSymbol::Array.export_name());
-        let from_name = self.program.strings.intern("fromSized");
+        let from_name = self.repository.strings.intern("fromSized");
         let left_id = state.tree.reserve_from(
             NodeType::Expression,
             origin_id.into_any(),
@@ -1964,11 +1978,12 @@ impl Compiler {
                     || record_symbol.is_some_and(|record_symbol| record_symbol == *symbol);
                 if !is_map_symbol {
                     // follow alias targets when present
-                    let options = self.analyze_context_options_for_module(state.ctx.module.id);
+                    let options = state.ctx.options;
                     let node = origin_id
                         .into_global_any(state.ctx.module.id)
                         .into_anchored(Some(state.ctx.profile));
                     let mut ctx = TypeContext::new(
+                        state.ctx.compiler_context,
                         state.ctx.module,
                         state.ctx.profile,
                         &options,
@@ -2251,13 +2266,14 @@ impl Compiler {
         map_symbol: GlobalSymbolId,
     ) -> ElaborateResult<GlobalSymbolId> {
         // locate the member key
-        let name = self.program.strings.intern("from");
+        let name = self.repository.strings.intern("from");
         let member_key = StaticKey::Name(name);
 
         let node = origin_id
             .into_global_any(state.ctx.module.id)
             .into_anchored(Some(state.ctx.profile));
         self.resolve_static_member_symbol(
+            state.ctx.compiler_context.revision(),
             state.ctx.module,
             state.ctx.profile,
             origin_id,
@@ -2277,13 +2293,14 @@ impl Compiler {
         array_symbol: GlobalSymbolId,
     ) -> ElaborateResult<GlobalSymbolId> {
         // locate the member key
-        let name = self.program.strings.intern("fromSized");
+        let name = self.repository.strings.intern("fromSized");
         let member_key = StaticKey::Name(name);
 
         let node = origin_id
             .into_global_any(state.ctx.module.id)
             .into_anchored(Some(state.ctx.profile));
         self.resolve_static_member_symbol(
+            state.ctx.compiler_context.revision(),
             state.ctx.module,
             state.ctx.profile,
             origin_id,

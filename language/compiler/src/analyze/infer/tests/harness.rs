@@ -2,13 +2,15 @@
 
 use std::sync::Arc;
 
+use destack_workspace::Ref;
+
 pub(super) use crate::analyze::assign::Assignability;
 pub(super) use crate::analyze::common::{
     AnalyzeIndex, CanonicalSymbolMode, ModuleSymbolView, ModuleTypeView, ObjectShape,
     SymbolTypeView, TypeContext,
 };
 pub(super) use crate::{
-    AnalyzeOptions, Compiler, InferState, TestProgram, assert_string, assert_type,
+    AnalyzeError, AnalyzeOptions, Compiler, InferState, TestProgram, assert_string, assert_type,
     expect_let_declarator_by_name, root_expression_id,
 };
 pub(super) use destack_core::StringId;
@@ -49,11 +51,21 @@ pub(super) fn canonical_symbol_id(
     symbol: GlobalSymbolId,
     mode: CanonicalSymbolMode,
 ) -> GlobalSymbolId {
-    compiler.canonical_symbol_id(
-        ModuleSymbolView::new(module, profile, symbols),
-        symbol,
-        mode,
-    )
+    let reference = Ref::for_workspace_root(compiler.repository.workspace_root());
+    let revision = compiler
+        .repository
+        .current(&reference)
+        .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
+
+    compiler
+        .run_to_completion(revision, |compiler, context| {
+            Ok::<_, AnalyzeError>(compiler.canonical_symbol_id(
+                ModuleSymbolView::new(context, module, profile, symbols),
+                symbol,
+                mode,
+            ))
+        })
+        .unwrap_or_else(|error| panic!("failed to canonicalize symbol in test harness: {error:?}"))
 }
 
 /// Check assignability in tests through a type context.
@@ -68,7 +80,17 @@ pub(super) fn is_type_assignable(
     types: &mut TypeTable,
     options: &AnalyzeOptions,
 ) -> Assignability {
+    let reference = Ref::for_workspace_root(compiler.repository.workspace_root());
+    let revision = compiler
+        .repository
+        .current(&reference)
+        .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
+    let compiler_context = compiler
+        .context(revision)
+        .unwrap_or_else(|error| panic!("{error}"));
+
     let mut ctx = TypeContext::new(
+        &compiler_context,
         module,
         profile,
         options,
@@ -77,7 +99,16 @@ pub(super) fn is_type_assignable(
         types,
         AnalyzeIndex::default(),
     );
-    compiler.is_type_assignable(&mut ctx, target_id, source_id)
+    let revision = compiler
+        .repository
+        .current(&reference)
+        .unwrap_or_else(|error| panic!("missing current workspace revision: {error}"));
+
+    compiler
+        .run_to_completion(revision, |compiler, _context| {
+            Ok::<_, AnalyzeError>(compiler.is_type_assignable(&mut ctx, target_id, source_id))
+        })
+        .unwrap_or_else(|error| panic!("failed to compute test assignability: {error:?}"))
 }
 
 impl TestProgram {
@@ -399,18 +430,20 @@ pub(crate) fn extension_kinds_for_target(
 ) -> Vec<ExtensionKind> {
     // load module state for extension visibility
     let profile = view.profile_id();
-    let module = view.test.program.modules.get(view.module_id);
+    let module = view.test.program.module_descriptor(view.module_id);
     let module = module.as_ref();
 
     // collect visible extensions for the target symbol
-    let extension_symbols = view
-        .test
-        .compiler
-        .visible_extension_symbols_for_target(
-            SymbolTypeView::new(module, profile, view.symbols(), view.types()),
-            target_symbol,
-        )
-        .unwrap_or_default();
+    let extension_symbols = view.test.compiler.run_to_completion(
+        view.test.program.current_revision(),
+        |compiler, context| {
+            compiler.visible_extension_symbols_for_target(
+                SymbolTypeView::new(context, module, profile, view.symbols(), view.types()),
+                target_symbol,
+            )
+        },
+    );
+    let extension_symbols = extension_symbols.unwrap_or_default();
 
     // map extension symbols to kinds
     extension_symbols
@@ -418,10 +451,12 @@ pub(crate) fn extension_kinds_for_target(
         .filter_map(|symbol| {
             view.test
                 .compiler
-                .extension_for_symbol_in_module(
-                    ModuleTypeView::new(module, profile, view.types()),
-                    symbol,
-                )
+                .run_to_completion(view.test.program.current_revision(), |compiler, context| {
+                    compiler.extension_for_symbol_in_module(
+                        ModuleTypeView::new(context, module, profile, view.types()),
+                        symbol,
+                    )
+                })
                 .ok()
                 .flatten()
         })

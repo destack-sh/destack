@@ -1,4 +1,5 @@
 use super::*;
+use crate::CompilerContext;
 use crate::analyze::common::{InferContext, ModuleSymbolView, TypeContext};
 use destack_dir::LocalInstanceId;
 
@@ -121,6 +122,7 @@ impl Compiler {
         {
             self.import_instance_type_for_symbol(
                 &ctx.index,
+                ctx.compiler_context.revision(),
                 ctx.profile,
                 source_id,
                 extension_symbol,
@@ -151,6 +153,7 @@ impl Compiler {
 
         // map inherited arguments to extension parameters using the target type argument order
         let mut positional_arguments = self.map_extension_inherited_arguments(
+            ctx.compiler_context,
             ctx.module,
             ctx.tree,
             ctx.symbols,
@@ -198,6 +201,7 @@ impl Compiler {
     /// Map receiver static arguments into extension parameter order.
     pub(crate) fn map_extension_inherited_arguments(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -213,6 +217,7 @@ impl Compiler {
 
         // resolve the target type argument mapping from the extension declaration
         let target_mapping = self.extension_target_argument_mapping(
+            context,
             module,
             extension_symbol,
             extension_parameters,
@@ -261,6 +266,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // locate the scope owner for the member symbol
         self.with_module_symbols_or_local_for_artifact(
+            view.compiler_context,
             view.module,
             view.profile,
             member_symbol.module_id,

@@ -2,7 +2,7 @@ use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
 use destack_compiler_macros::DefineWarning;
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 /// Warnings during the import phase.
 #[derive(Debug, Clone, PartialEq, DefineWarning)]

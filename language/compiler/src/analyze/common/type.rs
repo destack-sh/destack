@@ -1170,6 +1170,7 @@ impl Compiler {
         // rely on the declared parameter metadata
         let Some(symbol) = self
             .with_module_symbols_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,
@@ -1433,7 +1434,11 @@ impl Compiler {
         // enum-field ownership is module-local metadata
         if field_symbol.module_id != ctx.module.id {
             let owner_dir = self
-                .require_artifact_dir_declared(field_symbol.module_id, ctx.profile)
+                .require_artifact_dir_declared(
+                    ctx.compiler_context.revision(),
+                    field_symbol.module_id,
+                    ctx.profile,
+                )
                 .map_err(AnalyzeError::from)?;
             let field_entry = owner_dir.symbols.get_symbol(field_symbol.local_id);
             let Some(primary) = field_entry.primary_declaration else {
@@ -1561,6 +1566,7 @@ impl Compiler {
 
             let next_symbol = self
                 .with_module_symbols_or_local_for_artifact(
+                    view.compiler_context,
                     view.module,
                     view.profile,
                     current_symbol.module_id,
@@ -1664,7 +1670,7 @@ impl Compiler {
 
             // import the declared alias target when the symbol is remote
             let (dependency_symbol, remote_alias_target, next) = self
-                .remote_declared_alias_target(ctx.profile, current)
+                .remote_declared_alias_target(ctx.compiler_context, ctx.profile, current)
                 .map_err(AnalyzeError::from)?;
             if let Some(dependency_symbol) = dependency_symbol {
                 ctx.types
@@ -1730,6 +1736,7 @@ impl Compiler {
 
             // read one remote symbol edge under declared gating
             let (typed_symbol, next) = match self.with_module_symbols_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 current.module_id,
@@ -1756,6 +1763,7 @@ impl Compiler {
             ) {
                 let resolved = self
                     .with_module_types_or_local_for_artifact(
+                        ctx.compiler_context,
                         ctx.module,
                         ctx.profile,
                         current.module_id,
@@ -2473,6 +2481,7 @@ impl Compiler {
                 .get(index)
                 .map(|parameter_symbol| {
                     self.with_module_tree_symbol_view_or_local_for_artifact(
+                        ctx.compiler_context,
                         ctx.module,
                         ctx.profile,
                         parameter_symbol.module_id,

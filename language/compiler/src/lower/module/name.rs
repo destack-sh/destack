@@ -656,7 +656,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for scalar literal types.
     fn scalar_literal_metadata_name(&self, literal: &dir::ScalarLiteral) -> String {
         // load string pool for literal formatting
-        let strings = &self.compiler.program.strings;
+        let strings = &self.compiler.repository.strings;
 
         match literal {
             dir::ScalarLiteral::Boolean(value) => {
@@ -699,7 +699,7 @@ impl ModuleLowerer<'_> {
 
     /// Build a synthetic global name for a string literal.
     pub(crate) fn string_literal_global_name(&self, literal_id: StringId) -> String {
-        let literal = self.compiler.program.strings.get(literal_id);
+        let literal = self.compiler.repository.strings.get(literal_id);
         string_literal_global_name_for_content(literal.as_ref())
     }
 
@@ -955,7 +955,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a parameter name from a parameter node.
     fn parameter_name_from_node(&self, parameter: &dir::Parameter) -> Option<String> {
         // load string pool for name lookup
-        let strings = &self.compiler.program.strings;
+        let strings = &self.compiler.repository.strings;
 
         // match parameter kinds to resolve names
         match parameter {
@@ -998,7 +998,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a binding name from a simple pattern.
     fn pattern_binding_name(&self, pattern_id: dir::LocalNodeId<dir::Pattern>) -> Option<String> {
         // load string pool and pattern node
-        let strings = &self.compiler.program.strings;
+        let strings = &self.compiler.repository.strings;
         let pattern = self.dir_tree.get(pattern_id);
 
         // extract binding names when available
@@ -1078,6 +1078,7 @@ impl ModuleLowerer<'_> {
 
         // resolve the key into a static key
         let key = self.compiler.static_key_from_dynamic_key(
+            self.context.revision(),
             self.profile,
             self.dir_tree,
             self.symbols,
@@ -1091,7 +1092,7 @@ impl ModuleLowerer<'_> {
 
     /// Resolve a name string from a static key.
     fn static_key_name(&self, key: dir::StaticKey) -> String {
-        static_key_string(&key, &self.compiler.program.strings)
+        static_key_string(&key, &self.compiler.repository.strings)
     }
 
     /// Resolve a module-local static member name from an owner symbol and key.
@@ -1125,10 +1126,9 @@ impl ModuleLowerer<'_> {
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<String> {
         // load module metadata for the symbol
-        let module = self.compiler.program.modules.get(symbol_id.module_id);
-        let module = module.as_ref();
+        let module = self.context.module(symbol_id.module_id);
         let dir = self.artifact_dir_data_if_present(symbol_id.module_id)?;
-        self.qualified_symbol_name_for_module(symbol_id, module, &dir.symbols)
+        self.qualified_symbol_name_for_module(symbol_id, module.as_ref(), &dir.symbols)
     }
 
     /// Resolve the qualified name for a symbol and module pair.
@@ -1139,8 +1139,7 @@ impl ModuleLowerer<'_> {
         symbols: &dir::SymbolTable,
     ) -> Option<String> {
         // load the owning package
-        let package = self.compiler.program.packages.get(module.package_id);
-        let package = package.read();
+        let package = self.context.package(module.package_id);
 
         // build the module prefix
         let package_name = package.name.as_ref()?;
@@ -1148,7 +1147,7 @@ impl ModuleLowerer<'_> {
         if package_name.is_empty() {
             return None;
         }
-        let module_path = self.module_path_without_extension(module, &package)?;
+        let module_path = self.module_path_without_extension(module, package.as_ref())?;
         let module_prefix = if module_path.is_empty() {
             // use the package name for root modules
             package_name.to_string()

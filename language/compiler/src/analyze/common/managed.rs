@@ -236,6 +236,7 @@ impl Compiler {
         handle: impl FnOnce(ModuleTypeView<'_>, LocalTypeId, &Type) -> R,
     ) -> Option<R> {
         self.with_module_types_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol.module_id,
@@ -244,7 +245,12 @@ impl Compiler {
             |owner_module, owner_types| {
                 let target_id = owner_types.get_alias_target_type_id(symbol)?;
                 let target_ty = owner_types.get_type(target_id);
-                let view = ModuleTypeView::new(owner_module, ctx.profile, owner_types);
+                let view = ModuleTypeView::new(
+                    ctx.compiler_context,
+                    owner_module,
+                    ctx.profile,
+                    owner_types,
+                );
                 Some(handle(view, target_id, target_ty))
             },
         )

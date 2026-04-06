@@ -5,7 +5,7 @@ use destack_dir::{
     GlobalSymbolId, LocalScopeId, ModuleTarget, NodeTree, StaticKey, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 use rustc_hash::FxHashMap;
 
 use crate::resolve::dependency::cache::{
@@ -18,6 +18,7 @@ impl Compiler {
     /// Resolve the namespace symbol for a target module.
     pub(super) fn resolve_namespace_symbol(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         node: GlobalNodeIdAny,
         target: ModuleTarget,
@@ -26,18 +27,22 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
+                self.require_dir_prepared_if_other(revision, origin_module_id, module_id, profile)?;
 
                 // load the module namespace symbol
                 let target_dir = self
-                    .require_artifact_dir_prepared(module_id, profile)
+                    .require_artifact_dir_prepared(revision, module_id, profile)
                     .map_err(ResolveError::from)?;
                 Ok(target_dir.namespace_symbol.into_global(module_id))
             }
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
-                let bindings =
-                    self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                let bindings = self.module_bindings_for_specifier(
+                    revision,
+                    origin_module_id,
+                    profile,
+                    specifier,
+                )?;
 
                 // report unresolved modules when no bindings match
                 let Some(bindings) = bindings else {
@@ -57,6 +62,7 @@ impl Compiler {
 
                 // ensure the binding module is prepared
                 self.require_dir_prepared_if_other(
+                    revision,
                     origin_module_id,
                     binding_ref.module_id,
                     profile,
@@ -64,7 +70,7 @@ impl Compiler {
 
                 // resolve the declaration symbol for the binding
                 let dir = self
-                    .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                    .require_artifact_dir_prepared(revision, binding_ref.module_id, profile)
                     .map_err(ResolveError::from)?;
                 let tree = &dir.tree;
                 let declaration = tree.get(binding_ref.declaration);
@@ -81,6 +87,7 @@ impl Compiler {
     /// Resolve the export assignment symbol for a target module, if present.
     pub(super) fn resolve_export_assignment_symbol(
         &self,
+        revision: Revision,
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
@@ -88,16 +95,21 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // non-code modules (data, text, binary) don't have export assignments
-                if !self.is_code_module(module_id) {
+                let module = self
+                    .cache_module_snapshot(revision, module_id)
+                    .map_err(|error| ResolveError::Internal {
+                        message: format!("failed to load module snapshot: {error}"),
+                    })?;
+                if !module.is_code() {
                     return Ok(None);
                 }
 
                 // ensure the target module is prepared
-                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
+                self.require_dir_prepared_if_other(revision, origin_module_id, module_id, profile)?;
 
                 // load the module export assignment state
                 let target_dir = self
-                    .require_artifact_dir_prepared(module_id, profile)
+                    .require_artifact_dir_prepared(revision, module_id, profile)
                     .map_err(ResolveError::from)?;
                 if target_dir.export_assignment.is_some() {
                     return Ok(Some(
@@ -108,8 +120,12 @@ impl Compiler {
             }
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
-                let bindings =
-                    self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                let bindings = self.module_bindings_for_specifier(
+                    revision,
+                    origin_module_id,
+                    profile,
+                    specifier,
+                )?;
                 let Some(bindings) = bindings else {
                     return Ok(None);
                 };
@@ -119,6 +135,7 @@ impl Compiler {
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
                     self.require_dir_prepared_if_other(
+                        revision,
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
@@ -126,7 +143,7 @@ impl Compiler {
 
                     // load the binding export assignment entry
                     let dir = self
-                        .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                        .require_artifact_dir_prepared(revision, binding_ref.module_id, profile)
                         .map_err(ResolveError::from)?;
                     let binding_exports = dir
                         .module_binding_exports
@@ -151,6 +168,7 @@ impl Compiler {
                             let node = item_id.into_global_any(binding_ref.module_id);
                             if let Some(other_node) = other_node {
                                 self.check_can_merge_declarations(
+                                    revision,
                                     existing,
                                     symbol,
                                     node,
@@ -180,6 +198,7 @@ impl Compiler {
     /// This is used to follow `export =` chains when resolving named imports.
     pub(super) fn resolve_export_assignment_target(
         &self,
+        revision: destack_workspace::Revision,
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
@@ -197,11 +216,11 @@ impl Compiler {
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
-                self.require_dir_prepared_if_other(origin_module_id, module_id, profile)?;
+                self.require_dir_prepared_if_other(revision, origin_module_id, module_id, profile)?;
 
                 // check if module has an export assignment
                 let dir = self
-                    .require_artifact_dir_prepared(module_id, profile)
+                    .require_artifact_dir_prepared(revision, module_id, profile)
                     .map_err(ResolveError::from)?;
                 let export_assignment = dir.export_assignment;
                 let Some(item_id) = export_assignment else {
@@ -215,6 +234,7 @@ impl Compiler {
                 let tree = &dir.tree;
                 let item = tree.get(item_id);
                 let resolved = self.resolve_export_assignment_target_for_item(
+                    revision,
                     module_id,
                     profile,
                     &dir,
@@ -230,8 +250,12 @@ impl Compiler {
             }
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
-                let bindings =
-                    self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+                let bindings = self.module_bindings_for_specifier(
+                    revision,
+                    origin_module_id,
+                    profile,
+                    specifier,
+                )?;
                 let Some(bindings) = bindings else {
                     if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
                         cache.export_assignment_targets.insert(cache_key, None);
@@ -243,6 +267,7 @@ impl Compiler {
                 for binding_ref in bindings {
                     // ensure the binding module is prepared
                     self.require_dir_prepared_if_other(
+                        revision,
                         origin_module_id,
                         binding_ref.module_id,
                         profile,
@@ -250,7 +275,7 @@ impl Compiler {
 
                     // load the binding export assignment entry
                     let dir = self
-                        .require_artifact_dir_prepared(binding_ref.module_id, profile)
+                        .require_artifact_dir_prepared(revision, binding_ref.module_id, profile)
                         .map_err(ResolveError::from)?;
                     let binding_exports = if let Some(cache) = cache.as_deref_mut() {
                         let cache_key = BindingExportCacheKey {
@@ -291,6 +316,7 @@ impl Compiler {
 
                     // resolve the export assignment item
                     if let Some(target) = self.resolve_export_assignment_target_for_item(
+                        revision,
                         binding_ref.module_id,
                         profile,
                         &dir,
@@ -325,6 +351,7 @@ impl Compiler {
     /// Resolve an export assignment target from a dependency item.
     fn resolve_export_assignment_target_for_item(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
         dir: &DirPrepared,
@@ -346,6 +373,7 @@ impl Compiler {
                 .map(ExportAssignmentTarget::Module)),
             DependencyItem::Local { target_symbol, .. } => self
                 .resolve_export_assignment_target_for_local_symbol(
+                    revision,
                     module_id,
                     profile,
                     dir,
@@ -355,7 +383,7 @@ impl Compiler {
                     cache,
                 ),
             DependencyItem::Value { value, .. } => self.resolve_export_assignment_value_target(
-                module_id, profile, dir, tree, scope_id, *value, cache,
+                revision, module_id, profile, dir, tree, scope_id, *value, cache,
             ),
             _ => Ok(None),
         }
@@ -364,6 +392,7 @@ impl Compiler {
     /// Resolve an export assignment target from a local dependency symbol.
     fn resolve_export_assignment_target_for_local_symbol(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
         dir: &DirPrepared,
@@ -379,6 +408,7 @@ impl Compiler {
 
         if let Some(symbol_name) = symbol_name
             && let Some(redirect) = self.find_import_redirect_for_name(
+                revision,
                 module_id,
                 profile,
                 tree,
@@ -397,6 +427,7 @@ impl Compiler {
     /// Resolve an export assignment target from a value expression.
     fn resolve_export_assignment_value_target(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
         dir: &DirPrepared,
@@ -425,6 +456,7 @@ impl Compiler {
         {
             if let Some(name) = path.first_segment()
                 && let Some(redirect) = self.find_import_redirect_for_name(
+                    revision,
                     module_id,
                     profile,
                     tree,
@@ -443,9 +475,9 @@ impl Compiler {
         if let Expression::UnresolvedPath { path, .. } = expr
             && let Some(name) = path.first_segment()
         {
-            if let Some(redirect) =
-                self.find_import_redirect_for_name(module_id, profile, tree, scope_id, name, cache)?
-            {
+            if let Some(redirect) = self.find_import_redirect_for_name(
+                revision, module_id, profile, tree, scope_id, name, cache,
+            )? {
                 return Ok(Some(ExportAssignmentTarget::Module(redirect)));
             }
 
@@ -494,6 +526,7 @@ impl Compiler {
     /// Used to resolve `export = X` where X is an import alias.
     fn find_import_redirect_for_name(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
         tree: &NodeTree,
@@ -504,8 +537,9 @@ impl Compiler {
         if let Some(cache) = cache {
             if !cache.import_redirects_by_scope.contains_key(&module_id) {
                 let item_ids = cache.dependency_item_ids_for(module_id, tree);
-                let redirects_by_scope =
-                    self.build_import_redirects_by_scope(module_id, profile, tree, &item_ids)?;
+                let redirects_by_scope = self.build_import_redirects_by_scope(
+                    revision, module_id, profile, tree, &item_ids,
+                )?;
                 cache
                     .import_redirects_by_scope
                     .insert(module_id, redirects_by_scope);
@@ -521,12 +555,15 @@ impl Compiler {
             return Ok(None);
         }
 
-        self.find_import_redirect_for_name_uncached(module_id, profile, tree, scope_id, name)
+        self.find_import_redirect_for_name_uncached(
+            revision, module_id, profile, tree, scope_id, name,
+        )
     }
 
     /// Build a lookup table of import redirect targets per binding scope.
     fn build_import_redirects_by_scope(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
         tree: &NodeTree,
@@ -556,7 +593,7 @@ impl Compiler {
 
                     // resolve module bindings before falling back to module specifiers
                     if let Some(binding_target) =
-                        self.resolve_module_binding_target(module_id, profile, *target)?
+                        self.resolve_module_binding_target(revision, module_id, profile, *target)?
                     {
                         redirects_by_scope
                             .entry(item_scope_id)
@@ -567,6 +604,7 @@ impl Compiler {
 
                     // resolve the specifier to a module target
                     if let Ok(targets) = self.resolve_specifier_to_module_resolution(
+                        revision,
                         profile,
                         *target,
                         Some(module_id),
@@ -609,6 +647,7 @@ impl Compiler {
     /// Search dependency items for a redirect target without using the cache.
     fn find_import_redirect_for_name_uncached(
         &self,
+        revision: destack_workspace::Revision,
         module_id: ModuleId,
         profile: ProfileId,
         tree: &NodeTree,
@@ -642,13 +681,14 @@ impl Compiler {
                     // found `import X = require("target")` where X is our name
                     // resolve module bindings before falling back to module specifiers
                     if let Some(binding_target) =
-                        self.resolve_module_binding_target(module_id, profile, *target)?
+                        self.resolve_module_binding_target(revision, module_id, profile, *target)?
                     {
                         return Ok(Some(binding_target));
                     }
 
                     // resolve the specifier to a module target
                     if let Ok(targets) = self.resolve_specifier_to_module_resolution(
+                        revision,
                         profile,
                         *target,
                         Some(module_id),
@@ -681,6 +721,7 @@ impl Compiler {
     /// Used for `export = LocalNamespace` where we need to find members of the namespace.
     pub(crate) fn resolve_symbol_in_namespace(
         &self,
+        revision: Revision,
         _node: GlobalNodeIdAny,
         namespace_symbol: GlobalSymbolId,
         profile: ProfileId,
@@ -703,9 +744,13 @@ impl Compiler {
         }
 
         // load the namespace symbol's module and check if it's a namespace
-        let module = self.program.modules.get(namespace_symbol.module_id);
+        let module = self
+            .cache_module_snapshot(revision, namespace_symbol.module_id)
+            .map_err(|error| ResolveError::Internal {
+                message: format!("failed to load module snapshot: {error}"),
+            })?;
         let dir = self
-            .require_artifact_dir_prepared(namespace_symbol.module_id, profile)
+            .require_artifact_dir_prepared(revision, namespace_symbol.module_id, profile)
             .map_err(ResolveError::from)?;
         let symbols = &dir.symbols;
 

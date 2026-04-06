@@ -158,6 +158,7 @@ impl Compiler {
 
         let space = self
             .with_module_symbols_or_local_for_artifact(
+                ctx.compiler_context,
                 ctx.module,
                 ctx.profile,
                 symbol.module_id,

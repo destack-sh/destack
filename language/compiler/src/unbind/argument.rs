@@ -92,7 +92,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let default = default.map(|default| {
                     self.unbind_expression(
                         module,
@@ -152,7 +152,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let ty = None;
                 ast::Parameter::VariadicNamed {
                     modifiers,
@@ -210,7 +210,7 @@ impl Compiler {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let name =
-                    ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
+                    ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, *name));
                 let value = self.unbind_expression(
                     module,
                     *value,
@@ -248,7 +248,7 @@ impl Compiler {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let label =
-                    label.map(|label| ast_strings.intern_from(&self.program.strings, label));
+                    label.map(|label| ast_strings.intern_from(&self.repository.strings, label));
                 let value = self.unbind_expression(
                     module,
                     *value,
@@ -271,7 +271,7 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let label = ast_strings.intern_from(&self.program.strings, *label);
+                let label = ast_strings.intern_from(&self.repository.strings, *label);
                 let value = self.unbind_expression(
                     module,
                     *value,

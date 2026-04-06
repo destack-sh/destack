@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
-use destack_source::ModuleId;
-use destack_workspace::TargetId;
+use destack_source::{ModuleId, TargetId};
 use mir::{Instruction, Mutability, ReferenceKind, Type, Value};
 
 use crate::optimize::common::ValueTypeMap;
@@ -217,7 +216,7 @@ impl<'a> BorrowCheckContext<'a> {
     fn anchor(&self, instruction_id: mir::LocalNodeId<Instruction>) -> mir::AnchoredGlobalNodeId {
         instruction_id
             .into_any()
-            .into_anchored(self.module_id, self.target_id.clone())
+            .into_anchored(self.module_id, self.target_id)
     }
 
     /// Build provenance chain for a new borrow.
@@ -781,7 +780,7 @@ impl FunctionPass for BorrowCheck {
         let lifetime_analysis = ctx.module_analyses(tree).get::<LifetimeAnalysis>().clone();
 
         let module_id = ctx.module_id();
-        let target_id = ctx.target_id().clone();
+        let target_id = *ctx.target_id();
 
         let strict_mode = ctx.options.strict_borrow_mode;
         let mut checker = BorrowCheckContext::new(

@@ -37,6 +37,7 @@ impl FunctionLowerer<'_> {
         // resolve the enum field value when this symbol is a field
         let Some(EnumFieldValueDescriptor { backing, value }) = enum_field_value_for_symbol(
             self.context.compiler,
+            self.context.revision,
             self.context.profile,
             member_symbol,
             node,

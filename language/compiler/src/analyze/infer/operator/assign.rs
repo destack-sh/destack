@@ -278,6 +278,7 @@ impl Compiler {
                 && let Some(name) = *name
             {
                 let member_key = self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
                     ctx.profile,
                     ctx.tree,
                     ctx.symbols,

@@ -11,7 +11,7 @@ impl Compiler {
         member_name.push(first_char.to_ascii_lowercase());
         member_name.push_str(chars.as_str());
 
-        let name_id = self.program.strings.intern(&member_name);
+        let name_id = self.repository.strings.intern(&member_name);
         StaticKey::Name(name_id)
     }
 }

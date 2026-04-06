@@ -102,6 +102,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> AnalyzeResult<bool> {
         self.with_module_types_or_local_for_artifact(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             symbol.module_id,

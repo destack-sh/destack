@@ -12,6 +12,7 @@ impl Compiler {
     /// Resolve a Declaration node (updates target_symbol if applicable).
     pub(crate) fn resolve_declaration(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         profile: ProfileId,
         tree: &mut NodeTree,
@@ -48,6 +49,7 @@ impl Compiler {
                 let mut cache = ResolveExpressionCache::default();
                 for expression_id in unresolved_expression_ids {
                     self.resolve_expression(
+                        revision,
                         module,
                         profile,
                         tree,

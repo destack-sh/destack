@@ -1,11 +1,13 @@
-use crate::AnalyzeOptions;
 use crate::analyze::common::AnalyzeIndex;
+use crate::{AnalyzeOptions, CompilerContext};
 use destack_dir::{InferTable, NodeTree, SymbolTable, TypeTable};
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::workspace::{Module, ProfileId};
 
 /// Shared immutable type-resolution view for tree, symbols, and types.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TypeView<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -21,6 +23,7 @@ pub(crate) struct TypeView<'a> {
 impl<'a> TypeView<'a> {
     /// Construct an immutable type-resolution view.
     pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         tree: &'a NodeTree,
@@ -28,6 +31,7 @@ impl<'a> TypeView<'a> {
         types: &'a TypeTable,
     ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             tree,
@@ -39,6 +43,7 @@ impl<'a> TypeView<'a> {
     /// Borrow this type view as an immutable symbol-and-type view.
     pub(crate) fn symbol_type_view(&self) -> SymbolTypeView<'_> {
         SymbolTypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -49,6 +54,7 @@ impl<'a> TypeView<'a> {
     /// Borrow this type view as an immutable module-and-symbol view.
     pub(crate) fn module_symbol_view(&self) -> ModuleSymbolView<'a> {
         ModuleSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -58,6 +64,7 @@ impl<'a> TypeView<'a> {
     /// Borrow this type view as an immutable tree-and-symbol view.
     pub(crate) fn tree_symbol_view(&self) -> TreeSymbolView<'a> {
         TreeSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             tree: self.tree,
@@ -69,6 +76,8 @@ impl<'a> TypeView<'a> {
 /// Shared immutable module, tree, and symbol view for declaration and lookup operations.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TreeSymbolView<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -82,12 +91,14 @@ pub(crate) struct TreeSymbolView<'a> {
 impl<'a> TreeSymbolView<'a> {
     /// Construct an immutable module, tree, and symbol view.
     pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         tree: &'a NodeTree,
         symbols: &'a SymbolTable,
     ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             tree,
@@ -98,6 +109,7 @@ impl<'a> TreeSymbolView<'a> {
     /// Borrow this tree-and-symbol view as an immutable module-and-symbol view.
     pub(crate) fn module_symbol_view(&self) -> ModuleSymbolView<'a> {
         ModuleSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -107,6 +119,7 @@ impl<'a> TreeSymbolView<'a> {
     /// Borrow this tree-and-symbol view with one explicit type table.
     pub(crate) fn type_view<'b>(&'b self, types: &'b TypeTable) -> TypeView<'b> {
         TypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             tree: self.tree,
@@ -119,6 +132,8 @@ impl<'a> TreeSymbolView<'a> {
 /// Shared immutable module-and-symbol view for module-local symbol queries.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ModuleSymbolView<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -129,8 +144,14 @@ pub(crate) struct ModuleSymbolView<'a> {
 
 impl<'a> ModuleSymbolView<'a> {
     /// Construct an immutable module-and-symbol view.
-    pub(crate) fn new(module: &'a Module, profile: ProfileId, symbols: &'a SymbolTable) -> Self {
+    pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
+        module: &'a Module,
+        profile: ProfileId,
+        symbols: &'a SymbolTable,
+    ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             symbols,
@@ -141,6 +162,8 @@ impl<'a> ModuleSymbolView<'a> {
 /// Shared immutable module-and-type view for module-local type queries.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ModuleTypeView<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -151,8 +174,14 @@ pub(crate) struct ModuleTypeView<'a> {
 
 impl<'a> ModuleTypeView<'a> {
     /// Construct an immutable module-and-type view.
-    pub(crate) fn new(module: &'a Module, profile: ProfileId, types: &'a TypeTable) -> Self {
+    pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
+        module: &'a Module,
+        profile: ProfileId,
+        types: &'a TypeTable,
+    ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             types,
@@ -163,6 +192,8 @@ impl<'a> ModuleTypeView<'a> {
 /// Shared immutable symbol-and-type view for module-local type queries.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SymbolTypeView<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -176,12 +207,14 @@ pub(crate) struct SymbolTypeView<'a> {
 impl<'a> SymbolTypeView<'a> {
     /// Construct an immutable symbol-and-type view.
     pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         symbols: &'a SymbolTable,
         types: &'a TypeTable,
     ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             symbols,
@@ -192,6 +225,7 @@ impl<'a> SymbolTypeView<'a> {
     /// Borrow this symbol-and-type view as an immutable module-and-symbol view.
     pub(crate) fn module_symbol_view(&self) -> ModuleSymbolView<'_> {
         ModuleSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -201,6 +235,7 @@ impl<'a> SymbolTypeView<'a> {
     /// Borrow this symbol-and-type view as an immutable module-and-type view.
     pub(crate) fn module_type_view(&self) -> ModuleTypeView<'_> {
         ModuleTypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             types: self.types,
@@ -211,6 +246,8 @@ impl<'a> SymbolTypeView<'a> {
 /// Shared mutable commit-phase context.
 #[derive(Debug)]
 pub(crate) struct CommitContext<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -230,6 +267,7 @@ pub(crate) struct CommitContext<'a> {
 impl<'a> CommitContext<'a> {
     /// Construct a commit-phase context.
     pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         options: &'a AnalyzeOptions,
@@ -239,6 +277,7 @@ impl<'a> CommitContext<'a> {
         index: AnalyzeIndex,
     ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             tree,
@@ -252,6 +291,7 @@ impl<'a> CommitContext<'a> {
     /// Reborrow this commit context as a type-resolution context.
     pub(crate) fn type_context_reborrow(&mut self) -> TypeContext<'_> {
         TypeContext {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             options: self.options,
@@ -266,6 +306,8 @@ impl<'a> CommitContext<'a> {
 /// Shared mutable assignability-check context.
 #[derive(Debug)]
 pub(crate) struct AssignContext<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -286,6 +328,7 @@ impl<'a> AssignContext<'a> {
     /// Reborrow this context for one nested call chain.
     pub(crate) fn reborrow(&mut self) -> AssignContext<'_> {
         AssignContext {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             tree: self.tree,
@@ -299,6 +342,7 @@ impl<'a> AssignContext<'a> {
     /// Reborrow this assign context as a type-resolution context.
     pub(crate) fn type_context_reborrow(&mut self) -> TypeContext<'_> {
         TypeContext {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             options: self.options,
@@ -312,6 +356,7 @@ impl<'a> AssignContext<'a> {
     /// Borrow this assign context as an immutable symbol-and-type view.
     pub(crate) fn symbol_type_view(&self) -> SymbolTypeView<'_> {
         SymbolTypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -322,6 +367,7 @@ impl<'a> AssignContext<'a> {
     /// Borrow this assign context as an immutable module-and-symbol view.
     pub(crate) fn module_symbol_view(&self) -> ModuleSymbolView<'_> {
         ModuleSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -332,6 +378,8 @@ impl<'a> AssignContext<'a> {
 /// Shared mutable type-resolution context for tree, symbols, and types.
 #[derive(Debug)]
 pub(crate) struct TypeContext<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -351,6 +399,7 @@ pub(crate) struct TypeContext<'a> {
 impl<'a> TypeContext<'a> {
     /// Construct a type-resolution context for table-driven operations.
     pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         options: &'a AnalyzeOptions,
@@ -360,6 +409,7 @@ impl<'a> TypeContext<'a> {
         index: AnalyzeIndex,
     ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             options,
@@ -389,6 +439,7 @@ impl<'a> TypeContext<'a> {
     /// Reborrow this context for one nested call chain.
     pub(crate) fn reborrow(&mut self) -> TypeContext<'_> {
         TypeContext {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             options: self.options,
@@ -402,6 +453,7 @@ impl<'a> TypeContext<'a> {
     /// Borrow this type context as an immutable type view.
     pub(crate) fn type_view(&self) -> TypeView<'_> {
         TypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             tree: self.tree,
@@ -413,6 +465,7 @@ impl<'a> TypeContext<'a> {
     /// Borrow this type context as an immutable symbol-and-type view.
     pub(crate) fn symbol_type_view(&self) -> SymbolTypeView<'_> {
         SymbolTypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -423,6 +476,7 @@ impl<'a> TypeContext<'a> {
     /// Borrow this type context as an immutable tree-and-symbol view.
     pub(crate) fn tree_symbol_view(&self) -> TreeSymbolView<'a> {
         TreeSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             tree: self.tree,
@@ -433,6 +487,7 @@ impl<'a> TypeContext<'a> {
     /// Borrow this type context as an immutable module-and-symbol view.
     pub(crate) fn module_symbol_view(&self) -> ModuleSymbolView<'a> {
         ModuleSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -442,6 +497,7 @@ impl<'a> TypeContext<'a> {
     /// Borrow this type context as an immutable module-and-type view.
     pub(crate) fn module_type_view(&self) -> ModuleTypeView<'_> {
         ModuleTypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             types: self.types,
@@ -452,6 +508,8 @@ impl<'a> TypeContext<'a> {
 /// Shared mutable infer context for tree, symbols, types, and infer state.
 #[derive(Debug)]
 pub(crate) struct InferContext<'a> {
+    /// The pinned compiler context for this analysis.
+    pub compiler_context: &'a CompilerContext<'a>,
     /// The module under analysis.
     pub module: &'a Module,
     /// The active profile.
@@ -473,6 +531,7 @@ pub(crate) struct InferContext<'a> {
 impl<'a> InferContext<'a> {
     /// Construct an infer context.
     pub(crate) fn new(
+        compiler_context: &'a CompilerContext<'a>,
         module: &'a Module,
         profile: ProfileId,
         options: &'a AnalyzeOptions,
@@ -483,6 +542,7 @@ impl<'a> InferContext<'a> {
         index: AnalyzeIndex,
     ) -> Self {
         Self {
+            compiler_context,
             module,
             profile,
             options,
@@ -497,6 +557,7 @@ impl<'a> InferContext<'a> {
     /// Reborrow this context for one nested call chain.
     pub(crate) fn reborrow(&mut self) -> InferContext<'_> {
         InferContext {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             options: self.options,
@@ -511,6 +572,7 @@ impl<'a> InferContext<'a> {
     /// Reborrow this context as a type-resolution context.
     pub(crate) fn type_context_reborrow(&mut self) -> TypeContext<'_> {
         TypeContext {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             options: self.options,
@@ -524,6 +586,7 @@ impl<'a> InferContext<'a> {
     /// Borrow this infer context as an immutable type view.
     pub(crate) fn type_view(&self) -> TypeView<'_> {
         TypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             tree: self.tree,
@@ -535,6 +598,7 @@ impl<'a> InferContext<'a> {
     /// Borrow this infer context as an immutable symbol-and-type view.
     pub(crate) fn symbol_type_view(&self) -> SymbolTypeView<'_> {
         SymbolTypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -545,6 +609,7 @@ impl<'a> InferContext<'a> {
     /// Borrow this infer context as an immutable tree-and-symbol view.
     pub(crate) fn tree_symbol_view(&self) -> TreeSymbolView<'a> {
         TreeSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             tree: self.tree,
@@ -555,6 +620,7 @@ impl<'a> InferContext<'a> {
     /// Borrow this infer context as an immutable module-and-symbol view.
     pub(crate) fn module_symbol_view(&self) -> ModuleSymbolView<'a> {
         ModuleSymbolView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             symbols: self.symbols,
@@ -564,6 +630,7 @@ impl<'a> InferContext<'a> {
     /// Borrow this infer context as an immutable module-and-type view.
     pub(crate) fn module_type_view(&self) -> ModuleTypeView<'_> {
         ModuleTypeView {
+            compiler_context: self.compiler_context,
             module: self.module,
             profile: self.profile,
             types: self.types,
@@ -574,6 +641,7 @@ impl<'a> InferContext<'a> {
     pub(crate) fn split_type_context_and_infer(&mut self) -> (TypeContext<'_>, &mut InferTable) {
         (
             TypeContext {
+                compiler_context: self.compiler_context,
                 module: self.module,
                 profile: self.profile,
                 options: self.options,

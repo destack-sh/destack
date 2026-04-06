@@ -1,7 +1,7 @@
-use crate::{ArtifactRequirementError, Compiler};
+use crate::{Compiler, RequirementError};
 use destack_artifact::ModuleGraph;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -53,9 +53,10 @@ impl Compiler {
     /// Ensure resolved dependency edges exist for one module set's transitive closure.
     pub(crate) fn require_resolved_dependency_closure(
         &self,
+        revision: Revision,
         modules: impl IntoIterator<Item = ModuleId>,
         profile: ProfileId,
-    ) -> Result<(), ArtifactRequirementError> {
+    ) -> Result<(), RequirementError> {
         let mut pending = modules.into_iter().collect::<VecDeque<_>>();
         let mut visited = FxHashSet::default();
 
@@ -64,9 +65,9 @@ impl Compiler {
                 continue;
             }
 
-            self.require_dir_resolved(pending_module_id, profile)?;
+            self.require_dir_resolved(revision, pending_module_id, profile)?;
 
-            if let Some(graph) = self.artifacts.module_graph(profile) {
+            if let Some(graph) = self.module_graph(profile) {
                 for dependency_module_id in graph.dependencies_for(pending_module_id) {
                     if !visited.contains(&dependency_module_id) {
                         pending.push_back(dependency_module_id);
@@ -98,7 +99,7 @@ impl Compiler {
         &self,
         profile: ProfileId,
     ) -> Option<Arc<InterfaceComponentGraphIndex>> {
-        let graph = self.artifacts.module_graph(profile)?;
+        let graph = self.module_graph(profile)?;
 
         // reuse the cached index while the current graph snapshot is unchanged
         if let Some(entry) = self.index.interface_component_graph_indices.get(&profile)
@@ -185,9 +186,6 @@ impl Compiler {
     /// Collect one deterministic module domain from the graph snapshot.
     fn interface_graph_module_domain(&self, graph: &ModuleGraph) -> Vec<ModuleId> {
         let mut modules = FxHashSet::default();
-        for module_id in graph.module_versions.keys().copied() {
-            modules.insert(module_id);
-        }
         for (module_id, dependencies) in &graph.dependencies {
             modules.insert(*module_id);
             for dependency_module_id in dependencies.iter().copied() {
@@ -401,15 +399,18 @@ export const value = 1;
         // publish a distinct module graph snapshot for the same profile
         let mut graph = test
             .compiler
-            .artifacts
             .module_graph(profile)
             .unwrap_or_else(|| panic!("expected module graph for test profile"))
             .as_ref()
             .clone();
-        graph.update_module(module_id, test.module_version(module_id), vec![module_id]);
+        graph.update_module(module_id, vec![module_id]);
+        let graph_version = test.compiler.artifact_version_for_revision(
+            test.program.current_revision(),
+            &ArtifactKey::module_graph(profile),
+        );
         test.compiler
             .artifacts
-            .publish(ArtifactKey::module_graph(profile), graph);
+            .publish_module_graph(graph_version, graph);
 
         let rebuilt_index = test
             .compiler

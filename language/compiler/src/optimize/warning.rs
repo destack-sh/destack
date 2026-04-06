@@ -1,6 +1,6 @@
 use destack_compiler_macros::DefineWarning;
 use destack_mir as mir;
-use destack_workspace::Program;
+use destack_workspace::Repository;
 
 use crate::{DiagnosticAnchor, DiagnosticDefinition, TaskWarning};
 

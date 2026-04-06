@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_dir::{DependencySource, StaticKey};
-use destack_workspace::TargetId;
 
 use crate::{ResolveError, TestProgram};
 
@@ -27,7 +26,7 @@ export {};
     let profile = test.default_profile_id(module_id);
     let cache = test
         .compiler
-        .build_global_symbol_table_freestanding(&[module_id], profile)
+        .build_global_symbol_table_freestanding(test.current_revision(), &[module_id], profile)
         .unwrap();
 
     // check that the global symbols were collected
@@ -60,25 +59,28 @@ export {};
     let profile = test.default_profile_id(module_id);
     let initial_table = test
         .compiler
-        .global_symbol_table_for_module(module_id, profile)
+        .global_symbol_table_for_module(test.current_revision(), module_id, profile)
         .unwrap_or_else(|error| panic!("failed to build initial global symbol table: {error:?}"));
 
     // publish a distinct module graph snapshot for the same profile
     let mut graph = test
         .compiler
-        .artifacts
         .module_graph(profile)
         .unwrap_or_else(|| panic!("expected module graph for test profile"))
         .as_ref()
         .clone();
-    graph.update_module(module_id, test.module_version(module_id), vec![module_id]);
+    graph.update_module(module_id, vec![module_id]);
+    let graph_version = test.compiler.artifact_version_for_revision(
+        test.program.current_revision(),
+        &ArtifactKey::module_graph(profile),
+    );
     test.compiler
         .artifacts
-        .publish(ArtifactKey::module_graph(profile), graph);
+        .publish_module_graph(graph_version, graph);
 
     let rebuilt_table = test
         .compiler
-        .global_symbol_table_for_module(module_id, profile)
+        .global_symbol_table_for_module(test.current_revision(), module_id, profile)
         .unwrap_or_else(|error| panic!("failed to rebuild global symbol table: {error:?}"));
 
     // a changed graph snapshot must not reuse the old cached table
@@ -313,7 +315,7 @@ declare module "buffer" {
     let profile = test.default_profile_id(module_id);
     let cache = test
         .compiler
-        .build_global_symbol_table_freestanding(&[module_id], profile)
+        .build_global_symbol_table_freestanding(test.current_revision(), &[module_id], profile)
         .unwrap();
 
     let buffer_key = StaticKey::Name(test.program.strings.intern("Buffer"));
@@ -329,18 +331,18 @@ fn test_select_global_symbol_table_uses_profile_target_without_default() {
     test.add_target(module_id, "native");
 
     let package_id = {
-        let module = test.program.modules.get(module_id);
+        let module = test.program.module_descriptor(module_id);
         let module = module.as_ref();
         module.package_id
     };
-    let js_target = TargetId::new(package_id, "js");
+    let js_target = test.target_id(package_id, "js");
     let js_profile = test
         .program
         .profile_id_for_target(module_id, &js_target)
         .expect("missing profile for js target");
     let roots = test
         .compiler
-        .select_global_symbol_table(module_id, js_profile)
+        .select_global_symbol_table(test.current_revision(), module_id, js_profile)
         .expect("expected profile target selection to avoid default-target error");
 
     assert_eq!(roots, vec![module_id]);
@@ -355,33 +357,24 @@ fn test_select_global_symbol_table_errors_on_ambiguous_profile_targets() {
     test.add_target(module_id, "ts");
 
     let package_id = {
-        let module = test.program.modules.get(module_id);
+        let module = test.program.module_descriptor(module_id);
         let module = module.as_ref();
         module.package_id
     };
-    let js_target = TargetId::new(package_id, "js");
-    let ts_target = TargetId::new(package_id, "ts");
+    let js_target = test.target_id(package_id, "js");
+    let ts_target = test.target_id(package_id, "ts");
 
     // make ts target profile-equivalent to js to force ambiguity
-    {
-        let package = test.program.packages.get(package_id);
-        let mut package = package.write();
-        let js_target_config = package
-            .targets
-            .get(&js_target)
-            .cloned()
-            .expect("missing js target");
-        package.targets.insert(ts_target, js_target_config);
-    }
-    let _ = test.program.packages.bump_version(package_id);
+    let _ = ts_target;
+    test.copy_target(module_id, "js", "ts");
 
     let js_profile = test
         .program
         .profile_id_for_target(module_id, &js_target)
         .expect("missing profile for js target");
-    let result = test
-        .compiler
-        .select_global_symbol_table(module_id, js_profile);
+    let result =
+        test.compiler
+            .select_global_symbol_table(test.current_revision(), module_id, js_profile);
 
     let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
         panic!("expected invalid target config for ambiguous profile targets");
@@ -402,25 +395,16 @@ fn test_select_global_symbol_table_prefers_default_target_with_ambiguous_profile
     test.apply_destack_config(module_id, r#"{ "defaultTarget": "ts" }"#);
 
     let package_id = {
-        let module = test.program.modules.get(module_id);
+        let module = test.program.module_descriptor(module_id);
         let module = module.as_ref();
         module.package_id
     };
-    let js_target = TargetId::new(package_id, "js");
-    let ts_target = TargetId::new(package_id, "ts");
+    let js_target = test.target_id(package_id, "js");
+    let ts_target = test.target_id(package_id, "ts");
 
     // make ts target profile-equivalent to js to force ambiguity
-    {
-        let package = test.program.packages.get(package_id);
-        let mut package = package.write();
-        let js_target_config = package
-            .targets
-            .get(&js_target)
-            .cloned()
-            .expect("missing js target");
-        package.targets.insert(ts_target.clone(), js_target_config);
-    }
-    let _ = test.program.packages.bump_version(package_id);
+    let _ = ts_target;
+    test.copy_target(module_id, "js", "ts");
 
     let js_profile = test
         .program
@@ -428,7 +412,7 @@ fn test_select_global_symbol_table_prefers_default_target_with_ambiguous_profile
         .expect("missing profile for js target");
     let roots = test
         .compiler
-        .select_global_symbol_table(module_id, js_profile)
+        .select_global_symbol_table(test.current_revision(), module_id, js_profile)
         .expect("expected default target to disambiguate profile matches");
 
     assert_eq!(roots, vec![module_id]);
@@ -445,33 +429,24 @@ fn test_select_global_symbol_table_errors_when_default_target_mismatches_profile
     test.apply_destack_config(module_id, r#"{ "defaultTarget": "native" }"#);
 
     let package_id = {
-        let module = test.program.modules.get(module_id);
+        let module = test.program.module_descriptor(module_id);
         let module = module.as_ref();
         module.package_id
     };
-    let js_target = TargetId::new(package_id, "js");
-    let ts_target = TargetId::new(package_id, "ts");
+    let js_target = test.target_id(package_id, "js");
+    let ts_target = test.target_id(package_id, "ts");
 
     // make ts target profile-equivalent to js to force ambiguity on js profile
-    {
-        let package = test.program.packages.get(package_id);
-        let mut package = package.write();
-        let js_target_config = package
-            .targets
-            .get(&js_target)
-            .cloned()
-            .expect("missing js target");
-        package.targets.insert(ts_target, js_target_config);
-    }
-    let _ = test.program.packages.bump_version(package_id);
+    let _ = ts_target;
+    test.copy_target(module_id, "js", "ts");
 
     let js_profile = test
         .program
         .profile_id_for_target(module_id, &js_target)
         .expect("missing profile for js target");
-    let result = test
-        .compiler
-        .select_global_symbol_table(module_id, js_profile);
+    let result =
+        test.compiler
+            .select_global_symbol_table(test.current_revision(), module_id, js_profile);
 
     let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
         panic!("expected invalid target config for mismatched default target");
@@ -492,27 +467,23 @@ fn test_select_global_symbol_table_errors_when_default_target_is_missing() {
     test.apply_destack_config(module_id, r#"{ "defaultTarget": "missing" }"#);
 
     let package_id = {
-        let module = test.program.modules.get(module_id);
+        let module = test.program.module_descriptor(module_id);
         let module = module.as_ref();
         module.package_id
     };
-    let js_target = TargetId::new(package_id, "js");
+    let js_target = test.target_id(package_id, "js");
     let js_profile = test
         .program
         .profile_id_for_target(module_id, &js_target)
         .expect("missing profile for js target");
 
     // remove js target so js profile no longer matches any current target
-    {
-        let package = test.program.packages.get(package_id);
-        let mut package = package.write();
-        package.targets.shift_remove(&js_target);
-    }
-    let _ = test.program.packages.bump_version(package_id);
+    let _ = js_target;
+    test.remove_target(module_id, "js");
 
-    let result = test
-        .compiler
-        .select_global_symbol_table(module_id, js_profile);
+    let result =
+        test.compiler
+            .select_global_symbol_table(test.current_revision(), module_id, js_profile);
 
     let Err(ResolveError::InvalidTargetConfig { message, .. }) = result else {
         panic!("expected invalid target config for missing default target");

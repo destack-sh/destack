@@ -2,10 +2,10 @@ use destack_artifact::WellKnownIntrinsics;
 use destack_dir as dir;
 use destack_dir::GlobalSymbolId;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Revision};
 
 use crate::lower::{FunctionLowerer, ModuleLowerer};
-use crate::{ArtifactRequirementError, Compiler, LowerError, LowerResult};
+use crate::{Compiler, LowerError, LowerResult, RequirementError};
 
 impl ModuleLowerer<'_> {
     /// Resolve the intrinsic binding name for a symbol.
@@ -20,6 +20,7 @@ impl ModuleLowerer<'_> {
         resolve_intrinsic_binding_name_id(
             self.module_id,
             self.profile,
+            self.context.revision(),
             self.compiler,
             self.symbols,
             self.well_known_intrinsics.as_ref(),
@@ -38,6 +39,7 @@ impl FunctionLowerer<'_> {
         resolve_intrinsic_binding_name_id(
             self.context.module_id,
             self.context.profile,
+            self.context.revision,
             self.context.compiler,
             self.context.symbols,
             self.context.well_known_intrinsics,
@@ -50,6 +52,7 @@ impl FunctionLowerer<'_> {
 fn resolve_intrinsic_binding_name_id(
     module_id: ModuleId,
     profile: ProfileId,
+    revision: Revision,
     compiler: &Compiler,
     local_symbols: &dir::SymbolTable,
     well_known_intrinsics: Option<&WellKnownIntrinsics>,
@@ -61,10 +64,16 @@ fn resolve_intrinsic_binding_name_id(
     };
 
     // resolve canonical symbol for intrinsic lookup
-    let canonical_symbol =
-        resolve_canonical_symbol(module_id, profile, compiler, local_symbols, target_symbol)?;
+    let canonical_symbol = resolve_canonical_symbol(
+        module_id,
+        profile,
+        revision,
+        compiler,
+        local_symbols,
+        target_symbol,
+    )?;
     if let Some(name) = well_known_intrinsics.name_for_symbol(canonical_symbol) {
-        return Ok(Some(compiler.program.strings.intern(name)));
+        return Ok(Some(compiler.repository.strings.intern(name)));
     }
 
     Ok(None)
@@ -74,6 +83,7 @@ fn resolve_intrinsic_binding_name_id(
 fn resolve_canonical_symbol(
     module_id: ModuleId,
     profile: ProfileId,
+    revision: Revision,
     compiler: &Compiler,
     local_symbols: &dir::SymbolTable,
     symbol_id: GlobalSymbolId,
@@ -82,13 +92,14 @@ fn resolve_canonical_symbol(
         let symbol = local_symbols.get_symbol(symbol_id.local_id);
         (symbol.canonical_symbol, symbol.target_symbol)
     } else {
-        let snapshot = compiler.require_artifact_dir_analyzed(symbol_id.module_id, profile);
+        let snapshot =
+            compiler.require_artifact_dir_analyzed(revision, symbol_id.module_id, profile);
         let snapshot = match snapshot {
             Ok(snapshot) => snapshot,
-            Err(ArtifactRequirementError::NotReady { requirement }) => {
+            Err(RequirementError::NotReady { requirement }) => {
                 return Err(LowerError::Yield { requirement });
             }
-            Err(ArtifactRequirementError::Failed { requirement }) => {
+            Err(RequirementError::Failed { requirement }) => {
                 return Err(LowerError::UnsatisfiedRequirement { requirement });
             }
         };

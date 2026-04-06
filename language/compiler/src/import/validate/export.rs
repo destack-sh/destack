@@ -170,7 +170,7 @@ impl Compiler {
         symbols: &SymbolTable,
         roots: &[LocalNodeId<Expression>],
     ) {
-        let default_name = self.program.strings.intern("default");
+        let default_name = self.repository.strings.intern("default");
         let mut exported_names = HashMap::new();
 
         // scan top-level roots in source order
@@ -289,7 +289,7 @@ impl Compiler {
 
     /// Return true when an export local name is disallowed as a binding identifier.
     fn export_local_name_is_disallowed_identifier(&self, name: StringId) -> bool {
-        let name = self.program.strings.get(name);
+        let name = self.repository.strings.get(name);
         let Ok(keyword) = Keyword::from_str(name.as_ref()) else {
             return false;
         };

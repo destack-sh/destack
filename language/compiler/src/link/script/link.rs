@@ -13,7 +13,7 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn link_target(&self, entry_modules: &[ModuleId]) -> LinkResult<PackageOutput> {
         self.validate_target()?;
 
-        let module_ids = self.require_module_artifacts(entry_modules)?;
+        let module_ids = self.require_module_outputs(entry_modules)?;
 
         self.link(entry_modules, &module_ids)
     }
@@ -47,6 +47,7 @@ impl<'a> ScriptLinker<'a> {
                 &output,
                 &output_graph,
                 &output_layout,
+                self.context,
             );
 
             self.compiler.append_manifest_output(
@@ -69,7 +70,7 @@ impl<'a> ScriptLinker<'a> {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
-                target: self.target_id.clone(),
+                target: *self.target_id,
                 message: format!(
                     "bundle.output.format '{}' is not implemented yet",
                     Self::bundle_format_name(format)
@@ -82,7 +83,7 @@ impl<'a> ScriptLinker<'a> {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
-                target: self.target_id.clone(),
+                target: *self.target_id,
                 message: "bundle.inlineDynamicImports is not implemented yet".to_string(),
             });
         }
@@ -92,7 +93,7 @@ impl<'a> ScriptLinker<'a> {
             return Err(LinkError::InvalidTarget {
                 anchor: self.package_id.into(),
                 package: self.package_id,
-                target: self.target_id.clone(),
+                target: *self.target_id,
                 message: "bundle.minify is not implemented yet".to_string(),
             });
         }
@@ -135,7 +136,7 @@ impl<'a> ScriptLinker<'a> {
                 output_layout,
                 self.target,
             )?;
-            let module = self.compiler.program.modules.get(*module_id);
+            let module = self.context.module(*module_id);
             let mut rewritten_artifact = script;
             rewritten_artifact.module = rewritten_module;
             let files = self
@@ -147,6 +148,7 @@ impl<'a> ScriptLinker<'a> {
                     self.target,
                     self.package_dir,
                     self.root_dir,
+                    self.context,
                 )
                 .map_err(|message| LinkError::Internal {
                     package: self.package_id,
@@ -187,15 +189,17 @@ impl<'a> ScriptLinker<'a> {
                 &module_target,
                 file_type,
             )?;
-            let code = self.compiler.compose_linked_script_text(
+            let code = self.compose_linked_script_text(
                 parts
                     .iter()
                     .map(|(_, printed)| printed.code.clone())
                     .collect(),
             );
-            let source_map = self
-                .compiler
-                .linked_script_source_map_for_parts(self.package_dir, &parts);
+            let source_map = self.compiler.linked_script_source_map_for_parts(
+                self.package_dir,
+                &parts,
+                self.context,
+            );
             let source_map_path = self
                 .target
                 .emits_source_map_output()

@@ -485,11 +485,11 @@ impl Compiler {
         };
 
         // prepare static keys for branch inspection
-        let kind_key = StaticKey::Name(self.program.strings.intern("kind"));
-        let value_key = StaticKey::Name(self.program.strings.intern("value"));
-        let error_key = StaticKey::Name(self.program.strings.intern("error"));
-        let ok_id = self.program.strings.intern("ok");
-        let err_id = self.program.strings.intern("err");
+        let kind_key = StaticKey::Name(self.repository.strings.intern("kind"));
+        let value_key = StaticKey::Name(self.repository.strings.intern("value"));
+        let error_key = StaticKey::Name(self.repository.strings.intern("error"));
+        let ok_id = self.repository.strings.intern("ok");
+        let err_id = self.repository.strings.intern("err");
 
         // collect ok/error value types from union members
         let mut ok_types = Vec::new();
@@ -830,7 +830,7 @@ impl Compiler {
         receiver_ty: &Type,
     ) -> AnalyzeResult<()> {
         // resolve the fromError key once
-        let from_error_key = StaticKey::Name(self.program.strings.intern("fromError"));
+        let from_error_key = StaticKey::Name(self.repository.strings.intern("fromError"));
 
         // scan receiver variants for missing static members
         let mut missing_from_error = false;
@@ -838,6 +838,7 @@ impl Compiler {
             Type::Reference { symbol, .. } => {
                 let mut visited = Vec::new();
                 let member = self.resolve_member_symbol_for_symbol(
+                    ctx.compiler_context,
                     ctx.module,
                     ctx.module.id,
                     ctx.profile,
@@ -860,6 +861,7 @@ impl Compiler {
                     if let Type::Reference { symbol, .. } = element_ty {
                         let mut visited = Vec::new();
                         let member = self.resolve_member_symbol_for_symbol(
+                            ctx.compiler_context,
                             ctx.module,
                             ctx.module.id,
                             ctx.profile,
@@ -1149,7 +1151,7 @@ impl Compiler {
     }
 
     fn try_branch_member_key(&self) -> StaticKey {
-        let name_id = self.program.strings.intern("branch");
+        let name_id = self.repository.strings.intern("branch");
         StaticKey::Name(name_id)
     }
 }

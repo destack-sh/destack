@@ -95,7 +95,7 @@ impl Compiler {
         self.validate_static_if_placement(module_id, profile_id, tree)?;
 
         // collect static if targets
-        let if_name = self.program.strings.intern("if");
+        let if_name = self.repository.strings.intern("if");
         let mut declaration_targets = Vec::new();
         let mut expression_targets = Vec::new();
         let mut seen_declarations = HashSet::new();
@@ -323,7 +323,7 @@ impl Compiler {
         tree: &NodeTree,
     ) -> ResolveResult<()> {
         // cache the decorator identifier
-        let if_name = self.program.strings.intern("if");
+        let if_name = self.repository.strings.intern("if");
 
         // walk all annotations looking for @if decorators
         for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
@@ -381,7 +381,7 @@ impl Compiler {
     /// Mark static if annotations inactive after they are processed.
     fn mark_static_if_annotations_inactive(&self, tree: &mut NodeTree, types: &TypeTable) {
         // cache the decorator identifier
-        let if_name = self.program.strings.intern("if");
+        let if_name = self.repository.strings.intern("if");
 
         // mark @if annotations inactive
         for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
@@ -643,7 +643,7 @@ impl Compiler {
 
         // iterate annotations for the node
         let annotations = tree.get_annotations(node_id.id);
-        let if_name = self.program.strings.intern("if");
+        let if_name = self.repository.strings.intern("if");
         for annotation_id in annotations {
             let Some(call) = self.decorator_call_named(tree, annotation_id, if_name) else {
                 continue;
@@ -961,7 +961,7 @@ impl Compiler {
         // dispatch member access by value
         match value {
             StaticIfValue::ImportKeyword => {
-                let meta_name = self.program.strings.intern("meta");
+                let meta_name = self.repository.strings.intern("meta");
                 if name == meta_name {
                     Ok(StaticIfValue::ImportMeta)
                 } else {
@@ -1033,9 +1033,11 @@ impl Compiler {
         path: &destack_dir::Path,
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
-        let undefined_name = self.program.strings.intern("undefined");
-        let null_name = self.program.strings.intern("null");
-        let import_name = self.program.strings.intern("import");
+        let undefined_name = self.repository.strings.intern("undefined");
+        let null_name = self.repository.strings.intern("null");
+        // validate the import.meta prefix
+        let import_name = self.repository.strings.intern("import");
+        let meta_name = self.repository.strings.intern("meta");
 
         // keep single-segment intrinsic values available in static conditions
         if path.segments.len() == 1 {
@@ -1050,9 +1052,6 @@ impl Compiler {
                 return Ok(StaticIfValue::ImportKeyword);
             }
         }
-
-        // validate the import.meta prefix
-        let meta_name = self.program.strings.intern("meta");
         if path.segments.len() < 2
             || path.segments[0] != import_name
             || path.segments[1] != meta_name
@@ -1095,19 +1094,19 @@ impl Compiler {
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
         // resolve the import.meta property name
-        let url_name = self.program.strings.intern("url");
-        let path_name = self.program.strings.intern("path");
-        let file_name = self.program.strings.intern("file");
-        let filename_name = self.program.strings.intern("filename");
-        let dir_name = self.program.strings.intern("dir");
-        let dirname_name = self.program.strings.intern("dirname");
-        let emit_key = self.program.strings.intern("emit");
-        let platform_key = self.program.strings.intern("platform");
-        let runtime_key = self.program.strings.intern("runtime");
-        let debug_name = self.program.strings.intern("debug");
-        let test_name = self.program.strings.intern("test");
-        let env_name = self.program.strings.intern("env");
-        let target_name = self.program.strings.intern("target");
+        let url_name = self.repository.strings.intern("url");
+        let path_name = self.repository.strings.intern("path");
+        let file_name = self.repository.strings.intern("file");
+        let filename_name = self.repository.strings.intern("filename");
+        let dir_name = self.repository.strings.intern("dir");
+        let dirname_name = self.repository.strings.intern("dirname");
+        let emit_key = self.repository.strings.intern("emit");
+        let platform_key = self.repository.strings.intern("platform");
+        let runtime_key = self.repository.strings.intern("runtime");
+        let debug_name = self.repository.strings.intern("debug");
+        let test_name = self.repository.strings.intern("test");
+        let env_name = self.repository.strings.intern("env");
+        let target_name = self.repository.strings.intern("target");
 
         // match against interned names
         match name {
@@ -1152,10 +1151,10 @@ impl Compiler {
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
         // resolve the import.meta.env property name
-        let dev_name = self.program.strings.intern("DEV");
-        let prod_name = self.program.strings.intern("PROD");
-        let test_name = self.program.strings.intern("TEST");
-        let node_env_name = self.program.strings.intern("NODE_ENV");
+        let dev_name = self.repository.strings.intern("DEV");
+        let prod_name = self.repository.strings.intern("PROD");
+        let test_name = self.repository.strings.intern("TEST");
+        let node_env_name = self.repository.strings.intern("NODE_ENV");
         match name {
             id if id == dev_name => Ok(StaticIfValue::Scalar(ScalarLiteral::Boolean(
                 import_meta.env.dev,
@@ -1171,7 +1170,7 @@ impl Compiler {
             }
             _ => {
                 // read the string outside the env lookup path
-                let name_str = self.program.strings.get(name);
+                let name_str = self.repository.strings.get(name);
                 let name_owned = name_str.as_str().to_string();
                 drop(name_str);
                 Ok(self.env_lookup(name_owned.as_str(), &import_meta.env))
@@ -1189,11 +1188,11 @@ impl Compiler {
         import_meta: &ImportMeta,
     ) -> ResolveResult<StaticIfValue> {
         // resolve the import.meta.target property name
-        let family_name = self.program.strings.intern("family");
-        let vendor_name = self.program.strings.intern("vendor");
-        let env_name = self.program.strings.intern("env");
-        let abi_name = self.program.strings.intern("abi");
-        let arch_name = self.program.strings.intern("arch");
+        let family_name = self.repository.strings.intern("family");
+        let vendor_name = self.repository.strings.intern("vendor");
+        let env_name = self.repository.strings.intern("env");
+        let abi_name = self.repository.strings.intern("abi");
+        let arch_name = self.repository.strings.intern("arch");
         match name {
             id if id == family_name => Ok(self.static_string_literal(&import_meta.target.family)),
             id if id == vendor_name => Ok(self.static_string_literal(&import_meta.target.vendor)),
@@ -1218,7 +1217,7 @@ impl Compiler {
     /// Convert a string into a static scalar literal.
     fn static_string_literal(&self, value: &str) -> StaticIfValue {
         // intern string values for scalar literals
-        let id = self.program.strings.intern(value);
+        let id = self.repository.strings.intern(value);
         StaticIfValue::Scalar(ScalarLiteral::String(id))
     }
 

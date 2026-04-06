@@ -1,19 +1,20 @@
 use destack_dir::SymbolTable;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ProfileId, Revision};
 
 use crate::timing::tags;
-use crate::{ArtifactRequirementCollector, Compiler, ResolveError, ResolveResult};
+use crate::{Compiler, RequirementCollector, ResolveError, ResolveResult};
 
 impl Compiler {
     /// Compute canonical_symbol for all symbols (phase 2).
     pub(crate) fn resolve_module_canonical(
         &self,
+        revision: Revision,
         module: &Module,
         profile: ProfileId,
         symbols: &mut SymbolTable,
     ) -> ResolveResult<()> {
         let _timing = self.timing_scope(tags::RESOLVE_MODULE_CANONICAL);
-        if !self.is_code_module(module.id) {
+        if !module.is_code() {
             return Ok(());
         }
         // collect symbols that have target_symbol but no canonical_symbol
@@ -44,11 +45,11 @@ impl Compiler {
         }
         // resolve canonical symbols
         // (this may yield for cross module resolution)
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         for (symbol_id, node) in symbols_to_resolve {
             self.collect(
                 &mut collector,
-                self.resolve_canonical_symbol(module, symbols, node, symbol_id, profile),
+                self.resolve_canonical_symbol(revision, module, symbols, node, symbol_id, profile),
             );
         }
 

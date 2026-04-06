@@ -42,9 +42,9 @@ impl Compiler {
         let reflect_group = well_known.get_group(WellKnownSymbol::Reflect);
 
         // resolve well known member names for restricted shape mutation
-        let define_property_name = self.program.strings.intern("defineProperty");
-        let define_properties_name = self.program.strings.intern("defineProperties");
-        let set_prototype_of_name = self.program.strings.intern("setPrototypeOf");
+        let define_property_name = self.repository.strings.intern("defineProperty");
+        let define_properties_name = self.repository.strings.intern("defineProperties");
+        let set_prototype_of_name = self.repository.strings.intern("setPrototypeOf");
 
         // resolve the canonical symbol for a global reference
         let canonical_symbol = |symbol: GlobalSymbolId| {

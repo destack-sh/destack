@@ -1,7 +1,6 @@
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
-use destack_source::ModuleId;
-use destack_workspace::TargetId;
+use destack_source::{ModuleId, TargetId};
 use mir::{Instruction, Value};
 
 use crate::OptimizeError;
@@ -52,12 +51,12 @@ impl<'a> MoveCheckContext<'a> {
     /// Create an anchored node ID from a move location for diagnostics.
     fn anchor(&self, location: &MoveLocation) -> mir::AnchoredGlobalNodeId {
         match location {
-            MoveLocation::Instruction(id) => id
-                .into_any()
-                .into_anchored(self.module_id, self.target_id.clone()),
-            MoveLocation::Terminator(id) => id
-                .into_any()
-                .into_anchored(self.module_id, self.target_id.clone()),
+            MoveLocation::Instruction(id) => {
+                id.into_any().into_anchored(self.module_id, self.target_id)
+            }
+            MoveLocation::Terminator(id) => {
+                id.into_any().into_anchored(self.module_id, self.target_id)
+            }
         }
     }
 
@@ -68,14 +67,14 @@ impl<'a> MoveCheckContext<'a> {
     ) -> mir::AnchoredGlobalNodeId {
         instruction_id
             .into_any()
-            .into_anchored(self.module_id, self.target_id.clone())
+            .into_anchored(self.module_id, self.target_id)
     }
 
     /// Create an anchored node ID for a block.
     fn anchor_block(&self, block_id: mir::LocalNodeId<mir::Block>) -> mir::AnchoredGlobalNodeId {
         block_id
             .into_any()
-            .into_anchored(self.module_id, self.target_id.clone())
+            .into_anchored(self.module_id, self.target_id)
     }
 
     /// Check if using a value is valid at the current state.
@@ -406,7 +405,7 @@ impl FunctionPass for MoveCheck {
         };
 
         let module_id = ctx.module_id();
-        let target_id = ctx.target_id().clone();
+        let target_id = *ctx.target_id();
 
         let checker = MoveCheckContext::new(tree, &ownership, module_id, target_id);
         checker.check(function, ctx);

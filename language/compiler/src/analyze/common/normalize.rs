@@ -3,17 +3,39 @@ use std::collections::{HashMap, HashSet};
 use destack_artifact::ArtifactKey;
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, NormalizationMode,
-    StaticArgument, StaticParameterKind, Symbol, SymbolSpace, SymbolTable, SymbolType, Type,
-    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
-    WellKnownSymbol,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticParameterKind, Symbol, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    TypeTable, TypeUnaryOperator, WellKnownSymbol,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::workspace::{Module, ProfileId};
 
 use super::{CanonicalSymbolMode, ModuleSymbolView, RelationMode, TypeContext, TypeRewriteCache};
 use crate::timing::tags;
-use crate::{AnalyzeError, Compiler};
+use crate::{AnalyzeError, Compiler, CompilerContext};
 
 const MAX_ALIAS_NORMALIZATION_DEPTH: usize = 128;
+
+/// Return whether one normalized union element safely subsumes another.
+fn union_element_subsumes(super_type: &Type, sub_type: &Type) -> bool {
+    matches!(
+        (super_type, sub_type),
+        (
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
+            },
+        ) | (
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(_)),
+            },
+        )
+    )
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -38,6 +60,7 @@ impl Compiler {
         artifact_key: fn(destack_source::ModuleId, ProfileId) -> ArtifactKey,
     ) -> GlobalSymbolId {
         self.require_remote_artifact_dir(
+            view.compiler_context,
             view.module.id,
             symbol.module_id,
             view.profile,
@@ -48,15 +71,9 @@ impl Compiler {
             let owner_module_handle = if symbol.module_id == view.module.id {
                 None
             } else {
-                Some(self.program.modules.get(symbol.module_id))
+                Some(view.compiler_context.module(symbol.module_id))
             };
-            let owner_module = if symbol.module_id == view.module.id {
-                view.module
-            } else {
-                owner_module_handle
-                    .as_deref()
-                    .expect("missing owner module")
-            };
+            let owner_module = owner_module_handle.as_deref().unwrap_or(view.module);
             let symbol_entry = base_dir.symbols.get_symbol(symbol.local_id).clone();
 
             Ok(self.normalize_reference_symbol_id_with_symbols(
@@ -131,14 +148,22 @@ impl Compiler {
 
         // gather global and ambient type symbols by key
         let mut candidates = Vec::new();
-        if let Some(group) =
-            self.get_global_symbol_group(view.module.id, view.profile, key, SymbolSpace::Type)
-        {
+        if let Some(group) = self.get_global_symbol_group(
+            view.compiler_context.revision(),
+            view.module.id,
+            view.profile,
+            key,
+            SymbolSpace::Type,
+        ) {
             candidates.extend(group);
         }
-        if let Some(group) =
-            self.get_global_symbol_group(view.module.id, view.profile, key, SymbolSpace::TypeValue)
-        {
+        if let Some(group) = self.get_global_symbol_group(
+            view.compiler_context.revision(),
+            view.module.id,
+            view.profile,
+            key,
+            SymbolSpace::TypeValue,
+        ) {
             candidates.extend(group);
         }
         if let Some(ambient) =
@@ -422,6 +447,7 @@ impl Compiler {
                     else if symbol.ty() == SymbolType::TypeAlias {
                         // keep abstract associated aliases symbolic here
                         if self.alias_reference_is_opaque_for_normalization(
+                            ctx.compiler_context,
                             ctx.module,
                             ctx.profile,
                             ctx.tree,
@@ -915,9 +941,7 @@ impl Compiler {
                         relation_mode,
                         visited,
                     );
-                    let deep_readonly = self
-                        .analyze_context_options_for_module(ctx.module.id)
-                        .deep_readonly;
+                    let deep_readonly = ctx.options.deep_readonly;
                     self.materialize_readonly_type(
                         source_id,
                         normalized_right,
@@ -1121,6 +1145,7 @@ impl Compiler {
 
         // keep abstract associated aliases symbolic here
         if self.alias_reference_is_opaque_for_normalization(
+            ctx.compiler_context,
             ctx.module,
             ctx.profile,
             ctx.tree,
@@ -1408,15 +1433,19 @@ impl Compiler {
                 } else {
                     let dir = self.require_indexed_dir_declared(
                         &ctx.index,
+                        ctx.compiler_context.revision(),
                         symbol.module_id,
                         ctx.profile,
                     );
                     match dir {
                         Ok(dir) => {
-                            let module = self.program.modules.get(symbol.module_id);
+                            let module = ctx.compiler_context.module(symbol.module_id);
                             let module = module.as_ref();
-                            let options = self.analyze_context_options_for_module(module.id);
+                            let options = ctx
+                                .compiler_context
+                                .analyze_context_options_for_module(module.id);
                             let mut ctx = TypeContext::new(
+                                ctx.compiler_context,
                                 module,
                                 ctx.profile,
                                 &options,
@@ -1448,6 +1477,7 @@ impl Compiler {
     /// Resolve the static arguments used for alias normalization.
     fn alias_reference_is_opaque_for_normalization(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
@@ -1455,6 +1485,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
     ) -> bool {
         self.with_module_tree_symbol_view_or_local_for_artifact(
+            context,
             module,
             profile,
             symbol.module_id,
@@ -1570,15 +1601,23 @@ impl Compiler {
                 &mut materialize_cache,
             )
         } else {
-            let dir = self.require_indexed_dir_declared(&ctx.index, symbol.module_id, ctx.profile);
+            let dir = self.require_indexed_dir_declared(
+                &ctx.index,
+                ctx.compiler_context.revision(),
+                symbol.module_id,
+                ctx.profile,
+            );
             let Ok(dir) = dir else {
                 return instance_type_id;
             };
 
-            let module = self.program.modules.get(symbol.module_id);
+            let module = ctx.compiler_context.module(symbol.module_id);
             let module = module.as_ref();
-            let options = self.analyze_context_options_for_module(module.id);
+            let options = ctx
+                .compiler_context
+                .analyze_context_options_for_module(module.id);
             let mut ctx = TypeContext::new(
+                ctx.compiler_context,
                 module,
                 ctx.profile,
                 &options,
@@ -1751,7 +1790,7 @@ impl Compiler {
 
         // drop literal members that are already covered by one simple primitive
         let mut simplified = Vec::new();
-        for element_id in filtered {
+        for element_id in filtered.iter().copied() {
             if self.union_element_is_subsumed_by_simple_primitive_member(
                 element_id,
                 &simplified,
@@ -1790,17 +1829,70 @@ impl Compiler {
             });
         }
 
+        // collapse safe literal to primitive cases
+        let mut collapsed = Vec::with_capacity(filtered.len());
+        'candidate: for candidate_id in filtered {
+            let candidate_type = ctx.types.get_type(candidate_id).clone();
+            let mut index = 0;
+            while index < collapsed.len() {
+                let existing_id = collapsed[index];
+                let existing_type = ctx.types.get_type(existing_id).clone();
+
+                // keep the broader existing element when it already covers the candidate
+                if union_element_subsumes(&existing_type, &candidate_type) {
+                    continue 'candidate;
+                }
+
+                // replace a narrower existing literal with the broader primitive candidate
+                if union_element_subsumes(&candidate_type, &existing_type) {
+                    collapsed.remove(index);
+                    continue;
+                }
+
+                index += 1;
+            }
+
+            collapsed.push(candidate_id);
+        }
+
+        // collapse complete boolean literal unions to the primitive boolean type
+        let mut has_true = false;
+        let mut has_false = false;
+        let mut all_boolean_literals = true;
+        for element_id in &collapsed {
+            match ctx.types.get_type(*element_id) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true)),
+                } => has_true = true,
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(false)),
+                } => has_false = true,
+                _ => {
+                    all_boolean_literals = false;
+                    break;
+                }
+            }
+        }
+        if all_boolean_literals && has_true && has_false {
+            return ctx.types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                },
+                ctx.types.get_type_source(type_id),
+            );
+        }
+
         // short circuit when a single element remains
-        if simplified.len() == 1 {
-            return simplified[0];
+        if collapsed.len() == 1 {
+            return collapsed[0];
         }
 
         // reuse existing union id when unchanged
-        if simplified == elements {
+        if collapsed == elements {
             return type_id;
         }
 
-        ctx.types.intern_union_type(simplified, type_id)
+        ctx.types.intern_union_type(collapsed, type_id)
     }
 
     /// Normalize intersection types by flattening and collapsing special cases.

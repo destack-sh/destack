@@ -1,29 +1,21 @@
-use std::sync::Arc;
-
-use destack_artifact::{
-    ArtifactKey, CanonicalStaticKey, LanguageEnvironment, LibraryEnvironment, WellKnownSymbols,
-};
+use destack_artifact::{ArtifactKey, CanonicalStaticKey, LanguageEnvironment, WellKnownSymbols};
 use destack_builtin::{LanguageSymbol, builtin_library};
 use destack_core::StringId;
 use destack_dir::{
     GlobalSymbolId, LocalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol,
 };
 use destack_source::ModuleId;
-use destack_workspace::{BuiltinLibrarySelection, ProfileId};
+use destack_workspace::{BuiltinLibrarySelection, ProfileId, Revision};
 use std::collections::HashSet;
 
 use crate::timing::tags;
-use crate::{
-    ArtifactRequirementCollector, ArtifactRequirementError, Compiler, ResolveError, ResolveResult,
-};
+use crate::{Compiler, RequirementCollector, RequirementError, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when one builtin library module contributes to the early language surface.
     pub fn is_standard_library_environment_module(&self, module_id: ModuleId) -> bool {
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return false;
-        };
+        let builtins = self.repository.builtins.as_ref();
         let Some(lib_name) = builtins.library_name_for_module(module_id) else {
             return false;
         };
@@ -104,18 +96,8 @@ impl Compiler {
         None
     }
 
-    /// Return the language environment for one profile.
-    pub fn language_environment(&self, profile: ProfileId) -> Option<Arc<LanguageEnvironment>> {
-        self.artifacts.language_environment(profile)
-    }
-
-    /// Return the library environment for one profile.
-    pub fn library_environment(&self, profile: ProfileId) -> Option<Arc<LibraryEnvironment>> {
-        self.artifacts.library_environment(profile)
-    }
-
     /// Return the selected library modules for one profile.
-    pub fn selected_library_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
+    pub(crate) fn selected_library_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
         if let Some(environment) = self.library_environment(profile) {
             return environment.supporting_modules();
         }
@@ -127,51 +109,41 @@ impl Compiler {
     /// Return the builtin library selection derived from current profile input.
     pub(crate) fn builtin_library_selection_from_input(
         &self,
+        _revision: destack_workspace::Revision,
         profile_id: ProfileId,
     ) -> ResolveResult<BuiltinLibrarySelection> {
         if !self.options.load_libraries {
             return Ok(BuiltinLibrarySelection::default());
         }
 
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(BuiltinLibrarySelection::default());
-        };
+        let builtins = self.repository.builtins.as_ref();
 
-        let profile_key = self.program.profile(profile_id).key.clone();
+        let profile_key = self.profile(profile_id).key.clone();
         self.builtin_library_selection(builtins, &profile_key)
     }
 
-    /// Return the ambient library modules for one profile.
-    pub fn ambient_library_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
-        if let Some(environment) = self.library_environment(profile) {
-            return environment.ambient_modules.clone();
-        }
-
-        self.ambient_library_modules_from_input(profile)
-            .unwrap_or_default()
-    }
-
     /// Return the modules that support one global environment.
-    pub fn library_environment_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
+    pub(crate) fn library_environment_modules(&self, profile: ProfileId) -> Vec<ModuleId> {
         self.library_environment(profile)
             .map(|environment| environment.supporting_modules())
             .unwrap_or_default()
     }
 
     /// Return true when one module is ambient for one profile.
-    pub fn is_ambient_library_module(&self, profile: ProfileId, module: ModuleId) -> bool {
+    pub(crate) fn is_ambient_library_module(&self, profile: ProfileId, module: ModuleId) -> bool {
         self.library_environment(profile)
             .is_some_and(|environment| environment.ambient_modules.contains(&module))
     }
 
     /// Return true when one module is selected in the library environment for one profile.
-    pub fn is_selected_library_module(&self, profile: ProfileId, module: ModuleId) -> bool {
+    pub(crate) fn is_selected_library_module(&self, profile: ProfileId, module: ModuleId) -> bool {
         self.selected_library_modules(profile).contains(&module)
     }
 
     /// Resolve the language environment for one profile.
-    pub fn resolve_language_environment(
+    pub(crate) fn resolve_language_environment(
         &self,
+        revision: destack_workspace::Revision,
         profile: ProfileId,
     ) -> ResolveResult<LanguageEnvironment> {
         if self.language_environment(profile).is_some() {
@@ -183,7 +155,7 @@ impl Compiler {
         }
 
         let artifact_key = ArtifactKey::language_environment(profile);
-        match self.load_language_environment_image(profile) {
+        match self.load_language_environment_image(revision, profile) {
             Ok(Some(environment)) => return Ok(environment),
             Ok(None) => {}
             Err(error) => {
@@ -191,18 +163,16 @@ impl Compiler {
             }
         }
 
-        let Some(builtins) = self.program.builtins.as_ref() else {
-            return Ok(LanguageEnvironment::default());
-        };
+        let builtins = self.repository.builtins.as_ref();
         let _timing = self.timing_scope(tags::RESOLVE_BUILTINS);
 
         // bind builtin defining modules
-        let mut collector = ArtifactRequirementCollector::new();
+        let mut collector = RequirementCollector::new();
         for &module_id in builtins.intrinsic_module_by_path.values() {
             if module_id == builtins.prelude_module_id {
                 continue;
             }
-            if let Err(error) = self.require_dir_base(module_id)
+            if let Err(error) = self.require_dir_base(revision, module_id)
                 && let Some(error) = collector.try_collect::<(), _>(Err(error))
             {
                 let requirement = error.into_requirement();
@@ -219,7 +189,7 @@ impl Compiler {
         let mut symbols = indexmap::IndexMap::new();
         for item in LanguageSymbol::all() {
             let module_id = builtins.module_for_item(item);
-            let name_id = self.program.strings.intern(item.export_name());
+            let name_id = self.repository.strings.intern(item.export_name());
             let export_spaces = SymbolSpaceOrder::ValueThenType;
             let Some(symbol_id) =
                 self.local_exported_symbol_from_base(module_id, name_id, export_spaces)
@@ -237,34 +207,23 @@ impl Compiler {
     /// Ensure the language environment exists for one profile.
     pub fn require_language_environment(
         &self,
+        revision: Revision,
         profile: ProfileId,
-    ) -> Result<(), ArtifactRequirementError> {
-        self.require_artifact(ArtifactKey::language_environment(profile))
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::language_environment(profile))
     }
 
     /// Ensure the library environment exists for one profile.
     pub fn require_library_environment(
         &self,
+        revision: Revision,
         profile: ProfileId,
-    ) -> Result<(), ArtifactRequirementError> {
-        self.require_artifact(ArtifactKey::library_environment(profile))
-    }
-
-    /// Get a required language item, returning an error if not found.
-    pub fn require_language_symbol(
-        &self,
-        profile: ProfileId,
-        item: LanguageSymbol,
-    ) -> ResolveResult<GlobalSymbolId> {
-        self.require_language_environment(profile)
-            .map_err(ResolveError::from)?;
-
-        self.get_language_symbol(profile, item)
-            .ok_or(ResolveError::MissingLanguageSymbol { item })
+    ) -> Result<(), RequirementError> {
+        self.require_artifact(revision, ArtifactKey::library_environment(profile))
     }
 
     /// Get a language item from the cache, returning None if not found.
-    pub fn get_language_symbol(
+    pub(crate) fn get_language_symbol(
         &self,
         profile: ProfileId,
         item: LanguageSymbol,
@@ -273,19 +232,27 @@ impl Compiler {
     }
 
     /// Get one builtin symbol by export name.
-    pub fn get_builtin_symbol(&self, profile: ProfileId, name: StringId) -> Option<GlobalSymbolId> {
-        let name = self.program.strings.get(name);
+    pub(crate) fn get_builtin_symbol(
+        &self,
+        profile: ProfileId,
+        name: StringId,
+    ) -> Option<GlobalSymbolId> {
+        let name = self.repository.strings.get(name);
         self.language_environment(profile)?.symbol(name.as_ref())
     }
 
     /// Get a language item from the cache, panicking if not found.
-    pub fn language_symbol(&self, profile: ProfileId, item: LanguageSymbol) -> GlobalSymbolId {
+    pub(crate) fn language_symbol(
+        &self,
+        profile: ProfileId,
+        item: LanguageSymbol,
+    ) -> GlobalSymbolId {
         self.get_language_symbol(profile, item)
             .unwrap_or_else(|| panic!("language item {item:?} not available"))
     }
 
     /// Get a cached declared library symbol for a profile and name.
-    pub fn get_declared_library_symbol(
+    pub(crate) fn get_declared_library_symbol(
         &self,
         profile_id: ProfileId,
         name: StringId,
@@ -294,13 +261,13 @@ impl Compiler {
     }
 
     /// Get a cached declared library symbol for a profile, name, and space order.
-    pub fn get_declared_library_symbol_from(
+    pub(crate) fn get_declared_library_symbol_from(
         &self,
         profile_id: ProfileId,
         name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let name = self.program.strings.get(name);
+        let name = self.repository.strings.get(name);
         let key = CanonicalStaticKey::Name(name.to_string());
         self.library_environment(profile_id)?
             .declared_symbol_from_key(&key, order)
@@ -310,39 +277,39 @@ impl Compiler {
     ///
     /// This only selects one symbol id from the cached library environment.
     /// Callers that need declaration artifacts must require `DirDeclared` separately.
-    pub fn get_declared_concrete_library_symbol_from(
+    pub(crate) fn get_declared_concrete_library_symbol_from(
         &self,
         profile_id: ProfileId,
         name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let name = self.program.strings.get(name);
+        let name = self.repository.strings.get(name);
         let key = CanonicalStaticKey::Name(name.to_string());
         self.library_environment(profile_id)?
             .declared_concrete_symbol_from_key(&key, order)
     }
 
     /// Get selected library symbol sources for a profile, key, and space.
-    pub fn get_library_symbol_sources(
+    pub(crate) fn get_library_symbol_sources(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
         space: SymbolSpace,
     ) -> Option<Vec<GlobalSymbolId>> {
-        let key = CanonicalStaticKey::from_static_key(key, &self.program.strings);
+        let key = CanonicalStaticKey::from_static_key(key, &self.repository.strings);
         self.library_environment(profile_id)?
             .symbol_sources(&key, space)
             .map(<[GlobalSymbolId]>::to_vec)
     }
 
     /// Get one selected library symbol using a space order.
-    pub fn get_library_symbol_from(
+    pub(crate) fn get_library_symbol_from(
         &self,
         profile_id: ProfileId,
         name: StringId,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let name = self.program.strings.get(name);
+        let name = self.repository.strings.get(name);
         let key = CanonicalStaticKey::Name(name.to_string());
         let environment = self.library_environment(profile_id)?;
 
@@ -355,7 +322,7 @@ impl Compiler {
     }
 
     /// Get selected library symbol sources for merge (includes type-value sources).
-    pub fn get_library_symbol_sources_for_merge(
+    pub(crate) fn get_library_symbol_sources_for_merge(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
@@ -398,13 +365,13 @@ impl Compiler {
     }
 
     /// Get selected library symbol sources for a profile, key, and space order.
-    pub fn get_library_symbol_sources_for_space_order(
+    pub(crate) fn get_library_symbol_sources_for_space_order(
         &self,
         profile_id: ProfileId,
         key: StaticKey,
         order: SymbolSpaceOrder,
     ) -> Option<Vec<GlobalSymbolId>> {
-        let key = CanonicalStaticKey::from_static_key(key, &self.program.strings);
+        let key = CanonicalStaticKey::from_static_key(key, &self.repository.strings);
         let environment = self.library_environment(profile_id)?;
         let sources = environment.symbol_sources_for_space_order(&key, order);
 
@@ -415,7 +382,7 @@ impl Compiler {
     pub fn declared_library_symbol(&self, profile_id: ProfileId, name: StringId) -> GlobalSymbolId {
         self.get_declared_library_symbol(profile_id, name)
             .unwrap_or_else(|| {
-                let name = self.program.strings.get(name);
+                let name = self.repository.strings.get(name);
                 panic!("declared library symbol '{}' not available", name.as_ref())
             })
     }
@@ -461,7 +428,7 @@ impl Compiler {
         symbol: WellKnownSymbol,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let symbol_name = self.program.strings.intern(symbol.export_name());
+        let symbol_name = self.repository.strings.intern(symbol.export_name());
         self.get_declared_library_symbol_from(profile_id, symbol_name, order)
     }
 
@@ -475,7 +442,7 @@ impl Compiler {
         symbol: WellKnownSymbol,
         order: SymbolSpaceOrder,
     ) -> Option<GlobalSymbolId> {
-        let symbol_name = self.program.strings.intern(symbol.export_name());
+        let symbol_name = self.repository.strings.intern(symbol.export_name());
         self.get_declared_concrete_library_symbol_from(profile_id, symbol_name, order)
     }
 

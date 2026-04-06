@@ -1,5 +1,5 @@
 use super::*;
-use crate::{AnalyzeError, TaskPhase};
+use crate::{AnalyzeError, ResolveError, TaskPhase};
 use destack_dir::{FloatType, SymbolSpace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -363,7 +363,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
 
     // load module data for inspection
     let view = test.view(main_id);
-    let module = test.program.modules.get(main_id);
+    let module = test.program.module_descriptor(main_id);
     let module = module.as_ref();
     let profile = view.profile_id();
     let dir = test.artifact_dir(main_id, profile);
@@ -371,15 +371,28 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
     let global_group = test
         .compiler
-        .get_global_symbol_group(main_id, profile, global_key, SymbolSpace::Type)
-        .expect("missing global group for GlobalThing");
+        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+            Ok::<_, ResolveError>(compiler.get_global_symbol_group(
+                _context.revision(),
+                main_id,
+                profile,
+                global_key,
+                SymbolSpace::Type,
+            ))
+        })
+        .expect("failed to read global symbol group");
+    let global_group = global_group.expect("missing global group for GlobalThing");
     assert_eq!(global_group.len(), 2);
 
     for global_symbol in &global_group {
         let remote_profile = test.default_profile_id(global_symbol.module_id);
         let remote_dir = test
             .compiler
-            .require_artifact_dir_declared(global_symbol.module_id, remote_profile)
+            .require_artifact_dir_declared(
+                test.program.current_revision(),
+                global_symbol.module_id,
+                remote_profile,
+            )
             .expect("declare stage should be ready for merged global module test");
         assert!(
             remote_dir
@@ -501,8 +514,17 @@ const thing: GlobalThing = { left: 1, right: "ok", local: true };
     let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
     let global_group = test
         .compiler
-        .get_global_symbol_group(main_id, profile, global_key, SymbolSpace::Type)
-        .expect("missing global group for GlobalThing");
+        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+            Ok::<_, ResolveError>(compiler.get_global_symbol_group(
+                _context.revision(),
+                main_id,
+                profile,
+                global_key,
+                SymbolSpace::Type,
+            ))
+        })
+        .expect("failed to read global symbol group");
+    let global_group = global_group.expect("missing global group for GlobalThing");
     assert_eq!(global_group.len(), 3);
     let global_thing = global_group
         .iter()
@@ -609,8 +631,17 @@ values.first() satisfies number | undefined;
     let key = StaticKey::Name(test.program.strings.intern("Array"));
     let type_group = test
         .compiler
-        .get_global_symbol_group(main_id, profile, key, SymbolSpace::Type)
-        .expect("missing Array group");
+        .run_to_completion(test.program.current_revision(), |compiler, _context| {
+            Ok::<_, ResolveError>(compiler.get_global_symbol_group(
+                _context.revision(),
+                main_id,
+                profile,
+                key,
+                SymbolSpace::Type,
+            ))
+        })
+        .expect("failed to read Array group");
+    let type_group = type_group.expect("missing Array group");
     let ambient_merge_group = test
         .compiler
         .get_library_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
@@ -641,7 +672,11 @@ values.first() satisfies number | undefined;
         .expect("missing ambient Array symbol for merge baseline");
     let ambient_dir = test
         .compiler
-        .require_artifact_dir_declared(ambient_symbol.module_id, profile)
+        .require_artifact_dir_declared(
+            test.program.current_revision(),
+            ambient_symbol.module_id,
+            profile,
+        )
         .expect("declare stage should be ready for ambient Array merge baseline");
     let ambient_instance = ambient_dir
         .types
@@ -875,17 +910,22 @@ type Alias = import("./mod.ds").User;
     test.compile_check_clean();
 
     let profile = test.default_profile_id(module_id);
+    let module = test.program.module_descriptor(module_id);
     test.compiler
-        .run_to_completion(|compiler| {
-            let module = compiler.program.modules.get(module_id);
+        .run_to_completion(test.program.current_revision(), |compiler, _context| {
             let dir = compiler
-                .require_artifact_dir_resolved(module_id, profile)
+                .require_artifact_dir_resolved(_context.revision(), module_id, profile)
                 .map_err(AnalyzeError::from)?;
-            compiler.require_type_import_dependencies_for_infer(module.as_ref(), profile, &dir.tree)
+            compiler.require_type_import_dependencies_for_infer(
+                test.program.current_revision(),
+                module.as_ref(),
+                profile,
+                &dir.tree,
+            )
         })
         .unwrap_or_else(|error| panic!("failed to require type import dependencies: {error:?}"));
 
-    let module = test.program.modules.get(module_id);
+    let module = test.program.module_descriptor(module_id);
     let dir = test.dir_resolved(module_id);
 
     let type_import = dir
@@ -905,15 +945,19 @@ type Alias = import("./mod.ds").User;
         panic!("expected string target");
     };
 
-    let resolved_symbol = test
-        .compiler
-        .resolve_import_type_symbol(
-            module.as_ref(),
-            profile,
-            type_import.0.into_any(),
-            *target,
-            type_import.2.as_ref(),
-        )
+    let resolved_symbol =
+        test.compiler
+            .run_to_completion(test.program.current_revision(), |compiler, _context| {
+                compiler.resolve_import_type_symbol(
+                    test.program.current_revision(),
+                    module.as_ref(),
+                    profile,
+                    type_import.0.into_any(),
+                    *target,
+                    type_import.2.as_ref(),
+                )
+            });
+    let resolved_symbol = resolved_symbol
         .unwrap_or_else(|error| panic!("failed to resolve import type symbol: {error:?}"));
 
     assert!(

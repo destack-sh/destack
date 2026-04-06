@@ -501,9 +501,7 @@ impl Compiler {
             TypeUnaryOperator::Readonly => {
                 // normalize readonly modifiers
                 let right_ty_id = self.unwrap_type_value(right_ty_id, ctx.types);
-                let deep_readonly = self
-                    .analyze_context_options_for_module(ctx.module.id)
-                    .deep_readonly;
+                let deep_readonly = ctx.options.deep_readonly;
                 let readonly_id = self.materialize_readonly_type(
                     expression_id.into_any(),
                     right_ty_id,

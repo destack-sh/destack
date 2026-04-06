@@ -25,7 +25,11 @@ impl Compiler {
 
         // locate the global symbol table for this module
         let global_table = self
-            .global_symbol_table_for_module(ctx.module.id, ctx.profile)
+            .global_symbol_table_for_module(
+                ctx.compiler_context.revision(),
+                ctx.module.id,
+                ctx.profile,
+            )
             .map_err(AnalyzeError::from)?;
 
         // collect global value bindings into a single shape
@@ -68,6 +72,7 @@ impl Compiler {
                 // compute readonly status from the binding mutability
                 let binding_mutability = self
                     .with_module_symbols_or_local_for_artifact(
+                        ctx.compiler_context,
                         ctx.module,
                         ctx.profile,
                         symbol_id.module_id,

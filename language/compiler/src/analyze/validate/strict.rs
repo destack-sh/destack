@@ -440,7 +440,14 @@ impl Compiler {
 
             // resolve static member keys only
             let Some(member_key) = key.and_then(|key| {
-                self.static_key_from_dynamic_key(ctx.profile, ctx.tree, ctx.symbols, ctx.types, key)
+                self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    key,
+                )
             }) else {
                 continue;
             };
@@ -596,7 +603,14 @@ impl Compiler {
 
             // record static keys only
             let Some(key) = (*key).and_then(|key| {
-                self.static_key_from_dynamic_key(ctx.profile, ctx.tree, ctx.symbols, ctx.types, key)
+                self.static_key_from_dynamic_key(
+                    ctx.compiler_context.revision(),
+                    ctx.profile,
+                    ctx.tree,
+                    ctx.symbols,
+                    ctx.types,
+                    key,
+                )
             }) else {
                 continue;
             };
@@ -788,7 +802,7 @@ impl Compiler {
             Expression::ScalarLiteral { value } => match value {
                 ScalarLiteral::String(name) => Some(StaticKey::Name(*name)),
                 ScalarLiteral::Integer(value) => {
-                    let name = self.program.strings.intern(&value.to_string());
+                    let name = self.repository.strings.intern(&value.to_string());
                     Some(StaticKey::Number(name))
                 }
                 _ => None,
@@ -1219,7 +1233,7 @@ impl Compiler {
 
     /// Return true when the parameter name is `this`.
     fn is_this_parameter_name(&self, name: StringId) -> bool {
-        self.program.strings.get(name) == "this"
+        self.repository.strings.get(name) == "this"
     }
 
     /// Validate switch fallthrough when configured.
@@ -1438,7 +1452,7 @@ impl Compiler {
         expected_type: Option<LocalTypeId>,
         has_default: bool,
     ) {
-        let options = self.analyze_context_options_for_module(ctx.module.id);
+        let options = *ctx.options;
         if !options.no_implicit_any {
             return;
         }
@@ -1461,7 +1475,7 @@ impl Compiler {
         declared_type: Option<LocalTypeId>,
         has_initializer: bool,
     ) {
-        let options = self.analyze_context_options_for_module(ctx.module.id);
+        let options = *ctx.options;
         if !options.no_implicit_any {
             return;
         }

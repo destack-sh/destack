@@ -6,7 +6,7 @@ use destack_dir::{
     NamespaceExport, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::workspace::{Module, ProfileId};
 use rustc_hash::FxHashSet;
 
 use crate::resolve::dependency::cache::{ResolveDependencyItemCache, TargetCacheKey};
@@ -111,6 +111,7 @@ impl Compiler {
     /// Resolve a dependency item, optionally using a cache.
     pub(crate) fn resolve_dependency_item(
         &self,
+        revision: destack_workspace::Revision,
         module: &Module,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -124,8 +125,7 @@ impl Compiler {
         item_id: LocalNodeId<DependencyItem>,
         mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<DependencyItem>> {
-        let module_handle = self.program.modules.get(module.id);
-        let module_handle = module_handle.as_ref();
+        let module_handle = module;
 
         // resolve the dependency item based on its mode
         let item = tree.get(item_id).clone();
@@ -162,6 +162,7 @@ impl Compiler {
                         remote_target
                     } else {
                         let Some(remote_target) = self.resolve_import_maybe(
+                            revision,
                             module_handle,
                             imported_modules,
                             profile,
@@ -229,6 +230,7 @@ impl Compiler {
                         let (symbol, resolved_kind) = {
                             let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_SYMBOL);
                             self.resolve_remote_item_symbol_result(
+                                revision,
                                 module,
                                 item_id.into_global_any(module.id),
                                 remote_symbol_target,
@@ -245,11 +247,12 @@ impl Compiler {
                     }
                     DependencyMode::Default => {
                         // resolve the default export from the target
-                        let default_name = self.program.strings.intern("default");
+                        let default_name = self.repository.strings.intern("default");
                         let key = StaticKey::Name(default_name);
                         let resolved = {
                             let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_SYMBOL);
                             self.resolve_remote_item_symbol_result(
+                                revision,
                                 module,
                                 item_id.into_global_any(module.id),
                                 remote_symbol_target,
@@ -272,6 +275,7 @@ impl Compiler {
                             Ok(resolved) => resolved,
                             Err(error @ ResolveError::MissingSymbol { .. }) => {
                                 if !self.default_import_uses_namespace_fallback(
+                                    revision,
                                     module_handle,
                                     source,
                                     kind,
@@ -284,6 +288,7 @@ impl Compiler {
                                 let _timing =
                                     self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_NAMESPACE);
                                 let symbol = self.resolve_namespace_symbol(
+                                    revision,
                                     module.id,
                                     item_id.into_global_any(module.id),
                                     remote_target,
@@ -301,6 +306,7 @@ impl Compiler {
                         // prefer export assignment for import equals
                         if source == DependencySource::ImportEquals {
                             if let Some(symbol) = self.resolve_export_assignment_symbol(
+                                revision,
                                 module.id,
                                 remote_symbol_target,
                                 profile,
@@ -308,6 +314,7 @@ impl Compiler {
                                 (symbol, kind)
                             } else {
                                 let symbol = self.resolve_namespace_symbol(
+                                    revision,
                                     module.id,
                                     item_id.into_global_any(module.id),
                                     remote_symbol_target,
@@ -332,6 +339,7 @@ impl Compiler {
                             }
                             // resolve the namespace symbol
                             let symbol = self.resolve_namespace_symbol(
+                                revision,
                                 module.id,
                                 item_id.into_global_any(module.id),
                                 remote_symbol_target,
@@ -380,6 +388,7 @@ impl Compiler {
 
                 // resolve in local scope first
                 let local_symbol_id = self.resolve_absolute_symbol_from_builder(
+                    revision,
                     module,
                     profile,
                     node,
@@ -403,6 +412,7 @@ impl Compiler {
                         let global_scope_id = global_augmentation_scope;
                         let global_scope = symbols.get_scope_by_id(global_scope_id);
                         self.resolve_absolute_symbol_from_builder(
+                            revision,
                             module,
                             profile,
                             node,
@@ -455,6 +465,7 @@ impl Compiler {
     /// Report a conflicting export error if two symbols cannot merge.
     pub(super) fn check_can_merge_declarations(
         &self,
+        revision: destack_workspace::Revision,
         left: GlobalSymbolId,
         right: GlobalSymbolId,
         node: GlobalNodeIdAny,
@@ -462,7 +473,9 @@ impl Compiler {
         module: ModuleId,
         name: Option<StaticKey>,
     ) {
-        let left_module = self.program.modules.get(left.module_id);
+        let Ok(left_module) = self.cache_module_snapshot(revision, left.module_id) else {
+            return;
+        };
         let left_module = left_module.as_ref();
         let left_dir = self.artifact_dir_base(left.module_id).unwrap_or_else(|| {
             panic!(

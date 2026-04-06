@@ -605,13 +605,14 @@ impl ModuleLowerer<'_> {
         let context = FunctionLoweringContext {
             module_id: self.module_id,
             profile: self.profile,
-            program: &self.compiler.program,
+            revision: self.context.revision(),
+            program: &self.compiler.repository,
             compiler: self.compiler,
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
             captures: self.captures,
-            strings: &self.compiler.program.strings,
+            strings: &self.compiler.repository.strings,
             well_known_intrinsics: self.well_known_intrinsics.as_ref(),
             functions_by_instance: &self.functions_by_instance,
             function_signature_types: &self.function_signature_types,
@@ -718,7 +719,7 @@ impl ModuleLowerer<'_> {
             .map(|name| name.string())
             .or_else(|| symbol_data.name());
         if let Some(name_id) = name_id {
-            let name = self.compiler.program.strings.get(name_id).to_string();
+            let name = self.compiler.repository.strings.get(name_id).to_string();
             return Ok(name);
         }
 
@@ -753,7 +754,7 @@ impl ModuleLowerer<'_> {
             .is_some_and(|primary| primary.local_id.ty == dir::NodeType::Member);
         if is_member {
             let scope = self.symbols.get_scope_by_id(symbol_data.scope.0);
-            let this_name = self.compiler.program.strings.intern("this");
+            let this_name = self.compiler.repository.strings.intern("this");
             if let Some(symbol) = self
                 .symbols
                 .find_active_symbol(scope, dir::StaticKey::Name(this_name))
@@ -881,7 +882,12 @@ impl ModuleLowerer<'_> {
                 })?;
 
             // format the constructor name
-            let type_name = self.compiler.program.strings.get(name.string()).to_string();
+            let type_name = self
+                .compiler
+                .repository
+                .strings
+                .get(name.string())
+                .to_string();
             format!("{type_name}.constructor")
         } else if is_static {
             self.static_member_name(owner_symbol, *key).ok_or_else(|| {
@@ -896,7 +902,12 @@ impl ModuleLowerer<'_> {
             // resolve the static method key or dispatch name
             let method_name =
                 self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
-            let method_name = self.compiler.program.strings.get(method_name).to_string();
+            let method_name = self
+                .compiler
+                .repository
+                .strings
+                .get(method_name)
+                .to_string();
 
             // prefix instance methods with the owner type name when available
             if let Some(owner_name) = self.symbol_path_name(owner_symbol) {
@@ -977,7 +988,7 @@ impl ModuleLowerer<'_> {
             // track parameter names for diagnostics
             let mut parameter_names = Vec::new();
             if !is_constructor && this_type.is_some() {
-                let name_id = self.compiler.program.strings.intern("this");
+                let name_id = self.compiler.repository.strings.intern("this");
                 parameter_names.push(Some(name_id));
             }
             for parameter_id in &signature.dynamic_parameters {
@@ -1017,13 +1028,14 @@ impl ModuleLowerer<'_> {
         let context = FunctionLoweringContext {
             module_id: self.module_id,
             profile: self.profile,
-            program: &self.compiler.program,
+            revision: self.context.revision(),
+            program: &self.compiler.repository,
             compiler: self.compiler,
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
             captures: self.captures,
-            strings: &self.compiler.program.strings,
+            strings: &self.compiler.repository.strings,
             well_known_intrinsics: self.well_known_intrinsics.as_ref(),
             functions_by_instance: &self.functions_by_instance,
             function_signature_types: &self.function_signature_types,

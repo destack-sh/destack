@@ -4,18 +4,19 @@ use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::common::{AnalyzeIndex, TypeContext};
-use crate::{ArtifactRequirementError, Compiler};
+use crate::{Compiler, CompilerContext, RequirementError};
 
 impl Compiler {
     /// Read one symbol lineage with exact artifact reads and local reuse.
     pub(crate) fn lineage_for_symbol_or_local_for_artifact(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
         types: &TypeTable,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
-    ) -> Result<Option<Lineage>, ArtifactRequirementError> {
+    ) -> Result<Option<Lineage>, RequirementError> {
         if let Some(lineage) = types.get_lineage_for_symbol(symbol) {
             return Ok(Some(lineage.clone()));
         }
@@ -25,6 +26,7 @@ impl Compiler {
         }
 
         self.with_module_types_or_local_for_artifact(
+            context,
             module,
             profile,
             symbol.module_id,
@@ -37,19 +39,21 @@ impl Compiler {
     /// Provide type ctx with exact artifact reads and local reuse.
     pub(crate) fn with_module_types_or_local_for_artifact<R>(
         &self,
+        context: &CompilerContext<'_>,
         module: &Module,
         profile: ProfileId,
         module_id: ModuleId,
         types: &TypeTable,
         artifact_key: fn(ModuleId, ProfileId) -> ArtifactKey,
         handle: impl FnOnce(&Module, &TypeTable) -> R,
-    ) -> Result<R, ArtifactRequirementError> {
+    ) -> Result<R, RequirementError> {
         if module_id == module.id {
             return Ok(handle(module, types));
         }
 
         // remote reads require one exact committed artifact
         self.with_remote_dir_for_artifact(
+            context,
             module_id,
             profile,
             artifact_key,
@@ -60,6 +64,7 @@ impl Compiler {
     /// Read one committed remote alias target from declared artifact state.
     pub(crate) fn remote_declared_alias_target(
         &self,
+        context: &CompilerContext<'_>,
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> Result<
@@ -68,11 +73,12 @@ impl Compiler {
             Option<(GlobalSymbolId, Type, TypeTable)>,
             Option<GlobalSymbolId>,
         ),
-        ArtifactRequirementError,
+        RequirementError,
     > {
-        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = context.module(symbol.module_id);
         let remote_module = remote_module.as_ref();
-        let snapshot = self.require_artifact_dir_declared(symbol.module_id, profile)?;
+        let snapshot =
+            self.require_artifact_dir_declared(context.revision(), symbol.module_id, profile)?;
         let symbol_entry = snapshot.symbols.get_symbol(symbol.local_id);
         if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
             let target_symbol = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
@@ -92,8 +98,9 @@ impl Compiler {
             remote_snapshot.get_type(remote_target_id),
             Type::Unevaluated(_)
         ) {
-            let options = self.analyze_context_options_for_module(remote_module.id);
+            let options = context.analyze_context_options_for_module(remote_module.id);
             let mut ctx = TypeContext::new(
+                context,
                 remote_module,
                 profile,
                 &options,

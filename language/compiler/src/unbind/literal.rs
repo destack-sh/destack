@@ -22,12 +22,13 @@ impl Compiler {
             dir::ScalarLiteral::Float(float) => ast::ScalarLiteral::Float(*float),
             dir::ScalarLiteral::Character(character) => ast::ScalarLiteral::Character(*character),
             dir::ScalarLiteral::String(string) => {
-                let string = ast_strings.intern_from(&self.program.strings, *string);
+                let string = ast_strings.intern_from(&self.repository.strings, *string);
                 ast::ScalarLiteral::String(string)
             }
             dir::ScalarLiteral::RegexString { content, flags } => {
-                let content = ast_strings.intern_from(&self.program.strings, *content);
-                let flags = flags.map(|flag| ast_strings.intern_from(&self.program.strings, flag));
+                let content = ast_strings.intern_from(&self.repository.strings, *content);
+                let flags =
+                    flags.map(|flag| ast_strings.intern_from(&self.repository.strings, flag));
                 ast::ScalarLiteral::RegexString { content, flags }
             }
         }
@@ -197,13 +198,13 @@ impl Compiler {
     ) -> ast::TemplateLiteral {
         match literal {
             dir::TemplateLiteral::String { string } => {
-                let string = ast_strings.intern_from(&self.program.strings, *string);
+                let string = ast_strings.intern_from(&self.repository.strings, *string);
                 ast::TemplateLiteral::String { string }
             }
             dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
                 let strings = strings
                     .iter()
-                    .map(|string| ast_strings.intern_from(&self.program.strings, *string))
+                    .map(|string| ast_strings.intern_from(&self.repository.strings, *string))
                     .collect();
                 let arguments = arguments
                     .iter()

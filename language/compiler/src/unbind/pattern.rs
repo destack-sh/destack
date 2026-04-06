@@ -68,7 +68,7 @@ impl Compiler {
                 ..
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
-                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let name = ast_strings.intern_from(&self.repository.strings, *name);
                 let pattern = pattern.map(|p| {
                     self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
                 });
@@ -239,7 +239,7 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name =
-                    ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
+                    ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, *name));
                 let pattern = pattern.map(|p| {
                     self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
                 });
@@ -291,8 +291,8 @@ impl Compiler {
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name =
-                    ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
-                let alias = ast_strings.intern_from(&self.program.strings, *alias);
+                    ast::Name::Identifier(ast_strings.intern_from(&self.repository.strings, *name));
+                let alias = ast_strings.intern_from(&self.repository.strings, *alias);
                 let default = default.map(|d| {
                     self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
                 });

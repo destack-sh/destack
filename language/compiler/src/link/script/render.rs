@@ -1,11 +1,11 @@
 use crate::{Compiler, LinkError, LinkResult};
 
 use destack_artifact::{
-    EmitFormat, ModuleArtifact, OutputFile, PackageOutput, ScriptArtifact, TargetOutputName,
+    EmitFormat, ModuleOutput, OutputFile, PackageOutput, ScriptArtifact, TargetOutputName,
 };
 use destack_codegen_js::{PrintedScriptModule, ScriptModule};
 use destack_source::{FileType, ModuleId};
-use destack_workspace::{BundleMode, Target};
+use destack_workspace::config::{BundleMode, Target};
 use indexmap::IndexMap;
 
 use super::{
@@ -19,27 +19,28 @@ impl<'a> ScriptLinker<'a> {
     pub(crate) fn script_artifact(&self, module_id: ModuleId) -> LinkResult<ScriptArtifact> {
         let artifact = self
             .compiler
-            .artifacts
-            .module_artifact(module_id, self.target_id)
+            .module_output(module_id, self.target_id)
             .ok_or_else(|| LinkError::Internal {
                 package: self.package_id,
                 message: format!(
                     "missing module artifact for module {:?} target '{}'",
-                    module_id, self.target_id.name
+                    module_id,
+                    self.target_name()
                 ),
             })?;
 
-        let ModuleArtifact::Script(script) = artifact.as_ref() else {
+        let ModuleOutput::Script(script) = artifact.as_ref() else {
             return Err(LinkError::Internal {
                 package: self.package_id,
                 message: format!(
                     "expected script artifact for module {:?} target '{}'",
-                    module_id, self.target_id.name
+                    module_id,
+                    self.target_name()
                 ),
             });
         };
 
-        Ok((**script).clone())
+        Ok(script.as_ref().clone())
     }
 
     /// Return the emitted file type for one linked script target.
@@ -79,7 +80,7 @@ impl<'a> ScriptLinker<'a> {
         target: &Target,
     ) -> LinkResult<ScriptModule> {
         match output_graph.bundle_mode() {
-            BundleMode::SingleFile => self.compiler.rewrite_script_module_for_assembly(
+            BundleMode::SingleFile => self.rewrite_script_module_for_assembly(
                 module_id,
                 script,
                 module_set,
@@ -87,18 +88,16 @@ impl<'a> ScriptLinker<'a> {
                 self.target_id,
                 self.package_id,
             ),
-            BundleMode::Chunked | BundleMode::PreserveModules => {
-                self.compiler.rewrite_output_script_module(
-                    output_id,
-                    module_id,
-                    script,
-                    output_graph,
-                    output_layout,
-                    target,
-                    self.target_id,
-                    self.package_id,
-                )
-            }
+            BundleMode::Chunked | BundleMode::PreserveModules => self.rewrite_output_script_module(
+                output_id,
+                module_id,
+                script,
+                output_graph,
+                output_layout,
+                target,
+                self.target_id,
+                self.package_id,
+            ),
         }
     }
 
@@ -136,6 +135,7 @@ impl<'a> ScriptLinker<'a> {
                     module_target,
                     file_type,
                     &linked_module,
+                    self.context,
                 )
                 .map_err(|message| LinkError::Internal {
                     package: self.package_id,
