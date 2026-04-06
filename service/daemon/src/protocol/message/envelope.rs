@@ -25,9 +25,9 @@ impl RequestId {
 /// Unique identifier for a daemon session.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SessionId(pub u64);
+pub struct RepositoryId(pub u64);
 
-impl SessionId {
+impl RepositoryId {
     /// Wrap a raw session id.
     pub fn new(id: u64) -> Self {
         Self(id)

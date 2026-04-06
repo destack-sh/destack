@@ -11,7 +11,7 @@ use super::{
     DaemonRequest, DaemonResponse, HandshakeRequest, HandshakeResponse, PayloadBody,
     PayloadChunkNotification, PayloadFormat, PayloadId, ProtocolCodec, ProtocolError,
     ProtocolLimits, ProtocolMessage, ProtocolNotification, ProtocolRange, ProtocolRequest,
-    RequestId, RequestOptions, SessionId, Transport, TransportError,
+    RepositoryId, RequestId, RequestOptions, Transport, TransportError,
 };
 
 /// Client configuration for the daemon protocol.
@@ -47,7 +47,7 @@ pub struct ProtocolClient {
     /// Codec used for protocol payloads.
     codec: Mutex<ProtocolCodec>,
     /// Negotiated session id.
-    session_id: Mutex<Option<SessionId>>,
+    session_id: Mutex<Option<RepositoryId>>,
     /// Request id counter.
     next_request_id: AtomicU64,
 }
@@ -78,7 +78,7 @@ impl ProtocolClient {
     }
 
     /// Return the negotiated session id, if any.
-    pub fn session_id(&self) -> Option<SessionId> {
+    pub fn session_id(&self) -> Option<RepositoryId> {
         *self.session_id.lock()
     }
 
@@ -314,8 +314,7 @@ impl PayloadInbox {
     ) -> Result<bool, ProtocolClientError> {
         // resolve binary payloads in query responses
         match response {
-            DaemonQueryResponse::WorkspaceIndex(payload)
-            | DaemonQueryResponse::ModuleGraph(payload) => self.resolve_payload(payload),
+            DaemonQueryResponse::ModuleGraph(payload) => self.resolve_payload(payload),
             DaemonQueryResponse::WorkspaceQuery(payload) => {
                 self.resolve_payload(&mut payload.payload)
             }

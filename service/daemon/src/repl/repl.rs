@@ -1,17 +1,17 @@
 use std::sync::Arc;
 
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 /// REPL state owned by the daemon.
 #[derive(Debug, Clone)]
 pub struct Repl {
-    /// The session backing the REPL.
-    pub session: Arc<Session>,
+    /// The repository backing the REPL.
+    pub repository: Arc<Repository>,
 }
 
 impl Repl {
     /// Create a new REPL state.
-    pub fn new(session: Arc<Session>) -> Self {
-        Self { session }
+    pub fn new(repository: Arc<Repository>) -> Self {
+        Self { repository }
     }
 }

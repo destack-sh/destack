@@ -9,7 +9,7 @@ use destack_source::{
     FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
 };
-use destack_workspace::{Program, Session};
+use destack_workspace::{Ref, Repository, Revision};
 
 use crate::protocol::{
     DaemonRequest, DaemonResponse, OpenWorkspaceRequest, ProtocolClient, ProtocolClientOptions,
@@ -27,8 +27,8 @@ pub struct TestDaemon {
     pub fs: Arc<MemoryFileSystem>,
     /// The in memory file watcher.
     pub watcher: Arc<MemoryFileWatcher>,
-    /// The shared session.
-    pub session: Arc<Session>,
+    /// The shared repository.
+    pub repository: Arc<Repository>,
     /// The daemon under test.
     pub daemon: Daemon,
     /// The primary workspace root.
@@ -105,41 +105,40 @@ impl TestDaemon {
             roots.push(root.clone());
         }
 
-        // build shared state
-        let fs = Arc::new(MemoryFileSystem::new());
-        let watcher = Arc::new(MemoryFileWatcher::new());
-        let session = Arc::new(
-            Session::new(root.clone())
-                .with_fs(fs.clone())
-                .with_cache_store(Arc::new(MemoryCacheStore::new())),
-        );
-
         // materialize root directories for canonicalization
+        let fs = Arc::new(MemoryFileSystem::new());
         for root_path in &roots {
             let _ = fs.create_dir_all(root_path);
         }
 
-        for root_path in &roots {
-            session.add_root(root_path.clone());
-        }
+        // build shared state
+        let watcher = Arc::new(MemoryFileWatcher::new());
+        let workspace_root = if roots.len() == 1 {
+            root.clone()
+        } else {
+            common_workspace_root(&roots)
+        };
+        let repository = Arc::new(
+            Repository::open_root_from_fs(workspace_root, fs.clone())
+                .expect("failed to import repository from test file system")
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
+
         // keep daemon tests deterministic: use a single compiler worker
-        let mut compiler_options = CompilerOptions::default();
-        compiler_options.workers = 1;
-        let daemon = Daemon::with_options(session.clone(), compiler_options);
+        let compiler_options = CompilerOptions {
+            workers: 1,
+            ..CompilerOptions::default()
+        };
+        let daemon = Daemon::with_options(repository.clone(), compiler_options);
 
         Self {
             fs,
             watcher,
-            session,
+            repository,
             daemon,
             root,
             roots,
         }
-    }
-
-    /// Add an additional workspace root.
-    pub fn add_root(&self, root: PathBuf) -> Arc<Program> {
-        self.session.add_root(root)
     }
 
     /// Return the primary workspace root.
@@ -185,10 +184,54 @@ impl TestDaemon {
     /// Resolve the tracked file id for a path.
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
         let path = self.path_for(path);
-        self.session
-            .files
-            .get_id_by_path(&path)
-            .unwrap_or_else(|| panic!("missing file id for {}", path.display()))
+        let file_id = self.repository.file_id_for_workspace_path(&path);
+        let revision = current_workspace_revision(self.repository.as_ref());
+        let is_present = self
+            .repository
+            .file(revision, file_id)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to read file '{}' from revision: {error}",
+                    path.display()
+                )
+            })
+            .is_some();
+        if !is_present {
+            panic!("missing file id for {}", path.display());
+        }
+
+        file_id
+    }
+
+    /// Return the current revision scoped file snapshot for a path.
+    pub fn file_for_path(&self, path: impl AsRef<Path>) -> Arc<destack_source::File> {
+        let path = self.path_for(path);
+        let file_id = self.repository.file_id_for_workspace_path(&path);
+        let revision = current_workspace_revision(self.repository.as_ref());
+        self.repository
+            .file(revision, file_id)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to read file '{}' from revision: {error}",
+                    path.display()
+                )
+            })
+            .unwrap_or_else(|| panic!("missing file for {}", path.display()))
+    }
+
+    /// Return the current revision scoped module id for a path.
+    pub fn module_id_for_path(&self, path: impl AsRef<Path>) -> destack_source::ModuleId {
+        let path = self.path_for(path);
+        let revision = current_workspace_revision(self.repository.as_ref());
+        self.repository
+            .module_id_for_path(revision, &path)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to resolve module id for '{}' in revision: {error}",
+                    path.display()
+                )
+            })
+            .unwrap_or_else(|| panic!("missing module for {}", path.display()))
     }
 
     /// Return the update for a specific file id.
@@ -277,6 +320,45 @@ impl TestDaemon {
     pub fn protocol_with_options(&self, options: ProtocolServerOptions) -> TestProtocolHarness {
         TestProtocolHarness::from_test_with_options(self.clone(), options)
     }
+}
+
+/// Return the current workspace revision for one repository.
+pub fn current_workspace_revision(repository: &Repository) -> Revision {
+    // resolve the root ref first
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+
+    // return the current published workspace revision
+    repository
+        .current(&reference)
+        .expect("expected current workspace revision")
+}
+
+/// Return the shallowest common root for the provided paths.
+fn common_workspace_root(paths: &[PathBuf]) -> PathBuf {
+    let mut components = paths[0]
+        .components()
+        .map(|component| component.as_os_str().to_owned())
+        .collect::<Vec<_>>();
+
+    for path in &paths[1..] {
+        let path_components = path
+            .components()
+            .map(|component| component.as_os_str().to_owned())
+            .collect::<Vec<_>>();
+        let shared_len = components
+            .iter()
+            .zip(path_components.iter())
+            .take_while(|(left, right)| left == right)
+            .count();
+        components.truncate(shared_len);
+    }
+
+    let mut root = PathBuf::new();
+    for component in components {
+        root.push(component);
+    }
+
+    root
 }
 
 impl Default for TestDaemon {
@@ -476,8 +558,13 @@ impl TestProtocolHarness {
 
     /// Open the default workspace and return the handle id.
     pub fn open_workspace(&self) -> WorkspaceHandleId {
+        self.open_workspace_root(self.test.root.clone())
+    }
+
+    /// Open one explicit workspace root and return the handle id.
+    pub fn open_workspace_root(&self, root: PathBuf) -> WorkspaceHandleId {
         let open = OpenWorkspaceRequest {
-            root: self.test.root.clone(),
+            root,
             options: WorkspaceOpenOptions::default(),
         };
         match self.send_request(DaemonRequest::OpenWorkspace(open)) {

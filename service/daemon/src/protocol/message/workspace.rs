@@ -16,7 +16,7 @@ pub struct OpenWorkspaceRequest {
 /// Options for opening a workspace.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceOpenOptions {
-    /// Whether to preload workspace index state.
+    /// Whether to preload semantic workspace state.
     pub load_index: bool,
 }
 
@@ -118,9 +118,9 @@ pub struct FileUpdateResponse {
 pub struct AnalyzeResponse {
     /// Workspace handle.
     pub handle: WorkspaceHandleId,
-    /// Whether semantic query state is ready after analysis.
-    pub semantic_query_ready: bool,
-    /// Optional readiness detail when semantic query state is not ready.
+    /// Whether query artifacts are ready after analysis.
+    pub query_ready: bool,
+    /// Optional readiness detail when query artifacts are not ready.
     pub detail: Option<String>,
 }
 

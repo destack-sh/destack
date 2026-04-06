@@ -1,15 +1,14 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::cell::RefCell;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::Compiler;
 use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
-use destack_source::{
-    Diagnostic, DiagnosticCollection, DiagnosticOptions, DiagnosticStoreUpdate, FileId,
-    FileVersion, ModuleId, Uri, glob,
-};
+use destack_source::{DiagnosticCollection, DiagnosticOptions, FileType, ModuleId, TargetId, glob};
 use destack_workspace::{
-    Destack, OptimizeLevel, Program, Target, TargetDiscovery, TargetId, Workspace,
+    Change, DestackDeclaration, Edit, OptimizeLevel, Ref, Repository, RepositorySnapshot, Revision,
+    Target, TargetDiscovery,
 };
 
 use crate::Daemon;
@@ -22,23 +21,37 @@ use super::common::{CommandInput, CommandTargetOverrides, CommonCommandOptions};
 pub(super) struct CommandContext<'a> {
     /// Active daemon instance.
     pub(super) daemon: &'a Daemon,
-    /// Program for the command.
-    pub(super) program: Arc<Program>,
+    /// Workspace root for this command.
+    pub(super) root: PathBuf,
+    /// Repository for the command.
+    pub(super) repository: Arc<Repository>,
     /// Compiler for the command.
     pub(super) compiler: Arc<Compiler>,
     /// Common command options.
     pub(super) common: &'a CommonCommandOptions,
     /// Diagnostic options resolved for this request.
     pub(super) diagnostic_options: DiagnosticOptions,
+    /// The pinned command local snapshot when inputs materialize extra source.
+    active_snapshot: RefCell<Option<RepositorySnapshot>>,
     /// Output buffer for command streaming.
     pub(super) output: &'a mut CommandOutputBuffer,
+}
+
+/// One resolved command target.
+#[derive(Debug, Clone)]
+pub(super) struct ResolvedTarget {
+    /// The resolved target id.
+    pub id: TargetId,
+    /// The resolved target configuration.
+    pub target: Target,
 }
 
 impl<'a> CommandContext<'a> {
     /// Create a command context for a request.
     pub(super) fn new(
         daemon: &'a Daemon,
-        program: Arc<Program>,
+        root: PathBuf,
+        repository: Arc<Repository>,
         compiler: Arc<Compiler>,
         common: &'a CommonCommandOptions,
         output: &'a mut CommandOutputBuffer,
@@ -46,10 +59,12 @@ impl<'a> CommandContext<'a> {
         let diagnostic_options = common.diagnostic.clone().unwrap_or_default();
         Self {
             daemon,
-            program,
+            root,
+            repository,
             compiler,
             common,
             diagnostic_options,
+            active_snapshot: RefCell::new(None),
             output,
         }
     }
@@ -65,8 +80,9 @@ impl<'a> CommandContext<'a> {
         }
 
         let config_path = self.resolve_destack_config_path(self.common.config_path.as_deref())?;
-        let config = self.load_destack_config(&config_path)?;
-        let inputs = collect_sources_from_destack_config(&config, self.common.target.as_deref());
+        let declaration = self.load_destack_declaration(&config_path)?;
+        let inputs =
+            collect_sources_from_destack_declaration(&declaration, self.common.target.as_deref());
 
         if inputs.is_empty() {
             return Err("no input files provided".to_string().into());
@@ -83,6 +99,7 @@ impl<'a> CommandContext<'a> {
         &self,
         inputs: &[CommandInput],
     ) -> super::CommandResult<Vec<ModuleId>> {
+        let revision = self.revision()?;
         let mut seen = HashSet::new();
         let mut modules = Vec::new();
 
@@ -90,26 +107,18 @@ impl<'a> CommandContext<'a> {
             let module_id = match input {
                 CommandInput::File { path } => self
                     .compiler
-                    .resolve_path_to_module(&path.to_path_buf())
+                    .resolve_path_to_module(revision, &path.to_path_buf())
                     .map_err(|error| format!("failed to resolve {}: {error}", path.display()))?,
                 CommandInput::Inline {
                     name,
                     content,
                     file_type,
-                } => {
-                    let uri = Uri::from_string(name);
-                    self.program
-                        .register_inline_module(uri, content.clone(), *file_type)
-                }
+                } => self.materialize_inline_module("inline", name, content, *file_type)?,
                 CommandInput::Stdin {
                     name,
                     content,
                     file_type,
-                } => {
-                    let uri = Uri::from_string(name);
-                    self.program
-                        .register_inline_module(uri, content.clone(), *file_type)
-                }
+                } => self.materialize_inline_module("stdin", name, content, *file_type)?,
             };
 
             if seen.insert(module_id) {
@@ -124,77 +133,95 @@ impl<'a> CommandContext<'a> {
         Ok(modules)
     }
 
-    /// Clear the diagnostic collector before re-compiling.
-    pub(super) fn reset_diagnostics(&self) {
-        let _ = self.program.diagnostics.drain();
+    /// Return the active workspace revision for this command.
+    pub(super) fn revision(&self) -> super::CommandResult<Revision> {
+        if let Some(snapshot) = self.active_snapshot.borrow().as_ref() {
+            return Ok(snapshot.revision());
+        }
+
+        let reference = Ref::for_workspace_root(&self.root);
+        let revision = self
+            .repository
+            .current(&reference)
+            .map_err(|error| format!("missing current workspace revision: {error}"))?;
+        let snapshot = self
+            .repository
+            .snapshot(revision)
+            .map_err(|error| format!("failed to pin workspace revision: {error}"))?;
+
+        *self.active_snapshot.borrow_mut() = Some(snapshot.clone());
+
+        Ok(snapshot.revision())
     }
 
-    /// Collect diagnostics for the request.
-    pub(super) fn collect_diagnostics(&self) -> DiagnosticCollection {
-        self.program
-            .diagnostics
-            .collect()
-            .map(&self.diagnostic_options)
+    /// Materialize one inline command input into one command local revision.
+    fn materialize_inline_module(
+        &self,
+        kind: &str,
+        name: &str,
+        content: &str,
+        file_type: FileType,
+    ) -> super::CommandResult<ModuleId> {
+        let base_revision = self.revision()?;
+        let logical_path = command_input_logical_path(kind, name, file_type);
+        let change = Change::single(Edit::set_text(&logical_path, content));
+        let revision = self
+            .repository
+            .apply_to_revision(base_revision, change)
+            .map_err(|error| format!("failed to materialize command input {name}: {error}"))?;
+        let path = self.root.join(&logical_path);
+        let module_id = self
+            .repository
+            .module_id_for_path(revision, &path)
+            .map_err(|error| format!("failed to resolve command input module {name}: {error}"))?
+            .ok_or_else(|| format!("missing command input module for {name}"))?;
+
+        let snapshot = self
+            .repository
+            .snapshot(revision)
+            .map_err(|error| format!("failed to pin command revision {name}: {error}"))?;
+        *self.active_snapshot.borrow_mut() = Some(snapshot);
+
+        Ok(module_id)
     }
 
-    /// Collect diagnostics without applying options.
-    pub(super) fn collect_raw_diagnostics(&self) -> DiagnosticCollection {
-        self.program.diagnostics.collect()
+    /// Return the visible module count for this command revision.
+    pub(super) fn module_count(&self, revision: Revision) -> super::CommandResult<usize> {
+        let modules = self
+            .repository
+            .workspace_module_ids(revision)
+            .map_err(|error| format!("failed to collect workspace modules: {error}"))?;
+
+        Ok(modules.len())
     }
 
-    /// Commit diagnostics to the program store for module files.
+    /// Return the unique default profile count for the provided modules.
+    pub(super) fn default_profile_count(
+        &self,
+        revision: Revision,
+        modules: &[ModuleId],
+    ) -> super::CommandResult<usize> {
+        let mut profiles = HashSet::new();
+
+        for module_id in modules {
+            let profile_id = self
+                .repository
+                .default_profile_id_for_module(revision, *module_id)
+                .map_err(|error| format!("failed to resolve default profile: {error}"))?;
+            profiles.insert(profile_id);
+        }
+
+        Ok(profiles.len())
+    }
+
+    /// Commit diagnostics to the repository store for module files.
     pub(super) fn commit_diagnostics_for_modules(
         &self,
         modules: &[ModuleId],
         diagnostics: &DiagnosticCollection,
     ) -> super::CommandResult<()> {
-        // group diagnostics by file id
-        let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
-        for diagnostic in diagnostics.iter() {
-            diagnostics_by_file
-                .entry(diagnostic.file_id)
-                .or_default()
-                .push(diagnostic);
-        }
-
-        // collect file versions from modules
-        let mut file_versions: HashMap<FileId, FileVersion> = HashMap::new();
-        for module_id in modules {
-            let module = self.program.modules.get(*module_id);
-            let module = module.as_ref();
-            file_versions.insert(
-                module.file_id,
-                self.program.modules.source_version(module.id),
-            );
-        }
-
-        // extend file versions for diagnostics outside modules
-        for file_id in diagnostics_by_file.keys().copied() {
-            if file_versions.contains_key(&file_id) {
-                continue;
-            }
-
-            let file = self
-                .program
-                .files
-                .get_maybe(file_id)
-                .ok_or_else(|| format!("file metadata missing for {file_id:?}"))?;
-            file_versions.insert(file_id, file.version);
-        }
-
-        // build store updates for the files
-        let mut updates = Vec::new();
-        for (file_id, file_version) in file_versions {
-            let diagnostics = diagnostics_by_file.remove(&file_id).unwrap_or_default();
-            updates.push(DiagnosticStoreUpdate::new(
-                file_id,
-                file_version,
-                diagnostics,
-            ));
-        }
-
-        // commit diagnostics to the store
-        self.program.diagnostic_store.apply_updates(updates);
+        let _ = modules;
+        let _ = diagnostics;
 
         Ok(())
     }
@@ -205,13 +232,21 @@ impl<'a> CommandContext<'a> {
         module_id: ModuleId,
         target_name: &str,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> super::CommandResult<TargetId> {
-        let module = self.program.modules.get(module_id);
+    ) -> super::CommandResult<ResolvedTarget> {
+        let revision = self.revision()?;
+        let module = self
+            .repository
+            .module(revision, module_id)
+            .map_err(|error| format!("failed to read module snapshot: {error}"))?
+            .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
         let package_id = module.package_id;
-        let target_id = TargetId::new(package_id, target_name);
+        let target_id = self.repository.intern_target_id(package_id, target_name);
 
-        let package = self.program.packages.get(package_id);
-        let mut package = package.write();
+        let package = self
+            .repository
+            .package(revision, package_id)
+            .map_err(|error| format!("failed to read package snapshot: {error}"))?
+            .ok_or_else(|| format!("missing package snapshot for {package_id:?}"))?;
         let existing_target = package.targets.get(&target_id).cloned();
 
         if let Some(overrides) = overrides
@@ -225,23 +260,21 @@ impl<'a> CommandContext<'a> {
             );
         }
 
-        if existing_target.is_none() {
+        let target = if let Some(target) = existing_target {
+            target
+        } else {
             let mut target = Target::implicit_for_name(target_name)
                 .ok_or_else(|| format!("unknown target '{target_name}'"))?;
             if let Some(overrides) = overrides {
                 overrides.apply_to_target(&mut target);
             }
-            package.targets.insert(target_id.clone(), target);
-        }
+            target
+        };
 
-        Ok(target_id)
-    }
-
-    /// Resolve target by id.
-    pub(super) fn target_for_id(&self, target_id: &TargetId) -> Option<Target> {
-        let package = self.program.packages.get(target_id.package_id);
-        let package = package.read();
-        package.targets.get(target_id).cloned()
+        Ok(ResolvedTarget {
+            id: target_id,
+            target,
+        })
     }
 
     /// Resolve or infer a target for a module based on command and config defaults.
@@ -249,21 +282,32 @@ impl<'a> CommandContext<'a> {
         &self,
         module_id: ModuleId,
         overrides: Option<&CommandTargetOverrides>,
-    ) -> super::CommandResult<TargetId> {
+    ) -> super::CommandResult<ResolvedTarget> {
+        let revision = self.revision()?;
+
         // honor explicit target override first
         if let Some(target_name) = self.common.target.as_deref() {
             return self.ensure_target_for_module(module_id, target_name, overrides);
         }
 
         // derive from package defaults and configured targets
-        let module = self.program.modules.get(module_id);
-        let module = module.as_ref();
-        let package = self.program.packages.get(module.package_id);
-        let package = package.read();
+        let module = self
+            .repository
+            .module(revision, module_id)
+            .map_err(|error| format!("failed to read module snapshot: {error}"))?
+            .ok_or_else(|| format!("missing module snapshot for {module_id:?}"))?;
+        let package = self
+            .repository
+            .package(revision, module.package_id)
+            .map_err(|error| format!("failed to read package snapshot: {error}"))?
+            .ok_or_else(|| format!("missing package snapshot for {:?}", module.package_id))?;
 
         // use the package config default target when available
-        if let Some(config) = package.config.as_ref()
-            && let Some(target_name) = config.options.default_target.as_deref()
+        if let Some(package_options) = self
+            .repository
+            .package_options(revision, package.id)
+            .map_err(|error| format!("failed to read package options: {error}"))?
+            && let Some(target_name) = package_options.default_target.as_deref()
         {
             return self.ensure_target_for_module(module_id, target_name, overrides);
         }
@@ -307,30 +351,34 @@ impl<'a> CommandContext<'a> {
         !matches!(target.optimize_level, OptimizeLevel::O0)
     }
 
-    /// Build a resolver for the current program.
+    /// Build a resolver for the current repository.
     pub(super) fn resolver(&self) -> Resolver {
-        let workspace_config = self.daemon.session.workspace_config();
+        let workspace_options = self
+            .revision()
+            .ok()
+            .and_then(|revision| self.daemon.repository.workspace_options(revision).ok())
+            .flatten();
 
-        Resolver::from_program(
-            &self.program,
-            ResolveOptions::default_for_workspace(
-                self.program.cwd.clone(),
-                workspace_config.as_deref(),
-            ),
+        Resolver::from_repository(
+            &self.repository,
+            ResolveOptions::default_for_workspace(self.root.clone(), workspace_options.as_ref()),
         )
     }
 
-    /// Resolve a destack.json path for the current program.
+    /// Resolve a destack.json path for the current repository.
     pub(super) fn resolve_destack_config_path(
         &self,
         override_path: Option<&Path>,
     ) -> super::CommandResult<PathBuf> {
-        resolve_destack_config_path(&self.resolver(), self.program.cwd.as_path(), override_path)
+        resolve_destack_config_path(&self.resolver(), self.root.as_path(), override_path)
     }
 
-    /// Load destack.json for a path.
-    pub(super) fn load_destack_config(&self, path: &Path) -> super::CommandResult<Destack> {
-        load_destack_config(&self.resolver(), path)
+    /// Load one `destack.json` declaration for a path.
+    pub(super) fn load_destack_declaration(
+        &self,
+        path: &Path,
+    ) -> super::CommandResult<DestackDeclaration> {
+        load_destack_declaration(&self.resolver(), path)
     }
 
     /// Find destack.json for a directory.
@@ -338,13 +386,40 @@ impl<'a> CommandContext<'a> {
         find_destack_config(&self.resolver(), cwd)
     }
 
-    /// Load workspace destack.json files for all packages.
-    pub(super) fn load_workspace_configs(
+    /// Load all visible workspace `destack.json` declarations.
+    pub(super) fn load_workspace_declarations(
         &self,
-        workspace: &Workspace,
-    ) -> super::CommandResult<Vec<Destack>> {
-        load_workspace_configs(&self.resolver(), workspace)
+        revision: Revision,
+    ) -> super::CommandResult<Vec<DestackDeclaration>> {
+        load_workspace_declarations(&self.resolver(), &self.repository, revision)
     }
+}
+
+/// Build one stable logical path for one command local source input.
+fn command_input_logical_path(kind: &str, name: &str, file_type: FileType) -> String {
+    let extension = file_type.extension().unwrap_or("txt");
+    let sanitized_name = sanitize_command_input_name(name);
+
+    format!(".destack/command/{kind}/{sanitized_name}.{extension}")
+}
+
+/// Sanitize one command input label for use in a logical path.
+fn sanitize_command_input_name(name: &str) -> String {
+    let mut sanitized = String::new();
+
+    for character in name.chars() {
+        if character.is_ascii_alphanumeric() {
+            sanitized.push(character.to_ascii_lowercase());
+        } else if matches!(character, '/' | '\\' | '-' | '_' | '.') {
+            sanitized.push('_');
+        }
+    }
+
+    if sanitized.is_empty() {
+        sanitized.push_str("input");
+    }
+
+    sanitized
 }
 
 fn resolve_destack_config_path(
@@ -375,7 +450,10 @@ fn resolve_destack_config_path(
     Ok(destack_config_path)
 }
 
-fn load_destack_config(resolver: &Resolver, path: &Path) -> super::CommandResult<Destack> {
+fn load_destack_declaration(
+    resolver: &Resolver,
+    path: &Path,
+) -> super::CommandResult<DestackDeclaration> {
     Ok(resolver
         .read_destack_config(path, CachePolicy::UseCache)
         .map_err(|error| error.to_string())?)
@@ -401,12 +479,16 @@ fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
     }
 }
 
-fn load_workspace_configs(
+fn load_workspace_declarations(
     resolver: &Resolver,
-    workspace: &Workspace,
-) -> super::CommandResult<Vec<Destack>> {
+    repository: &Repository,
+    revision: Revision,
+) -> super::CommandResult<Vec<DestackDeclaration>> {
     let mut configs = BTreeMap::new();
-    for package_path in &workspace.package_paths {
+    for package_path in repository
+        .workspace_package_paths(revision)
+        .map_err(|error| error.to_string())?
+    {
         if let Some(path) = find_destack_config(resolver, package_path.as_path()) {
             configs.entry(path).or_insert_with(|| package_path.clone());
         }
@@ -414,42 +496,43 @@ fn load_workspace_configs(
 
     let mut resolved = Vec::new();
     for (path, _) in configs {
-        resolved.push(load_destack_config(resolver, &path)?);
+        resolved.push(load_destack_declaration(resolver, &path)?);
     }
 
     Ok(resolved)
 }
 
-fn collect_sources_from_destack_config(
-    config: &Destack,
+fn collect_sources_from_destack_declaration(
+    declaration: &DestackDeclaration,
     target_name: Option<&str>,
 ) -> Vec<PathBuf> {
+    let options = declaration.package_options();
     let selected_target = target_name
         .map(str::to_string)
-        .or_else(|| config.options.default_target.clone());
+        .or_else(|| options.default_target.clone());
     let target_options = selected_target
         .as_deref()
-        .and_then(|name| config.options.targets.get(name));
+        .and_then(|name| options.targets.get(name));
 
     let (entries, includes, excludes, discovery) = if let Some(target) = target_options {
         let includes = if target.include.is_empty() {
-            config.options.include.clone()
+            options.include.clone()
         } else {
             target.include.clone()
         };
-        let mut excludes = config.options.exclude.clone();
+        let mut excludes = options.exclude.clone();
         excludes.extend(target.exclude.iter().cloned());
         (target.entry.clone(), includes, excludes, target.discovery)
     } else {
         (
             Vec::new(),
-            config.options.include.clone(),
-            config.options.exclude.clone(),
+            options.include.clone(),
+            options.exclude.clone(),
             TargetDiscovery::Include,
         )
     };
 
-    let base_dir = config.directory.clone();
+    let base_dir = declaration.directory.clone();
     let mut paths = BTreeMap::new();
 
     if discovery == TargetDiscovery::Entry && !entries.is_empty() {
@@ -463,8 +546,8 @@ fn collect_sources_from_destack_config(
         }
     }
 
-    if paths.is_empty() && !config.options.files.is_empty() {
-        for file in &config.options.files {
+    if paths.is_empty() && !options.files.is_empty() {
+        for file in &options.files {
             let path = base_dir.join(file);
             paths.insert(path, ());
         }

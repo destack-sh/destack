@@ -2,7 +2,7 @@ use std::io;
 use std::sync::Arc;
 
 use destack_compiler::CompilerOptions;
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 use crate::Daemon;
 use crate::protocol::{
@@ -31,15 +31,15 @@ pub struct DaemonService {
 }
 
 impl DaemonService {
-    /// Create a daemon service for a session with defaults.
-    pub fn new(session: Arc<Session>) -> Self {
-        Self::with_options(session, DaemonServiceOptions::default())
+    /// Create a daemon service for a repository with defaults.
+    pub fn new(repository: Arc<Repository>) -> Self {
+        Self::with_options(repository, DaemonServiceOptions::default())
     }
 
     /// Create a daemon service with explicit options.
-    pub fn with_options(session: Arc<Session>, options: DaemonServiceOptions) -> Self {
+    pub fn with_options(repository: Arc<Repository>, options: DaemonServiceOptions) -> Self {
         let daemon = Arc::new(Daemon::with_options(
-            session,
+            repository,
             options.compiler_options.clone(),
         ));
         let server = ProtocolServer::with_options(daemon.clone(), options.protocol.clone());

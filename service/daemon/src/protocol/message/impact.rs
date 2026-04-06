@@ -1,40 +1,38 @@
 use serde::{Deserialize, Serialize};
 
-use destack_source::{Diagnostic, FileId, FileVersion, ModuleId, PackageId, ProfileId};
+use destack_source::{Diagnostic, FileId, ModuleId, PackageId, ProfileId};
 
 use super::FileSnapshot;
 
-/// Record of an invalidation step.
+/// Record of an impact step.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InvalidationSummary {
-    /// The file id that triggered invalidation.
+pub struct UpdateImpactSummary {
+    /// The file id that triggered impact.
     pub file_id: FileId,
-    /// The updated file version.
-    pub file_version: FileVersion,
-    /// Invalidation kinds.
-    pub kinds: Vec<InvalidationKind>,
+    /// Impact kinds.
+    pub kinds: Vec<UpdateImpactKind>,
     /// Modules invalidated by the change.
     pub modules: Vec<ModuleId>,
     /// Packages invalidated by the change.
     pub packages: Vec<PackageId>,
     /// Profiles invalidated by the change.
     pub profiles: Vec<ProfileId>,
-    /// Module graph drops caused by invalidation.
+    /// Module graph drops caused by impact.
     pub graphs_dropped: Vec<ProfileId>,
 }
 
-/// Invalidation kind classification.
+/// Impact kind classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum InvalidationKind {
-    /// Module source invalidation.
+pub enum UpdateImpactKind {
+    /// Module source impact.
     ModuleSource,
-    /// Dsconfig invalidation.
+    /// Dsconfig impact.
     Destack,
-    /// Tsconfig invalidation.
+    /// Tsconfig impact.
     TsConfig,
-    /// Package manifest invalidation.
+    /// Package manifest impact.
     PackageManifest,
-    /// Unknown invalidation.
+    /// Unknown impact.
     Unknown,
 }
 
@@ -47,8 +45,8 @@ pub struct DaemonUpdateRecord {
     pub file_id: FileId,
     /// File snapshot for the update.
     pub file: FileSnapshot,
-    /// Invalidation summary.
-    pub invalidation: InvalidationSummary,
+    /// Impact summary.
+    pub impact: UpdateImpactSummary,
     /// Diagnostics produced by the update.
     pub diagnostics: Vec<Diagnostic>,
 }

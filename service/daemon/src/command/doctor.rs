@@ -1,7 +1,7 @@
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{Destack, ExtendsFieldJson};
+use destack_workspace::{DestackDeclaration, ExtendsFieldJson};
 use serde::{Deserialize, Serialize};
 
 use super::context::CommandContext;
@@ -97,18 +97,23 @@ impl CommandContext<'_> {
             .unwrap_or(1);
 
         // resolve workspace context
-        let workspace = self.daemon.session.workspace_snapshot();
+        let revision = self.revision()?;
+        let workspace = self
+            .daemon
+            .repository
+            .workspace(revision)
+            .map_err(|error| format!("failed to derive workspace: {error}"))?;
 
         // resolve config
         let config_path = if self.common.config_path.is_some() {
             self.resolve_destack_config_path(self.common.config_path.as_deref())
                 .ok()
         } else {
-            self.find_destack_config(&self.program.cwd)
+            self.find_destack_config(&self.repository.cwd)
         };
-        let config = config_path
+        let declaration = config_path
             .as_ref()
-            .and_then(|path| self.load_destack_config(path).ok());
+            .and_then(|path| self.load_destack_declaration(path).ok());
 
         // collect config warnings
         let mut warnings = Vec::new();
@@ -119,16 +124,17 @@ impl CommandContext<'_> {
         let mut target_names = Vec::new();
         let mut default_target = None;
         let mut extends = Vec::new();
-        if let Some(config) = config.as_ref() {
-            target_names = config.options.targets.keys().cloned().collect();
-            default_target = config.options.default_target.clone();
-            extends = list_extends(config);
+        if let Some(declaration) = declaration.as_ref() {
+            let options = declaration.package_options();
+            target_names = options.targets.keys().cloned().collect();
+            default_target = options.default_target.clone();
+            extends = list_extends(declaration);
             if let Some(default_target) = default_target.as_ref()
-                && !config.options.targets.contains_key(default_target)
+                && !options.targets.contains_key(default_target)
             {
                 warnings.push(format!("default target '{default_target}' is not defined"));
             }
-            if config.options.targets.is_empty() {
+            if options.targets.is_empty() {
                 warnings.push("no targets configured".to_string());
             }
         }
@@ -145,15 +151,17 @@ impl CommandContext<'_> {
             Vec::new()
         };
 
-        let package_paths: Vec<String> = workspace
-            .package_paths
+        let package_paths: Vec<String> = self
+            .repository
+            .workspace_package_paths(revision)
+            .map_err(|error| format!("failed to derive workspace package paths: {error}"))?
             .iter()
             .map(|path| path.display().to_string())
             .collect();
 
         let payload = CommandDoctorPayload {
             cli_version: env!("CARGO_PKG_VERSION").to_string(),
-            cwd: self.program.cwd.display().to_string(),
+            cwd: self.repository.cwd.display().to_string(),
             os: os.to_string(),
             arch: arch.to_string(),
             workers: u64::from(self.daemon.compiler_options.workers),
@@ -247,9 +255,9 @@ fn parse_version_output(stdout: &[u8], stderr: &[u8]) -> Option<String> {
 }
 
 /// Collect extends entries for a config.
-fn list_extends(config: &Destack) -> Vec<String> {
+fn list_extends(declaration: &DestackDeclaration) -> Vec<String> {
     let mut entries = Vec::new();
-    match &config.content.extends {
+    match &declaration.json.extends {
         Some(ExtendsFieldJson::Single(value)) => entries.push(value.clone()),
         Some(ExtendsFieldJson::Multiple(values)) => entries.extend(values.clone()),
         None => {}

@@ -3,7 +3,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
 use destack_source::TemporaryPhysicalFileSystem;
-use destack_workspace::Session;
+use destack_workspace::Repository;
 
 use crate::daemon::{DaemonInstance, DaemonServer, DaemonServerOptions, DaemonShutdownOptions};
 use crate::protocol::{
@@ -112,8 +112,8 @@ fn join_daemon_server(
 struct TestIpcDaemon {
     /// Temporary workspace root for this daemon.
     root: TemporaryPhysicalFileSystem,
-    /// Shared session backing server restarts.
-    session: Arc<Session>,
+    /// Shared repository backing server restarts.
+    repository: Arc<Repository>,
     /// Stable daemon instance metadata.
     instance: DaemonInstance,
     /// Running server thread handle, when started.
@@ -128,13 +128,13 @@ impl TestIpcDaemon {
     fn new(prefix: &str) -> Self {
         // build a workspace and daemon instance
         let root = TemporaryPhysicalFileSystem::new_with_prefix(prefix);
-        let session = Arc::new(Session::new(root.root().to_path_buf()));
-        let cache_root = session.workspace_cache_dir();
+        let repository = Arc::new(Repository::open_root(root.root().to_path_buf()));
+        let cache_root = repository.cache_directory();
         let instance = DaemonInstance::new(root.root().to_path_buf(), cache_root);
 
         Self {
             root,
-            session,
+            repository,
             instance,
             server_handle: None,
             server_result_rx: None,
@@ -160,7 +160,7 @@ impl TestIpcDaemon {
 
         // spawn the daemon server thread
         let server =
-            DaemonServer::with_options(self.session.clone(), self.instance.clone(), options);
+            DaemonServer::with_options(self.repository.clone(), self.instance.clone(), options);
         let (handle, server_result_rx) = spawn_daemon_server(server);
         self.server_handle = Some(handle);
         self.server_result_rx = Some(server_result_rx);

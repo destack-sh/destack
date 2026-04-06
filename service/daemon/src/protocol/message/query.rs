@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_source::ProfileId;
+use destack_workspace::Revision;
 
 use super::{BinaryPayload, DiagnosticBatch, WorkspaceHandleId};
 
@@ -156,8 +157,6 @@ impl std::error::Error for QueryPayloadCodecError {
 /// Query request payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DaemonQuery {
-    /// Request workspace index snapshot.
-    WorkspaceIndex { handle: WorkspaceHandleId },
     /// Request module graph payload.
     ModuleGraph {
         /// Workspace handle.
@@ -169,8 +168,8 @@ pub enum DaemonQuery {
     Diagnostics { handle: WorkspaceHandleId },
     /// Request cache statistics.
     CacheStats { handle: WorkspaceHandleId },
-    /// Request current semantic revision.
-    WorkspaceRevision { handle: WorkspaceHandleId },
+    /// Request the current semantic revision.
+    CurrentRevision { handle: WorkspaceHandleId },
     /// Execute a workspace query.
     WorkspaceQuery {
         /// Workspace handle.
@@ -190,16 +189,14 @@ pub enum DaemonQuery {
 /// Query response payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DaemonQueryResponse {
-    /// Workspace index payload.
-    WorkspaceIndex(BinaryPayload),
     /// Module graph payload.
     ModuleGraph(BinaryPayload),
     /// Diagnostics snapshot.
     Diagnostics(Vec<DiagnosticBatch>),
     /// Cache stats payload.
     CacheStats(CacheStatsPayload),
-    /// Current semantic revision.
-    WorkspaceRevision(u64),
+    /// The current semantic revision.
+    CurrentRevision(Revision),
     /// Encoded workspace query response payload.
     WorkspaceQuery(QueryResponsePayload),
     /// Encoded workspace query batch response payloads.
@@ -227,7 +224,7 @@ mod tests {
     fn test_roundtrip_query_request_payload() {
         // build a representative query request envelope
         let envelope = QueryRequestEnvelope {
-            expected_revision: Some(7),
+            expected_revision: Some(Revision::new(7)),
             request: QueryRequest::Hover(HoverRequest {
                 uri: Uri::from_string("/workspace/main.ds"),
                 offset: 42,
@@ -290,7 +287,7 @@ mod tests {
     fn test_roundtrip_query_response_payload() {
         // build a representative query response envelope
         let envelope = QueryResponseEnvelope {
-            revision: 7,
+            revision: Revision::new(7),
             response: QueryResponse::Hover(HoverResponse { hover: None }),
         };
 

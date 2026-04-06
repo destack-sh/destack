@@ -46,15 +46,16 @@ impl CommandContext<'_> {
         let config_path = self.resolve_destack_config_path(config_override)?;
 
         // load config for summary fields
-        let config = self.load_destack_config(&config_path)?;
+        let declaration = self.load_destack_declaration(&config_path)?;
+        let package_options = declaration.package_options();
 
         // parse raw config json
         let resolver = self.resolver();
         let config_json = read_config_json(&resolver, &config_path)?;
 
         // collect target metadata
-        let target_names: Vec<String> = config.options.targets.keys().cloned().collect();
-        let default_target = config.options.default_target.clone();
+        let target_names: Vec<String> = package_options.targets.keys().cloned().collect();
+        let default_target = package_options.default_target.clone();
 
         let payload = CommandConfigPayload {
             path: config_path.display().to_string(),

@@ -9,9 +9,9 @@ use super::{DiagnosticBatch, RuntimeKind, WorkspaceHandleId};
 /// Unique identifier for repl sessions.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ReplSessionId(pub u64);
+pub struct ReplRepositoryId(pub u64);
 
-impl ReplSessionId {
+impl ReplRepositoryId {
     /// Wrap a raw repl session id.
     pub fn new(id: u64) -> Self {
         Self(id)
@@ -58,7 +58,7 @@ pub struct ReplOpenRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReplEvaluateRequest {
     /// Repl session id.
-    pub session: ReplSessionId,
+    pub session: ReplRepositoryId,
     /// Cell id for the evaluation.
     pub cell_id: ReplCellId,
     /// Cell source text.
@@ -71,7 +71,7 @@ pub struct ReplEvaluateRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReplCloseRequest {
     /// Repl session id.
-    pub session: ReplSessionId,
+    pub session: ReplRepositoryId,
 }
 
 /// Repl response payloads.
@@ -89,14 +89,14 @@ pub enum ReplResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReplOpenedResponse {
     /// Repl session id.
-    pub session: ReplSessionId,
+    pub session: ReplRepositoryId,
 }
 
 /// Response for evaluating a repl cell.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReplEvaluateResponse {
     /// Repl session id.
-    pub session: ReplSessionId,
+    pub session: ReplRepositoryId,
     /// Cell id for the evaluation.
     pub cell_id: ReplCellId,
     /// Evaluation result payload.
@@ -109,7 +109,7 @@ pub struct ReplEvaluateResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReplClosedResponse {
     /// Repl session id.
-    pub session: ReplSessionId,
+    pub session: ReplRepositoryId,
 }
 
 /// Repl evaluation value payload.
