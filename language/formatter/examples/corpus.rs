@@ -95,7 +95,7 @@ fn run_snapshot(root: &Path, out: &Path) -> Result<(), String> {
     let mut total_bytes = 0usize;
     for (index, corpus_file) in files.iter().enumerate() {
         let formatted =
-            format_source(index as u32, &corpus_file.path, corpus_file.source.as_str())?;
+            format_source(index as u64, &corpus_file.path, corpus_file.source.as_str())?;
         total_bytes += formatted.len();
 
         let relative_path = corpus_file
@@ -187,7 +187,7 @@ fn path_is_supported_source(path: &Path) -> bool {
     )
 }
 
-fn format_source(file_id: u32, path: &Path, source: &str) -> Result<String, String> {
+fn format_source(file_id: u64, path: &Path, source: &str) -> Result<String, String> {
     let file_type = FileType::from_path(path)
         .ok_or_else(|| format!("unsupported source file extension: {}", path.display()))?;
     let language = LanguageType::from(file_type);
