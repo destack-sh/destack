@@ -4,7 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_ast as ast;
 use destack_core::StringPool;
-use destack_source::{FileId, ModuleId, ProfileId};
+use destack_source::{DiagnosticCollection, FileId, ModuleId, ProfileId};
 
 use crate::{
     ArtifactDependency, ArtifactKey, ArtifactStamp, ArtifactVersion, Ast, DirAnalyzed, DirBase,
@@ -16,15 +16,54 @@ use crate::{
 /// One versioned artifact family map.
 type ArtifactMap<T> = DashMap<ArtifactVersion, Arc<T>>;
 
+/// One exact artifact version entry.
+#[derive(Debug, Clone)]
+struct ArtifactEntry {
+    /// The validated live dependencies for this exact artifact version.
+    dependencies: Vec<ArtifactDependency>,
+    /// The diagnostics for this exact artifact version.
+    diagnostics: Arc<DiagnosticCollection>,
+}
+
+impl Default for ArtifactEntry {
+    fn default() -> Self {
+        Self {
+            dependencies: Vec::new(),
+            diagnostics: Arc::new(DiagnosticCollection::new()),
+        }
+    }
+}
+
+/// One retained exact artifact version.
+#[derive(Debug)]
+pub struct ArtifactPin {
+    /// The shared artifact store that owns this version.
+    store: Arc<ArtifactStore>,
+    /// The retained artifact version.
+    version: ArtifactVersion,
+}
+
+impl ArtifactPin {
+    /// Return the retained artifact version.
+    pub fn version(&self) -> ArtifactVersion {
+        self.version
+    }
+}
+
+impl Drop for ArtifactPin {
+    fn drop(&mut self) {
+        self.store.release(&self.version);
+    }
+}
+
 /// Store of published semantic artifacts.
 #[derive(Debug, Default)]
 pub struct ArtifactStore {
+    /// The exact artifact version entries.
+    entries: DashMap<ArtifactVersion, ArtifactEntry>,
     /// The live retain count for each exact artifact version.
     retained_versions: DashMap<ArtifactVersion, usize>,
-    /// The latest published exact version for each semantic artifact key.
-    latest_versions: DashMap<ArtifactKey, ArtifactVersion>,
-    /// The validated live dependencies for each exact published artifact version.
-    dependencies: DashMap<ArtifactVersion, Vec<ArtifactDependency>>,
+
     /// Module dependency graphs by profile.
     module_graphs: ArtifactMap<ModuleGraph>,
     /// Language environments by profile.
@@ -129,18 +168,10 @@ impl ArtifactStore {
         profiles
     }
 
-    /// Evict one published artifact version.
+    /// Evict one exact artifact version.
     pub fn evict(&self, version: &ArtifactVersion) {
+        self.entries.remove(version);
         self.retained_versions.remove(version);
-        self.dependencies.remove(version);
-        if self
-            .latest_versions
-            .get(&version.key)
-            .is_some_and(|current| *current == *version)
-        {
-            self.latest_versions.remove(&version.key);
-        }
-
         match &version.key {
             ArtifactKey::ModuleGraph { .. } => {
                 self.module_graphs.remove(version);
@@ -227,12 +258,26 @@ impl ArtifactStore {
 
     /// Retain one exact live artifact version.
     pub fn retain(&self, version: &ArtifactVersion) {
-        if !self.contains(version) {
+        if !self.exists(version) {
             return;
         }
 
         let mut retain_count = self.retained_versions.entry(*version).or_insert(0);
         *retain_count += 1;
+    }
+
+    /// Retain one exact live artifact version with RAII release on drop.
+    pub fn pin(self: &Arc<Self>, version: &ArtifactVersion) -> Option<ArtifactPin> {
+        if !self.exists(version) {
+            return None;
+        }
+
+        self.retain(version);
+
+        Some(ArtifactPin {
+            store: Arc::clone(self),
+            version: *version,
+        })
     }
 
     /// Release one exact live artifact version.
@@ -255,23 +300,18 @@ impl ArtifactStore {
 
         self.retained_versions.remove(version);
 
-        let is_latest_version = self
-            .latest_versions
-            .get(&version.key)
-            .is_some_and(|current| *current == *version);
-
-        if !is_latest_version {
+        if self.has_other_published_version(version) {
             self.evict(version);
         }
     }
 
     /// Store one canonical dependency proof list for one exact artifact version.
-    pub fn set_dependencies(
+    pub fn publish_dependencies(
         &self,
         version: &ArtifactVersion,
         dependencies: Vec<ArtifactDependency>,
     ) {
-        if !self.contains(version) {
+        if !self.exists(version) {
             return;
         }
 
@@ -280,18 +320,44 @@ impl ArtifactStore {
             .into_iter()
             .filter(|dependency| seen.insert((dependency.key, dependency.stamp)))
             .collect();
+        let mut entry = self.entry_mut(*version);
+        entry.dependencies = dependencies;
+    }
 
-        self.dependencies.insert(*version, dependencies);
+    /// Publish diagnostics for one exact artifact version.
+    pub fn publish_diagnostics(&self, version: ArtifactVersion, diagnostics: DiagnosticCollection) {
+        self.publish_entry(version);
+
+        let mut entry = self.entry_mut(version);
+        entry.diagnostics = Arc::new(diagnostics);
+    }
+
+    /// Publish one failed exact artifact attempt.
+    pub fn publish_failure(&self, version: ArtifactVersion, dependencies: Vec<ArtifactDependency>) {
+        self.publish_entry(version);
+        self.publish_dependencies(&version, dependencies);
     }
 
     /// Return the recorded dependency proofs for one exact artifact version.
     pub fn dependencies(&self, version: &ArtifactVersion) -> Option<Vec<ArtifactDependency>> {
-        self.dependencies
+        self.entries
             .get(version)
-            .map(|entry| entry.value().clone())
+            .map(|entry| entry.dependencies.clone())
     }
 
-    /// Return whether one exact artifact version is published.
+    /// Return the recorded diagnostics for one exact artifact version.
+    pub fn diagnostics(&self, version: &ArtifactVersion) -> Option<Arc<DiagnosticCollection>> {
+        self.entries
+            .get(version)
+            .map(|entry| Arc::clone(&entry.diagnostics))
+    }
+
+    /// Return whether one exact artifact version entry exists.
+    pub fn exists(&self, version: &ArtifactVersion) -> bool {
+        self.entries.contains_key(version)
+    }
+
+    /// Return whether one exact artifact payload is published.
     pub fn contains(&self, version: &ArtifactVersion) -> bool {
         match &version.key {
             ArtifactKey::ModuleGraph { .. } => self.module_graphs.contains_key(version),
@@ -734,6 +800,7 @@ impl ArtifactStore {
 
     /// Clear all semantic artifacts.
     pub fn clear(&self) {
+        self.entries.clear();
         self.module_graphs.clear();
         self.language_environments.clear();
         self.intrinsic_environments.clear();
@@ -752,8 +819,6 @@ impl ArtifactStore {
         self.module_output.clear();
         self.package_output.clear();
         self.retained_versions.clear();
-        self.latest_versions.clear();
-        self.dependencies.clear();
     }
 
     /// Collect profiles for one module from one versioned family map.
@@ -774,12 +839,30 @@ impl ArtifactStore {
 
     /// Publish one family entry at one exact artifact version.
     fn insert<T>(&self, map: &ArtifactMap<T>, version: ArtifactVersion, payload: Arc<T>) {
-        // latest live version per key stays available by default
+        // keep the current exact version available by default
+        self.publish_entry(version);
         map.insert(version, payload);
-        self.latest_versions.insert(version.key, version);
+    }
+
+    /// Evict every published version matching one semantic artifact key.
+    fn evict_matching<T>(&self, map: &ArtifactMap<T>, key: &ArtifactKey) {
+        let versions: Vec<_> = map
+            .iter()
+            .filter_map(|entry| (entry.key().key == *key).then_some(*entry.key()))
+            .collect();
+
+        for version in versions {
+            self.evict(&version);
+        }
+    }
+
+    /// Publish one exact artifact record without a typed payload.
+    fn publish_entry(&self, version: ArtifactVersion) {
+        self.entry_mut(version);
 
         // release alone controls older retained versions
-        let superseded_versions = map
+        let superseded_versions = self
+            .entries
             .iter()
             .filter_map(|entry| {
                 let candidate = entry.key();
@@ -797,16 +880,19 @@ impl ArtifactStore {
         }
     }
 
-    /// Evict every published version matching one semantic artifact key.
-    fn evict_matching<T>(&self, map: &ArtifactMap<T>, key: &ArtifactKey) {
-        let versions: Vec<_> = map
+    /// Return whether another exact version for this semantic key is still published.
+    fn has_other_published_version(&self, version: &ArtifactVersion) -> bool {
+        self.entries
             .iter()
-            .filter_map(|entry| (entry.key().key == *key).then_some(*entry.key()))
-            .collect();
+            .any(|entry| entry.key().key == version.key && *entry.key() != *version)
+    }
 
-        for version in versions {
-            self.evict(&version);
-        }
+    /// Return the mutable exact entry for one version, creating it when missing.
+    fn entry_mut(
+        &self,
+        version: ArtifactVersion,
+    ) -> dashmap::mapref::one::RefMut<'_, ArtifactVersion, ArtifactEntry> {
+        self.entries.entry(version).or_default()
     }
 }
 
@@ -879,14 +965,14 @@ mod tests {
         assert!(registry.contains(&version_2));
     }
 
-    /// Keep the latest published version alive after the last exact retain is released.
+    /// Keep the sole published version alive after the last exact retain is released.
     #[test]
-    fn test_release_keeps_latest_retained_version() {
+    fn test_release_keeps_sole_retained_version() {
         let registry = ArtifactStore::new();
         let module = ModuleId::EPHEMERAL;
         let version = ArtifactVersion::new(ArtifactKey::Ast { module }, ArtifactStamp::new(1));
 
-        // latest version stays live by default
+        // the sole version stays live by default
         registry.publish_ast(version, Ast::new(module));
         registry.retain(&version);
 
