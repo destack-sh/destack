@@ -215,7 +215,21 @@ impl Repository {
 
     /// Return the artifact stamp for one revision-scoped artifact key.
     pub fn artifact_stamp(&self, revision: Revision, artifact_key: &ArtifactKey) -> ArtifactStamp {
-        match artifact_key {
+        let revision_state = self
+            .revision(revision)
+            .unwrap_or_else(|error| panic!("missing revision state for artifact stamp: {error}"));
+        let artifact_stamps = revision_state
+            .artifact_stamps
+            .get_or_init(|| Arc::new(parking_lot::RwLock::new(rustc_hash::FxHashMap::default())));
+
+        {
+            let artifact_stamps = artifact_stamps.read();
+            if let Some(stamp) = artifact_stamps.get(artifact_key) {
+                return *stamp;
+            }
+        }
+
+        let stamp = match artifact_key {
             ArtifactKey::ModuleGraph { profile } => {
                 self.module_graph_artifact_stamp(revision, artifact_key, *profile)
             }
@@ -258,7 +272,12 @@ impl Repository {
             ArtifactKey::PackageOutput { package, target } => {
                 self.package_output_artifact_stamp(revision, artifact_key, *package, *target)
             }
-        }
+        };
+
+        let mut artifact_stamps = artifact_stamps.write();
+        let entry = artifact_stamps.entry(*artifact_key).or_insert(stamp);
+
+        *entry
     }
 
     // FUGU #Architecture: revisit workspace artifact stamp business
