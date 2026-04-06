@@ -4,6 +4,7 @@ members = [
 	# language
 	"language/ast",
 	"language/artifact",
+	"language/artifact/macros",
 	"language/builtin",
 	"language/test/mirbench",
 	"language/compiler",
@@ -48,6 +49,7 @@ members = [
 	"language/lsp/server",
 	"language/lsp/types",
 	"language/source",
+	"language/source/macros",
 	"language/test",
 	"language/unicode",
 	"language/workspace",
@@ -76,6 +78,7 @@ rust-version = "1.88.0"
 [workspace.dependencies]
 # language
 destack_artifact = { path = "language/artifact" }
+destack_artifact_macros = { path = "language/artifact/macros" }
 destack_ast = { path = "language/ast" }
 destack_builtin = { path = "language/builtin" }
 destack_codegen_js = { path = "language/compiler/generate/js" }
@@ -101,6 +104,7 @@ destack_resolver = { path = "language/resolver" }
 destack_runtime = { path = "language/runtime" }
 destack_runtime_abi = { path = "language/runtime/abi" }
 destack_source = { path = "language/source" }
+destack_source_macros = { path = "language/source/macros" }
 destack_test = { path = "language/test" }
 destack_test_mirbench = { path = "language/test/mirbench" }
 destack_unicode = { path = "language/unicode" }
@@ -164,6 +168,7 @@ slice-group-by = "0.3.1"
 aho-corasick = "1.1"
 argon2 = "0.5.3"
 base64 = "0.22"
+blake3 = "1.8.2"
 bytes = "1.11.1"
 bitflags = "2.11.0"
 cfg-if = "1.0.4"
