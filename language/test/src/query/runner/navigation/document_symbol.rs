@@ -21,7 +21,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // empty expectation is an error: must specify expected symbols
     if expected.is_empty() {
-        let symbols = query::document_symbols(&session.session, session.file_id);
+        let symbols =
+            query::document_symbols(&session.repository, session.revision, session.file_id);
         let actual_names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
         return CaseResult::Failed {
             message: format!(
@@ -31,7 +32,19 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     }
 
     // run the document symbols query once
-    let symbols = query::document_symbols(&session.session, session.file_id);
+    let symbols = query::document_symbols(&session.repository, session.revision, session.file_id);
+
+    // allow explicit empty snapshots
+    if expected == "<none>" {
+        return if symbols.is_empty() {
+            CaseResult::Passed
+        } else {
+            let actual_snapshot = format_symbols_hierarchical(&symbols, 0).join("\n");
+            CaseResult::Failed {
+                message: format!("document_symbols expected no symbols, got:\n{actual_snapshot}"),
+            }
+        };
+    }
 
     // read the source for span validation and formatting
     let source = source_for_file(session, session.file_id);

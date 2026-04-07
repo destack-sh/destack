@@ -29,7 +29,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // run the code lens query once for the primary file
-    let lenses = query::code_lenses(&session.session, session.file_id);
+    let lenses = query::code_lenses(&session.repository, session.revision, session.file_id);
 
     run_with_expectation(session, exp, &lenses)
 }
@@ -52,7 +52,7 @@ pub fn run_resolve(
         };
     }
 
-    let lenses = query::code_lenses(&session.session, session.file_id);
+    let lenses = query::code_lenses(&session.repository, session.revision, session.file_id);
     if lenses.is_empty() {
         return if content == "<none>" {
             CaseResult::Passed
@@ -80,7 +80,7 @@ pub fn run_resolve(
         };
     };
 
-    let resolved = query::resolve_code_lens(&session.session, lens);
+    let resolved = query::resolve_code_lens(lens);
     let actual_line = format_lens_line(session, &resolved);
 
     if looks_like_span_snapshot(content, &["kind=", "title="]) {

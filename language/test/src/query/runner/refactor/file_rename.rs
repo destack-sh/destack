@@ -61,7 +61,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     // execute rename files query
-    let result = query::rename_files(&session.session, &renames);
+    let result = query::rename_files(&session.repository, session.revision, &renames);
 
     // allow explicit failure expectations
     let content = exp.content.trim();

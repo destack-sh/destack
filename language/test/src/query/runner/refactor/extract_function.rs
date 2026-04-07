@@ -31,7 +31,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         .map(|name| name.as_str())
         .unwrap_or("extracted");
 
-    let result = query::extract_function(&session.session, session.file_id, selection, new_name);
+    let result = query::extract_function(
+        &session.repository,
+        session.revision,
+        session.file_id,
+        selection,
+        new_name,
+    );
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();

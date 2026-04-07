@@ -29,7 +29,12 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         Err(message) => return CaseResult::Failed { message },
     };
 
-    let ranges = query::selection_ranges(&session.session, file_id, &[offset]);
+    let ranges = query::selection_ranges(
+        session.repository.as_ref(),
+        session.revision,
+        file_id,
+        &[offset],
+    );
 
     let content = exp.content.trim();
 

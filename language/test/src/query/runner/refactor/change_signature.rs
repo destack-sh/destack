@@ -28,7 +28,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let new_arguments = exp.args.get(1).map(|value| value.as_str()).unwrap_or("");
 
     let result = query::change_signature(
-        &session.session,
+        &session.repository,
+        session.revision,
         file_id,
         offset,
         new_parameters,

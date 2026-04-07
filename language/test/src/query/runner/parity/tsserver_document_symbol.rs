@@ -28,7 +28,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // compute the destack snapshot for the primary file
-    let symbols = query::document_symbols(&session.session, session.file_id);
+    let symbols = query::document_symbols(&session.repository, session.revision, session.file_id);
     let source = source_for_file(session, session.file_id);
     let snapshot = format_symbols_snapshot(&symbols, source, 0).join("\n");
 
@@ -37,11 +37,11 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
         .files
         .values()
         .find(|file| file.file_id == session.file_id)
-        .map(|file| session.session.cwd.join(&file.name))
-        .unwrap_or_else(|| session.session.cwd.join("main.ds"));
+        .map(|file| session.root.join(&file.name))
+        .unwrap_or_else(|| session.root.join("main.ds"));
     let request = ParityRequest {
         query: "document_symbols".to_string(),
-        root_dir: session.session.cwd.display().to_string(),
+        root_dir: session.root.display().to_string(),
         file_path: file_path.display().to_string(),
         source: source.to_string(),
         snapshot,

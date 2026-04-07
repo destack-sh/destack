@@ -22,7 +22,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     // run the query
-    let result = query::goto_implementation(&session.session, file_id, offset);
+    let result = query::goto_implementation(&session.repository, session.revision, file_id, offset);
 
     let Some(result) = result else {
         return CaseResult::Failed {
@@ -110,7 +110,7 @@ fn validate_implementation_invariants(
     }
 
     // validate ordering and duplicates
-    let mut previous: Option<(u32, u32, u32)> = None;
+    let mut previous: Option<(u64, u32, u32)> = None;
     for span in locations {
         let key = (span.file.0, span.start, span.end);
         if let Some(prev) = previous {

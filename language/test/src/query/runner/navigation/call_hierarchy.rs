@@ -36,18 +36,6 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         .map(|arg| arg.as_str())
         .unwrap_or("incoming");
 
-    // prepare call hierarchy item
-    let Some(item) = query::prepare_call_hierarchy(&session.session, file_id, offset) else {
-        return CaseResult::Failed {
-            message: format!("call_hierarchy at '{}' returned None", exp.target),
-        };
-    };
-
-    // validate the prepared item before expansion
-    if let Err(message) = validate_item_invariants(session, &item) {
-        return CaseResult::Failed { message };
-    }
-
     // compute calls for the requested direction
     let expected = exp.content.trim();
 
@@ -59,6 +47,27 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
                 exp.target
             ),
         };
+    }
+
+    // prepare call hierarchy item
+    let item =
+        query::prepare_call_hierarchy(&session.repository, session.revision, file_id, offset);
+
+    // allow "<none>" to assert that no hierarchy item exists at all
+    if expected == "<none>" && item.is_none() {
+        return CaseResult::Passed;
+    }
+
+    // otherwise a hierarchy item must exist
+    let Some(item) = item else {
+        return CaseResult::Failed {
+            message: format!("call_hierarchy at '{}' returned None", exp.target),
+        };
+    };
+
+    // validate the prepared item before expansion
+    if let Err(message) = validate_item_invariants(session, &item) {
+        return CaseResult::Failed { message };
     }
 
     // dispatch by direction
@@ -81,7 +90,7 @@ fn run_incoming_expectation(
     target: &str,
 ) -> CaseResult {
     // run the incoming calls query
-    let calls = query::incoming_calls(&session.session, item);
+    let calls = query::incoming_calls(&session.repository, session.revision, item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_incoming_invariants(session, &calls) {
@@ -157,7 +166,7 @@ fn run_outgoing_expectation(
     target: &str,
 ) -> CaseResult {
     // run the outgoing calls query
-    let calls = query::outgoing_calls(&session.session, item);
+    let calls = query::outgoing_calls(&session.repository, session.revision, item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_outgoing_invariants(session, item, &calls) {
@@ -423,7 +432,7 @@ fn validate_call_ranges(
     }
 
     // validate ordering and duplicates within the call site ranges
-    let mut previous: Option<(u32, u32, u32)> = None;
+    let mut previous: Option<(u64, u32, u32)> = None;
     for span in ranges {
         // build a stable ordering key for the call site span
         let key = span_key(*span);
@@ -450,7 +459,7 @@ fn validate_call_ordering<'a>(
     items: impl Iterator<Item = &'a CallHierarchyItem>,
     errors: &mut Vec<String>,
 ) {
-    let mut previous: Option<(u32, u32, u32, u32, u32, u8, String)> = None;
+    let mut previous: Option<(u64, u32, u32, u32, u32, u8, String)> = None;
 
     // compare each item key against the previous one
     for item in items {
@@ -499,7 +508,7 @@ fn validate_span_bounds(
 }
 
 /// Build a stable ordering key for a call hierarchy item.
-fn item_key(item: &CallHierarchyItem) -> (u32, u32, u32, u32, u32, u8, String) {
+fn item_key(item: &CallHierarchyItem) -> (u64, u32, u32, u32, u32, u8, String) {
     (
         item.file.0,
         item.range.start,
@@ -512,6 +521,6 @@ fn item_key(item: &CallHierarchyItem) -> (u32, u32, u32, u32, u32, u8, String) {
 }
 
 /// Build a stable ordering key for a span.
-fn span_key(span: Span) -> (u32, u32, u32) {
+fn span_key(span: Span) -> (u64, u32, u32) {
     (span.file.0, span.start, span.end)
 }

@@ -1,17 +1,17 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::core::{CaseResult, format_diagnostics};
+use crate::core::{CaseResult, format_diagnostics, open_repository_with_options};
 use crate::mdtest::MdTestCase;
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileStore, FileSystem,
     FileType, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program};
+use destack_workspace::{FormatterOptions, LinterOptions};
 
 /// Run a single formatter transform test.
 ///
@@ -72,19 +72,14 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
 
     // set up program context
     let cwd = std::env::current_dir().unwrap_or_default();
-    let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let program = Arc::new(Program::from_options(
-        formatter_options,
-        LinterOptions::default(),
-        cwd,
-        fs,
-        files,
-    ));
+    let repository =
+        open_repository_with_options(cwd, fs, formatter_options, LinterOptions::default());
+    let files = FileStore::new();
 
     // create file
-    let file_id = program.files.next_id();
     let uri = Uri::from_string(format!("/test/{}", input_file.path));
+    let file_id = FileId::from_logical_str(uri.as_ref());
     let file = Arc::new(File::from_text(
         file_id,
         input_file.path.clone(),
@@ -93,7 +88,7 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
         file_type,
         input_file.content.clone(),
     ));
-    program.files.insert((*file).clone());
+    files.insert((*file).clone());
 
     // parse
     let language_type = LanguageType::from(file.ty);
@@ -112,7 +107,7 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
             diagnostics.insert(d);
         }
         let options = PrintOptions::new().with_colorizer(source_colorizer());
-        let rendered = format_diagnostics(&program.files, &diagnostics, options);
+        let rendered = format_diagnostics(&files, &diagnostics, options);
         return CaseResult::Failed {
             message: format!("parse errors:\n\n{rendered}"),
         };
@@ -127,7 +122,7 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
         &expressions,
         &file,
         language_type,
-        program.formatter,
+        repository.formatter,
     );
 
     // compare

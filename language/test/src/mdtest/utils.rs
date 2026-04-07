@@ -7,7 +7,7 @@ use std::{io, thread};
 
 use destack_artifact::{EmitFormat, MemoryCacheStore, Platform, Runtime};
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{ProfileEnv, ProfileId, Program, Session, Target};
+use destack_workspace::{Profile, ProfileEnv, Repository, Revision, Target};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -120,14 +120,16 @@ fn parse_mdtest_profile_overrides(test: &MdTestCase) -> MdTestProfileOverrides {
 
 /// Select a profile and lib loading mode for a mdtest case.
 pub fn select_profile_for_mdtest(
-    program: &Program,
+    repository: &Repository,
+    revision: Revision,
     module_id: ModuleId,
     test: &MdTestCase,
     default_load_libraries: bool,
-) -> (ProfileId, bool) {
+) -> (Profile, bool) {
     // load base profile state
-    let base_profile_id = program.default_profile_id_for_module(module_id);
-    let base_profile = program.profile(base_profile_id);
+    let base_profile = repository
+        .default_profile_for_module(revision, module_id)
+        .unwrap_or_else(|error| panic!("failed to resolve default profile: {error}"));
     let overrides = parse_mdtest_profile_overrides(test);
     let lib_override = parse_mdtest_libs(test);
 
@@ -190,10 +192,9 @@ pub fn select_profile_for_mdtest(
 
     // return the resolved profile
     if key != base_profile.key {
-        let profile_id = program.profiles.get_or_create(key);
-        (profile_id, load_libraries)
+        (Profile::from_key(key), load_libraries)
     } else {
-        (base_profile_id, load_libraries)
+        (base_profile, load_libraries)
     }
 }
 
@@ -237,17 +238,12 @@ fn parse_emit_format(value: &str) -> EmitFormat {
 }
 
 /// Set up an in memory test environment from a markdown test case.
-pub fn setup_test_environment_with_session(
+pub fn setup_test_environment_with_repository(
     test: &MdTestCase,
-    session: Arc<Session>,
+    repository: Arc<Repository>,
     memory_fs: Arc<MemoryFileSystem>,
     root: PathBuf,
-) -> (
-    Arc<Session>,
-    Arc<destack_workspace::program::Program>,
-    PathBuf,
-    PathBuf,
-) {
+) -> (Arc<Repository>, PathBuf, PathBuf) {
     // populate filesystem with test files
     let mut main_path: Option<PathBuf> = None;
     for file in &test.files {
@@ -261,36 +257,27 @@ pub fn setup_test_environment_with_session(
         }
     }
 
-    // choose the main file and create the program root
+    // choose the main file and create the repository root
     let main_path = main_path.expect("test should have at least one file");
-    let program = session.add_root(root);
+    let root = repository.cwd.clone();
 
-    let root = program.cwd.clone();
-
-    (session, program, root, main_path)
+    (repository, root, main_path)
 }
 
 /// Set up an in memory test environment from a markdown test case.
-pub fn setup_test_environment(
-    test: &MdTestCase,
-) -> (
-    Arc<Session>,
-    Arc<destack_workspace::program::Program>,
-    PathBuf,
-    PathBuf,
-) {
-    // setup memory filesystem and session
+pub fn setup_test_environment(test: &MdTestCase) -> (Arc<Repository>, PathBuf, PathBuf) {
+    // setup memory filesystem and repository
     let memory_fs = Arc::new(MemoryFileSystem::new());
     let cwd = PathBuf::from("/test");
     let fs: Arc<dyn FileSystem> = memory_fs.clone();
-    let session = Arc::new(
-        Session::new(cwd.clone())
-            .with_fs(fs)
+    let repository = Arc::new(
+        Repository::open_root_from_fs(cwd.clone(), fs)
+            .expect("failed to import repository from mdtest file system")
             .with_cache_store(Arc::new(MemoryCacheStore::new())),
     );
 
-    // delegate to session based setup
-    setup_test_environment_with_session(test, session, memory_fs, cwd)
+    // delegate to repository based setup
+    setup_test_environment_with_repository(test, repository, memory_fs, cwd)
 }
 
 /// Run a test function with a timeout.

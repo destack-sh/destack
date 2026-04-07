@@ -17,8 +17,6 @@ The core buckets mirror bind, resolve, type, and flow concerns, with modules as 
 `flow` covers narrowing and control flow constructs that commit or preserve type information.
 `expressions` covers expression typing rules that are not primarily about control flow narrowing.
 `options` covers compiler options that gate behavior.
-`regression` covers surgical bug reproductions that do not fit cleanly elsewhere.
-
 ## Test Format
 
 Tests use markdown with code blocks and expected errors:
@@ -86,7 +84,7 @@ cargo test --test specification -- --verbose
 3. Keep positive and negative expectations in separate test cases because error assertions are not line specific.
 4. Run `cargo test --test specification` to verify.
 
-For bug fixes, include the issue number and add to `regression/`:
+For bug fixes, include the issue number and add the case to the semantic subsystem that owns the behavior:
 ```markdown
 ### regression for issue #123
 ```

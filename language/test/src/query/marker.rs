@@ -1,5 +1,7 @@
 use destack_source::{FileId, Span};
 
+use crate::mdtest::validate_query_range_markers;
+
 /// A cursor marker (`$0`, `$1`, etc.) in test source.
 #[derive(Debug, Clone)]
 pub struct CursorMarker {
@@ -46,7 +48,11 @@ impl TestMarkers {
 /// Parse test source and extract markers.
 ///
 /// Returns the cleaned source without marker syntax and the extracted markers.
-pub fn parse_markers(file_id: FileId, source: &str) -> (String, TestMarkers) {
+pub fn parse_markers(
+    file_id: FileId,
+    file_path: &str,
+    source: &str,
+) -> Result<(String, TestMarkers), String> {
     let mut markers = TestMarkers::default();
     let mut clean_lines = Vec::new();
 
@@ -86,7 +92,21 @@ pub fn parse_markers(file_id: FileId, source: &str) -> (String, TestMarkers) {
         clean_lines.push(clean_line);
     }
 
-    (clean_lines.join("\n"), markers)
+    let clean_source = clean_lines.join("\n");
+    let range_markers = markers
+        .ranges
+        .iter()
+        .map(|range| {
+            (
+                range.name.as_str(),
+                range.span.start as usize..range.span.end as usize,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    validate_query_range_markers(file_path, &clean_source, &range_markers)?;
+
+    Ok((clean_source, markers))
 }
 
 /// Parse a caret marker line.
@@ -119,7 +139,7 @@ fn parse_caret_marker(line: &str) -> Option<(usize, usize, String, Option<String
         (marker.to_string(), None)
     };
 
-    Some((comment_start + 2 + caret_start, caret_length, name, target))
+    Some((comment_start + caret_start, caret_length, name, target))
 }
 
 /// Extract cursor markers from one source line.
@@ -159,12 +179,12 @@ mod tests {
     fn test_parse_simple_markers() {
         let source = r#"
 const foo = 1;
-//    ^^^ def:foo
+//      ^^^ def:foo
 const bar = foo;
-//          ^^^ use:foo -> def:foo
+//            ^^^ use:foo -> def:foo
 "#;
         let file_id = FileId(0);
-        let (clean, markers) = parse_markers(file_id, source);
+        let (clean, markers) = parse_markers(file_id, "test.ds", source).expect("markers");
 
         assert!(!clean.contains("^^^"));
         assert_eq!(markers.ranges.len(), 2);
@@ -177,12 +197,38 @@ const bar = foo;
     fn test_parse_cursor_markers() {
         let source = "point.$0x";
         let file_id = FileId(0);
-        let (clean, markers) = parse_markers(file_id, source);
+        let (clean, markers) = parse_markers(file_id, "test.ds", source).expect("markers");
 
         assert_eq!(clean, "point.x");
         assert_eq!(markers.cursors.len(), 1);
         assert_eq!(markers.cursors[0].index, 0);
         assert_eq!(markers.cursors[0].file_id, file_id);
         assert_eq!(markers.cursors[0].offset, 6);
+    }
+
+    #[test]
+    fn test_reject_partial_identifier_range() {
+        let source = r#"
+const value = 1;
+//      ^^^^ use:value
+"#;
+        let error = parse_markers(FileId(0), "test.ds", source)
+            .expect_err("expected strict anchor failure");
+
+        assert!(error.contains("must exactly cover word token `value`"));
+    }
+
+    #[test]
+    fn test_parse_column_zero_marker() {
+        let source = r#"
+stableLater();
+//^^^^^^^^^^^ use:stableLater
+"#;
+        let file_id = FileId(0);
+        let (_, markers) = parse_markers(file_id, "test.ds", source).expect("markers");
+
+        assert_eq!(markers.ranges.len(), 1);
+        assert_eq!(markers.ranges[0].span.start, 1);
+        assert_eq!(markers.ranges[0].span.end, 12);
     }
 }

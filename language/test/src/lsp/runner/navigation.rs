@@ -130,7 +130,7 @@ pub(crate) fn run_navigation_cases(
         let active_file_path = test_state
             .active_file_path()
             .ok_or_else(|| "document highlight request did not keep an active file".to_string())?;
-        let actual_locations = normalize_document_highlights(&active_file_path, &highlights);
+        let actual_locations = normalize_document_highlights(active_file_path, &highlights);
 
         verify_reference_locations(&actual_locations, &expected_locations)?;
     }

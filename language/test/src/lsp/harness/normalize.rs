@@ -1389,8 +1389,7 @@ fn offset_for_line_character(
     }
 
     Err(format!(
-        "semantic token position {}:{} is outside document bounds",
-        target_line, target_character
+        "semantic token position {target_line}:{target_character} is outside document bounds"
     ))
 }
 
@@ -1399,7 +1398,11 @@ fn normalize_hover_marked_string(value: &lsp::MarkedString) -> String {
     match value {
         lsp::MarkedString::String(text) => text.clone(),
         lsp::MarkedString::LanguageString(string) => {
-            format!("```{}\n{}\n```", string.language, string.value)
+            format!(
+                "```{language}\n{value}\n```",
+                language = string.language,
+                value = string.value
+            )
         }
     }
 }

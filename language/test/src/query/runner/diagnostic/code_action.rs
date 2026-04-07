@@ -46,7 +46,15 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // run the query for the resolved span
     let context = parsed_expectation.context;
-    let actions = query::code_actions(&session.session, range.file, range, &context);
+    let diagnostics = diagnostics_for_file(session, range.file);
+    let actions = query::code_actions(
+        &session.repository,
+        session.revision,
+        range.file,
+        range,
+        &diagnostics,
+        &context,
+    );
 
     // validate invariants before comparing against expectations
     if let Err(message) = validate_code_action_invariants(session, &actions) {
@@ -217,6 +225,35 @@ fn resolve_query_span(session: &QueryTestSession, target: &str) -> Result<Span, 
     };
 
     Ok(marker.span)
+}
+
+/// Collect current artifact diagnostics for one query file.
+fn diagnostics_for_file(
+    session: &QueryTestSession,
+    file_id: FileId,
+) -> Vec<destack_source::Diagnostic> {
+    let Some(module_id) = session
+        .repository
+        .module_id_for_file(session.revision, file_id)
+        .ok()
+        .flatten()
+    else {
+        return Vec::new();
+    };
+    let Ok(profile_id) = session
+        .repository
+        .default_profile_id_for_module(session.revision, module_id)
+    else {
+        return Vec::new();
+    };
+
+    session
+        .repository
+        .module_artifact_diagnostics(session.revision, module_id, profile_id)
+        .iter()
+        .into_iter()
+        .filter(|diagnostic| diagnostic.file_id == file_id)
+        .collect()
 }
 
 /// Validate basic code action invariants.
@@ -423,7 +460,7 @@ fn file_edit_key(file_id: FileId, edits: &[Edit]) -> String {
 }
 
 /// Build a stable key for a single edit.
-fn edit_key(edit: &Edit) -> (u32, u32, u32, String) {
+fn edit_key(edit: &Edit) -> (u32, u32, u64, String) {
     // extract span coordinates and replacement text
     let file = edit.span.file.0;
     let start = edit.span.start;

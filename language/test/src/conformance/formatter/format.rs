@@ -6,12 +6,12 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
+    DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileStore, FileSystem,
     FileType, LanguageType, MemoryFileSystem, PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{FormatterOptions, LinterOptions, Program, QuoteStyle};
+use destack_workspace::{FormatterOptions, LinterOptions, QuoteStyle};
 
-use crate::core::format_diagnostics;
+use crate::core::{format_diagnostics, open_repository_with_options};
 
 use crate::conformance::CaseOutcome;
 
@@ -91,24 +91,19 @@ fn format_once(
     let cwd = path
         .parent()
         .map_or_else(|| Path::new("/").to_path_buf(), |path| path.to_path_buf());
-    let files = Arc::new(FileRegistry::new());
     let fs: Arc<dyn FileSystem> = Arc::new(MemoryFileSystem::new());
-    let program = Arc::new(Program::from_options(
-        formatter_options,
-        LinterOptions::default(),
-        cwd,
-        fs,
-        files,
-    ));
+    let repository =
+        open_repository_with_options(cwd, fs, formatter_options, LinterOptions::default());
+    let files = FileStore::new();
 
     // materialize a source file in the in memory registry
-    let file_id = program.files.next_id();
     let name = path
         .file_name()
         .and_then(|value| value.to_str())
         .unwrap_or("input")
         .to_string();
     let uri = Uri::from_path(path);
+    let file_id = FileId::from_logical_path(path);
     let file = Arc::new(File::from_text(
         file_id,
         name,
@@ -117,7 +112,7 @@ fn format_once(
         file_type,
         source.to_string(),
     ));
-    program.files.insert((*file).clone());
+    files.insert((*file).clone());
 
     // parse source and fail on syntax errors
     let language_type = LanguageType::from(file_type);
@@ -136,7 +131,7 @@ fn format_once(
                 diagnostics.insert(diagnostic);
             }
             let options = PrintOptions::new().with_colorizer(source_colorizer());
-            let rendered = format_diagnostics(&program.files, &diagnostics, options);
+            let rendered = format_diagnostics(&files, &diagnostics, options);
             println!("parse diagnostics for {}:\n{rendered}", path.display());
         }
         return Err(());
@@ -151,7 +146,7 @@ fn format_once(
         &expressions,
         &file,
         language_type,
-        program.formatter,
+        repository.formatter,
     ))
 }
 

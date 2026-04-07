@@ -12,10 +12,9 @@ use destack_compiler::{
 use destack_core::{ImmutableStringPool, StringPool};
 use destack_heap::{Heap, MemoryContext, SharedSpace, Value};
 use destack_mir as mir;
-use destack_source::{FileId, ModuleId, PackageId};
+use destack_source::{FileId, ModuleId, PackageId, TargetId};
 use destack_vm::diagnostic::RuntimeResult;
 use destack_vm::{ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
-use destack_workspace::TargetId;
 use mir::parse::ParseOptions;
 use serde::Serialize;
 
@@ -42,6 +41,11 @@ const OPTIMIZATION_LEVELS: [OptimizationLevel; 5] = [
     OptimizationLevel::O3,
     OptimizationLevel::O4,
 ];
+
+/// Build one stable synthetic target id for optimizer fixtures.
+fn fixture_target_id(package_id: PackageId, name: &str) -> TargetId {
+    TargetId::new(package_id, name)
+}
 
 /// Run options for optimizer bench suites.
 #[derive(Debug, Clone)]
@@ -505,7 +509,7 @@ impl Suite for OptimizeValidateSuite {
         // parse allow list directives
         let allow_list = BenchAllowList::from_source(&source);
         let package_id = PackageId::from_synthetic_path(&self.root);
-        let target_id = TargetId::new(package_id, "native");
+        let target_id = fixture_target_id(package_id, "native");
         // use vm friendly pipeline options
         let options = PipelineOptions {
             target: PipelineTarget::Vm,
@@ -724,7 +728,7 @@ impl Suite for OptimizeExecuteSuite {
 
         // prepare shared configuration
         let package_id = PackageId::from_synthetic_path(&self.root);
-        let target_id = TargetId::new(package_id, "native");
+        let target_id = fixture_target_id(package_id, "native");
         // use vm friendly pipeline options
         let options = PipelineOptions {
             target: PipelineTarget::Vm,
@@ -774,6 +778,7 @@ impl Suite for OptimizeExecuteSuite {
                     let message = build_execute_failure(
                         program,
                         level,
+                        package_id,
                         &target_id,
                         &options,
                         &baseline_output,
@@ -793,6 +798,7 @@ impl Suite for OptimizeExecuteSuite {
                 let message = build_execute_failure(
                     program,
                     level,
+                    package_id,
                     &target_id,
                     &options,
                     &baseline_output,
@@ -917,7 +923,7 @@ impl Suite for OptimizePerfSuite {
 
         // prepare shared configuration
         let package_id = PackageId::from_synthetic_path(&self.root);
-        let target_id = TargetId::new(package_id, "native");
+        let target_id = fixture_target_id(package_id, "native");
         // use vm friendly pipeline options
         let options = PipelineOptions {
             target: PipelineTarget::Vm,
@@ -1670,7 +1676,7 @@ fn optimize_source(
     // build the pipeline context
     let strings_pool = StringPool::new();
     strings_pool.copy_from_immutable(&strings);
-    let mut ctx = PipelineContext::new(&strings_pool, options, module_id, target_id.clone(), None);
+    let mut ctx = PipelineContext::new(&strings_pool, options, module_id, *target_id, None);
 
     // run optimization and check diagnostics
     pipeline.run(&mut tree, &mut ctx);
@@ -1726,7 +1732,7 @@ fn optimize_source_variant(
     // build the pipeline context
     let strings_pool = StringPool::new();
     strings_pool.copy_from_immutable(&strings);
-    let mut ctx = PipelineContext::new(&strings_pool, options, module_id, target_id.clone(), None);
+    let mut ctx = PipelineContext::new(&strings_pool, options, module_id, *target_id, None);
 
     let mut pass_timings = Vec::new();
     if filter.is_noop() && !capture_pass_timing {
@@ -2185,6 +2191,7 @@ fn run_pipeline_with_timings(
 #[allow(clippy::too_many_arguments)]
 fn run_matrix_case(
     program: &program::Program,
+    package_id: PackageId,
     target_id: &TargetId,
     options: &PipelineOptions,
     baseline_output: &ExecutionOutput,
@@ -2201,16 +2208,10 @@ fn run_matrix_case(
     let strings_pool = StringPool::new();
     strings_pool.copy_from_immutable(&strings);
     let module_id = ModuleId::from_relative_path(
-        target_id.package_id,
+        package_id,
         &PathBuf::from(format!("bench/{}.mir", program.name)),
     );
-    let ctx = PipelineContext::new(
-        &strings_pool,
-        options.clone(),
-        module_id,
-        target_id.clone(),
-        None,
-    );
+    let ctx = PipelineContext::new(&strings_pool, options.clone(), module_id, *target_id, None);
 
     // apply the case and execute
     apply(&mut tree, &strings_pool, &ctx);
@@ -2298,6 +2299,7 @@ fn find_value_definition(tree: &mir::NodeTree, value: mir::Value) -> String {
 #[allow(clippy::too_many_arguments)]
 fn run_matrix_pipeline(
     program: &program::Program,
+    package_id: PackageId,
     target_id: &TargetId,
     options: &PipelineOptions,
     baseline_output: &ExecutionOutput,
@@ -2311,6 +2313,7 @@ fn run_matrix_pipeline(
         for child in composite.pipelines() {
             let reason = run_matrix_pipeline(
                 program,
+                package_id,
                 target_id,
                 options,
                 baseline_output,
@@ -2333,6 +2336,7 @@ fn run_matrix_pipeline(
         path.push(repeat_label);
         let reason = run_matrix_pipeline(
             program,
+            package_id,
             target_id,
             options,
             baseline_output,
@@ -2354,6 +2358,7 @@ fn run_matrix_pipeline(
 
             let reason = run_matrix_case(
                 program,
+                package_id,
                 target_id,
                 options,
                 baseline_output,
@@ -2376,6 +2381,7 @@ fn run_matrix_pipeline(
     if let Some(adaptor) = pipeline.as_any().downcast_ref::<FunctionToModuleAdaptor>() {
         return run_matrix_pipeline(
             program,
+            package_id,
             target_id,
             options,
             baseline_output,
@@ -2395,6 +2401,7 @@ fn run_matrix_pipeline(
 
             let reason = run_matrix_case(
                 program,
+                package_id,
                 target_id,
                 options,
                 baseline_output,
@@ -2424,6 +2431,7 @@ fn run_matrix_pipeline(
 fn diagnose_mismatch(
     program: &program::Program,
     level: OptimizationLevel,
+    package_id: PackageId,
     target_id: &TargetId,
     options: &PipelineOptions,
     baseline_output: &ExecutionOutput,
@@ -2438,16 +2446,10 @@ fn diagnose_mismatch(
     let strings_pool = StringPool::new();
     strings_pool.copy_from_immutable(&strings);
     let module_id = ModuleId::from_relative_path(
-        target_id.package_id,
+        package_id,
         &PathBuf::from(format!("bench/{}.mir", program.name)),
     );
-    let mut ctx = PipelineContext::new(
-        &strings_pool,
-        options.clone(),
-        module_id,
-        target_id.clone(),
-        None,
-    );
+    let mut ctx = PipelineContext::new(&strings_pool, options.clone(), module_id, *target_id, None);
 
     // run each pass in order using a pass major traversal
     let pipeline = default_pipeline(level, options.target);
@@ -2757,6 +2759,7 @@ fn run_program_with_isolate(
 fn build_execute_failure(
     program: &program::Program,
     level: OptimizationLevel,
+    package_id: PackageId,
     target_id: &TargetId,
     options: &PipelineOptions,
     baseline_output: &ExecutionOutput,
@@ -2769,6 +2772,7 @@ fn build_execute_failure(
         let mut path = Vec::new();
         if let Some(reason) = run_matrix_pipeline(
             program,
+            package_id,
             target_id,
             options,
             baseline_output,
@@ -2786,6 +2790,7 @@ fn build_execute_failure(
         && let Some(reason) = diagnose_mismatch(
             program,
             level,
+            package_id,
             target_id,
             options,
             baseline_output,

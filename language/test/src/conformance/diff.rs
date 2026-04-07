@@ -162,20 +162,18 @@ pub fn print_suite_translation_diffs(options: &TranslationDiffOptions) -> Result
             eprintln!("=== {} <= {} ===", target_file.path, source_path);
         }
 
-        let diff_path = entry
-            .target_subcase
-            .is_empty()
-            .then_some(entry.target_file.clone())
-            .unwrap_or_else(|| {
-                let ordinal = entry
-                    .target_ordinal
-                    .map(|ordinal| format!("#{ordinal}"))
-                    .unwrap_or_default();
-                format!(
-                    "{} :: {}{}",
-                    entry.target_file, entry.target_subcase, ordinal
-                )
-            });
+        let diff_path = if entry.target_subcase.is_empty() {
+            entry.target_file.clone()
+        } else {
+            let ordinal = entry
+                .target_ordinal
+                .map(|ordinal| format!("#{ordinal}"))
+                .unwrap_or_default();
+            format!(
+                "{} :: {}{}",
+                entry.target_file, entry.target_subcase, ordinal
+            )
+        };
         let mut diff_options = DiffOptions::new()
             .with_context(options.context)
             .with_path(&diff_path);

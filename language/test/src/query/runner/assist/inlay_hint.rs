@@ -31,7 +31,12 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // empty expectation is an error
     if content.is_empty() {
         let range = Span::new(session.file_id, 0, session.source.len() as u32);
-        let hints = query::inlay_hints(&session.session, session.file_id, range);
+        let hints = query::inlay_hints(
+            &session.repository,
+            session.revision,
+            session.file_id,
+            range,
+        );
         return CaseResult::Failed {
             message: format!(
                 "inlay_hints expectation is empty, but query returned {} hints",
@@ -42,7 +47,12 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // get all hints for the file
     let range = Span::new(session.file_id, 0, session.source.len() as u32);
-    let hints = query::inlay_hints(&session.session, session.file_id, range);
+    let hints = query::inlay_hints(
+        &session.repository,
+        session.revision,
+        session.file_id,
+        range,
+    );
 
     // validate hint invariants before comparisons
     if let Err(message) = validate_inlay_hint_invariants(session, session.file_id, &hints) {
