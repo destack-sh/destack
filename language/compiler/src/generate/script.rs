@@ -19,7 +19,6 @@ impl Compiler {
 
         // snapshot module for this generate pass
         let module = context.module(module_id);
-        let file = context.file(module.file_id);
         let ast = self.ast(module_id).ok_or_else(|| GenerateError::Internal {
             module: module_id,
             message: "missing compiler AST artifact".to_string(),
@@ -30,15 +29,11 @@ impl Compiler {
                 module: module_id,
                 message: "missing compiler patched DIR artifact".to_string(),
             })?;
-        let data = self.data(module_id);
-
         // generate one script artifact through the current backend
         let (artifact, warnings, errors) = destack_codegen_js::ScriptArtifactGenerator::new(
             module.clone(),
-            file,
             ast,
             dir,
-            data,
             self.repository.string_pool().clone(),
             target,
         )

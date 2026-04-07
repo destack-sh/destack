@@ -8,7 +8,8 @@ use destack_artifact::{
     DirPatched, EmitFormat, OutputContent, OutputFile, ScriptArtifact, SourceMapArtifact,
 };
 use destack_codegen_js::{
-    PrintedScriptModule, ScriptModule, print_script_module as print_codegen_script_module,
+    JsFormatOptions, PrintedScriptModule, ScriptModule,
+    print_script_module as print_codegen_script_module,
 };
 use destack_source::{FileType, ModuleId, TargetId, Uri};
 use destack_workspace::{Module, SourceMapMode, Target};
@@ -192,16 +193,15 @@ impl Compiler {
         let dir = self.script_dir(module_id, target_id, context)?;
         let source_module = context.module(module_id);
         let source_file = context.file(source_module.file_id);
+        let options = if target.should_minify_bundle_output() {
+            JsFormatOptions::minimal()
+        } else {
+            JsFormatOptions::pretty()
+        }
+        .with_file_type(file_type);
 
-        print_codegen_script_module(
-            target,
-            &ast,
-            dir.as_ref(),
-            source_file.as_ref(),
-            file_type,
-            module,
-        )
-        .map_err(|error| format!("failed to print script module: {error:?}"))
+        print_codegen_script_module(options, &ast, dir.as_ref(), source_file.as_ref(), module)
+            .map_err(|error| format!("failed to print script module: {error:?}"))
     }
 
     /// Return the patched DIR artifact for one script module target.

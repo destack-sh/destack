@@ -1,11 +1,9 @@
+use crate::{CodegenJsError, CodegenJsResult};
 use destack_artifact::{Ast, DirPatched, ScriptModule};
 use destack_fir::format::{Document, FormatState, Formatter, VecBuffer};
 use destack_fir::print::Printer as FirPrinter;
 use destack_js as js;
-use destack_source::{File, FileType, NodeSpanType, Span};
-use destack_workspace::Target;
-
-use crate::{CodegenJsError, CodegenJsResult};
+use destack_source::{File, NodeSpanType, Span};
 
 /// One printed script module payload.
 #[derive(Debug, Clone)]
@@ -18,32 +16,31 @@ pub struct PrintedScriptModule {
 
 /// Print one generated script module with the target output policy.
 pub fn print_script_module(
-    target: &Target,
+    options: js::JsFormatOptions,
     ast: &Ast,
     dir: &DirPatched,
     source_file: &File,
-    file_type: FileType,
     module: &ScriptModule,
 ) -> CodegenJsResult<PrintedScriptModule> {
-    if target.should_minify_bundle_script_output() {
-        return print_script_module_minified(ast, dir, source_file, file_type, module);
+    if options.mode == js::FormatMode::Minimal {
+        return print_script_module_minified(options, ast, dir, source_file, module);
     }
 
-    print_script_module_pretty(ast, dir, source_file, file_type, module)
+    print_script_module_pretty(options, ast, dir, source_file, module)
 }
 
 /// Print one generated script module through the direct minified printer.
 pub fn print_script_module_minified(
+    options: js::JsFormatOptions,
     ast: &Ast,
     dir: &DirPatched,
     source_file: &File,
-    file_type: FileType,
     module: &ScriptModule,
 ) -> CodegenJsResult<PrintedScriptModule> {
     let source_map = CodegenJsSourceMap { ast, dir };
     let strings = module.strings.clone().into_immutable();
     let printed = js::print_roots_minified_with_source_map(
-        file_type,
+        options.file_type,
         &module.tree,
         &module.roots,
         &strings,
@@ -119,17 +116,17 @@ impl PrintedScriptModule {
 
 /// Print one generated script module through the pure formatter.
 fn print_script_module_pretty(
+    options: js::JsFormatOptions,
     ast: &Ast,
     dir: &DirPatched,
     source_file: &File,
-    file_type: FileType,
     module: &ScriptModule,
 ) -> CodegenJsResult<PrintedScriptModule> {
     let source_map = CodegenJsSourceMap { ast, dir };
     let strings = module.strings.clone().into_immutable();
     let roots = module.roots.as_slice();
     let context = js::JsFormatContext {
-        options: js::JsFormatOptions::pretty().with_file_type(file_type),
+        options,
         file: source_file,
         tree: &module.tree,
         roots,
