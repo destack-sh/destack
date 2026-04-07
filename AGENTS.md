@@ -68,10 +68,12 @@ Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seem
 
 ### Naming
 
-Names should be obvious, clear, and idiomatic to the language.
+Names should be obvious, clear, and idiomatic to the language and topic.
+Where strong prior art exists, we should follow existing modern naming conventions.
 Prefer writing out most names and words (even in variable names, `extension` > `ext`, `directory` > `dir`).
 Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
-Booleans should start with `is_` unless already clear.
+Booleans should start with `is_` unless already clear (or otherwise required by context).
+Abstraction salad names like "seam", "lane" are to be treated with high suspicion and almost certainly wrong.
 
 ### Logic
 
