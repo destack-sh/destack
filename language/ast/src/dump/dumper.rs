@@ -432,7 +432,7 @@ impl_dump_display! {
     BindingAnchor,
     BlockFormat,
     BinaryOperator,
-    CommentStyle,
+    CommentKind,
     DeclarationAbstraction,
     DeclarationKind,
     NamespaceKind,
