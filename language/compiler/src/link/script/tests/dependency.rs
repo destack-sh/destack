@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use destack_artifact::{ArtifactKey, ModuleOutput, ScriptDependencyTarget};
 use destack_source::DiagnosticSeverity;
-use destack_workspace::TargetDiscovery;
+use destack_workspace::{TargetDiscovery, TargetId};
 
 use super::{TestProgram, js};
 
@@ -12,7 +12,12 @@ fn test_collects_static_script_dependency_for_destack_source_import() {
     // preserve one resolved static import for one Destack source module
     let test = TestProgram::memory_sequential();
     test.add_package("test", None);
-    let dep = test.add_module("dep.ds", &js(r#"export const dependencyValue = 1;"#));
+    let dep = test.add_module(
+        "dep.ds",
+        &js(r#"
+export const dependencyValue = 1;
+"#),
+    );
     let main = test.add_module(
         "main.ds",
         &js(r#"
@@ -30,13 +35,13 @@ export const value = dependencyValue;
         target.out_file = Some(PathBuf::from("dist/js.js"));
     });
 
-    let package_id = test.program.module_descriptor(main).package_id;
-    let target_id = test.target_id(package_id, "js");
-    test.run(ArtifactKey::module_output(main, target_id));
+    let package_id = test.program.modules.get(main).package_id;
+    let target_id = TargetId::new(package_id, "js");
+    test.run(ArtifactKey::module_artifact(main, target_id));
     test.check_no_diagnostic(DiagnosticSeverity::Error);
 
     // keep the resolved module id and the original specifier text
-    let artifact = test.module_output(main, "js");
+    let artifact = test.module_artifact(main, "js");
     let ModuleOutput::Script(script) = artifact else {
         panic!("expected script artifact");
     };
@@ -68,7 +73,12 @@ fn test_collects_static_script_dependency_for_javascript_import() {
     // preserve one resolved static import for one JavaScript source module
     let test = TestProgram::memory_sequential();
     test.add_package("test", None);
-    let dependency_module = test.add_module("common.ts", &js(r#"export const commonValue = 1;"#));
+    let dependency_module = test.add_module(
+        "common.ts",
+        &js(r#"
+export const commonValue = 1;
+"#),
+    );
     let entry_module = test.add_module(
         "app.ts",
         &js(r#"
@@ -86,13 +96,13 @@ export const appValue = commonValue;
         target.out_file = Some(PathBuf::from("dist/js.js"));
     });
 
-    let package_id = test.program.module_descriptor(entry_module).package_id;
-    let target_id = test.target_id(package_id, "js");
-    test.run(ArtifactKey::module_output(entry_module, target_id));
+    let package_id = test.program.modules.get(entry_module).package_id;
+    let target_id = TargetId::new(package_id, "js");
+    test.run(ArtifactKey::module_artifact(entry_module, target_id));
     test.check_no_diagnostic(DiagnosticSeverity::Error);
 
     // keep the resolved module id and the original specifier text
-    let artifact = test.module_output(entry_module, "js");
+    let artifact = test.module_artifact(entry_module, "js");
     let ModuleOutput::Script(script) = artifact else {
         panic!("expected script artifact");
     };

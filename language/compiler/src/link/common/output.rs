@@ -8,7 +8,7 @@ use destack_artifact::{
 use destack_source::{FileType, ModuleId, Uri};
 use destack_workspace::{BundleMode, Target};
 
-use super::layout::OutputLayout;
+use super::layout::TargetLocation;
 
 impl Compiler {
     /// Lower one bundle mode to the published package assembly shape.
@@ -63,7 +63,7 @@ impl Compiler {
         let manifest_content = serde_json::to_string_pretty(&manifest)
             .unwrap_or_else(|_| serde_json::to_string(&manifest).unwrap_or_default());
 
-        let output_layout = OutputLayout::new(package_dir, target);
+        let output_layout = TargetLocation::new(package_dir, target);
         let manifest_path = output_layout.manifest_location();
 
         output

@@ -6,7 +6,7 @@ use destack_artifact::{
 use destack_source::{FileType, ModuleId};
 use indexmap::IndexMap;
 
-use crate::link::OutputLayout;
+use crate::link::TargetLocation;
 
 use super::BinaryLinker;
 
@@ -151,7 +151,7 @@ impl<'a> BinaryLinker<'a> {
 
     /// Build the public build manifest for this binary target.
     fn build_manifest(&self, output: &PackageOutput) -> BuildManifest {
-        let output_layout = OutputLayout::new(self.package_dir, self.target);
+        let output_layout = TargetLocation::new(self.package_dir, self.target);
         let mut files = output
             .outputs
             .values()
@@ -176,6 +176,7 @@ impl<'a> BinaryLinker<'a> {
                         is_dynamic_entry: None,
                         imports: Vec::new(),
                         dynamic_imports: Vec::new(),
+                        stylesheets: Vec::new(),
                     }
                 })
             })

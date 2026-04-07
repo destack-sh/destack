@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use destack_artifact::{
     ArtifactKey, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, EmitFormat,
-    PackageAssembly, TargetOutputName,
+    PackageAssembly, Runtime, TargetOutputName,
 };
 use indexmap::indexmap;
 
@@ -46,7 +46,12 @@ export const appValue = commonValue;
     // preserve both input modules in the linked source map
     let dep_path = test.module_relative_path(dep);
     let main_path = test.module_relative_path(main);
-    let map = expected_source_map(&[&dep_path, &main_path], SINGLE_FILE_SOURCE_MAP_MAPPINGS);
+    let dep_map_path = format!("../{dep_path}");
+    let main_map_path = format!("../{main_path}");
+    let map = expected_source_map(
+        &[dep_map_path.as_str(), main_map_path.as_str()],
+        SINGLE_FILE_SOURCE_MAP_MAPPINGS,
+    );
 
     // emit one exact bundled target
     let linked = test.link_single_file_js_target(main, "js");
@@ -155,7 +160,7 @@ export function renderShell(page: PageState) {
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.source_map_mode = None;
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -213,7 +218,7 @@ export function renderValue(registry: Registry, key: string) {
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.source_map_mode = None;
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -265,7 +270,7 @@ export function isBoxValue(value: unknown): value is BoxLabel<"alpha"> {
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.source_map_mode = None;
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -319,7 +324,7 @@ export function isBoxValue(value: unknown): value is BoxLabel<"alpha"> {
         target.emit = EmitFormat::Ts;
         target.out_file = Some(PathBuf::from("dist/types.ts"));
         target.source_map_mode = None;
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -352,6 +357,7 @@ export function isBoxValue(value: unknown): value is BoxLabel<"alpha"> {
             is_dynamic_entry: Some(false),
             imports: Vec::new(),
             dynamic_imports: Vec::new(),
+            stylesheets: Vec::new(),
         }]),
         map: None,
     };
@@ -375,7 +381,7 @@ export * from 'react';
     // report the external import in both the entry text and the manifest
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.dependencies.never_bundle = vec!["react".to_string()];
+        target.bundle_dependencies.never_bundle = vec!["react".to_string()];
     });
     let expected_manifest = expected_manifest(vec![
         expected_manifest_chunk("dist/js.js", "js")
@@ -425,7 +431,7 @@ export * from 'react';
         target.discovery = TargetDiscovery::Entry;
         target.entry = vec![PathBuf::from("main.ts")];
         target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle.dependencies.only_bundle = vec!["lodash".to_string()];
+        target.bundle_dependencies.only_bundle = vec!["lodash".to_string()];
     });
 
     let package_id = test.program.modules.get(main).package_id;
@@ -436,7 +442,43 @@ export * from 'react';
     test.check_exact_diagnostics(&[ExpectedDiagnostic {
         code: "EK101".to_string(),
         message:
-            "invalid target: js: bundle.dependencies.onlyBundle does not allow bundled dependency 'react'"
+            "invalid target: js: dependencies.onlyBundle does not allow bundled dependency 'react'"
+                .to_string(),
+    }]);
+}
+
+/// Reject bundled dynamic imports outside chunked assembly.
+#[test]
+fn test_rejects_bundled_dynamic_import_in_single_file_target() {
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    test.add_module(
+        "dependency.ts",
+        &js(r#"
+export const value = 1;
+"#),
+    );
+    let main = test.add_module(
+        "app.ts",
+        &js(r#"
+export const dependencyPromise = import("./dependency.ts");
+"#),
+    );
+
+    test.configure_target(main, "js", |target| {
+        target.discovery = TargetDiscovery::Entry;
+        target.entry = vec![PathBuf::from("app.ts")];
+        target.out_file = Some(PathBuf::from("dist/js.js"));
+    });
+
+    let package_id = test.program.modules.get(main).package_id;
+    let target_id = TargetId::new(package_id, "js");
+    test.run(ArtifactKey::package_output(package_id, target_id));
+
+    test.check_exact_diagnostics(&[ExpectedDiagnostic {
+        code: "EK101".to_string(),
+        message:
+            "invalid target: js: bundled dynamic import './dependency.ts' is not implemented yet"
                 .to_string(),
     }]);
 }
@@ -460,7 +502,7 @@ export const value = 1;
         target.discovery = TargetDiscovery::Entry;
         target.entry = vec![PathBuf::from("app.ts")];
         target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle.output.format = Some(BundleFormat::Cjs);
+        target.bundle_output.format = Some(BundleFormat::Cjs);
     });
 
     let package_id = test.program.modules.get(main).package_id;
@@ -470,8 +512,7 @@ export const value = 1;
     // report one exact linker diagnostic
     test.check_exact_diagnostics(&[ExpectedDiagnostic {
         code: "EK101".to_string(),
-        message: "invalid target: js: bundle.output.format 'cjs' is not implemented yet"
-            .to_string(),
+        message: "invalid target: js: output.format 'cjs' is not implemented yet".to_string(),
     }]);
 }
 
@@ -503,8 +544,8 @@ export const appValue = localValue;
     // emit one exact symbol minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.identifiers = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.identifiers = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -564,8 +605,8 @@ export const type = kind;
     // emit one exact syntax minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -617,8 +658,8 @@ export const appValue = { booleanValue, sequenceValue, comparisonValue };
     // emit one exact syntax minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -655,18 +696,17 @@ fn test_minifies_single_file_typeof_and_void_syntax() {
 const value = "text";
 const voidCheck = value == void 0;
 const typeCheck = typeof value === "string";
-const globalType = typeof undefined === "undefined";
 const nullType = typeof null === "object";
 
-export const appValue = { voidCheck, typeCheck, globalType, nullType };
+export const appValue = { voidCheck, typeCheck, nullType };
 "#),
     );
 
     // emit one exact syntax minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -675,8 +715,8 @@ export const appValue = { voidCheck, typeCheck, globalType, nullType };
             TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
         },
         entry: expected_linked_entry(
-            r#"const value = "text", voidCheck = value == null, typeCheck = typeof value == "string", globalType = !0, nullType = !0;
-export const appValue = { voidCheck, typeCheck, globalType, nullType };
+            r#"const value = "text", voidCheck = value == null, typeCheck = typeof value == "string", nullType = !0;
+export const appValue = { voidCheck, typeCheck, nullType };
 "#,
         ),
         manifest: expected_manifest(vec![
@@ -712,7 +752,7 @@ export const appValue = [infinityValue, nanValue, rootValue];
     // emit one exact bundled entry over the ambient ES library surface
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -757,7 +797,7 @@ export const values = [...base, 3];
     // emit one exact bundled entry with the spread literal intact
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -801,7 +841,7 @@ export const appValue = [head, tail];
     // emit one exact bundled entry with the destructuring pattern intact
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -850,7 +890,7 @@ export const appValue = first;
     // emit one exact bundled entry with the for in pattern intact
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.output.sourcemap = None;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -897,8 +937,8 @@ export const appValue = value["plain"] + value["void"];
     // emit one exact property minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -947,8 +987,8 @@ export const appValue = { chosen, member, index, call };
     // emit one exact syntax minified bundle with es2020 upgrades enabled
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.bundle_output.sourcemap = None;
         target.es_target = EsTarget::Es2020;
     });
 
@@ -1001,8 +1041,8 @@ export const appValue = { chosen, member, index, call };
     // emit one exact syntax minified bundle without es2020 upgrades
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.bundle_output.sourcemap = None;
         target.es_target = EsTarget::Es2019;
     });
     let expected = LinkedScriptTarget {
@@ -1048,11 +1088,10 @@ export const appValue = value["plain"] + value["void"];
     // emit one exact reserved-name aware syntax minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.bundle_output.sourcemap = None;
         target
-            .bundle
-            .output
+            .bundle_output
             .generated_code
             .get_or_insert_default()
             .reserved_names_as_props = Some(false);
@@ -1104,9 +1143,9 @@ export const appValue = [localValue, NamedClass];
     // emit one exact keep_names bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.identifiers = true;
-        target.bundle.minify.keep_names = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.identifiers = true;
+        target.minify.keep_names = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -1157,10 +1196,10 @@ export const appValue = [localFunction, returnFunction, localClass];
     // emit one exact full-minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.minify.identifiers = true;
-        target.bundle.minify.whitespace = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.minify.identifiers = true;
+        target.minify.whitespace = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -1206,11 +1245,11 @@ export const appValue = [localFunction, returnFunction, recursiveFunction, local
     // emit one exact full-minified keep-names bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.minify.identifiers = true;
-        target.bundle.minify.whitespace = true;
-        target.bundle.minify.keep_names = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.minify.identifiers = true;
+        target.minify.whitespace = true;
+        target.minify.keep_names = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -1260,10 +1299,10 @@ export const appValue = [first, second, [alpha, beta, gamma]];
     // emit one exact full-minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.minify.identifiers = true;
-        target.bundle.minify.whitespace = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.minify.identifiers = true;
+        target.minify.whitespace = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -1321,10 +1360,10 @@ export const appValue = values;
     // emit one exact full-minified bundle
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.syntax = true;
-        target.bundle.minify.identifiers = true;
-        target.bundle.minify.whitespace = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.syntax = true;
+        target.minify.identifiers = true;
+        target.minify.whitespace = true;
+        target.bundle_output.sourcemap = None;
     });
     let expected = LinkedScriptTarget {
         assembly: PackageAssembly::SingleFile,
@@ -1372,7 +1411,12 @@ export const appValue = commonValue;
     // preserve both input modules in the source map sidecar
     let dep_path = test.module_relative_path(dep);
     let main_path = test.module_relative_path(main);
-    let map = expected_source_map(&[&dep_path, &main_path], SINGLE_FILE_SOURCE_MAP_MAPPINGS);
+    let dep_map_path = format!("../{dep_path}");
+    let main_map_path = format!("../{main_path}");
+    let map = expected_source_map(
+        &[dep_map_path.as_str(), main_map_path.as_str()],
+        SINGLE_FILE_SOURCE_MAP_MAPPINGS,
+    );
 
     // emit one bundled entry plus one external map file
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
@@ -1425,12 +1469,17 @@ export const appValue = commonValue;
     // preserve both input modules in the hidden source map sidecar
     let dep_path = test.module_relative_path(dep);
     let main_path = test.module_relative_path(main);
-    let map = expected_source_map(&[&dep_path, &main_path], SINGLE_FILE_SOURCE_MAP_MAPPINGS);
+    let dep_map_path = format!("../{dep_path}");
+    let main_map_path = format!("../{main_path}");
+    let map = expected_source_map(
+        &[dep_map_path.as_str(), main_map_path.as_str()],
+        SINGLE_FILE_SOURCE_MAP_MAPPINGS,
+    );
 
     // emit the bundled entry without any source map comment
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.entry = vec![PathBuf::from("app.ts")];
-        target.bundle.output.sourcemap = Some(destack_workspace::SourceMapMode::Hidden);
+        target.bundle_output.sourcemap = Some(destack_workspace::SourceMapMode::Hidden);
     });
     let expected_manifest = expected_manifest(vec![
         expected_manifest_chunk("dist/js.js", "js")
@@ -1476,13 +1525,18 @@ export const appValue = commonValue;
     // build the inline source map payload from both input modules
     let dep_path = test.module_relative_path(dep);
     let main_path = test.module_relative_path(main);
-    let map = expected_source_map(&[&dep_path, &main_path], SINGLE_FILE_SOURCE_MAP_MAPPINGS);
+    let dep_map_path = format!("../{dep_path}");
+    let main_map_path = format!("../{main_path}");
+    let map = expected_source_map(
+        &[dep_map_path.as_str(), main_map_path.as_str()],
+        SINGLE_FILE_SOURCE_MAP_MAPPINGS,
+    );
     let inline_reference = expected_inline_source_map_reference(&map);
 
     // emit one entry file with one inline source map reference
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.entry = vec![PathBuf::from("app.ts")];
-        target.bundle.output.sourcemap = Some(destack_workspace::SourceMapMode::Inline);
+        target.bundle_output.sourcemap = Some(destack_workspace::SourceMapMode::Inline);
     });
     let expected_manifest = expected_manifest(vec![
         expected_manifest_chunk("dist/js.js", "js")
@@ -1537,16 +1591,18 @@ export const appValue = commonValue;
     // preserve both input modules in the external source map
     let dep_path = test.module_relative_path(dep);
     let main_path = test.module_relative_path(main);
+    let dep_map_path = format!("../{dep_path}");
+    let main_map_path = format!("../{main_path}");
     let map = expected_source_map(
-        &[&dep_path, &main_path],
+        &[dep_map_path.as_str(), main_map_path.as_str()],
         SINGLE_FILE_BANNER_FOOTER_SOURCE_MAP_MAPPINGS,
     );
 
     // emit the wrapped entry before the source map annotation
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         target.entry = vec![PathBuf::from("app.ts")];
-        target.bundle.output.banner = Some("/* banner */".to_string());
-        target.bundle.output.footer = Some("/* footer */".to_string());
+        target.bundle_output.banner = Some("/* banner */".to_string());
+        target.bundle_output.footer = Some("/* footer */".to_string());
     });
     let expected_manifest = expected_manifest(vec![
         expected_manifest_chunk("dist/js.js", "js")
@@ -1602,9 +1658,9 @@ export const appValue = {
     // emit one exact minified bundle without source maps
     let main_path = test.module_relative_path(main);
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
-        target.bundle.minify.enabled = true;
-        target.bundle.minify.identifiers = true;
-        target.bundle.output.sourcemap = None;
+        target.minify.enabled = true;
+        target.minify.identifiers = true;
+        target.bundle_output.sourcemap = None;
         target.es_target = EsTarget::Es2020;
     });
     let expected = LinkedScriptTarget {
@@ -1791,7 +1847,7 @@ export function* app() {
         &js_output(
             r#"
 export function* app() {
-    return yield* [1, 2];
+    yield* [1, 2];
 }
 "#,
         ),
@@ -1858,7 +1914,6 @@ export function app() {
     let expected = expected_linked_entry_with_source_map_reference(
         &js_output(
             r#"
-declare function cleanup();
 export function app() {
     try {
         cleanup();
@@ -1901,7 +1956,6 @@ export function app() {
     let expected = expected_linked_entry_with_source_map_reference(
         &js_output(
             r#"
-declare function cleanup();
 export function app() {
     try {
         cleanup();
@@ -1991,7 +2045,7 @@ export function construct() {
     test.assert_linked_script_entry(&linked, &expected);
 }
 
-/// Link imported CSS through one emitted stylesheet and one runtime wrapper value.
+/// Keep plain stylesheet imports out of emitted js output.
 #[test]
 fn test_links_single_file_css_imports() {
     let test = TestProgram::memory_sequential();
@@ -2007,43 +2061,32 @@ body {
     let main = test.add_module(
         "app.ts",
         &js(r#"
-import stylesheetUrl from "./styles.css";
 import "./styles.css";
 
-export const linkedStylesheetUrl = stylesheetUrl;
+export const panelState = "ready";
 "#),
     );
 
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         // stable exact output paths
         target.source_map_mode = None;
-        target.bundle.output.sourcemap = None;
-        target.bundle.output.asset_file_names = Some("[name].[ext]".to_string());
+        target.bundle_output.sourcemap = None;
+        target.bundle_output.asset_file_names = Some("[name].[ext]".to_string());
     });
     let package_id = test.program.modules.get(main).package_id;
     let output = test.package_output(package_id, "js");
     let main_path = test.module_relative_path(main);
     let styles_path = test.module_relative_path(styles);
-    let stylesheet_binding_name = format!("__destack_resource_{:08x}", styles.local_id);
-    let stylesheet_link_name = format!("__destack_stylesheet_link_{:08x}", styles.local_id);
-    let expected_entry = expected_linked_entry(&js_output(&format!(
+    let expected_entry = expected_linked_entry(&js_output(
         r#"
-const {stylesheet_binding_name} = "../styles.css";
-if(typeof document !== "undefined") {{
-    const {stylesheet_link_name} = document.createElement("link");
-    {stylesheet_link_name}.rel="stylesheet";
-    {stylesheet_link_name}.href={stylesheet_binding_name};
-    document.head.appendChild({stylesheet_link_name});
-}}
-
-const stylesheetUrl = {stylesheet_binding_name};
-export const linkedStylesheetUrl = stylesheetUrl;
+export const panelState = "ready";
 "#,
-    )));
+    ));
     let expected_manifest = expected_manifest(vec![
         expected_manifest_chunk("dist/js.js", "js")
             .input(&main_path)
             .entry()
+            .stylesheets(&["../styles.css"])
             .into(),
         BuildManifestFile {
             path: "styles.css".to_string(),
@@ -2055,6 +2098,88 @@ export const linkedStylesheetUrl = stylesheetUrl;
             is_dynamic_entry: Some(false),
             imports: Vec::new(),
             dynamic_imports: Vec::new(),
+            stylesheets: Vec::new(),
+        },
+    ]);
+
+    test.assert_linked_script_output_groups(
+        &linked,
+        &indexmap! {
+            TargetOutputName::Entry => vec!["dist/js.js".to_string()],
+            TargetOutputName::Assets => vec!["styles.css".to_string()],
+            TargetOutputName::Manifest => vec!["dist/js.manifest.json".to_string()],
+        },
+    );
+    test.assert_linked_script_entry(&linked, &expected_entry);
+    test.assert_linked_script_manifest(&linked, &expected_manifest);
+    test.assert_text_output_at_path(
+        package_id,
+        &output,
+        TargetOutputName::Assets,
+        &super::LinkedTextFile {
+            path: "styles.css".to_string(),
+            file_type: destack_source::FileType::Css,
+            text: "body{color:red}\n".to_string(),
+        },
+        "linked stylesheet asset",
+    );
+}
+
+/// Keep plain stylesheet imports side effect free on non-browser script runtimes.
+#[test]
+fn test_links_single_file_css_imports_without_document_injection_on_node() {
+    let test = TestProgram::memory_sequential();
+    test.add_package("test", None);
+    let styles = test.add_module(
+        "styles.css",
+        r#"
+body {
+  color: red;
+}
+"#,
+    );
+    let main = test.add_module(
+        "app.ts",
+        &js(r#"
+import "./styles.css";
+
+export const panelState = "ready";
+"#),
+    );
+
+    let linked = test.link_single_file_js_target_with(main, "js", |target| {
+        // stable exact output paths
+        target.runtime = Runtime::Node;
+        target.source_map_mode = None;
+        target.bundle_output.sourcemap = None;
+        target.bundle_output.asset_file_names = Some("[name].[ext]".to_string());
+    });
+    let package_id = test.program.modules.get(main).package_id;
+    let output = test.package_output(package_id, "js");
+    let main_path = test.module_relative_path(main);
+    let styles_path = test.module_relative_path(styles);
+    let expected_entry = expected_linked_entry(&js_output(
+        r#"
+export const panelState = "ready";
+"#,
+    ));
+    let expected_manifest = expected_manifest(vec![
+        expected_manifest_chunk("dist/js.js", "js")
+            .input(&main_path)
+            .entry()
+            .stylesheets(&["../styles.css"])
+            .into(),
+        BuildManifestFile {
+            path: "styles.css".to_string(),
+            r#type: BuildManifestFileType::Asset,
+            loader: BuildManifestLoader::Css,
+            name: None,
+            input: Some(styles_path),
+            is_entry: Some(true),
+            is_dynamic_entry: Some(false),
+            imports: Vec::new(),
+            dynamic_imports: Vec::new(),
+            stylesheets: Vec::new(),
         },
     ]);
 

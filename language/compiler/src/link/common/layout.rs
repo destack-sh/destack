@@ -2,6 +2,8 @@ use std::path::{Component, Path, PathBuf};
 
 use destack_workspace::{Module, Target};
 
+use super::{OutputFileNameTemplate, OutputFileNameValues};
+
 /// One resolved emitted output location.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct OutputLocation {
@@ -21,17 +23,17 @@ impl OutputLocation {
     }
 }
 
-/// One resolved output layout for one target.
+/// One target-scoped output location resolver.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct OutputLayout<'a> {
+pub(crate) struct TargetLocation<'a> {
     /// The package directory that anchors relative output paths.
     package_dir: &'a Path,
     /// The target whose outputs are being laid out.
     target: &'a Target,
 }
 
-impl<'a> OutputLayout<'a> {
-    /// Create one output layout for one package target.
+impl<'a> TargetLocation<'a> {
+    /// Create one output location resolver for one package target.
     pub(crate) fn new(package_dir: &'a Path, target: &'a Target) -> Self {
         Self {
             package_dir,
@@ -103,6 +105,28 @@ impl<'a> OutputLayout<'a> {
         self.import_output_specifier(from_output, to_output)
     }
 
+    /// Return one runtime-visible reference from one output file to another.
+    pub(crate) fn runtime_reference(
+        &self,
+        from_output: &OutputLocation,
+        to_output: &OutputLocation,
+    ) -> String {
+        if let Some(public_path) = self.target.bundle_output.public_path.as_deref() {
+            return join_public_output_path(public_path, &self.manifest_path(to_output));
+        }
+
+        self.output_reference(from_output, to_output)
+    }
+
+    /// Return one document-visible reference from one output file to another.
+    pub(crate) fn document_reference(
+        &self,
+        from_output: &OutputLocation,
+        to_output: &OutputLocation,
+    ) -> String {
+        self.runtime_reference(from_output, to_output)
+    }
+
     /// Resolve the absolute output directory for this target.
     pub(crate) fn output_directory(&self) -> PathBuf {
         self.target.resolve_out_dir(self.package_dir)
@@ -122,20 +146,15 @@ impl<'a> OutputLayout<'a> {
             .join(format!("{}.{}", self.target.name, extension))
     }
 
-    /// Render one configured output file name template.
-    pub(crate) fn render_output_file_name(
+    /// Render one configured output file name template with explicit token values.
+    pub(crate) fn render_output_file_name_with_values(
         &self,
         template: Option<&str>,
-        name: &str,
-        extension: &str,
+        values: OutputFileNameValues<'_>,
     ) -> String {
-        let extension_with_dot = format!(".{extension}");
-        let template = template.unwrap_or("[name].[ext]");
+        let template = OutputFileNameTemplate::new(template.unwrap_or("[name].[ext]"));
 
-        template
-            .replace("[name]", name)
-            .replace("[extname]", &extension_with_dot)
-            .replace("[ext]", extension)
+        template.render(values)
     }
 
     /// Return one output-relative path when the target output lives under the output directory.
@@ -152,7 +171,7 @@ impl<'a> OutputLayout<'a> {
         from_output: &OutputLocation,
         to_output: &OutputLocation,
     ) -> String {
-        let relative = self.relative_output_path_between(from_output.path(), to_output.path());
+        let relative = relative_output_path_between(from_output.path(), to_output.path());
         let relative = self.normalize_output_path(&relative);
 
         if relative.is_empty() {
@@ -166,58 +185,70 @@ impl<'a> OutputLayout<'a> {
         format!("./{relative}")
     }
 
-    /// Return one relative output path from one emitted file to another.
-    fn relative_output_path_between(
-        &self,
-        from_output_path: &Path,
-        to_output_path: &Path,
-    ) -> PathBuf {
-        let from_directory = from_output_path.parent().unwrap_or_else(|| Path::new(""));
-        let from_components = from_directory.components().collect::<Vec<_>>();
-        let to_components = to_output_path.components().collect::<Vec<_>>();
-        let mut shared = 0;
-
-        while shared < from_components.len()
-            && shared < to_components.len()
-            && from_components[shared] == to_components[shared]
-        {
-            shared += 1;
-        }
-
-        let mut relative_path = PathBuf::new();
-
-        for component in &from_components[shared..] {
-            if matches!(component, Component::Normal(_)) {
-                relative_path.push("..");
-            }
-        }
-
-        for component in &to_components[shared..] {
-            if let Component::Normal(segment) = component {
-                relative_path.push(segment);
-            }
-        }
-
-        relative_path
-    }
-
     /// Return one normalized output path string.
     fn normalize_output_path(&self, path: &Path) -> String {
         path.to_string_lossy().replace('\\', "/")
     }
 }
 
-/// Return one stable module path for output layout.
-pub(crate) fn module_output_base_path(module: &Module) -> PathBuf {
+/// Return one relative output path from one emitted file to another.
+fn relative_output_path_between(from_output_path: &Path, to_output_path: &Path) -> PathBuf {
+    let from_directory = from_output_path.parent().unwrap_or_else(|| Path::new(""));
+    let from_components = from_directory.components().collect::<Vec<_>>();
+    let to_components = to_output_path.components().collect::<Vec<_>>();
+    let mut shared = 0;
+
+    while shared < from_components.len()
+        && shared < to_components.len()
+        && from_components[shared] == to_components[shared]
+    {
+        shared += 1;
+    }
+
+    let mut relative_path = PathBuf::new();
+
+    for component in &from_components[shared..] {
+        if matches!(component, Component::Normal(_)) {
+            relative_path.push("..");
+        }
+    }
+
+    for component in &to_components[shared..] {
+        if let Component::Normal(segment) = component {
+            relative_path.push(segment);
+        }
+    }
+
+    relative_path
+}
+
+/// Join one emitted output path onto one configured public path prefix.
+fn join_public_output_path(public_path: &str, path: &str) -> String {
+    let public_path = public_path.trim_end_matches('/');
+    let path = path.trim_start_matches('/');
+
+    if public_path.is_empty() {
+        return path.to_string();
+    }
+
+    if path.is_empty() {
+        return public_path.to_string();
+    }
+
+    format!("{public_path}/{path}")
+}
+
+/// Return one stable source path for one module.
+pub(crate) fn module_source_path(module: &Module) -> Result<PathBuf, String> {
     if let Some(path) = &module.path {
-        return path.clone();
+        return Ok(path.clone());
     }
 
     if let Some(path) = module.uri.to_path_buf() {
-        return path;
+        return Ok(path);
     }
 
-    PathBuf::from("module.ds")
+    Err(format!("module '{}' has no stable source path", module.uri))
 }
 
 #[cfg(test)]
@@ -226,14 +257,14 @@ mod tests {
 
     use destack_workspace::Target;
 
-    use super::OutputLayout;
+    use super::TargetLocation;
 
     /// Render import references between emitted output files.
     #[test]
     fn test_render_output_reference_between_output_files() {
         let mut target = Target::html("site");
         target.out_dir = PathBuf::from("dist");
-        let layout = OutputLayout::new(Path::new("/workspace/pkg"), &target);
+        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target);
         let document_path =
             layout.output_location(Path::new("/workspace/pkg/dist/index.html").to_path_buf());
         let entry_path =

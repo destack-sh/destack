@@ -39,6 +39,9 @@ pub struct BuildManifestFile {
     /// Dynamically imported chunks or external specifiers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub dynamic_imports: Vec<String>,
+    /// Associated emitted stylesheets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stylesheets: Vec<String>,
 }
 
 /// One public build manifest file kind.

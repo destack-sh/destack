@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use crate::link::{ScriptOutputLayout, SourceMapBuilder, SourceMapMarker};
+use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use crate::{Compiler, CompilerContext};
 use base64::Engine as _;
 use destack_artifact::{
@@ -332,7 +332,7 @@ impl Compiler {
         package_dir: &Path,
         root_dir: Option<&Path>,
     ) -> Result<OutputFile, String> {
-        let output_path = ScriptOutputLayout::module_output_path(
+        let output_path = OutputLayout::module_output_path(
             package_dir,
             root_dir,
             target,
@@ -363,7 +363,7 @@ impl Compiler {
         let source_map_path = file_types
             .contains(&FileType::SourceMap)
             .then(|| {
-                ScriptOutputLayout::module_output_path(
+                OutputLayout::module_output_path(
                     package_dir,
                     root_dir,
                     target,
@@ -379,7 +379,7 @@ impl Compiler {
                 continue;
             }
 
-            let output_path = ScriptOutputLayout::module_output_path(
+            let output_path = OutputLayout::module_output_path(
                 package_dir,
                 root_dir,
                 target,

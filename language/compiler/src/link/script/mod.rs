@@ -1,19 +1,15 @@
-mod bundle;
-mod dependency;
-mod layout;
+mod asset;
+mod document;
 mod link;
 mod linker;
 mod manifest;
-mod map;
-mod module;
-mod output;
 mod plan;
-mod render;
-mod set;
+mod script;
+mod style;
+
 #[cfg(test)]
 mod tests;
 
-pub(crate) use layout::ScriptOutputLayout;
+pub(crate) use asset::AssetReference;
 pub(crate) use linker::ScriptLinker;
-pub(crate) use output::{ScriptOutputGraph, ScriptOutputId, ScriptOutputKind, ScriptOutputNode};
-pub(crate) use set::ScriptModuleSet;
+pub(crate) use plan::{ModuleSet, OutputGraph, OutputId, OutputLayout};
