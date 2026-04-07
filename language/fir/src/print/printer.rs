@@ -11,7 +11,7 @@ use crate::format::{
     tag,
 };
 use crate::print::call::{CallStack, FitsCallStack, PrintCallStack, PrintNodeArgs, StackFrame};
-use crate::print::line::{LinePostfixEntry, LinePostfixes};
+use crate::print::line::{LineSuffixEntry, LineSuffixes};
 use crate::print::mode::MeasureMode;
 use crate::print::queue::{
     AllPredicate, FitsEndPredicate, FitsQueue, PrintQueue, Queue, SingleEntryPredicate,
@@ -56,7 +56,7 @@ impl<'a> Printer<'a> {
         loop {
             if let Some(node) = queue.pop() {
                 self.print_node(&mut stack, &mut queue, node)?;
-            } else if !self.flush_line_postfixes(&mut queue, &mut stack, None) {
+            } else if !self.flush_line_suffixes(&mut queue, &mut stack, None) {
                 break;
             }
         }
@@ -116,8 +116,8 @@ impl<'a> Printer<'a> {
                     if line_mode == &LineMode::SoftOrSpace {
                         self.print_text(Text::Token(" "));
                     }
-                } else if self.state.line_postfixes.has_pending() {
-                    self.flush_line_postfixes(queue, stack, Some(node));
+                } else if self.state.line_suffixes.has_pending() {
+                    self.flush_line_suffixes(queue, stack, Some(node));
                 } else {
                     // only print a newline if the current line isn't already empty
                     if self.state.buffer.len() > self.state.line_start {
@@ -139,9 +139,9 @@ impl<'a> Printer<'a> {
                 // handled in `Document::propagate_expands()
             }
 
-            FormatNode::LinePostfixBoundary => {
+            FormatNode::LineSuffixBoundary => {
                 const HARD_BREAK: &FormatNode = &FormatNode::Line(LineMode::Hard);
-                self.flush_line_postfixes(queue, stack, Some(HARD_BREAK));
+                self.flush_line_suffixes(queue, stack, Some(HARD_BREAK));
             }
 
             FormatNode::BestFitting { variants, mode } => {
@@ -316,11 +316,10 @@ impl<'a> Printer<'a> {
                 stack.push(FormatTagKind::IndentIfGroupBreaks, args);
             }
 
-            FormatNode::Tag(StartLinePostfix { reserved_width }) => {
-                self.state.line_width += reserved_width;
+            FormatNode::Tag(StartLineSuffix) => {
                 self.state
-                    .line_postfixes
-                    .extend(args, queue.iter_content(FormatTagKind::LinePostfix));
+                    .line_suffixes
+                    .extend(args, queue.iter_content(FormatTagKind::LineSuffix));
             }
 
             FormatNode::Tag(StartVerbatim(kind)) => {
@@ -372,7 +371,7 @@ impl<'a> Printer<'a> {
                 | EndIndentIfGroupBreaks
                 | EndFitsExpanded
                 | EndVerbatim
-                | EndLinePostfix
+                | EndLineSuffix
                 | EndFill),
             ) => {
                 stack.pop(tag.kind())?;
@@ -551,13 +550,13 @@ impl<'a> Printer<'a> {
         }
     }
 
-    fn flush_line_postfixes(
+    fn flush_line_suffixes(
         &mut self,
         queue: &mut PrintQueue<'a>,
         stack: &mut PrintCallStack,
         line_break: Option<&'a FormatNode>,
     ) -> bool {
-        let suffixes = self.state.line_postfixes.take_pending();
+        let suffixes = self.state.line_suffixes.take_pending();
 
         if suffixes.len() > 0 {
             // print this line break node again once all the line suffixes have been flushed
@@ -567,16 +566,16 @@ impl<'a> Printer<'a> {
 
             for entry in suffixes.rev() {
                 match entry {
-                    LinePostfixEntry::Suffix(suffix) => {
+                    LineSuffixEntry::Suffix(suffix) => {
                         queue.push(suffix);
                     }
-                    LinePostfixEntry::Args(args) => {
-                        const LINE_POSTFIX_END: &FormatNode =
-                            &FormatNode::Tag(FormatTag::EndLinePostfix);
+                    LineSuffixEntry::Args(args) => {
+                        const LINE_SUFFIX_END: &FormatNode =
+                            &FormatNode::Tag(FormatTag::EndLineSuffix);
 
-                        stack.push(FormatTagKind::LinePostfix, args);
+                        stack.push(FormatTagKind::LineSuffix, args);
 
-                        queue.push(LINE_POSTFIX_END);
+                        queue.push(LINE_SUFFIX_END);
                     }
                 }
             }
@@ -998,7 +997,7 @@ struct PrinterState<'a> {
     line_width: u32,
 
     /// The line suffixes that should be printed at the end of the line.
-    line_postfixes: LinePostfixes<'a>,
+    line_suffixes: LineSuffixes<'a>,
     verbatim_markers: Vec<Span>,
     group_modes: GroupModes,
     // Reused queue to measure if a group fits. Optimisation to avoid re-allocating a new
@@ -1083,7 +1082,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
         let fits_state = FitsState {
             pending_indent: printer.state.pending_indent,
             line_width: printer.state.line_width,
-            has_line_postfix: printer.state.line_postfixes.has_pending(),
+            has_line_suffix: printer.state.line_suffixes.has_pending(),
         };
 
         Self {
@@ -1232,8 +1231,8 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                     args,
                 ));
             }
-            FormatNode::LinePostfixBoundary => {
-                if self.state.has_line_postfix {
+            FormatNode::LineSuffixBoundary => {
+                if self.state.has_line_suffix {
                     return Ok(Fits::No);
                 }
             }
@@ -1368,19 +1367,13 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                 }
             }
 
-            FormatNode::Tag(StartLinePostfix { reserved_width }) => {
-                if *reserved_width > 0 {
-                    self.state.line_width += reserved_width;
-                    if self.state.line_width > self.options().line_width.into() {
-                        return Ok(Fits::No);
-                    }
-                }
-                self.queue.skip_content(FormatTagKind::LinePostfix);
-                self.state.has_line_postfix = true;
+            FormatNode::Tag(StartLineSuffix) => {
+                self.queue.skip_content(FormatTagKind::LineSuffix);
+                self.state.has_line_suffix = true;
             }
 
-            FormatNode::Tag(EndLinePostfix) => {
-                return invalid_end_tag(FormatTagKind::LinePostfix, self.stack.top_kind());
+            FormatNode::Tag(EndLineSuffix) => {
+                return invalid_end_tag(FormatTagKind::LineSuffix, self.stack.top_kind());
             }
 
             FormatNode::Tag(StartFitsExpanded(tag::FitsExpanded {
@@ -1698,7 +1691,7 @@ fn push_tabs(buffer: &mut String, count: usize) {
 #[derive(Debug)]
 struct FitsState {
     pending_indent: Indentation,
-    has_line_postfix: bool,
+    has_line_suffix: bool,
     line_width: u32,
 }
 
@@ -2047,7 +2040,7 @@ two lines`,
 
     /// Line suffixes should appear at the end of their line.
     #[test]
-    fn test_line_postfix_printed_at_end() {
+    fn test_line_suffix_printed_at_end() {
         let printed = format(&format_args![
             group(&format_args![
                 token("["),
@@ -2070,52 +2063,10 @@ two lines`,
                 token("]")
             ]),
             token(";"),
-            line_postfix(&format_args![space(), token("// trailing")], 0)
+            line_suffix(&format_args![space(), token("// trailing")])
         ]);
 
         assert_eq!(printed.as_str(), "[1, 2, 3]; // trailing");
-    }
-
-    /// Line suffixes with reserved width should affect line breaking.
-    #[test]
-    fn test_line_postfix_with_reserved_width() {
-        let printed = format(&format_args![
-            group(&format_args![
-                token("["),
-                soft_block_indent(&format_with(|f| {
-                    f.fill()
-                        .entry(
-                            &soft_line_break_or_space(),
-                            &format_args!(token("1"), token(",")),
-                        )
-                        .entry(
-                            &soft_line_break_or_space(),
-                            &format_args!(token("2"), token(",")),
-                        )
-                        .entry(
-                            &soft_line_break_or_space(),
-                            &format_args!(token("3"), if_group_breaks(&token(","))),
-                        )
-                        .finish()
-                })),
-                token("]")
-            ]),
-            token(";"),
-            line_postfix(
-                &format_args![
-                    space(),
-                    token(
-                        "// Using reserved width causes this content to not fit even though it's a line suffix node"
-                    )
-                ],
-                93
-            )
-        ]);
-
-        assert_eq!(
-            printed.as_str(),
-            "[\n    1, 2, 3\n]; // Using reserved width causes this content to not fit even though it's a line suffix node"
-        );
     }
 
     /// Conditional formatting should work correctly with group IDs.
